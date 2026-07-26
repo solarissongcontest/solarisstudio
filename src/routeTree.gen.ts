@@ -9,38 +9,205 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RecordsIndexRouteImport } from './routes/records/index'
+import { Route as EditionsIndexRouteImport } from './routes/editions/index'
+import { Route as CountriesIndexRouteImport } from './routes/countries/index'
+import { Route as AuthIndexRouteImport } from './routes/auth/index'
+import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
+import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
+import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
+import { Route as BroadcastSlugRouteImport } from './routes/broadcast/$slug'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminSlugRouteImport } from './routes/_authenticated/admin/$slug'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecordsIndexRoute = RecordsIndexRouteImport.update({
+  id: '/records/',
+  path: '/records/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditionsIndexRoute = EditionsIndexRouteImport.update({
+  id: '/editions/',
+  path: '/editions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CountriesIndexRoute = CountriesIndexRouteImport.update({
+  id: '/countries/',
+  path: '/countries/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/auth/',
+  path: '/auth/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalysisIndexRoute = AnalysisIndexRouteImport.update({
+  id: '/analysis/',
+  path: '/analysis/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditionsSlugRoute = EditionsSlugRouteImport.update({
+  id: '/editions/$slug',
+  path: '/editions/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CountriesCodeRoute = CountriesCodeRouteImport.update({
+  id: '/countries/$code',
+  path: '/countries/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BroadcastSlugRoute = BroadcastSlugRouteImport.update({
+  id: '/broadcast/$slug',
+  path: '/broadcast/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminSlugRoute = AuthenticatedAdminSlugRouteImport.update({
+  id: '/admin/$slug',
+  path: '/admin/$slug',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/broadcast/$slug': typeof BroadcastSlugRoute
+  '/countries/$code': typeof CountriesCodeRoute
+  '/editions/$slug': typeof EditionsSlugRoute
+  '/analysis/': typeof AnalysisIndexRoute
+  '/auth/': typeof AuthIndexRoute
+  '/countries/': typeof CountriesIndexRoute
+  '/editions/': typeof EditionsIndexRoute
+  '/records/': typeof RecordsIndexRoute
+  '/admin/$slug': typeof AuthenticatedAdminSlugRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/broadcast/$slug': typeof BroadcastSlugRoute
+  '/countries/$code': typeof CountriesCodeRoute
+  '/editions/$slug': typeof EditionsSlugRoute
+  '/analysis': typeof AnalysisIndexRoute
+  '/auth': typeof AuthIndexRoute
+  '/countries': typeof CountriesIndexRoute
+  '/editions': typeof EditionsIndexRoute
+  '/records': typeof RecordsIndexRoute
+  '/admin/$slug': typeof AuthenticatedAdminSlugRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/broadcast/$slug': typeof BroadcastSlugRoute
+  '/countries/$code': typeof CountriesCodeRoute
+  '/editions/$slug': typeof EditionsSlugRoute
+  '/analysis/': typeof AnalysisIndexRoute
+  '/auth/': typeof AuthIndexRoute
+  '/countries/': typeof CountriesIndexRoute
+  '/editions/': typeof EditionsIndexRoute
+  '/records/': typeof RecordsIndexRoute
+  '/_authenticated/admin/$slug': typeof AuthenticatedAdminSlugRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/sitemap.xml'
+    | '/broadcast/$slug'
+    | '/countries/$code'
+    | '/editions/$slug'
+    | '/analysis/'
+    | '/auth/'
+    | '/countries/'
+    | '/editions/'
+    | '/records/'
+    | '/admin/$slug'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/sitemap.xml'
+    | '/broadcast/$slug'
+    | '/countries/$code'
+    | '/editions/$slug'
+    | '/analysis'
+    | '/auth'
+    | '/countries'
+    | '/editions'
+    | '/records'
+    | '/admin/$slug'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/sitemap.xml'
+    | '/broadcast/$slug'
+    | '/countries/$code'
+    | '/editions/$slug'
+    | '/analysis/'
+    | '/auth/'
+    | '/countries/'
+    | '/editions/'
+    | '/records/'
+    | '/_authenticated/admin/$slug'
+    | '/_authenticated/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  BroadcastSlugRoute: typeof BroadcastSlugRoute
+  CountriesCodeRoute: typeof CountriesCodeRoute
+  EditionsSlugRoute: typeof EditionsSlugRoute
+  AnalysisIndexRoute: typeof AnalysisIndexRoute
+  AuthIndexRoute: typeof AuthIndexRoute
+  CountriesIndexRoute: typeof CountriesIndexRoute
+  EditionsIndexRoute: typeof EditionsIndexRoute
+  RecordsIndexRoute: typeof RecordsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +215,105 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/records/': {
+      id: '/records/'
+      path: '/records'
+      fullPath: '/records/'
+      preLoaderRoute: typeof RecordsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editions/': {
+      id: '/editions/'
+      path: '/editions'
+      fullPath: '/editions/'
+      preLoaderRoute: typeof EditionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/countries/': {
+      id: '/countries/'
+      path: '/countries'
+      fullPath: '/countries/'
+      preLoaderRoute: typeof CountriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/': {
+      id: '/auth/'
+      path: '/auth'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analysis/': {
+      id: '/analysis/'
+      path: '/analysis'
+      fullPath: '/analysis/'
+      preLoaderRoute: typeof AnalysisIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editions/$slug': {
+      id: '/editions/$slug'
+      path: '/editions/$slug'
+      fullPath: '/editions/$slug'
+      preLoaderRoute: typeof EditionsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/countries/$code': {
+      id: '/countries/$code'
+      path: '/countries/$code'
+      fullPath: '/countries/$code'
+      preLoaderRoute: typeof CountriesCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/broadcast/$slug': {
+      id: '/broadcast/$slug'
+      path: '/broadcast/$slug'
+      fullPath: '/broadcast/$slug'
+      preLoaderRoute: typeof BroadcastSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/$slug': {
+      id: '/_authenticated/admin/$slug'
+      path: '/admin/$slug'
+      fullPath: '/admin/$slug'
+      preLoaderRoute: typeof AuthenticatedAdminSlugRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminSlugRoute: typeof AuthenticatedAdminSlugRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminSlugRoute: AuthenticatedAdminSlugRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  BroadcastSlugRoute: BroadcastSlugRoute,
+  CountriesCodeRoute: CountriesCodeRoute,
+  EditionsSlugRoute: EditionsSlugRoute,
+  AnalysisIndexRoute: AnalysisIndexRoute,
+  AuthIndexRoute: AuthIndexRoute,
+  CountriesIndexRoute: CountriesIndexRoute,
+  EditionsIndexRoute: EditionsIndexRoute,
+  RecordsIndexRoute: RecordsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
