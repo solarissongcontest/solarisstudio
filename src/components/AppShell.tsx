@@ -58,10 +58,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
             {email ? (
-              <span className="ml-2 hidden rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground sm:inline">
-                {email}
+              <span className="ml-2 hidden items-center gap-2 sm:inline-flex">
+                <span className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground">
+                  {email}
+                </span>
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.href = "/";
+                  }}
+                  className="rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Sign out
+                </button>
               </span>
             ) : (
+
               <Link
                 to="/auth"
                 className="bg-aurora ml-2 rounded-lg px-3 py-1.5 text-sm font-medium text-primary-foreground"
