@@ -342,14 +342,17 @@ function BroadcastPage() {
                     <FlagChip code={teleCountry.short_code} color={teleCountry.accent_color} size="xl" />
                     <h2 className="font-display text-3xl font-bold">{teleCountry.name}</h2>
                   </div>
-                  <motion.p
+                  <motion.div
                     initial={{ scale: 0.3, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 240, damping: 14, delay: 0.25 }}
-                    className="numeric text-gold-grad mt-8 font-display text-7xl font-bold"
+                    className="mt-8"
                   >
-                    {current.points}
-                  </motion.p>
+                    <span className="numeric text-gold-grad font-display text-7xl font-bold">
+                      {current.points}
+                    </span>
+                  </motion.div>
+
                   <p className="mt-2 text-sm text-muted-foreground">points from the Terra Solaris public</p>
                 </motion.div>
               )}
