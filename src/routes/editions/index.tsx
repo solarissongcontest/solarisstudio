@@ -44,7 +44,7 @@ function EditionsPage() {
                     {e.host_city ? ` · ${e.host_city}` : ""}
                   </p>
                 </div>
-                {host && <FlagChip code={host.short_code} color={host.accent_color} size="lg" />}
+                {host && <FlagChip code={host.short_code} color={host.accent_color} image={host.flag_image} size="lg" />}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted-foreground">

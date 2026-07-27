@@ -78,7 +78,7 @@ function CountryProfilePage() {
         eyebrow={country.region}
         title={country.name}
         description={country.description ?? undefined}
-        actions={<FlagChip code={country.short_code} color={country.accent_color} size="xl" />}
+        actions={<FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="xl" />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -123,7 +123,7 @@ function CountryProfilePage() {
               if (!from) return null;
               return (
                 <li key={i} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
-                  <FlagChip code={from.short_code} color={from.accent_color} size="sm" />
+                  <FlagChip code={from.short_code} color={from.accent_color} image={from.flag_image} size="sm" />
                   <span className="flex-1 text-sm">{from.name}</span>
                   <span className="numeric text-sm font-semibold">{v.points}</span>
                 </li>
@@ -145,7 +145,7 @@ function CountryProfilePage() {
           <ul className="space-y-2">
             {rivals.map(({ c, given }) => (
               <li key={c.id} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
-                <FlagChip code={c.short_code} color={c.accent_color} size="sm" />
+                <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="sm" />
                 <span className="flex-1 text-sm">{c.name}</span>
                 <span className="numeric text-sm text-muted-foreground">{given} pts given</span>
               </li>
@@ -162,7 +162,11 @@ function RelationList({
   cMap,
 }: {
   rows: [string, number][];
-  cMap: Map<string, { short_code: string; name: string; accent_color: string }>;
+  cMap: Map<
+    string,
+    { short_code: string; name: string; accent_color: string; flag_image?: string | null }
+  >;
+
 }) {
   if (!rows.length) return <p className="text-sm text-muted-foreground">No data yet.</p>;
   const max = rows[0][1] || 1;
@@ -178,7 +182,7 @@ function RelationList({
               style={{ width: `${(pts / max) * 100}%`, background: c.accent_color }}
             />
             <span className="relative flex items-center gap-3">
-              <FlagChip code={c.short_code} color={c.accent_color} size="sm" />
+              <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="sm" />
               <span className="flex-1 text-sm">{c.name}</span>
               <span className="numeric text-sm font-semibold">{pts}</span>
             </span>

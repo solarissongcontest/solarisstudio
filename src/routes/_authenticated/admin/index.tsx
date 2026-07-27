@@ -59,6 +59,27 @@ function AdminHome() {
     }
   };
 
+  const togglePublished = async (ed: Edition) => {
+    setMsg(null);
+    const { error } = await supabase
+      .from("editions")
+      .update({ published: !ed.published })
+      .eq("id", ed.id);
+    if (error) setMsg(error.message);
+    qc.invalidateQueries({ queryKey: ["editions"] });
+    qc.invalidateQueries({ queryKey: ["edition"] });
+  };
+
+  const removeEdition = async (ed: Edition) => {
+    if (!window.confirm(`Delete “${ed.name}” and all of its shows, votes and results?`)) return;
+    setMsg(null);
+    const { error } = await supabase.from("editions").delete().eq("id", ed.id);
+    if (error) setMsg(error.message);
+    else setMsg(`Deleted ${ed.name}.`);
+    qc.invalidateQueries({ queryKey: ["editions"] });
+  };
+
+
   return (
     <AppShell>
       <PageHeader
@@ -95,16 +116,23 @@ function AdminHome() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Panel title="Editions" description="Open an edition to manage its participants and votes">
+        <Panel title="Editions" description="Open an edition to manage its sub-events, participants and votes">
           <ul className="space-y-2">
             {(editions ?? []).map((ed: Edition) => (
               <li key={ed.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-surface px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{ed.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {ed.year} · {ed.host_city ?? "Host TBC"} · {ed.status}
+                    {ed.year} · {ed.host_city ?? "Host TBC"} · {ed.status} ·{" "}
+                    {ed.published ? "public" : "private"}
                   </p>
                 </div>
+                <button
+                  onClick={() => togglePublished(ed)}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                >
+                  {ed.published ? "Make private" : "Publish"}
+                </button>
                 <Link
                   to="/admin/$slug"
                   params={{ slug: ed.slug }}
@@ -119,10 +147,17 @@ function AdminHome() {
                 >
                   Broadcast
                 </Link>
+                <button
+                  onClick={() => removeEdition(ed)}
+                  className="rounded-lg border border-destructive/50 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+                >
+                  Delete
+                </button>
               </li>
             ))}
           </ul>
         </Panel>
+
 
         <Panel title="New edition" description="Draft a new Solaris Song Contest">
           <form onSubmit={createEdition} className="space-y-3">

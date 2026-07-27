@@ -125,6 +125,7 @@ function BroadcastPage() {
         juryApplied.map((s, i) => ({
           id: String(i),
           edition_id: "",
+          show_id: null,
           voter_country_id: s.voter,
           receiving_country_id: s.receiver,
           points: s.points,
@@ -132,9 +133,11 @@ function BroadcastPage() {
         teleApplied.map((s, i) => ({
           id: String(i),
           edition_id: "",
+          show_id: null,
           country_id: s.country,
           points: s.points,
         })),
+
       ),
     [order, juryApplied, teleApplied],
   );
@@ -269,7 +272,7 @@ function BroadcastPage() {
                 >
                   <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Jury of</p>
                   <div className="mt-4 flex flex-col items-center gap-3">
-                    <FlagChip code={voterCountry.short_code} color={voterCountry.accent_color} size="xl" />
+                    <FlagChip code={voterCountry.short_code} color={voterCountry.accent_color} image={voterCountry.flag_image} size="xl" />
                     <h2 className="font-display text-3xl font-bold">{voterCountry.name}</h2>
                     <p className="text-xs text-muted-foreground">
                       Spokesperson · live from {voterCountry.name}
@@ -339,7 +342,7 @@ function BroadcastPage() {
                     Televote result
                   </p>
                   <div className="mt-5 flex flex-col items-center gap-3">
-                    <FlagChip code={teleCountry.short_code} color={teleCountry.accent_color} size="xl" />
+                    <FlagChip code={teleCountry.short_code} color={teleCountry.accent_color} image={teleCountry.flag_image} size="xl" />
                     <h2 className="font-display text-3xl font-bold">{teleCountry.name}</h2>
                   </div>
                   <motion.div
@@ -368,7 +371,7 @@ function BroadcastPage() {
                     The winner of the {edition?.name}
                   </p>
                   <div className="mt-6 flex flex-col items-center gap-4">
-                    <FlagChip code={winner.short_code} color={winner.accent_color} size="xl" className="scale-125" />
+                    <FlagChip code={winner.short_code} color={winner.accent_color} image={winner.flag_image} size="xl" className="scale-125" />
                     <h2 className="text-gold-grad font-display text-5xl font-bold">{winner.name}</h2>
                     <p className="numeric text-2xl font-semibold">{standings[0].total} points</p>
                   </div>

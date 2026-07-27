@@ -113,7 +113,7 @@ function AnalysisPage() {
                     const c = cMap.get(id)!;
                     return (
                       <span key={id} className="flex items-center gap-2 rounded-lg bg-background/50 px-2 py-1 text-xs">
-                        <FlagChip code={c.short_code} color={c.accent_color} size="sm" />
+                        <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="sm" />
                         {c.name}
                       </span>
                     );
@@ -132,7 +132,7 @@ function AnalysisPage() {
               if (!c) return null;
               return (
                 <li key={b.id} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
-                  <FlagChip code={c.short_code} color={c.accent_color} size="sm" />
+                  <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="sm" />
                   <span className="flex-1 text-sm">{c.name}</span>
                   <span className="numeric text-sm font-semibold">{(b.share * 100).toFixed(0)}%</span>
                 </li>
@@ -145,9 +145,9 @@ function AnalysisPage() {
           <div className="scroll-slim max-h-[320px] space-y-1.5 overflow-y-auto pr-1">
             {twelves.map((t, i) => (
               <div key={i} className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm">
-                <FlagChip code={t.from!.short_code} color={t.from!.accent_color} size="sm" />
+                <FlagChip code={t.from!.short_code} color={t.from!.accent_color} image={t.from!.flag_image} size="sm" />
                 <span className="text-muted-foreground">gives 12 to</span>
-                <FlagChip code={t.to!.short_code} color={t.to!.accent_color} size="sm" />
+                <FlagChip code={t.to!.short_code} color={t.to!.accent_color} image={t.to!.flag_image} size="sm" />
                 <span className="flex-1 truncate">{t.to!.name}</span>
               </div>
             ))}

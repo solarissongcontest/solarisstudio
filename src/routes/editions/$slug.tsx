@@ -143,7 +143,7 @@ function EditionPage() {
                 return (
                   <li key={p.id} className="flex items-center gap-3 py-3">
                     <span className="numeric w-7 text-muted-foreground">{p.running_order}</span>
-                    <FlagChip code={c.short_code} color={c.accent_color} />
+                    <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} />
                     <span className="min-w-0 flex-1">
                       <Link
                         to="/countries/$code"
