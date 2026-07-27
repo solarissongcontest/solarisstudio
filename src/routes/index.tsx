@@ -134,7 +134,7 @@ function Home() {
                   params={{ code: c.short_code }}
                   className="flex items-center gap-2 rounded-xl bg-surface px-2 py-1.5 text-xs transition-colors hover:bg-surface-strong"
                 >
-                  <FlagChip code={c.short_code} color={c.accent_color} size="sm" />
+                  <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="sm" />
                   {c.name}
                 </Link>
               ))}

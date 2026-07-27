@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type Country = {
   id: string;
   name: string;
+  native_name: string | null;
   short_code: string;
   flag_image: string | null;
   region: string;
@@ -22,12 +23,25 @@ export type Edition = {
   logo: string | null;
   theme_colors: Record<string, string> | null;
   status: string;
+  published: boolean;
   jury_weight: number;
 };
+
+export type Show = {
+  id: string;
+  edition_id: string;
+  name: string;
+  kind: string;
+  sort_order: number;
+  published: boolean;
+};
+
+export const SHOW_KINDS = ["semi-final", "grand-final", "other"] as const;
 
 export type Participant = {
   id: string;
   edition_id: string;
+  show_id: string | null;
   country_id: string;
   artist: string;
   song: string;
@@ -38,6 +52,7 @@ export type Participant = {
 export type JuryVote = {
   id: string;
   edition_id: string;
+  show_id: string | null;
   voter_country_id: string;
   receiving_country_id: string;
   points: number;
@@ -46,6 +61,7 @@ export type JuryVote = {
 export type Televote = {
   id: string;
   edition_id: string;
+  show_id: string | null;
   country_id: string;
   points: number;
 };
@@ -53,12 +69,14 @@ export type Televote = {
 export type ResultRow = {
   id: string;
   edition_id: string;
+  show_id: string | null;
   country_id: string;
   jury_points: number;
   televote_points: number;
   total_points: number;
   final_rank: number | null;
 };
+
 
 export const POINT_SET = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12];
 
@@ -98,6 +116,16 @@ export function useEdition(slug: string) {
     },
   });
 }
+
+export function useShows(editionId?: string) {
+  return useQuery({
+    enabled: !!editionId,
+    queryKey: ["shows", editionId],
+    queryFn: () =>
+      all<Show>("shows", (q) => q.eq("edition_id", editionId).order("sort_order")),
+  });
+}
+
 
 export function useParticipants(editionId?: string) {
   return useQuery({

@@ -49,7 +49,7 @@ export function Scoreboard({
             >
               {row.rank}
             </span>
-            <FlagChip code={c.short_code} color={c.accent_color} size={compact ? "sm" : "md"} />
+            <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size={compact ? "sm" : "md"} />
             <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
 
             {showSplit && !compact && (

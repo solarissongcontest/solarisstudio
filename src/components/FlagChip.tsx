@@ -3,11 +3,13 @@ import { cn } from "@/lib/utils";
 export function FlagChip({
   code,
   color,
+  image,
   size = "md",
   className,
 }: {
   code: string;
   color: string;
+  image?: string | null;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
@@ -17,6 +19,26 @@ export function FlagChip({
     lg: "h-12 w-18 text-sm",
     xl: "h-24 w-36 text-2xl",
   }[size];
+
+  if (image) {
+    return (
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface shadow-lg",
+          dims,
+          className,
+        )}
+        style={{ boxShadow: `0 6px 22px -8px ${color}` }}
+      >
+        <img
+          src={image}
+          alt={`Flag of ${code}`}
+          loading="lazy"
+          className="h-full w-full object-cover"
+        />
+      </span>
+    );
+  }
 
   return (
     <span
@@ -35,3 +57,4 @@ export function FlagChip({
     </span>
   );
 }
+

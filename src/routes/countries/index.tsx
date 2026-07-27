@@ -52,7 +52,7 @@ function CountriesPage() {
                       params={{ code: c.short_code }}
                       className="glass flex gap-4 p-4 transition-transform hover:-translate-y-0.5"
                     >
-                      <FlagChip code={c.short_code} color={c.accent_color} size="lg" />
+                      <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="lg" />
                       <div className="min-w-0">
                         <h3 className="font-display font-semibold">{c.name}</h3>
                         <p className="line-clamp-2 text-xs text-muted-foreground">{c.description}</p>
