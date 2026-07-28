@@ -1,4 +1,5 @@
 import type { Country, JuryVote, ResultRow, Televote } from "./data";
+import type { VotingConfig } from "./voting";
 
 export type Standing = {
   countryId: string;
@@ -6,45 +7,73 @@ export type Standing = {
   televote: number;
   total: number;
   rank: number;
+  topPoints: number;
 };
 
-/** Compute standings from raw votes (used live during broadcast + previews). */
+/**
+ * Compute standings for one show from raw votes, honouring the show's
+ * voting configuration (weighting + tie-break chain).
+ */
 export function computeStandings(
   countryIds: string[],
   jury: JuryVote[],
   tele: Televote[],
+  cfg?: VotingConfig,
+  runningOrder?: Map<string, number>,
 ): Standing[] {
   const j = new Map<string, number>();
   const t = new Map<string, number>();
+  const twelves = new Map<string, number>();
   countryIds.forEach((id) => {
     j.set(id, 0);
     t.set(id, 0);
+    twelves.set(id, 0);
   });
-  jury.forEach((v) => j.set(v.receiving_country_id, (j.get(v.receiving_country_id) ?? 0) + v.points));
+  const top = cfg?.juryPoints?.[0] ?? 12;
+  jury.forEach((v) => {
+    j.set(v.receiving_country_id, (j.get(v.receiving_country_id) ?? 0) + v.points);
+    if (v.points === top)
+      twelves.set(v.receiving_country_id, (twelves.get(v.receiving_country_id) ?? 0) + 1);
+  });
   tele.forEach((v) => t.set(v.country_id, (t.get(v.country_id) ?? 0) + v.points));
 
-  const rows = countryIds.map((id) => ({
-    countryId: id,
-    jury: j.get(id) ?? 0,
-    televote: t.get(id) ?? 0,
-    total: (j.get(id) ?? 0) + (t.get(id) ?? 0),
-    rank: 0,
-  }));
-  rows.sort((a, b) => b.total - a.total || b.televote - a.televote || b.jury - a.jury);
+  const wj = (cfg?.weighting.jury ?? 50) / 50;
+  const wt = (cfg?.weighting.televote ?? 50) / 50;
+  const even = !cfg || (cfg.weighting.jury === 50 && cfg.weighting.televote === 50);
+
+  const rows: Standing[] = countryIds.map((id) => {
+    const jp = j.get(id) ?? 0;
+    const tp = t.get(id) ?? 0;
+    return {
+      countryId: id,
+      jury: jp,
+      televote: tp,
+      total: even ? jp + tp : Math.round(jp * wj + tp * wt),
+      rank: 0,
+      topPoints: twelves.get(id) ?? 0,
+    };
+  });
+
+  const chain = cfg?.tieBreak ?? ["televote", "twelves", "jury"];
+  rows.sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    for (const rule of chain) {
+      if (rule === "televote" && b.televote !== a.televote) return b.televote - a.televote;
+      if (rule === "jury" && b.jury !== a.jury) return b.jury - a.jury;
+      if (rule === "twelves" && b.topPoints !== a.topPoints) return b.topPoints - a.topPoints;
+      if (rule === "countback" && b.topPoints !== a.topPoints) return b.topPoints - a.topPoints;
+      if (rule === "runningOrder" && runningOrder) {
+        const ra = runningOrder.get(a.countryId) ?? 999;
+        const rb = runningOrder.get(b.countryId) ?? 999;
+        if (ra !== rb) return rb - ra;
+      }
+    }
+    return 0;
+  });
   rows.forEach((r, i) => (r.rank = i + 1));
   return rows;
 }
 
-export function applyWeighting(rows: Standing[], juryWeight: number): Standing[] {
-  const w = Math.max(0, Math.min(100, juryWeight)) / 100;
-  const scaled = rows.map((r) => ({
-    ...r,
-    total: Math.round(r.jury * (w * 2) + r.televote * ((1 - w) * 2)),
-  }));
-  scaled.sort((a, b) => b.total - a.total || b.televote - a.televote);
-  scaled.forEach((r, i) => (r.rank = i + 1));
-  return scaled;
-}
 
 /* ---------------- voting relationship analysis ---------------- */
 
@@ -198,7 +227,7 @@ export function countryProfile(
   countryId: string,
   results: ResultRow[],
   jury: JuryVote[],
-  editionYear: Map<string, number>,
+  editionYear: Map<string, number | null>,
 ): CountryProfile {
   const mine = results.filter((r) => r.country_id === countryId);
   const ranks = mine.map((r) => r.final_rank).filter((r): r is number => r != null);
@@ -228,7 +257,7 @@ export function computeRecords(
   results: ResultRow[],
   jury: JuryVote[],
   countries: Country[],
-  editionYear: Map<string, number>,
+  editionYear: Map<string, number | null>,
 ): RecordEntry[] {
   const name = new Map(countries.map((c) => [c.id, c.name]));
   const label = (r: ResultRow) => `${name.get(r.country_id) ?? "?"} · ${editionYear.get(r.edition_id) ?? ""}`;

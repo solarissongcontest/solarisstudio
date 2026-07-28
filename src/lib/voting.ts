@@ -1,0 +1,67 @@
+/**
+ * Voting System Builder.
+ * Each show owns a VotingConfig: which panels vote, what point scale they use,
+ * how the two halves are weighted, tie-break rules and qualifier counts.
+ */
+
+export type VotingConfig = {
+  juryEnabled: boolean;
+  televoteEnabled: boolean;
+  /** Ordered high → low. Each juror country hands out exactly these values. */
+  juryPoints: number[];
+  /** Televote can either mirror the jury scale (per voting country) or be a free total. */
+  televoteMode: "scale" | "total";
+  televotePoints: number[];
+  weighting: { jury: number; televote: number };
+  tieBreak: TieBreak[];
+  qualifiers: number | null;
+  /** Country ids in the order juries are called. Empty = running order. */
+  votingOrder: string[];
+  allowSelfVote: boolean;
+};
+
+export type TieBreak = "televote" | "jury" | "twelves" | "countback" | "runningOrder";
+
+export const POINT_PRESETS: { label: string; points: number[] }[] = [
+  { label: "Classic 1-8, 10, 12", points: [12, 10, 8, 7, 6, 5, 4, 3, 2, 1] },
+  { label: "Top 5 (12-8)", points: [12, 10, 8, 6, 4] },
+  { label: "Top 3 (5/3/1)", points: [5, 3, 1] },
+  { label: "Big numbers (100/80/60…)", points: [100, 80, 60, 50, 40, 30, 20, 10] },
+  { label: "Linear 10 → 1", points: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] },
+];
+
+export const DEFAULT_VOTING: VotingConfig = {
+  juryEnabled: true,
+  televoteEnabled: true,
+  juryPoints: [12, 10, 8, 7, 6, 5, 4, 3, 2, 1],
+  televoteMode: "scale",
+  televotePoints: [12, 10, 8, 7, 6, 5, 4, 3, 2, 1],
+  weighting: { jury: 50, televote: 50 },
+  tieBreak: ["televote", "twelves", "jury"],
+  qualifiers: null,
+  votingOrder: [],
+  allowSelfVote: false,
+};
+
+export function resolveVoting(raw: unknown): VotingConfig {
+  const v = (raw ?? {}) as Partial<VotingConfig>;
+  return {
+    ...DEFAULT_VOTING,
+    ...v,
+    juryPoints: v.juryPoints?.length ? v.juryPoints : DEFAULT_VOTING.juryPoints,
+    televotePoints: v.televotePoints?.length ? v.televotePoints : DEFAULT_VOTING.televotePoints,
+    weighting: { ...DEFAULT_VOTING.weighting, ...(v.weighting ?? {}) },
+    tieBreak: v.tieBreak?.length ? v.tieBreak : DEFAULT_VOTING.tieBreak,
+    votingOrder: v.votingOrder ?? [],
+  };
+}
+
+export function parsePointList(input: string): number[] {
+  return input
+    .split(/[\s,]+/)
+    .map((n) => Number(n))
+    .filter((n) => Number.isFinite(n) && n > 0)
+    .sort((a, b) => b - a);
+}
+
+export const topPoint = (cfg: VotingConfig) => cfg.juryPoints[0] ?? 12;

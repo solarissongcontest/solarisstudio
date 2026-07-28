@@ -59,6 +59,8 @@ export type Database = {
       editions: {
         Row: {
           created_at: string
+          description: string | null
+          edition_number: number | null
           host_city: string | null
           host_country_id: string | null
           id: string
@@ -69,10 +71,13 @@ export type Database = {
           slug: string
           status: string
           theme_colors: Json
-          year: number
+          theme_id: string | null
+          year: number | null
         }
         Insert: {
           created_at?: string
+          description?: string | null
+          edition_number?: number | null
           host_city?: string | null
           host_country_id?: string | null
           id?: string
@@ -83,10 +88,13 @@ export type Database = {
           slug: string
           status?: string
           theme_colors?: Json
-          year: number
+          theme_id?: string | null
+          year?: number | null
         }
         Update: {
           created_at?: string
+          description?: string | null
+          edition_number?: number | null
           host_city?: string | null
           host_country_id?: string | null
           id?: string
@@ -97,7 +105,8 @@ export type Database = {
           slug?: string
           status?: string
           theme_colors?: Json
-          year?: number
+          theme_id?: string | null
+          year?: number | null
         }
         Relationships: [
           {
@@ -105,6 +114,13 @@ export type Database = {
             columns: ["host_country_id"]
             isOneToOne: false
             referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "editions_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
             referencedColumns: ["id"]
           },
         ]
@@ -170,37 +186,43 @@ export type Database = {
       }
       participants: {
         Row: {
-          artist: string
+          artist: string | null
           country_id: string
           created_at: string
           edition_id: string
           id: string
+          notes: string | null
+          qualified: boolean | null
           running_order: number | null
           semi_final: string
           show_id: string | null
-          song: string
+          song: string | null
         }
         Insert: {
-          artist: string
+          artist?: string | null
           country_id: string
           created_at?: string
           edition_id: string
           id?: string
+          notes?: string | null
+          qualified?: boolean | null
           running_order?: number | null
           semi_final?: string
           show_id?: string | null
-          song: string
+          song?: string | null
         }
         Update: {
-          artist?: string
+          artist?: string | null
           country_id?: string
           created_at?: string
           edition_id?: string
           id?: string
+          notes?: string | null
+          qualified?: boolean | null
           running_order?: number | null
           semi_final?: string
           show_id?: string | null
-          song?: string
+          song?: string | null
         }
         Relationships: [
           {
@@ -286,34 +308,49 @@ export type Database = {
       }
       shows: {
         Row: {
+          broadcast_config: Json
           created_at: string
           edition_id: string
           id: string
           kind: string
           name: string
           published: boolean
+          qualifier_count: number | null
           sort_order: number
+          status: string
+          theme_id: string | null
           updated_at: string
+          voting_config: Json
         }
         Insert: {
+          broadcast_config?: Json
           created_at?: string
           edition_id: string
           id?: string
           kind?: string
           name: string
           published?: boolean
+          qualifier_count?: number | null
           sort_order?: number
+          status?: string
+          theme_id?: string | null
           updated_at?: string
+          voting_config?: Json
         }
         Update: {
+          broadcast_config?: Json
           created_at?: string
           edition_id?: string
           id?: string
           kind?: string
           name?: string
           published?: boolean
+          qualifier_count?: number | null
           sort_order?: number
+          status?: string
+          theme_id?: string | null
           updated_at?: string
+          voting_config?: Json
         }
         Relationships: [
           {
@@ -321,6 +358,13 @@ export type Database = {
             columns: ["edition_id"]
             isOneToOne: false
             referencedRelation: "editions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shows_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "themes"
             referencedColumns: ["id"]
           },
         ]
@@ -373,6 +417,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      themes: {
+        Row: {
+          config: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

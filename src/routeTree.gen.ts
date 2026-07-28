@@ -17,9 +17,10 @@ import { Route as EditionsIndexRouteImport } from './routes/editions/index'
 import { Route as CountriesIndexRouteImport } from './routes/countries/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
+import { Route as ShowsShowIdRouteImport } from './routes/shows/$showId'
 import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
 import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
-import { Route as BroadcastSlugRouteImport } from './routes/broadcast/$slug'
+import { Route as BroadcastShowIdRouteImport } from './routes/broadcast/$showId'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminSlugRouteImport } from './routes/_authenticated/admin/$slug'
 
@@ -62,6 +63,11 @@ const AnalysisIndexRoute = AnalysisIndexRouteImport.update({
   path: '/analysis/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShowsShowIdRoute = ShowsShowIdRouteImport.update({
+  id: '/shows/$showId',
+  path: '/shows/$showId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditionsSlugRoute = EditionsSlugRouteImport.update({
   id: '/editions/$slug',
   path: '/editions/$slug',
@@ -72,9 +78,9 @@ const CountriesCodeRoute = CountriesCodeRouteImport.update({
   path: '/countries/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BroadcastSlugRoute = BroadcastSlugRouteImport.update({
-  id: '/broadcast/$slug',
-  path: '/broadcast/$slug',
+const BroadcastShowIdRoute = BroadcastShowIdRouteImport.update({
+  id: '/broadcast/$showId',
+  path: '/broadcast/$showId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -91,9 +97,10 @@ const AuthenticatedAdminSlugRoute = AuthenticatedAdminSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/broadcast/$slug': typeof BroadcastSlugRoute
+  '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/countries/': typeof CountriesIndexRoute
@@ -105,9 +112,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/broadcast/$slug': typeof BroadcastSlugRoute
+  '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis': typeof AnalysisIndexRoute
   '/auth': typeof AuthIndexRoute
   '/countries': typeof CountriesIndexRoute
@@ -121,9 +129,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/broadcast/$slug': typeof BroadcastSlugRoute
+  '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/countries/': typeof CountriesIndexRoute
@@ -137,9 +146,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sitemap.xml'
-    | '/broadcast/$slug'
+    | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
     | '/countries/'
@@ -151,9 +161,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/sitemap.xml'
-    | '/broadcast/$slug'
+    | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/shows/$showId'
     | '/analysis'
     | '/auth'
     | '/countries'
@@ -166,9 +177,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/sitemap.xml'
-    | '/broadcast/$slug'
+    | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
     | '/countries/'
@@ -182,9 +194,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  BroadcastSlugRoute: typeof BroadcastSlugRoute
+  BroadcastShowIdRoute: typeof BroadcastShowIdRoute
   CountriesCodeRoute: typeof CountriesCodeRoute
   EditionsSlugRoute: typeof EditionsSlugRoute
+  ShowsShowIdRoute: typeof ShowsShowIdRoute
   AnalysisIndexRoute: typeof AnalysisIndexRoute
   AuthIndexRoute: typeof AuthIndexRoute
   CountriesIndexRoute: typeof CountriesIndexRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalysisIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shows/$showId': {
+      id: '/shows/$showId'
+      path: '/shows/$showId'
+      fullPath: '/shows/$showId'
+      preLoaderRoute: typeof ShowsShowIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editions/$slug': {
       id: '/editions/$slug'
       path: '/editions/$slug'
@@ -264,11 +284,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CountriesCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/broadcast/$slug': {
-      id: '/broadcast/$slug'
-      path: '/broadcast/$slug'
-      fullPath: '/broadcast/$slug'
-      preLoaderRoute: typeof BroadcastSlugRouteImport
+    '/broadcast/$showId': {
+      id: '/broadcast/$showId'
+      path: '/broadcast/$showId'
+      fullPath: '/broadcast/$showId'
+      preLoaderRoute: typeof BroadcastShowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin/': {
@@ -305,9 +325,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  BroadcastSlugRoute: BroadcastSlugRoute,
+  BroadcastShowIdRoute: BroadcastShowIdRoute,
   CountriesCodeRoute: CountriesCodeRoute,
   EditionsSlugRoute: EditionsSlugRoute,
+  ShowsShowIdRoute: ShowsShowIdRoute,
   AnalysisIndexRoute: AnalysisIndexRoute,
   AuthIndexRoute: AuthIndexRoute,
   CountriesIndexRoute: CountriesIndexRoute,
@@ -317,13 +338,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
