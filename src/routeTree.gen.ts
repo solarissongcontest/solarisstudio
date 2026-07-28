@@ -20,7 +20,6 @@ import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
 import { Route as ShowsShowIdRouteImport } from './routes/shows/$showId'
 import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
 import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
-import { Route as BroadcastSlugRouteImport } from './routes/broadcast/$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminSlugRouteImport } from './routes/_authenticated/admin/$slug'
 
@@ -78,11 +77,6 @@ const CountriesCodeRoute = CountriesCodeRouteImport.update({
   path: '/countries/$code',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BroadcastSlugRoute = BroadcastSlugRouteImport.update({
-  id: '/broadcast/$slug',
-  path: '/broadcast/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -97,7 +91,6 @@ const AuthenticatedAdminSlugRoute = AuthenticatedAdminSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/broadcast/$slug': typeof BroadcastSlugRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
   '/shows/$showId': typeof ShowsShowIdRoute
@@ -112,7 +105,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/broadcast/$slug': typeof BroadcastSlugRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
   '/shows/$showId': typeof ShowsShowIdRoute
@@ -129,7 +121,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/broadcast/$slug': typeof BroadcastSlugRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
   '/shows/$showId': typeof ShowsShowIdRoute
@@ -146,7 +137,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sitemap.xml'
-    | '/broadcast/$slug'
     | '/countries/$code'
     | '/editions/$slug'
     | '/shows/$showId'
@@ -161,7 +151,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/sitemap.xml'
-    | '/broadcast/$slug'
     | '/countries/$code'
     | '/editions/$slug'
     | '/shows/$showId'
@@ -177,7 +166,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/sitemap.xml'
-    | '/broadcast/$slug'
     | '/countries/$code'
     | '/editions/$slug'
     | '/shows/$showId'
@@ -194,7 +182,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  BroadcastSlugRoute: typeof BroadcastSlugRoute
   CountriesCodeRoute: typeof CountriesCodeRoute
   EditionsSlugRoute: typeof EditionsSlugRoute
   ShowsShowIdRoute: typeof ShowsShowIdRoute
@@ -284,13 +271,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CountriesCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/broadcast/$slug': {
-      id: '/broadcast/$slug'
-      path: '/broadcast/$slug'
-      fullPath: '/broadcast/$slug'
-      preLoaderRoute: typeof BroadcastSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/admin'
@@ -325,7 +305,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  BroadcastSlugRoute: BroadcastSlugRoute,
   CountriesCodeRoute: CountriesCodeRoute,
   EditionsSlugRoute: EditionsSlugRoute,
   ShowsShowIdRoute: ShowsShowIdRoute,

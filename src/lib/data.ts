@@ -292,3 +292,5 @@ export function byId<T extends { id: string }>(rows: T[] | undefined) {
 
 export const editionLabel = (e: Edition) =>
   e.edition_number ? `SSC ${e.edition_number}` : e.name;
+
+export const POINT_SET = [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
