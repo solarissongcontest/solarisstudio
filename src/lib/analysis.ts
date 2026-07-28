@@ -227,7 +227,7 @@ export function countryProfile(
   countryId: string,
   results: ResultRow[],
   jury: JuryVote[],
-  editionYear: Map<string, number>,
+  editionYear: Map<string, number | null>,
 ): CountryProfile {
   const mine = results.filter((r) => r.country_id === countryId);
   const ranks = mine.map((r) => r.final_rank).filter((r): r is number => r != null);
@@ -257,7 +257,7 @@ export function computeRecords(
   results: ResultRow[],
   jury: JuryVote[],
   countries: Country[],
-  editionYear: Map<string, number>,
+  editionYear: Map<string, number | null>,
 ): RecordEntry[] {
   const name = new Map(countries.map((c) => [c.id, c.name]));
   const label = (r: ResultRow) => `${name.get(r.country_id) ?? "?"} · ${editionYear.get(r.edition_id) ?? ""}`;
