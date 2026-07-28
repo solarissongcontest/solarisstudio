@@ -17,6 +17,7 @@ import { Route as EditionsIndexRouteImport } from './routes/editions/index'
 import { Route as CountriesIndexRouteImport } from './routes/countries/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
+import { Route as ShowsShowIdRouteImport } from './routes/shows/$showId'
 import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
 import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
 import { Route as BroadcastSlugRouteImport } from './routes/broadcast/$slug'
@@ -62,6 +63,11 @@ const AnalysisIndexRoute = AnalysisIndexRouteImport.update({
   path: '/analysis/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShowsShowIdRoute = ShowsShowIdRouteImport.update({
+  id: '/shows/$showId',
+  path: '/shows/$showId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditionsSlugRoute = EditionsSlugRouteImport.update({
   id: '/editions/$slug',
   path: '/editions/$slug',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/broadcast/$slug': typeof BroadcastSlugRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/countries/': typeof CountriesIndexRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/broadcast/$slug': typeof BroadcastSlugRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis': typeof AnalysisIndexRoute
   '/auth': typeof AuthIndexRoute
   '/countries': typeof CountriesIndexRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/broadcast/$slug': typeof BroadcastSlugRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
   '/countries/': typeof CountriesIndexRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/broadcast/$slug'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
     | '/countries/'
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/broadcast/$slug'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/shows/$showId'
     | '/analysis'
     | '/auth'
     | '/countries'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/broadcast/$slug'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
     | '/countries/'
@@ -185,6 +197,7 @@ export interface RootRouteChildren {
   BroadcastSlugRoute: typeof BroadcastSlugRoute
   CountriesCodeRoute: typeof CountriesCodeRoute
   EditionsSlugRoute: typeof EditionsSlugRoute
+  ShowsShowIdRoute: typeof ShowsShowIdRoute
   AnalysisIndexRoute: typeof AnalysisIndexRoute
   AuthIndexRoute: typeof AuthIndexRoute
   CountriesIndexRoute: typeof CountriesIndexRoute
@@ -250,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalysisIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shows/$showId': {
+      id: '/shows/$showId'
+      path: '/shows/$showId'
+      fullPath: '/shows/$showId'
+      preLoaderRoute: typeof ShowsShowIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editions/$slug': {
       id: '/editions/$slug'
       path: '/editions/$slug'
@@ -308,6 +328,7 @@ const rootRouteChildren: RootRouteChildren = {
   BroadcastSlugRoute: BroadcastSlugRoute,
   CountriesCodeRoute: CountriesCodeRoute,
   EditionsSlugRoute: EditionsSlugRoute,
+  ShowsShowIdRoute: ShowsShowIdRoute,
   AnalysisIndexRoute: AnalysisIndexRoute,
   AuthIndexRoute: AuthIndexRoute,
   CountriesIndexRoute: CountriesIndexRoute,
