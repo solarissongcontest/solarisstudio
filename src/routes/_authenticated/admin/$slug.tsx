@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_authenticated/admin/$slug")({
       { property: "og:description", content: "Shows, voting systems, themes and fast vote entry." },
     ],
   }),
-  component: AdminEdition;
+  component: AdminEdition,
 });
 
 const TABS = ["Shows", "Line-up", "Jury", "Televote", "Voting", "Theme", "Broadcast", "Publish"] as const;
