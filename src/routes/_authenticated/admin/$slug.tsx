@@ -123,7 +123,7 @@ function AdminEdition() {
   };
 
   const patchShow = (s: Show, values: Record<string, unknown>, ok?: string) =>
-    run(supabase.from("shows").update(values).eq("id", s.id), ok);
+    run((supabase.from("shows") as any).update(values).eq("id", s.id), ok);
 
   const deleteShow = async (s: Show) => {
     if (!window.confirm(`Delete “${s.name}” with all of its participants and votes?`)) return;
@@ -147,7 +147,7 @@ function AdminEdition() {
   };
 
   const updateParticipant = (id: string, values: Record<string, unknown>) =>
-    run(supabase.from("participants").update(values).eq("id", id));
+    run((supabase.from("participants") as any).update(values).eq("id", id));
 
   const removeParticipant = (id: string) => run(supabase.from("participants").delete().eq("id", id));
 
