@@ -133,7 +133,8 @@ export type Database = {
           points: number
           receiving_country_id: string
           show_id: string | null
-          voter_country_id: string
+          voter_country_id: string | null
+          voter_id: string | null
         }
         Insert: {
           created_at?: string
@@ -142,7 +143,8 @@ export type Database = {
           points: number
           receiving_country_id: string
           show_id?: string | null
-          voter_country_id: string
+          voter_country_id?: string | null
+          voter_id?: string | null
         }
         Update: {
           created_at?: string
@@ -151,7 +153,8 @@ export type Database = {
           points?: number
           receiving_country_id?: string
           show_id?: string | null
-          voter_country_id?: string
+          voter_country_id?: string | null
+          voter_id?: string | null
         }
         Relationships: [
           {
@@ -180,6 +183,13 @@ export type Database = {
             columns: ["voter_country_id"]
             isOneToOne: false
             referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jury_votes_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "voters"
             referencedColumns: ["id"]
           },
         ]
@@ -468,6 +478,67 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      voters: {
+        Row: {
+          accent_color: string
+          country_id: string | null
+          created_at: string
+          edition_id: string
+          flag_image: string | null
+          id: string
+          kind: string
+          name: string
+          show_id: string | null
+          sort_order: number
+        }
+        Insert: {
+          accent_color?: string
+          country_id?: string | null
+          created_at?: string
+          edition_id: string
+          flag_image?: string | null
+          id?: string
+          kind?: string
+          name: string
+          show_id?: string | null
+          sort_order?: number
+        }
+        Update: {
+          accent_color?: string
+          country_id?: string | null
+          created_at?: string
+          edition_id?: string
+          flag_image?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          show_id?: string | null
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voters_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voters_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "editions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voters_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

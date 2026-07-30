@@ -14,14 +14,21 @@ import { computeStandings } from "@/lib/analysis";
 import { supabase } from "@/integrations/supabase/client";
 import {
   SHOW_KINDS,
+  VOTER_KINDS,
+  resolveShowVoters,
+  voterKey,
   useCountries,
   useEdition,
   useJuryVotes,
+  useParticipants,
   useShowParticipants,
   useShows,
+  useShowVoters,
   useTelevotes,
   useThemes,
   type Show,
+  type Voter,
+  type VoterKind,
 } from "@/lib/data";
 import { backgroundStyle, resolveTheme, type ThemeConfig } from "@/lib/theme";
 import { resolveVoting, type VotingConfig } from "@/lib/voting";
@@ -44,7 +51,7 @@ export const Route = createFileRoute("/_authenticated/admin/$slug")({
   component: AdminEdition,
 });
 
-const TABS = ["Shows", "Line-up", "Jury", "Televote", "Voting", "Theme", "Broadcast", "Publish"] as const;
+const TABS = ["Shows", "Line-up", "Juries", "Jury", "Televote", "Voting", "Theme", "Broadcast", "Publish"] as const;
 type Tab = (typeof TABS)[number];
 
 function AdminEdition() {
@@ -66,8 +73,17 @@ function AdminEdition() {
   const activeShowId = activeShow?.id;
 
   const { data: participants } = useShowParticipants(activeShowId);
+  const { data: allParticipants } = useParticipants(edition?.id);
   const { data: jury } = useJuryVotes(activeShowId);
   const { data: tele } = useTelevotes(activeShowId);
+  const { data: showVoters } = useShowVoters(activeShowId);
+  const [voterForm, setVoterForm] = useState<{ kind: VoterKind; countryId: string | null; name: string; flag_image: string; accent_color: string }>({
+    kind: "country",
+    countryId: null,
+    name: "",
+    flag_image: "",
+    accent_color: "#8888aa",
+  });
 
   const cList = countries ?? [];
   const cMap = useMemo(() => new Map(cList.map((c) => [c.id, c])), [cList]);
@@ -93,7 +109,11 @@ function AdminEdition() {
   }, [activeShowId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const standings = computeStandings(order, jury ?? [], tele ?? [], voting);
-  const activeVoter = voter && order.includes(voter) ? voter : order[0] || "";
+  const voterOptions = useMemo(
+    () => resolveShowVoters(showVoters, order, cList),
+    [showVoters, order, cList],
+  );
+  const activeVoter = voter && voterOptions.some((v) => v.key === voter) ? voter : voterOptions[0]?.key || "";
 
   const refresh = () => {
     ["shows", "show", "participants", "jury_votes", "televote_votes", "results", "themes"].forEach((k) =>
@@ -134,6 +154,10 @@ function AdminEdition() {
   /* -------- line-up -------- */
   const addParticipant = async (countryId: string) => {
     if (!edition || !activeShowId) return;
+    // Carry artist & song over from the most recent entry for this country in the edition.
+    const prior = (allParticipants ?? [])
+      .filter((p) => p.country_id === countryId && p.show_id !== activeShowId && (p.artist || p.song))
+      .slice(-1)[0];
     await run(
       supabase.from("participants").insert({
         edition_id: edition.id,
@@ -141,9 +165,32 @@ function AdminEdition() {
         country_id: countryId,
         running_order: order.length + 1,
         semi_final: activeShow?.kind ?? "final",
+        artist: prior?.artist ?? null,
+        song: prior?.song ?? null,
       }),
     );
     setPickCountry(null);
+  };
+
+  const syncArtistSong = async () => {
+    if (!edition) return;
+    const byCountry = new Map<string, { artist: string | null; song: string | null }>();
+    (allParticipants ?? []).forEach((p) => {
+      if (p.artist || p.song) byCountry.set(p.country_id, { artist: p.artist, song: p.song });
+    });
+    const targets = (allParticipants ?? []).filter((p) => !p.artist && !p.song && byCountry.has(p.country_id));
+    if (!targets.length) {
+      setMsg("Nothing to sync — every entry already has an artist or song.");
+      return;
+    }
+    await Promise.all(
+      targets.map((p) => {
+        const src = byCountry.get(p.country_id)!;
+        return supabase.from("participants").update({ artist: src.artist, song: src.song }).eq("id", p.id);
+      }),
+    );
+    setMsg(`Synced artist & song for ${targets.length} entr${targets.length === 1 ? "y" : "ies"}.`);
+    refresh();
   };
 
   const updateParticipant = (id: string, values: Record<string, unknown>) =>
@@ -152,34 +199,42 @@ function AdminEdition() {
   const removeParticipant = (id: string) => run(supabase.from("participants").delete().eq("id", id));
 
   /* -------- votes -------- */
+  const decodeVoterKey = (key: string) => {
+    const opt = voterOptions.find((o) => o.key === key);
+    return { voterId: opt?.voterId ?? null, countryId: opt?.countryId ?? null };
+  };
+
   const assign = async (v: string, receiver: string, points: number) => {
     if (!edition || !activeShowId) return;
-    await supabase
+    const { voterId, countryId } = decodeVoterKey(v);
+    let del: any = (supabase as any)
       .from("jury_votes")
       .delete()
-      .eq("show_id", activeShowId)
-      .eq("voter_country_id", v)
-      .or(`points.eq.${points},receiving_country_id.eq.${receiver}`);
+      .eq("show_id", activeShowId);
+    del = voterId ? del.eq("voter_id", voterId) : del.eq("voter_country_id", countryId);
+    await del.or(`points.eq.${points},receiving_country_id.eq.${receiver}`);
     await run(
       supabase.from("jury_votes").insert({
         edition_id: edition.id,
         show_id: activeShowId,
-        voter_country_id: v,
+        voter_id: voterId,
+        voter_country_id: countryId,
         receiving_country_id: receiver,
         points,
       }),
     );
   };
 
-  const clearPoint = (v: string, points: number) =>
-    run(
-      supabase
-        .from("jury_votes")
-        .delete()
-        .eq("show_id", activeShowId!)
-        .eq("voter_country_id", v)
-        .eq("points", points),
-    );
+  const clearPoint = (v: string, points: number) => {
+    const { voterId, countryId } = decodeVoterKey(v);
+    let del: any = (supabase as any)
+      .from("jury_votes")
+      .delete()
+      .eq("show_id", activeShowId!)
+      .eq("points", points);
+    del = voterId ? del.eq("voter_id", voterId) : del.eq("voter_country_id", countryId);
+    return run(del);
+  };
 
   const setTele = async (countryId: string, points: number) => {
     if (!edition || !activeShowId) return;
@@ -398,16 +453,25 @@ function AdminEdition() {
 
           {tab === "Line-up" && activeShow && (
             <Panel title="Line-up" description="Add countries now, fill artist and song later">
-              <div className="mb-4 flex items-end gap-2">
+              <div className="mb-4 flex flex-wrap items-end gap-2">
                 <CountryPicker
-                  className="flex-1"
+                  className="min-w-[220px] flex-1"
                   countries={cList}
                   value={pickCountry}
                   exclude={new Set(order)}
                   onChange={(id) => id && addParticipant(id)}
                   placeholder="Search the 66 Terra Solaris nations…"
                 />
+                <button
+                  type="button"
+                  onClick={syncArtistSong}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm hover:bg-surface/70"
+                  title="Copy artist & song from other shows in this edition into any blank entries"
+                >
+                  Sync artist &amp; song across shows
+                </button>
               </div>
+
               <ul className="space-y-1.5">
                 {(participants ?? []).map((p, i) => {
                   const c = cMap.get(p.country_id);
@@ -448,11 +512,182 @@ function AdminEdition() {
             </Panel>
           )}
 
+          {tab === "Juries" && activeShow && (
+            <Panel
+              title="Juries"
+              description="Custom voting entities for this show — countries, external juries, organisations or people"
+              actions={
+                <button
+                  onClick={async () => {
+                    if (!edition || !activeShowId) return;
+                    const existingCountryIds = new Set((showVoters ?? []).map((v) => v.country_id));
+                    const rows = order
+                      .filter((id) => !existingCountryIds.has(id))
+                      .map((id, i) => {
+                        const c = cMap.get(id);
+                        return {
+                          edition_id: edition.id,
+                          show_id: activeShowId,
+                          country_id: id,
+                          name: c?.name ?? "Country",
+                          kind: "country",
+                          flag_image: c?.flag_image ?? null,
+                          accent_color: c?.accent_color ?? "#8888aa",
+                          sort_order: (showVoters?.length ?? 0) + i + 1,
+                        };
+                      });
+                    if (!rows.length) {
+                      setMsg("All participating countries are already juries.");
+                      return;
+                    }
+                    await run(supabase.from("voters").insert(rows), `Added ${rows.length} country juries.`);
+                    qc.invalidateQueries({ queryKey: ["voters"] });
+                  }}
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                >
+                  Add all participating countries
+                </button>
+              }
+            >
+              <ul className="mb-4 space-y-1.5">
+                {(showVoters ?? []).map((v, i) => (
+                  <li key={v.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-surface px-2 py-1.5">
+                    <input
+                      type="number"
+                      defaultValue={v.sort_order ?? i + 1}
+                      onBlur={(e) =>
+                        run(
+                          (supabase.from("voters") as any)
+                            .update({ sort_order: Number(e.target.value) || 1 })
+                            .eq("id", v.id),
+                        ).then(() => qc.invalidateQueries({ queryKey: ["voters"] }))
+                      }
+                      className="numeric w-12 rounded-lg bg-background px-2 py-1 text-center text-sm"
+                    />
+                    <FlagChip
+                      code={cMap.get(v.country_id ?? "")?.short_code ?? "?"}
+                      color={v.accent_color}
+                      image={v.flag_image ?? cMap.get(v.country_id ?? "")?.flag_image ?? null}
+                      size="sm"
+                    />
+                    <input
+                      defaultValue={v.name}
+                      onBlur={(e) =>
+                        run((supabase.from("voters") as any).update({ name: e.target.value }).eq("id", v.id)).then(() =>
+                          qc.invalidateQueries({ queryKey: ["voters"] }),
+                        )
+                      }
+                      className="min-w-0 flex-1 rounded-lg bg-background px-2 py-1 text-sm"
+                    />
+                    <span className="rounded-full bg-surface-strong px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                      {v.kind.replace("-", " ")}
+                    </span>
+                    <button
+                      onClick={() =>
+                        run(supabase.from("voters").delete().eq("id", v.id)).then(() =>
+                          qc.invalidateQueries({ queryKey: ["voters"] }),
+                        )
+                      }
+                      className="rounded-lg border border-destructive/40 px-2 py-1 text-xs text-destructive"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+                {!(showVoters ?? []).length && (
+                  <p className="text-sm text-muted-foreground">
+                    No custom juries yet — participating countries will be used as the default voting entities.
+                  </p>
+                )}
+              </ul>
+
+              <div className="space-y-3 rounded-xl border border-border p-3">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground">Add voter</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Field label="Kind">
+                    <Select
+                      value={voterForm.kind}
+                      onChange={(e) => setVoterForm({ ...voterForm, kind: e.target.value as VoterKind, countryId: null, name: "" })}
+                    >
+                      {VOTER_KINDS.map((k) => (
+                        <option key={k} value={k} className="bg-background">
+                          {k.replace("-", " ")}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  {voterForm.kind === "country" || voterForm.kind === "external-country" ? (
+                    <Field label="Country">
+                      <CountryPicker
+                        countries={voterForm.kind === "country" ? cList.filter((c) => order.includes(c.id)) : cList}
+                        value={voterForm.countryId}
+                        onChange={(id) => {
+                          const c = cList.find((x) => x.id === id);
+                          setVoterForm({
+                            ...voterForm,
+                            countryId: id,
+                            name: c?.name ?? "",
+                            flag_image: c?.flag_image ?? "",
+                            accent_color: c?.accent_color ?? voterForm.accent_color,
+                          });
+                        }}
+                      />
+                    </Field>
+                  ) : (
+                    <Field label="Name">
+                      <TextInput
+                        value={voterForm.name}
+                        onChange={(e) => setVoterForm({ ...voterForm, name: e.target.value })}
+                        placeholder="International Jury"
+                      />
+                    </Field>
+                  )}
+                  <Field label="Flag / logo URL (optional)">
+                    <TextInput
+                      value={voterForm.flag_image}
+                      onChange={(e) => setVoterForm({ ...voterForm, flag_image: e.target.value })}
+                      placeholder="https://…"
+                    />
+                  </Field>
+                  <Field label="Accent colour">
+                    <TextInput
+                      value={voterForm.accent_color}
+                      onChange={(e) => setVoterForm({ ...voterForm, accent_color: e.target.value })}
+                    />
+                  </Field>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!edition || !activeShowId || !voterForm.name) return;
+                    await run(
+                      supabase.from("voters").insert({
+                        edition_id: edition.id,
+                        show_id: activeShowId,
+                        country_id: voterForm.countryId,
+                        name: voterForm.name,
+                        kind: voterForm.kind,
+                        flag_image: voterForm.flag_image || null,
+                        accent_color: voterForm.accent_color || "#8888aa",
+                        sort_order: (showVoters?.length ?? 0) + 1,
+                      }),
+                      "Voter added.",
+                    );
+                    qc.invalidateQueries({ queryKey: ["voters"] });
+                    setVoterForm({ kind: voterForm.kind, countryId: null, name: "", flag_image: "", accent_color: "#8888aa" });
+                  }}
+                  className="bg-aurora rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  Add voter
+                </button>
+              </div>
+            </Panel>
+          )}
+
           {tab === "Jury" && activeShow && (
             <Panel title="Fast jury entry" description="Pick a voting country, then type-ahead each award">
               <FastJuryEntry
-                countries={cList}
-                order={order}
+                voters={voterOptions}
+                receivers={cList.filter((c) => order.includes(c.id))}
                 voting={voting}
                 votes={jury ?? []}
                 activeVoter={activeVoter}

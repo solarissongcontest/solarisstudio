@@ -1,17 +1,21 @@
 import { useMemo } from "react";
 import { CountryPicker } from "@/components/CountryPicker";
 import { FlagChip } from "@/components/FlagChip";
-import type { Country, JuryVote, Televote } from "@/lib/data";
+import { voterKey, type Country, type JuryVote, type Televote, type VoterOption } from "@/lib/data";
 import type { VotingConfig } from "@/lib/voting";
 import { cn } from "@/lib/utils";
+
+const voteVoterKey = (v: JuryVote) => voterKey({ voterId: v.voter_id, countryId: v.voter_country_id });
 
 /**
  * High-speed jury ballot entry: one row per point value, type-ahead country
  * search, duplicate/self-vote protection and live ballot completeness.
+ * `voters` are the voting entities (custom juries or participating countries);
+ * `receivers` are the countries that can be awarded points.
  */
 export function FastJuryEntry({
-  countries,
-  order,
+  voters,
+  receivers,
   voting,
   votes,
   activeVoter,
@@ -19,39 +23,40 @@ export function FastJuryEntry({
   onAssign,
   onClear,
 }: {
-  countries: Country[];
-  order: string[];
+  voters: VoterOption[];
+  receivers: Country[];
   voting: VotingConfig;
   votes: JuryVote[];
   activeVoter: string;
-  onVoterChange: (id: string) => void;
-  onAssign: (voter: string, receiver: string, points: number) => void;
-  onClear: (voter: string, points: number) => void;
+  onVoterChange: (key: string) => void;
+  onAssign: (voterKey: string, receiver: string, points: number) => void;
+  onClear: (voterKey: string, points: number) => void;
 }) {
-  const cMap = useMemo(() => new Map(countries.map((c) => [c.id, c])), [countries]);
-  const pool = order.map((id) => cMap.get(id)).filter(Boolean) as Country[];
-  const ballot = votes.filter((v) => v.voter_country_id === activeVoter);
+  const vMap = useMemo(() => new Map(voters.map((v) => [v.key, v])), [voters]);
+  const pool = receivers;
+  const ballot = votes.filter((v) => voteVoterKey(v) === activeVoter);
   const byPoints = new Map(ballot.map((v) => [v.points, v.receiving_country_id]));
+  const activeVoterCountry = vMap.get(activeVoter)?.countryId ?? null;
 
   const completeness = useMemo(() => {
     const need = voting.juryPoints.length;
-    return order.map((id) => ({
-      id,
-      given: votes.filter((v) => v.voter_country_id === id).length,
+    return voters.map((v) => ({
+      id: v.key,
+      given: votes.filter((vote) => voteVoterKey(vote) === v.key).length,
       need,
     }));
-  }, [order, votes, voting.juryPoints.length]);
+  }, [voters, votes, voting.juryPoints.length]);
 
   const usedReceivers = new Set(ballot.map((v) => v.receiving_country_id));
 
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-2 text-[11px] uppercase tracking-widest text-muted-foreground">Voting country</p>
+        <p className="mb-2 text-[11px] uppercase tracking-widest text-muted-foreground">Voting entity</p>
         <div className="scroll-slim flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
           {completeness.map((c) => {
-            const country = cMap.get(c.id);
-            if (!country) return null;
+            const voterOpt = vMap.get(c.id);
+            if (!voterOpt) return null;
             const done = c.given >= c.need;
             return (
               <button
@@ -67,8 +72,8 @@ export function FastJuryEntry({
                       : "border-destructive/40 bg-surface text-muted-foreground",
                 )}
               >
-                <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="sm" />
-                <span className="max-w-[9rem] truncate">{country.name}</span>
+                <FlagChip code={voterOpt.short_code ?? "??"} color={voterOpt.accent_color} image={voterOpt.flag_image} size="sm" />
+                <span className="max-w-[9rem] truncate">{voterOpt.name}</span>
                 <span className="numeric opacity-60">
                   {c.given}/{c.need}
                 </span>
@@ -85,7 +90,7 @@ export function FastJuryEntry({
             const exclude = new Set(
               [...usedReceivers].filter((id) => id !== receiver),
             );
-            if (!voting.allowSelfVote) exclude.add(activeVoter);
+            if (!voting.allowSelfVote && activeVoterCountry) exclude.add(activeVoterCountry);
             return (
               <li key={pts} className="flex items-center gap-2">
                 <span className="numeric w-12 shrink-0 rounded-lg bg-surface-strong px-2 py-1.5 text-center text-sm font-semibold">

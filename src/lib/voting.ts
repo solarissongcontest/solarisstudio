@@ -13,6 +13,8 @@ export type VotingConfig = {
   televoteMode: "scale" | "total";
   televotePoints: number[];
   weighting: { jury: number; televote: number };
+  /** When false (default) the weighting above is display-only and totals are a plain sum. */
+  weightedScoring: boolean;
   tieBreak: TieBreak[];
   qualifiers: number | null;
   /** Country ids in the order juries are called. Empty = running order. */
@@ -37,6 +39,7 @@ export const DEFAULT_VOTING: VotingConfig = {
   televoteMode: "scale",
   televotePoints: [12, 10, 8, 7, 6, 5, 4, 3, 2, 1],
   weighting: { jury: 50, televote: 50 },
+  weightedScoring: false,
   tieBreak: ["televote", "twelves", "jury"],
   qualifiers: null,
   votingOrder: [],
@@ -51,6 +54,7 @@ export function resolveVoting(raw: unknown): VotingConfig {
     juryPoints: v.juryPoints?.length ? v.juryPoints : DEFAULT_VOTING.juryPoints,
     televotePoints: v.televotePoints?.length ? v.televotePoints : DEFAULT_VOTING.televotePoints,
     weighting: { ...DEFAULT_VOTING.weighting, ...(v.weighting ?? {}) },
+    weightedScoring: v.weightedScoring ?? DEFAULT_VOTING.weightedScoring,
     tieBreak: v.tieBreak?.length ? v.tieBreak : DEFAULT_VOTING.tieBreak,
     votingOrder: v.votingOrder ?? [],
   };
