@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import type { Country, Participant } from "@/lib/data";
 import type { Standing } from "@/lib/analysis";
-import { flagStyle, themeVars, type ThemeConfig } from "@/lib/theme";
+import { cardBackground, flagStyle, themeVars, type ThemeConfig } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /**
@@ -17,6 +17,7 @@ export function ScoreboardStage({
   participants,
   awarded,
   highlight,
+  votingCountryId,
   qualifiers,
   className,
   compact,
@@ -27,6 +28,8 @@ export function ScoreboardStage({
   participants?: Map<string, Participant>;
   awarded?: Record<string, number>;
   highlight?: string | null;
+  /** The country currently casting jury votes — rendered with the "voting" state. */
+  votingCountryId?: string | null;
   qualifiers?: number | null;
   className?: string;
   compact?: boolean;
@@ -58,6 +61,27 @@ export function ScoreboardStage({
               const isTop = !!gain && gain === topAward && topAward > 0;
               const qualified = qualifiers ? row.rank <= qualifiers : false;
               const accent = theme.card.useCountryColor ? c.accent_color : theme.colors.primary;
+              const isLeader = row.rank === 1;
+              const isVoting = votingCountryId === row.countryId;
+              const isHighlighted = highlight === row.countryId;
+
+              const background = isVoting
+                ? theme.states.votingBackground
+                : isLeader
+                  ? theme.states.leaderBackground
+                  : gain
+                    ? `linear-gradient(90deg, ${hexA(accent, 0.55)}, ${hexA(accent, theme.card.opacity + 0.12)})`
+                    : cardBackground(theme, accent, hexA);
+
+              const borderColor = isHighlighted
+                ? theme.states.highlight
+                : isLeader
+                  ? theme.states.leaderBorder
+                  : theme.card.borderColor;
+
+              const nameColor = isVoting ? theme.states.votingText : isLeader ? theme.states.leaderText : theme.text.countryName;
+              const scoreColor = isVoting ? theme.states.votingText : isLeader ? theme.states.leaderText : theme.text.countryScore;
+
               return (
                 <motion.li
                   key={row.countryId}
@@ -68,26 +92,20 @@ export function ScoreboardStage({
                     minHeight: compact ? theme.card.height * 0.78 : theme.card.height,
                     borderRadius: "var(--t-radius)",
                     gap: 12,
-                    paddingLeft: 12,
-                    paddingRight: 12,
-                    background: gain
-                      ? `linear-gradient(90deg, ${hexA(accent, 0.55)}, ${hexA(accent, theme.card.opacity + 0.12)})`
-                      : hexA(theme.colors.text, theme.card.opacity),
-                    border: `${theme.card.borderWidth}px solid ${
-                      highlight === row.countryId
-                        ? theme.colors.primary
-                        : row.rank === 1
-                          ? hexA(theme.colors.gold, 0.6)
-                          : hexA(theme.colors.text, 0.16)
-                    }`,
+                    paddingLeft: theme.card.padding,
+                    paddingRight: theme.card.padding,
+                    background,
+                    border: `${theme.card.borderWidth}px solid ${borderColor}`,
                     backdropFilter: `blur(${theme.card.blur}px)`,
-                    boxShadow: theme.card.shadow ? `0 12px 30px -18px rgba(0,0,0,0.9)` : undefined,
+                    boxShadow: theme.card.shadow
+                      ? `0 12px 30px -18px ${hexA(theme.card.shadowColor, theme.card.shadowStrength)}`
+                      : undefined,
                   }}
                 >
                   {theme.layout.showRank && (
                     <span
                       className="numeric w-7 shrink-0 text-center text-sm font-bold"
-                      style={{ color: row.rank === 1 ? theme.colors.gold : hexA(theme.colors.text, 0.6) }}
+                      style={{ color: row.rank === 1 ? theme.colors.gold : hexA(theme.text.rank, 0.6) }}
                     >
                       {row.rank}
                     </span>
@@ -113,12 +131,12 @@ export function ScoreboardStage({
                   <span className="min-w-0 flex-1">
                     <span
                       className="block truncate font-semibold"
-                      style={{ fontFamily: "var(--t-font-display)", fontSize: compact ? 13 : 15 }}
+                      style={{ fontFamily: "var(--t-font-display)", fontSize: compact ? 13 : 15, color: nameColor }}
                     >
                       {c.name}
                     </span>
                     {theme.layout.showArtist && p && (p.artist || p.song) && (
-                      <span className="block truncate text-[11px]" style={{ opacity: 0.62 }}>
+                      <span className="block truncate text-[11px]" style={{ color: theme.text.artistSong, opacity: 0.62 }}>
                         {[p.artist, p.song].filter(Boolean).join(" — ")}
                       </span>
                     )}
@@ -144,7 +162,7 @@ export function ScoreboardStage({
                   {qualified && (
                     <span
                       className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                      style={{ background: hexA(theme.colors.gold, 0.2), color: theme.colors.gold }}
+                      style={{ background: hexA(theme.states.qualified, 0.2), color: theme.states.qualified }}
                     >
                       Q
                     </span>
@@ -164,8 +182,8 @@ export function ScoreboardStage({
                           fontSize: isTop ? 18 : 14,
                           background: isTop
                             ? `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary})`
-                            : hexA(theme.colors.text, 0.16),
-                          color: isTop ? "#08101f" : theme.colors.text,
+                            : hexA(theme.text.countryScore, 0.16),
+                          color: isTop ? "#08101f" : theme.text.countryScore,
                           boxShadow: isTop ? `0 0 34px -4px ${theme.colors.primary}` : undefined,
                         }}
                       >
@@ -177,7 +195,7 @@ export function ScoreboardStage({
                   <motion.span
                     layout
                     className="numeric shrink-0 text-right font-bold"
-                    style={{ width: 56, fontSize: compact ? 15 : 19 }}
+                    style={{ width: 56, fontSize: compact ? 15 : 19, color: scoreColor }}
                   >
                     {row.total}
                   </motion.span>

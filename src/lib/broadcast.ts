@@ -62,6 +62,7 @@ export type Step =
   | { kind: "recap" }
   | { kind: "jury-intro"; voter: string }
   | { kind: "jury-point"; voter: string; to: string; points: number; isTop: boolean }
+  | { kind: "jury-batch"; voter: string; entries: { to: string; points: number }[] }
   | { kind: "jury-done" }
   | { kind: "televote-intro" }
   | { kind: "televote"; to: string; points: number; rank: number }
@@ -75,6 +76,7 @@ export function buildSteps(
   tele: Televote[],
   order: string[],
   juryTotals: Map<string, number>,
+  juryPresentation: "all-individually" | "top3-individually" | "twelve-only" = "all-individually",
 ): Step[] {
   const steps: Step[] = [];
   if (cfg.scenes.opening) steps.push({ kind: "opening" });
@@ -91,7 +93,18 @@ export function buildSteps(
         .sort((a, b) => a.points - b.points);
       if (!votes.length) return;
       steps.push({ kind: "jury-intro", voter });
-      votes.forEach((v) =>
+      const individualCount =
+        juryPresentation === "all-individually" ? votes.length : juryPresentation === "top3-individually" ? 3 : 1;
+      const batch = votes.slice(0, Math.max(0, votes.length - individualCount));
+      const individual = votes.slice(Math.max(0, votes.length - individualCount));
+      if (batch.length) {
+        steps.push({
+          kind: "jury-batch",
+          voter,
+          entries: batch.map((v) => ({ to: v.receiving_country_id, points: v.points })),
+        });
+      }
+      individual.forEach((v) =>
         steps.push({
           kind: "jury-point",
           voter,
@@ -133,6 +146,8 @@ export function stepDuration(step: Step, cfg: BroadcastConfig): number {
       return cfg.spokespersonDelay * s;
     case "jury-point":
       return (step.isTop ? cfg.pointDelay + cfg.topPointHold : cfg.pointDelay) * s;
+    case "jury-batch":
+      return (cfg.pointDelay + 400) * s;
     case "jury-done":
       return 2200 * s;
     case "televote-intro":

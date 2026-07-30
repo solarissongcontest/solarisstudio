@@ -39,7 +39,9 @@ export function computeStandings(
 
   const wj = (cfg?.weighting.jury ?? 50) / 50;
   const wt = (cfg?.weighting.televote ?? 50) / 50;
-  const even = !cfg || (cfg.weighting.jury === 50 && cfg.weighting.televote === 50);
+  // Weighting percentages are presentation-only unless the show explicitly opts
+  // into weighted scoring — by default totals are always a plain sum of the two.
+  const applyWeighting = cfg?.weightedScoring === true;
 
   const rows: Standing[] = countryIds.map((id) => {
     const jp = j.get(id) ?? 0;
@@ -48,7 +50,7 @@ export function computeStandings(
       countryId: id,
       jury: jp,
       televote: tp,
-      total: even ? jp + tp : Math.round(jp * wj + tp * wt),
+      total: applyWeighting ? Math.round(jp * wj + tp * wt) : jp + tp,
       rank: 0,
       topPoints: twelves.get(id) ?? 0,
     };

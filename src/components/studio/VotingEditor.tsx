@@ -98,7 +98,9 @@ export function VotingEditor({
 
       {voting.juryEnabled && voting.televoteEnabled && (
         <section className="space-y-2">
-          <h4 className="text-xs uppercase tracking-widest text-muted-foreground">Weighting</h4>
+          <h4 className="text-xs uppercase tracking-widest text-muted-foreground">
+            Weighting <span className="normal-case text-muted-foreground/70">(display split)</span>
+          </h4>
           <Slider
             min={0}
             max={100}
@@ -108,6 +110,16 @@ export function VotingEditor({
           />
           <p className="numeric text-xs text-muted-foreground">
             Jury {voting.weighting.jury}% · Televote {100 - voting.weighting.jury}%
+          </p>
+          <Toggle
+            label="Use these percentages to calculate results (weighted scoring)"
+            checked={voting.weightedScoring}
+            onChange={(v) => set({ weightedScoring: v })}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            {voting.weightedScoring
+              ? "Results are calculated using this split — changing it will change rankings."
+              : "By default this split only changes what's shown on screen (e.g. the split bars). It never changes the results — totals are always the plain sum of jury + televote points until you turn this on."}
           </p>
         </section>
       )}

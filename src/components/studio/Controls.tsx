@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 export function Field({
@@ -163,5 +164,53 @@ export function SegButtons<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+export function Collapsible({
+  title,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="rounded-xl border border-border bg-surface/40">
+      <button
+        type="button"
+        onClick={() => setOpen((o: boolean) => !o)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span>
+          <span className="block text-sm font-semibold">{title}</span>
+          {description && <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>}
+        </span>
+        <span className={cn("text-muted-foreground transition-transform", open && "rotate-180")}>⌄</span>
+      </button>
+      {open && <div className="space-y-4 border-t border-border px-4 py-4">{children}</div>}
+    </section>
+  );
+}
+
+export function ColorField({
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <Field label={label} hint={description}>
+      <ColorInput value={value} onChange={onChange} />
+    </Field>
   );
 }

@@ -9,6 +9,7 @@ import {
   useJuryVotes,
   useShow,
   useShowParticipants,
+  useShowVoters,
   useTelevotes,
   useThemes,
 } from "@/lib/data";
@@ -36,6 +37,7 @@ function ShowPage() {
   const { data: participants } = useShowParticipants(showId);
   const { data: jury } = useJuryVotes(showId);
   const { data: tele } = useTelevotes(showId);
+  const { data: voters } = useShowVoters(showId);
   const { data: countries } = useCountries();
   const { data: themes } = useThemes();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Scoreboard");
@@ -153,6 +155,7 @@ function ShowPage() {
             countries={countryMap}
             order={ids}
             topPoint={voting.juryPoints[0] ?? 12}
+            voters={voters}
           />
         </Panel>
       )}

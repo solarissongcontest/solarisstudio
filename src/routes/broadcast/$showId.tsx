@@ -64,9 +64,18 @@ function BroadcastPage() {
   }, [jury]);
 
   const steps = useMemo(
-    () => buildSteps(cast, voting, jury ?? [], tele ?? [], voting.votingOrder.length ? voting.votingOrder : ids, juryTotals),
+    () =>
+      buildSteps(
+        cast,
+        voting,
+        jury ?? [],
+        tele ?? [],
+        voting.votingOrder.length ? voting.votingOrder : ids,
+        juryTotals,
+        theme.reveal.juryPresentation,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [jury, tele, voting, baseCast, ids.join(",")],
+    [jury, tele, voting, baseCast, ids.join(","), theme.reveal.juryPresentation],
   );
 
   const step = steps[i];
@@ -96,6 +105,17 @@ function BroadcastPage() {
           receiving_country_id: s.to,
           points: s.points,
         });
+      if (s.kind === "jury-batch")
+        s.entries.forEach((e, ei) =>
+          juryApplied.push({
+            id: `${k}-${ei}`,
+            edition_id: "",
+            show_id: showId,
+            voter_country_id: s.voter,
+            receiving_country_id: e.to,
+            points: e.points,
+          }),
+        );
       if (s.kind === "televote")
         teleApplied.push({ id: `t${k}`, edition_id: "", show_id: showId, country_id: s.to, points: s.points });
     }
@@ -107,6 +127,7 @@ function BroadcastPage() {
   const standings = computeStandings(ids, applied.juryApplied, applied.teleApplied, voting);
   const awarded: Record<string, number> = {};
   if (step?.kind === "jury-point") awarded[step.to] = step.points;
+  if (step?.kind === "jury-batch") step.entries.forEach((e) => (awarded[e.to] = e.points));
   if (step?.kind === "televote") awarded[step.to] = step.points;
 
   const isWinnerStep = step?.kind === "winner";
@@ -124,14 +145,20 @@ function BroadcastPage() {
     );
 
   const winner = standings[0] ? countryMap.get(standings[0].countryId) : null;
-  const voter = step?.kind === "jury-intro" || step?.kind === "jury-point" ? countryMap.get(step.voter) : null;
+  const voter =
+    step?.kind === "jury-intro" || step?.kind === "jury-point" || step?.kind === "jury-batch"
+      ? countryMap.get(step.voter)
+      : null;
 
   return (
     <div className="relative min-h-screen overflow-hidden" style={{ ...backgroundStyle(theme), ...themeVars(theme) }}>
       <div className="absolute inset-0" style={{ background: `rgba(0,0,0,${theme.background.overlay})` }} />
 
       <div className="relative mx-auto max-w-6xl px-4 py-6">
-        <header className="mb-5 flex flex-wrap items-center gap-3">
+        <header
+          className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3"
+          style={{ background: "var(--t-header-bg)", color: "var(--t-header-text)" }}
+        >
           <Link to="/shows/$showId" params={{ showId }} className="text-xs opacity-70 hover:opacity-100">
             ← Back to show
           </Link>
@@ -174,12 +201,12 @@ function BroadcastPage() {
           </div>
         </header>
 
-        <div className="mb-4 h-1 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="mb-4 h-1 w-full overflow-hidden rounded-full" style={{ background: "var(--t-progress-track)" }}>
           <div
             className="h-full rounded-full"
             style={{
               width: `${steps.length ? ((i + 1) / steps.length) * 100 : 0}%`,
-              background: `linear-gradient(90deg, ${theme.colors.primary}, ${theme.colors.secondary})`,
+              background: "var(--t-progress-fill)",
             }}
           />
         </div>
@@ -200,13 +227,16 @@ function BroadcastPage() {
                 key={voter.id}
                 initial={{ opacity: 0, y: -12 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-4 flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur"
+                className="mb-4 flex items-center gap-3 rounded-2xl px-4 py-3 backdrop-blur"
+                style={{ background: "var(--t-spokesperson-bg)", color: "var(--t-spokesperson-text)" }}
               >
                 {voter.flag_image && (
                   <img src={voter.flag_image} alt={voter.name} className="h-10 w-15 rounded object-cover" />
                 )}
                 <div>
-                  <p className="text-[11px] uppercase tracking-widest opacity-70">Now voting</p>
+                  <p className="text-[11px] uppercase tracking-widest" style={{ color: "var(--t-spokesperson-accent)", opacity: 0.9 }}>
+                    Now voting
+                  </p>
                   <p className="font-display text-lg font-bold">{voter.name}</p>
                 </div>
               </motion.div>
@@ -220,6 +250,7 @@ function BroadcastPage() {
               countries={countryMap}
               participants={participantMap}
               awarded={awarded}
+              votingCountryId={voter?.id ?? null}
               qualifiers={show.qualifier_count}
             />
           </>

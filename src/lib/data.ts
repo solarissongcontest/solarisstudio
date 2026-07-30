@@ -71,10 +71,86 @@ export type JuryVote = {
   id: string;
   edition_id: string;
   show_id: string | null;
+  /** Legacy/country-linked voter. Empty string when the ballot comes from a non-country jury. */
   voter_country_id: string;
+  voter_id?: string | null;
+
   receiving_country_id: string;
   points: number;
 };
+
+export const VOTER_KINDS = ["country", "external-country", "organization", "person", "custom"] as const;
+export type VoterKind = (typeof VOTER_KINDS)[number];
+
+export type Voter = {
+  id: string;
+  edition_id: string;
+  show_id: string | null;
+  country_id: string | null;
+  name: string;
+  kind: VoterKind;
+  flag_image: string | null;
+  accent_color: string;
+  sort_order: number;
+  created_at: string;
+};
+
+/** A normalised voting-entity option, whether backed by `voters` or a plain participating country. */
+export type VoterOption = {
+  key: string; // "v:<voterId>" or "c:<countryId>"
+  voterId: string | null;
+  countryId: string | null;
+  name: string;
+  short_code: string | null;
+  flag_image: string | null;
+  accent_color: string;
+};
+
+export function voterKey(v: { voterId?: string | null; countryId?: string | null }) {
+  return v.voterId ? `v:${v.voterId}` : `c:${v.countryId}`;
+}
+
+export function voterOptionsFromVoters(voters: Voter[], countries: Country[]): VoterOption[] {
+  const cMap = new Map(countries.map((c) => [c.id, c]));
+  return voters.map((v) => {
+    const c = v.country_id ? cMap.get(v.country_id) : undefined;
+    return {
+      key: `v:${v.id}`,
+      voterId: v.id,
+      countryId: v.country_id,
+      name: v.name || c?.name || "Voter",
+      short_code: c?.short_code ?? null,
+      flag_image: v.flag_image ?? c?.flag_image ?? null,
+      accent_color: v.accent_color || c?.accent_color || "#8888aa",
+    };
+  });
+}
+
+export function voterOptionsFromCountries(countryIds: string[], countries: Country[]): VoterOption[] {
+  const cMap = new Map(countries.map((c) => [c.id, c]));
+  return countryIds
+    .map((id) => cMap.get(id))
+    .filter((c): c is Country => !!c)
+    .map((c) => ({
+      key: `c:${c.id}`,
+      voterId: null,
+      countryId: c.id,
+      name: c.name,
+      short_code: c.short_code,
+      flag_image: c.flag_image,
+      accent_color: c.accent_color,
+    }));
+}
+
+/** Voting entities for a show: custom voters if any exist, else participating countries. */
+export function resolveShowVoters(
+  voters: Voter[] | undefined,
+  participantCountryIds: string[],
+  countries: Country[],
+): VoterOption[] {
+  if (voters && voters.length) return voterOptionsFromVoters(voters, countries);
+  return voterOptionsFromCountries(participantCountryIds, countries);
+}
 
 export type Televote = {
   id: string;
@@ -191,6 +267,22 @@ export function useJuryVotes(showId?: string) {
     enabled: !!showId,
     queryKey: ["jury_votes", "show", showId],
     queryFn: () => all<JuryVote>("jury_votes", (q) => q.eq("show_id", showId)),
+  });
+}
+
+export function useVoters(editionId?: string) {
+  return useQuery({
+    enabled: !!editionId,
+    queryKey: ["voters", "edition", editionId],
+    queryFn: () => all<Voter>("voters", (q) => q.eq("edition_id", editionId).order("sort_order")),
+  });
+}
+
+export function useShowVoters(showId?: string) {
+  return useQuery({
+    enabled: !!showId,
+    queryKey: ["voters", "show", showId],
+    queryFn: () => all<Voter>("voters", (q) => q.eq("show_id", showId).order("sort_order")),
   });
 }
 
