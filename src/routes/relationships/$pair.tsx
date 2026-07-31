@@ -96,7 +96,7 @@ function RelationshipPairPage() {
         actions={
           <Link
             to="/compare"
-            search={{ a: a.id, b: b.id } as never}
+            search={{ a: a.short_code, b: b.short_code }}
             className="rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-surface"
           >
             Full comparison →
