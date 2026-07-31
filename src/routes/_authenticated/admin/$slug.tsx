@@ -320,6 +320,40 @@ function AdminEdition() {
     await run(supabase.from("shows").update({ theme_id: data.id }).eq("id", activeShow.id), "Theme created.");
   };
 
+  /** Save the current draft as a brand-new entry in the theme library. */
+  const saveThemeAsNew = async () => {
+    if (!activeShow) return;
+    const name = window.prompt("Name this theme", `${activeShow.name} theme`);
+    if (!name) return;
+    const { data, error } = await supabase
+      .from("themes")
+      .insert({ name, config: themeDraft, is_public: true })
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      setMsg(error?.message ?? "Could not create theme.");
+      return;
+    }
+    await run(supabase.from("shows").update({ theme_id: data.id }).eq("id", activeShow.id), "Theme saved to library.");
+  };
+
+  const renameTheme = async () => {
+    const current = (themes ?? []).find((t) => t.id === activeShow?.theme_id);
+    if (!current) return;
+    const name = window.prompt("Rename theme", current.name);
+    if (!name || name === current.name) return;
+    await run(supabase.from("themes").update({ name }).eq("id", current.id), "Theme renamed.");
+  };
+
+  const deleteTheme = async () => {
+    const current = (themes ?? []).find((t) => t.id === activeShow?.theme_id);
+    if (!current) return;
+    if (!window.confirm(`Delete “${current.name}”? Shows using it fall back to the default theme.`)) return;
+    await supabase.from("shows").update({ theme_id: null }).eq("theme_id", current.id);
+    await run(supabase.from("themes").delete().eq("id", current.id), "Theme deleted.");
+  };
+
+
   const publishResults = async () => {
     if (!edition || !activeShowId) return;
     await supabase.from("results").delete().eq("show_id", activeShowId);
