@@ -174,6 +174,42 @@ function AdminEdition() {
     setPickCountry(null);
   };
 
+  /**
+   * Promote every semi-final qualifier of this edition into the current show.
+   * Existing semi-final rows are never touched or re-inserted — countries already
+   * present in this show are skipped, so the action is safe to repeat.
+   */
+  const addQualifiers = async () => {
+    if (!edition || !activeShowId) return;
+    const present = new Set(order);
+    const seen = new Set<string>();
+    const promote = (allParticipants ?? []).filter((p) => {
+      if (p.show_id === activeShowId || !p.qualified || present.has(p.country_id)) return false;
+      if (seen.has(p.country_id)) return false;
+      seen.add(p.country_id);
+      return true;
+    });
+    if (!promote.length) {
+      setMsg("No qualifiers to promote — mark semi-final qualifiers first.");
+      return;
+    }
+    await run(
+      supabase.from("participants").insert(
+        promote.map((p, i) => ({
+          edition_id: edition.id,
+          show_id: activeShowId,
+          country_id: p.country_id,
+          running_order: order.length + i + 1,
+          semi_final: activeShow?.kind ?? "final",
+          artist: p.artist,
+          song: p.song,
+        })),
+      ),
+      `Promoted ${promote.length} qualifier${promote.length === 1 ? "" : "s"}.`,
+    );
+  };
+
+
   const syncArtistSong = async () => {
     if (!edition) return;
     const byCountry = new Map<string, { artist: string | null; song: string | null }>();
