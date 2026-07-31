@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 import { CountryPicker } from "@/components/CountryPicker";
 import { FlagChip } from "@/components/FlagChip";
-import { voterKey, type Country, type JuryVote, type Televote, type VoterOption } from "@/lib/data";
+import { matchVoterKey, type Country, type JuryVote, type Televote, type VoterOption } from "@/lib/data";
 import type { VotingConfig } from "@/lib/voting";
 import { cn } from "@/lib/utils";
 
-const voteVoterKey = (v: JuryVote) => voterKey({ voterId: v.voter_id, countryId: v.voter_country_id });
 
 /**
  * High-speed jury ballot entry: one row per point value, type-ahead country
