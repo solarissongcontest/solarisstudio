@@ -322,7 +322,7 @@ function CountryProfilePage() {
               <StatTile label="Points given" value={stats.avgGivenPerContest != null ? stats.avgGivenPerContest.toFixed(0) : "—"} hint="avg per contest" />
               <StatTile label="First participation" value={country.first_participation ?? "—"} />
             </div>
-          </Panel>
+          </Panel></div>
 
           <div id="performance"><Panel title="Performance" description="Placement milestones across selected events" className="scroll-mt-40">
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -339,7 +339,7 @@ function CountryProfilePage() {
               <StatTile label="Lowest score" value={stats.lowestScore ?? "—"} />
               <StatTile label="Avg. qualification rank" value={stats.avgQualificationRank != null ? stats.avgQualificationRank.toFixed(1) : "—"} />
             </div>
-          </Panel>
+          </Panel></div>
 
           <div id="timeline"><Panel title="Results timeline" description="Final placement per edition (lower is better)" className="scroll-mt-40">
             {stats.timeline.length ? (
@@ -357,7 +357,7 @@ function CountryProfilePage() {
             ) : (
               <p className="text-sm text-muted-foreground">No results in this filter selection.</p>
             )}
-          </Panel>
+          </Panel></div>
 
           <div id="qualification"><Panel title="Qualification history" description="Semi-final results and qualification outcome" className="scroll-mt-40">
             {qualificationRows.length ? (
@@ -395,7 +395,7 @@ function CountryProfilePage() {
             ) : (
               <p className="text-sm text-muted-foreground">No semi-final appearances in this filter selection.</p>
             )}
-          </Panel>
+          </Panel></div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <div id="jury"><Panel title="Jury statistics" className="scroll-mt-40">
@@ -405,13 +405,13 @@ function CountryProfilePage() {
                 <StatTile label="12s given" value={stats.twelvesGiven} />
                 <StatTile label="Countries awarded" value={stats.distinctCountriesAwarded} />
               </div>
-            </Panel>
+            </Panel></div>
             <div id="televote"><Panel title="Televote statistics" className="scroll-mt-40">
               <div className="grid grid-cols-2 gap-3">
                 <StatTile label="Avg. televote placement" value={stats.avgTelevotePlacement != null ? stats.avgTelevotePlacement.toFixed(1) : "—"} />
                 <StatTile label="Avg. points / participation" value={stats.avgPointsPerParticipation != null ? stats.avgPointsPerParticipation.toFixed(1) : "—"} />
               </div>
-            </Panel>
+            </Panel></div>
           </div>
 
           <div id="received"><Panel title="Points received" description="Jury + televote points by edition" className="scroll-mt-40">
@@ -441,15 +441,15 @@ function CountryProfilePage() {
             ) : (
               <p className="text-sm text-muted-foreground">No results in this filter selection.</p>
             )}
-          </Panel>
+          </Panel></div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <div id="given"><Panel title="Points given" description={`How ${country.name} voted`} className="scroll-mt-40">
               <RelationList rows={recipients} cMap={cMap} country={country} />
-            </Panel>
+            </Panel></div>
             <div id="supporters"><Panel title="Biggest supporters" description="Countries that gave the most points" className="scroll-mt-40">
               <RelationList rows={supporters} cMap={cMap} country={country} />
-            </Panel>
+            </Panel></div>
           </div>
 
           <div id="rivals"><Panel title="Biggest rivals" description="Shared competitors this country consistently overlooks" className="scroll-mt-40">
@@ -474,7 +474,7 @@ function CountryProfilePage() {
             ) : (
               <p className="text-sm text-muted-foreground">No shared-competitor data in this filter selection.</p>
             )}
-          </Panel>
+          </Panel></div>
 
           <div id="relationships"><Panel title="Historical relationships" description="Strongest voting relationships with countries actually faced" className="scroll-mt-40">
             {relationshipTargets.length ? (
@@ -500,7 +500,7 @@ function CountryProfilePage() {
             ) : (
               <p className="text-sm text-muted-foreground">No shared voting history in this filter selection.</p>
             )}
-          </Panel>
+          </Panel></div>
 
           <div id="h2h"><Panel title="Head-to-head records" description="Final placement comparisons vs shared competitors" className="scroll-mt-40">
             {h2hRows.length ? (
@@ -538,7 +538,7 @@ function CountryProfilePage() {
             ) : (
               <p className="text-sm text-muted-foreground">No shared finals in this filter selection.</p>
             )}
-          </Panel>
+          </Panel></div>
 
           <div id="voting"><Panel title="Voting behaviour" description="Favourites, generosity and blind spots" className="scroll-mt-40">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -559,7 +559,7 @@ function CountryProfilePage() {
               />
               <StatTile label="Never awarded" value={stats.neverAwarded.filter((id) => sharedCountryIds.has(id)).length} hint="of shared competitors" />
             </div>
-          </Panel>
+          </Panel></div>
 
           <div id="trends"><Panel title="Performance trends" description="5-edition rolling average placement & qualifying vs non-qualifying" className="scroll-mt-40">
             <div className="grid gap-6 lg:grid-cols-2">
@@ -608,7 +608,7 @@ function CountryProfilePage() {
                 </div>
               </div>
             </div>
-          </Panel>
+          </Panel></div>
         </div>
       )}
     </AppShell>
