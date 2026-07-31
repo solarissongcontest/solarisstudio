@@ -46,7 +46,9 @@ export function VotingMatrix({
       ? { key: `c:${c.id}`, voterId: null, countryId: c.id, name: c.name, short_code: c.short_code, flag_image: c.flag_image, accent_color: c.accent_color }
       : undefined;
   };
-  const colKeyOf = (v: JuryVote) => voterKey({ voterId: v.voter_id, countryId: v.voter_country_id });
+  const voterList: VoterOption[] = [...voterMap.values()];
+  const colKeyOf = (v: JuryVote) => matchVoterKey(v, voterList);
+
 
   const cell = new Map<string, number>();
   votes.forEach((v) => {
