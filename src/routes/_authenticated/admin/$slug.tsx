@@ -825,7 +825,7 @@ function AdminEdition() {
               }
             >
               <div className="mb-4">
-                <Field label="Theme from library" hint="Reuse a saved design across editions">
+                <Field label="Theme from library" hint="Reuse, rename or delete a saved design">
                   <Select
                     value={activeShow.theme_id ?? ""}
                     onChange={(e) => patchShow(activeShow, { theme_id: e.target.value || null })}
@@ -840,7 +840,33 @@ function AdminEdition() {
                     ))}
                   </Select>
                 </Field>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={saveThemeAsNew}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface/70"
+                  >
+                    Save as new theme
+                  </button>
+                  <button
+                    type="button"
+                    onClick={renameTheme}
+                    disabled={!activeShow.theme_id}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface/70 disabled:opacity-40"
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteTheme}
+                    disabled={!activeShow.theme_id}
+                    className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                  >
+                    Delete theme
+                  </button>
+                </div>
               </div>
+
               <ThemeEditor theme={themeDraft} onChange={setThemeDraft} />
             </Panel>
           )}
