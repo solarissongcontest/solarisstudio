@@ -298,6 +298,42 @@ export function useAllJuryVotes() {
   return useQuery({ queryKey: ["jury_votes", "all"], queryFn: () => all<JuryVote>("jury_votes") });
 }
 
+/** Every participant row across every edition — needed by the analytics layer. */
+export function useAllParticipants() {
+  return useQuery({
+    queryKey: ["participants", "all"],
+    queryFn: () => all<Participant>("participants"),
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Every voting entity across every edition. */
+export function useAllVoters() {
+  return useQuery({ queryKey: ["voters", "all"], queryFn: () => all<Voter>("voters") });
+}
+
+/**
+ * Resolve which voting entity a stored ballot belongs to, tolerating history:
+ * ballots entered before custom juries existed carry only `voter_country_id`,
+ * so they are matched to the jury representing that country when one exists.
+ */
+export function matchVoterKey(
+  vote: { voter_id?: string | null; voter_country_id?: string | null },
+  options: VoterOption[],
+): string {
+  if (vote.voter_id) {
+    const direct = options.find((o) => o.voterId === vote.voter_id);
+    if (direct) return direct.key;
+  }
+  if (vote.voter_country_id) {
+    const byCountry = options.find((o) => o.countryId === vote.voter_country_id);
+    if (byCountry) return byCountry.key;
+    return `c:${vote.voter_country_id}`;
+  }
+  return vote.voter_id ? `v:${vote.voter_id}` : "";
+}
+
+
 export function useAllTelevotes() {
   return useQuery({
     queryKey: ["televote_votes", "all"],

@@ -16,7 +16,9 @@ import {
   SHOW_KINDS,
   VOTER_KINDS,
   resolveShowVoters,
+  matchVoterKey,
   voterKey,
+
   useCountries,
   useEdition,
   useJuryVotes,
@@ -172,6 +174,42 @@ function AdminEdition() {
     setPickCountry(null);
   };
 
+  /**
+   * Promote every semi-final qualifier of this edition into the current show.
+   * Existing semi-final rows are never touched or re-inserted — countries already
+   * present in this show are skipped, so the action is safe to repeat.
+   */
+  const addQualifiers = async () => {
+    if (!edition || !activeShowId) return;
+    const present = new Set(order);
+    const seen = new Set<string>();
+    const promote = (allParticipants ?? []).filter((p) => {
+      if (p.show_id === activeShowId || !p.qualified || present.has(p.country_id)) return false;
+      if (seen.has(p.country_id)) return false;
+      seen.add(p.country_id);
+      return true;
+    });
+    if (!promote.length) {
+      setMsg("No qualifiers to promote — mark semi-final qualifiers first.");
+      return;
+    }
+    await run(
+      supabase.from("participants").insert(
+        promote.map((p, i) => ({
+          edition_id: edition.id,
+          show_id: activeShowId,
+          country_id: p.country_id,
+          running_order: order.length + i + 1,
+          semi_final: activeShow?.kind ?? "final",
+          artist: p.artist,
+          song: p.song,
+        })),
+      ),
+      `Promoted ${promote.length} qualifier${promote.length === 1 ? "" : "s"}.`,
+    );
+  };
+
+
   const syncArtistSong = async () => {
     if (!edition) return;
     const byCountry = new Map<string, { artist: string | null; song: string | null }>();
@@ -204,15 +242,27 @@ function AdminEdition() {
     return { voterId: opt?.voterId ?? null, countryId: opt?.countryId ?? null };
   };
 
+  /**
+   * Ballots already stored for a voting entity. Matching happens on the loaded rows
+   * (by stable ids, with a country fallback for legacy ballots) so that adding,
+   * renaming or reordering juries can never orphan existing votes.
+   */
+  const ballotRows = (key: string) => (jury ?? []).filter((v) => matchVoterKey(v, voterOptions) === key);
+
+  const deleteVoteRows = async (ids: string[]) => {
+    if (!ids.length) return;
+    await supabase.from("jury_votes").delete().in("id", ids);
+  };
+
   const assign = async (v: string, receiver: string, points: number) => {
     if (!edition || !activeShowId) return;
     const { voterId, countryId } = decodeVoterKey(v);
-    let del: any = (supabase as any)
-      .from("jury_votes")
-      .delete()
-      .eq("show_id", activeShowId);
-    del = voterId ? del.eq("voter_id", voterId) : del.eq("voter_country_id", countryId);
-    await del.or(`points.eq.${points},receiving_country_id.eq.${receiver}`);
+    // Free the point value and the receiver slot on this ballot only.
+    await deleteVoteRows(
+      ballotRows(v)
+        .filter((row) => row.points === points || row.receiving_country_id === receiver)
+        .map((row) => row.id),
+    );
     await run(
       supabase.from("jury_votes").insert({
         edition_id: edition.id,
@@ -225,16 +275,11 @@ function AdminEdition() {
     );
   };
 
-  const clearPoint = (v: string, points: number) => {
-    const { voterId, countryId } = decodeVoterKey(v);
-    let del: any = (supabase as any)
-      .from("jury_votes")
-      .delete()
-      .eq("show_id", activeShowId!)
-      .eq("points", points);
-    del = voterId ? del.eq("voter_id", voterId) : del.eq("voter_country_id", countryId);
-    return run(del);
+  const clearPoint = async (v: string, points: number) => {
+    await deleteVoteRows(ballotRows(v).filter((row) => row.points === points).map((row) => row.id));
+    await run(Promise.resolve({ error: null }));
   };
+
 
   const setTele = async (countryId: string, points: number) => {
     if (!edition || !activeShowId) return;
@@ -274,6 +319,40 @@ function AdminEdition() {
     }
     await run(supabase.from("shows").update({ theme_id: data.id }).eq("id", activeShow.id), "Theme created.");
   };
+
+  /** Save the current draft as a brand-new entry in the theme library. */
+  const saveThemeAsNew = async () => {
+    if (!activeShow) return;
+    const name = window.prompt("Name this theme", `${activeShow.name} theme`);
+    if (!name) return;
+    const { data, error } = await supabase
+      .from("themes")
+      .insert({ name, config: themeDraft, is_public: true })
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      setMsg(error?.message ?? "Could not create theme.");
+      return;
+    }
+    await run(supabase.from("shows").update({ theme_id: data.id }).eq("id", activeShow.id), "Theme saved to library.");
+  };
+
+  const renameTheme = async () => {
+    const current = (themes ?? []).find((t) => t.id === activeShow?.theme_id);
+    if (!current) return;
+    const name = window.prompt("Rename theme", current.name);
+    if (!name || name === current.name) return;
+    await run(supabase.from("themes").update({ name }).eq("id", current.id), "Theme renamed.");
+  };
+
+  const deleteTheme = async () => {
+    const current = (themes ?? []).find((t) => t.id === activeShow?.theme_id);
+    if (!current) return;
+    if (!window.confirm(`Delete “${current.name}”? Shows using it fall back to the default theme.`)) return;
+    await supabase.from("shows").update({ theme_id: null }).eq("theme_id", current.id);
+    await run(supabase.from("themes").delete().eq("id", current.id), "Theme deleted.");
+  };
+
 
   const publishResults = async () => {
     if (!edition || !activeShowId) return;
@@ -470,7 +549,18 @@ function AdminEdition() {
                 >
                   Sync artist &amp; song across shows
                 </button>
+                {activeShow.kind === "final" && (
+                  <button
+                    type="button"
+                    onClick={addQualifiers}
+                    className="rounded-xl border border-border bg-surface px-3 py-2 text-sm hover:bg-surface/70"
+                    title="Add every country marked as qualified in this edition's semi-finals"
+                  >
+                    Add semi-final qualifiers
+                  </button>
+                )}
               </div>
+
 
               <ul className="space-y-1.5">
                 {(participants ?? []).map((p, i) => {
@@ -735,7 +825,7 @@ function AdminEdition() {
               }
             >
               <div className="mb-4">
-                <Field label="Theme from library" hint="Reuse a saved design across editions">
+                <Field label="Theme from library" hint="Reuse, rename or delete a saved design">
                   <Select
                     value={activeShow.theme_id ?? ""}
                     onChange={(e) => patchShow(activeShow, { theme_id: e.target.value || null })}
@@ -750,7 +840,33 @@ function AdminEdition() {
                     ))}
                   </Select>
                 </Field>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={saveThemeAsNew}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface/70"
+                  >
+                    Save as new theme
+                  </button>
+                  <button
+                    type="button"
+                    onClick={renameTheme}
+                    disabled={!activeShow.theme_id}
+                    className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface/70 disabled:opacity-40"
+                  >
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={deleteTheme}
+                    disabled={!activeShow.theme_id}
+                    className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-40"
+                  >
+                    Delete theme
+                  </button>
+                </div>
               </div>
+
               <ThemeEditor theme={themeDraft} onChange={setThemeDraft} />
             </Panel>
           )}

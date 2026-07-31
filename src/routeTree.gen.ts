@@ -12,12 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RelationshipsIndexRouteImport } from './routes/relationships/index'
 import { Route as RecordsIndexRouteImport } from './routes/records/index'
 import { Route as EditionsIndexRouteImport } from './routes/editions/index'
 import { Route as CountriesIndexRouteImport } from './routes/countries/index'
+import { Route as CompareIndexRouteImport } from './routes/compare/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
 import { Route as ShowsShowIdRouteImport } from './routes/shows/$showId'
+import { Route as RelationshipsPairRouteImport } from './routes/relationships/$pair'
 import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
 import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
 import { Route as BroadcastShowIdRouteImport } from './routes/broadcast/$showId'
@@ -38,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelationshipsIndexRoute = RelationshipsIndexRouteImport.update({
+  id: '/relationships/',
+  path: '/relationships/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecordsIndexRoute = RecordsIndexRouteImport.update({
   id: '/records/',
   path: '/records/',
@@ -53,6 +61,11 @@ const CountriesIndexRoute = CountriesIndexRouteImport.update({
   path: '/countries/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompareIndexRoute = CompareIndexRouteImport.update({
+  id: '/compare/',
+  path: '/compare/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthIndexRoute = AuthIndexRouteImport.update({
   id: '/auth/',
   path: '/auth/',
@@ -66,6 +79,11 @@ const AnalysisIndexRoute = AnalysisIndexRouteImport.update({
 const ShowsShowIdRoute = ShowsShowIdRouteImport.update({
   id: '/shows/$showId',
   path: '/shows/$showId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelationshipsPairRoute = RelationshipsPairRouteImport.update({
+  id: '/relationships/$pair',
+  path: '/relationships/$pair',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditionsSlugRoute = EditionsSlugRouteImport.update({
@@ -100,12 +118,15 @@ export interface FileRoutesByFullPath {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
+  '/compare/': typeof CompareIndexRoute
   '/countries/': typeof CountriesIndexRoute
   '/editions/': typeof EditionsIndexRoute
   '/records/': typeof RecordsIndexRoute
+  '/relationships/': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
 }
@@ -115,12 +136,15 @@ export interface FileRoutesByTo {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis': typeof AnalysisIndexRoute
   '/auth': typeof AuthIndexRoute
+  '/compare': typeof CompareIndexRoute
   '/countries': typeof CountriesIndexRoute
   '/editions': typeof EditionsIndexRoute
   '/records': typeof RecordsIndexRoute
+  '/relationships': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
 }
@@ -132,12 +156,15 @@ export interface FileRoutesById {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
+  '/compare/': typeof CompareIndexRoute
   '/countries/': typeof CountriesIndexRoute
   '/editions/': typeof EditionsIndexRoute
   '/records/': typeof RecordsIndexRoute
+  '/relationships/': typeof RelationshipsIndexRoute
   '/_authenticated/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
 }
@@ -149,12 +176,15 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
+    | '/compare/'
     | '/countries/'
     | '/editions/'
     | '/records/'
+    | '/relationships/'
     | '/admin/$slug'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -164,12 +194,15 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis'
     | '/auth'
+    | '/compare'
     | '/countries'
     | '/editions'
     | '/records'
+    | '/relationships'
     | '/admin/$slug'
     | '/admin'
   id:
@@ -180,12 +213,15 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
+    | '/compare/'
     | '/countries/'
     | '/editions/'
     | '/records/'
+    | '/relationships/'
     | '/_authenticated/admin/$slug'
     | '/_authenticated/admin/'
   fileRoutesById: FileRoutesById
@@ -197,12 +233,15 @@ export interface RootRouteChildren {
   BroadcastShowIdRoute: typeof BroadcastShowIdRoute
   CountriesCodeRoute: typeof CountriesCodeRoute
   EditionsSlugRoute: typeof EditionsSlugRoute
+  RelationshipsPairRoute: typeof RelationshipsPairRoute
   ShowsShowIdRoute: typeof ShowsShowIdRoute
   AnalysisIndexRoute: typeof AnalysisIndexRoute
   AuthIndexRoute: typeof AuthIndexRoute
+  CompareIndexRoute: typeof CompareIndexRoute
   CountriesIndexRoute: typeof CountriesIndexRoute
   EditionsIndexRoute: typeof EditionsIndexRoute
   RecordsIndexRoute: typeof RecordsIndexRoute
+  RelationshipsIndexRoute: typeof RelationshipsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -228,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relationships/': {
+      id: '/relationships/'
+      path: '/relationships'
+      fullPath: '/relationships/'
+      preLoaderRoute: typeof RelationshipsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/records/': {
       id: '/records/'
       path: '/records'
@@ -249,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CountriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compare/': {
+      id: '/compare/'
+      path: '/compare'
+      fullPath: '/compare/'
+      preLoaderRoute: typeof CompareIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/': {
       id: '/auth/'
       path: '/auth'
@@ -268,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/shows/$showId'
       fullPath: '/shows/$showId'
       preLoaderRoute: typeof ShowsShowIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relationships/$pair': {
+      id: '/relationships/$pair'
+      path: '/relationships/$pair'
+      fullPath: '/relationships/$pair'
+      preLoaderRoute: typeof RelationshipsPairRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editions/$slug': {
@@ -328,23 +388,16 @@ const rootRouteChildren: RootRouteChildren = {
   BroadcastShowIdRoute: BroadcastShowIdRoute,
   CountriesCodeRoute: CountriesCodeRoute,
   EditionsSlugRoute: EditionsSlugRoute,
+  RelationshipsPairRoute: RelationshipsPairRoute,
   ShowsShowIdRoute: ShowsShowIdRoute,
   AnalysisIndexRoute: AnalysisIndexRoute,
   AuthIndexRoute: AuthIndexRoute,
+  CompareIndexRoute: CompareIndexRoute,
   CountriesIndexRoute: CountriesIndexRoute,
   EditionsIndexRoute: EditionsIndexRoute,
   RecordsIndexRoute: RecordsIndexRoute,
+  RelationshipsIndexRoute: RelationshipsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
