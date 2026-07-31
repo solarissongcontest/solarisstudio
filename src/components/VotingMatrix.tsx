@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { voterKey, type Country, type JuryVote, type Voter, type VoterOption } from "@/lib/data";
+import { matchVoterKey, type Country, type JuryVote, type Voter, type VoterOption } from "@/lib/data";
+
 import { cn } from "@/lib/utils";
 
 /**
