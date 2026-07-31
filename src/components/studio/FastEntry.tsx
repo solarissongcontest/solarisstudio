@@ -33,7 +33,20 @@ export function FastJuryEntry({
 }) {
   const vMap = useMemo(() => new Map(voters.map((v) => [v.key, v])), [voters]);
   const pool = receivers;
-  const ballot = votes.filter((v) => voteVoterKey(v) === activeVoter);
+  /** Stable mapping from each stored ballot row to a voting entity (handles legacy country-only ballots). */
+  const keyOf = useMemo(() => {
+    const cache = new Map<string, string>();
+    return (v: JuryVote) => {
+      const cacheKey = `${v.voter_id ?? ""}|${v.voter_country_id ?? ""}`;
+      let k = cache.get(cacheKey);
+      if (k === undefined) {
+        k = matchVoterKey(v, voters);
+        cache.set(cacheKey, k);
+      }
+      return k;
+    };
+  }, [voters]);
+  const ballot = votes.filter((v) => keyOf(v) === activeVoter);
   const byPoints = new Map(ballot.map((v) => [v.points, v.receiving_country_id]));
   const activeVoterCountry = vMap.get(activeVoter)?.countryId ?? null;
 
@@ -41,10 +54,11 @@ export function FastJuryEntry({
     const need = voting.juryPoints.length;
     return voters.map((v) => ({
       id: v.key,
-      given: votes.filter((vote) => voteVoterKey(vote) === v.key).length,
+      given: votes.filter((vote) => keyOf(vote) === v.key).length,
       need,
     }));
-  }, [voters, votes, voting.juryPoints.length]);
+  }, [voters, votes, voting.juryPoints.length, keyOf]);
+
 
   const usedReceivers = new Set(ballot.map((v) => v.receiving_country_id));
 
