@@ -515,7 +515,18 @@ function AdminEdition() {
                 >
                   Sync artist &amp; song across shows
                 </button>
+                {activeShow.kind === "final" && (
+                  <button
+                    type="button"
+                    onClick={addQualifiers}
+                    className="rounded-xl border border-border bg-surface px-3 py-2 text-sm hover:bg-surface/70"
+                    title="Add every country marked as qualified in this edition's semi-finals"
+                  >
+                    Add semi-final qualifiers
+                  </button>
+                )}
               </div>
+
 
               <ul className="space-y-1.5">
                 {(participants ?? []).map((p, i) => {
