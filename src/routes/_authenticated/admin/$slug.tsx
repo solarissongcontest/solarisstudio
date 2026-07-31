@@ -204,15 +204,27 @@ function AdminEdition() {
     return { voterId: opt?.voterId ?? null, countryId: opt?.countryId ?? null };
   };
 
+  /**
+   * Ballots already stored for a voting entity. Matching happens on the loaded rows
+   * (by stable ids, with a country fallback for legacy ballots) so that adding,
+   * renaming or reordering juries can never orphan existing votes.
+   */
+  const ballotRows = (key: string) => (jury ?? []).filter((v) => matchVoterKey(v, voterOptions) === key);
+
+  const deleteVoteRows = async (ids: string[]) => {
+    if (!ids.length) return;
+    await supabase.from("jury_votes").delete().in("id", ids);
+  };
+
   const assign = async (v: string, receiver: string, points: number) => {
     if (!edition || !activeShowId) return;
     const { voterId, countryId } = decodeVoterKey(v);
-    let del: any = (supabase as any)
-      .from("jury_votes")
-      .delete()
-      .eq("show_id", activeShowId);
-    del = voterId ? del.eq("voter_id", voterId) : del.eq("voter_country_id", countryId);
-    await del.or(`points.eq.${points},receiving_country_id.eq.${receiver}`);
+    // Free the point value and the receiver slot on this ballot only.
+    await deleteVoteRows(
+      ballotRows(v)
+        .filter((row) => row.points === points || row.receiving_country_id === receiver)
+        .map((row) => row.id),
+    );
     await run(
       supabase.from("jury_votes").insert({
         edition_id: edition.id,
@@ -225,16 +237,11 @@ function AdminEdition() {
     );
   };
 
-  const clearPoint = (v: string, points: number) => {
-    const { voterId, countryId } = decodeVoterKey(v);
-    let del: any = (supabase as any)
-      .from("jury_votes")
-      .delete()
-      .eq("show_id", activeShowId!)
-      .eq("points", points);
-    del = voterId ? del.eq("voter_id", voterId) : del.eq("voter_country_id", countryId);
-    return run(del);
+  const clearPoint = async (v: string, points: number) => {
+    await deleteVoteRows(ballotRows(v).filter((row) => row.points === points).map((row) => row.id));
+    await run(Promise.resolve({ error: null }));
   };
+
 
   const setTele = async (countryId: string, points: number) => {
     if (!edition || !activeShowId) return;
