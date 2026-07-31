@@ -123,6 +123,8 @@ function RecordsPage() {
     finals.forEach((r) => byShow.set(r.show_id ?? "", [...(byShow.get(r.show_id ?? "") ?? []), r]));
     let closest: { margin: number; winner: string; showId: string } | null = null;
     let comeback: { delta: number; countryId: string; showId: string } | null = null;
+    type ClosestRec = { margin: number; winner: string; showId: string };
+    type ComebackRec = { delta: number; countryId: string; showId: string };
     byShow.forEach((rows, showId) => {
       const sorted = [...rows].sort((a, b) => b.total_points - a.total_points);
       if (sorted.length >= 2) {
@@ -135,27 +137,29 @@ function RecordsPage() {
       });
     });
     if (closest) {
-      const c = byId.get(closest.winner);
-      const ed = editionBySlug.get(showById.get(closest.showId)?.edition_id ?? "");
+      const cl = closest as ClosestRec;
+      const c = byId.get(cl.winner);
+      const ed = editionBySlug.get(showById.get(cl.showId)?.edition_id ?? "");
       out.push({
         label: "Closest victory",
-        value: `${closest.margin} pt${closest.margin === 1 ? "" : "s"}`,
+        value: `${cl.margin} pt${cl.margin === 1 ? "" : "s"}`,
         detail: `${c?.name ?? "?"} · ${ed?.year ?? ""}`,
         countryCode: c?.short_code,
         editionSlug: ed?.slug,
-        showId: closest.showId,
+        showId: cl.showId,
       });
     }
-    if (comeback && comeback.delta > 0) {
-      const c = byId.get(comeback.countryId);
-      const ed = editionBySlug.get(showById.get(comeback.showId)?.edition_id ?? "");
+    if (comeback && (comeback as ComebackRec).delta > 0) {
+      const cb = comeback as ComebackRec;
+      const c = byId.get(cb.countryId);
+      const ed = editionBySlug.get(showById.get(cb.showId)?.edition_id ?? "");
       out.push({
         label: "Biggest televote comeback (single show)",
-        value: `+${comeback.delta} pts`,
+        value: `+${cb.delta} pts`,
         detail: `${c?.name ?? "?"} · ${ed?.year ?? ""}`,
         countryCode: c?.short_code,
         editionSlug: ed?.slug,
-        showId: comeback.showId,
+        showId: cb.showId,
       });
     }
     return out;

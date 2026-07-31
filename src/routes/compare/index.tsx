@@ -30,8 +30,8 @@ export const Route = createFileRoute("/compare/")({
     a: typeof search.a === "string" ? search.a : undefined,
     b: typeof search.b === "string" ? search.b : undefined,
   }),
-  head: ({ search }) => {
-    const s = search as Search;
+  head: (ctx: { match: { search: Search } }) => {
+    const s = ctx.match.search;
     const title =
       s.a && s.b ? `${s.a} vs ${s.b} — country comparison` : "Compare countries — Solaris Scoreboard Studio";
     return {
@@ -126,13 +126,13 @@ function ComparePage() {
           <CountryPicker
             label="Country A"
             value={a}
-            onChange={(code) => navigate({ search: (prev) => ({ ...prev, a: code || undefined }) })}
+            onChange={(code) => navigate({ search: (prev: Search) => ({ ...prev, a: code || undefined }) })}
             countries={countries ?? []}
           />
           <CountryPicker
             label="Country B"
             value={b}
-            onChange={(code) => navigate({ search: (prev) => ({ ...prev, b: code || undefined }) })}
+            onChange={(code) => navigate({ search: (prev: Search) => ({ ...prev, b: code || undefined }) })}
             countries={countries ?? []}
           />
         </div>

@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
-import { computeRelationship, relationships } from "@/lib/stats";
+import { computeRelationship } from "@/lib/stats";
+import { relationships } from "@/lib/analysis";
 import { useAllJuryVotes, useAllParticipants, useAllResults, useCountries, useEditions, type Country } from "@/lib/data";
 
 export const Route = createFileRoute("/relationships/")({
@@ -80,9 +81,9 @@ function RelationshipsIndex() {
   const oneSidedRaw = relationships(jury ?? []).oneSided;
   const sharedKeySet = new Set(sharedPairs.map((p) => [p.a.id, p.b.id].sort().join("|")));
   const oneSided = oneSidedRaw
-    .filter((o) => sharedKeySet.has([o.a, o.b].sort().join("|")))
+    .filter((o: { a: string; b: string; gap: number; ab: number; ba: number }) => sharedKeySet.has([o.a, o.b].sort().join("|")))
     .slice(0, 8)
-    .map((o) => ({ a: cMap.get(o.a), b: cMap.get(o.b), gap: o.gap, ab: o.ab, ba: o.ba }))
+    .map((o: { a: string; b: string; gap: number; ab: number; ba: number }) => ({ a: cMap.get(o.a), b: cMap.get(o.b), gap: o.gap, ab: o.ab, ba: o.ba }))
     .filter((o): o is { a: Country; b: Country; gap: number; ab: number; ba: number } => !!o.a && !!o.b);
 
   const filtered = enriched.filter(({ a, b }) => {
@@ -128,7 +129,7 @@ function RelationshipsIndex() {
         <PairPanel
           title="Most one-sided relationships"
           description="Biggest gap between points given each way"
-          rows={oneSided.map((o) => ({ a: o.a, b: o.b, value: `+${o.gap} pts`, sub: `${o.ab} → vs ${o.ba} ←` }))}
+          rows={oneSided.map((o: { a: Country; b: Country; gap: number; ab: number; ba: number }) => ({ a: o.a, b: o.b, value: `+${o.gap} pts`, sub: `${o.ab} → vs ${o.ba} ←` }))}
         />
         <PairPanel
           title="Mutual 12-point admirers"
