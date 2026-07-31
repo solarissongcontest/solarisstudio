@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RelationshipsIndexRouteImport } from './routes/relationships/index'
 import { Route as RecordsIndexRouteImport } from './routes/records/index'
 import { Route as EditionsIndexRouteImport } from './routes/editions/index'
 import { Route as CountriesIndexRouteImport } from './routes/countries/index'
@@ -36,6 +37,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelationshipsIndexRoute = RelationshipsIndexRouteImport.update({
+  id: '/relationships/',
+  path: '/relationships/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecordsIndexRoute = RecordsIndexRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/countries/': typeof CountriesIndexRoute
   '/editions/': typeof EditionsIndexRoute
   '/records/': typeof RecordsIndexRoute
+  '/relationships/': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
 }
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/countries': typeof CountriesIndexRoute
   '/editions': typeof EditionsIndexRoute
   '/records': typeof RecordsIndexRoute
+  '/relationships': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
 }
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/countries/': typeof CountriesIndexRoute
   '/editions/': typeof EditionsIndexRoute
   '/records/': typeof RecordsIndexRoute
+  '/relationships/': typeof RelationshipsIndexRoute
   '/_authenticated/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
 }
@@ -155,6 +164,7 @@ export interface FileRouteTypes {
     | '/countries/'
     | '/editions/'
     | '/records/'
+    | '/relationships/'
     | '/admin/$slug'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/countries'
     | '/editions'
     | '/records'
+    | '/relationships'
     | '/admin/$slug'
     | '/admin'
   id:
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/countries/'
     | '/editions/'
     | '/records/'
+    | '/relationships/'
     | '/_authenticated/admin/$slug'
     | '/_authenticated/admin/'
   fileRoutesById: FileRoutesById
@@ -203,6 +215,7 @@ export interface RootRouteChildren {
   CountriesIndexRoute: typeof CountriesIndexRoute
   EditionsIndexRoute: typeof EditionsIndexRoute
   RecordsIndexRoute: typeof RecordsIndexRoute
+  RelationshipsIndexRoute: typeof RelationshipsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relationships/': {
+      id: '/relationships/'
+      path: '/relationships'
+      fullPath: '/relationships/'
+      preLoaderRoute: typeof RelationshipsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/records/': {
@@ -334,6 +354,7 @@ const rootRouteChildren: RootRouteChildren = {
   CountriesIndexRoute: CountriesIndexRoute,
   EditionsIndexRoute: EditionsIndexRoute,
   RecordsIndexRoute: RecordsIndexRoute,
+  RelationshipsIndexRoute: RelationshipsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
