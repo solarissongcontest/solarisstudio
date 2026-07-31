@@ -6,11 +6,15 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/", label: "Overview" },
   { to: "/editions", label: "Editions" },
+  { to: "/contests", label: "Contests" },
   { to: "/countries", label: "Countries" },
+  { to: "/relationships", label: "Relationships" },
+  { to: "/compare", label: "Compare" },
   { to: "/analysis", label: "Analysis" },
   { to: "/records", label: "Records" },
   { to: "/admin", label: "Studio" },
 ] as const;
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });

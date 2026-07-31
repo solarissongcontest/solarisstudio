@@ -20,6 +20,7 @@ import { Route as CompareIndexRouteImport } from './routes/compare/index'
 import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
 import { Route as ShowsShowIdRouteImport } from './routes/shows/$showId'
+import { Route as RelationshipsPairRouteImport } from './routes/relationships/$pair'
 import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
 import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
 import { Route as BroadcastShowIdRouteImport } from './routes/broadcast/$showId'
@@ -80,6 +81,11 @@ const ShowsShowIdRoute = ShowsShowIdRouteImport.update({
   path: '/shows/$showId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelationshipsPairRoute = RelationshipsPairRouteImport.update({
+  id: '/relationships/$pair',
+  path: '/relationships/$pair',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditionsSlugRoute = EditionsSlugRouteImport.update({
   id: '/editions/$slug',
   path: '/editions/$slug',
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis': typeof AnalysisIndexRoute
   '/auth': typeof AuthIndexRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
   '/auth/': typeof AuthIndexRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis'
     | '/auth'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis/'
     | '/auth/'
@@ -221,6 +233,7 @@ export interface RootRouteChildren {
   BroadcastShowIdRoute: typeof BroadcastShowIdRoute
   CountriesCodeRoute: typeof CountriesCodeRoute
   EditionsSlugRoute: typeof EditionsSlugRoute
+  RelationshipsPairRoute: typeof RelationshipsPairRoute
   ShowsShowIdRoute: typeof ShowsShowIdRoute
   AnalysisIndexRoute: typeof AnalysisIndexRoute
   AuthIndexRoute: typeof AuthIndexRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShowsShowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relationships/$pair': {
+      id: '/relationships/$pair'
+      path: '/relationships/$pair'
+      fullPath: '/relationships/$pair'
+      preLoaderRoute: typeof RelationshipsPairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/editions/$slug': {
       id: '/editions/$slug'
       path: '/editions/$slug'
@@ -368,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   BroadcastShowIdRoute: BroadcastShowIdRoute,
   CountriesCodeRoute: CountriesCodeRoute,
   EditionsSlugRoute: EditionsSlugRoute,
+  RelationshipsPairRoute: RelationshipsPairRoute,
   ShowsShowIdRoute: ShowsShowIdRoute,
   AnalysisIndexRoute: AnalysisIndexRoute,
   AuthIndexRoute: AuthIndexRoute,
