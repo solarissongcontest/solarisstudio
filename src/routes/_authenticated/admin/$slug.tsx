@@ -332,7 +332,7 @@ function AdminEdition() {
     }
     const { data, error } = await supabase
       .from("themes")
-      .insert({ name: `${activeShow.name} theme`, config: themeDraft, is_public: true })
+      .insert({ name: `${activeShow.name} theme`, config: themeDraft, is_public: false })
       .select()
       .maybeSingle();
     if (error || !data) {
@@ -349,7 +349,7 @@ function AdminEdition() {
     if (!name) return;
     const { data, error } = await supabase
       .from("themes")
-      .insert({ name, config: themeDraft, is_public: true })
+      .insert({ name, config: themeDraft, is_public: false })
       .select()
       .maybeSingle();
     if (error || !data) {
