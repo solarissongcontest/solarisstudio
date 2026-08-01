@@ -29,21 +29,37 @@ export const Route = createFileRoute("/_authenticated/admin/")({
 });
 
 function AdminHome() {
-  const { data: editions } = useEditions();
+  const { data: editions, isLoading: editionsLoading } = useEditions();
   const { data: countries } = useCountries();
   const { data: shows } = useAllShows();
   const { data: isOrganizer } = useIsOrganizer();
   const qc = useQueryClient();
 
-  const nextNumber = Math.max(0, ...(editions ?? []).map((e) => e.edition_number ?? 0)) + 1;
+  // Until editions have loaded, the next number is unknown — seeding the form
+  // with 1 caused duplicate numbers and duplicate slugs on first submit.
+  const nextNumber = editionsLoading
+    ? null
+    : Math.max(0, ...(editions ?? []).map((e) => e.edition_number ?? 0)) + 1;
+
   const [form, setForm] = useState({
-    edition_number: nextNumber,
+    edition_number: "" as number | "",
     name: "",
     year: "",
     host_city: "",
     host_country_id: "",
   });
+  const [numberTouched, setNumberTouched] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Fill in the suggested number once editions arrive, without ever overwriting
+  // a value the organizer typed themselves.
+  useEffect(() => {
+    if (nextNumber !== null && !numberTouched && form.edition_number === "") {
+      setForm((f) => ({ ...f, edition_number: nextNumber }));
+    }
+  }, [nextNumber, numberTouched, form.edition_number]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["editions"] });
@@ -52,35 +68,71 @@ function AdminHome() {
 
   const createEdition = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setMsg(null);
-    const num = Number(form.edition_number) || nextNumber;
-    const { error } = await supabase.from("editions").insert({
-      edition_number: num,
-      name: form.name || `Solaris Song Contest ${num}`,
-      year: form.year ? Number(form.year) : null,
-      slug: `ssc-${num}`,
-      host_city: form.host_city || null,
-      host_country_id: form.host_country_id || null,
-      status: "draft",
-      published: false,
-    });
-    if (error) setMsg(error.message);
-    else {
+    setError(null);
+
+    const num = Number(form.edition_number);
+    if (!Number.isInteger(num) || num < 1) {
+      setError("Enter a whole edition number of 1 or higher.");
+      return;
+    }
+    const slug = `ssc-${num}`;
+    const clash = (editions ?? []).find((ed) => ed.edition_number === num || ed.slug === slug);
+    if (clash) {
+      setError(`Edition ${num} already exists (“${clash.name}”). Pick a different number.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error: insertError } = await supabase.from("editions").insert({
+        edition_number: num,
+        name: form.name || `Solaris Song Contest ${num}`,
+        year: form.year ? Number(form.year) : null,
+        slug,
+        host_city: form.host_city || null,
+        host_country_id: form.host_country_id || null,
+        status: "draft",
+        published: false,
+      });
+      if (insertError) {
+        // Keep everything the organizer typed so they can correct and retry.
+        setError(reportSupabaseError(insertError, "Could not create the edition. Nothing was saved."));
+        return;
+      }
+      setNumberTouched(false);
       setForm({ edition_number: num + 1, name: "", year: "", host_city: "", host_country_id: "" });
+      setMsg(`Edition ${num} created.`);
       refresh();
+    } finally {
+      setSaving(false);
     }
   };
 
   const togglePublished = async (ed: Edition) => {
-    const { error } = await supabase.from("editions").update({ published: !ed.published }).eq("id", ed.id);
-    if (error) setMsg(error.message);
+    setError(null);
+    const { error: updateError } = await supabase
+      .from("editions")
+      .update({ published: !ed.published })
+      .eq("id", ed.id);
+    if (updateError) {
+      setError(reportSupabaseError(updateError, "Could not change the visibility of this edition."));
+      return;
+    }
+    setMsg(`${ed.name} is now ${ed.published ? "private" : "public"}.`);
     refresh();
   };
 
   const removeEdition = async (ed: Edition) => {
     if (!window.confirm(`Delete “${ed.name}” and all of its shows, votes and results?`)) return;
-    const { error } = await supabase.from("editions").delete().eq("id", ed.id);
-    setMsg(error ? error.message : `Deleted ${ed.name}.`);
+    setError(null);
+    const { error: deleteError } = await supabase.from("editions").delete().eq("id", ed.id);
+    if (deleteError) {
+      setError(reportSupabaseError(deleteError, "Could not delete this edition."));
+      return;
+    }
+    setMsg(`Deleted ${ed.name}.`);
     refresh();
   };
 
