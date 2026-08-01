@@ -12,6 +12,7 @@ import { BroadcastEditor } from "@/components/studio/BroadcastEditor";
 import { FastJuryEntry, TelevoteEntry } from "@/components/studio/FastEntry";
 import { computeStandings } from "@/lib/analysis";
 import { supabase } from "@/integrations/supabase/client";
+import { reportSupabaseError } from "@/lib/errors";
 import {
   SHOW_KINDS,
   VOTER_KINDS,
