@@ -371,35 +371,69 @@ function AdminEdition() {
     const current = (themes ?? []).find((t) => t.id === activeShow?.theme_id);
     if (!current) return;
     if (!window.confirm(`Delete “${current.name}”? Shows using it fall back to the default theme.`)) return;
-    await supabase.from("shows").update({ theme_id: null }).eq("theme_id", current.id);
+    // Detach first; abort the delete if detaching fails so no show is left
+    // pointing at a theme that is about to disappear.
+    const { error: detachError } = await supabase
+      .from("shows")
+      .update({ theme_id: null })
+      .eq("theme_id", current.id);
+    if (detachError) {
+      setMsg(reportSupabaseError(detachError, "Could not detach the theme. It was not deleted."));
+      return;
+    }
     await run(supabase.from("themes").delete().eq("id", current.id), "Theme deleted.");
   };
 
+  const [publishing, setPublishing] = useState(false);
 
   const publishResults = async () => {
-    if (!edition || !activeShowId) return;
-    await supabase.from("results").delete().eq("show_id", activeShowId);
-    const rows = standings.map((s) => ({
-      edition_id: edition.id,
-      show_id: activeShowId,
-      country_id: s.countryId,
-      jury_points: s.jury,
-      televote_points: s.televote,
-      total_points: s.total,
-      final_rank: s.rank,
-    }));
-    await run(supabase.from("results").insert(rows), "Results saved to the archive.");
-    if (voting.qualifiers) {
-      await Promise.all(
-        standings.map((s) =>
-          supabase
-            .from("participants")
-            .update({ qualified: s.rank <= voting.qualifiers! })
-            .eq("show_id", activeShowId)
-            .eq("country_id", s.countryId),
-        ),
-      );
+    if (!edition || !activeShowId || publishing) return;
+    setPublishing(true);
+    try {
+      // One transactional call: the old archive is cleared and the recalculated
+      // standings written together, so a failure can never leave a show with no
+      // results. Re-running produces the same archive.
+      const { error } = await supabase.rpc("publish_show_results", {
+        p_show_id: activeShowId,
+        p_rows: standings.map((s) => ({
+          country_id: s.countryId,
+          jury_points: s.jury,
+          televote_points: s.televote,
+          total_points: s.total,
+          final_rank: s.rank,
+        })),
+      });
+      if (error) {
+        setMsg(reportSupabaseError(error, "Could not save the results. The previous archive is unchanged."));
+        return;
+      }
+
+      if (voting.qualifiers) {
+        const outcomes = await Promise.all(
+          standings.map((s) =>
+            supabase
+              .from("participants")
+              .update({ qualified: s.rank <= voting.qualifiers! })
+              .eq("show_id", activeShowId)
+              .eq("country_id", s.countryId),
+          ),
+        );
+        const failed = outcomes.find((o) => o.error);
+        if (failed?.error) {
+          setMsg(
+            reportSupabaseError(
+              failed.error,
+              "Results were archived, but qualification flags could not all be updated.",
+            ),
+          );
+          refresh();
+          return;
+        }
+      }
+      setMsg("Results saved to the archive.");
       refresh();
+    } finally {
+      setPublishing(false);
     }
   };
 
