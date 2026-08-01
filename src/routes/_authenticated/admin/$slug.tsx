@@ -122,10 +122,19 @@ function AdminEdition() {
       qc.invalidateQueries({ queryKey: [k] }),
     );
   };
+  /**
+   * Runs one write. On failure the message is translated to plain language and
+   * caches are left alone, so nothing on screen is replaced by stale data.
+   */
   const run = async (p: PromiseLike<{ error: unknown }>, ok?: string) => {
     const { error } = await p;
-    setMsg(error ? (error as { message: string }).message : (ok ?? null));
+    if (error) {
+      setMsg(reportSupabaseError(error));
+      return false;
+    }
+    setMsg(ok ?? null);
     refresh();
+    return true;
   };
 
   /* -------- shows -------- */
