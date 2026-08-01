@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { Field, Select, TextInput } from "@/components/studio/Controls";
 import { supabase } from "@/integrations/supabase/client";
+import { reportSupabaseError } from "@/lib/errors";
 import {
   editionLabel,
   useAllShows,
