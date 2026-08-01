@@ -12,6 +12,7 @@ import { BroadcastEditor } from "@/components/studio/BroadcastEditor";
 import { FastJuryEntry, TelevoteEntry } from "@/components/studio/FastEntry";
 import { computeStandings } from "@/lib/analysis";
 import { supabase } from "@/integrations/supabase/client";
+import { reportSupabaseError } from "@/lib/errors";
 import {
   SHOW_KINDS,
   VOTER_KINDS,
@@ -122,10 +123,19 @@ function AdminEdition() {
       qc.invalidateQueries({ queryKey: [k] }),
     );
   };
+  /**
+   * Runs one write. On failure the message is translated to plain language and
+   * caches are left alone, so nothing on screen is replaced by stale data.
+   */
   const run = async (p: PromiseLike<{ error: unknown }>, ok?: string) => {
     const { error } = await p;
-    setMsg(error ? (error as { message: string }).message : (ok ?? null));
+    if (error) {
+      setMsg(reportSupabaseError(error));
+      return false;
+    }
+    setMsg(ok ?? null);
     refresh();
+    return true;
   };
 
   /* -------- shows -------- */
@@ -249,20 +259,27 @@ function AdminEdition() {
    */
   const ballotRows = (key: string) => (jury ?? []).filter((v) => matchVoterKey(v, voterOptions) === key);
 
+  /** Returns false (and reports) when the delete fails, so callers can abort. */
   const deleteVoteRows = async (ids: string[]) => {
-    if (!ids.length) return;
-    await supabase.from("jury_votes").delete().in("id", ids);
+    if (!ids.length) return true;
+    const { error } = await supabase.from("jury_votes").delete().in("id", ids);
+    if (error) {
+      setMsg(reportSupabaseError(error, "Could not clear the existing score. Nothing was changed."));
+      return false;
+    }
+    return true;
   };
 
   const assign = async (v: string, receiver: string, points: number) => {
     if (!edition || !activeShowId) return;
     const { voterId, countryId } = decodeVoterKey(v);
     // Free the point value and the receiver slot on this ballot only.
-    await deleteVoteRows(
+    const cleared = await deleteVoteRows(
       ballotRows(v)
         .filter((row) => row.points === points || row.receiving_country_id === receiver)
         .map((row) => row.id),
     );
+    if (!cleared) return;
     await run(
       supabase.from("jury_votes").insert({
         edition_id: edition.id,
@@ -276,8 +293,13 @@ function AdminEdition() {
   };
 
   const clearPoint = async (v: string, points: number) => {
-    await deleteVoteRows(ballotRows(v).filter((row) => row.points === points).map((row) => row.id));
-    await run(Promise.resolve({ error: null }));
+    const ok = await deleteVoteRows(
+      ballotRows(v).filter((row) => row.points === points).map((row) => row.id),
+    );
+    if (ok) {
+      setMsg(null);
+      refresh();
+    }
   };
 
 
@@ -310,7 +332,7 @@ function AdminEdition() {
     }
     const { data, error } = await supabase
       .from("themes")
-      .insert({ name: `${activeShow.name} theme`, config: themeDraft, is_public: true })
+      .insert({ name: `${activeShow.name} theme`, config: themeDraft, is_public: false })
       .select()
       .maybeSingle();
     if (error || !data) {
@@ -327,7 +349,7 @@ function AdminEdition() {
     if (!name) return;
     const { data, error } = await supabase
       .from("themes")
-      .insert({ name, config: themeDraft, is_public: true })
+      .insert({ name, config: themeDraft, is_public: false })
       .select()
       .maybeSingle();
     if (error || !data) {
@@ -349,35 +371,69 @@ function AdminEdition() {
     const current = (themes ?? []).find((t) => t.id === activeShow?.theme_id);
     if (!current) return;
     if (!window.confirm(`Delete “${current.name}”? Shows using it fall back to the default theme.`)) return;
-    await supabase.from("shows").update({ theme_id: null }).eq("theme_id", current.id);
+    // Detach first; abort the delete if detaching fails so no show is left
+    // pointing at a theme that is about to disappear.
+    const { error: detachError } = await supabase
+      .from("shows")
+      .update({ theme_id: null })
+      .eq("theme_id", current.id);
+    if (detachError) {
+      setMsg(reportSupabaseError(detachError, "Could not detach the theme. It was not deleted."));
+      return;
+    }
     await run(supabase.from("themes").delete().eq("id", current.id), "Theme deleted.");
   };
 
+  const [publishing, setPublishing] = useState(false);
 
   const publishResults = async () => {
-    if (!edition || !activeShowId) return;
-    await supabase.from("results").delete().eq("show_id", activeShowId);
-    const rows = standings.map((s) => ({
-      edition_id: edition.id,
-      show_id: activeShowId,
-      country_id: s.countryId,
-      jury_points: s.jury,
-      televote_points: s.televote,
-      total_points: s.total,
-      final_rank: s.rank,
-    }));
-    await run(supabase.from("results").insert(rows), "Results saved to the archive.");
-    if (voting.qualifiers) {
-      await Promise.all(
-        standings.map((s) =>
-          supabase
-            .from("participants")
-            .update({ qualified: s.rank <= voting.qualifiers! })
-            .eq("show_id", activeShowId)
-            .eq("country_id", s.countryId),
-        ),
-      );
+    if (!edition || !activeShowId || publishing) return;
+    setPublishing(true);
+    try {
+      // One transactional call: the old archive is cleared and the recalculated
+      // standings written together, so a failure can never leave a show with no
+      // results. Re-running produces the same archive.
+      const { error } = await supabase.rpc("publish_show_results", {
+        p_show_id: activeShowId,
+        p_rows: standings.map((s) => ({
+          country_id: s.countryId,
+          jury_points: s.jury,
+          televote_points: s.televote,
+          total_points: s.total,
+          final_rank: s.rank,
+        })),
+      });
+      if (error) {
+        setMsg(reportSupabaseError(error, "Could not save the results. The previous archive is unchanged."));
+        return;
+      }
+
+      if (voting.qualifiers) {
+        const outcomes = await Promise.all(
+          standings.map((s) =>
+            supabase
+              .from("participants")
+              .update({ qualified: s.rank <= voting.qualifiers! })
+              .eq("show_id", activeShowId)
+              .eq("country_id", s.countryId),
+          ),
+        );
+        const failed = outcomes.find((o) => o.error);
+        if (failed?.error) {
+          setMsg(
+            reportSupabaseError(
+              failed.error,
+              "Results were archived, but qualification flags could not all be updated.",
+            ),
+          );
+          refresh();
+          return;
+        }
+      }
+      setMsg("Results saved to the archive.");
       refresh();
+    } finally {
+      setPublishing(false);
     }
   };
 

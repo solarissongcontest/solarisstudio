@@ -1,10 +1,9 @@
--- clear old demo contest data (countries are reloaded separately)
-DELETE FROM public.results;
-DELETE FROM public.jury_votes;
-DELETE FROM public.televote_votes;
-DELETE FROM public.participants;
-DELETE FROM public.shows;
-DELETE FROM public.editions;
+-- NOTE (production-hardening pass): this migration originally began by deleting
+-- every row from results/jury_votes/televote_votes/participants/shows/editions to
+-- clear demo data. That already ran once in this project, but replaying the
+-- migration chain in a fresh or restored environment would have destroyed real
+-- contest data. The destructive statements have been neutralised; demo resets now
+-- live in scripts/reset-demo-data.sql and must never be run against production.
 
 -- themes library
 CREATE TABLE public.themes (

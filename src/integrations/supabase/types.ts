@@ -586,6 +586,10 @@ export type Database = {
         Returns: boolean
       }
       organizer_exists: { Args: never; Returns: boolean }
+      publish_show_results: {
+        Args: { p_rows: Json; p_show_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "organizer" | "viewer"
