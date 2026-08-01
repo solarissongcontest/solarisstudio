@@ -289,10 +289,15 @@ function AdminHome() {
                 onChange={(e) => setForm({ ...form, host_city: e.target.value })}
               />
             </Field>
-            <button className="bg-aurora w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground">
-              Create edition
+            <button
+              type="submit"
+              disabled={saving || editionsLoading}
+              className="bg-aurora w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Creating edition…" : "Create edition"}
             </button>
-            {msg && <p className="text-sm text-destructive">{msg}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {!error && msg && <p className="text-sm text-muted-foreground">{msg}</p>}
           </form>
         </Panel>
       </div>
