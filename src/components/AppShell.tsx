@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/", label: "Overview" },
   { to: "/editions", label: "Editions" },
-  { to: "/contests", label: "Contests" },
+  // "/contests" was listed here but no such route exists — it 404'd on click.
   { to: "/countries", label: "Countries" },
   { to: "/relationships", label: "Relationships" },
   { to: "/compare", label: "Compare" },
