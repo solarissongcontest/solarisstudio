@@ -232,20 +232,30 @@ function AdminHome() {
 
         <Panel title="New edition" description="Editions are numbered; the year is optional">
           <form onSubmit={createEdition} className="space-y-3">
-            <Field label="Edition number">
+            <Field
+              label="Edition number"
+              hint={editionsLoading ? "Loading existing editions…" : "Suggested from the highest existing edition"}
+            >
               <TextInput
                 type="number"
                 min={1}
                 required
+                disabled={editionsLoading}
                 className="numeric"
                 value={form.edition_number}
-                onChange={(e) => setForm({ ...form, edition_number: Number(e.target.value) })}
+                onChange={(e) => {
+                  setNumberTouched(true);
+                  setForm({
+                    ...form,
+                    edition_number: e.target.value === "" ? "" : Number(e.target.value),
+                  });
+                }}
               />
             </Field>
-            <Field label="Name" hint={`Defaults to “Solaris Song Contest ${form.edition_number}”`}>
+            <Field label="Name" hint={`Defaults to “Solaris Song Contest ${form.edition_number || "…"}”`}>
               <TextInput
                 value={form.name}
-                placeholder={`Solaris Song Contest ${form.edition_number}`}
+                placeholder={`Solaris Song Contest ${form.edition_number || ""}`}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
             </Field>
