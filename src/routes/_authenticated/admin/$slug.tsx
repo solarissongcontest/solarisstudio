@@ -259,20 +259,27 @@ function AdminEdition() {
    */
   const ballotRows = (key: string) => (jury ?? []).filter((v) => matchVoterKey(v, voterOptions) === key);
 
+  /** Returns false (and reports) when the delete fails, so callers can abort. */
   const deleteVoteRows = async (ids: string[]) => {
-    if (!ids.length) return;
-    await supabase.from("jury_votes").delete().in("id", ids);
+    if (!ids.length) return true;
+    const { error } = await supabase.from("jury_votes").delete().in("id", ids);
+    if (error) {
+      setMsg(reportSupabaseError(error, "Could not clear the existing score. Nothing was changed."));
+      return false;
+    }
+    return true;
   };
 
   const assign = async (v: string, receiver: string, points: number) => {
     if (!edition || !activeShowId) return;
     const { voterId, countryId } = decodeVoterKey(v);
     // Free the point value and the receiver slot on this ballot only.
-    await deleteVoteRows(
+    const cleared = await deleteVoteRows(
       ballotRows(v)
         .filter((row) => row.points === points || row.receiving_country_id === receiver)
         .map((row) => row.id),
     );
+    if (!cleared) return;
     await run(
       supabase.from("jury_votes").insert({
         edition_id: edition.id,
@@ -286,8 +293,13 @@ function AdminEdition() {
   };
 
   const clearPoint = async (v: string, points: number) => {
-    await deleteVoteRows(ballotRows(v).filter((row) => row.points === points).map((row) => row.id));
-    await run(Promise.resolve({ error: null }));
+    const ok = await deleteVoteRows(
+      ballotRows(v).filter((row) => row.points === points).map((row) => row.id),
+    );
+    if (ok) {
+      setMsg(null);
+      refresh();
+    }
   };
 
 
