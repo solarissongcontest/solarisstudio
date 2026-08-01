@@ -696,3 +696,63 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Package manager
+
+This project uses **Bun** (`bunfig.toml`, `bun.lock`). The stale `package-lock.json`
+was removed so there is a single authoritative lockfile.
+
+```bash
+bun install
+bun run dev      # local development
+bun run build    # production build (Cloudflare Workers output)
+bun run lint
+```
+
+## Environment variables
+
+Copy `.env.example` to `.env`. Only public, browser-safe values belong there:
+`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID`
+(plus their non-prefixed SSR mirrors). The service-role key and database password
+must never appear in the repository or in client code. `.env` is git-ignored.
+
+## Cloudflare Workers deployment
+
+The build already targets Cloudflare Workers. `bun run build` emits:
+
+- `dist/server/` — the Worker (SSR + server functions)
+- `dist/client/` — static assets
+- `dist/server/wrangler.json` — generated Wrangler config (do not hand-edit)
+
+Deploy the prebuilt output:
+
+```bash
+bun run build
+npx nitro deploy --prebuilt
+# or: npx wrangler deploy --config dist/server/wrangler.json
+```
+
+Do **not** add `@cloudflare/vite-plugin` — the Lovable/Nitro Vite config already
+produces the Workers bundle, and adding it duplicates the build target.
+
+### Connecting the GitHub repository
+
+1. Create a free Cloudflare account and open **Workers & Pages**.
+2. Import the GitHub repository and select `main` as the production branch.
+3. Build command: `bun install && bun run build`
+4. Deploy command: `npx nitro deploy --prebuilt`
+5. Add the `VITE_SUPABASE_*` variables in the Cloudflare dashboard.
+6. Deploy and copy the resulting `*.workers.dev` URL.
+
+### Supabase authentication URLs (manual step)
+
+After the production URL exists, set it in the backend auth settings:
+
+- Site URL: `https://<your-worker>.workers.dev`
+- Redirect URLs: `https://<your-worker>.workers.dev/**` (keep `http://localhost:8080/**` for local development)
+
+## Development-only data reset
+
+`scripts/reset-demo-data.sql` clears contest data for a fresh local seed. It
+refuses to run unless `solaris.allow_demo_reset` is set. **Never run it against
+production.** Schema migrations no longer contain destructive deletes.
