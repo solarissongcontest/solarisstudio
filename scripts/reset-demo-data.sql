@@ -1,8 +1,16 @@
 -- DEVELOPMENT ONLY — DO NOT RUN AGAINST PRODUCTION.
 --
--- Clears all contest data (editions, shows, participants, votes, results) so a
--- development environment can be re-seeded from scratch. Countries, themes,
--- voters and user roles are left untouched.
+-- Clears all contest data so a development environment can be re-seeded from
+-- scratch.
+--
+-- REMOVED: results, jury_votes, televote_votes, participants, voters, shows,
+--   editions. Voters ARE removed: every voter row is edition-scoped
+--   (voters.edition_id is NOT NULL), so voters cannot outlive the editions
+--   they belong to.
+-- PRESERVED: countries, themes, user_roles.
+--
+-- Deletion order follows foreign-key dependencies: child rows (results, votes,
+-- participants, voters) before shows, and shows before editions.
 --
 -- This logic used to live inside a schema migration, which meant replaying the
 -- migration chain in a fresh or restored environment silently erased real data.
