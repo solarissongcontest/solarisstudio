@@ -1,5 +1,6 @@
-import type { Country, JuryVote, ResultRow, Televote } from "./data";
-import type { VotingConfig } from "./voting";
+import type { Country, JuryVote, ResultRow, Show, Televote } from "./data";
+import { DEFAULT_TOP_SCORE, isTopScore, makeTopScoreResolver, type TopScoreResolver, type VotingConfig } from "./voting";
+
 
 export type Standing = {
   countryId: string;
