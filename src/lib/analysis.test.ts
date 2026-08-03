@@ -134,7 +134,7 @@ describe("voting config", () => {
 /* ---------------------------------------------------------------- */
 
 import { computeRecords, countryProfile } from "./analysis";
-import type { ResultRow, Show } from "./data";
+import type { Country, ResultRow, Show } from "./data";
 import { makeTopScoreResolver } from "./voting";
 
 const show = (id: string, kind: string, points?: number[]): Show =>
