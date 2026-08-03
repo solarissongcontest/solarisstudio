@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { isTopScore, makeTopScoreResolver } from "@/lib/voting";
 import { computeHistoricalRecords } from "@/lib/stats";
 import {
   useAllJuryVotes,
@@ -85,9 +86,14 @@ function RecordsPage() {
       "Most successful country (wins)",
       [...byCountry.entries()].map(([id, rows]) => [id, rows.filter((r) => r.final_rank === 1).length]),
     );
-    const partCounts = new Map<string, number>();
-    (participants ?? []).forEach((p) => partCounts.set(p.country_id, (partCounts.get(p.country_id) ?? 0) + 1));
-    push("Most participations", [...partCounts.entries()]);
+    // One participation per edition, no matter how many shows the country sang in.
+    const partEditions = new Map<string, Set<string>>();
+    (participants ?? []).forEach((p) => {
+      const set = partEditions.get(p.country_id) ?? new Set<string>();
+      set.add(p.edition_id);
+      partEditions.set(p.country_id, set);
+    });
+    push("Most participations", [...partEditions.entries()].map(([id, set]) => [id, set.size]));
     push("Most grand finals reached", [...byCountry.entries()].map(([id, rows]) => [id, rows.length]));
     push(
       "Most top-5 finishes",
@@ -106,15 +112,17 @@ function RecordsPage() {
       given.set(v.voter_country_id, (given.get(v.voter_country_id) ?? 0) + v.points);
     });
     push("Most points awarded (career)", [...given.entries()], " pts");
-    const twelvesReceived = new Map<string, number>();
-    (jury ?? []).filter((v) => v.points === 12).forEach((v) => twelvesReceived.set(v.receiving_country_id, (twelvesReceived.get(v.receiving_country_id) ?? 0) + 1));
-    push("Most 12 points received", [...twelvesReceived.entries()]);
-    const twelvesGiven = new Map<string, number>();
-    (jury ?? []).filter((v) => v.points === 12 && v.voter_country_id).forEach((v) => twelvesGiven.set(v.voter_country_id, (twelvesGiven.get(v.voter_country_id) ?? 0) + 1));
-    push("Most 12 points given", [...twelvesGiven.entries()]);
+    // "Top score" is the maximum of each show's own point scale, not a hard-coded 12.
+    const resolveTop = makeTopScoreResolver(shows ?? []);
+    const topReceived = new Map<string, number>();
+    (jury ?? []).filter((v) => isTopScore(v, resolveTop)).forEach((v) => topReceived.set(v.receiving_country_id, (topReceived.get(v.receiving_country_id) ?? 0) + 1));
+    push("Most top scores received", [...topReceived.entries()]);
+    const topGiven = new Map<string, number>();
+    (jury ?? []).filter((v) => isTopScore(v, resolveTop) && v.voter_country_id).forEach((v) => topGiven.set(v.voter_country_id, (topGiven.get(v.voter_country_id) ?? 0) + 1));
+    push("Most top scores given", [...topGiven.entries()]);
 
     return out;
-  }, [results, participants, jury, byId, showById]);
+  }, [results, participants, jury, byId, showById, shows]);
 
   const singleEditionAggregates = useMemo((): Rec[] => {
     const out: Rec[] = [];

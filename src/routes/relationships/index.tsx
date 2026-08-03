@@ -74,8 +74,8 @@ function RelationshipsIndex() {
   const alliances = [...enriched].sort((x, y) => y.rel.friendshipScore - x.rel.friendshipScore).slice(0, 8);
   const rivalries = [...enriched].sort((x, y) => y.rel.rivalryScore - x.rel.rivalryScore).slice(0, 8);
   const mutual12s = enriched
-    .filter((e) => e.rel.mutualTwelves > 0)
-    .sort((x, y) => y.rel.mutualTwelves - x.rel.mutualTwelves)
+    .filter((e) => e.rel.mutualTopScores > 0)
+    .sort((x, y) => y.rel.mutualTopScores - x.rel.mutualTopScores)
     .slice(0, 8);
 
   const oneSidedRaw = relationships(jury ?? []).oneSided;
@@ -137,7 +137,7 @@ function RelationshipsIndex() {
           rows={mutual12s.map((e) => ({
             a: e.a,
             b: e.b,
-            value: `${e.rel.mutualTwelves}× mutual 12`,
+            value: `${e.rel.mutualTopScores}× mutual top score`,
             sub: `${e.shared} shared edition${e.shared === 1 ? "" : "s"}`,
           }))}
         />
