@@ -224,15 +224,28 @@ export function regionalBias(votes: JuryVote[], countries: Country[]) {
 /* ---------------- country profile + records ---------------- */
 
 export type CountryProfile = {
+  /** One per edition the country appeared in, however many shows it sang in. */
   participations: number;
+  /** Every individual show result row (semi-finals + finals + specials). */
+  showAppearances: number;
+  semiFinalAppearances: number;
+  finalAppearances: number;
+  /** Semi-final appearances that were followed by a final appearance in the same edition. */
+  qualifications: number;
+  nonQualifications: number;
   wins: number;
   best: number | null;
   worst: number | null;
   average: number | null;
   pointsReceived: number;
   pointsGiven: number;
-  twelvesReceived: number;
-  twelvesGiven: number;
+  /** Awards of the maximum score of the show each vote belongs to. */
+  topScoresReceived: number;
+  topScoresGiven: number;
+  /**
+   * Placement history, one entry per edition, taken from the grand final when
+   * the country reached one and otherwise from its best show result.
+   */
   history: { year: number; rank: number | null; total: number }[];
 };
 
@@ -241,28 +254,58 @@ export function countryProfile(
   results: ResultRow[],
   jury: JuryVote[],
   editionYear: Map<string, number | null>,
+  opts?: { shows?: Show[]; resolveTopScore?: TopScoreResolver },
 ): CountryProfile {
+  const resolve = opts?.resolveTopScore ?? makeTopScoreResolver(opts?.shows);
+  const kindOf = new Map((opts?.shows ?? []).map((s) => [s.id, s.kind]));
+  const kind = (r: ResultRow) => (r.show_id ? kindOf.get(r.show_id) : undefined);
+
   const mine = results.filter((r) => r.country_id === countryId);
-  const ranks = mine.map((r) => r.final_rank).filter((r): r is number => r != null);
+  const editionIds = [...new Set(mine.map((r) => r.edition_id))];
+  const finals = mine.filter((r) => kind(r) === "grand-final");
+  const semis = mine.filter((r) => kind(r) === "semi-final");
+
+  // A semi appearance counts as a qualification when the same edition also has
+  // a grand-final appearance for this country.
+  const finalEditionIds = new Set(finals.map((r) => r.edition_id));
+  const qualifications = semis.filter((r) => finalEditionIds.has(r.edition_id)).length;
+
+  // Placement stats use grand finals when shows are known; otherwise all rows.
+  const placementRows = opts?.shows?.length ? (finals.length ? finals : mine) : mine;
+  const ranks = placementRows.map((r) => r.final_rank).filter((r): r is number => r != null);
+
+  const historyRows = editionIds.map((editionId) => {
+    const rows = mine.filter((r) => r.edition_id === editionId);
+    const finalRow = rows.find((r) => kind(r) === "grand-final");
+    const best = finalRow ?? [...rows].sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))[0]!;
+    return {
+      year: editionYear.get(editionId) ?? 0,
+      rank: best.final_rank,
+      total: best.total_points,
+    };
+  });
+
   return {
-    participations: mine.length,
-    wins: ranks.filter((r) => r === 1).length,
+    participations: editionIds.length,
+    showAppearances: mine.length,
+    semiFinalAppearances: semis.length,
+    finalAppearances: finals.length,
+    qualifications,
+    nonQualifications: semis.length - qualifications,
+    wins: finals.length
+      ? finals.filter((r) => r.final_rank === 1).length
+      : ranks.filter((r) => r === 1).length,
     best: ranks.length ? Math.min(...ranks) : null,
     worst: ranks.length ? Math.max(...ranks) : null,
     average: ranks.length ? ranks.reduce((a, b) => a + b, 0) / ranks.length : null,
     pointsReceived: mine.reduce((a, r) => a + r.total_points, 0),
     pointsGiven: jury.filter((v) => v.voter_country_id === countryId).reduce((a, v) => a + v.points, 0),
-    twelvesReceived: jury.filter((v) => v.receiving_country_id === countryId && v.points === 12).length,
-    twelvesGiven: jury.filter((v) => v.voter_country_id === countryId && v.points === 12).length,
-    history: mine
-      .map((r) => ({
-        year: editionYear.get(r.edition_id) ?? 0,
-        rank: r.final_rank,
-        total: r.total_points,
-      }))
-      .sort((a, b) => a.year - b.year),
+    topScoresReceived: jury.filter((v) => v.receiving_country_id === countryId && isTopScore(v, resolve)).length,
+    topScoresGiven: jury.filter((v) => v.voter_country_id === countryId && isTopScore(v, resolve)).length,
+    history: historyRows.sort((a, b) => a.year - b.year),
   };
 }
+
 
 export type RecordEntry = { label: string; value: string; detail: string };
 
