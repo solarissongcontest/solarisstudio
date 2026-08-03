@@ -309,14 +309,30 @@ export function countryProfile(
 
 export type RecordEntry = { label: string; value: string; detail: string };
 
+/** Rank rows of one show by a metric, sharing ranks on ties (1,2,2,4). */
+function rankBy(rows: ResultRow[], value: (r: ResultRow) => number): Map<string, number> {
+  const sorted = [...rows].sort((a, b) => value(b) - value(a));
+  const ranks = new Map<string, number>();
+  sorted.forEach((r, i) => {
+    const prev = sorted[i - 1];
+    ranks.set(r.country_id, prev && value(prev) === value(r) ? ranks.get(prev.country_id)! : i + 1);
+  });
+  return ranks;
+}
+
 export function computeRecords(
   results: ResultRow[],
   jury: JuryVote[],
   countries: Country[],
   editionYear: Map<string, number | null>,
+  opts?: { shows?: Show[]; resolveTopScore?: TopScoreResolver },
 ): RecordEntry[] {
+  const resolve = opts?.resolveTopScore ?? makeTopScoreResolver(opts?.shows);
+  const showName = new Map((opts?.shows ?? []).map((s) => [s.id, s.name]));
   const name = new Map(countries.map((c) => [c.id, c.name]));
-  const label = (r: ResultRow) => `${name.get(r.country_id) ?? "?"} · ${editionYear.get(r.edition_id) ?? ""}`;
+  const context = (r: ResultRow) =>
+    [editionYear.get(r.edition_id) ?? "", r.show_id ? showName.get(r.show_id) : null].filter(Boolean).join(" · ");
+  const label = (r: ResultRow) => `${name.get(r.country_id) ?? "?"} · ${context(r)}`;
   if (!results.length) return [];
 
   const sorted = [...results].sort((a, b) => b.total_points - a.total_points);
@@ -325,38 +341,53 @@ export function computeRecords(
   const winners = results.filter((r) => r.final_rank === 1);
   const lowestWin = [...winners].sort((a, b) => a.total_points - b.total_points)[0];
 
-  const byEdition = new Map<string, ResultRow[]>();
-  results.forEach((r) => byEdition.set(r.edition_id, [...(byEdition.get(r.edition_id) ?? []), r]));
+  // Margins are only meaningful inside a single show — never across a
+  // semi-final and a final of the same edition.
+  const byShow = new Map<string, ResultRow[]>();
+  results.forEach((r) => {
+    const key = r.show_id ?? `edition:${r.edition_id}`;
+    byShow.set(key, [...(byShow.get(key) ?? []), r]);
+  });
   let biggestMargin = { margin: -1, text: "—" };
   let closest = { margin: Number.MAX_SAFE_INTEGER, text: "—" };
-  byEdition.forEach((rows, edId) => {
+  byShow.forEach((rows) => {
     const s = [...rows].sort((a, b) => b.total_points - a.total_points);
     if (s.length < 2) return;
     const margin = s[0].total_points - s[1].total_points;
-    const text = `${name.get(s[0].country_id)} over ${name.get(s[1].country_id)} · ${editionYear.get(edId)}`;
+    const text = `${name.get(s[0].country_id)} over ${name.get(s[1].country_id)} · ${context(s[0])}`;
     if (margin > biggestMargin.margin) biggestMargin = { margin, text };
     if (margin < closest.margin) closest = { margin, text };
   });
 
-  const twelveIn = new Map<string, number>();
-  const twelveOut = new Map<string, number>();
+  const topIn = new Map<string, number>();
+  const topOut = new Map<string, number>();
   jury
-    .filter((v) => v.points === 12)
+    .filter((v) => isTopScore(v, resolve))
     .forEach((v) => {
-      twelveIn.set(v.receiving_country_id, (twelveIn.get(v.receiving_country_id) ?? 0) + 1);
-      twelveOut.set(v.voter_country_id, (twelveOut.get(v.voter_country_id) ?? 0) + 1);
+      topIn.set(v.receiving_country_id, (topIn.get(v.receiving_country_id) ?? 0) + 1);
+      topOut.set(v.voter_country_id, (topOut.get(v.voter_country_id) ?? 0) + 1);
     });
   const top = (m: Map<string, number>) => {
     const e = [...m.entries()].sort((a, b) => b[1] - a[1])[0];
     return e ? { name: name.get(e[0]) ?? "?", n: e[1] } : { name: "—", n: 0 };
   };
 
-  const climb = [...results].sort(
-    (a, b) => b.televote_points - b.jury_points - (a.televote_points - a.jury_points),
-  )[0];
-  const drop = [...results].sort(
-    (a, b) => b.jury_points - b.televote_points - (a.jury_points - a.televote_points),
-  )[0];
+  // Comeback / collapse measure *ranking movement* between the jury-only
+  // standing and the final standing inside one show — not raw point gaps.
+  let comeback: { places: number; row: ResultRow } | null = null;
+  let collapse: { places: number; row: ResultRow } | null = null;
+  byShow.forEach((rows) => {
+    if (rows.length < 2) return;
+    const juryRank = rankBy(rows, (r) => r.jury_points);
+    const finalRank = rankBy(rows, (r) => r.total_points);
+    rows.forEach((r) => {
+      const moved = (juryRank.get(r.country_id) ?? 0) - (finalRank.get(r.country_id) ?? 0);
+      if (moved > 0 && (!comeback || moved > comeback.places)) comeback = { places: moved, row: r };
+      if (moved < 0 && (!collapse || -moved > collapse.places)) collapse = { places: -moved, row: r };
+    });
+  });
+  const comebackRec = comeback as { places: number; row: ResultRow } | null;
+  const collapseRec = collapse as { places: number; row: ResultRow } | null;
 
   const winsBy = new Map<string, number>();
   winners.forEach((w) => winsBy.set(w.country_id, (winsBy.get(w.country_id) ?? 0) + 1));
@@ -382,23 +413,23 @@ export function computeRecords(
       value: lowestWin ? `${lowestWin.total_points}` : "—",
       detail: lowestWin ? label(lowestWin) : "No completed edition yet",
     },
-    { label: "Largest winning margin", value: `${Math.max(biggestMargin.margin, 0)}`, detail: biggestMargin.text },
+    { label: "Largest winning margin (per show)", value: `${Math.max(biggestMargin.margin, 0)}`, detail: biggestMargin.text },
     {
-      label: "Closest final",
+      label: "Closest finish (per show)",
       value: closest.margin === Number.MAX_SAFE_INTEGER ? "—" : `${closest.margin}`,
       detail: closest.text,
     },
-    { label: "Most 12 points received", value: `${top(twelveIn).n}`, detail: top(twelveIn).name },
-    { label: "Most 12 points given", value: `${top(twelveOut).n}`, detail: top(twelveOut).name },
+    { label: "Most top scores received", value: `${top(topIn).n}`, detail: top(topIn).name },
+    { label: "Most top scores given", value: `${top(topOut).n}`, detail: top(topOut).name },
     {
-      label: "Biggest televote climb",
-      value: climb ? `+${climb.televote_points - climb.jury_points}` : "—",
-      detail: climb ? label(climb) : "—",
+      label: "Biggest comeback (places gained after the jury vote)",
+      value: comebackRec ? `+${comebackRec.places}` : "—",
+      detail: comebackRec ? label(comebackRec.row) : "—",
     },
     {
-      label: "Biggest jury drop",
-      value: drop ? `-${drop.jury_points - drop.televote_points}` : "—",
-      detail: drop ? label(drop) : "—",
+      label: "Biggest collapse (places lost after the jury vote)",
+      value: collapseRec ? `-${collapseRec.places}` : "—",
+      detail: collapseRec ? label(collapseRec.row) : "—",
     },
     { label: "Most successful country", value: `${mostSuccessful.n} win(s)`, detail: mostSuccessful.name },
     {
@@ -408,3 +439,6 @@ export function computeRecords(
     },
   ];
 }
+
+export const DEFAULT_TOP_SCORE_FALLBACK = DEFAULT_TOP_SCORE;
+
