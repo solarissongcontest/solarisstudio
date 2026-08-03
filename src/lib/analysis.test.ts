@@ -94,8 +94,8 @@ describe("computeStandings", () => {
 describe("pairMatrix / supporters", () => {
   it("aggregates repeated exchanges between the same pair", () => {
     const m = pairMatrix([jv("a", "b", 12, 1), jv("a", "b", 8, 2), jv("b", "a", 1)]);
-    expect(m.get("a>b")).toMatchObject({ points: 20, count: 2, twelves: 1 });
-    expect(m.get("b>a")).toMatchObject({ points: 1, count: 1, twelves: 0 });
+    expect(m.get("a>b")).toMatchObject({ points: 20, count: 2, topScoreCount: 1 });
+    expect(m.get("b>a")).toMatchObject({ points: 1, count: 1, topScoreCount: 0 });
   });
 
   it("ranks supporters and recipients by points", () => {
