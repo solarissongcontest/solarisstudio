@@ -80,9 +80,17 @@ export function computeStandings(
 
 /* ---------------- voting relationship analysis ---------------- */
 
-export type Pair = { from: string; to: string; points: number; twelves: number; count: number };
+export type Pair = {
+  from: string;
+  to: string;
+  points: number;
+  /** Number of times the maximum score of the vote's own show was awarded. */
+  topScoreCount: number;
+  count: number;
+};
 
-export function pairMatrix(votes: JuryVote[]): Map<string, Pair> {
+export function pairMatrix(votes: JuryVote[], resolveTopScore?: TopScoreResolver): Map<string, Pair> {
+  const resolve = resolveTopScore ?? (() => DEFAULT_TOP_SCORE);
   const m = new Map<string, Pair>();
   votes.forEach((v) => {
     const key = `${v.voter_country_id}>${v.receiving_country_id}`;
@@ -90,16 +98,17 @@ export function pairMatrix(votes: JuryVote[]): Map<string, Pair> {
       from: v.voter_country_id,
       to: v.receiving_country_id,
       points: 0,
-      twelves: 0,
+      topScoreCount: 0,
       count: 0,
     };
     cur.points += v.points;
     cur.count += 1;
-    if (v.points === 12) cur.twelves += 1;
+    if (isTopScore(v, resolve)) cur.topScoreCount += 1;
     m.set(key, cur);
   });
   return m;
 }
+
 
 export function topSupporters(votes: JuryVote[], countryId: string, limit = 5) {
   const m = new Map<string, number>();
