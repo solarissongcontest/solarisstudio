@@ -276,7 +276,7 @@ function ComparePage() {
                   </li>
                   <li className="flex justify-between rounded-xl bg-surface px-3 py-2">
                     <span>Mutual 12-point exchanges</span>
-                    <span className="numeric font-semibold">{relationship.mutualTwelves}</span>
+                    <span className="numeric font-semibold">{relationship.mutualTopScores}</span>
                   </li>
                   <li className="flex justify-between rounded-xl bg-surface px-3 py-2">
                     <span>Voting similarity</span>

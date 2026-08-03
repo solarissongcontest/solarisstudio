@@ -401,8 +401,8 @@ function CountryProfilePage() {
             <div id="jury"><Panel title="Jury statistics" className="scroll-mt-40">
               <div className="grid grid-cols-2 gap-3">
                 <StatTile label="Avg. jury placement" value={stats.avgJuryPlacement != null ? stats.avgJuryPlacement.toFixed(1) : "—"} />
-                <StatTile label="12s received" value={stats.twelvesReceived} />
-                <StatTile label="12s given" value={stats.twelvesGiven} />
+                <StatTile label="Top scores received" value={stats.topScoresReceived} />
+                <StatTile label="Top scores given" value={stats.topScoresGiven} />
                 <StatTile label="Countries awarded" value={stats.distinctCountriesAwarded} />
               </div>
             </Panel></div>
