@@ -711,19 +711,49 @@ export function computeHistoricalRecords(opts: {
   if (finalResults.length) {
     const top = [...finalResults].sort((a, b) => b.total_points - a.total_points)[0];
     push("Most points in one edition", `${top.total_points}`, `${name.get(top.country_id) ?? "?"} · ${editionMeta.get(top.edition_id)?.year ?? ""}`);
-    // most points lost after televote (jury led, televote dragged down)
-    const lost = [...finalResults].sort((a, b) => b.jury_points - b.televote_points - (a.jury_points - a.televote_points))[0];
-    push(
-      "Biggest jury collapse (televote drag)",
-      `-${lost.jury_points - lost.televote_points}`,
-      `${name.get(lost.country_id) ?? "?"} · ${editionMeta.get(lost.edition_id)?.year ?? ""}`,
-    );
-    const gained = [...finalResults].sort((a, b) => b.televote_points - b.jury_points - (a.televote_points - a.jury_points))[0];
-    push(
-      "Biggest televote comeback",
-      `+${gained.televote_points - gained.jury_points}`,
-      `${name.get(gained.country_id) ?? "?"} · ${editionMeta.get(gained.edition_id)?.year ?? ""}`,
-    );
+    // Comeback / collapse = places gained or lost between the jury-only
+    // standing and the final standing, computed inside each individual show.
+    const showRows = new Map<string, ResultRow[]>();
+    finalResults.forEach((r) => {
+      const key = r.show_id ?? `edition:${r.edition_id}`;
+      showRows.set(key, [...(showRows.get(key) ?? []), r]);
+    });
+    const rankWithin = (rows: ResultRow[], value: (r: ResultRow) => number) => {
+      const sorted = [...rows].sort((a, b) => value(b) - value(a));
+      const map = new Map<string, number>();
+      sorted.forEach((r, i) => {
+        const prev = sorted[i - 1];
+        map.set(r.country_id, prev && value(prev) === value(r) ? map.get(prev.country_id)! : i + 1);
+      });
+      return map;
+    };
+    let bestClimb: { places: number; row: ResultRow } | null = null;
+    let worstDrop: { places: number; row: ResultRow } | null = null;
+    showRows.forEach((rows) => {
+      if (rows.length < 2) return;
+      const juryRank = rankWithin(rows, (r) => r.jury_points);
+      const finalRank = rankWithin(rows, (r) => r.total_points);
+      rows.forEach((r) => {
+        const moved = (juryRank.get(r.country_id) ?? 0) - (finalRank.get(r.country_id) ?? 0);
+        if (moved > 0 && (!bestClimb || moved > bestClimb.places)) bestClimb = { places: moved, row: r };
+        if (moved < 0 && (!worstDrop || -moved > worstDrop.places)) worstDrop = { places: -moved, row: r };
+      });
+    });
+    const climbRec = bestClimb as { places: number; row: ResultRow } | null;
+    const dropRec = worstDrop as { places: number; row: ResultRow } | null;
+    if (dropRec)
+      push(
+        "Biggest collapse (places lost after the jury vote)",
+        `-${dropRec.places}`,
+        `${name.get(dropRec.row.country_id) ?? "?"} · ${editionMeta.get(dropRec.row.edition_id)?.year ?? ""}`,
+      );
+    if (climbRec)
+      push(
+        "Biggest comeback (places gained after the jury vote)",
+        `+${climbRec.places}`,
+        `${name.get(climbRec.row.country_id) ?? "?"} · ${editionMeta.get(climbRec.row.edition_id)?.year ?? ""}`,
+      );
+
   }
 
   // most different winners defeated: for a country, count distinct countries that won an edition it also placed below in
