@@ -69,3 +69,30 @@ export function parsePointList(input: string): number[] {
 }
 
 export const topPoint = (cfg: VotingConfig) => cfg.juryPoints[0] ?? 12;
+
+/* ---------------- top-score resolution ---------------- */
+
+/**
+ * Fallback used when a vote's show (and therefore its point scale) is unknown.
+ * Matches the historical classic scale so legacy data keeps its 12-point meaning.
+ */
+export const DEFAULT_TOP_SCORE = 12;
+
+/** Resolves the highest awardable jury score for a given show. */
+export type TopScoreResolver = (showId: string | null | undefined) => number;
+
+export function makeTopScoreResolver(
+  shows?: { id: string; voting_config: Record<string, unknown> | null }[],
+): TopScoreResolver {
+  const byShow = new Map<string, number>();
+  (shows ?? []).forEach((s) => byShow.set(s.id, topPoint(resolveVoting(s.voting_config))));
+  return (showId) => (showId ? (byShow.get(showId) ?? DEFAULT_TOP_SCORE) : DEFAULT_TOP_SCORE);
+}
+
+/** True when a vote awarded the maximum points available in its own show. */
+export function isTopScore(
+  vote: { show_id?: string | null; points: number },
+  resolve: TopScoreResolver = () => DEFAULT_TOP_SCORE,
+): boolean {
+  return vote.points === resolve(vote.show_id ?? null);
+}
