@@ -158,8 +158,9 @@ export function votingSimilarity(votes: JuryVote[], countries: Country[]) {
 }
 
 /** Mutual support (friendship) and one-sided relationships. */
-export function relationships(votes: JuryVote[]) {
-  const m = pairMatrix(votes);
+export function relationships(votes: JuryVote[], resolveTopScore?: TopScoreResolver) {
+  const m = pairMatrix(votes, resolveTopScore);
+
   const seen = new Set<string>();
   const friendships: { a: string; b: string; ab: number; ba: number; total: number }[] = [];
   const oneSided: { a: string; b: string; ab: number; ba: number; gap: number }[] = [];
