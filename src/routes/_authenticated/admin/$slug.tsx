@@ -291,21 +291,10 @@ function AdminEdition() {
 
   const addParticipant = async (countryId: string) => {
     if (!edition || !activeShowId) return;
-    // Carry artist & song over from the most recent entry for this country in the edition.
-    const prior = (allParticipants ?? [])
-      .filter((p) => p.country_id === countryId && p.show_id !== activeShowId && (p.artist || p.song))
-      .slice(-1)[0];
-    await run(
-      supabase.from("participants").insert({
-        edition_id: edition.id,
-        show_id: activeShowId,
-        country_id: countryId,
-        running_order: order.length + 1,
-        semi_final: activeShow?.kind ?? "final",
-        artist: prior?.artist ?? null,
-        song: prior?.song ?? null,
-      }),
-    );
+    // Every line-up row goes through the edition's canonical entity, created on first use.
+    const entity = await ensureGlobalEntity(countryId);
+    if (!entity) return;
+    await addEntityToShow(entity);
     setPickCountry(null);
   };
 
@@ -333,7 +322,7 @@ function AdminEdition() {
         promote.map((p, i) => ({
           edition_id: edition.id,
           show_id: activeShowId,
-          country_id: p.country_id,
+          ...identityFor(p.country_id),
           running_order: order.length + i + 1,
           semi_final: activeShow?.kind ?? "final",
           artist: p.artist,
@@ -405,13 +394,16 @@ function AdminEdition() {
         .map((row) => row.id),
     );
     if (!cleared) return;
+    const target = identityFor(receiver);
     await run(
       supabase.from("jury_votes").insert({
         edition_id: edition.id,
         show_id: activeShowId,
         voter_id: voterId,
         voter_country_id: countryId,
-        receiving_country_id: receiver,
+        voter_entity_id: countryId ? (identityFor(countryId).contest_entity_id ?? null) : null,
+        receiving_country_id: target.country_id,
+        receiving_entity_id: target.contest_entity_id,
         points,
       }),
     );
@@ -436,7 +428,7 @@ function AdminEdition() {
         ? supabase.from("televote_votes").update({ points }).eq("id", existing.id)
         : supabase
             .from("televote_votes")
-            .insert({ edition_id: edition.id, show_id: activeShowId, country_id: countryId, points }),
+            .insert({ edition_id: edition.id, show_id: activeShowId, ...identityFor(countryId), points }),
     );
   };
 
@@ -521,7 +513,7 @@ function AdminEdition() {
       const { error } = await supabase.rpc("publish_show_results", {
         p_show_id: activeShowId,
         p_rows: standings.map((s) => ({
-          country_id: s.countryId,
+          ...identityFor(s.countryId),
           jury_points: s.jury,
           televote_points: s.televote,
           total_points: s.total,
@@ -745,7 +737,7 @@ function AdminEdition() {
 
               <ul className="space-y-1.5">
                 {(participants ?? []).map((p, i) => {
-                  const c = cMap.get(p.country_id);
+                  const c = eMap.get(p.country_id);
                   if (!c) return null;
                   return (
                     <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-surface px-2 py-1.5">
@@ -791,15 +783,17 @@ function AdminEdition() {
                 <button
                   onClick={async () => {
                     if (!edition || !activeShowId) return;
-                    const existingCountryIds = new Set((showVoters ?? []).map((v) => v.country_id));
+                    const existingCountryIds = new Set(
+                      (showVoters ?? []).map((v) => v.contest_entity_id ?? v.country_id),
+                    );
                     const rows = order
-                      .filter((id) => !existingCountryIds.has(id))
+                      .filter((id) => !existingCountryIds.has(id) && !existingCountryIds.has(identityFor(id).contest_entity_id))
                       .map((id, i) => {
-                        const c = cMap.get(id);
+                        const c = eMap.get(id);
                         return {
                           edition_id: edition.id,
                           show_id: activeShowId,
-                          country_id: id,
+                          ...identityFor(id),
                           name: c?.name ?? "Country",
                           kind: "country",
                           flag_image: c?.flag_image ?? null,
@@ -836,9 +830,9 @@ function AdminEdition() {
                       className="numeric w-12 rounded-lg bg-background px-2 py-1 text-center text-sm"
                     />
                     <FlagChip
-                      code={cMap.get(v.country_id ?? "")?.short_code ?? "?"}
+                      code={eMap.get(v.contest_entity_id ?? v.country_id ?? "")?.short_code ?? "?"}
                       color={v.accent_color}
-                      image={v.flag_image ?? cMap.get(v.country_id ?? "")?.flag_image ?? null}
+                      image={v.flag_image ?? eMap.get(v.contest_entity_id ?? v.country_id ?? "")?.flag_image ?? null}
                       size="sm"
                     />
                     <input
@@ -958,7 +952,7 @@ function AdminEdition() {
             <Panel title="Fast jury entry" description="Pick a voting country, then type-ahead each award">
               <FastJuryEntry
                 voters={voterOptions}
-                receivers={cList.filter((c) => order.includes(c.id))}
+                receivers={order.map((id) => eMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c)}
                 voting={voting}
                 votes={jury ?? []}
                 activeVoter={activeVoter}
@@ -971,7 +965,12 @@ function AdminEdition() {
 
           {tab === "Televote" && activeShow && (
             <Panel title="Televote entry" description="Enter each entry's televote total — press Enter to save">
-              <TelevoteEntry countries={cList} order={order} votes={tele ?? []} onSet={setTele} />
+              <TelevoteEntry
+                countries={order.map((id) => eMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c)}
+                order={order}
+                votes={tele ?? []}
+                onSet={setTele}
+              />
             </Panel>
           )}
 
