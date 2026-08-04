@@ -34,7 +34,7 @@ import {
   type Voter,
   type VoterKind,
 } from "@/lib/data";
-import { entityDisplayMap, isCustomEntity, type ContestEntityRow } from "@/lib/entities";
+import { DEFAULT_ACCENT, entityDisplayMap, isCustomEntity, type ContestEntityRow } from "@/lib/entities";
 import { backgroundStyle, resolveTheme, type ThemeConfig } from "@/lib/theme";
 import { resolveVoting, type VotingConfig } from "@/lib/voting";
 import { resolveBroadcast, type BroadcastConfig } from "@/lib/broadcast";
@@ -751,7 +751,7 @@ function AdminEdition() {
                         <li key={e.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-surface px-2 py-1.5">
                           <FlagChip
                             code={e.abbreviation}
-                            color={e.accent_color ?? "#8888aa"}
+                            color={eMap.get(e.id)?.accent_color ?? DEFAULT_ACCENT}
                             image={e.flag_image}
                             size="sm"
                           />
