@@ -48,7 +48,8 @@ function ShowPage() {
   );
   const voting = useMemo(() => resolveVoting(show?.voting_config), [show?.voting_config]);
 
-  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
+  // Resolves both global countries and edition-only custom nations.
+  const countryMap = entityDisplayMap(entities, countries);
   const participantMap = new Map((participants ?? []).map((p) => [p.country_id, p]));
   const ids = (participants ?? []).map((p) => p.country_id);
   const standings = computeStandings(ids, jury ?? [], tele ?? [], voting);

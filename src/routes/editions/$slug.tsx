@@ -27,7 +27,8 @@ function EditionPage() {
   const { data: shows } = useShows(edition?.id);
   const { data: participants } = useParticipants(edition?.id);
   const { data: countries } = useCountries();
-  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
+  // Resolves both global countries and edition-only custom nations.
+  const countryMap = entityDisplayMap(entities, countries);
 
   if (isLoading) return <AppShell><p className="text-sm text-muted-foreground">Loading…</p></AppShell>;
   if (!edition)

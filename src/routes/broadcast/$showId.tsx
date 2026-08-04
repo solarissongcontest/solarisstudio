@@ -53,7 +53,8 @@ function BroadcastPage() {
   const [playing, setPlaying] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
+  // Resolves both global countries and edition-only custom nations.
+  const countryMap = entityDisplayMap(entities, countries);
   const participantMap = new Map((participants ?? []).map((p) => [p.country_id, p]));
   const ids = (participants ?? []).map((p) => p.country_id);
 
