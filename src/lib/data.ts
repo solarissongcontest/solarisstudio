@@ -172,6 +172,7 @@ export type Televote = {
   edition_id: string;
   show_id: string | null;
   country_id: string;
+  contest_entity_id?: string | null;
   points: number;
 };
 
@@ -180,6 +181,7 @@ export type ResultRow = {
   edition_id: string;
   show_id: string | null;
   country_id: string;
+  contest_entity_id?: string | null;
   jury_points: number;
   televote_points: number;
   total_points: number;
@@ -188,13 +190,30 @@ export type ResultRow = {
 
 /* ---------------- fetch helpers ---------------- */
 
+/**
+ * Collapse the two identity columns into the canonical contest key.
+ * Global rows keep their real country id; custom participating countries surface
+ * their `contest_entities` id, so downstream code needs a single lookup only.
+ */
+function canonicalise(table: string, row: any) {
+  if (!row) return row;
+  if (table === "jury_votes") {
+    return { ...row, receiving_country_id: row.receiving_country_id ?? row.receiving_entity_id ?? "" };
+  }
+  if (table === "participants" || table === "televote_votes" || table === "results") {
+    return { ...row, country_id: row.country_id ?? row.contest_entity_id ?? "" };
+  }
+  return row;
+}
+
 async function all<T>(table: string, apply?: (q: any) => any): Promise<T[]> {
   let q: any = (supabase as any).from(table).select("*");
   if (apply) q = apply(q);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as T[];
+  return ((data ?? []) as any[]).map((r) => canonicalise(table, r)) as T[];
 }
+
 
 /* ---------------- queries ---------------- */
 
