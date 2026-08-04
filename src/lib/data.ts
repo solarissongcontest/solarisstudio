@@ -54,11 +54,21 @@ export type Show = {
 
 export const SHOW_KINDS = ["semi-final", "grand-final", "special", "other"] as const;
 
+/**
+ * Identity note for every row type below:
+ *
+ * `country_id` / `receiving_country_id` carry the **canonical contest key**, not
+ * necessarily a global country id. Rows are normalised on fetch (see `normalise*`):
+ * a global participant keeps its real country id, while a custom participating
+ * country falls back to its `contest_entities` id. That keeps one stable key across
+ * scoreboards, analytics and broadcast, and custom nations simply never match a real
+ * country in global lifetime statistics — which is exactly the intended treatment.
+ */
 export type Participant = {
   id: string;
   edition_id: string;
   show_id: string | null;
-  country_id: string | null;
+  country_id: string;
   contest_entity_id: string | null;
   artist: string | null;
   song: string | null;
@@ -77,10 +87,11 @@ export type JuryVote = {
   voter_id?: string | null;
   voter_entity_id?: string | null;
 
-  receiving_country_id: string | null;
-  receiving_entity_id: string | null;
+  receiving_country_id: string;
+  receiving_entity_id?: string | null;
   points: number;
 };
+
 
 
 export const VOTER_KINDS = ["country", "external-country", "organization", "person", "custom"] as const;
