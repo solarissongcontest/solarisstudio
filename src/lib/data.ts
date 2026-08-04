@@ -133,11 +133,13 @@ export function voterKey(v: { voterId?: string | null; countryId?: string | null
 export function voterOptionsFromVoters(voters: Voter[], countries: Country[]): VoterOption[] {
   const cMap = new Map(countries.map((c) => [c.id, c]));
   return voters.map((v) => {
-    const c = v.country_id ? cMap.get(v.country_id) : undefined;
+    // Custom nations have no global country, so their canonical key is the entity id.
+    const identity = v.contest_entity_id ?? v.country_id;
+    const c = identity ? cMap.get(identity) : undefined;
     return {
       key: `v:${v.id}`,
       voterId: v.id,
-      countryId: v.country_id,
+      countryId: identity ?? null,
       name: v.name || c?.name || "Voter",
       short_code: c?.short_code ?? null,
       flag_image: v.flag_image ?? c?.flag_image ?? null,
@@ -377,18 +379,24 @@ export function useAllVoters() {
  * so they are matched to the jury representing that country when one exists.
  */
 export function matchVoterKey(
-  vote: { voter_id?: string | null; voter_country_id?: string | null },
+  vote: { voter_id?: string | null; voter_country_id?: string | null; voter_entity_id?: string | null },
   options: VoterOption[],
 ): string {
   if (vote.voter_id) {
     const direct = options.find((o) => o.voterId === vote.voter_id);
     if (direct) return direct.key;
   }
+  // Entity first: it is the only identity a custom nation has.
+  if (vote.voter_entity_id) {
+    const byEntity = options.find((o) => o.countryId === vote.voter_entity_id);
+    if (byEntity) return byEntity.key;
+  }
   if (vote.voter_country_id) {
     const byCountry = options.find((o) => o.countryId === vote.voter_country_id);
     if (byCountry) return byCountry.key;
     return `c:${vote.voter_country_id}`;
   }
+  if (vote.voter_entity_id) return `c:${vote.voter_entity_id}`;
   return vote.voter_id ? `v:${vote.voter_id}` : "";
 }
 

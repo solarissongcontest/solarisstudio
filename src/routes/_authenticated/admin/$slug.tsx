@@ -121,7 +121,7 @@ function AdminEdition() {
 
   const standings = computeStandings(order, jury ?? [], tele ?? [], voting);
   const voterOptions = useMemo(
-    () => resolveShowVoters(showVoters, order, cList),
+    () => resolveShowVoters(showVoters, order, order.map((id) => eMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c)),
     [showVoters, order, cList],
   );
   const activeVoter = voter && voterOptions.some((v) => v.key === voter) ? voter : voterOptions[0]?.key || "";
@@ -400,8 +400,8 @@ function AdminEdition() {
         edition_id: edition.id,
         show_id: activeShowId,
         voter_id: voterId,
-        voter_country_id: countryId,
-        voter_entity_id: countryId ? (identityFor(countryId).contest_entity_id ?? null) : null,
+        voter_country_id: countryId ? identityFor(countryId).country_id : null,
+        voter_entity_id: countryId ? identityFor(countryId).contest_entity_id : null,
         receiving_country_id: target.country_id,
         receiving_entity_id: target.contest_entity_id,
         points,
