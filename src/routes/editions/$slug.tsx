@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import {
-import { entityDisplayMap } from "@/lib/entities";
   editionLabel,
   useContestEntities,
   useCountries,
@@ -10,6 +9,8 @@ import { entityDisplayMap } from "@/lib/entities";
   useParticipants,
   useShows,
 } from "@/lib/data";
+import { entityDisplayMap } from "@/lib/entities";
+
 
 export const Route = createFileRoute("/editions/$slug")({
   head: ({ params }) => ({
