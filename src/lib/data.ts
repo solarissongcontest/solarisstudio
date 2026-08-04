@@ -307,7 +307,27 @@ export function useJuryVotes(showId?: string) {
   });
 }
 
+/** Participating nations of one edition — global links and edition-only custom countries. */
+export function useContestEntities(editionId?: string) {
+  return useQuery({
+    enabled: !!editionId,
+    queryKey: ["contest_entities", "edition", editionId],
+    queryFn: () =>
+      all<ContestEntityRow>("contest_entities", (q) => q.eq("edition_id", editionId).order("display_name")),
+  });
+}
+
+/** Every contest entity, for cross-edition views such as broadcast and statistics. */
+export function useAllContestEntities() {
+  return useQuery({
+    queryKey: ["contest_entities", "all"],
+    queryFn: () => all<ContestEntityRow>("contest_entities"),
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useVoters(editionId?: string) {
+
   return useQuery({
     enabled: !!editionId,
     queryKey: ["voters", "edition", editionId],
