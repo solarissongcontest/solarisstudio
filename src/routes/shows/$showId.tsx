@@ -5,6 +5,7 @@ import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { VotingMatrix } from "@/components/VotingMatrix";
 import { computeStandings } from "@/lib/analysis";
 import {
+  useAllContestEntities,
   useCountries,
   useJuryVotes,
   useShow,
@@ -16,6 +17,7 @@ import {
 import { resolveTheme } from "@/lib/theme";
 import { resolveVoting } from "@/lib/voting";
 import { cn } from "@/lib/utils";
+import { entityDisplayMap } from "@/lib/entities";
 
 export const Route = createFileRoute("/shows/$showId")({
   head: () => ({
@@ -39,6 +41,7 @@ function ShowPage() {
   const { data: tele } = useTelevotes(showId);
   const { data: voters } = useShowVoters(showId);
   const { data: countries } = useCountries();
+  const { data: entities } = useAllContestEntities();
   const { data: themes } = useThemes();
   const [tab, setTab] = useState<(typeof TABS)[number]>("Scoreboard");
 

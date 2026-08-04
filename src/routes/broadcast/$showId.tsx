@@ -7,6 +7,7 @@ import confetti from "canvas-confetti";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { computeStandings } from "@/lib/analysis";
 import {
+  useAllContestEntities,
   useCountries,
   useJuryVotes,
   useShow,
@@ -18,6 +19,7 @@ import { backgroundStyle, resolveTheme, themeVars } from "@/lib/theme";
 import { resolveVoting } from "@/lib/voting";
 import { buildSteps, resolveBroadcast, SPEEDS, stepDuration } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
+import { entityDisplayMap } from "@/lib/entities";
 
 export const Route = createFileRoute("/broadcast/$showId")({
   head: () => ({
@@ -38,6 +40,7 @@ function BroadcastPage() {
   const { data: jury } = useJuryVotes(showId);
   const { data: tele } = useTelevotes(showId);
   const { data: countries } = useCountries();
+  const { data: entities } = useAllContestEntities();
   const { data: themes } = useThemes();
 
   const theme = useMemo(
