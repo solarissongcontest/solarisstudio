@@ -1030,6 +1030,10 @@ function AdminEdition() {
                         edition_id: edition.id,
                         show_id: activeShowId,
                         country_id: voterForm.countryId,
+                        contest_entity_id:
+                          voterForm.kind === "country" && voterForm.countryId
+                            ? identityFor(voterForm.countryId).contest_entity_id
+                            : null,
                         name: voterForm.name,
                         kind: voterForm.kind,
                         flag_image: voterForm.flag_image || null,
