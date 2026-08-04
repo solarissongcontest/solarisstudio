@@ -734,6 +734,107 @@ function AdminEdition() {
                 )}
               </div>
 
+              <div className="mb-4 space-y-3 rounded-xl border border-border p-3">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Custom countries</p>
+                  <p className="text-xs text-muted-foreground">
+                    Nations that exist only in this edition. They compete and are voted for exactly like the
+                    official ones, but stay out of the global Terra Solaris history.
+                  </p>
+                </div>
+
+                {!!customEntities.length && (
+                  <ul className="space-y-1.5">
+                    {customEntities.map((e) => {
+                      const inShow = order.includes(e.id);
+                      return (
+                        <li key={e.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-surface px-2 py-1.5">
+                          <FlagChip
+                            code={e.abbreviation}
+                            color={e.accent_color ?? "#8888aa"}
+                            image={e.flag_image}
+                            size="sm"
+                          />
+                          <input
+                            defaultValue={e.display_name}
+                            onBlur={(ev) =>
+                              ev.target.value.trim() &&
+                              ev.target.value !== e.display_name &&
+                              updateCustomEntity(e.id, { display_name: ev.target.value.trim() })
+                            }
+                            className="min-w-0 flex-1 rounded-lg bg-background px-2 py-1 text-sm"
+                          />
+                          <input
+                            defaultValue={e.abbreviation}
+                            onBlur={(ev) =>
+                              ev.target.value.trim() &&
+                              ev.target.value !== e.abbreviation &&
+                              updateCustomEntity(e.id, { abbreviation: ev.target.value.trim() })
+                            }
+                            className="w-16 rounded-lg bg-background px-2 py-1 text-center text-sm uppercase"
+                          />
+                          {inShow ? (
+                            <span className="rounded-full bg-surface-strong px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                              in line-up
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => addEntityToShow(e)}
+                              className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/70"
+                            >
+                              Add to show
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteCustomEntity(e)}
+                            className="rounded-lg border border-destructive/40 px-2 py-1 text-xs text-destructive"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <div className="grid gap-2 sm:grid-cols-4">
+                  <Field label="Name">
+                    <TextInput
+                      value={customForm.display_name}
+                      onChange={(e) => setCustomForm({ ...customForm, display_name: e.target.value })}
+                      placeholder="Novaria"
+                    />
+                  </Field>
+                  <Field label="Abbreviation">
+                    <TextInput
+                      value={customForm.abbreviation}
+                      onChange={(e) => setCustomForm({ ...customForm, abbreviation: e.target.value })}
+                      placeholder="NVA"
+                    />
+                  </Field>
+                  <Field label="Flag URL (optional)">
+                    <TextInput
+                      value={customForm.flag_image}
+                      onChange={(e) => setCustomForm({ ...customForm, flag_image: e.target.value })}
+                      placeholder="https://…"
+                    />
+                  </Field>
+                  <Field label="Region (optional)">
+                    <TextInput
+                      value={customForm.region}
+                      onChange={(e) => setCustomForm({ ...customForm, region: e.target.value })}
+                      placeholder="Terra Solaris"
+                    />
+                  </Field>
+                </div>
+                <button
+                  onClick={createCustomEntity}
+                  className="bg-aurora rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  Create &amp; add to show
+                </button>
+              </div>
+
 
               <ul className="space-y-1.5">
                 {(participants ?? []).map((p, i) => {
