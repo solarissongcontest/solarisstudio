@@ -102,6 +102,8 @@ export type Voter = {
   edition_id: string;
   show_id: string | null;
   country_id: string | null;
+  /** Set when this jury *is* a participating entity, which drives self-vote prevention. */
+  contest_entity_id?: string | null;
   name: string;
   kind: VoterKind;
   flag_image: string | null;
@@ -109,6 +111,7 @@ export type Voter = {
   sort_order: number;
   created_at: string;
 };
+
 
 /** A normalised voting-entity option, whether backed by `voters` or a plain participating country. */
 export type VoterOption = {
