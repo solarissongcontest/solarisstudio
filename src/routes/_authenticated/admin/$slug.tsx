@@ -20,6 +20,7 @@ import {
   matchVoterKey,
   voterKey,
 
+  useContestEntities,
   useCountries,
   useEdition,
   useJuryVotes,
@@ -33,6 +34,7 @@ import {
   type Voter,
   type VoterKind,
 } from "@/lib/data";
+import { entityDisplayMap, isCustomEntity, type ContestEntityRow } from "@/lib/entities";
 import { backgroundStyle, resolveTheme, type ThemeConfig } from "@/lib/theme";
 import { resolveVoting, type VotingConfig } from "@/lib/voting";
 import { resolveBroadcast, type BroadcastConfig } from "@/lib/broadcast";
@@ -80,6 +82,8 @@ function AdminEdition() {
   const { data: jury } = useJuryVotes(activeShowId);
   const { data: tele } = useTelevotes(activeShowId);
   const { data: showVoters } = useShowVoters(activeShowId);
+  const { data: entities } = useContestEntities(edition?.id);
+  const [customForm, setCustomForm] = useState({ display_name: "", abbreviation: "", flag_image: "", region: "" });
   const [voterForm, setVoterForm] = useState<{ kind: VoterKind; countryId: string | null; name: string; flag_image: string; accent_color: string }>({
     kind: "country",
     countryId: null,
@@ -90,6 +94,10 @@ function AdminEdition() {
 
   const cList = countries ?? [];
   const cMap = useMemo(() => new Map(cList.map((c) => [c.id, c])), [cList]);
+  const eList = entities ?? [];
+  /** Display lookup keyed by both entity id and (for global entities) country id. */
+  const eMap = useMemo(() => entityDisplayMap(eList, cList), [entities, cList]);
+  const customEntities = eList.filter(isCustomEntity);
   const pMap = useMemo(() => new Map((participants ?? []).map((p) => [p.country_id, p])), [participants]);
   const order = (participants ?? []).map((p) => p.country_id);
 
@@ -163,7 +171,124 @@ function AdminEdition() {
     await run(supabase.from("shows").delete().eq("id", s.id), `Deleted ${s.name}.`);
   };
 
+  /* -------- contest entities -------- */
+  /**
+   * Split a canonical contest key back into the two storage columns.
+   * Global entries write both columns (legacy compatibility); custom entries
+   * write only the entity reference, since they have no global country.
+   */
+  const identityFor = (key: string): { country_id: string | null; contest_entity_id: string | null } => {
+    const e = eList.find((x) => x.id === key || x.country_id === key);
+    if (e) return { country_id: e.country_id, contest_entity_id: e.id };
+    return { country_id: key, contest_entity_id: null };
+  };
+
+  /** Reuse the edition's global entity for a country, creating it on first use. */
+  const ensureGlobalEntity = async (countryId: string): Promise<ContestEntityRow | null> => {
+    if (!edition) return null;
+    const existing = eList.find((e) => e.country_id === countryId);
+    if (existing) return existing;
+    const c = cMap.get(countryId);
+    const { data, error } = await supabase
+      .from("contest_entities")
+      .insert({
+        edition_id: edition.id,
+        entity_type: "global",
+        country_id: countryId,
+        display_name: c?.name ?? "Country",
+        abbreviation: c?.short_code ?? "???",
+        flag_image: c?.flag_image ?? null,
+        region: c?.region ?? null,
+      })
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      setMsg(reportSupabaseError(error, "Could not add that country to the edition."));
+      return null;
+    }
+    qc.invalidateQueries({ queryKey: ["contest_entities"] });
+    return data as ContestEntityRow;
+  };
+
+  /** Create a nation that exists only inside this edition. Never touches the global library. */
+  const createCustomEntity = async () => {
+    if (!edition) return;
+    const name = customForm.display_name.trim();
+    const abbr = customForm.abbreviation.trim();
+    if (!name || !abbr) {
+      setMsg("A custom country needs both a name and an abbreviation.");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("contest_entities")
+      .insert({
+        edition_id: edition.id,
+        entity_type: "custom",
+        country_id: null,
+        display_name: name,
+        abbreviation: abbr,
+        flag_image: customForm.flag_image.trim() || null,
+        region: customForm.region.trim() || null,
+      })
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      // The form keeps its values so nothing typed is lost on a duplicate abbreviation.
+      setMsg(reportSupabaseError(error, "Could not create that custom country."));
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["contest_entities"] });
+    setCustomForm({ display_name: "", abbreviation: "", flag_image: "", region: "" });
+    setMsg(`Created ${name}.`);
+    await addEntityToShow(data as ContestEntityRow);
+  };
+
+  const updateCustomEntity = (id: string, values: Record<string, unknown>) =>
+    run((supabase.from("contest_entities") as any).update(values).eq("id", id), "Custom country updated.").then(
+      () => qc.invalidateQueries({ queryKey: ["contest_entities"] }),
+    );
+
+  /**
+   * Deleting is blocked by a foreign key while any participant, vote or result still
+   * points at the entity, so referenced nations can never vanish mid-contest.
+   */
+  const deleteCustomEntity = async (e: ContestEntityRow) => {
+    if (!window.confirm(`Delete “${e.display_name}” from this edition?`)) return;
+    const { error } = await supabase.from("contest_entities").delete().eq("id", e.id);
+    if (error) {
+      setMsg(
+        reportSupabaseError(
+          error,
+          "That custom country is still used by a line-up, votes or results. Remove those first.",
+        ),
+      );
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["contest_entities"] });
+    setMsg(`Deleted ${e.display_name}.`);
+  };
+
   /* -------- line-up -------- */
+  /** Put an existing entity (global or custom) into the current show. */
+  const addEntityToShow = async (entity: ContestEntityRow) => {
+    if (!edition || !activeShowId) return;
+    const prior = (allParticipants ?? [])
+      .filter((p) => p.contest_entity_id === entity.id && p.show_id !== activeShowId && (p.artist || p.song))
+      .slice(-1)[0];
+    await run(
+      supabase.from("participants").insert({
+        edition_id: edition.id,
+        show_id: activeShowId,
+        country_id: entity.country_id,
+        contest_entity_id: entity.id,
+        running_order: order.length + 1,
+        semi_final: activeShow?.kind ?? "final",
+        artist: prior?.artist ?? null,
+        song: prior?.song ?? null,
+      }),
+    );
+  };
+
   const addParticipant = async (countryId: string) => {
     if (!edition || !activeShowId) return;
     // Carry artist & song over from the most recent entry for this country in the edition.
