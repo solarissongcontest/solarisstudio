@@ -7,6 +7,7 @@ import confetti from "canvas-confetti";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { computeStandings } from "@/lib/analysis";
 import {
+  useAllContestEntities,
   useCountries,
   useJuryVotes,
   useShow,
@@ -18,6 +19,7 @@ import { backgroundStyle, resolveTheme, themeVars } from "@/lib/theme";
 import { resolveVoting } from "@/lib/voting";
 import { buildSteps, resolveBroadcast, SPEEDS, stepDuration } from "@/lib/broadcast";
 import { cn } from "@/lib/utils";
+import { entityDisplayMap } from "@/lib/entities";
 
 export const Route = createFileRoute("/broadcast/$showId")({
   head: () => ({
@@ -38,6 +40,7 @@ function BroadcastPage() {
   const { data: jury } = useJuryVotes(showId);
   const { data: tele } = useTelevotes(showId);
   const { data: countries } = useCountries();
+  const { data: entities } = useAllContestEntities();
   const { data: themes } = useThemes();
 
   const theme = useMemo(
@@ -53,7 +56,8 @@ function BroadcastPage() {
   const [playing, setPlaying] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
+  // Resolves both global countries and edition-only custom nations.
+  const countryMap = entityDisplayMap(entities, countries);
   const participantMap = new Map((participants ?? []).map((p) => [p.country_id, p]));
   const ids = (participants ?? []).map((p) => p.country_id);
 

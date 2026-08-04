@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      contest_entities: {
+        Row: {
+          abbreviation: string
+          country_id: string | null
+          created_at: string
+          display_name: string
+          edition_id: string
+          entity_type: string
+          flag_image: string | null
+          id: string
+          region: string | null
+          updated_at: string
+        }
+        Insert: {
+          abbreviation: string
+          country_id?: string | null
+          created_at?: string
+          display_name: string
+          edition_id: string
+          entity_type: string
+          flag_image?: string | null
+          id?: string
+          region?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abbreviation?: string
+          country_id?: string | null
+          created_at?: string
+          display_name?: string
+          edition_id?: string
+          entity_type?: string
+          flag_image?: string | null
+          id?: string
+          region?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contest_entities_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contest_entities_edition_id_fkey"
+            columns: ["edition_id"]
+            isOneToOne: false
+            referencedRelation: "editions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       countries: {
         Row: {
           accent_color: string
@@ -131,9 +185,11 @@ export type Database = {
           edition_id: string
           id: string
           points: number
-          receiving_country_id: string
+          receiving_country_id: string | null
+          receiving_entity_id: string | null
           show_id: string | null
           voter_country_id: string | null
+          voter_entity_id: string | null
           voter_id: string | null
         }
         Insert: {
@@ -141,9 +197,11 @@ export type Database = {
           edition_id: string
           id?: string
           points: number
-          receiving_country_id: string
+          receiving_country_id?: string | null
+          receiving_entity_id?: string | null
           show_id?: string | null
           voter_country_id?: string | null
+          voter_entity_id?: string | null
           voter_id?: string | null
         }
         Update: {
@@ -151,9 +209,11 @@ export type Database = {
           edition_id?: string
           id?: string
           points?: number
-          receiving_country_id?: string
+          receiving_country_id?: string | null
+          receiving_entity_id?: string | null
           show_id?: string | null
           voter_country_id?: string | null
+          voter_entity_id?: string | null
           voter_id?: string | null
         }
         Relationships: [
@@ -172,6 +232,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "jury_votes_receiving_entity_id_fkey"
+            columns: ["receiving_entity_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "jury_votes_show_id_fkey"
             columns: ["show_id"]
             isOneToOne: false
@@ -186,6 +253,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "jury_votes_voter_entity_id_fkey"
+            columns: ["voter_entity_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "jury_votes_voter_id_fkey"
             columns: ["voter_id"]
             isOneToOne: false
@@ -197,7 +271,8 @@ export type Database = {
       participants: {
         Row: {
           artist: string | null
-          country_id: string
+          contest_entity_id: string | null
+          country_id: string | null
           created_at: string
           edition_id: string
           id: string
@@ -210,7 +285,8 @@ export type Database = {
         }
         Insert: {
           artist?: string | null
-          country_id: string
+          contest_entity_id?: string | null
+          country_id?: string | null
           created_at?: string
           edition_id: string
           id?: string
@@ -223,7 +299,8 @@ export type Database = {
         }
         Update: {
           artist?: string | null
-          country_id?: string
+          contest_entity_id?: string | null
+          country_id?: string | null
           created_at?: string
           edition_id?: string
           id?: string
@@ -235,6 +312,13 @@ export type Database = {
           song?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "participants_contest_entity_id_fkey"
+            columns: ["contest_entity_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "participants_country_id_fkey"
             columns: ["country_id"]
@@ -260,7 +344,8 @@ export type Database = {
       }
       results: {
         Row: {
-          country_id: string
+          contest_entity_id: string | null
+          country_id: string | null
           edition_id: string
           final_rank: number | null
           id: string
@@ -271,7 +356,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          country_id: string
+          contest_entity_id?: string | null
+          country_id?: string | null
           edition_id: string
           final_rank?: number | null
           id?: string
@@ -282,7 +368,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          country_id?: string
+          contest_entity_id?: string | null
+          country_id?: string | null
           edition_id?: string
           final_rank?: number | null
           id?: string
@@ -293,6 +380,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "results_contest_entity_id_fkey"
+            columns: ["contest_entity_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "results_country_id_fkey"
             columns: ["country_id"]
@@ -381,7 +475,8 @@ export type Database = {
       }
       televote_votes: {
         Row: {
-          country_id: string
+          contest_entity_id: string | null
+          country_id: string | null
           created_at: string
           edition_id: string
           id: string
@@ -389,7 +484,8 @@ export type Database = {
           show_id: string | null
         }
         Insert: {
-          country_id: string
+          contest_entity_id?: string | null
+          country_id?: string | null
           created_at?: string
           edition_id: string
           id?: string
@@ -397,7 +493,8 @@ export type Database = {
           show_id?: string | null
         }
         Update: {
-          country_id?: string
+          contest_entity_id?: string | null
+          country_id?: string | null
           created_at?: string
           edition_id?: string
           id?: string
@@ -405,6 +502,13 @@ export type Database = {
           show_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "televote_votes_contest_entity_id_fkey"
+            columns: ["contest_entity_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "televote_votes_country_id_fkey"
             columns: ["country_id"]
@@ -482,6 +586,7 @@ export type Database = {
       voters: {
         Row: {
           accent_color: string
+          contest_entity_id: string | null
           country_id: string | null
           created_at: string
           edition_id: string
@@ -494,6 +599,7 @@ export type Database = {
         }
         Insert: {
           accent_color?: string
+          contest_entity_id?: string | null
           country_id?: string | null
           created_at?: string
           edition_id: string
@@ -506,6 +612,7 @@ export type Database = {
         }
         Update: {
           accent_color?: string
+          contest_entity_id?: string | null
           country_id?: string | null
           created_at?: string
           edition_id?: string
@@ -517,6 +624,13 @@ export type Database = {
           sort_order?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "voters_contest_entity_id_fkey"
+            columns: ["contest_entity_id"]
+            isOneToOne: false
+            referencedRelation: "contest_entities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "voters_country_id_fkey"
             columns: ["country_id"]

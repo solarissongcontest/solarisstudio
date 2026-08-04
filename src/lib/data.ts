@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { ContestEntityRow } from "./entities";
+
 
 /* ---------------- types ---------------- */
 
@@ -54,11 +56,22 @@ export type Show = {
 
 export const SHOW_KINDS = ["semi-final", "grand-final", "special", "other"] as const;
 
+/**
+ * Identity note for every row type below:
+ *
+ * `country_id` / `receiving_country_id` carry the **canonical contest key**, not
+ * necessarily a global country id. Rows are normalised on fetch (see `normalise*`):
+ * a global participant keeps its real country id, while a custom participating
+ * country falls back to its `contest_entities` id. That keeps one stable key across
+ * scoreboards, analytics and broadcast, and custom nations simply never match a real
+ * country in global lifetime statistics — which is exactly the intended treatment.
+ */
 export type Participant = {
   id: string;
   edition_id: string;
   show_id: string | null;
   country_id: string;
+  contest_entity_id: string | null;
   artist: string | null;
   song: string | null;
   running_order: number | null;
@@ -74,10 +87,14 @@ export type JuryVote = {
   /** Legacy/country-linked voter. Empty string when the ballot comes from a non-country jury. */
   voter_country_id: string;
   voter_id?: string | null;
+  voter_entity_id?: string | null;
 
   receiving_country_id: string;
+  receiving_entity_id?: string | null;
   points: number;
 };
+
+
 
 export const VOTER_KINDS = ["country", "external-country", "organization", "person", "custom"] as const;
 export type VoterKind = (typeof VOTER_KINDS)[number];
@@ -87,6 +104,8 @@ export type Voter = {
   edition_id: string;
   show_id: string | null;
   country_id: string | null;
+  /** Set when this jury *is* a participating entity, which drives self-vote prevention. */
+  contest_entity_id?: string | null;
   name: string;
   kind: VoterKind;
   flag_image: string | null;
@@ -94,6 +113,7 @@ export type Voter = {
   sort_order: number;
   created_at: string;
 };
+
 
 /** A normalised voting-entity option, whether backed by `voters` or a plain participating country. */
 export type VoterOption = {
@@ -113,11 +133,13 @@ export function voterKey(v: { voterId?: string | null; countryId?: string | null
 export function voterOptionsFromVoters(voters: Voter[], countries: Country[]): VoterOption[] {
   const cMap = new Map(countries.map((c) => [c.id, c]));
   return voters.map((v) => {
-    const c = v.country_id ? cMap.get(v.country_id) : undefined;
+    // Custom nations have no global country, so their canonical key is the entity id.
+    const identity = v.contest_entity_id ?? v.country_id;
+    const c = identity ? cMap.get(identity) : undefined;
     return {
       key: `v:${v.id}`,
       voterId: v.id,
-      countryId: v.country_id,
+      countryId: identity ?? null,
       name: v.name || c?.name || "Voter",
       short_code: c?.short_code ?? null,
       flag_image: v.flag_image ?? c?.flag_image ?? null,
@@ -157,6 +179,7 @@ export type Televote = {
   edition_id: string;
   show_id: string | null;
   country_id: string;
+  contest_entity_id?: string | null;
   points: number;
 };
 
@@ -165,6 +188,7 @@ export type ResultRow = {
   edition_id: string;
   show_id: string | null;
   country_id: string;
+  contest_entity_id?: string | null;
   jury_points: number;
   televote_points: number;
   total_points: number;
@@ -173,13 +197,30 @@ export type ResultRow = {
 
 /* ---------------- fetch helpers ---------------- */
 
+/**
+ * Collapse the two identity columns into the canonical contest key.
+ * Global rows keep their real country id; custom participating countries surface
+ * their `contest_entities` id, so downstream code needs a single lookup only.
+ */
+function canonicalise(table: string, row: any) {
+  if (!row) return row;
+  if (table === "jury_votes") {
+    return { ...row, receiving_country_id: row.receiving_country_id ?? row.receiving_entity_id ?? "" };
+  }
+  if (table === "participants" || table === "televote_votes" || table === "results") {
+    return { ...row, country_id: row.country_id ?? row.contest_entity_id ?? "" };
+  }
+  return row;
+}
+
 async function all<T>(table: string, apply?: (q: any) => any): Promise<T[]> {
   let q: any = (supabase as any).from(table).select("*");
   if (apply) q = apply(q);
   const { data, error } = await q;
   if (error) throw error;
-  return (data ?? []) as T[];
+  return ((data ?? []) as any[]).map((r) => canonicalise(table, r)) as T[];
 }
+
 
 /* ---------------- queries ---------------- */
 
@@ -270,7 +311,27 @@ export function useJuryVotes(showId?: string) {
   });
 }
 
+/** Participating nations of one edition — global links and edition-only custom countries. */
+export function useContestEntities(editionId?: string) {
+  return useQuery({
+    enabled: !!editionId,
+    queryKey: ["contest_entities", "edition", editionId],
+    queryFn: () =>
+      all<ContestEntityRow>("contest_entities", (q) => q.eq("edition_id", editionId).order("display_name")),
+  });
+}
+
+/** Every contest entity, for cross-edition views such as broadcast and statistics. */
+export function useAllContestEntities() {
+  return useQuery({
+    queryKey: ["contest_entities", "all"],
+    queryFn: () => all<ContestEntityRow>("contest_entities"),
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useVoters(editionId?: string) {
+
   return useQuery({
     enabled: !!editionId,
     queryKey: ["voters", "edition", editionId],
@@ -318,18 +379,24 @@ export function useAllVoters() {
  * so they are matched to the jury representing that country when one exists.
  */
 export function matchVoterKey(
-  vote: { voter_id?: string | null; voter_country_id?: string | null },
+  vote: { voter_id?: string | null; voter_country_id?: string | null; voter_entity_id?: string | null },
   options: VoterOption[],
 ): string {
   if (vote.voter_id) {
     const direct = options.find((o) => o.voterId === vote.voter_id);
     if (direct) return direct.key;
   }
+  // Entity first: it is the only identity a custom nation has.
+  if (vote.voter_entity_id) {
+    const byEntity = options.find((o) => o.countryId === vote.voter_entity_id);
+    if (byEntity) return byEntity.key;
+  }
   if (vote.voter_country_id) {
     const byCountry = options.find((o) => o.countryId === vote.voter_country_id);
     if (byCountry) return byCountry.key;
     return `c:${vote.voter_country_id}`;
   }
+  if (vote.voter_entity_id) return `c:${vote.voter_entity_id}`;
   return vote.voter_id ? `v:${vote.voter_id}` : "";
 }
 

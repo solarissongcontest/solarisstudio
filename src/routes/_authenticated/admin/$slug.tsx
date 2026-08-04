@@ -20,6 +20,7 @@ import {
   matchVoterKey,
   voterKey,
 
+  useContestEntities,
   useCountries,
   useEdition,
   useJuryVotes,
@@ -33,6 +34,7 @@ import {
   type Voter,
   type VoterKind,
 } from "@/lib/data";
+import { DEFAULT_ACCENT, entityDisplayMap, isCustomEntity, type ContestEntityRow } from "@/lib/entities";
 import { backgroundStyle, resolveTheme, type ThemeConfig } from "@/lib/theme";
 import { resolveVoting, type VotingConfig } from "@/lib/voting";
 import { resolveBroadcast, type BroadcastConfig } from "@/lib/broadcast";
@@ -80,6 +82,8 @@ function AdminEdition() {
   const { data: jury } = useJuryVotes(activeShowId);
   const { data: tele } = useTelevotes(activeShowId);
   const { data: showVoters } = useShowVoters(activeShowId);
+  const { data: entities } = useContestEntities(edition?.id);
+  const [customForm, setCustomForm] = useState({ display_name: "", abbreviation: "", flag_image: "", region: "" });
   const [voterForm, setVoterForm] = useState<{ kind: VoterKind; countryId: string | null; name: string; flag_image: string; accent_color: string }>({
     kind: "country",
     countryId: null,
@@ -90,6 +94,10 @@ function AdminEdition() {
 
   const cList = countries ?? [];
   const cMap = useMemo(() => new Map(cList.map((c) => [c.id, c])), [cList]);
+  const eList = entities ?? [];
+  /** Display lookup keyed by both entity id and (for global entities) country id. */
+  const eMap = useMemo(() => entityDisplayMap(eList, cList), [entities, cList]);
+  const customEntities = eList.filter(isCustomEntity);
   const pMap = useMemo(() => new Map((participants ?? []).map((p) => [p.country_id, p])), [participants]);
   const order = (participants ?? []).map((p) => p.country_id);
 
@@ -113,7 +121,7 @@ function AdminEdition() {
 
   const standings = computeStandings(order, jury ?? [], tele ?? [], voting);
   const voterOptions = useMemo(
-    () => resolveShowVoters(showVoters, order, cList),
+    () => resolveShowVoters(showVoters, order, order.map((id) => eMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c)),
     [showVoters, order, cList],
   );
   const activeVoter = voter && voterOptions.some((v) => v.key === voter) ? voter : voterOptions[0]?.key || "";
@@ -163,24 +171,130 @@ function AdminEdition() {
     await run(supabase.from("shows").delete().eq("id", s.id), `Deleted ${s.name}.`);
   };
 
+  /* -------- contest entities -------- */
+  /**
+   * Split a canonical contest key back into the two storage columns.
+   * Global entries write both columns (legacy compatibility); custom entries
+   * write only the entity reference, since they have no global country.
+   */
+  const identityFor = (key: string): { country_id: string | null; contest_entity_id: string | null } => {
+    const e = eList.find((x) => x.id === key || x.country_id === key);
+    if (e) return { country_id: e.country_id, contest_entity_id: e.id };
+    return { country_id: key, contest_entity_id: null };
+  };
+
+  /** Reuse the edition's global entity for a country, creating it on first use. */
+  const ensureGlobalEntity = async (countryId: string): Promise<ContestEntityRow | null> => {
+    if (!edition) return null;
+    const existing = eList.find((e) => e.country_id === countryId);
+    if (existing) return existing;
+    const c = cMap.get(countryId);
+    const { data, error } = await supabase
+      .from("contest_entities")
+      .insert({
+        edition_id: edition.id,
+        entity_type: "global",
+        country_id: countryId,
+        display_name: c?.name ?? "Country",
+        abbreviation: c?.short_code ?? "???",
+        flag_image: c?.flag_image ?? null,
+        region: c?.region ?? null,
+      })
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      setMsg(reportSupabaseError(error, "Could not add that country to the edition."));
+      return null;
+    }
+    qc.invalidateQueries({ queryKey: ["contest_entities"] });
+    return data as ContestEntityRow;
+  };
+
+  /** Create a nation that exists only inside this edition. Never touches the global library. */
+  const createCustomEntity = async () => {
+    if (!edition) return;
+    const name = customForm.display_name.trim();
+    const abbr = customForm.abbreviation.trim();
+    if (!name || !abbr) {
+      setMsg("A custom country needs both a name and an abbreviation.");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("contest_entities")
+      .insert({
+        edition_id: edition.id,
+        entity_type: "custom",
+        country_id: null,
+        display_name: name,
+        abbreviation: abbr,
+        flag_image: customForm.flag_image.trim() || null,
+        region: customForm.region.trim() || null,
+      })
+      .select()
+      .maybeSingle();
+    if (error || !data) {
+      // The form keeps its values so nothing typed is lost on a duplicate abbreviation.
+      setMsg(reportSupabaseError(error, "Could not create that custom country."));
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["contest_entities"] });
+    setCustomForm({ display_name: "", abbreviation: "", flag_image: "", region: "" });
+    setMsg(`Created ${name}.`);
+    await addEntityToShow(data as ContestEntityRow);
+  };
+
+  const updateCustomEntity = (id: string, values: Record<string, unknown>) =>
+    run((supabase.from("contest_entities") as any).update(values).eq("id", id), "Custom country updated.").then(
+      () => qc.invalidateQueries({ queryKey: ["contest_entities"] }),
+    );
+
+  /**
+   * Deleting is blocked by a foreign key while any participant, vote or result still
+   * points at the entity, so referenced nations can never vanish mid-contest.
+   */
+  const deleteCustomEntity = async (e: ContestEntityRow) => {
+    if (!window.confirm(`Delete “${e.display_name}” from this edition?`)) return;
+    const { error } = await supabase.from("contest_entities").delete().eq("id", e.id);
+    if (error) {
+      setMsg(
+        reportSupabaseError(
+          error,
+          "That custom country is still used by a line-up, votes or results. Remove those first.",
+        ),
+      );
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["contest_entities"] });
+    setMsg(`Deleted ${e.display_name}.`);
+  };
+
   /* -------- line-up -------- */
-  const addParticipant = async (countryId: string) => {
+  /** Put an existing entity (global or custom) into the current show. */
+  const addEntityToShow = async (entity: ContestEntityRow) => {
     if (!edition || !activeShowId) return;
-    // Carry artist & song over from the most recent entry for this country in the edition.
     const prior = (allParticipants ?? [])
-      .filter((p) => p.country_id === countryId && p.show_id !== activeShowId && (p.artist || p.song))
+      .filter((p) => p.contest_entity_id === entity.id && p.show_id !== activeShowId && (p.artist || p.song))
       .slice(-1)[0];
     await run(
       supabase.from("participants").insert({
         edition_id: edition.id,
         show_id: activeShowId,
-        country_id: countryId,
+        country_id: entity.country_id,
+        contest_entity_id: entity.id,
         running_order: order.length + 1,
         semi_final: activeShow?.kind ?? "final",
         artist: prior?.artist ?? null,
         song: prior?.song ?? null,
       }),
     );
+  };
+
+  const addParticipant = async (countryId: string) => {
+    if (!edition || !activeShowId) return;
+    // Every line-up row goes through the edition's canonical entity, created on first use.
+    const entity = await ensureGlobalEntity(countryId);
+    if (!entity) return;
+    await addEntityToShow(entity);
     setPickCountry(null);
   };
 
@@ -208,7 +322,7 @@ function AdminEdition() {
         promote.map((p, i) => ({
           edition_id: edition.id,
           show_id: activeShowId,
-          country_id: p.country_id,
+          ...identityFor(p.country_id),
           running_order: order.length + i + 1,
           semi_final: activeShow?.kind ?? "final",
           artist: p.artist,
@@ -280,13 +394,16 @@ function AdminEdition() {
         .map((row) => row.id),
     );
     if (!cleared) return;
+    const target = identityFor(receiver);
     await run(
       supabase.from("jury_votes").insert({
         edition_id: edition.id,
         show_id: activeShowId,
         voter_id: voterId,
-        voter_country_id: countryId,
-        receiving_country_id: receiver,
+        voter_country_id: countryId ? identityFor(countryId).country_id : null,
+        voter_entity_id: countryId ? identityFor(countryId).contest_entity_id : null,
+        receiving_country_id: target.country_id,
+        receiving_entity_id: target.contest_entity_id,
         points,
       }),
     );
@@ -311,7 +428,7 @@ function AdminEdition() {
         ? supabase.from("televote_votes").update({ points }).eq("id", existing.id)
         : supabase
             .from("televote_votes")
-            .insert({ edition_id: edition.id, show_id: activeShowId, country_id: countryId, points }),
+            .insert({ edition_id: edition.id, show_id: activeShowId, ...identityFor(countryId), points }),
     );
   };
 
@@ -396,7 +513,7 @@ function AdminEdition() {
       const { error } = await supabase.rpc("publish_show_results", {
         p_show_id: activeShowId,
         p_rows: standings.map((s) => ({
-          country_id: s.countryId,
+          ...identityFor(s.countryId),
           jury_points: s.jury,
           televote_points: s.televote,
           total_points: s.total,
@@ -617,10 +734,111 @@ function AdminEdition() {
                 )}
               </div>
 
+              <div className="mb-4 space-y-3 rounded-xl border border-border p-3">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Custom countries</p>
+                  <p className="text-xs text-muted-foreground">
+                    Nations that exist only in this edition. They compete and are voted for exactly like the
+                    official ones, but stay out of the global Terra Solaris history.
+                  </p>
+                </div>
+
+                {!!customEntities.length && (
+                  <ul className="space-y-1.5">
+                    {customEntities.map((e) => {
+                      const inShow = order.includes(e.id);
+                      return (
+                        <li key={e.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-surface px-2 py-1.5">
+                          <FlagChip
+                            code={e.abbreviation}
+                            color={eMap.get(e.id)?.accent_color ?? DEFAULT_ACCENT}
+                            image={e.flag_image}
+                            size="sm"
+                          />
+                          <input
+                            defaultValue={e.display_name}
+                            onBlur={(ev) =>
+                              ev.target.value.trim() &&
+                              ev.target.value !== e.display_name &&
+                              updateCustomEntity(e.id, { display_name: ev.target.value.trim() })
+                            }
+                            className="min-w-0 flex-1 rounded-lg bg-background px-2 py-1 text-sm"
+                          />
+                          <input
+                            defaultValue={e.abbreviation}
+                            onBlur={(ev) =>
+                              ev.target.value.trim() &&
+                              ev.target.value !== e.abbreviation &&
+                              updateCustomEntity(e.id, { abbreviation: ev.target.value.trim() })
+                            }
+                            className="w-16 rounded-lg bg-background px-2 py-1 text-center text-sm uppercase"
+                          />
+                          {inShow ? (
+                            <span className="rounded-full bg-surface-strong px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                              in line-up
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => addEntityToShow(e)}
+                              className="rounded-lg border border-border px-2 py-1 text-xs hover:bg-surface/70"
+                            >
+                              Add to show
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteCustomEntity(e)}
+                            className="rounded-lg border border-destructive/40 px-2 py-1 text-xs text-destructive"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <div className="grid gap-2 sm:grid-cols-4">
+                  <Field label="Name">
+                    <TextInput
+                      value={customForm.display_name}
+                      onChange={(e) => setCustomForm({ ...customForm, display_name: e.target.value })}
+                      placeholder="Novaria"
+                    />
+                  </Field>
+                  <Field label="Abbreviation">
+                    <TextInput
+                      value={customForm.abbreviation}
+                      onChange={(e) => setCustomForm({ ...customForm, abbreviation: e.target.value })}
+                      placeholder="NVA"
+                    />
+                  </Field>
+                  <Field label="Flag URL (optional)">
+                    <TextInput
+                      value={customForm.flag_image}
+                      onChange={(e) => setCustomForm({ ...customForm, flag_image: e.target.value })}
+                      placeholder="https://…"
+                    />
+                  </Field>
+                  <Field label="Region (optional)">
+                    <TextInput
+                      value={customForm.region}
+                      onChange={(e) => setCustomForm({ ...customForm, region: e.target.value })}
+                      placeholder="Terra Solaris"
+                    />
+                  </Field>
+                </div>
+                <button
+                  onClick={createCustomEntity}
+                  className="bg-aurora rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  Create &amp; add to show
+                </button>
+              </div>
+
 
               <ul className="space-y-1.5">
                 {(participants ?? []).map((p, i) => {
-                  const c = cMap.get(p.country_id);
+                  const c = eMap.get(p.country_id);
                   if (!c) return null;
                   return (
                     <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-surface px-2 py-1.5">
@@ -666,15 +884,17 @@ function AdminEdition() {
                 <button
                   onClick={async () => {
                     if (!edition || !activeShowId) return;
-                    const existingCountryIds = new Set((showVoters ?? []).map((v) => v.country_id));
+                    const existingCountryIds = new Set(
+                      (showVoters ?? []).map((v) => v.contest_entity_id ?? v.country_id),
+                    );
                     const rows = order
-                      .filter((id) => !existingCountryIds.has(id))
+                      .filter((id) => !existingCountryIds.has(id) && !existingCountryIds.has(identityFor(id).contest_entity_id))
                       .map((id, i) => {
-                        const c = cMap.get(id);
+                        const c = eMap.get(id);
                         return {
                           edition_id: edition.id,
                           show_id: activeShowId,
-                          country_id: id,
+                          ...identityFor(id),
                           name: c?.name ?? "Country",
                           kind: "country",
                           flag_image: c?.flag_image ?? null,
@@ -711,9 +931,9 @@ function AdminEdition() {
                       className="numeric w-12 rounded-lg bg-background px-2 py-1 text-center text-sm"
                     />
                     <FlagChip
-                      code={cMap.get(v.country_id ?? "")?.short_code ?? "?"}
+                      code={eMap.get(v.contest_entity_id ?? v.country_id ?? "")?.short_code ?? "?"}
                       color={v.accent_color}
-                      image={v.flag_image ?? cMap.get(v.country_id ?? "")?.flag_image ?? null}
+                      image={v.flag_image ?? eMap.get(v.contest_entity_id ?? v.country_id ?? "")?.flag_image ?? null}
                       size="sm"
                     />
                     <input
@@ -810,6 +1030,10 @@ function AdminEdition() {
                         edition_id: edition.id,
                         show_id: activeShowId,
                         country_id: voterForm.countryId,
+                        contest_entity_id:
+                          voterForm.kind === "country" && voterForm.countryId
+                            ? identityFor(voterForm.countryId).contest_entity_id
+                            : null,
                         name: voterForm.name,
                         kind: voterForm.kind,
                         flag_image: voterForm.flag_image || null,
@@ -833,7 +1057,7 @@ function AdminEdition() {
             <Panel title="Fast jury entry" description="Pick a voting country, then type-ahead each award">
               <FastJuryEntry
                 voters={voterOptions}
-                receivers={cList.filter((c) => order.includes(c.id))}
+                receivers={order.map((id) => eMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c)}
                 voting={voting}
                 votes={jury ?? []}
                 activeVoter={activeVoter}
@@ -846,7 +1070,12 @@ function AdminEdition() {
 
           {tab === "Televote" && activeShow && (
             <Panel title="Televote entry" description="Enter each entry's televote total — press Enter to save">
-              <TelevoteEntry countries={cList} order={order} votes={tele ?? []} onSet={setTele} />
+              <TelevoteEntry
+                countries={order.map((id) => eMap.get(id)).filter((c): c is NonNullable<typeof c> => !!c)}
+                order={order}
+                votes={tele ?? []}
+                onSet={setTele}
+              />
             </Panel>
           )}
 

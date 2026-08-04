@@ -3,11 +3,14 @@ import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
+  useContestEntities,
   useCountries,
   useEdition,
   useParticipants,
   useShows,
 } from "@/lib/data";
+import { entityDisplayMap } from "@/lib/entities";
+
 
 export const Route = createFileRoute("/editions/$slug")({
   head: ({ params }) => ({
@@ -27,7 +30,9 @@ function EditionPage() {
   const { data: shows } = useShows(edition?.id);
   const { data: participants } = useParticipants(edition?.id);
   const { data: countries } = useCountries();
-  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
+  const { data: entities } = useContestEntities(edition?.id);
+  // Resolves both global countries and edition-only custom nations.
+  const countryMap = entityDisplayMap(entities, countries);
 
   if (isLoading) return <AppShell><p className="text-sm text-muted-foreground">Loading…</p></AppShell>;
   if (!edition)
