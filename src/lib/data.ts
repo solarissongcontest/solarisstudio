@@ -58,7 +58,8 @@ export type Participant = {
   id: string;
   edition_id: string;
   show_id: string | null;
-  country_id: string;
+  country_id: string | null;
+  contest_entity_id: string | null;
   artist: string | null;
   song: string | null;
   running_order: number | null;
@@ -74,10 +75,13 @@ export type JuryVote = {
   /** Legacy/country-linked voter. Empty string when the ballot comes from a non-country jury. */
   voter_country_id: string;
   voter_id?: string | null;
+  voter_entity_id?: string | null;
 
-  receiving_country_id: string;
+  receiving_country_id: string | null;
+  receiving_entity_id: string | null;
   points: number;
 };
+
 
 export const VOTER_KINDS = ["country", "external-country", "organization", "person", "custom"] as const;
 export type VoterKind = (typeof VOTER_KINDS)[number];
