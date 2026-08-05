@@ -51,7 +51,14 @@ export const DEFAULT_ACCENT = "#7dd3fc";
  * consume entities without changes.
  */
 export type EntityDisplay = {
+  /**
+   * Canonical contest key — the same value stored rows normalise to
+   * (`country_id` for a global entity, the entity id for a custom nation).
+   * Pickers, scoreboards and vote rows all key on this, so they can never drift apart.
+   */
   id: string;
+  /** The `contest_entities` row id, when this display is backed by one. */
+  entityId: string | null;
   entityType: "global" | "custom";
   /** Global country behind this entity, when there is one. */
   countryId: string | null;
@@ -72,7 +79,8 @@ export function displayFromEntity(
 ): EntityDisplay {
   const c = entity.country_id ? countries?.get(entity.country_id) : undefined;
   return {
-    id: entity.id,
+    id: entity.country_id ?? entity.id,
+    entityId: entity.id,
     entityType: entity.entity_type,
     countryId: entity.country_id,
     name: c?.name ?? entity.display_name,
@@ -89,6 +97,7 @@ export function displayFromEntity(
 export function displayFromCountry(c: Country): EntityDisplay {
   return {
     id: c.id,
+    entityId: null,
     entityType: "global",
     countryId: c.id,
     name: c.name,
@@ -101,6 +110,7 @@ export function displayFromCountry(c: Country): EntityDisplay {
     first_participation: c.first_participation,
   };
 }
+
 
 /**
  * Lookup used by every show-scoped view. Entities are indexed by their own id and,

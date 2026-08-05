@@ -133,8 +133,8 @@ export function voterKey(v: { voterId?: string | null; countryId?: string | null
 export function voterOptionsFromVoters(voters: Voter[], countries: Country[]): VoterOption[] {
   const cMap = new Map(countries.map((c) => [c.id, c]));
   return voters.map((v) => {
-    // Custom nations have no global country, so their canonical key is the entity id.
-    const identity = v.contest_entity_id ?? v.country_id;
+    // Canonical contest key: the global country when there is one, else the custom entity.
+    const identity = v.country_id ?? v.contest_entity_id;
     const c = identity ? cMap.get(identity) : undefined;
     return {
       key: `v:${v.id}`,
@@ -147,6 +147,7 @@ export function voterOptionsFromVoters(voters: Voter[], countries: Country[]): V
     };
   });
 }
+
 
 export function voterOptionsFromCountries(countryIds: string[], countries: Country[]): VoterOption[] {
   const cMap = new Map(countries.map((c) => [c.id, c]));
