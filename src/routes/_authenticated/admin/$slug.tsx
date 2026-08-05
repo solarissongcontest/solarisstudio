@@ -373,51 +373,55 @@ function AdminEdition() {
    */
   const ballotRows = (key: string) => (jury ?? []).filter((v) => matchVoterKey(v, voterOptions) === key);
 
-  /** Returns false (and reports) when the delete fails, so callers can abort. */
-  const deleteVoteRows = async (ids: string[]) => {
-    if (!ids.length) return true;
-    const { error } = await supabase.from("jury_votes").delete().in("id", ids);
-    if (error) {
-      setMsg(reportSupabaseError(error, "Could not clear the existing score. Nothing was changed."));
-      return false;
-    }
-    return true;
-  };
-
+  /**
+   * Assigning a score replaces the point value **and** the recipient slot on this
+   * ballot in a single database call, so an interrupted write can never leave the
+   * ballot partly erased. Identity is resolved to the canonical contest key first,
+   * which is what makes custom participating nations work here.
+   */
   const assign = async (v: string, receiver: string, points: number) => {
     if (!edition || !activeShowId) return;
     const { voterId, countryId } = decodeVoterKey(v);
-    // Free the point value and the receiver slot on this ballot only.
-    const cleared = await deleteVoteRows(
-      ballotRows(v)
-        .filter((row) => row.points === points || row.receiving_country_id === receiver)
-        .map((row) => row.id),
-    );
-    if (!cleared) return;
+    const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
     const target = identityFor(receiver);
-    await run(
-      supabase.from("jury_votes").insert({
-        edition_id: edition.id,
-        show_id: activeShowId,
-        voter_id: voterId,
-        voter_country_id: countryId ? identityFor(countryId).country_id : null,
-        voter_entity_id: countryId ? identityFor(countryId).contest_entity_id : null,
-        receiving_country_id: target.country_id,
-        receiving_entity_id: target.contest_entity_id,
-        points,
-      }),
-    );
+    const { error } = await (supabase as any).rpc("assign_jury_vote", {
+      p_edition_id: edition.id,
+      p_show_id: activeShowId,
+      p_voter_id: voterId,
+      p_voter_country_id: voterIdentity.country_id,
+      p_voter_entity_id: voterIdentity.contest_entity_id,
+      p_receiving_country_id: target.country_id,
+      p_receiving_entity_id: target.contest_entity_id,
+      p_points: points,
+    });
+    if (error) {
+      setMsg(reportSupabaseError(error, "Could not save that score. Nothing was changed."));
+      return;
+    }
+    setMsg(null);
+    refresh();
   };
 
   const clearPoint = async (v: string, points: number) => {
-    const ok = await deleteVoteRows(
-      ballotRows(v).filter((row) => row.points === points).map((row) => row.id),
-    );
-    if (ok) {
-      setMsg(null);
-      refresh();
+    if (!edition || !activeShowId) return;
+    const { voterId, countryId } = decodeVoterKey(v);
+    const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
+    const { error } = await (supabase as any).rpc("clear_jury_point", {
+      p_edition_id: edition.id,
+      p_show_id: activeShowId,
+      p_voter_id: voterId,
+      p_voter_country_id: voterIdentity.country_id,
+      p_voter_entity_id: voterIdentity.contest_entity_id,
+      p_points: points,
+    });
+    if (error) {
+      setMsg(reportSupabaseError(error, "Could not clear that score. Nothing was changed."));
+      return;
     }
+    setMsg(null);
+    refresh();
   };
+
 
 
   const setTele = async (countryId: string, points: number) => {
