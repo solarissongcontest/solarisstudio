@@ -366,12 +366,8 @@ function AdminEdition() {
     return { voterId: opt?.voterId ?? null, countryId: opt?.countryId ?? null };
   };
 
-  /**
-   * Ballots already stored for a voting entity. Matching happens on the loaded rows
-   * (by stable ids, with a country fallback for legacy ballots) so that adding,
-   * renaming or reordering juries can never orphan existing votes.
-   */
-  const ballotRows = (key: string) => (jury ?? []).filter((v) => matchVoterKey(v, voterOptions) === key);
+
+
 
   /**
    * Assigning a score replaces the point value **and** the recipient slot on this
