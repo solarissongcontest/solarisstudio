@@ -692,6 +692,30 @@ export type Database = {
       }
     }
     Functions: {
+      assign_jury_vote: {
+        Args: {
+          p_edition_id: string
+          p_points: number
+          p_receiving_country_id: string
+          p_receiving_entity_id: string
+          p_show_id: string
+          p_voter_country_id: string
+          p_voter_entity_id: string
+          p_voter_id: string
+        }
+        Returns: string
+      }
+      clear_jury_point: {
+        Args: {
+          p_edition_id: string
+          p_points: number
+          p_show_id: string
+          p_voter_country_id: string
+          p_voter_entity_id: string
+          p_voter_id: string
+        }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
