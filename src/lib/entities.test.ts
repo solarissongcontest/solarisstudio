@@ -83,6 +83,17 @@ describe("contest entity identity", () => {
     // A custom nation must never be reachable through a global country key.
     expect(map.get("e2")?.countryId).toBeNull();
   });
+
+  it("exposes the canonical contest key as the display id", () => {
+    const map = entityDisplayMap([globalEntity, customEntity], [country]);
+    // Global entities key on the country id — the same value stored rows normalise to.
+    expect(map.get("e1")?.id).toBe("c1");
+    expect(map.get("c1")?.id).toBe("c1");
+    expect(map.get("e1")?.entityId).toBe("e1");
+    // Custom nations have no country, so the entity id is the canonical key.
+    expect(map.get("e2")?.id).toBe("e2");
+  });
+
 });
 
 describe("matchVoterKey with custom nations", () => {
