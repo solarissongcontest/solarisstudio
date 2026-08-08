@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =========================================================
-   Theme bridge
+   SOLARIS STUDIO THEME
    ========================================================= */
 
 @theme inline {
@@ -73,105 +73,75 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
-/* =========================================================
-   Solaris Liquid Glass theme
-   ========================================================= */
-
 :root {
-  --radius: 1.25rem;
+  --radius: 1.5rem;
 
-  --background: oklch(0.13 0.035 255);
+  --background: oklch(0.12 0.035 255);
   --foreground: oklch(0.975 0.008 245);
 
-  --card: rgba(230, 243, 255, 0.04);
+  --card: rgba(225, 241, 255, 0.045);
   --card-foreground: oklch(0.975 0.008 245);
 
-  --popover: rgba(10, 20, 42, 0.58);
+  --popover: rgba(8, 20, 44, 0.60);
   --popover-foreground: oklch(0.975 0.008 245);
 
-  --primary: oklch(0.82 0.14 205);
-  --primary-foreground: oklch(0.14 0.03 250);
+  --primary: oklch(0.82 0.14 195);
+  --primary-foreground: oklch(0.13 0.045 235);
 
-  --secondary: rgba(240, 248, 255, 0.06);
-  --secondary-foreground: oklch(0.975 0.008 245);
+  --secondary: rgba(235, 247, 255, 0.065);
+  --secondary-foreground: oklch(0.98 0.01 230);
 
-  --muted: rgba(240, 248, 255, 0.045);
-  --muted-foreground: oklch(0.80 0.018 245);
+  --muted: rgba(235, 247, 255, 0.05);
+  --muted-foreground: oklch(0.79 0.025 230);
 
-  --accent: oklch(0.74 0.17 300);
-  --accent-foreground: oklch(0.98 0.01 245);
+  --accent: oklch(0.72 0.17 300);
+  --accent-foreground: oklch(0.98 0.01 230);
 
-  --destructive: oklch(0.63 0.22 22);
-  --destructive-foreground: oklch(0.98 0.005 245);
+  --destructive: oklch(0.64 0.21 24);
+  --destructive-foreground: white;
 
-  --border: rgba(255, 255, 255, 0.16);
-  --input: rgba(240, 248, 255, 0.045);
-  --ring: oklch(0.84 0.13 205);
+  --border: rgba(255, 255, 255, 0.17);
+  --input: rgba(235, 247, 255, 0.05);
+  --ring: oklch(0.84 0.13 195);
 
   --gold: oklch(0.85 0.16 88);
   --jury: oklch(0.80 0.14 205);
-  --televote: oklch(0.72 0.18 330);
+  --televote: oklch(0.72 0.19 330);
 
-  --surface: rgba(235, 247, 255, 0.045);
-  --surface-strong: rgba(235, 247, 255, 0.07);
+  --surface: rgba(235, 247, 255, 0.05);
+  --surface-strong: rgba(235, 247, 255, 0.085);
 
-  --chart-1: oklch(0.80 0.14 205);
-  --chart-2: oklch(0.72 0.18 330);
+  --chart-1: oklch(0.82 0.14 195);
+  --chart-2: oklch(0.72 0.19 330);
   --chart-3: oklch(0.85 0.16 88);
   --chart-4: oklch(0.72 0.16 155);
-  --chart-5: oklch(0.70 0.18 295);
+  --chart-5: oklch(0.68 0.18 300);
 
-  --sidebar: rgba(8, 17, 38, 0.50);
-  --sidebar-foreground: oklch(0.97 0.01 245);
-  --sidebar-primary: oklch(0.82 0.14 205);
-  --sidebar-primary-foreground: oklch(0.14 0.03 250);
-  --sidebar-accent: rgba(240, 248, 255, 0.055);
-  --sidebar-accent-foreground: oklch(0.98 0.01 245);
+  --sidebar: rgba(6, 17, 39, 0.58);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: rgba(235, 247, 255, 0.06);
+  --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: rgba(255, 255, 255, 0.14);
-  --sidebar-ring: oklch(0.84 0.13 205);
-
-  --glass-clear: rgba(235, 248, 255, 0.045);
-  --glass-regular: rgba(232, 246, 255, 0.060);
-  --glass-strong: rgba(228, 244, 255, 0.080);
-
-  --glass-border: rgba(255, 255, 255, 0.28);
-  --glass-border-bright: rgba(255, 255, 255, 0.48);
-  --glass-edge-cool: rgba(118, 207, 255, 0.15);
-  --glass-edge-violet: rgba(178, 145, 255, 0.10);
-
-  --glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 1px 0 0 rgba(255, 255, 255, 0.12),
-    inset -1px 0 0 rgba(95, 185, 255, 0.10),
-    inset 0 -1px 0 rgba(160, 130, 255, 0.08),
-    0 12px 34px rgba(0, 5, 24, 0.16),
-    0 28px 72px rgba(0, 5, 26, 0.18);
-
-  --glass-shadow-strong:
-    inset 0 1px 0 rgba(255, 255, 255, 0.52),
-    inset 1px 0 0 rgba(255, 255, 255, 0.14),
-    inset -1px 0 0 rgba(95, 185, 255, 0.12),
-    inset 0 -1px 0 rgba(160, 130, 255, 0.10),
-    0 16px 44px rgba(0, 5, 24, 0.20),
-    0 36px 88px rgba(0, 5, 28, 0.22);
-
-  --shadow-glow:
-    0 0 52px -10px oklch(0.82 0.15 205 / 0.38),
-    0 14px 36px -12px rgba(0, 5, 24, 0.45);
+  --sidebar-ring: var(--ring);
 
   --gradient-aurora:
     linear-gradient(
       135deg,
-      color-mix(in oklab, var(--primary) 90%, transparent),
-      color-mix(in oklab, var(--secondary) 86%, transparent)
+      oklch(0.82 0.15 195),
+      oklch(0.70 0.18 300)
     );
 
   --gradient-gold:
     linear-gradient(
       135deg,
-      oklch(0.9 0.14 95),
+      oklch(0.90 0.14 95),
       oklch(0.78 0.17 60)
     );
+
+  --shadow-glow:
+    0 0 52px -10px oklch(0.82 0.15 195 / 0.40);
 }
 
 .dark {
@@ -179,7 +149,7 @@
 }
 
 /* =========================================================
-   Base
+   BASE + BACKGROUND
    ========================================================= */
 
 @layer base {
@@ -194,63 +164,46 @@
   }
 
   html {
+    background: #020817;
     color-scheme: dark;
-    background: oklch(0.09 0.04 250);
   }
 
   body {
     margin: 0;
+
     min-height: 100vh;
     min-width: 0;
+
     overflow-x: clip;
 
     color: var(--color-foreground);
 
-    background-color: oklch(0.09 0.04 250);
+    background-color: #020817;
 
     background-image:
-      radial-gradient(
-        90% 62% at 8% 20%,
-        rgba(68, 190, 255, 0.11),
-        transparent 62%
-      ),
-      radial-gradient(
-        74% 58% at 94% 78%,
-        rgba(140, 96, 255, 0.10),
-        transparent 64%
-      ),
       linear-gradient(
-        rgba(3, 7, 20, 0.10),
-        rgba(3, 7, 20, 0.10)
+        rgba(1, 5, 20, 0.035),
+        rgba(1, 5, 20, 0.035)
       ),
       url("/IMG_8815.jpeg");
 
-    background-repeat:
-      no-repeat,
-      no-repeat,
-      no-repeat,
-      no-repeat;
-
-    background-position:
-      center,
-      center,
-      center,
-      center center;
-
     background-size:
-      cover,
-      cover,
       cover,
       cover;
 
+    background-position:
+      center,
+      center center;
+
+    background-repeat:
+      no-repeat,
+      no-repeat;
+
     background-attachment:
-      fixed,
-      fixed,
       fixed,
       fixed;
 
     font-family: var(--font-sans);
-    font-weight: 400;
 
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -263,11 +216,6 @@
   h4 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
-  }
-
-  ::selection {
-    color: oklch(0.12 0.04 240);
-    background: oklch(0.83 0.14 205 / 0.85);
   }
 
   img,
@@ -290,100 +238,112 @@
     touch-action: manipulation;
   }
 
-  select,
   input,
+  select,
   textarea {
     max-width: 100%;
+  }
+
+  ::selection {
+    color: #03111d;
+    background: rgba(125, 230, 255, 0.9);
   }
 }
 
 /* =========================================================
-   Liquid Glass material
+   LIQUID GLASS
    ========================================================= */
 
 @utility glass {
   position: relative;
+
   overflow: hidden;
   isolation: isolate;
 
+  border-radius: 2rem;
+
   background:
     linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.14) 0%,
-      rgba(255, 255, 255, 0.052) 28%,
-      rgba(120, 180, 255, 0.032) 58%,
-      rgba(175, 130, 255, 0.028) 78%,
-      rgba(255, 255, 255, 0.065) 100%
+      145deg,
+      rgba(255, 255, 255, 0.115) 0%,
+      rgba(255, 255, 255, 0.045) 28%,
+      rgba(120, 205, 255, 0.025) 60%,
+      rgba(255, 255, 255, 0.052) 100%
     );
 
   border:
-    1px solid
-    rgba(255, 255, 255, 0.32);
+    1px solid rgba(255, 255, 255, 0.30);
 
   -webkit-backdrop-filter:
     blur(7px)
-    saturate(190%)
-    brightness(1.08)
-    contrast(1.03);
+    saturate(185%)
+    brightness(1.07)
+    contrast(1.02);
 
   backdrop-filter:
     blur(7px)
-    saturate(190%)
-    brightness(1.08)
-    contrast(1.03);
+    saturate(185%)
+    brightness(1.07)
+    contrast(1.02);
 
   box-shadow:
-    var(--glass-shadow);
+    0 18px 50px rgba(0, 3, 20, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    inset 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset -1px 0 0 rgba(105, 215, 255, 0.12),
+    inset 0 -1px 0 rgba(115, 190, 255, 0.10),
+    inset 0 12px 32px rgba(255, 255, 255, 0.055);
 
-  border-radius:
-    var(--radius-2xl);
-
-  transform:
-    translateZ(0);
+  transform: translateZ(0);
 }
 
 @utility glass-strong {
   position: relative;
+
   overflow: hidden;
   isolation: isolate;
 
+  border-radius: 2rem;
+
   background:
     linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.16) 0%,
-      rgba(255, 255, 255, 0.064) 28%,
-      rgba(120, 180, 255, 0.042) 58%,
-      rgba(175, 130, 255, 0.035) 78%,
-      rgba(255, 255, 255, 0.08) 100%
+      145deg,
+      rgba(255, 255, 255, 0.135) 0%,
+      rgba(255, 255, 255, 0.055) 28%,
+      rgba(120, 205, 255, 0.03) 60%,
+      rgba(255, 255, 255, 0.065) 100%
     );
 
   border:
-    1px solid
-    rgba(255, 255, 255, 0.37);
+    1px solid rgba(255, 255, 255, 0.34);
 
   -webkit-backdrop-filter:
     blur(8px)
-    saturate(195%)
-    brightness(1.09)
-    contrast(1.035);
+    saturate(190%)
+    brightness(1.08)
+    contrast(1.025);
 
   backdrop-filter:
     blur(8px)
-    saturate(195%)
-    brightness(1.09)
-    contrast(1.035);
+    saturate(190%)
+    brightness(1.08)
+    contrast(1.025);
 
   box-shadow:
-    var(--glass-shadow-strong);
+    0 20px 55px rgba(0, 3, 20, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.50),
+    inset 1px 0 0 rgba(255, 255, 255, 0.16),
+    inset -1px 0 0 rgba(105, 215, 255, 0.14),
+    inset 0 -1px 0 rgba(115, 190, 255, 0.11),
+    inset 0 14px 34px rgba(255, 255, 255, 0.065);
 
-  border-radius:
-    var(--radius-2xl);
-
-  transform:
-    translateZ(0);
+  transform: translateZ(0);
 }
 
-/* bright curved illumination */
+/* =========================================================
+   OPTICAL HIGHLIGHT
+   ========================================================= */
+
 .glass::before,
 .glass-strong::before {
   content: "";
@@ -391,34 +351,38 @@
   position: absolute;
   inset: 0;
 
-  pointer-events: none;
   z-index: 0;
+
+  pointer-events: none;
 
   border-radius: inherit;
 
   background:
     radial-gradient(
-      ellipse 86% 48% at 18% -8%,
-      rgba(255, 255, 255, 0.28) 0%,
-      rgba(255, 255, 255, 0.10) 34%,
-      transparent 68%
+      ellipse 90% 48% at 18% -10%,
+      rgba(255, 255, 255, 0.24) 0%,
+      rgba(255, 255, 255, 0.08) 35%,
+      transparent 67%
     ),
     radial-gradient(
-      ellipse 42% 70% at 105% 34%,
-      rgba(98, 220, 255, 0.18) 0%,
-      rgba(88, 190, 255, 0.06) 38%,
+      ellipse 45% 72% at 104% 35%,
+      rgba(88, 215, 255, 0.18) 0%,
+      rgba(88, 195, 255, 0.055) 40%,
       transparent 72%
     ),
     radial-gradient(
-      ellipse 40% 60% at -5% 82%,
-      rgba(170, 130, 255, 0.14) 0%,
+      ellipse 42% 62% at -5% 82%,
+      rgba(110, 220, 255, 0.13) 0%,
       transparent 70%
     );
 
   mix-blend-mode: screen;
 }
 
-/* glossy pseudo-refraction layer */
+/* =========================================================
+   REFRACTIVE EDGE
+   ========================================================= */
+
 .glass::after,
 .glass-strong::after {
   content: "";
@@ -426,10 +390,12 @@
   position: absolute;
   inset: 1px;
 
-  pointer-events: none;
   z-index: 0;
 
-  border-radius: inherit;
+  pointer-events: none;
+
+  border-radius:
+    calc(2rem - 1px);
 
   background:
     linear-gradient(
@@ -437,22 +403,22 @@
       rgba(255, 255, 255, 0.08) 0%,
       transparent 18%,
       transparent 34%,
-      rgba(255, 255, 255, 0.07) 47%,
-      rgba(135, 225, 255, 0.052) 55%,
+      rgba(255, 255, 255, 0.055) 47%,
+      rgba(125, 220, 255, 0.05) 55%,
       transparent 66%,
       transparent 84%,
-      rgba(255, 255, 255, 0.07) 100%
+      rgba(255, 255, 255, 0.06) 100%
     );
 
   box-shadow:
     inset 0 2px 2px rgba(255, 255, 255, 0.16),
-    inset -9px -8px 14px -12px rgba(130, 225, 255, 0.65),
+    inset -9px -8px 14px -12px rgba(125, 225, 255, 0.65),
     inset 8px 0 14px -13px rgba(255, 255, 255, 0.72),
-    inset 0 -8px 14px -13px rgba(180, 145, 255, 0.48);
+    inset 0 -8px 14px -13px rgba(255, 255, 255, 0.50);
 
   filter:
     blur(0.45px)
-    brightness(1.14);
+    brightness(1.13);
 
   opacity: 0.82;
 
@@ -466,482 +432,210 @@
 }
 
 /* =========================================================
-   Normal card surfaces
-   ========================================================= */
-
-[class*="bg-card"]:not([class*="bg-card/"]) {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.09) 0%,
-      rgba(255, 255, 255, 0.032) 35%,
-      rgba(120, 180, 255, 0.024) 65%,
-      rgba(170, 130, 255, 0.020) 80%,
-      rgba(255, 255, 255, 0.042) 100%
-    ) !important;
-
-  -webkit-backdrop-filter:
-    blur(5px)
-    saturate(175%)
-    brightness(1.05);
-
-  backdrop-filter:
-    blur(5px)
-    saturate(175%)
-    brightness(1.05);
-
-  border-color:
-    rgba(255, 255, 255, 0.21) !important;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset -1px 0 0 rgba(110, 220, 255, 0.08),
-    0 12px 30px rgba(1, 5, 24, 0.14) !important;
-}
-
-/* =========================================================
-   Header / navigation chrome
+   HEADER
    ========================================================= */
 
 header.sticky {
   background:
     linear-gradient(
       180deg,
-      rgba(7, 14, 32, 0.42),
-      rgba(7, 14, 32, 0.24)
+      rgba(2, 12, 31, 0.43),
+      rgba(2, 12, 31, 0.25)
     ) !important;
 
   -webkit-backdrop-filter:
-    blur(18px)
-    saturate(175%)
-    contrast(1.04);
+    blur(16px)
+    saturate(175%);
 
   backdrop-filter:
-    blur(18px)
-    saturate(175%)
-    contrast(1.04);
+    blur(16px)
+    saturate(175%);
 
   border-color:
     rgba(255, 255, 255, 0.14) !important;
 
   box-shadow:
-    inset 0 -1px 0 rgba(255, 255, 255, 0.045),
-    0 12px 30px rgba(0, 5, 24, 0.10);
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 28px rgba(0, 4, 24, 0.10);
 }
+
+/* =========================================================
+   MOBILE BOTTOM NAV
+   ========================================================= */
 
 nav.fixed {
   background:
     linear-gradient(
       180deg,
-      rgba(8, 16, 36, 0.48),
-      rgba(8, 16, 36, 0.30)
+      rgba(2, 12, 31, 0.44),
+      rgba(2, 12, 31, 0.30)
     ) !important;
 
   -webkit-backdrop-filter:
-    blur(18px)
+    blur(17px)
     saturate(175%);
 
   backdrop-filter:
-    blur(18px)
+    blur(17px)
     saturate(175%);
 
   border-color:
     rgba(255, 255, 255, 0.14) !important;
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.045),
-    0 -10px 28px rgba(0, 5, 24, 0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 -12px 32px rgba(0, 4, 24, 0.12);
 }
 
 /* =========================================================
-   Sidebars / drawers
+   MOBILE DRAWER
    ========================================================= */
 
-[data-sidebar],
-aside[class*="bg-sidebar"],
-aside[class*="bg-background"] {
+aside[class*="bg-background"],
+[data-sidebar] {
   background:
     linear-gradient(
-      165deg,
-      rgba(255, 255, 255, 0.055),
-      rgba(8, 18, 40, 0.48) 40%
-    ),
-    rgba(8, 18, 40, 0.48) !important;
-
-  -webkit-backdrop-filter:
-    blur(20px)
-    saturate(165%);
-
-  backdrop-filter:
-    blur(20px)
-    saturate(165%);
-
-  border-color:
-    rgba(255, 255, 255, 0.14) !important;
-
-  box-shadow:
-    inset 1px 0 0 rgba(255, 255, 255, 0.07),
-    -18px 0 44px rgba(0, 5, 24, 0.20);
-}
-
-/* =========================================================
-   Popovers / menus / dialogs
-   ========================================================= */
-
-[data-radix-popper-content-wrapper] > * {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.12),
-      rgba(255, 255, 255, 0.034) 42%
-    ),
-    rgba(9, 20, 43, 0.60) !important;
-
-  -webkit-backdrop-filter:
-    blur(22px)
-    saturate(175%)
-    contrast(1.04);
-
-  backdrop-filter:
-    blur(22px)
-    saturate(175%)
-    contrast(1.04);
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.22) !important;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.30),
-    0 22px 58px rgba(0, 5, 24, 0.34) !important;
-
-  color:
-    var(--foreground) !important;
-}
-
-[role="dialog"][data-state="open"],
-[role="alertdialog"][data-state="open"] {
-  background:
-    radial-gradient(
-      95% 55% at 10% -4%,
-      rgba(255, 255, 255, 0.15),
-      transparent 62%
-    ),
-    rgba(9, 20, 43, 0.62) !important;
-
-  -webkit-backdrop-filter:
-    blur(24px)
-    saturate(180%)
-    contrast(1.04);
-
-  backdrop-filter:
-    blur(24px)
-    saturate(180%)
-    contrast(1.04);
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.24) !important;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.34),
-    0 30px 80px rgba(0, 4, 22, 0.42) !important;
-}
-
-/* =========================================================
-   Buttons
-   ========================================================= */
-
-@utility glass-button {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.15),
-      rgba(255, 255, 255, 0.042) 54%,
-      rgba(104, 197, 255, 0.040)
-    ),
-    rgba(230, 245, 255, 0.050);
-
-  -webkit-backdrop-filter:
-    blur(12px)
-    saturate(175%);
-
-  backdrop-filter:
-    blur(12px)
-    saturate(175%);
-
-  border:
-    1px solid
-    rgba(255, 255, 255, 0.27);
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -1px 0 rgba(94, 192, 255, 0.08),
-    0 8px 20px rgba(0, 6, 26, 0.15);
-
-  transition:
-    transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-button.bg-secondary,
-button[class*="bg-background"],
-button.border.border-input,
-a[class*="bg-background"] {
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.13),
-      rgba(255, 255, 255, 0.034)
-    ),
-    rgba(230, 245, 255, 0.048) !important;
-
-  -webkit-backdrop-filter:
-    blur(11px)
-    saturate(165%);
-
-  backdrop-filter:
-    blur(11px)
-    saturate(165%);
-
-  border-color:
-    rgba(255, 255, 255, 0.22) !important;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.31),
-    0 7px 18px rgba(0, 6, 25, 0.12) !important;
-}
-
-.bg-aurora:is(button, a, [role="button"]),
-button.bg-primary,
-a.bg-primary,
-[role="button"].bg-primary {
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.28),
-      rgba(255, 255, 255, 0.065) 42%,
-      transparent 58%
-    ),
-    linear-gradient(
-      145deg,
-      oklch(0.82 0.15 205 / 0.88),
-      oklch(0.70 0.18 300 / 0.82)
+      160deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(3, 16, 39, 0.48)
     ) !important;
 
-  color:
-    var(--primary-foreground) !important;
-
   -webkit-backdrop-filter:
-    blur(12px)
-    saturate(185%);
+    blur(20px)
+    saturate(170%);
 
   backdrop-filter:
-    blur(12px)
-    saturate(185%);
+    blur(20px)
+    saturate(170%);
 
-  border:
-    1px solid
-    rgba(224, 238, 255, 0.50) !important;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.68),
-    inset 0 -1px 0 rgba(95, 130, 255, 0.18),
-    0 8px 24px rgba(90, 150, 255, 0.12),
-    0 18px 40px rgba(0, 6, 26, 0.16) !important;
-
-  transition:
-    transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    filter 170ms ease,
-    box-shadow 170ms ease;
-}
-
-.bg-aurora:is(button, a, [role="button"]):hover,
-button.bg-primary:hover,
-a.bg-primary:hover,
-[role="button"].bg-primary:hover {
-  transform:
-    translateY(-1px)
-    scale(1.01);
-
-  filter:
-    brightness(1.04)
-    saturate(1.04);
-}
-
-.bg-aurora:is(button, a, [role="button"]):active,
-button.bg-primary:active,
-a.bg-primary:active,
-[role="button"].bg-primary:active {
-  transform:
-    scale(0.985);
-
-  filter:
-    brightness(0.98);
+  border-color:
+    rgba(255, 255, 255, 0.15) !important;
 }
 
 /* =========================================================
-   Inputs / selects / textareas
+   INPUTS
    ========================================================= */
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 textarea,
 select,
 [role="combobox"] {
-  color:
-    var(--foreground);
+  color: var(--foreground);
 
   background:
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.055),
-      rgba(255, 255, 255, 0.018)
-    ),
-    rgba(226, 243, 255, 0.042) !important;
-
-  -webkit-backdrop-filter:
-    blur(10px)
-    saturate(155%);
-
-  backdrop-filter:
-    blur(10px)
-    saturate(155%);
+      rgba(255, 255, 255, 0.075),
+      rgba(255, 255, 255, 0.025)
+    ) !important;
 
   border-color:
-    rgba(255, 255, 255, 0.21) !important;
+    rgba(255, 255, 255, 0.20) !important;
+
+  -webkit-backdrop-filter:
+    blur(7px)
+    saturate(160%);
+
+  backdrop-filter:
+    blur(7px)
+    saturate(160%);
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 2px 7px rgba(0, 7, 28, 0.12),
-    0 6px 18px rgba(0, 6, 24, 0.08) !important;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color:
-    rgba(225, 234, 246, 0.52);
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 5px 16px rgba(0, 5, 24, 0.08);
 }
 
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 [role="combobox"]:focus-visible {
-  outline:
-    none !important;
+  outline: none !important;
 
   border-color:
-    rgba(160, 220, 255, 0.50) !important;
+    rgba(150, 225, 255, 0.52) !important;
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.20),
-    inset 0 2px 7px rgba(0, 7, 28, 0.13),
-    0 0 0 3px oklch(0.82 0.14 205 / 0.20),
-    0 8px 24px rgba(0, 6, 24, 0.10) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 3px rgba(80, 205, 255, 0.13),
+    0 7px 22px rgba(0, 5, 24, 0.10) !important;
 }
 
 /* =========================================================
-   Existing Solaris utility classes
+   DIALOGS / MENUS
+   ========================================================= */
+
+[data-radix-popper-content-wrapper] > *,
+[role="dialog"][data-state="open"],
+[role="alertdialog"][data-state="open"] {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.11),
+      rgba(255, 255, 255, 0.035) 45%
+    ),
+    rgba(5, 18, 43, 0.60) !important;
+
+  -webkit-backdrop-filter:
+    blur(20px)
+    saturate(175%);
+
+  backdrop-filter:
+    blur(20px)
+    saturate(175%);
+
+  border:
+    1px solid rgba(255, 255, 255, 0.23) !important;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    0 24px 64px rgba(0, 4, 24, 0.34) !important;
+}
+
+/* =========================================================
+   ACCENTS
    ========================================================= */
 
 @utility text-aurora {
-  background:
-    var(--gradient-aurora);
+  background: var(--gradient-aurora);
 
-  background-clip:
-    text;
+  background-clip: text;
+  -webkit-background-clip: text;
 
-  -webkit-background-clip:
-    text;
-
-  -webkit-text-fill-color:
-    transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 @utility text-gold-grad {
-  background:
-    var(--gradient-gold);
+  background: var(--gradient-gold);
 
-  background-clip:
-    text;
+  background-clip: text;
+  -webkit-background-clip: text;
 
-  -webkit-background-clip:
-    text;
-
-  -webkit-text-fill-color:
-    transparent;
+  -webkit-text-fill-color: transparent;
 }
 
 @utility bg-aurora {
-  background:
-    var(--gradient-aurora);
+  background: var(--gradient-aurora);
 }
 
 @utility glow-ring {
-  box-shadow:
-    var(--shadow-glow);
+  box-shadow: var(--shadow-glow);
 }
 
 @utility numeric {
-  font-variant-numeric:
-    tabular-nums;
-
-  font-family:
-    var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
 
 @utility scroll-slim {
-  scrollbar-width:
-    thin;
+  scrollbar-width: thin;
 
   scrollbar-color:
-    color-mix(
-      in oklab,
-      var(--primary) 45%,
-      transparent
-    )
+    rgba(120, 215, 255, 0.38)
     transparent;
 }
 
 /* =========================================================
-   Motion
-   ========================================================= */
-
-@keyframes solaris-rise {
-  from {
-    opacity: 0;
-    transform:
-      translateY(8px)
-      scale(0.995);
-  }
-
-  to {
-    opacity: 1;
-    transform:
-      translateY(0)
-      scale(1);
-  }
-}
-
-@utility animate-rise {
-  animation:
-    solaris-rise
-    0.35s
-    cubic-bezier(0.2, 0.8, 0.2, 1)
-    both;
-}
-
-/* =========================================================
-   Responsive shell
+   RESPONSIVE LAYOUT
    ========================================================= */
 
 .app-main {
@@ -954,49 +648,69 @@ select:focus-visible,
 
 @supports (padding: max(0px)) {
   body {
-    padding-left:
-      env(safe-area-inset-left);
-
-    padding-right:
-      env(safe-area-inset-right);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 
 @media (min-width: 1024px) {
   .app-main {
-    padding-bottom:
-      2rem;
+    padding-bottom: 2rem;
   }
 }
 
 /* =========================================================
-   Mobile / Safari
+   MOBILE / SAFARI
    ========================================================= */
 
 @media (max-width: 767px) {
   body {
+    /*
+     * On desktop the background fills the whole widescreen viewport.
+     *
+     * On phones we deliberately stop using "cover" for the actual photo.
+     * Instead, its HEIGHT is fitted to the phone screen.
+     *
+     * This keeps far more of the original landscape image visible,
+     * including the stars near the left and right sides.
+     */
+
     background-attachment:
-      scroll,
-      scroll,
       scroll,
       scroll;
 
+    background-size:
+      cover,
+      auto 100vh;
+
     background-position:
       center,
-      center,
-      center,
       center top;
+
+    background-repeat:
+      no-repeat,
+      repeat-y;
   }
 
   .glass,
   .glass-strong {
     -webkit-backdrop-filter:
       blur(3px)
-      saturate(180%);
+      saturate(180%)
+      brightness(1.06);
 
     backdrop-filter:
       blur(3px)
-      saturate(180%);
+      saturate(180%)
+      brightness(1.06);
+
+    border-radius: 2rem;
+  }
+
+  .glass::after,
+  .glass-strong::after {
+    border-radius:
+      calc(2rem - 1px);
   }
 
   header.sticky,
@@ -1010,37 +724,17 @@ select:focus-visible,
       saturate(170%);
   }
 
-  [data-radix-popper-content-wrapper] > *,
-  [role="dialog"][data-state="open"],
-  [role="alertdialog"][data-state="open"] {
-    -webkit-backdrop-filter:
-      blur(14px)
-      saturate(165%);
-
-    backdrop-filter:
-      blur(14px)
-      saturate(165%);
-  }
-
-  .glass,
-  .glass-strong {
-    border-radius:
-      var(--radius-xl);
-  }
-
   .recharts-responsive-container {
-    max-width:
-      100% !important;
+    max-width: 100% !important;
   }
 
   table {
-    font-size:
-      0.8125rem;
+    font-size: 0.8125rem;
   }
 }
 
 /* =========================================================
-   Browser fallbacks
+   FALLBACK
    ========================================================= */
 
 @supports not (
@@ -1049,34 +743,24 @@ select:focus-visible,
   (-webkit-backdrop-filter: blur(1px))
 ) {
   .glass,
-  .glass-strong,
-  [class*="bg-card"]:not([class*="bg-card/"]),
-  [data-radix-popper-content-wrapper] > *,
-  [role="dialog"][data-state="open"],
-  [role="alertdialog"][data-state="open"] {
+  .glass-strong {
     background:
-      rgba(15, 28, 55, 0.90) !important;
+      rgba(13, 28, 55, 0.84) !important;
   }
 
   input,
   textarea,
-  select,
-  [role="combobox"] {
+  select {
     background:
-      rgba(20, 34, 64, 0.88) !important;
+      rgba(17, 33, 61, 0.88) !important;
   }
 }
 
-/* =========================================================
-   Accessibility
-   ========================================================= */
-
 @media (prefers-reduced-transparency: reduce) {
   .glass,
-  .glass-strong,
-  [class*="bg-card"]:not([class*="bg-card/"]) {
+  .glass-strong {
     background:
-      rgba(17, 32, 60, 0.90) !important;
+      rgba(15, 31, 58, 0.88) !important;
 
     -webkit-backdrop-filter:
       none !important;
