@@ -102,7 +102,7 @@ export function ScoreboardEditor({
       {/* ------------------------------------------------------------------ */}
 
       <div className="sticky top-0 z-30">
-        <section className="overflow-hidden rounded-2xl border border-border bg-background/95 shadow-sm backdrop-blur">
+        <section className="overflow-hidden rounded-t-2xl border border-border bg-background/95 shadow-sm backdrop-blur">
           <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 sm:px-4">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">Broadcast preview</p>
