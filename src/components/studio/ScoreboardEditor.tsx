@@ -65,7 +65,7 @@ export function ScoreboardEditor({
   onReset,
 }: ScoreboardEditorProps) {
   const [tab, setTab] = useState<EditorTab>("style");
-  const [previewExpanded, setPreviewExpanded] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
 
   const set = (patch: Partial<ScoreboardConfig>) =>
     onChange({ ...config, ...patch });
@@ -96,12 +96,12 @@ export function ScoreboardEditor({
   };
 
   return (
-    <div className="flex h-[calc(100dvh-10.5rem)] min-h-0 flex-col gap-3 overflow-hidden lg:block lg:h-auto lg:space-y-4 lg:overflow-visible">
+    <div className="space-y-3 sm:space-y-4">
       {/* ------------------------------------------------------------------ */}
       {/* ONE preview only                                                   */}
       {/* ------------------------------------------------------------------ */}
 
-      <div className="shrink-0 lg:sticky lg:top-3 lg:z-30">
+      <div className="sticky top-0 z-30">
         <section className="overflow-hidden rounded-2xl border border-border bg-background/95 shadow-sm backdrop-blur">
           <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 sm:px-4">
             <div className="min-w-0">
@@ -118,10 +118,10 @@ export function ScoreboardEditor({
 
               <button
                 type="button"
-                onClick={() => setPreviewExpanded((value) => !value)}
+                onClick={() => setPreviewModalOpen(true)}
                 className="rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium"
               >
-                {previewExpanded ? "Compact" : "Larger"}
+                Full preview
               </button>
             </div>
           </div>
@@ -131,7 +131,7 @@ export function ScoreboardEditor({
             theme={theme}
             rows={rows}
             showName={showName}
-            expanded={previewExpanded}
+            expanded={false}
           />
         </section>
       </div>
@@ -140,7 +140,7 @@ export function ScoreboardEditor({
       {/* Editor navigation                                                  */}
       {/* ------------------------------------------------------------------ */}
 
-      <div className="scroll-slim shrink-0 overflow-x-auto rounded-2xl border border-border bg-surface/30 p-1">
+      <div className="scroll-slim sticky top-[10.1rem] z-20 overflow-x-auto rounded-2xl border border-border bg-background/95 p-1 backdrop-blur sm:top-[18.5rem]">
         <div className="flex min-w-max gap-1">
           {EDITOR_TABS.map((item) => (
             <button
@@ -161,7 +161,7 @@ export function ScoreboardEditor({
         </div>
       </div>
 
-      <div className="scroll-slim min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 lg:overflow-visible lg:pb-0">
+      <div className="pb-3">
       {/* ------------------------------------------------------------------ */}
       {/* Style / presets                                                    */}
       {/* ------------------------------------------------------------------ */}
@@ -693,6 +693,36 @@ export function ScoreboardEditor({
         </EditorCard>
       )}
       </div>
+      {previewModalOpen && (
+        <div className="fixed inset-0 z-[200] flex flex-col bg-black">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-black px-3 py-3 text-white">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">Full broadcast preview</p>
+              <p className="text-[11px] text-white/55">
+                {config.canvas.width}×{config.canvas.height}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPreviewModalOpen(false)}
+              className="min-h-10 rounded-xl border border-white/20 px-3 text-sm"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <FullScreenPreview
+              config={config}
+              theme={theme}
+              rows={rows}
+              showName={showName}
+            />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -793,6 +823,73 @@ function ResponsivePreview({
           <p className="rounded-xl bg-black/55 px-3 py-2 text-xs text-white/70 backdrop-blur">
             Add entries to see real countries in the preview.
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FullScreenPreview({
+  config,
+  theme,
+  rows,
+  showName,
+}: {
+  config: ScoreboardConfig;
+  theme: ThemeConfig;
+  rows: BroadcastRowData[];
+  showName: string;
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = hostRef.current;
+    if (!element) return;
+
+    const update = () =>
+      setSize({
+        width: element.clientWidth,
+        height: element.clientHeight,
+      });
+
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const sourceWidth = config.canvas.width || 1920;
+  const sourceHeight = config.canvas.height || 1080;
+  const scale =
+    size.width && size.height
+      ? Math.min(size.width / sourceWidth, size.height / sourceHeight)
+      : 0;
+
+  return (
+    <div ref={hostRef} className="relative h-full w-full overflow-hidden bg-black">
+      {scale > 0 && (
+        <div
+          className="absolute left-1/2 top-1/2"
+          style={{
+            width: sourceWidth,
+            height: sourceHeight,
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transformOrigin: "center center",
+          }}
+        >
+          <ScoreboardBoard
+            config={config}
+            theme={theme}
+            rows={rows}
+            title="JURY RESULTS"
+            subtitle={showName}
+            progress={0.56}
+            animate={false}
+            panelContent={<PreviewVoter />}
+          />
         </div>
       )}
     </div>
