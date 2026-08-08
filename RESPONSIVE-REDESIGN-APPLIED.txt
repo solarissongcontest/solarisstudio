@@ -1,0 +1,21 @@
+This repository copy already has the responsive redesign files merged into src/.
+The SSC21 CountryCard and other broadcast scoreboard files from the original repository were left untouched.
+Changed/added source files:
+- src/components/ActionBar.tsx
+- src/components/AppShell.tsx
+- src/components/MobileSelectNav.tsx
+- src/components/ResponsiveTabs.tsx
+- src/components/viz/Filters.tsx
+- src/routes/_authenticated/admin/$slug.tsx
+- src/routes/_authenticated/admin/index.tsx
+- src/routes/analysis/index.tsx
+- src/routes/compare/index.tsx
+- src/routes/countries/$code.tsx
+- src/routes/countries/index.tsx
+- src/routes/editions/$slug.tsx
+- src/routes/editions/index.tsx
+- src/routes/records/index.tsx
+- src/routes/relationships/$pair.tsx
+- src/routes/relationships/index.tsx
+- src/routes/shows/$showId.tsx
+- src/styles.css
