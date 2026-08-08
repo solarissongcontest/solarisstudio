@@ -15,8 +15,6 @@ import {
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 
-import { ScoreboardStage } from "@/components/ScoreboardStage";
-
 import { computeStandings } from "@/lib/analysis";
 
 import {
@@ -45,11 +43,24 @@ import {
   resolveBroadcast,
   SPEEDS,
   stepDuration,
+  type Step,
 } from "@/lib/broadcast";
 
-import { cn } from "@/lib/utils";
+import {
+  resolveScoreboard,
+  type BroadcastRowData,
+} from "@/lib/scoreboard";
 
 import { entityDisplayMap } from "@/lib/entities";
+
+import {
+  BroadcastControlDock,
+  useControlDockState,
+} from "@/components/broadcast/ControlDock";
+
+import { ScoreboardBoard } from "@/components/broadcast/ScoreboardBoard";
+
+import { YouTubeMusic } from "@/components/broadcast/YouTubeMusic";
 
 /* -------------------------------------------------------------------------- */
 /* Route                                                                      */
@@ -67,7 +78,7 @@ export const Route = createFileRoute(
       {
         name: "description",
         content:
-          "Full-screen animated results reveal with jury spokespersons, televote climb and winner celebration.",
+          "Full-screen animated Solaris Song Contest results broadcast.",
       },
       {
         property: "og:title",
@@ -85,7 +96,7 @@ export const Route = createFileRoute(
 });
 
 /* -------------------------------------------------------------------------- */
-/* Broadcast                                                                  */
+/* Broadcast page                                                             */
 /* -------------------------------------------------------------------------- */
 
 function BroadcastPage() {
@@ -101,19 +112,6 @@ function BroadcastPage() {
   const { data: participants } =
     useShowParticipants(showId);
 
-  /**
-   * IMPORTANT:
-   *
-   * Load the REAL configured voting entities.
-   *
-   * This includes:
-   *
-   * - participating countries
-   * - external countries
-   * - organisations
-   * - people
-   * - custom juries
-   */
   const { data: voters } =
     useShowVoters(showId);
 
@@ -151,7 +149,7 @@ function BroadcastPage() {
   );
 
   /* ------------------------------------------------------------------------ */
-  /* Voting configuration                                                     */
+  /* Existing broadcast reveal config                                         */
   /* ------------------------------------------------------------------------ */
 
   const voting = useMemo(
@@ -171,13 +169,42 @@ function BroadcastPage() {
   );
 
   /* ------------------------------------------------------------------------ */
-  /* Playback state                                                           */
+  /* New scoreboard config                                                    */
+  /* ------------------------------------------------------------------------ */
+
+  /**
+   * Reads broadcast_config.scoreboard when available.
+   *
+   * Old broadcasts automatically fall back to the default
+   * scoreboard preset through resolveScoreboard().
+   */
+  const scoreboardConfig =
+    useMemo(
+      () =>
+        resolveScoreboard(
+          show?.broadcast_config,
+        ),
+      [
+        show?.broadcast_config,
+      ],
+    );
+
+  /* ------------------------------------------------------------------------ */
+  /* Playback                                                                 */
   /* ------------------------------------------------------------------------ */
 
   const [
     speed,
     setSpeed,
-  ] = useState(1);
+  ] = useState(
+    baseCast.speed || 1,
+  );
+
+  useEffect(() => {
+    setSpeed(
+      baseCast.speed || 1,
+    );
+  }, [baseCast.speed]);
 
   const cast = useMemo(
     () => ({
@@ -191,8 +218,8 @@ function BroadcastPage() {
   );
 
   const [
-    i,
-    setI,
+    stepIndex,
+    setStepIndex,
   ] = useState(0);
 
   const [
@@ -206,13 +233,30 @@ function BroadcastPage() {
     > | null>(null);
 
   /* ------------------------------------------------------------------------ */
-  /* Participants                                                             */
+  /* Control dock                                                             */
   /* ------------------------------------------------------------------------ */
 
-  /**
-   * Resolves both global countries
-   * and edition-only custom nations.
-   */
+  const [
+    dockState,
+    updateDockState,
+  ] = useControlDockState({
+    mode:
+      scoreboardConfig.controls
+        .mode,
+
+    position:
+      scoreboardConfig.controls
+        .position,
+
+    cleanOutput:
+      scoreboardConfig.controls
+        .cleanOutput,
+  });
+
+  /* ------------------------------------------------------------------------ */
+  /* Countries / entities                                                     */
+  /* ------------------------------------------------------------------------ */
+
   const countryMap = useMemo(
     () =>
       entityDisplayMap(
@@ -225,64 +269,66 @@ function BroadcastPage() {
     ],
   );
 
-  const participantMap = useMemo(
-    () =>
-      new Map(
-        (participants ?? []).map(
-          (participant) => [
-            participant.country_id,
-            participant,
-          ],
+  const participantMap =
+    useMemo(
+      () =>
+        new Map(
+          (
+            participants ?? []
+          ).map(
+            (participant) => [
+              participant.country_id,
+              participant,
+            ],
+          ),
         ),
-      ),
-    [participants],
-  );
+      [participants],
+    );
 
-  const ids = useMemo(
-    () =>
-      (participants ?? []).map(
-        (participant) =>
-          participant.country_id,
-      ),
-    [participants],
-  );
+  const participantIds =
+    useMemo(
+      () =>
+        (
+          participants ?? []
+        ).map(
+          (participant) =>
+            participant.country_id,
+        ),
+      [participants],
+    );
 
   /* ------------------------------------------------------------------------ */
   /* Broadcast voters                                                         */
   /* ------------------------------------------------------------------------ */
 
   /**
-   * This is the important fix.
+   * Uses real show voters when they exist.
    *
-   * If configured voter rows exist,
-   * they become the broadcast voting entities.
+   * This includes:
    *
-   * Only old shows with NO voter rows fall
-   * back to participating countries.
+   * - participating countries
+   * - external countries
+   * - organisations
+   * - people
+   * - custom voters
+   *
+   * Old shows with no voter rows fall back to participants.
    */
-  const voterOptions = useMemo(
-    () =>
-      resolveShowVoters(
+  const voterOptions =
+    useMemo(
+      () =>
+        resolveShowVoters(
+          voters,
+          participantIds,
+          countries ?? [],
+        ),
+      [
         voters,
-        ids,
-        countries ?? [],
-      ),
-    [
-      voters,
-      ids,
-      countries,
-    ],
-  );
+        participantIds,
+        countries,
+      ],
+    );
 
-  /**
-   * Canonical map:
-   *
-   * v:<voterId> -> voter presentation
-   *
-   * or legacy:
-   *
-   * c:<countryId> -> voter presentation
-   */
   const voterMap = useMemo(
     () =>
       new Map(
@@ -297,19 +343,9 @@ function BroadcastPage() {
   );
 
   /* ------------------------------------------------------------------------ */
-  /* Voting order                                                             */
+  /* Jury order                                                               */
   /* ------------------------------------------------------------------------ */
 
-  /**
-   * Existing saved votingOrder values may contain:
-   *
-   * - voter keys
-   * - raw voter ids
-   * - raw country ids
-   * - legacy c:<countryId> values
-   *
-   * Normalise all of those here.
-   */
   const juryOrder =
     useMemo(() => {
       const aliases =
@@ -318,49 +354,41 @@ function BroadcastPage() {
           string
         >();
 
-      voterOptions.forEach(
-        (voter) => {
-          /**
-           * Canonical key.
-           */
+      for (
+        const voter of
+        voterOptions
+      ) {
+        aliases.set(
+          voter.key,
+          voter.key,
+        );
+
+        if (voter.voterId) {
           aliases.set(
-            voter.key,
+            voter.voterId,
             voter.key,
           );
 
-          /**
-           * Registered voter aliases.
-           */
-          if (voter.voterId) {
-            aliases.set(
-              voter.voterId,
-              voter.key,
-            );
+          aliases.set(
+            `v:${voter.voterId}`,
+            voter.key,
+          );
+        }
 
-            aliases.set(
-              `v:${voter.voterId}`,
-              voter.key,
-            );
-          }
+        if (voter.countryId) {
+          aliases.set(
+            voter.countryId,
+            voter.key,
+          );
 
-          /**
-           * Country / entity aliases.
-           */
-          if (voter.countryId) {
-            aliases.set(
-              voter.countryId,
-              voter.key,
-            );
+          aliases.set(
+            `c:${voter.countryId}`,
+            voter.key,
+          );
+        }
+      }
 
-            aliases.set(
-              `c:${voter.countryId}`,
-              voter.key,
-            );
-          }
-        },
-      );
-
-      const order: string[] =
+      const result: string[] =
         [];
 
       const seen =
@@ -382,12 +410,11 @@ function BroadcastPage() {
         }
 
         seen.add(key);
-
-        order.push(key);
+        result.push(key);
       };
 
       /**
-       * First preserve the manually saved voting order.
+       * Keep any manually-configured voting order.
        */
       for (
         const saved of
@@ -401,20 +428,18 @@ function BroadcastPage() {
       }
 
       /**
-       * Then append any newly-created show voter
-       * that wasn't part of the saved order yet.
-       *
-       * voterOptions already follows voter sort_order.
+       * Append voters missing from the saved order.
        */
-      voterOptions.forEach(
-        (voter) => {
-          add(
-            voter.key,
-          );
-        },
-      );
+      for (
+        const voter of
+        voterOptions
+      ) {
+        add(
+          voter.key,
+        );
+      }
 
-      return order;
+      return result;
     }, [
       voterOptions,
       voting.votingOrder,
@@ -424,33 +449,34 @@ function BroadcastPage() {
   /* Jury totals                                                              */
   /* ------------------------------------------------------------------------ */
 
-  const juryTotals = useMemo(
-    () => {
+  const juryTotals =
+    useMemo(() => {
       const totals =
         new Map<
           string,
           number
         >();
 
-      (jury ?? []).forEach(
-        (vote) => {
-          totals.set(
-            vote.receiving_country_id,
-            (totals.get(
+      for (
+        const vote of
+        jury ?? []
+      ) {
+        totals.set(
+          vote.receiving_country_id,
+
+          (
+            totals.get(
               vote.receiving_country_id,
-            ) ?? 0) +
-              vote.points,
-          );
-        },
-      );
+            ) ?? 0
+          ) + vote.points,
+        );
+      }
 
       return totals;
-    },
-    [jury],
-  );
+    }, [jury]);
 
   /* ------------------------------------------------------------------------ */
-  /* Broadcast steps                                                          */
+  /* Reveal steps                                                             */
   /* ------------------------------------------------------------------------ */
 
   const steps = useMemo(
@@ -460,24 +486,11 @@ function BroadcastPage() {
         voting,
         jury ?? [],
         tele ?? [],
-
-        /**
-         * IMPORTANT:
-         *
-         * Use actual show voters,
-         * NOT participant ids.
-         */
         juryOrder,
-
         juryTotals,
-
         theme.reveal
           .juryPresentation,
 
-        /**
-         * Use the same canonical voter resolver
-         * as Fast Jury Entry and the Studio.
-         */
         (vote) =>
           matchVoterKey(
             vote,
@@ -497,17 +510,39 @@ function BroadcastPage() {
     ],
   );
 
+  /* ------------------------------------------------------------------------ */
+  /* Clamp index if step list changes                                         */
+  /* ------------------------------------------------------------------------ */
+
+  useEffect(() => {
+    if (
+      steps.length === 0
+    ) {
+      setStepIndex(0);
+      return;
+    }
+
+    setStepIndex(
+      (current) =>
+        Math.min(
+          current,
+          steps.length - 1,
+        ),
+    );
+  }, [steps.length]);
+
   const step =
-    steps[i];
+    steps[stepIndex];
 
   /* ------------------------------------------------------------------------ */
-  /* Playback timer                                                           */
+  /* Auto play                                                                */
   /* ------------------------------------------------------------------------ */
 
   useEffect(() => {
     if (
       !playing ||
-      !step
+      !step ||
+      steps.length === 0
     ) {
       return;
     }
@@ -515,15 +550,30 @@ function BroadcastPage() {
     timer.current =
       setTimeout(
         () => {
-          setI(
-            (current) =>
-              Math.min(
-                current + 1,
-                steps.length - 1,
-              ),
+          setStepIndex(
+            (current) => {
+              const next =
+                Math.min(
+                  current + 1,
+                  steps.length - 1,
+                );
+
+              /**
+               * Stop playing when the final step is reached.
+               */
+              if (
+                next ===
+                steps.length - 1
+              ) {
+                setPlaying(
+                  false,
+                );
+              }
+
+              return next;
+            },
           );
         },
-
         stepDuration(
           step,
           cast,
@@ -547,7 +597,7 @@ function BroadcastPage() {
   ]);
 
   /* ------------------------------------------------------------------------ */
-  /* Votes applied so far                                                     */
+  /* Applied votes up to current step                                         */
   /* ------------------------------------------------------------------------ */
 
   const applied =
@@ -563,48 +613,40 @@ function BroadcastPage() {
         > = [];
 
       for (
-        let k = 0;
-        k <= i &&
-        k < steps.length;
-        k++
+        let index = 0;
+        index <= stepIndex &&
+        index < steps.length;
+        index += 1
       ) {
         const currentStep =
-          steps[k];
+          steps[index];
 
         /* ------------------------------------------------------------------ */
-        /* Individual jury point                                               */
+        /* Jury point                                                         */
         /* ------------------------------------------------------------------ */
 
         if (
           currentStep.kind ===
           "jury-point"
         ) {
-          const voterIdentity =
+          const voter =
             voterMap.get(
               currentStep.voter,
             );
 
           juryApplied.push({
-            id: `${k}`,
-            edition_id: "",
+            id: `broadcast-jury-${index}`,
+            edition_id:
+              show?.edition_id ??
+              "",
             show_id: showId,
 
-            /**
-             * Preserve the canonical voter row
-             * where one exists.
-             */
             voter_id:
-              voterIdentity?.voterId ??
+              voter?.voterId ??
               null,
 
-            /**
-             * This value is irrelevant to standings,
-             * but keeping the country/entity identity
-             * makes the temporary vote structurally valid.
-             */
             voter_country_id:
-              voterIdentity
-                ?.countryId ??
+              voter?.countryId ??
               "",
 
             receiving_country_id:
@@ -616,14 +658,14 @@ function BroadcastPage() {
         }
 
         /* ------------------------------------------------------------------ */
-        /* Batch jury points                                                   */
+        /* Jury batch                                                         */
         /* ------------------------------------------------------------------ */
 
         if (
           currentStep.kind ===
           "jury-batch"
         ) {
-          const voterIdentity =
+          const voter =
             voterMap.get(
               currentStep.voter,
             );
@@ -634,18 +676,19 @@ function BroadcastPage() {
               entryIndex,
             ) => {
               juryApplied.push({
-                id: `${k}-${entryIndex}`,
-                edition_id: "",
-                show_id: showId,
+                id: `broadcast-jury-${index}-${entryIndex}`,
+                edition_id:
+                  show?.edition_id ??
+                  "",
+                show_id:
+                  showId,
 
                 voter_id:
-                  voterIdentity
-                    ?.voterId ??
+                  voter?.voterId ??
                   null,
 
                 voter_country_id:
-                  voterIdentity
-                    ?.countryId ??
+                  voter?.countryId ??
                   "",
 
                 receiving_country_id:
@@ -659,7 +702,7 @@ function BroadcastPage() {
         }
 
         /* ------------------------------------------------------------------ */
-        /* Televote                                                            */
+        /* Televote                                                           */
         /* ------------------------------------------------------------------ */
 
         if (
@@ -667,8 +710,10 @@ function BroadcastPage() {
           "televote"
         ) {
           teleApplied.push({
-            id: `t${k}`,
-            edition_id: "",
+            id: `broadcast-tele-${index}`,
+            edition_id:
+              show?.edition_id ??
+              "",
             show_id: showId,
 
             country_id:
@@ -685,107 +730,221 @@ function BroadcastPage() {
         teleApplied,
       };
     }, [
-      i,
+      stepIndex,
       steps,
-      showId,
       voterMap,
+      showId,
+      show?.edition_id,
     ]);
 
   /* ------------------------------------------------------------------------ */
-  /* Standings                                                                */
+  /* Current standings                                                        */
   /* ------------------------------------------------------------------------ */
 
   const standings =
-    computeStandings(
-      ids,
-      applied.juryApplied,
-      applied.teleApplied,
-      voting,
+    useMemo(
+      () =>
+        computeStandings(
+          participantIds,
+          applied.juryApplied,
+          applied.teleApplied,
+          voting,
+        ),
+      [
+        participantIds,
+        applied,
+        voting,
+      ],
     );
 
   /* ------------------------------------------------------------------------ */
-  /* Currently awarded points                                                 */
+  /* Current point award                                                      */
   /* ------------------------------------------------------------------------ */
 
-  const awarded:
-    Record<
-      string,
-      number
-    > = {};
+  const awarded =
+    useMemo(() => {
+      const result:
+        Record<
+          string,
+          number
+        > = {};
 
-  if (
-    step?.kind ===
-    "jury-point"
-  ) {
-    awarded[
-      step.to
-    ] = step.points;
-  }
+      if (
+        step?.kind ===
+        "jury-point"
+      ) {
+        result[
+          step.to
+        ] = step.points;
+      }
 
-  if (
-    step?.kind ===
-    "jury-batch"
-  ) {
-    step.entries.forEach(
-      (entry) => {
-        awarded[
-          entry.to
-        ] =
-          entry.points;
-      },
+      if (
+        step?.kind ===
+        "jury-batch"
+      ) {
+        for (
+          const entry of
+          step.entries
+        ) {
+          result[
+            entry.to
+          ] = entry.points;
+        }
+      }
+
+      if (
+        step?.kind ===
+        "televote"
+      ) {
+        result[
+          step.to
+        ] = step.points;
+      }
+
+      return result;
+    }, [step]);
+
+  /* ------------------------------------------------------------------------ */
+  /* Current voter                                                            */
+  /* ------------------------------------------------------------------------ */
+
+  const currentVoter =
+    step &&
+    (
+      step.kind ===
+        "jury-intro" ||
+      step.kind ===
+        "jury-point" ||
+      step.kind ===
+        "jury-batch"
+    )
+      ? voterMap.get(
+          step.voter,
+        ) ?? null
+      : null;
+
+  /* ------------------------------------------------------------------------ */
+  /* Convert standings into new BroadcastRowData                              */
+  /* ------------------------------------------------------------------------ */
+
+  const rows:
+    BroadcastRowData[] =
+    useMemo(
+      () =>
+        standings.map(
+          (
+            standing,
+            index,
+          ) => {
+            const display =
+              countryMap.get(
+                standing.countryId,
+              );
+
+            const participant =
+              participantMap.get(
+                standing.countryId,
+              );
+
+            const isAwarded =
+              awarded[
+                standing.countryId
+              ] != null;
+
+            const isVotingCountry =
+              currentVoter?.countryId ===
+              standing.countryId;
+
+            const qualified =
+              participant?.qualified ??
+              null;
+
+            return {
+              id:
+                standing.countryId,
+
+              entityType:
+                display?.entityType ??
+                "global",
+
+              name:
+                display?.name ??
+                standing.countryId,
+
+              abbreviation:
+                display?.short_code ??
+                "",
+
+              flagImage:
+                display?.flag_image ??
+                null,
+
+              accent:
+                display?.accent_color ??
+                theme.colors.accent,
+
+              rank:
+                standing.rank,
+
+              runningOrder:
+                participant?.running_order ??
+                null,
+
+              score:
+                standing.total,
+
+              juryScore:
+                standing.jury,
+
+              televoteScore:
+                standing.televote,
+
+              movement:
+                null,
+
+              qualified,
+
+              eliminated:
+                qualified === false
+                  ? true
+                  : qualified === true
+                    ? false
+                    : null,
+
+              active:
+                isVotingCountry,
+
+              highlighted:
+                isAwarded,
+
+              leader:
+                index === 0,
+
+              winner:
+                step?.kind ===
+                  "winner" &&
+                index === 0,
+
+              subtitle:
+                participant?.artist &&
+                participant?.song
+                  ? `${participant.artist} — ${participant.song}`
+                  : participant?.artist ??
+                    participant?.song ??
+                    null,
+            };
+          },
+        ),
+      [
+        standings,
+        countryMap,
+        participantMap,
+        awarded,
+        currentVoter,
+        step,
+        theme.colors.accent,
+      ],
     );
-  }
-
-  if (
-    step?.kind ===
-    "televote"
-  ) {
-    awarded[
-      step.to
-    ] = step.points;
-  }
-
-  /* ------------------------------------------------------------------------ */
-  /* Winner effect                                                            */
-  /* ------------------------------------------------------------------------ */
-
-  const isWinnerStep =
-    step?.kind ===
-    "winner";
-
-  useEffect(() => {
-    if (
-      isWinnerStep &&
-      cast.effects.winner !==
-        "none"
-    ) {
-      confetti({
-        particleCount: 180,
-        spread: 100,
-        origin: {
-          y: 0.6,
-        },
-      });
-    }
-  }, [
-    isWinnerStep,
-    cast.effects.winner,
-  ]);
-
-  /* ------------------------------------------------------------------------ */
-  /* Missing show                                                             */
-  /* ------------------------------------------------------------------------ */
-
-  if (!show) {
-    return (
-      <div className="grid min-h-screen place-items-center">
-        <p className="text-sm text-muted-foreground">
-          This show is private
-          or unavailable.
-        </p>
-      </div>
-    );
-  }
 
   /* ------------------------------------------------------------------------ */
   /* Winner                                                                   */
@@ -800,41 +959,650 @@ function BroadcastPage() {
       : null;
 
   /* ------------------------------------------------------------------------ */
-  /* Current voting entity                                                    */
+  /* Winner effect                                                            */
   /* ------------------------------------------------------------------------ */
 
-  /**
-   * IMPORTANT:
-   *
-   * Previously this used:
-   *
-   * countryMap.get(step.voter)
-   *
-   * That meant organisations,
-   * people and external voters
-   * could never resolve.
-   *
-   * It now uses voterMap.
-   */
-  const voter =
+  const isWinnerStep =
     step?.kind ===
-      "jury-intro" ||
-    step?.kind ===
-      "jury-point" ||
-    step?.kind ===
-      "jury-batch"
-      ? voterMap.get(
-          step.voter,
-        ) ?? null
-      : null;
+    "winner";
+
+  useEffect(() => {
+    if (
+      !isWinnerStep
+    ) {
+      return;
+    }
+
+    if (
+      cast.effects.winner ===
+      "none"
+    ) {
+      return;
+    }
+
+    confetti({
+      particleCount: 180,
+      spread: 100,
+      origin: {
+        y: 0.6,
+      },
+    });
+  }, [
+    isWinnerStep,
+    cast.effects.winner,
+  ]);
 
   /* ------------------------------------------------------------------------ */
-  /* UI                                                                       */
+  /* Progress                                                                 */
+  /* ------------------------------------------------------------------------ */
+
+  const progress =
+    steps.length > 0
+      ? (
+          stepIndex + 1
+        ) / steps.length
+      : 0;
+
+  /* ------------------------------------------------------------------------ */
+  /* Scene label                                                              */
+  /* ------------------------------------------------------------------------ */
+
+  const stepLabel =
+    useMemo(
+      () =>
+        getStepLabel(
+          step,
+          currentVoter?.name,
+        ),
+      [
+        step,
+        currentVoter?.name,
+      ],
+    );
+
+  /* ------------------------------------------------------------------------ */
+  /* Dynamic scene title                                                      */
+  /* ------------------------------------------------------------------------ */
+
+  const sceneTitle =
+    useMemo(
+      () =>
+        getSceneTitle(
+          step,
+          show?.name ??
+            "",
+        ),
+      [
+        step,
+        show?.name,
+      ],
+    );
+
+  const sceneSubtitle =
+    useMemo(
+      () =>
+        getSceneSubtitle(
+          step,
+          currentVoter?.name,
+          standings[0]
+            ?.total,
+        ),
+      [
+        step,
+        currentVoter?.name,
+        standings,
+      ],
+    );
+
+  /* ------------------------------------------------------------------------ */
+  /* Current voter side-panel content                                         */
+  /* ------------------------------------------------------------------------ */
+
+  const panelContent =
+    currentVoter ? (
+      <CurrentVoterPanel
+        voter={
+          currentVoter
+        }
+      />
+    ) : step?.kind ===
+      "televote-intro" ? (
+      <div className="grid h-full place-items-center text-center">
+        <div>
+          <p className="text-xs uppercase tracking-[0.25em] opacity-60">
+            Up next
+          </p>
+
+          <p className="mt-2 text-2xl font-bold">
+            Televote
+          </p>
+        </div>
+      </div>
+    ) : null;
+
+  /* ------------------------------------------------------------------------ */
+  /* Loading / missing show                                                   */
+  /* ------------------------------------------------------------------------ */
+
+  if (!show) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-black text-white">
+        <p className="text-sm text-white/60">
+          This show is private
+          or unavailable.
+        </p>
+      </div>
+    );
+  }
+
+  /* ------------------------------------------------------------------------ */
+  /* Opening                                                                  */
+  /* ------------------------------------------------------------------------ */
+
+  const showOpening =
+    step?.kind ===
+    "opening";
+
+  const showCredits =
+    step?.kind ===
+    "credits";
+
+  const showWinner =
+    step?.kind ===
+      "winner" &&
+    winner;
+
+  /* ------------------------------------------------------------------------ */
+  /* Render                                                                   */
   /* ------------------------------------------------------------------------ */
 
   return (
+    <main
+      className="relative h-screen w-screen overflow-hidden"
+      style={{
+        background:
+          dockState.cleanOutput &&
+          scoreboardConfig.background
+            .type ===
+            "transparent"
+            ? "transparent"
+            : undefined,
+      }}
+    >
+      {/* ------------------------------------------------------------------ */}
+      {/* YouTube background music                                            */}
+      {/* ------------------------------------------------------------------ */}
+
+      <YouTubeMusic
+        music={
+          scoreboardConfig.music
+        }
+        playing={
+          playing
+        }
+      />
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Opening splash                                                     */}
+      {/* ------------------------------------------------------------------ */}
+
+      {showOpening && (
+        <LegacySplash
+          title={
+            cast.openingTitle ||
+            show.name
+          }
+          subtitle={
+            cast.openingSubtitle ||
+            "Good evening, Terra Solaris!"
+          }
+          theme={theme}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Credits splash                                                     */}
+      {/* ------------------------------------------------------------------ */}
+
+      {showCredits && (
+        <LegacySplash
+          title="Thank you"
+          subtitle={
+            cast.creditsText
+          }
+          theme={theme}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Winner splash                                                      */}
+      {/* ------------------------------------------------------------------ */}
+
+      {showWinner && (
+        <LegacySplash
+          title={
+            winner.name
+          }
+          subtitle={`Winner with ${standings[0]?.total ?? 0} points`}
+          theme={theme}
+        />
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* New scoreboard renderer                                            */}
+      {/* ------------------------------------------------------------------ */}
+
+      {!showOpening &&
+        !showCredits &&
+        !showWinner && (
+          <div className="absolute inset-0">
+            <ScoreboardBoard
+              config={
+                scoreboardConfig
+              }
+              theme={
+                theme
+              }
+              rows={
+                rows
+              }
+              awarded={
+                awarded
+              }
+              title={
+                sceneTitle
+              }
+              subtitle={
+                sceneSubtitle
+              }
+              progress={
+                progress
+              }
+              panelContent={
+                panelContent
+              }
+              animate={
+                true
+              }
+            />
+          </div>
+        )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Small back button                                                   */}
+      {/* ------------------------------------------------------------------ */}
+
+      {!dockState.cleanOutput &&
+        dockState.mode !==
+          "hidden" && (
+          <Link
+            to="/shows/$showId"
+            params={{
+              showId,
+            }}
+            className="fixed left-3 top-3 z-40 rounded-lg bg-black/35 px-2.5 py-1.5 text-[10px] text-white/50 backdrop-blur transition hover:bg-black/55 hover:text-white"
+          >
+            ← Show
+          </Link>
+        )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* New compact control dock                                            */}
+      {/* ------------------------------------------------------------------ */}
+
+      {!dockState.cleanOutput && (
+        <BroadcastControlDock
+          state={
+            dockState
+          }
+          onChange={
+            updateDockState
+          }
+          playing={
+            playing
+          }
+          onTogglePlay={() =>
+            setPlaying(
+              (current) =>
+                !current,
+            )
+          }
+          onPrev={() => {
+            setPlaying(
+              false,
+            );
+
+            setStepIndex(
+              (current) =>
+                Math.max(
+                  0,
+                  current - 1,
+                ),
+            );
+          }}
+          onNext={() => {
+            setPlaying(
+              false,
+            );
+
+            setStepIndex(
+              (current) =>
+                Math.min(
+                  Math.max(
+                    0,
+                    steps.length - 1,
+                  ),
+                  current + 1,
+                ),
+            );
+          }}
+          onReplay={() => {
+            setPlaying(
+              false,
+            );
+
+            setStepIndex(
+              0,
+            );
+          }}
+          onJump={(
+            index,
+          ) => {
+            setPlaying(
+              false,
+            );
+
+            setStepIndex(
+              Math.max(
+                0,
+                Math.min(
+                  index,
+                  Math.max(
+                    0,
+                    steps.length - 1,
+                  ),
+                ),
+              ),
+            );
+          }}
+          speed={
+            speed
+          }
+          speeds={
+            SPEEDS
+          }
+          onSpeed={
+            setSpeed
+          }
+          stepIndex={
+            stepIndex
+          }
+          stepCount={
+            steps.length
+          }
+          stepLabel={
+            stepLabel
+          }
+          extra={
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[10px] text-white/45">
+                {voterOptions.length} juries
+              </span>
+
+              <span className="text-[10px] text-white/45">
+                {participants?.length ??
+                  0} entries
+              </span>
+            </div>
+          }
+        />
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Clean output recovery button                                        */}
+      {/* ------------------------------------------------------------------ */}
+
+      {dockState.cleanOutput && (
+        <button
+          type="button"
+          onClick={() =>
+            updateDockState({
+              cleanOutput:
+                false,
+              mode:
+                "compact",
+            })
+          }
+          className="fixed bottom-1 right-1 z-50 h-3 w-3 rounded-full bg-white opacity-0 transition hover:opacity-20 focus:opacity-40"
+          aria-label="Exit clean broadcast output"
+          title="Exit clean output"
+        />
+      )}
+    </main>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Current voter panel                                                        */
+/* -------------------------------------------------------------------------- */
+
+function CurrentVoterPanel({
+  voter,
+}: {
+  voter: {
+    key: string;
+    name: string;
+    short_code:
+      | string
+      | null;
+    flag_image:
+      | string
+      | null;
+    accent_color:
+      string;
+  };
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center text-center">
+      {voter.flag_image ? (
+        <img
+          src={
+            voter.flag_image
+          }
+          alt={
+            voter.name
+          }
+          className="mb-4 max-h-40 w-full rounded-xl object-cover"
+        />
+      ) : (
+        <div
+          className="mb-4 grid aspect-[3/2] w-full max-w-56 place-items-center rounded-xl text-3xl font-black"
+          style={{
+            background:
+              voter.accent_color,
+          }}
+        >
+          {(
+            voter.short_code ??
+            voter.name
+          )
+            .slice(
+              0,
+              3,
+            )
+            .toUpperCase()}
+        </div>
+      )}
+
+      <p className="text-[10px] uppercase tracking-[0.3em] opacity-50">
+        Now voting
+      </p>
+
+      <p className="mt-2 text-xl font-bold">
+        {voter.name}
+      </p>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Scene helpers                                                              */
+/* -------------------------------------------------------------------------- */
+
+function getStepLabel(
+  step:
+    | Step
+    | undefined,
+  voterName?:
+    | string
+    | null,
+) {
+  if (!step) {
+    return "Preparing broadcast";
+  }
+
+  switch (step.kind) {
+    case "opening":
+      return "Opening";
+
+    case "recap":
+      return "Recap";
+
+    case "jury-intro":
+      return voterName
+        ? `${voterName} is voting`
+        : "Jury vote";
+
+    case "jury-batch":
+      return voterName
+        ? `${voterName} · lower points`
+        : "Jury points";
+
+    case "jury-point":
+      return voterName
+        ? `${voterName} · ${step.points} points`
+        : `${step.points} jury points`;
+
+    case "jury-done":
+      return "Jury voting complete";
+
+    case "televote-intro":
+      return "Televote";
+
+    case "televote":
+      return `${step.points} televote points`;
+
+    case "winner":
+      return "Winner";
+
+    case "credits":
+      return "Credits";
+  }
+}
+
+function getSceneTitle(
+  step:
+    | Step
+    | undefined,
+  showName: string,
+) {
+  if (!step) {
+    return showName;
+  }
+
+  switch (step.kind) {
+    case "jury-intro":
+    case "jury-batch":
+    case "jury-point":
+      return "JURY RESULTS";
+
+    case "jury-done":
+      return "JURY RESULTS";
+
+    case "televote-intro":
+    case "televote":
+      return "TELEVOTE RESULTS";
+
+    case "recap":
+      return "CURRENT STANDINGS";
+
+    case "winner":
+      return "FINAL RESULTS";
+
+    case "opening":
+    case "credits":
+      return showName;
+  }
+}
+
+function getSceneSubtitle(
+  step:
+    | Step
+    | undefined,
+  voterName:
+    | string
+    | undefined,
+  leaderScore:
+    | number
+    | undefined,
+) {
+  if (!step) {
+    return undefined;
+  }
+
+  switch (step.kind) {
+    case "jury-intro":
+      return voterName
+        ? `Now voting: ${voterName}`
+        : "Next jury";
+
+    case "jury-batch":
+      return voterName
+        ? `${voterName}'s jury points`
+        : "Jury points";
+
+    case "jury-point":
+      return voterName
+        ? `${voterName} awards ${step.points} points`
+        : `${step.points} points`;
+
+    case "jury-done":
+      return leaderScore != null
+        ? `Jury leader: ${leaderScore} points`
+        : "All jury votes revealed";
+
+    case "televote-intro":
+      return "The public vote begins";
+
+    case "televote":
+      return `${step.points} points revealed`;
+
+    case "recap":
+      return "Current results";
+
+    default:
+      return undefined;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Opening / winner / credits splash                                          */
+/* -------------------------------------------------------------------------- */
+
+function LegacySplash({
+  title,
+  subtitle,
+  theme,
+}: {
+  title: string;
+  subtitle: string;
+  theme: ReturnType<
+    typeof resolveTheme
+  >;
+}) {
+  return (
     <div
-      className="relative min-h-screen overflow-hidden"
+      className="absolute inset-0 overflow-hidden"
       style={{
         ...backgroundStyle(
           theme,
@@ -844,7 +1612,6 @@ function BroadcastPage() {
         ),
       }}
     >
-      {/* Background overlay */}
       <div
         className="absolute inset-0"
         style={{
@@ -852,400 +1619,33 @@ function BroadcastPage() {
         }}
       />
 
-      <div className="relative mx-auto max-w-6xl px-4 py-6">
-        {/* -------------------------------------------------------------- */}
-        {/* Controls                                                       */}
-        {/* -------------------------------------------------------------- */}
-
-        <header
-          className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3"
-          style={{
-            background:
-              "var(--t-header-bg)",
-            color:
-              "var(--t-header-text)",
-          }}
-        >
-          <Link
-            to="/shows/$showId"
-            params={{
-              showId,
-            }}
-            className="text-xs opacity-70 hover:opacity-100"
-          >
-            ← Back to show
-          </Link>
-
-          <h1
-            className="font-display text-lg font-bold"
+      <motion.div
+        initial={{
+          opacity: 0,
+          scale: 0.95,
+        }}
+        animate={{
+          opacity: 1,
+          scale: 1,
+        }}
+        className="relative grid h-full w-full place-items-center px-8 text-center"
+      >
+        <div>
+          <h2
+            className="font-display text-5xl font-black md:text-7xl"
             style={{
               fontFamily:
                 "var(--t-font-display)",
             }}
           >
-            {show.name}
-          </h1>
+            {title}
+          </h2>
 
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <button
-              onClick={() =>
-                setPlaying(
-                  (current) =>
-                    !current,
-                )
-              }
-              className="rounded-lg bg-white/15 px-3 py-1.5 text-xs font-medium backdrop-blur"
-            >
-              {playing
-                ? "Pause"
-                : "Play"}
-            </button>
-
-            <button
-              onClick={() =>
-                setI(
-                  (current) =>
-                    Math.max(
-                      0,
-                      current - 1,
-                    ),
-                )
-              }
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs"
-            >
-              Prev
-            </button>
-
-            <button
-              onClick={() =>
-                setI(
-                  (current) =>
-                    Math.min(
-                      steps.length -
-                        1,
-                      current + 1,
-                    ),
-                )
-              }
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs"
-            >
-              Next
-            </button>
-
-            <button
-              onClick={() => {
-                setI(0);
-                setPlaying(
-                  false,
-                );
-              }}
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs"
-            >
-              Replay
-            </button>
-
-            <div className="flex items-center gap-1 rounded-lg bg-white/10 p-1">
-              {SPEEDS.map(
-                (
-                  speedOption,
-                ) => (
-                  <button
-                    key={
-                      speedOption
-                    }
-                    onClick={() =>
-                      setSpeed(
-                        speedOption,
-                      )
-                    }
-                    className={cn(
-                      "numeric rounded px-1.5 py-0.5 text-[10px]",
-
-                      speed ===
-                        speedOption &&
-                        "bg-white/25",
-                    )}
-                  >
-                    {
-                      speedOption
-                    }
-                    ×
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* -------------------------------------------------------------- */}
-        {/* Overall reveal progress                                        */}
-        {/* -------------------------------------------------------------- */}
-
-        <div
-          className="mb-4 h-1 w-full overflow-hidden rounded-full"
-          style={{
-            background:
-              "var(--t-progress-track)",
-          }}
-        >
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${
-                steps.length
-                  ? ((i + 1) /
-                      steps.length) *
-                    100
-                  : 0
-              }%`,
-
-              background:
-                "var(--t-progress-fill)",
-            }}
-          />
+          <p className="mt-4 text-lg opacity-75 md:text-2xl">
+            {subtitle}
+          </p>
         </div>
-
-        {/* -------------------------------------------------------------- */}
-        {/* Opening                                                        */}
-        {/* -------------------------------------------------------------- */}
-
-        {step?.kind ===
-          "opening" && (
-          <Splash
-            title={
-              cast.openingTitle ||
-              show.name
-            }
-            subtitle={
-              cast.openingSubtitle ||
-              "Good evening, Terra Solaris!"
-            }
-          />
-        )}
-
-        {/* -------------------------------------------------------------- */}
-        {/* Credits                                                        */}
-        {/* -------------------------------------------------------------- */}
-
-        {step?.kind ===
-          "credits" && (
-          <Splash
-            title="Thank you"
-            subtitle={
-              cast.creditsText
-            }
-          />
-        )}
-
-        {/* -------------------------------------------------------------- */}
-        {/* Winner                                                         */}
-        {/* -------------------------------------------------------------- */}
-
-        {isWinnerStep &&
-          winner && (
-            <Splash
-              title={
-                winner.name
-              }
-              subtitle={`Winner with ${standings[0].total} points`}
-            />
-          )}
-
-        {/* -------------------------------------------------------------- */}
-        {/* Main results scenes                                            */}
-        {/* -------------------------------------------------------------- */}
-
-        {![
-          "opening",
-          "credits",
-          "winner",
-        ].includes(
-          step?.kind ?? "",
-        ) && (
-          <>
-            {/* ---------------------------------------------------------- */}
-            {/* Current jury / spokesperson                                */}
-            {/* ---------------------------------------------------------- */}
-
-            {voter &&
-              cast.spokesperson
-                .show && (
-                <motion.div
-                  key={
-                    voter.key
-                  }
-                  initial={{
-                    opacity: 0,
-                    y: -12,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  className="mb-4 flex items-center gap-3 rounded-2xl px-4 py-3 backdrop-blur"
-                  style={{
-                    background:
-                      "var(--t-spokesperson-bg)",
-
-                    color:
-                      "var(--t-spokesperson-text)",
-                  }}
-                >
-                  {voter.flag_image ? (
-                    <img
-                      src={
-                        voter.flag_image
-                      }
-                      alt={
-                        voter.name
-                      }
-                      className="h-10 w-15 rounded object-cover"
-                    />
-                  ) : (
-                    /**
-                     * Deliberate fallback for:
-                     *
-                     * - organisations
-                     * - people
-                     * - custom juries
-                     * - missing flags
-                     */
-                    <div
-                      className="grid h-10 w-15 place-items-center rounded text-xs font-bold"
-                      style={{
-                        background:
-                          voter.accent_color ||
-                          "rgba(255,255,255,.15)",
-                      }}
-                    >
-                      {(
-                        voter.short_code ??
-                        voter.name
-                      )
-                        .slice(
-                          0,
-                          3,
-                        )
-                        .toUpperCase()}
-                    </div>
-                  )}
-
-                  <div>
-                    <p
-                      className="text-[11px] uppercase tracking-widest"
-                      style={{
-                        color:
-                          "var(--t-spokesperson-accent)",
-
-                        opacity:
-                          0.9,
-                      }}
-                    >
-                      Now voting
-                    </p>
-
-                    <p className="font-display text-lg font-bold">
-                      {
-                        voter.name
-                      }
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-
-            {/* ---------------------------------------------------------- */}
-            {/* Televote introduction                                      */}
-            {/* ---------------------------------------------------------- */}
-
-            {step?.kind ===
-              "televote-intro" && (
-              <p className="mb-4 text-center font-display text-xl font-bold">
-                And now… the
-                televote!
-              </p>
-            )}
-
-            {/* ---------------------------------------------------------- */}
-            {/* Scoreboard                                                 */}
-            {/* ---------------------------------------------------------- */}
-
-            <ScoreboardStage
-              theme={
-                theme
-              }
-              standings={
-                standings
-              }
-              countries={
-                countryMap
-              }
-              participants={
-                participantMap
-              }
-              awarded={
-                awarded
-              }
-              /**
-               * Only highlight a country on the board
-               * if this voter actually corresponds to
-               * one.
-               *
-               * Organisations and people therefore
-               * don't incorrectly highlight a contestant.
-               */
-              votingCountryId={
-                voter?.countryId ??
-                null
-              }
-              qualifiers={
-                show.qualifier_count
-              }
-            />
-          </>
-        )}
-      </div>
+      </motion.div>
     </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Splash                                                                     */
-/* -------------------------------------------------------------------------- */
-
-function Splash({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <motion.div
-      initial={{
-        opacity: 0,
-        scale: 0.95,
-      }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-      }}
-      className="grid min-h-[60vh] place-items-center text-center"
-    >
-      <div>
-        <h2
-          className="font-display text-5xl font-black"
-          style={{
-            fontFamily:
-              "var(--t-font-display)",
-          }}
-        >
-          {title}
-        </h2>
-
-        <p className="mt-3 text-lg opacity-75">
-          {subtitle}
-        </p>
-      </div>
-    </motion.div>
   );
 }
