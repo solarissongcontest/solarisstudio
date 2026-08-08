@@ -14,6 +14,7 @@ import {
 
 import type { ThemeConfig } from "@/lib/theme";
 import { ScoreboardBoard } from "@/components/broadcast/ScoreboardBoard";
+import { ScoreboardZoneEditor } from "@/components/studio/ScoreboardZoneEditor";
 import { Field, Select, Slider, TextInput, Toggle } from "@/components/studio/Controls";
 import { cn } from "@/lib/utils";
 
@@ -350,6 +351,17 @@ export function ScoreboardEditor({
               overflow: value ? "hidden" : "visible",
             })
           }
+        />
+      </EditorSection>
+
+      <EditorSection
+        title="Card zones"
+        description="Build the anatomy of each country card: order, flags, names, scores, angled bands, overlaps and typography."
+      >
+        <ScoreboardZoneEditor
+          zones={config.card.zones}
+          layoutMode={config.card.layoutMode}
+          onChange={(zones) => setCard({ zones })}
         />
       </EditorSection>
 
