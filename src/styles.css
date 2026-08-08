@@ -18,36 +18,49 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
+
   --color-gold: var(--gold);
   --color-jury: var(--jury);
   --color-televote: var(--televote);
+
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -56,6 +69,7 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
   --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -63,35 +77,48 @@
 
 :root {
   --radius: 1rem;
+
   --background: oklch(0.16 0.035 268);
   --foreground: oklch(0.96 0.01 250);
+
   --card: oklch(0.22 0.04 268);
   --card-foreground: oklch(0.96 0.01 250);
+
   --popover: oklch(0.2 0.04 268);
   --popover-foreground: oklch(0.96 0.01 250);
+
   --primary: oklch(0.78 0.15 205);
   --primary-foreground: oklch(0.17 0.04 268);
+
   --secondary: oklch(0.68 0.19 305);
   --secondary-foreground: oklch(0.98 0.01 250);
+
   --muted: oklch(0.28 0.035 268);
   --muted-foreground: oklch(0.72 0.03 258);
+
   --accent: oklch(0.3 0.06 280);
   --accent-foreground: oklch(0.97 0.01 250);
+
   --destructive: oklch(0.63 0.22 22);
   --destructive-foreground: oklch(0.98 0.01 250);
+
   --border: oklch(0.99 0 0 / 12%);
   --input: oklch(0.99 0 0 / 14%);
   --ring: oklch(0.78 0.15 205);
+
   --gold: oklch(0.85 0.16 88);
   --jury: oklch(0.78 0.15 205);
   --televote: oklch(0.72 0.19 330);
+
   --surface: oklch(0.99 0 0 / 6%);
   --surface-strong: oklch(0.99 0 0 / 11%);
+
   --chart-1: oklch(0.78 0.15 205);
   --chart-2: oklch(0.72 0.19 330);
   --chart-3: oklch(0.85 0.16 88);
   --chart-4: oklch(0.7 0.17 155);
   --chart-5: oklch(0.68 0.19 305);
+
   --sidebar: oklch(0.19 0.04 268);
   --sidebar-foreground: oklch(0.96 0.01 250);
   --sidebar-primary: oklch(0.78 0.15 205);
@@ -103,19 +130,36 @@
 
   --glass-blur: 22px;
   --glass-border: 1px solid oklch(0.99 0 0 / 14%);
-  --shadow-glass: 0 24px 60px -24px oklch(0.05 0.05 265 / 0.85);
-  --shadow-glow: 0 0 48px -8px color-mix(in oklab, var(--primary) 55%, transparent);
-  --gradient-aurora: linear-gradient(
-    135deg,
-    color-mix(in oklab, var(--primary) 85%, transparent),
-    color-mix(in oklab, var(--secondary) 85%, transparent)
-  );
-  --gradient-gold: linear-gradient(135deg, oklch(0.9 0.14 95), oklch(0.78 0.17 60));
+
+  --shadow-glass:
+    0 24px 60px -24px oklch(0.05 0.05 265 / 0.85);
+
+  --shadow-glow:
+    0 0 48px -8px
+    color-mix(in oklab, var(--primary) 55%, transparent);
+
+  --gradient-aurora:
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--primary) 85%, transparent),
+      color-mix(in oklab, var(--secondary) 85%, transparent)
+    );
+
+  --gradient-gold:
+    linear-gradient(
+      135deg,
+      oklch(0.9 0.14 95),
+      oklch(0.78 0.17 60)
+    );
 }
 
 .dark {
   color-scheme: dark;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Base                                                                        */
+/* -------------------------------------------------------------------------- */
 
 @layer base {
   * {
@@ -124,27 +168,38 @@
 
   html {
     color-scheme: dark;
+    min-height: 100%;
+    background-color: var(--color-background);
   }
 
   body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
+    min-height: 100vh;
+    min-width: 0;
 
-  background-image:
-    linear-gradient(
-      rgba(8, 10, 24, 0.58),
-      rgba(8, 10, 24, 0.58)
-    ),
-    url("/IMG_8815.jpeg");
+    margin: 0;
 
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
 
-  min-height: 100vh;
-}
+    /*
+     * Main website background.
+     * Image is stored at:
+     * public/IMG_8815.jpeg
+     */
+    background-color: var(--color-background);
+
+    background-image:
+      linear-gradient(
+        rgba(5, 8, 25, 0.25),
+        rgba(5, 8, 25, 0.25)
+      ),
+      url("/IMG_8815.jpeg");
+
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+  }
 
   h1,
   h2,
@@ -155,10 +210,22 @@
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Glass utilities                                                             */
+/* -------------------------------------------------------------------------- */
+
 @utility glass {
   background: var(--surface);
   border: var(--glass-border);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+
+  backdrop-filter:
+    blur(var(--glass-blur))
+    saturate(140%);
+
+  -webkit-backdrop-filter:
+    blur(var(--glass-blur))
+    saturate(140%);
+
   box-shadow: var(--shadow-glass);
   border-radius: var(--radius-2xl);
 }
@@ -166,20 +233,34 @@
 @utility glass-strong {
   background: var(--surface-strong);
   border: var(--glass-border);
-  backdrop-filter: blur(calc(var(--glass-blur) * 1.4)) saturate(160%);
+
+  backdrop-filter:
+    blur(calc(var(--glass-blur) * 1.4))
+    saturate(160%);
+
+  -webkit-backdrop-filter:
+    blur(calc(var(--glass-blur) * 1.4))
+    saturate(160%);
+
   box-shadow: var(--shadow-glass);
   border-radius: var(--radius-2xl);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Text and accent utilities                                                   */
+/* -------------------------------------------------------------------------- */
+
 @utility text-aurora {
   background: var(--gradient-aurora);
   background-clip: text;
+  -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 @utility text-gold-grad {
   background: var(--gradient-gold);
   background-clip: text;
+  -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -198,9 +279,15 @@
 
 @utility scroll-slim {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--primary) 45%, transparent) transparent;
-}
 
+  scrollbar-color:
+    color-mix(
+      in oklab,
+      var(--primary) 45%,
+      transparent
+    )
+    transparent;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Responsive application shell                                               */
@@ -212,10 +299,6 @@
     max-width: 100%;
     overflow-x: clip;
     -webkit-text-size-adjust: 100%;
-  }
-
-  body {
-    min-width: 0;
   }
 
   img,
@@ -245,14 +328,33 @@
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Mobile                                                                      */
+/* -------------------------------------------------------------------------- */
+
 @media (max-width: 767px) {
+  body {
+    /*
+     * iOS Safari is unreliable with background-attachment: fixed.
+     * Scroll is more stable on phones while keeping the same image.
+     */
+    background-attachment: scroll;
+
+    /*
+     * Slightly different crop for portrait screens.
+     */
+    background-position: center top;
+  }
+
   .glass,
   .glass-strong {
     border-radius: var(--radius-xl);
   }
 
-  /* Recharts and custom visualisations should never force the document wider
-     than the phone. Individual visualisations can still scroll internally. */
+  /*
+   * Recharts and custom visualisations should never force
+   * the document wider than the phone.
+   */
   .recharts-responsive-container {
     max-width: 100% !important;
   }
@@ -262,6 +364,10 @@
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Safe areas                                                                  */
+/* -------------------------------------------------------------------------- */
+
 @supports (padding: max(0px)) {
   body {
     padding-left: env(safe-area-inset-left);
@@ -269,8 +375,16 @@
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Main page spacing                                                           */
+/* -------------------------------------------------------------------------- */
+
 .app-main {
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  padding-bottom:
+    calc(
+      6.5rem +
+      env(safe-area-inset-bottom)
+    );
 }
 
 @media (min-width: 1024px) {
