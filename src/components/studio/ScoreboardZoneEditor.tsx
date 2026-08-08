@@ -1,1296 +1,677 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
-  type CardTemplateConfig,
-  type CardZoneConfig,
-  type ShapeKind,
-  type ZoneType,
+  PRESET_DESCRIPTIONS,
+  PRESET_IDS,
+  PRESET_LABELS,
+  buildPreset,
+  type BroadcastRowData,
+  type PresetId,
+  type ScoreboardConfig,
 } from "@/lib/scoreboard";
 
-import {
-  Field,
-  Select,
-  Slider,
-  TextInput,
-  Toggle,
-} from "@/components/studio/Controls";
-
+import type { ThemeConfig } from "@/lib/theme";
+import { ScoreboardBoard } from "@/components/broadcast/ScoreboardBoard";
+import { ScoreboardZoneEditor } from "@/components/studio/ScoreboardZoneEditor";
+import { Field, Select, Slider, TextInput, Toggle } from "@/components/studio/Controls";
 import { cn } from "@/lib/utils";
 
-const ZONE_TYPES: Array<{ value: ZoneType; label: string }> = [
-  { value: "rank", label: "Rank" },
-  { value: "running-order", label: "Running order" },
-  { value: "flag", label: "Flag" },
-  { value: "country-name", label: "Country name" },
-  { value: "score", label: "Total score" },
-  { value: "jury-score", label: "Jury score" },
-  { value: "televote-score", label: "Televote score" },
-  { value: "movement", label: "Movement" },
-  { value: "qualification", label: "Qualification" },
-  { value: "custom-text", label: "Custom text" },
-  { value: "image", label: "Image" },
-  { value: "spacer", label: "Spacer" },
-  { value: "decoration", label: "Decoration placeholder" },
-];
+type ScoreboardEditorProps = {
+  config: ScoreboardConfig;
+  onChange: (next: ScoreboardConfig) => void;
+  rows: BroadcastRowData[];
+  theme: ThemeConfig;
+  showName: string;
+  onReset?: () => void;
+};
 
-const SHAPES: ShapeKind[] = [
-  "rect",
-  "rounded",
-  "pill",
-  "circle",
-  "square",
-  "tab",
-  "ribbon",
-  "trapezoid",
-  "wedge",
-  "parallelogram",
-  "polygon",
-];
-
-const TEXT_ZONE_TYPES = new Set<ZoneType>([
-  "rank",
-  "running-order",
-  "country-name",
-  "score",
-  "jury-score",
-  "televote-score",
-  "movement",
-  "qualification",
-  "custom-text",
-]);
-
-export function ScoreboardZoneEditor({
-  zones,
-  layoutMode,
+export function ScoreboardEditor({
+  config,
   onChange,
-}: {
-  zones: CardZoneConfig[];
-  layoutMode: CardTemplateConfig["layoutMode"];
-  onChange: (zones: CardZoneConfig[]) => void;
-}) {
-  const ordered = useMemo(
-    () => [...zones].sort((a, b) => a.order - b.order),
-    [zones],
-  );
+  rows,
+  theme,
+  showName,
+  onReset,
+}: ScoreboardEditorProps) {
+  const set = (patch: Partial<ScoreboardConfig>) =>
+    onChange({ ...config, ...patch });
 
-  const [selectedId, setSelectedId] = useState<string>(ordered[0]?.id ?? "");
-  const [newType, setNewType] = useState<ZoneType>("country-name");
+  const setLayout = (patch: Partial<ScoreboardConfig["layout"]>) =>
+    set({ layout: { ...config.layout, ...patch } });
 
-  useEffect(() => {
-    if (!ordered.length) {
-      setSelectedId("");
-      return;
-    }
-    if (!ordered.some((zone) => zone.id === selectedId)) {
-      setSelectedId(ordered[0].id);
-    }
-  }, [ordered, selectedId]);
+  const setCard = (patch: Partial<ScoreboardConfig["card"]>) =>
+    set({ card: { ...config.card, ...patch } });
 
-  const selected = ordered.find((zone) => zone.id === selectedId) ?? null;
+  const setHeader = (patch: Partial<ScoreboardConfig["header"]>) =>
+    set({ header: { ...config.header, ...patch } });
 
-  const commit = (next: CardZoneConfig[]) => {
-    onChange(
-      [...next]
-        .sort((a, b) => a.order - b.order)
-        .map((zone, index) => ({ ...zone, order: index })),
-    );
-  };
+  const setBackground = (patch: Partial<ScoreboardConfig["background"]>) =>
+    set({ background: { ...config.background, ...patch } });
 
-  const patchSelected = (patch: Partial<CardZoneConfig>) => {
-    if (!selected) return;
-    commit(
-      zones.map((zone) =>
-        zone.id === selected.id ? { ...zone, ...patch } : zone,
-      ),
-    );
-  };
+  const setPanel = (patch: Partial<ScoreboardConfig["panel"]>) =>
+    set({ panel: { ...config.panel, ...patch } });
 
-  const replaceSelected = (next: CardZoneConfig) => {
-    commit(zones.map((zone) => (zone.id === next.id ? next : zone)));
-  };
+  const previewScale = useMemo(() => {
+    const width = config.canvas.width || 1920;
+    return Math.min(0.46, 820 / width);
+  }, [config.canvas.width]);
 
-  const move = (direction: -1 | 1) => {
-    if (!selected) return;
-    const index = ordered.findIndex((zone) => zone.id === selected.id);
-    const target = index + direction;
-    if (target < 0 || target >= ordered.length) return;
-
-    const next = [...ordered];
-    [next[index], next[target]] = [next[target], next[index]];
-    commit(next);
-  };
-
-  const duplicate = () => {
-    if (!selected) return;
-
-    const copy = cloneZone(selected);
-    copy.id = uniqueZoneId(selected.type, zones);
-    copy.label = `${selected.label || zoneTypeLabel(selected.type)} copy`;
-    copy.locked = false;
-
-    const index = ordered.findIndex((zone) => zone.id === selected.id);
-    const next = [...ordered];
-    next.splice(index + 1, 0, copy);
-
-    commit(next);
-    setSelectedId(copy.id);
-  };
-
-  const remove = () => {
-    if (!selected || selected.locked) return;
-    const index = ordered.findIndex((zone) => zone.id === selected.id);
-    const next = ordered.filter((zone) => zone.id !== selected.id);
-    commit(next);
-    setSelectedId(next[Math.min(index, Math.max(0, next.length - 1))]?.id ?? "");
-  };
-
-  const add = () => {
-    const zone = createZone(newType, zones);
-    commit([...ordered, zone]);
-    setSelectedId(zone.id);
+  const applyPreset = (presetId: PresetId) => {
+    const preset = buildPreset(presetId);
+    preset.music = config.music;
+    preset.controls = config.controls;
+    onChange(preset);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="space-y-3 rounded-2xl border border-border bg-background/30 p-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Zones
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              Top to bottom here means left to right inside a normal card.
-            </p>
-          </div>
+    <div className="space-y-7">
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">Scoreboard style</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Choose a starting design. You can customise it below.
+          </p>
+        </div>
 
-          <div className="space-y-1.5">
-            {ordered.map((zone, index) => (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {PRESET_IDS.map((presetId) => {
+            const selected = config.card.preset === presetId;
+
+            return (
               <button
-                key={zone.id}
+                key={presetId}
                 type="button"
-                onClick={() => setSelectedId(zone.id)}
+                onClick={() => applyPreset(presetId)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition",
-                  selectedId === zone.id
-                    ? "border-primary/60 bg-primary/10"
-                    : "border-border bg-surface hover:bg-surface/70",
+                  "group overflow-hidden rounded-2xl border text-left transition",
+                  selected
+                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                    : "border-border bg-surface hover:border-primary/40 hover:bg-surface/70",
                 )}
               >
-                <span className="numeric w-5 shrink-0 text-center text-[10px] text-muted-foreground">
-                  {index + 1}
-                </span>
+                <PresetThumbnail presetId={presetId} theme={theme} />
 
-                <span
-                  className={cn(
-                    "h-2 w-2 shrink-0 rounded-full",
-                    zone.visible ? "bg-primary" : "bg-muted-foreground/30",
-                  )}
-                />
+                <div className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">{PRESET_LABELS[presetId]}</p>
 
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-medium">
-                    {zone.label || zoneTypeLabel(zone.type)}
-                  </span>
-                  <span className="block truncate text-[10px] text-muted-foreground">
-                    {zone.type}
-                    {zone.width ? ` · ${zone.width}px` : zone.grow ? ` · grow ${zone.grow}` : " · auto"}
-                  </span>
-                </span>
+                    {selected && (
+                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+                        Active
+                      </span>
+                    )}
+                  </div>
 
-                {zone.locked && (
-                  <span
-                    title="Locked"
-                    className="shrink-0 text-[10px] text-muted-foreground"
-                  >
-                    ◆
-                  </span>
-                )}
+                  <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">
+                    {PRESET_DESCRIPTIONS[presetId]}
+                  </p>
+                </div>
               </button>
-            ))}
-
-            {!ordered.length && (
-              <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                No zones. Add one below.
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2 border-t border-border pt-3">
-            <Select
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as ZoneType)}
-            >
-              {ZONE_TYPES.map((type) => (
-                <option key={type.value} value={type.value} className="bg-background">
-                  {type.label}
-                </option>
-              ))}
-            </Select>
-
-            <button
-              type="button"
-              onClick={add}
-              className="w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/15"
-            >
-              + Add zone
-            </button>
-          </div>
-        </aside>
-
-        <div className="min-w-0">
-          {selected ? (
-            <div className="space-y-5 rounded-2xl border border-border bg-background/30 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Selected zone
-                  </p>
-                  <h4 className="mt-1 text-base font-semibold">
-                    {selected.label || zoneTypeLabel(selected.type)}
-                  </h4>
-                  <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                    {selected.id}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  <MiniButton
-                    label="↑"
-                    title="Move zone earlier"
-                    disabled={ordered[0]?.id === selected.id}
-                    onClick={() => move(-1)}
-                  />
-                  <MiniButton
-                    label="↓"
-                    title="Move zone later"
-                    disabled={ordered[ordered.length - 1]?.id === selected.id}
-                    onClick={() => move(1)}
-                  />
-                  <MiniButton label="Duplicate" onClick={duplicate} />
-                  <MiniButton
-                    label="Delete"
-                    destructive
-                    disabled={!!selected.locked}
-                    title={
-                      selected.locked
-                        ? "Unlock this zone before deleting it"
-                        : "Delete zone"
-                    }
-                    onClick={remove}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Editor label">
-                  <TextInput
-                    value={selected.label ?? ""}
-                    placeholder={zoneTypeLabel(selected.type)}
-                    onChange={(e) =>
-                      patchSelected({ label: e.target.value || undefined })
-                    }
-                  />
-                </Field>
-
-                <Field label="Zone type">
-                  <Select
-                    value={selected.type}
-                    onChange={(e) => {
-                      const type = e.target.value as ZoneType;
-                      replaceSelected(convertZoneType(selected, type));
-                    }}
-                  >
-                    {ZONE_TYPES.map((type) => (
-                      <option key={type.value} value={type.value} className="bg-background">
-                        {type.label}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Toggle
-                  label="Visible"
-                  checked={selected.visible}
-                  onChange={(visible) => patchSelected({ visible })}
-                />
-                <Toggle
-                  label="Lock zone"
-                  checked={!!selected.locked}
-                  onChange={(locked) => patchSelected({ locked })}
-                />
-              </div>
-
-              <Section title="Sizing & spacing">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <NullableNumber
-                    label="Width"
-                    value={selected.width}
-                    min={1}
-                    max={800}
-                    autoLabel="Auto"
-                    onChange={(width) => patchSelected({ width })}
-                  />
-
-                  <NullableNumber
-                    label="Height"
-                    value={selected.height}
-                    min={1}
-                    max={200}
-                    autoLabel="Card height"
-                    onChange={(height) => patchSelected({ height })}
-                  />
-
-                  <NullableNumber
-                    label="Min width"
-                    value={selected.minWidth}
-                    min={1}
-                    max={800}
-                    onChange={(minWidth) => patchSelected({ minWidth })}
-                  />
-
-                  <NullableNumber
-                    label="Max width"
-                    value={selected.maxWidth}
-                    min={1}
-                    max={1200}
-                    onChange={(maxWidth) => patchSelected({ maxWidth })}
-                  />
-                </div>
-
-                <Field label="Grow">
-                  <Slider
-                    min={0}
-                    max={6}
-                    step={0.25}
-                    value={selected.grow}
-                    onChange={(grow) => patchSelected({ grow })}
-                  />
-                </Field>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Horizontal padding">
-                    <Slider
-                      min={0}
-                      max={60}
-                      step={1}
-                      value={selected.paddingX}
-                      onChange={(paddingX) => patchSelected({ paddingX })}
-                      suffix="px"
-                    />
-                  </Field>
-
-                  <Field label="Vertical padding">
-                    <Slider
-                      min={0}
-                      max={40}
-                      step={1}
-                      value={selected.paddingY}
-                      onChange={(paddingY) => patchSelected({ paddingY })}
-                      suffix="px"
-                    />
-                  </Field>
-
-                  <Field label="Outer margin">
-                    <Slider
-                      min={-60}
-                      max={60}
-                      step={1}
-                      value={selected.marginX}
-                      onChange={(marginX) => patchSelected({ marginX })}
-                      suffix="px"
-                    />
-                  </Field>
-
-                  <Field label="Z-index">
-                    <Slider
-                      min={-10}
-                      max={30}
-                      step={1}
-                      value={selected.z}
-                      onChange={(z) => patchSelected({ z })}
-                    />
-                  </Field>
-
-                  <Field label="Overlap left">
-                    <Slider
-                      min={-120}
-                      max={120}
-                      step={1}
-                      value={selected.overlapLeft}
-                      onChange={(overlapLeft) => patchSelected({ overlapLeft })}
-                      suffix="px"
-                    />
-                  </Field>
-
-                  <Field label="Overlap right">
-                    <Slider
-                      min={-120}
-                      max={120}
-                      step={1}
-                      value={selected.overlapRight}
-                      onChange={(overlapRight) => patchSelected({ overlapRight })}
-                      suffix="px"
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section title="Alignment">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Horizontal">
-                    <Select
-                      value={selected.align}
-                      onChange={(e) =>
-                        patchSelected({
-                          align: e.target.value as CardZoneConfig["align"],
-                        })
-                      }
-                    >
-                      <option value="left">Left</option>
-                      <option value="center">Center</option>
-                      <option value="right">Right</option>
-                    </Select>
-                  </Field>
-
-                  <Field label="Vertical">
-                    <Select
-                      value={selected.valign}
-                      onChange={(e) =>
-                        patchSelected({
-                          valign: e.target.value as CardZoneConfig["valign"],
-                        })
-                      }
-                    >
-                      <option value="top">Top</option>
-                      <option value="center">Center</option>
-                      <option value="bottom">Bottom</option>
-                    </Select>
-                  </Field>
-                </div>
-              </Section>
-
-              <Section title="Shape">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Shape">
-                    <Select
-                      value={selected.shape.kind}
-                      onChange={(e) =>
-                        patchSelected({
-                          shape: {
-                            ...selected.shape,
-                            kind: e.target.value as ShapeKind,
-                          },
-                        })
-                      }
-                    >
-                      {SHAPES.map((shape) => (
-                        <option key={shape} value={shape} className="bg-background">
-                          {shape}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-
-                  <Field label="Direction">
-                    <Select
-                      value={selected.shape.direction}
-                      onChange={(e) =>
-                        patchSelected({
-                          shape: {
-                            ...selected.shape,
-                            direction: e.target.value as "left" | "right",
-                          },
-                        })
-                      }
-                    >
-                      <option value="right">Right</option>
-                      <option value="left">Left</option>
-                    </Select>
-                  </Field>
-                </div>
-
-                <Field label="Radius">
-                  <Slider
-                    min={0}
-                    max={999}
-                    step={1}
-                    value={selected.shape.radius}
-                    onChange={(radius) =>
-                      patchSelected({
-                        shape: { ...selected.shape, radius },
-                      })
-                    }
-                    suffix="px"
-                  />
-                </Field>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Left slant">
-                    <Slider
-                      min={0}
-                      max={50}
-                      step={1}
-                      value={selected.shape.leftSlant}
-                      onChange={(leftSlant) =>
-                        patchSelected({
-                          shape: { ...selected.shape, leftSlant },
-                        })
-                      }
-                      suffix="%"
-                    />
-                  </Field>
-
-                  <Field label="Right slant">
-                    <Slider
-                      min={0}
-                      max={50}
-                      step={1}
-                      value={selected.shape.rightSlant}
-                      onChange={(rightSlant) =>
-                        patchSelected({
-                          shape: { ...selected.shape, rightSlant },
-                        })
-                      }
-                      suffix="%"
-                    />
-                  </Field>
-
-                  <Field label="Top inset">
-                    <Slider
-                      min={0}
-                      max={50}
-                      step={1}
-                      value={selected.shape.topInset}
-                      onChange={(topInset) =>
-                        patchSelected({
-                          shape: { ...selected.shape, topInset },
-                        })
-                      }
-                      suffix="%"
-                    />
-                  </Field>
-
-                  <Field label="Bottom inset">
-                    <Slider
-                      min={0}
-                      max={50}
-                      step={1}
-                      value={selected.shape.bottomInset}
-                      onChange={(bottomInset) =>
-                        patchSelected({
-                          shape: { ...selected.shape, bottomInset },
-                        })
-                      }
-                      suffix="%"
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section title="Surface">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Fill">
-                    <Select
-                      value={selected.surface.fill}
-                      onChange={(e) =>
-                        patchSelected({
-                          surface: {
-                            ...selected.surface,
-                            fill: e.target.value as CardZoneConfig["surface"]["fill"],
-                          },
-                        })
-                      }
-                    >
-                      <option value="none">None</option>
-                      <option value="color">Colour</option>
-                      <option value="gradient">Gradient</option>
-                      <option value="country">Country colour</option>
-                      <option value="theme">Theme</option>
-                    </Select>
-                  </Field>
-
-                  <Field
-                    label="Colour token"
-                    hint="Examples: #ffffff, transparent, country, theme:primary, theme:text"
-                  >
-                    <TextInput
-                      value={selected.surface.color}
-                      onChange={(e) =>
-                        patchSelected({
-                          surface: {
-                            ...selected.surface,
-                            color: e.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </Field>
-
-                  <Field label="Second colour">
-                    <TextInput
-                      value={selected.surface.color2}
-                      onChange={(e) =>
-                        patchSelected({
-                          surface: {
-                            ...selected.surface,
-                            color2: e.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </Field>
-
-                  <Field label="Gradient angle">
-                    <Slider
-                      min={0}
-                      max={360}
-                      step={1}
-                      value={selected.surface.angle}
-                      onChange={(angle) =>
-                        patchSelected({
-                          surface: { ...selected.surface, angle },
-                        })
-                      }
-                      suffix="°"
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Opacity">
-                    <Slider
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={selected.surface.opacity}
-                      onChange={(opacity) =>
-                        patchSelected({
-                          surface: { ...selected.surface, opacity },
-                        })
-                      }
-                    />
-                  </Field>
-
-                  <Field label="Backdrop blur">
-                    <Slider
-                      min={0}
-                      max={40}
-                      step={1}
-                      value={selected.surface.blur}
-                      onChange={(blur) =>
-                        patchSelected({
-                          surface: { ...selected.surface, blur },
-                        })
-                      }
-                      suffix="px"
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              <Section title="Border">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Style">
-                    <Select
-                      value={selected.border?.style ?? "none"}
-                      onChange={(e) =>
-                        patchSelected({
-                          border: {
-                            width: selected.border?.width ?? 1,
-                            color: selected.border?.color ?? "theme:card-border",
-                            style: e.target.value as "solid" | "dashed" | "none",
-                          },
-                        })
-                      }
-                    >
-                      <option value="none">None</option>
-                      <option value="solid">Solid</option>
-                      <option value="dashed">Dashed</option>
-                    </Select>
-                  </Field>
-
-                  <Field label="Width">
-                    <Slider
-                      min={0}
-                      max={10}
-                      step={1}
-                      value={selected.border?.width ?? 0}
-                      onChange={(width) =>
-                        patchSelected({
-                          border: {
-                            width,
-                            color: selected.border?.color ?? "theme:card-border",
-                            style:
-                              width === 0
-                                ? "none"
-                                : selected.border?.style === "dashed"
-                                  ? "dashed"
-                                  : "solid",
-                          },
-                        })
-                      }
-                      suffix="px"
-                    />
-                  </Field>
-
-                  <Field label="Colour">
-                    <TextInput
-                      value={selected.border?.color ?? "theme:card-border"}
-                      onChange={(e) =>
-                        patchSelected({
-                          border: {
-                            width: selected.border?.width ?? 1,
-                            color: e.target.value,
-                            style: selected.border?.style ?? "solid",
-                          },
-                        })
-                      }
-                    />
-                  </Field>
-                </div>
-              </Section>
-
-              {TEXT_ZONE_TYPES.has(selected.type) && (
-                <TypographyEditor
-                  zone={selected}
-                  onChange={(typography) => patchSelected({ typography })}
-                />
-              )}
-
-              {(selected.type === "rank" || selected.type === "running-order") && (
-                <Section title="Number formatting">
-                  <Toggle
-                    label="Leading zero"
-                    checked={!!selected.leadingZero}
-                    onChange={(leadingZero) => patchSelected({ leadingZero })}
-                  />
-                  <Field label="Empty text">
-                    <TextInput
-                      value={selected.emptyText ?? ""}
-                      onChange={(e) =>
-                        patchSelected({ emptyText: e.target.value })
-                      }
-                    />
-                  </Field>
-                </Section>
-              )}
-
-              {(selected.type === "score" ||
-                selected.type === "jury-score" ||
-                selected.type === "televote-score") && (
-                <Section title="Score formatting">
-                  <Field label="Empty text">
-                    <TextInput
-                      value={selected.emptyText ?? ""}
-                      placeholder="–"
-                      onChange={(e) =>
-                        patchSelected({ emptyText: e.target.value })
-                      }
-                    />
-                  </Field>
-                </Section>
-              )}
-
-              {selected.type === "flag" && (
-                <Section title="Flag">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Fit">
-                      <Select
-                        value={selected.fit ?? "cover"}
-                        onChange={(e) =>
-                          patchSelected({
-                            fit: e.target.value as "cover" | "contain" | "fill",
-                          })
-                        }
-                      >
-                        <option value="cover">Cover</option>
-                        <option value="contain">Contain</option>
-                        <option value="fill">Stretch</option>
-                      </Select>
-                    </Field>
-
-                    <Field label="Object position">
-                      <TextInput
-                        value={selected.objectPosition ?? "center"}
-                        placeholder="center"
-                        onChange={(e) =>
-                          patchSelected({ objectPosition: e.target.value })
-                        }
-                      />
-                    </Field>
-                  </div>
-                </Section>
-              )}
-
-              {selected.type === "custom-text" && (
-                <Section title="Custom text">
-                  <Field
-                    label="Text"
-                    hint="Leave blank to use the row subtitle / artist-song text."
-                  >
-                    <TextInput
-                      value={selected.text ?? ""}
-                      onChange={(e) => patchSelected({ text: e.target.value })}
-                    />
-                  </Field>
-                </Section>
-              )}
-
-              {selected.type === "image" && (
-                <Section title="Image">
-                  <Field label="Image URL">
-                    <TextInput
-                      value={selected.imageUrl ?? ""}
-                      placeholder="https://..."
-                      onChange={(e) =>
-                        patchSelected({ imageUrl: e.target.value || null })
-                      }
-                    />
-                  </Field>
-
-                  <Field label="Fit">
-                    <Select
-                      value={selected.fit ?? "contain"}
-                      onChange={(e) =>
-                        patchSelected({
-                          fit: e.target.value as "cover" | "contain" | "fill",
-                        })
-                      }
-                    >
-                      <option value="contain">Contain</option>
-                      <option value="cover">Cover</option>
-                      <option value="fill">Stretch</option>
-                    </Select>
-                  </Field>
-                </Section>
-              )}
-
-              {layoutMode === "absolute" && (
-                <Section title="Absolute position">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="X">
-                      <Slider
-                        min={-500}
-                        max={1500}
-                        step={1}
-                        value={selected.absolute?.x ?? 0}
-                        onChange={(x) =>
-                          patchSelected({
-                            absolute: { x, y: selected.absolute?.y ?? 0 },
-                          })
-                        }
-                        suffix="px"
-                      />
-                    </Field>
-
-                    <Field label="Y">
-                      <Slider
-                        min={-300}
-                        max={400}
-                        step={1}
-                        value={selected.absolute?.y ?? 0}
-                        onChange={(y) =>
-                          patchSelected({
-                            absolute: { x: selected.absolute?.x ?? 0, y },
-                          })
-                        }
-                        suffix="px"
-                      />
-                    </Field>
-                  </div>
-                </Section>
-              )}
-            </div>
-          ) : (
-            <div className="grid min-h-64 place-items-center rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              Add or select a zone to edit it.
-            </div>
-          )}
+            );
+          })}
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-xl border border-border bg-surface/30 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-        Changes are applied directly to <code>card.zones</code>, so the live preview
-        and the real broadcast use the same structure. Angled SSC21-style layers are
-        made by combining overlap, z-index and shapes such as wedge, trapezoid and
-        parallelogram.
-      </div>
-    </div>
-  );
-}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold">Live preview</h3>
+            <p className="text-xs text-muted-foreground">
+              This uses the same scoreboard renderer as the actual broadcast.
+            </p>
+          </div>
 
-function TypographyEditor({
-  zone,
-  onChange,
-}: {
-  zone: CardZoneConfig;
-  onChange: (typography: NonNullable<CardZoneConfig["typography"]>) => void;
-}) {
-  const typography = zone.typography ?? defaultTypography(zone.type);
+          <span className="rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground">
+            {config.canvas.width}×{config.canvas.height}
+          </span>
+        </div>
 
-  const set = (patch: Partial<typeof typography>) =>
-    onChange({ ...typography, ...patch });
+        <div className="overflow-hidden rounded-2xl border border-border bg-black">
+          <div
+            className="origin-top-left"
+            style={{
+              width: config.canvas.width * previewScale,
+              height: config.canvas.height * previewScale,
+            }}
+          >
+            <div
+              style={{
+                width: config.canvas.width,
+                height: config.canvas.height,
+                transform: `scale(${previewScale})`,
+                transformOrigin: "top left",
+              }}
+            >
+              <ScoreboardBoard
+                config={config}
+                theme={theme}
+                rows={rows}
+                title="JURY RESULTS"
+                subtitle={showName}
+                progress={0.56}
+                animate={false}
+                panelContent={<PreviewVoter />}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
-  return (
-    <Section title="Typography">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field
-          label="Font family"
-          hint='"display" and "body" inherit the show theme.'
-        >
-          <TextInput
-            value={typography.family}
-            onChange={(e) => set({ family: e.target.value })}
+      <EditorSection
+        title="Board layout"
+        description="Overall scoreboard position and column structure."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Columns">
+            <Select
+              value={String(config.layout.columns)}
+              onChange={(e) =>
+                setLayout({
+                  columns: Number(e.target.value) as 1 | 2 | 3 | 4,
+                })
+              }
+            >
+              <option value="1">1 column</option>
+              <option value="2">2 columns</option>
+              <option value="3">3 columns</option>
+              <option value="4">4 columns</option>
+            </Select>
+          </Field>
+
+          <Field label="Distribution">
+            <Select
+              value={config.layout.distribution}
+              onChange={(e) =>
+                setLayout({
+                  distribution: e.target.value as ScoreboardConfig["layout"]["distribution"],
+                })
+              }
+            >
+              <option value="sequential">Sequential</option>
+              <option value="balanced">Balanced</option>
+              <option value="manual">Manual</option>
+            </Select>
+          </Field>
+
+          <Field label="Horizontal alignment">
+            <Select
+              value={config.layout.alignment}
+              onChange={(e) =>
+                setLayout({
+                  alignment: e.target.value as ScoreboardConfig["layout"]["alignment"],
+                })
+              }
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </Select>
+          </Field>
+
+          <Field label="Vertical alignment">
+            <Select
+              value={config.layout.verticalAlignment}
+              onChange={(e) =>
+                setLayout({
+                  verticalAlignment:
+                    e.target.value as ScoreboardConfig["layout"]["verticalAlignment"],
+                })
+              }
+            >
+              <option value="top">Top</option>
+              <option value="center">Center</option>
+              <option value="bottom">Bottom</option>
+            </Select>
+          </Field>
+        </div>
+
+        <Field label="Board width">
+          <Slider
+            min={500}
+            max={1700}
+            step={10}
+            value={config.layout.boardWidth}
+            onChange={(value) => setLayout({ boardWidth: value })}
+            suffix="px"
           />
         </Field>
 
-        <Field label="Colour">
-          <TextInput
-            value={typography.color}
-            onChange={(e) => set({ color: e.target.value })}
+        <Field label="Row gap">
+          <Slider
+            min={0}
+            max={30}
+            step={1}
+            value={config.layout.rowGap}
+            onChange={(value) => setLayout({ rowGap: value })}
+            suffix="px"
           />
         </Field>
 
-        <Field label="Alignment">
-          <Select
-            value={typography.align}
+        <Field label="Column gap">
+          <Slider
+            min={0}
+            max={80}
+            step={1}
+            value={config.layout.columnGap}
+            onChange={(value) => setLayout({ columnGap: value })}
+            suffix="px"
+          />
+        </Field>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Horizontal offset">
+            <Slider
+              min={-400}
+              max={400}
+              step={5}
+              value={config.layout.positionX}
+              onChange={(value) => setLayout({ positionX: value })}
+              suffix="px"
+            />
+          </Field>
+
+          <Field label="Vertical offset">
+            <Slider
+              min={-300}
+              max={300}
+              step={5}
+              value={config.layout.positionY}
+              onChange={(value) => setLayout({ positionY: value })}
+              suffix="px"
+            />
+          </Field>
+        </div>
+      </EditorSection>
+
+      <EditorSection
+        title="Country cards"
+        description="Size and basic geometry of each scoreboard row."
+      >
+        <Field label="Card height">
+          <Slider
+            min={28}
+            max={100}
+            step={1}
+            value={config.card.height}
+            onChange={(value) => setCard({ height: value })}
+            suffix="px"
+          />
+        </Field>
+
+        <Field label="Corner radius">
+          <Slider
+            min={0}
+            max={60}
+            step={1}
+            value={Math.min(60, config.card.radius)}
+            onChange={(value) => setCard({ radius: value })}
+            suffix="px"
+          />
+        </Field>
+
+        <Field label="Internal gap">
+          <Slider
+            min={0}
+            max={30}
+            step={1}
+            value={config.card.gap}
+            onChange={(value) => setCard({ gap: value })}
+            suffix="px"
+          />
+        </Field>
+
+        <Field label="Horizontal padding">
+          <Slider
+            min={0}
+            max={40}
+            step={1}
+            value={config.card.paddingX}
+            onChange={(value) => setCard({ paddingX: value })}
+            suffix="px"
+          />
+        </Field>
+
+        <Field label="Card opacity">
+          <Slider
+            min={0}
+            max={1}
+            step={0.05}
+            value={config.card.opacity}
+            onChange={(value) => setCard({ opacity: value })}
+          />
+        </Field>
+
+        <Toggle
+          label="Clip card contents"
+          checked={config.card.overflow === "hidden"}
+          onChange={(value) =>
+            setCard({
+              overflow: value ? "hidden" : "visible",
+            })
+          }
+        />
+      </EditorSection>
+
+      <EditorSection
+        title="Card zones"
+        description="Build the anatomy of each country card: order, flags, names, scores, angled bands, overlaps and typography."
+      >
+        <ScoreboardZoneEditor
+          zones={config.card.zones}
+          layoutMode={config.card.layoutMode}
+          onChange={(zones) => setCard({ zones })}
+        />
+      </EditorSection>
+
+      <EditorSection title="Header" description="Titles shown above the scoreboard.">
+        <Toggle
+          label="Show header"
+          checked={config.header.visible}
+          onChange={(value) => setHeader({ visible: value })}
+        />
+
+        <Field label="Upper title">
+          <TextInput
+            value={config.header.upper.text}
             onChange={(e) =>
-              set({
-                align: e.target.value as "left" | "center" | "right",
+              setHeader({
+                upper: {
+                  ...config.header.upper,
+                  text: e.target.value,
+                },
+              })
+            }
+          />
+        </Field>
+
+        <Field label="Main title">
+          <TextInput
+            value={config.header.main.text}
+            placeholder="Leave blank for automatic scene title"
+            onChange={(e) =>
+              setHeader({
+                main: {
+                  ...config.header.main,
+                  text: e.target.value,
+                },
+              })
+            }
+          />
+        </Field>
+
+        <Field label="Spacing below header">
+          <Slider
+            min={0}
+            max={100}
+            step={1}
+            value={config.header.marginBottom}
+            onChange={(value) => setHeader({ marginBottom: value })}
+            suffix="px"
+          />
+        </Field>
+      </EditorSection>
+
+      <EditorSection
+        title="Background"
+        description="Use the show theme or a dedicated broadcast background."
+      >
+        <Field label="Background source">
+          <Select
+            value={config.background.type}
+            onChange={(e) =>
+              setBackground({
+                type: e.target.value as ScoreboardConfig["background"]["type"],
+              })
+            }
+          >
+            <option value="theme">Show theme</option>
+            <option value="gradient">Gradient</option>
+            <option value="color">Solid colour</option>
+            <option value="image">Image</option>
+            <option value="transparent">Transparent</option>
+          </Select>
+        </Field>
+
+        {config.background.type === "color" && (
+          <Field label="Colour">
+            <TextInput
+              value={config.background.color}
+              onChange={(e) => setBackground({ color: e.target.value })}
+            />
+          </Field>
+        )}
+
+        {config.background.type === "gradient" && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Gradient start">
+              <TextInput
+                value={config.background.gradientFrom}
+                onChange={(e) => setBackground({ gradientFrom: e.target.value })}
+              />
+            </Field>
+
+            <Field label="Gradient end">
+              <TextInput
+                value={config.background.gradientTo}
+                onChange={(e) => setBackground({ gradientTo: e.target.value })}
+              />
+            </Field>
+          </div>
+        )}
+
+        {config.background.type === "image" && (
+          <Field label="Image URL">
+            <TextInput
+              value={config.background.imageUrl ?? ""}
+              placeholder="https://..."
+              onChange={(e) => setBackground({ imageUrl: e.target.value || null })}
+            />
+          </Field>
+        )}
+
+        <Field label="Dark overlay">
+          <Slider
+            min={0}
+            max={1}
+            step={0.05}
+            value={config.background.overlay}
+            onChange={(value) => setBackground({ overlay: value })}
+          />
+        </Field>
+
+        <Field label="Vignette">
+          <Slider
+            min={0}
+            max={1}
+            step={0.05}
+            value={config.background.vignette}
+            onChange={(value) => setBackground({ vignette: value })}
+          />
+        </Field>
+      </EditorSection>
+
+      <EditorSection
+        title="Current jury panel"
+        description="Optional panel showing the voting country, person or organisation."
+      >
+        <Toggle
+          label="Show current voter panel"
+          checked={config.panel.visible}
+          onChange={(value) => setPanel({ visible: value })}
+        />
+
+        <Field label="Panel side">
+          <Select
+            value={config.panel.side}
+            onChange={(e) =>
+              setPanel({
+                side: e.target.value as ScoreboardConfig["panel"]["side"],
               })
             }
           >
             <option value="left">Left</option>
-            <option value="center">Center</option>
             <option value="right">Right</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
           </Select>
         </Field>
 
-        <Field label="Weight">
+        <Field label="Panel size">
           <Slider
-            min={100}
-            max={1000}
-            step={50}
-            value={typography.weight}
-            onChange={(weight) => set({ weight })}
-          />
-        </Field>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Font size">
-          <Slider
-            min={6}
-            max={72}
-            step={1}
-            value={typography.size}
-            onChange={(size) => set({ size })}
+            min={180}
+            max={600}
+            step={10}
+            value={config.panel.size}
+            onChange={(value) => setPanel({ size: value })}
             suffix="px"
           />
         </Field>
+      </EditorSection>
 
-        <Field label="Minimum size">
-          <Slider
-            min={6}
-            max={72}
-            step={1}
-            value={typography.minSize}
-            onChange={(minSize) => set({ minSize })}
-            suffix="px"
-          />
-        </Field>
+      {onReset && (
+        <section className="rounded-2xl border border-border bg-surface/50 p-4">
+          <p className="text-sm font-medium">Reset broadcast scoreboard</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Returns this show to the automatic Theme-based live broadcast design.
+          </p>
 
-        <Field label="Letter spacing">
-          <Slider
-            min={-3}
-            max={12}
-            step={0.25}
-            value={typography.letterSpacing}
-            onChange={(letterSpacing) => set({ letterSpacing })}
-            suffix="px"
-          />
-        </Field>
-      </div>
-
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Toggle
-          label="Uppercase"
-          checked={typography.uppercase}
-          onChange={(uppercase) => set({ uppercase })}
-        />
-        <Toggle
-          label="Truncate"
-          checked={typography.truncate}
-          onChange={(truncate) => set({ truncate })}
-        />
-        <Toggle
-          label="Italic"
-          checked={!!typography.italic}
-          onChange={(italic) => set({ italic })}
-        />
-      </div>
-    </Section>
-  );
-}
-
-function NullableNumber({
-  label,
-  value,
-  min,
-  max,
-  autoLabel = "None",
-  onChange,
-}: {
-  label: string;
-  value: number | null;
-  min: number;
-  max: number;
-  autoLabel?: string;
-  onChange: (value: number | null) => void;
-}) {
-  const enabled = value != null;
-
-  return (
-    <div className="space-y-2">
-      <Toggle
-        label={`${label}: ${enabled ? `${value}px` : autoLabel}`}
-        checked={enabled}
-        onChange={(next) => onChange(next ? Math.max(min, value ?? min) : null)}
-      />
-
-      {enabled && (
-        <Slider
-          min={min}
-          max={max}
-          step={1}
-          value={value ?? min}
-          onChange={(next) => onChange(next)}
-          suffix="px"
-        />
+          <button
+            type="button"
+            onClick={onReset}
+            className="mt-3 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-surface"
+          >
+            Reset scoreboard
+          </button>
+        </section>
       )}
     </div>
   );
 }
 
-function Section({
+function EditorSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0">
-      <h5 className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        {title}
-      </h5>
+    <section className="space-y-4 rounded-2xl border border-border bg-surface/30 p-4">
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description && (
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        )}
+      </div>
       {children}
     </section>
   );
 }
 
-function MiniButton({
-  label,
-  onClick,
-  disabled,
-  destructive,
-  title,
+function PresetThumbnail({
+  presetId,
+  theme,
 }: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  destructive?: boolean;
-  title?: string;
+  presetId: PresetId;
+  theme: ThemeConfig;
 }) {
+  const config = useMemo(() => buildPreset(presetId), [presetId]);
+
+  const rows = useMemo<BroadcastRowData[]>(
+    () => [
+      previewRow("A", "Oland", "OLA", 1, 136, theme.colors.primary),
+      previewRow("B", "Fennek", "FEN", 2, 122, theme.colors.secondary),
+      previewRow("C", "Diaria", "DIA", 3, 117, theme.colors.accent),
+    ],
+    [theme],
+  );
+
+  const scale = 0.135;
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={cn(
-        "rounded-lg border px-2.5 py-1.5 text-[11px] transition disabled:cursor-not-allowed disabled:opacity-35",
-        destructive
-          ? "border-destructive/40 text-destructive hover:bg-destructive/10"
-          : "border-border hover:bg-surface",
-      )}
-    >
-      {label}
-    </button>
+    <div className="relative h-28 overflow-hidden bg-black">
+      <div
+        className="pointer-events-none absolute left-0 top-0"
+        style={{
+          width: config.canvas.width,
+          height: config.canvas.height,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        <ScoreboardBoard
+          config={{
+            ...config,
+            header: { ...config.header, visible: false },
+            footer: { ...config.footer, visible: false },
+            logo: { ...config.logo, visible: false },
+            panel: { ...config.panel, visible: false },
+            layout: {
+              ...config.layout,
+              safeMarginTop: 20,
+              safeMarginBottom: 20,
+              boardWidth: Math.min(config.layout.boardWidth, 1000),
+            },
+          }}
+          theme={theme}
+          rows={rows}
+          animate={false}
+        />
+      </div>
+
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0",
+          presetId === "ssc21" && "ring-1 ring-inset ring-cyan-400/20",
+        )}
+      />
+    </div>
   );
 }
 
-function zoneTypeLabel(type: ZoneType) {
-  return ZONE_TYPES.find((entry) => entry.value === type)?.label ?? type;
+function PreviewVoter() {
+  return (
+    <div className="flex h-full flex-col items-center justify-center text-center">
+      <div className="grid aspect-[3/2] w-full max-w-52 place-items-center rounded-xl bg-primary/25 text-3xl font-black">
+        OLA
+      </div>
+
+      <p className="mt-4 text-[10px] uppercase tracking-[0.3em] opacity-50">Now voting</p>
+      <p className="mt-2 text-xl font-bold">Oland</p>
+    </div>
+  );
 }
 
-function uniqueZoneId(type: ZoneType, zones: CardZoneConfig[]) {
-  const base = type.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-  const used = new Set(zones.map((zone) => zone.id));
-
-  let index = 1;
-  let id = `${base}-${index}`;
-  while (used.has(id)) {
-    index += 1;
-    id = `${base}-${index}`;
-  }
-  return id;
-}
-
-function createZone(type: ZoneType, zones: CardZoneConfig[]): CardZoneConfig {
-  const zone: CardZoneConfig = {
-    id: uniqueZoneId(type, zones),
-    label: zoneTypeLabel(type),
-    type,
-    visible: true,
-    locked: false,
-    order: zones.length,
-    width:
-      type === "flag"
-        ? 64
-        : type === "rank" || type === "running-order"
-          ? 48
-          : type === "score" || type === "jury-score" || type === "televote-score"
-            ? 76
-            : null,
-    minWidth: null,
-    maxWidth: null,
-    height: null,
-    grow:
-      type === "country-name" || type === "custom-text" || type === "spacer"
-        ? 1
-        : 0,
-    paddingX: type === "flag" ? 0 : 8,
-    paddingY: 0,
-    marginX: 0,
-    align:
-      type === "score" || type === "jury-score" || type === "televote-score"
-        ? "right"
-        : type === "country-name" || type === "custom-text"
-          ? "left"
-          : "center",
-    valign: "center",
-    z: 1,
-    overlapLeft: 0,
-    overlapRight: 0,
-    shape: defaultShape(type),
-    surface: defaultSurface(),
-    border: {
-      width: 0,
-      color: "transparent",
-      style: "none",
-    },
-    typography: TEXT_ZONE_TYPES.has(type) ? defaultTypography(type) : undefined,
-    fit: type === "flag" ? "cover" : type === "image" ? "contain" : undefined,
-    objectPosition: type === "flag" ? "center" : undefined,
-    leadingZero: type === "rank" || type === "running-order" ? false : undefined,
-    emptyText:
-      type === "score" || type === "jury-score" || type === "televote-score"
-        ? "–"
-        : undefined,
-  };
-
-  return zone;
-}
-
-function convertZoneType(zone: CardZoneConfig, type: ZoneType): CardZoneConfig {
-  const defaults = createZone(type, []);
+function previewRow(
+  id: string,
+  name: string,
+  abbreviation: string,
+  rank: number,
+  score: number,
+  accent: string,
+): BroadcastRowData {
   return {
-    ...zone,
-    type,
-    label:
-      !zone.label || zone.label === zoneTypeLabel(zone.type)
-        ? zoneTypeLabel(type)
-        : zone.label,
-    width:
-      zone.width ??
-      defaults.width,
-    grow:
-      zone.grow === 0 && defaults.grow > 0 ? defaults.grow : zone.grow,
-    typography: TEXT_ZONE_TYPES.has(type)
-      ? zone.typography ?? defaultTypography(type)
-      : undefined,
-    fit:
-      type === "flag"
-        ? zone.fit ?? "cover"
-        : type === "image"
-          ? zone.fit ?? "contain"
-          : undefined,
-    objectPosition: type === "flag" ? zone.objectPosition ?? "center" : undefined,
-    leadingZero:
-      type === "rank" || type === "running-order"
-        ? zone.leadingZero ?? false
-        : undefined,
-  };
-}
-
-function defaultShape(type: ZoneType): CardZoneConfig["shape"] {
-  return {
-    kind: type === "flag" ? "rect" : "rounded",
-    radius: type === "flag" ? 0 : 6,
-    leftSlant: 0,
-    rightSlant: 0,
-    topInset: 0,
-    bottomInset: 0,
-    direction: "right",
-    points: [],
-  };
-}
-
-function defaultSurface(): CardZoneConfig["surface"] {
-  return {
-    fill: "none",
-    color: "transparent",
-    color2: "transparent",
-    angle: 90,
-    opacity: 1,
-    blur: 0,
-  };
-}
-
-function defaultTypography(
-  type: ZoneType,
-): NonNullable<CardZoneConfig["typography"]> {
-  const right =
-    type === "score" || type === "jury-score" || type === "televote-score";
-
-  return {
-    family: type === "country-name" ? "display" : "body",
-    size: type === "country-name" ? 15 : 13,
-    minSize: 9,
-    weight: type === "country-name" || right ? 700 : 600,
-    letterSpacing: 0,
-    uppercase: false,
-    color:
-      type === "jury-score"
-        ? "theme:jury"
-        : type === "televote-score"
-          ? "theme:televote"
-          : type === "score"
-            ? "theme:country-score"
-            : type === "rank"
-              ? "theme:rank"
-              : "theme:country-name",
-    align: right ? "right" : type === "country-name" ? "left" : "center",
-    truncate: true,
-    italic: false,
-  };
-}
-
-function cloneZone(zone: CardZoneConfig): CardZoneConfig {
-  return {
-    ...zone,
-    shape: {
-      ...zone.shape,
-      points: [...zone.shape.points],
-    },
-    surface: { ...zone.surface },
-    border: zone.border ? { ...zone.border } : undefined,
-    typography: zone.typography ? { ...zone.typography } : undefined,
-    absolute: zone.absolute ? { ...zone.absolute } : undefined,
+    id,
+    entityType: "global",
+    name,
+    abbreviation,
+    flagImage: null,
+    accent,
+    rank,
+    runningOrder: rank,
+    score,
+    juryScore: Math.max(0, score - 20),
+    televoteScore: 20,
+    movement: null,
+    qualified: null,
+    eliminated: null,
+    active: rank === 2,
+    highlighted: rank === 1,
+    leader: rank === 1,
+    winner: false,
   };
 }
