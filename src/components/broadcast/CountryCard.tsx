@@ -1,15 +1,5 @@
 "use client";
 
-/**
- * Country card renderer.
- *
- * Most presets use the universal zone engine.
- * SSC21 uses a dedicated composition because the historic design is a fixed
- * layered graphic: score rectangle -> diagonal fan -> rectangular flag ->
- * diagonal fan -> country rectangle. Trying to express that as flex zones
- * changes the proportions and creates gaps/rounded-looking joins.
- */
-
 import { motion } from "framer-motion";
 import type { CSSProperties } from "react";
 
@@ -19,8 +9,8 @@ import {
   clipPathFor,
   resolveColor,
   rowStates,
-  shadowCss,
   sortedZones,
+  shadowCss,
   surfaceBackground,
   typographyCss,
   withAlpha,
@@ -78,7 +68,7 @@ export function CountryCard({
 }
 
 /* ========================================================================== */
-/* SSC21                                                                      */
+/* SSC21 EXACT-LIKE CARD                                                      */
 /* ========================================================================== */
 
 function SSC21CountryCard({
@@ -99,36 +89,30 @@ function SSC21CountryCard({
   className?: string;
 }) {
   const height = Math.max(32, card.height) * scale;
-  const scoreZone = card.zones.find((zone) => zone.type === "score");
-  const nameZone = card.zones.find((zone) => zone.type === "country-name");
 
-  const scoreTypography =
-    scoreZone?.typography ??
-    ({
-      family: "display",
-      size: 17,
-      minSize: 10,
-      weight: 300,
-      letterSpacing: 0,
-      uppercase: false,
-      color: "#d7d2df",
-      align: "center",
-      truncate: true,
-    } as const);
+  const scoreTypography = {
+    family: "display",
+    size: 17,
+    minSize: 10,
+    weight: 300,
+    letterSpacing: 0,
+    uppercase: false,
+    color: "#d7d2df",
+    align: "center",
+    truncate: true,
+  } as const;
 
-  const nameTypography =
-    nameZone?.typography ??
-    ({
-      family: "display",
-      size: 16,
-      minSize: 10,
-      weight: 300,
-      letterSpacing: 1.25,
-      uppercase: true,
-      color: "#c8c8c9",
-      align: "left",
-      truncate: true,
-    } as const);
+  const nameTypography = {
+    family: "display",
+    size: 16,
+    minSize: 10,
+    weight: 300,
+    letterSpacing: 1.15,
+    uppercase: true,
+    color: "#c8c8c9",
+    align: "left",
+    truncate: true,
+  } as const;
 
   const ctx = { theme, accent: row.accent };
 
@@ -136,16 +120,6 @@ function SSC21CountryCard({
     ? motion.li
     : ("li" as unknown as typeof motion.li);
 
-  /*
-   * Reference geometry, measured from the supplied SSC21 scorecard:
-   *
-   *   0% ------------------------------------------------------------- 100%
-   *   | score 25% | layered transition | flag | transition | country |
-   *
-   * The dark country rectangle actually begins UNDER the right-hand fan.
-   * The fan is therefore absolutely positioned over it instead of taking
-   * flex width. This is the crucial difference from the previous version.
-   */
   return (
     <Wrapper
       layout={animate}
@@ -158,32 +132,32 @@ function SSC21CountryCard({
         opacity: card.opacity,
       }}
     >
-      {/* Flat country-name rectangle. Starts beneath the fan. */}
+      {/* MAIN COUNTRY BAR */}
       <div
         aria-hidden
         style={{
           position: "absolute",
           inset: 0,
-          left: "40.5%",
+          left: "39.8%",
           background:
-            "linear-gradient(90deg, #15251d 0%, #101d17 52%, #0d1712 100%)",
+            "linear-gradient(90deg, #16261f 0%, #101c17 55%, #0c1511 100%)",
           zIndex: 1,
         }}
       />
 
-      {/* Far-left score rectangle. Absolutely no border radius. */}
+      {/* SCORE BOX — SHORTER NOW */}
       <div
         style={{
           position: "absolute",
           left: 0,
           top: 0,
           bottom: 0,
-          width: "25.2%",
+          width: "19.8%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#15082d",
-          zIndex: 10,
+          background: "#13072b",
+          zIndex: 2,
           overflow: "hidden",
         }}
       >
@@ -198,53 +172,19 @@ function SSC21CountryCard({
             whiteSpace: "nowrap",
           }}
         >
-          {row.score ?? scoreZone?.emptyText ?? "–"}
+          {row.score ?? "–"}
         </span>
       </div>
 
-      {/* ------------------------------ left diagonal fan ------------------ */}
-
-      <SSC21Band
-        left="23.0%"
-        width="7.4%"
-        color="#171447"
-        z={2}
-        slant={32}
-      />
-      <SSC21Band
-        left="26.4%"
-        width="7.5%"
-        color="#12316a"
-        z={3}
-        slant={32}
-      />
-      <SSC21Band
-        left="29.9%"
-        width="7.5%"
-        color="#086068"
-        z={4}
-        slant={32}
-      />
-
-      {/* A darker seam immediately before the flag, visible in the reference. */}
-      <SSC21Band
-        left="33.4%"
-        width="5.4%"
-        color="#073d4a"
-        z={5}
-        slant={31}
-      />
-
-      {/* ------------------------------ rectangular flag ------------------ */}
-
+      {/* FLAG — NOW UNDER THE DIAGONAL LAYERS */}
       <div
         style={{
           position: "absolute",
-          left: "35.7%",
+          left: "31.2%",
           top: 0,
           bottom: 0,
-          width: "12.3%",
-          zIndex: 8,
+          width: "13.8%",
+          zIndex: 3,
           overflow: "hidden",
           background: row.accent,
         }}
@@ -279,59 +219,31 @@ function SSC21CountryCard({
         )}
       </div>
 
-      {/* ------------------------------ right diagonal fan ----------------- */}
+      {/* LEFT DIAGONAL FAN — OVERLAPS TOWARD FLAG */}
+      <SSC21Band left="18.0%" width="7.6%" color="#191346" z={6} slant={30} />
+      <SSC21Band left="21.2%" width="7.7%" color="#16347a" z={7} slant={30} />
+      <SSC21Band left="24.5%" width="7.7%" color="#0a6b75" z={8} slant={30} />
+      <SSC21Band left="27.8%" width="7.0%" color="#0a4b56" z={9} slant={30} />
 
-      <SSC21Band
-        left="45.0%"
-        width="7.1%"
-        color="#07524e"
-        z={7}
-        slant={31}
-      />
-      <SSC21Band
-        left="48.2%"
-        width="7.2%"
-        color="#0c473f"
-        z={6}
-        slant={31}
-      />
-      <SSC21Band
-        left="51.5%"
-        width="7.4%"
-        color="#163b32"
-        z={5}
-        slant={31}
-      />
-      <SSC21Band
-        left="54.9%"
-        width="6.6%"
-        color="#172e27"
-        z={4}
-        slant={31}
-      />
+      {/* RIGHT DIAGONAL FAN — ALSO OVER THE FLAG */}
+      <SSC21Band left="40.2%" width="6.9%" color="#0c685f" z={9} slant={30} />
+      <SSC21Band left="43.2%" width="7.1%" color="#12554c" z={8} slant={30} />
+      <SSC21Band left="46.4%" width="7.2%" color="#18483b" z={7} slant={30} />
+      <SSC21Band left="49.7%" width="7.0%" color="#17372f" z={6} slant={30} />
+      <SSC21Band left="52.8%" width="6.2%" color="#142922" z={5} slant={30} />
 
-      {/* Very subtle final dark transition into the country bar. */}
-      <SSC21Band
-        left="58.0%"
-        width="5.3%"
-        color="#14251f"
-        z={3}
-        slant={30}
-      />
-
-      {/* Country name. The text begins well after the fan, not immediately
-          after the flag. That spacing is very visible in the original. */}
+      {/* COUNTRY NAME */}
       <div
         style={{
           position: "absolute",
-          left: "52.8%",
+          left: "52.4%",
           right: 0,
           top: 0,
           bottom: 0,
           zIndex: 12,
           display: "flex",
           alignItems: "center",
-          paddingLeft: 16 * scale,
+          paddingLeft: 12 * scale,
           paddingRight: 10 * scale,
           pointerEvents: "none",
         }}
@@ -351,8 +263,7 @@ function SSC21CountryCard({
         </span>
       </div>
 
-      {/* The historic row has a tiny dark baseline/shadow separation, but no
-          rounded corners and no surrounding card background. */}
+      {/* THIN BASELINE */}
       <div
         aria-hidden
         style={{
@@ -360,8 +271,8 @@ function SSC21CountryCard({
           left: 0,
           right: 0,
           bottom: -1 * scale,
-          height: Math.max(1, 1.2 * scale),
-          background: "rgba(0,0,0,.32)",
+          height: Math.max(1, 1.1 * scale),
+          background: "rgba(0,0,0,.28)",
           zIndex: 20,
           pointerEvents: "none",
         }}
@@ -415,9 +326,6 @@ function SSC21Band({
         width,
         zIndex: z,
         background: color,
-
-        // Straight top/bottom edges. Only the LEFT/RIGHT EDGES are diagonal.
-        // No radius, no rounded clipping, no flex gaps.
         clipPath: `polygon(${slant}% 0, 100% 0, ${100 - slant}% 100%, 0 100%)`,
         pointerEvents: "none",
       }}
@@ -426,7 +334,7 @@ function SSC21Band({
 }
 
 /* ========================================================================== */
-/* UNIVERSAL ZONE CARD                                                        */
+/* UNIVERSAL CARD                                                             */
 /* ========================================================================== */
 
 function UniversalCountryCard({
@@ -451,26 +359,16 @@ function UniversalCountryCard({
 
   const override =
     states.reduce<
-      Partial<
-        NonNullable<CardTemplateConfig["stateOverrides"]["leader"]>
-      >
+      Partial<NonNullable<CardTemplateConfig["stateOverrides"]["leader"]>>
     >(
       (acc, state) =>
-        Object.keys(acc).length
-          ? acc
-          : (card.stateOverrides?.[state] ?? {}),
+        Object.keys(acc).length ? acc : (card.stateOverrides?.[state] ?? {}),
       {},
     );
 
-  const background = surfaceBackground(
-    override.background ?? card.background,
-    ctx,
-  );
+  const background = surfaceBackground(override.background ?? card.background, ctx);
 
-  const cardBorder = borderCss(
-    override.border ?? card.border,
-    ctx,
-  );
+  const cardBorder = borderCss(override.border ?? card.border, ctx);
 
   const shadows = [
     shadowCss(override.shadow ?? card.shadow, ctx),
@@ -482,8 +380,7 @@ function UniversalCountryCard({
   const style: CSSProperties = {
     position: "relative",
     display: card.layoutMode === "grid" ? "grid" : "flex",
-    gridTemplateColumns:
-      card.layoutMode === "grid" ? card.gridTemplate : undefined,
+    gridTemplateColumns: card.layoutMode === "grid" ? card.gridTemplate : undefined,
     alignItems: "center",
     gap: card.layoutMode === "absolute" ? 0 : card.gap * scale,
     height: card.height * scale,
@@ -500,27 +397,17 @@ function UniversalCountryCard({
     boxShadow: shadows || undefined,
     opacity: override.opacity ?? card.opacity,
     overflow: card.overflow,
-    color: resolveColor(
-      override.textColor ?? "theme:text",
-      ctx,
-    ),
-    backdropFilter: card.background.blur
-      ? `blur(${card.background.blur}px)`
-      : undefined,
+    color: resolveColor(override.textColor ?? "theme:text", ctx),
+    backdropFilter: card.background.blur ? `blur(${card.background.blur}px)` : undefined,
   };
 
-  const zones = sortedZones(card.zones).filter(
-    (zone) => zone.visible,
-  );
+  const zones = sortedZones(card.zones).filter((zone) => zone.visible);
 
   const cardDecorations = (card.decorations ?? []).filter(
-    (decoration) =>
-      decoration.visible && decoration.target === "card",
+    (decoration) => decoration.visible && decoration.target === "card",
   );
 
-  const Wrapper = animate
-    ? motion.li
-    : ("li" as unknown as typeof motion.li);
+  const Wrapper = animate ? motion.li : ("li" as unknown as typeof motion.li);
 
   return (
     <Wrapper
@@ -547,9 +434,7 @@ function UniversalCountryCard({
           theme={theme}
           scale={scale}
           decorations={(card.decorations ?? []).filter(
-            (decoration) =>
-              decoration.visible &&
-              decoration.target === zone.id,
+            (decoration) => decoration.visible && decoration.target === zone.id,
           )}
         />
       ))}
@@ -575,8 +460,6 @@ function UniversalCountryCard({
   );
 }
 
-/* ------------------------------------------------------------------ zone -- */
-
 function Zone({
   zone,
   card,
@@ -595,51 +478,27 @@ function Zone({
   const ctx = { theme, accent: row.accent };
 
   const style: CSSProperties = {
-    position:
-      card.layoutMode === "absolute" && zone.absolute
-        ? "absolute"
-        : "relative",
-    left:
-      card.layoutMode === "absolute" && zone.absolute
-        ? zone.absolute.x * scale
-        : undefined,
-    top:
-      card.layoutMode === "absolute" && zone.absolute
-        ? zone.absolute.y * scale
-        : undefined,
+    position: card.layoutMode === "absolute" && zone.absolute ? "absolute" : "relative",
+    left: card.layoutMode === "absolute" && zone.absolute ? zone.absolute.x * scale : undefined,
+    top: card.layoutMode === "absolute" && zone.absolute ? zone.absolute.y * scale : undefined,
     display: "flex",
     alignItems:
-      zone.valign === "top"
-        ? "flex-start"
-        : zone.valign === "bottom"
-          ? "flex-end"
-          : "center",
+      zone.valign === "top" ? "flex-start" : zone.valign === "bottom" ? "flex-end" : "center",
     justifyContent:
-      zone.align === "left"
-        ? "flex-start"
-        : zone.align === "right"
-          ? "flex-end"
-          : "center",
+      zone.align === "left" ? "flex-start" : zone.align === "right" ? "flex-end" : "center",
     width: zone.width ? zone.width * scale : undefined,
-    minWidth: zone.minWidth
-      ? zone.minWidth * scale
-      : undefined,
-    maxWidth: zone.maxWidth
-      ? zone.maxWidth * scale
-      : undefined,
+    minWidth: zone.minWidth ? zone.minWidth * scale : undefined,
+    maxWidth: zone.maxWidth ? zone.maxWidth * scale : undefined,
     height: zone.height ? zone.height * scale : "100%",
     flexGrow: zone.grow,
     flexShrink: zone.grow ? 1 : 0,
-    flexBasis:
-      zone.grow && !zone.width ? 0 : undefined,
+    flexBasis: zone.grow && !zone.width ? 0 : undefined,
     paddingLeft: zone.paddingX * scale,
     paddingRight: zone.paddingX * scale,
     paddingTop: zone.paddingY * scale,
     paddingBottom: zone.paddingY * scale,
-    marginLeft:
-      (zone.marginX + zone.overlapLeft) * scale,
-    marginRight:
-      (zone.marginX + zone.overlapRight) * scale,
+    marginLeft: (zone.marginX + zone.overlapLeft) * scale,
+    marginRight: (zone.marginX + zone.overlapRight) * scale,
     zIndex: zone.z,
     background: surfaceBackground(zone.surface, ctx),
     border: borderCss(zone.border, ctx),
@@ -659,12 +518,7 @@ function Zone({
         />
       ))}
 
-      <ZoneContent
-        zone={zone}
-        row={row}
-        theme={theme}
-        scale={scale}
-      />
+      <ZoneContent zone={zone} row={row} theme={theme} scale={scale} />
     </div>
   );
 }
@@ -693,11 +547,7 @@ function ZoneContent({
   };
 
   const pad = (value: number | null) =>
-    value == null
-      ? (zone.emptyText ?? "")
-      : zone.leadingZero && value < 10
-        ? `0${value}`
-        : `${value}`;
+    value == null ? (zone.emptyText ?? "") : zone.leadingZero && value < 10 ? `0${value}` : `${value}`;
 
   switch (zone.type) {
     case "rank":
@@ -739,31 +589,17 @@ function ZoneContent({
       );
 
     case "movement":
-      return (
-        <Movement
-          value={row.movement}
-          style={base}
-          theme={theme}
-        />
-      );
+      return <Movement value={row.movement} style={base} theme={theme} />;
 
     case "qualification":
       return (
         <span style={base}>
-          {row.qualified
-            ? "Q"
-            : row.eliminated
-              ? "✕"
-              : (zone.emptyText ?? "")}
+          {row.qualified ? "Q" : row.eliminated ? "✕" : (zone.emptyText ?? "")}
         </span>
       );
 
     case "custom-text":
-      return (
-        <span style={base}>
-          {zone.text || row.subtitle || ""}
-        </span>
-      );
+      return <span style={base}>{zone.text || row.subtitle || ""}</span>;
 
     case "flag":
       return row.flagImage ? (
@@ -775,8 +611,7 @@ function ZoneContent({
             width: "100%",
             height: "100%",
             objectFit: zone.fit ?? "cover",
-            objectPosition:
-              zone.objectPosition ?? "center",
+            objectPosition: zone.objectPosition ?? "center",
           }}
         />
       ) : (
@@ -823,9 +658,7 @@ function Movement({
   theme: ThemeConfig;
 }) {
   if (value == null || value === 0) {
-    return (
-      <span style={{ ...style, opacity: 0.45 }}>–</span>
-    );
+    return <span style={{ ...style, opacity: 0.45 }}>–</span>;
   }
 
   const up = value > 0;
@@ -835,9 +668,7 @@ function Movement({
       className="numeric"
       style={{
         ...style,
-        color: up
-          ? theme.states.qualified
-          : theme.colors.secondary,
+        color: up ? theme.states.qualified : theme.colors.secondary,
       }}
     >
       {up ? "▲" : "▼"}
@@ -845,8 +676,6 @@ function Movement({
     </span>
   );
 }
-
-/* ------------------------------------------------------------ decoration -- */
 
 function Decoration({
   decoration: d,
@@ -869,13 +698,8 @@ function Decoration({
   switch (d.kind) {
     case "gradient":
     case "sweep":
-      background = `linear-gradient(${d.angle}deg, ${withAlpha(
-        c1,
-        d.opacity,
-      )}, ${
-        d.color2 === "transparent"
-          ? "transparent"
-          : withAlpha(c2, 0)
+      background = `linear-gradient(${d.angle}deg, ${withAlpha(c1, d.opacity)}, ${
+        d.color2 === "transparent" ? "transparent" : withAlpha(c2, 0)
       })`;
       break;
 
@@ -884,16 +708,11 @@ function Decoration({
       break;
 
     case "theme-tint":
-      background = withAlpha(
-        theme.colors.primary,
-        d.opacity,
-      );
+      background = withAlpha(theme.colors.primary, d.opacity);
       break;
 
     case "image":
-      background = d.imageUrl
-        ? `center/cover no-repeat url(${d.imageUrl})`
-        : undefined;
+      background = d.imageUrl ? `center/cover no-repeat url(${d.imageUrl})` : undefined;
       break;
 
     case "pattern":
@@ -904,31 +723,19 @@ function Decoration({
       break;
 
     case "blur":
-      backdropFilter = `blur(${Math.max(
-        1,
-        d.radius,
-      )}px)`;
+      backdropFilter = `blur(${Math.max(1, d.radius)}px)`;
       break;
 
     case "glow":
-      boxShadow = `0 0 ${Math.max(
-        8,
-        d.radius,
-      )}px ${withAlpha(c1, d.opacity)}`;
+      boxShadow = `0 0 ${Math.max(8, d.radius)}px ${withAlpha(c1, d.opacity)}`;
       break;
 
     case "shadow":
-      boxShadow = `inset 0 0 ${Math.max(
-        8,
-        d.radius,
-      )}px ${withAlpha(c1, d.opacity)}`;
+      boxShadow = `inset 0 0 ${Math.max(8, d.radius)}px ${withAlpha(c1, d.opacity)}`;
       break;
 
     case "highlight-edge":
-      boxShadow = `inset 0 1px 0 ${withAlpha(
-        c1,
-        d.opacity,
-      )}`;
+      boxShadow = `inset 0 1px 0 ${withAlpha(c1, d.opacity)}`;
       break;
 
     case "solid":
@@ -951,8 +758,7 @@ function Decoration({
         height: `${d.height}${unit}`,
         borderRadius: d.radius,
         clipPath: clipPathFor(d.shape),
-        mixBlendMode:
-          d.blend as CSSProperties["mixBlendMode"],
+        mixBlendMode: d.blend as CSSProperties["mixBlendMode"],
         pointerEvents: "none",
         zIndex: d.z,
         background,
