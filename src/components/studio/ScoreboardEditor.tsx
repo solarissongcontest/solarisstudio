@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   PRESET_DESCRIPTIONS,
@@ -13,10 +13,39 @@ import {
 } from "@/lib/scoreboard";
 
 import type { ThemeConfig } from "@/lib/theme";
+
 import { ScoreboardBoard } from "@/components/broadcast/ScoreboardBoard";
 import { ScoreboardZoneEditor } from "@/components/studio/ScoreboardZoneEditor";
-import { Field, Select, Slider, TextInput, Toggle } from "@/components/studio/Controls";
+import {
+  Field,
+  Select,
+  Slider,
+  TextInput,
+  Toggle,
+} from "@/components/studio/Controls";
+
 import { cn } from "@/lib/utils";
+
+type EditorTab =
+  | "style"
+  | "layout"
+  | "card"
+  | "layers"
+  | "background"
+  | "panel";
+
+const EDITOR_TABS: Array<{
+  id: EditorTab;
+  label: string;
+  short: string;
+}> = [
+  { id: "style", label: "Style", short: "Style" },
+  { id: "layout", label: "Layout", short: "Layout" },
+  { id: "card", label: "Card", short: "Card" },
+  { id: "layers", label: "Layers", short: "Layers" },
+  { id: "background", label: "Background", short: "BG" },
+  { id: "panel", label: "Jury panel", short: "Panel" },
+];
 
 type ScoreboardEditorProps = {
   config: ScoreboardConfig;
@@ -35,6 +64,9 @@ export function ScoreboardEditor({
   showName,
   onReset,
 }: ScoreboardEditorProps) {
+  const [tab, setTab] = useState<EditorTab>("style");
+  const [previewExpanded, setPreviewExpanded] = useState(false);
+
   const set = (patch: Partial<ScoreboardConfig>) =>
     onChange({ ...config, ...patch });
 
@@ -53,584 +85,840 @@ export function ScoreboardEditor({
   const setPanel = (patch: Partial<ScoreboardConfig["panel"]>) =>
     set({ panel: { ...config.panel, ...patch } });
 
-  const previewScale = useMemo(() => {
-    const width = config.canvas.width || 1920;
-    return Math.min(0.46, 820 / width);
-  }, [config.canvas.width]);
-
   const applyPreset = (presetId: PresetId) => {
     const preset = buildPreset(presetId);
+
+    // Production controls and music belong to the show, not to a visual preset.
     preset.music = config.music;
     preset.controls = config.controls;
+
     onChange(preset);
   };
 
   return (
-    <div className="space-y-7">
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Scoreboard style</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Choose a starting design. You can customise it below.
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* ------------------------------------------------------------------ */}
+      {/* ONE preview only                                                   */}
+      {/* ------------------------------------------------------------------ */}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {PRESET_IDS.map((presetId) => {
-            const selected = config.card.preset === presetId;
+      <div className="lg:sticky lg:top-3 lg:z-30">
+        <section className="overflow-hidden rounded-2xl border border-border bg-background/95 shadow-sm backdrop-blur">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 sm:px-4">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">Broadcast preview</p>
+              <p className="truncate text-[11px] text-muted-foreground">
+                {config.name || PRESET_LABELS[config.card.preset as PresetId] || "Custom scoreboard"}
+              </p>
+            </div>
 
-            return (
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="hidden rounded-lg bg-surface px-2 py-1 text-[10px] text-muted-foreground sm:inline">
+                {config.canvas.width}×{config.canvas.height}
+              </span>
+
               <button
-                key={presetId}
                 type="button"
-                onClick={() => applyPreset(presetId)}
-                className={cn(
-                  "group overflow-hidden rounded-2xl border text-left transition",
-                  selected
-                    ? "border-primary bg-primary/10 ring-1 ring-primary/30"
-                    : "border-border bg-surface hover:border-primary/40 hover:bg-surface/70",
-                )}
+                onClick={() => setPreviewExpanded((value) => !value)}
+                className="rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium"
               >
-                <PresetThumbnail presetId={presetId} theme={theme} />
-
-                <div className="p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold">{PRESET_LABELS[presetId]}</p>
-
-                    {selected && (
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
-                        Active
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="mt-1 line-clamp-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {PRESET_DESCRIPTIONS[presetId]}
-                  </p>
-                </div>
+                {previewExpanded ? "Compact" : "Larger"}
               </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h3 className="text-sm font-semibold">Live preview</h3>
-            <p className="text-xs text-muted-foreground">
-              This uses the same scoreboard renderer as the actual broadcast.
-            </p>
-          </div>
-
-          <span className="rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground">
-            {config.canvas.width}×{config.canvas.height}
-          </span>
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-border bg-black">
-          <div
-            className="origin-top-left"
-            style={{
-              width: config.canvas.width * previewScale,
-              height: config.canvas.height * previewScale,
-            }}
-          >
-            <div
-              style={{
-                width: config.canvas.width,
-                height: config.canvas.height,
-                transform: `scale(${previewScale})`,
-                transformOrigin: "top left",
-              }}
-            >
-              <ScoreboardBoard
-                config={config}
-                theme={theme}
-                rows={rows}
-                title="JURY RESULTS"
-                subtitle={showName}
-                progress={0.56}
-                animate={false}
-                panelContent={<PreviewVoter />}
-              />
             </div>
           </div>
+
+          <ResponsivePreview
+            config={config}
+            theme={theme}
+            rows={rows}
+            showName={showName}
+            expanded={previewExpanded}
+          />
+        </section>
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Editor navigation                                                  */}
+      {/* ------------------------------------------------------------------ */}
+
+      <div className="scroll-slim overflow-x-auto rounded-2xl border border-border bg-surface/30 p-1">
+        <div className="flex min-w-max gap-1">
+          {EDITOR_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              className={cn(
+                "min-h-10 rounded-xl px-3 text-sm font-medium transition sm:px-4",
+                tab === item.id
+                  ? "bg-surface-strong text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span className="sm:hidden">{item.short}</span>
+              <span className="hidden sm:inline">{item.label}</span>
+            </button>
+          ))}
         </div>
-      </section>
+      </div>
 
-      <EditorSection
-        title="Board layout"
-        description="Overall scoreboard position and column structure."
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Columns">
-            <Select
-              value={String(config.layout.columns)}
-              onChange={(e) =>
-                setLayout({
-                  columns: Number(e.target.value) as 1 | 2 | 3 | 4,
-                })
-              }
-            >
-              <option value="1">1 column</option>
-              <option value="2">2 columns</option>
-              <option value="3">3 columns</option>
-              <option value="4">4 columns</option>
-            </Select>
-          </Field>
+      {/* ------------------------------------------------------------------ */}
+      {/* Style / presets                                                    */}
+      {/* ------------------------------------------------------------------ */}
 
-          <Field label="Distribution">
-            <Select
-              value={config.layout.distribution}
-              onChange={(e) =>
-                setLayout({
-                  distribution: e.target.value as ScoreboardConfig["layout"]["distribution"],
-                })
-              }
-            >
-              <option value="sequential">Sequential</option>
-              <option value="balanced">Balanced</option>
-              <option value="manual">Manual</option>
-            </Select>
-          </Field>
+      {tab === "style" && (
+        <EditorCard
+          title="Scoreboard style"
+          description="Start from a preset, then customise only what you need."
+        >
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {PRESET_IDS.map((presetId) => {
+              const selected = config.card.preset === presetId;
 
-          <Field label="Horizontal alignment">
-            <Select
-              value={config.layout.alignment}
-              onChange={(e) =>
-                setLayout({
-                  alignment: e.target.value as ScoreboardConfig["layout"]["alignment"],
-                })
-              }
-            >
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </Select>
-          </Field>
+              return (
+                <button
+                  key={presetId}
+                  type="button"
+                  onClick={() => applyPreset(presetId)}
+                  className={cn(
+                    "overflow-hidden rounded-xl border text-left transition",
+                    selected
+                      ? "border-primary/60 bg-primary/10 ring-1 ring-primary/20"
+                      : "border-border bg-surface hover:border-primary/30",
+                  )}
+                >
+                  <PresetSwatch presetId={presetId} theme={theme} />
 
-          <Field label="Vertical alignment">
-            <Select
-              value={config.layout.verticalAlignment}
-              onChange={(e) =>
-                setLayout({
-                  verticalAlignment:
-                    e.target.value as ScoreboardConfig["layout"]["verticalAlignment"],
-                })
-              }
-            >
-              <option value="top">Top</option>
-              <option value="center">Center</option>
-              <option value="bottom">Bottom</option>
-            </Select>
-          </Field>
-        </div>
+                  <div className="p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-semibold">
+                        {PRESET_LABELS[presetId]}
+                      </p>
 
-        <Field label="Board width">
-          <Slider
-            min={500}
-            max={1700}
-            step={10}
-            value={config.layout.boardWidth}
-            onChange={(value) => setLayout({ boardWidth: value })}
-            suffix="px"
-          />
-        </Field>
+                      {selected && (
+                        <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold uppercase text-primary">
+                          Active
+                        </span>
+                      )}
+                    </div>
 
-        <Field label="Row gap">
-          <Slider
-            min={0}
-            max={30}
-            step={1}
-            value={config.layout.rowGap}
-            onChange={(value) => setLayout({ rowGap: value })}
-            suffix="px"
-          />
-        </Field>
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+                      {PRESET_DESCRIPTIONS[presetId]}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
 
-        <Field label="Column gap">
-          <Slider
-            min={0}
-            max={80}
-            step={1}
-            value={config.layout.columnGap}
-            onChange={(value) => setLayout({ columnGap: value })}
-            suffix="px"
-          />
-        </Field>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Horizontal offset">
-            <Slider
-              min={-400}
-              max={400}
-              step={5}
-              value={config.layout.positionX}
-              onChange={(value) => setLayout({ positionX: value })}
-              suffix="px"
+          <div className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
+            <Toggle
+              label="Show header"
+              checked={config.header.visible}
+              onChange={(visible) => setHeader({ visible })}
             />
-          </Field>
 
-          <Field label="Vertical offset">
-            <Slider
-              min={-300}
-              max={300}
-              step={5}
-              value={config.layout.positionY}
-              onChange={(value) => setLayout({ positionY: value })}
-              suffix="px"
-            />
-          </Field>
-        </div>
-      </EditorSection>
-
-      <EditorSection
-        title="Country cards"
-        description="Size and basic geometry of each scoreboard row."
-      >
-        <Field label="Card height">
-          <Slider
-            min={28}
-            max={100}
-            step={1}
-            value={config.card.height}
-            onChange={(value) => setCard({ height: value })}
-            suffix="px"
-          />
-        </Field>
-
-        <Field label="Corner radius">
-          <Slider
-            min={0}
-            max={60}
-            step={1}
-            value={Math.min(60, config.card.radius)}
-            onChange={(value) => setCard({ radius: value })}
-            suffix="px"
-          />
-        </Field>
-
-        <Field label="Internal gap">
-          <Slider
-            min={0}
-            max={30}
-            step={1}
-            value={config.card.gap}
-            onChange={(value) => setCard({ gap: value })}
-            suffix="px"
-          />
-        </Field>
-
-        <Field label="Horizontal padding">
-          <Slider
-            min={0}
-            max={40}
-            step={1}
-            value={config.card.paddingX}
-            onChange={(value) => setCard({ paddingX: value })}
-            suffix="px"
-          />
-        </Field>
-
-        <Field label="Card opacity">
-          <Slider
-            min={0}
-            max={1}
-            step={0.05}
-            value={config.card.opacity}
-            onChange={(value) => setCard({ opacity: value })}
-          />
-        </Field>
-
-        <Toggle
-          label="Clip card contents"
-          checked={config.card.overflow === "hidden"}
-          onChange={(value) =>
-            setCard({
-              overflow: value ? "hidden" : "visible",
-            })
-          }
-        />
-      </EditorSection>
-
-      <EditorSection
-        title="Card zones"
-        description="Build the anatomy of each country card: order, flags, names, scores, angled bands, overlaps and typography."
-      >
-        <ScoreboardZoneEditor
-          zones={config.card.zones}
-          layoutMode={config.card.layoutMode}
-          onChange={(zones) => setCard({ zones })}
-        />
-      </EditorSection>
-
-      <EditorSection title="Header" description="Titles shown above the scoreboard.">
-        <Toggle
-          label="Show header"
-          checked={config.header.visible}
-          onChange={(value) => setHeader({ visible: value })}
-        />
-
-        <Field label="Upper title">
-          <TextInput
-            value={config.header.upper.text}
-            onChange={(e) =>
-              setHeader({
-                upper: {
-                  ...config.header.upper,
-                  text: e.target.value,
-                },
-              })
-            }
-          />
-        </Field>
-
-        <Field label="Main title">
-          <TextInput
-            value={config.header.main.text}
-            placeholder="Leave blank for automatic scene title"
-            onChange={(e) =>
-              setHeader({
-                main: {
-                  ...config.header.main,
-                  text: e.target.value,
-                },
-              })
-            }
-          />
-        </Field>
-
-        <Field label="Spacing below header">
-          <Slider
-            min={0}
-            max={100}
-            step={1}
-            value={config.header.marginBottom}
-            onChange={(value) => setHeader({ marginBottom: value })}
-            suffix="px"
-          />
-        </Field>
-      </EditorSection>
-
-      <EditorSection
-        title="Background"
-        description="Use the show theme or a dedicated broadcast background."
-      >
-        <Field label="Background source">
-          <Select
-            value={config.background.type}
-            onChange={(e) =>
-              setBackground({
-                type: e.target.value as ScoreboardConfig["background"]["type"],
-              })
-            }
-          >
-            <option value="theme">Show theme</option>
-            <option value="gradient">Gradient</option>
-            <option value="color">Solid colour</option>
-            <option value="image">Image</option>
-            <option value="transparent">Transparent</option>
-          </Select>
-        </Field>
-
-        {config.background.type === "color" && (
-          <Field label="Colour">
-            <TextInput
-              value={config.background.color}
-              onChange={(e) => setBackground({ color: e.target.value })}
-            />
-          </Field>
-        )}
-
-        {config.background.type === "gradient" && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Gradient start">
+            <Field label="Main title">
               <TextInput
-                value={config.background.gradientFrom}
-                onChange={(e) => setBackground({ gradientFrom: e.target.value })}
+                value={config.header.main.text}
+                placeholder="Automatic scene title"
+                onChange={(e) =>
+                  setHeader({
+                    main: {
+                      ...config.header.main,
+                      text: e.target.value,
+                    },
+                  })
+                }
               />
             </Field>
 
-            <Field label="Gradient end">
+            <Field label="Upper title">
               <TextInput
-                value={config.background.gradientTo}
-                onChange={(e) => setBackground({ gradientTo: e.target.value })}
+                value={config.header.upper.text}
+                onChange={(e) =>
+                  setHeader({
+                    upper: {
+                      ...config.header.upper,
+                      text: e.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+
+            <Field label="Header spacing">
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={config.header.marginBottom}
+                onChange={(marginBottom) => setHeader({ marginBottom })}
+                suffix="px"
               />
             </Field>
           </div>
-        )}
 
-        {config.background.type === "image" && (
-          <Field label="Image URL">
-            <TextInput
-              value={config.background.imageUrl ?? ""}
-              placeholder="https://..."
-              onChange={(e) => setBackground({ imageUrl: e.target.value || null })}
-            />
-          </Field>
-        )}
+          {onReset && (
+            <div className="border-t border-border pt-4">
+              <button
+                type="button"
+                onClick={onReset}
+                className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+              >
+                Reset to automatic theme design
+              </button>
+            </div>
+          )}
+        </EditorCard>
+      )}
 
-        <Field label="Dark overlay">
-          <Slider
-            min={0}
-            max={1}
-            step={0.05}
-            value={config.background.overlay}
-            onChange={(value) => setBackground({ overlay: value })}
-          />
-        </Field>
+      {/* ------------------------------------------------------------------ */}
+      {/* Layout                                                             */}
+      {/* ------------------------------------------------------------------ */}
 
-        <Field label="Vignette">
-          <Slider
-            min={0}
-            max={1}
-            step={0.05}
-            value={config.background.vignette}
-            onChange={(value) => setBackground({ vignette: value })}
-          />
-        </Field>
-      </EditorSection>
+      {tab === "layout" && (
+        <EditorCard
+          title="Board layout"
+          description="Position and organise the scoreboard without touching the card design."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Columns">
+              <Select
+                value={String(config.layout.columns)}
+                onChange={(e) =>
+                  setLayout({
+                    columns: Number(e.target.value) as 1 | 2 | 3 | 4,
+                  })
+                }
+              >
+                <option value="1">1 column</option>
+                <option value="2">2 columns</option>
+                <option value="3">3 columns</option>
+                <option value="4">4 columns</option>
+              </Select>
+            </Field>
 
-      <EditorSection
-        title="Current jury panel"
-        description="Optional panel showing the voting country, person or organisation."
-      >
-        <Toggle
-          label="Show current voter panel"
-          checked={config.panel.visible}
-          onChange={(value) => setPanel({ visible: value })}
-        />
+            <Field label="Distribution">
+              <Select
+                value={config.layout.distribution}
+                onChange={(e) =>
+                  setLayout({
+                    distribution:
+                      e.target.value as ScoreboardConfig["layout"]["distribution"],
+                  })
+                }
+              >
+                <option value="sequential">Sequential</option>
+                <option value="balanced">Balanced</option>
+                <option value="manual">Manual</option>
+              </Select>
+            </Field>
 
-        <Field label="Panel side">
-          <Select
-            value={config.panel.side}
-            onChange={(e) =>
-              setPanel({
-                side: e.target.value as ScoreboardConfig["panel"]["side"],
+            <Field label="Horizontal alignment">
+              <Select
+                value={config.layout.alignment}
+                onChange={(e) =>
+                  setLayout({
+                    alignment:
+                      e.target.value as ScoreboardConfig["layout"]["alignment"],
+                  })
+                }
+              >
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </Select>
+            </Field>
+
+            <Field label="Vertical alignment">
+              <Select
+                value={config.layout.verticalAlignment}
+                onChange={(e) =>
+                  setLayout({
+                    verticalAlignment:
+                      e.target.value as ScoreboardConfig["layout"]["verticalAlignment"],
+                  })
+                }
+              >
+                <option value="top">Top</option>
+                <option value="center">Center</option>
+                <option value="bottom">Bottom</option>
+              </Select>
+            </Field>
+          </div>
+
+          <ControlGrid>
+            <Field label="Board width">
+              <Slider
+                min={500}
+                max={1700}
+                step={10}
+                value={config.layout.boardWidth}
+                onChange={(boardWidth) => setLayout({ boardWidth })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Row gap">
+              <Slider
+                min={0}
+                max={30}
+                value={config.layout.rowGap}
+                onChange={(rowGap) => setLayout({ rowGap })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Column gap">
+              <Slider
+                min={0}
+                max={80}
+                value={config.layout.columnGap}
+                onChange={(columnGap) => setLayout({ columnGap })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Horizontal offset">
+              <Slider
+                min={-400}
+                max={400}
+                step={5}
+                value={config.layout.positionX}
+                onChange={(positionX) => setLayout({ positionX })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Vertical offset">
+              <Slider
+                min={-300}
+                max={300}
+                step={5}
+                value={config.layout.positionY}
+                onChange={(positionY) => setLayout({ positionY })}
+                suffix="px"
+              />
+            </Field>
+          </ControlGrid>
+        </EditorCard>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Card                                                               */}
+      {/* ------------------------------------------------------------------ */}
+
+      {tab === "card" && (
+        <EditorCard
+          title="Country card"
+          description="Change the overall row. Individual pieces such as flag and score are under Layers."
+        >
+          <ControlGrid>
+            <Field label="Card height">
+              <Slider
+                min={28}
+                max={100}
+                value={config.card.height}
+                onChange={(height) => setCard({ height })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Corner radius">
+              <Slider
+                min={0}
+                max={60}
+                value={Math.min(config.card.radius, 60)}
+                onChange={(radius) => setCard({ radius })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Internal gap">
+              <Slider
+                min={0}
+                max={30}
+                value={config.card.gap}
+                onChange={(gap) => setCard({ gap })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Horizontal padding">
+              <Slider
+                min={0}
+                max={40}
+                value={config.card.paddingX}
+                onChange={(paddingX) => setCard({ paddingX })}
+                suffix="px"
+              />
+            </Field>
+
+            <Field label="Opacity">
+              <Slider
+                min={0}
+                max={1}
+                step={0.05}
+                value={config.card.opacity}
+                onChange={(opacity) => setCard({ opacity })}
+              />
+            </Field>
+          </ControlGrid>
+
+          <Toggle
+            label="Clip card contents"
+            checked={config.card.overflow === "hidden"}
+            onChange={(value) =>
+              setCard({
+                overflow: value ? "hidden" : "visible",
               })
             }
-          >
-            <option value="left">Left</option>
-            <option value="right">Right</option>
-            <option value="top">Top</option>
-            <option value="bottom">Bottom</option>
-          </Select>
-        </Field>
-
-        <Field label="Panel size">
-          <Slider
-            min={180}
-            max={600}
-            step={10}
-            value={config.panel.size}
-            onChange={(value) => setPanel({ size: value })}
-            suffix="px"
           />
-        </Field>
-      </EditorSection>
+        </EditorCard>
+      )}
 
-      {onReset && (
-        <section className="rounded-2xl border border-border bg-surface/50 p-4">
-          <p className="text-sm font-medium">Reset broadcast scoreboard</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Returns this show to the automatic Theme-based live broadcast design.
-          </p>
+      {/* ------------------------------------------------------------------ */}
+      {/* Layers                                                             */}
+      {/* ------------------------------------------------------------------ */}
 
-          <button
-            type="button"
-            onClick={onReset}
-            className="mt-3 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-surface"
-          >
-            Reset scoreboard
-          </button>
-        </section>
+      {tab === "layers" && (
+        <EditorCard
+          title="Card layers"
+          description="Edit the flag, country name, score and decorative bands."
+          flush
+        >
+          <ScoreboardZoneEditor
+            zones={config.card.zones}
+            layoutMode={config.card.layoutMode}
+            onChange={(zones) => setCard({ zones })}
+          />
+        </EditorCard>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Background                                                         */}
+      {/* ------------------------------------------------------------------ */}
+
+      {tab === "background" && (
+        <EditorCard
+          title="Background"
+          description="Choose what sits behind the scoreboard."
+        >
+          <Field label="Background source">
+            <Select
+              value={config.background.type}
+              onChange={(e) =>
+                setBackground({
+                  type:
+                    e.target.value as ScoreboardConfig["background"]["type"],
+                })
+              }
+            >
+              <option value="theme">Show theme</option>
+              <option value="gradient">Gradient</option>
+              <option value="color">Solid colour</option>
+              <option value="image">Image</option>
+              <option value="transparent">Transparent</option>
+            </Select>
+          </Field>
+
+          {config.background.type === "color" && (
+            <Field label="Colour">
+              <TextInput
+                value={config.background.color}
+                onChange={(e) =>
+                  setBackground({
+                    color: e.target.value,
+                  })
+                }
+              />
+            </Field>
+          )}
+
+          {config.background.type === "gradient" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Gradient start">
+                <TextInput
+                  value={config.background.gradientFrom}
+                  onChange={(e) =>
+                    setBackground({
+                      gradientFrom: e.target.value,
+                    })
+                  }
+                />
+              </Field>
+
+              <Field label="Gradient end">
+                <TextInput
+                  value={config.background.gradientTo}
+                  onChange={(e) =>
+                    setBackground({
+                      gradientTo: e.target.value,
+                    })
+                  }
+                />
+              </Field>
+
+              <Field label="Gradient angle">
+                <Slider
+                  min={0}
+                  max={360}
+                  value={config.background.gradientAngle}
+                  onChange={(gradientAngle) =>
+                    setBackground({
+                      gradientAngle,
+                    })
+                  }
+                  suffix="°"
+                />
+              </Field>
+            </div>
+          )}
+
+          {config.background.type === "image" && (
+            <Field label="Image URL">
+              <TextInput
+                value={config.background.imageUrl ?? ""}
+                placeholder="https://..."
+                onChange={(e) =>
+                  setBackground({
+                    imageUrl: e.target.value || null,
+                  })
+                }
+              />
+            </Field>
+          )}
+
+          <ControlGrid>
+            <Field label="Dark overlay">
+              <Slider
+                min={0}
+                max={1}
+                step={0.05}
+                value={config.background.overlay}
+                onChange={(overlay) => setBackground({ overlay })}
+              />
+            </Field>
+
+            <Field label="Vignette">
+              <Slider
+                min={0}
+                max={1}
+                step={0.05}
+                value={config.background.vignette}
+                onChange={(vignette) => setBackground({ vignette })}
+              />
+            </Field>
+
+            <Field label="Blur">
+              <Slider
+                min={0}
+                max={30}
+                value={config.background.blur}
+                onChange={(blur) => setBackground({ blur })}
+                suffix="px"
+              />
+            </Field>
+          </ControlGrid>
+        </EditorCard>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Jury panel                                                         */}
+      {/* ------------------------------------------------------------------ */}
+
+      {tab === "panel" && (
+        <EditorCard
+          title="Current jury panel"
+          description="Optional area for the country, person or organisation currently voting."
+        >
+          <Toggle
+            label="Show current voter panel"
+            checked={config.panel.visible}
+            onChange={(visible) => setPanel({ visible })}
+          />
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Position">
+              <Select
+                value={config.panel.side}
+                onChange={(e) =>
+                  setPanel({
+                    side: e.target.value as ScoreboardConfig["panel"]["side"],
+                  })
+                }
+              >
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+                <option value="floating">Floating</option>
+              </Select>
+            </Field>
+
+            <Field label="Panel size">
+              <Slider
+                min={160}
+                max={600}
+                step={10}
+                value={config.panel.size}
+                onChange={(size) => setPanel({ size })}
+                suffix="px"
+              />
+            </Field>
+          </div>
+
+          <Field label="Panel label">
+            <TextInput
+              value={config.panel.label}
+              placeholder="Now voting"
+              onChange={(e) =>
+                setPanel({
+                  label: e.target.value,
+                })
+              }
+            />
+          </Field>
+
+          <Field label="Corner radius">
+            <Slider
+              min={0}
+              max={60}
+              value={config.panel.radius}
+              onChange={(radius) => setPanel({ radius })}
+              suffix="px"
+            />
+          </Field>
+        </EditorCard>
       )}
     </div>
   );
 }
 
-function EditorSection({
-  title,
-  description,
-  children,
+/* -------------------------------------------------------------------------- */
+/* Responsive preview                                                        */
+/* -------------------------------------------------------------------------- */
+
+function ResponsivePreview({
+  config,
+  theme,
+  rows,
+  showName,
+  expanded,
 }: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
+  config: ScoreboardConfig;
+  theme: ThemeConfig;
+  rows: BroadcastRowData[];
+  showName: string;
+  expanded: boolean;
 }) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const element = hostRef.current;
+    if (!element) return;
+
+    const update = () => setWidth(element.clientWidth);
+
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const sourceWidth = config.canvas.width || 1920;
+  const sourceHeight = config.canvas.height || 1080;
+  const scale = width > 0 ? width / sourceWidth : 0;
+  const naturalHeight = sourceHeight * scale;
+
+  // The editor preview is intentionally capped. The actual broadcast remains 1920×1080.
+  const maxHeight = expanded ? 520 : 300;
+  const mobileMaxHeight = expanded ? 360 : 210;
+
   return (
-    <section className="space-y-4 rounded-2xl border border-border bg-surface/30 p-4">
-      <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {description && (
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+    <div
+      ref={hostRef}
+      className="relative w-full overflow-hidden bg-black"
+      style={{
+        height:
+          width === 0
+            ? 180
+            : `min(${naturalHeight}px, ${maxHeight}px)`,
+        maxHeight: `min(${maxHeight}px, 48vh)`,
+      }}
+    >
+      <style>{`
+        @media (max-width: 640px) {
+          [data-scoreboard-preview-host="true"] {
+            max-height: ${mobileMaxHeight}px !important;
+          }
+        }
+      `}</style>
+
+      <div
+        data-scoreboard-preview-host="true"
+        className="absolute inset-0 overflow-hidden bg-black"
+      >
+        {scale > 0 && (
+          <div
+            className="absolute left-0 top-0"
+            style={{
+              width: sourceWidth,
+              height: sourceHeight,
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            <ScoreboardBoard
+              config={config}
+              theme={theme}
+              rows={rows}
+              title="JURY RESULTS"
+              subtitle={showName}
+              progress={0.56}
+              animate={false}
+              panelContent={<PreviewVoter />}
+            />
+          </div>
         )}
       </div>
-      {children}
-    </section>
+
+      {!rows.length && (
+        <div className="absolute inset-0 grid place-items-center bg-black/45 p-6 text-center">
+          <p className="rounded-xl bg-black/55 px-3 py-2 text-xs text-white/70 backdrop-blur">
+            Add entries to see real countries in the preview.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
-function PresetThumbnail({
+/* -------------------------------------------------------------------------- */
+/* Lightweight preset swatches                                               */
+/* -------------------------------------------------------------------------- */
+
+function PresetSwatch({
   presetId,
   theme,
 }: {
   presetId: PresetId;
   theme: ThemeConfig;
 }) {
-  const config = useMemo(() => buildPreset(presetId), [presetId]);
+  const preset = useMemo(() => buildPreset(presetId), [presetId]);
 
-  const rows = useMemo<BroadcastRowData[]>(
-    () => [
-      previewRow("A", "Oland", "OLA", 1, 136, theme.colors.primary),
-      previewRow("B", "Fennek", "FEN", 2, 122, theme.colors.secondary),
-      previewRow("C", "Diaria", "DIA", 3, 117, theme.colors.accent),
-    ],
-    [theme],
-  );
-
-  const scale = 0.135;
+  const zones = preset.card.zones
+    .filter((zone) => zone.visible)
+    .slice(0, 7);
 
   return (
-    <div className="relative h-28 overflow-hidden bg-black">
-      <div
-        className="pointer-events-none absolute left-0 top-0"
-        style={{
-          width: config.canvas.width,
-          height: config.canvas.height,
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
-        }}
-      >
-        <ScoreboardBoard
-          config={{
-            ...config,
-            header: { ...config.header, visible: false },
-            footer: { ...config.footer, visible: false },
-            logo: { ...config.logo, visible: false },
-            panel: { ...config.panel, visible: false },
-            layout: {
-              ...config.layout,
-              safeMarginTop: 20,
-              safeMarginBottom: 20,
-              boardWidth: Math.min(config.layout.boardWidth, 1000),
-            },
-          }}
-          theme={theme}
-          rows={rows}
-          animate={false}
-        />
+    <div
+      className="relative h-20 overflow-hidden border-b border-border"
+      style={{
+        background:
+          preset.background.type === "color"
+            ? preset.background.color
+            : preset.background.type === "gradient"
+              ? `linear-gradient(${preset.background.gradientAngle}deg, ${preset.background.gradientFrom}, ${preset.background.gradientTo})`
+              : `linear-gradient(135deg, ${theme.background.gradientFrom}, ${theme.background.gradientTo})`,
+      }}
+    >
+      <div className="absolute inset-x-3 top-3 space-y-2">
+        {[0, 1].map((row) => (
+          <div
+            key={row}
+            className="flex h-5 overflow-hidden"
+            style={{
+              borderRadius: Math.min(preset.card.radius, 10),
+              opacity: row === 1 ? 0.72 : 1,
+              background: "rgba(255,255,255,.08)",
+            }}
+          >
+            {zones.map((zone, index) => (
+              <span
+                key={`${zone.id}-${index}`}
+                style={{
+                  width:
+                    zone.width != null
+                      ? Math.max(10, Math.min(zone.width / 3, 46))
+                      : zone.grow > 0
+                        ? 80
+                        : 24,
+                  flexGrow: zone.grow > 0 ? 1 : 0,
+                  background:
+                    zone.type === "flag"
+                      ? theme.colors.primary
+                      : zone.surface.fill === "country"
+                        ? theme.colors.accent
+                        : zone.type.includes("score")
+                          ? theme.colors.secondary
+                          : index % 2
+                            ? "rgba(255,255,255,.14)"
+                            : "rgba(255,255,255,.08)",
+                  clipPath:
+                    zone.shape.kind === "parallelogram" ||
+                    zone.shape.kind === "trapezoid" ||
+                    zone.shape.kind === "wedge"
+                      ? "polygon(12% 0,100% 0,88% 100%,0 100%)"
+                      : undefined,
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* General UI                                                                */
+/* -------------------------------------------------------------------------- */
+
+function EditorCard({
+  title,
+  description,
+  children,
+  flush = false,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  flush?: boolean;
+}) {
+  return (
+    <section
+      className={cn(
+        "rounded-2xl border border-border bg-surface/30",
+        !flush && "p-3 sm:p-4",
+      )}
+    >
+      <div className={cn(flush && "px-3 pt-3 sm:px-4 sm:pt-4")}>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description && (
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        )}
       </div>
 
       <div
         className={cn(
-          "pointer-events-none absolute inset-0",
-          presetId === "ssc21" && "ring-1 ring-inset ring-cyan-400/20",
+          "space-y-4",
+          flush ? "mt-3" : "mt-4",
         )}
-      />
-    </div>
+      >
+        {children}
+      </div>
+    </section>
   );
+}
+
+function ControlGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-4 md:grid-cols-2">{children}</div>;
 }
 
 function PreviewVoter() {
@@ -640,38 +928,10 @@ function PreviewVoter() {
         OLA
       </div>
 
-      <p className="mt-4 text-[10px] uppercase tracking-[0.3em] opacity-50">Now voting</p>
+      <p className="mt-4 text-[10px] uppercase tracking-[0.3em] opacity-50">
+        Now voting
+      </p>
       <p className="mt-2 text-xl font-bold">Oland</p>
     </div>
   );
-}
-
-function previewRow(
-  id: string,
-  name: string,
-  abbreviation: string,
-  rank: number,
-  score: number,
-  accent: string,
-): BroadcastRowData {
-  return {
-    id,
-    entityType: "global",
-    name,
-    abbreviation,
-    flagImage: null,
-    accent,
-    rank,
-    runningOrder: rank,
-    score,
-    juryScore: Math.max(0, score - 20),
-    televoteScore: 20,
-    movement: null,
-    qualified: null,
-    eliminated: null,
-    active: rank === 2,
-    highlighted: rank === 1,
-    leader: rank === 1,
-    winner: false,
-  };
 }
