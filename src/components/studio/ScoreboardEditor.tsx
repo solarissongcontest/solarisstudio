@@ -96,12 +96,12 @@ export function ScoreboardEditor({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-[calc(100dvh-10.5rem)] min-h-0 flex-col gap-3 overflow-hidden lg:block lg:h-auto lg:space-y-4 lg:overflow-visible">
       {/* ------------------------------------------------------------------ */}
       {/* ONE preview only                                                   */}
       {/* ------------------------------------------------------------------ */}
 
-      <div className="lg:sticky lg:top-3 lg:z-30">
+      <div className="shrink-0 lg:sticky lg:top-3 lg:z-30">
         <section className="overflow-hidden rounded-2xl border border-border bg-background/95 shadow-sm backdrop-blur">
           <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 sm:px-4">
             <div className="min-w-0">
@@ -140,7 +140,7 @@ export function ScoreboardEditor({
       {/* Editor navigation                                                  */}
       {/* ------------------------------------------------------------------ */}
 
-      <div className="scroll-slim overflow-x-auto rounded-2xl border border-border bg-surface/30 p-1">
+      <div className="scroll-slim shrink-0 overflow-x-auto rounded-2xl border border-border bg-surface/30 p-1">
         <div className="flex min-w-max gap-1">
           {EDITOR_TABS.map((item) => (
             <button
@@ -161,6 +161,7 @@ export function ScoreboardEditor({
         </div>
       </div>
 
+      <div className="scroll-slim min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 lg:overflow-visible lg:pb-0">
       {/* ------------------------------------------------------------------ */}
       {/* Style / presets                                                    */}
       {/* ------------------------------------------------------------------ */}
@@ -691,6 +692,7 @@ export function ScoreboardEditor({
           </Field>
         </EditorCard>
       )}
+      </div>
     </div>
   );
 }
@@ -736,7 +738,7 @@ function ResponsivePreview({
 
   // The editor preview is intentionally capped. The actual broadcast remains 1920×1080.
   const maxHeight = expanded ? 520 : 300;
-  const mobileMaxHeight = expanded ? 360 : 210;
+  const mobileMaxHeight = expanded ? 220 : 160;
 
   return (
     <div
