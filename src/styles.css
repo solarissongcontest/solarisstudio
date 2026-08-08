@@ -127,28 +127,24 @@
   }
 
   body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    background-image:
-      radial-gradient(
-        ellipse 80% 55% at 12% -8%,
-        color-mix(in oklab, var(--primary) 26%, transparent),
-        transparent 60%
-      ),
-      radial-gradient(
-        ellipse 70% 50% at 92% 4%,
-        color-mix(in oklab, var(--secondary) 24%, transparent),
-        transparent 62%
-      ),
-      radial-gradient(
-        ellipse 90% 60% at 50% 110%,
-        color-mix(in oklab, var(--televote) 16%, transparent),
-        transparent 65%
-      );
-    background-attachment: fixed;
-    min-height: 100vh;
-  }
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+
+  background-image:
+    linear-gradient(
+      rgba(8, 10, 24, 0.58),
+      rgba(8, 10, 24, 0.58)
+    ),
+    url("/IMG_8815.jpeg");
+
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+
+  min-height: 100vh;
+}
 
   h1,
   h2,
