@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryPicker } from "@/components/CountryPicker";
 import { FlagChip } from "@/components/FlagChip";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
@@ -72,6 +73,16 @@ export const Route = createFileRoute("/_authenticated/admin/$slug")({
 
 const TABS = ["Shows", "Line-up", "Juries", "Jury", "Televote", "Voting", "Theme", "Broadcast", "Publish"] as const;
 type Tab = (typeof TABS)[number];
+
+const TAB_OPTIONS = TABS.map((tab) => ({
+  value: tab,
+  label:
+    tab === "Jury"
+      ? "Jury voting"
+      : tab === "Voting"
+        ? "Voting system"
+        : tab,
+})) as { value: Tab; label: string }[];
 
 function AdminEdition() {
   const { slug } = Route.useParams();
@@ -673,44 +684,47 @@ function AdminEdition() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="text-[11px] uppercase tracking-widest text-muted-foreground">Show</span>
-        <Select
-          value={activeShowId ?? ""}
-          onChange={(e) => setShowId(e.target.value)}
-          className="w-auto min-w-[16rem]"
-        >
-          {(shows ?? []).length === 0 && <option value="">No shows yet</option>}
-          {(shows ?? []).map((s) => (
-            <option key={s.id} value={s.id} className="bg-background">
-              {s.name} {s.published ? "(public)" : "(private)"}
-            </option>
-          ))}
-        </Select>
-        {activeShow && (
-          <button
-            onClick={() => patchShow(activeShow, { published: !activeShow.published })}
-            className="rounded-lg border border-border px-3 py-1.5 text-sm"
-          >
-            {activeShow.published ? "Make private" : "Publish show"}
-          </button>
-        )}
-      </div>
+      <Panel className="mb-3 sm:mb-4">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <Field label="Current show">
+            <Select
+              value={activeShowId ?? ""}
+              onChange={(e) => setShowId(e.target.value)}
+              className="w-full"
+            >
+              {(shows ?? []).length === 0 && <option value="">No shows yet</option>}
+              {(shows ?? []).map((s) => (
+                <option key={s.id} value={s.id} className="bg-background">
+                  {s.name} {s.published ? "(public)" : "(private)"}
+                </option>
+              ))}
+            </Select>
+          </Field>
 
-      <div className="mb-6 flex flex-wrap gap-1">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-sm",
-              tab === t ? "bg-surface-strong" : "text-muted-foreground hover:bg-surface",
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+          {activeShow && (
+            <button
+              type="button"
+              onClick={() =>
+                patchShow(activeShow, {
+                  published: !activeShow.published,
+                })
+              }
+              className="min-h-11 w-full rounded-xl border border-border px-3 text-sm sm:w-auto"
+            >
+              {activeShow.published ? "Make private" : "Publish show"}
+            </button>
+          )}
+        </div>
+      </Panel>
+
+      <ResponsiveTabs
+        value={tab}
+        options={TAB_OPTIONS}
+        onChange={setTab}
+        label="Manage edition"
+        sticky
+        className="mb-4 sm:mb-6"
+      />
 
       {msg && <p className="mb-4 text-sm text-primary">{msg}</p>}
 
@@ -726,7 +740,7 @@ function AdminEdition() {
               <Panel title="Shows" description="Semi-finals, grand final and any other broadcast">
                 <ul className="space-y-2">
                   {(shows ?? []).map((s) => (
-                    <li key={s.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-surface px-3 py-2">
+                    <li key={s.id} className="grid gap-2 rounded-xl bg-surface px-3 py-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:py-2">
                       <input
                         type="number"
                         defaultValue={s.sort_order}
@@ -741,19 +755,19 @@ function AdminEdition() {
                       </div>
                       <button
                         onClick={() => setShowId(s.id)}
-                        className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                        className="min-h-10 rounded-lg border border-border px-3 py-1.5 text-sm"
                       >
                         Select
                       </button>
                       <button
                         onClick={() => patchShow(s, { published: !s.published })}
-                        className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                        className="min-h-10 rounded-lg border border-border px-3 py-1.5 text-sm"
                       >
                         {s.published ? "Unpublish" : "Publish"}
                       </button>
                       <button
                         onClick={() => deleteShow(s)}
-                        className="rounded-lg border border-destructive/50 px-3 py-1.5 text-sm text-destructive"
+                        className="min-h-10 rounded-lg border border-destructive/50 px-3 py-1.5 text-sm text-destructive"
                       >
                         Delete
                       </button>
@@ -1009,7 +1023,7 @@ function AdminEdition() {
                     await run(supabase.from("voters").insert(rows), `Added ${rows.length} country juries.`);
                     qc.invalidateQueries({ queryKey: ["voters"] });
                   }}
-                  className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                  className="min-h-10 rounded-lg border border-border px-3 py-1.5 text-sm"
                 >
                   Add all participating countries
                 </button>
@@ -1267,7 +1281,7 @@ function AdminEdition() {
                       to="/broadcast/$showId"
                       params={{ showId: activeShow.id }}
                       target="_blank"
-                      className="rounded-lg border border-border px-3 py-1.5 text-sm"
+                      className="min-h-10 rounded-lg border border-border px-3 py-1.5 text-sm"
                     >
                       Open broadcast
                     </Link>

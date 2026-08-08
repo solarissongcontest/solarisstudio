@@ -74,8 +74,8 @@ function RelationshipsIndex() {
   const alliances = [...enriched].sort((x, y) => y.rel.friendshipScore - x.rel.friendshipScore).slice(0, 8);
   const rivalries = [...enriched].sort((x, y) => y.rel.rivalryScore - x.rel.rivalryScore).slice(0, 8);
   const mutual12s = enriched
-    .filter((e) => e.rel.mutualTopScores > 0)
-    .sort((x, y) => y.rel.mutualTopScores - x.rel.mutualTopScores)
+    .filter((e) => e.rel.mutualTwelves > 0)
+    .sort((x, y) => y.rel.mutualTwelves - x.rel.mutualTwelves)
     .slice(0, 8);
 
   const oneSidedRaw = relationships(jury ?? []).oneSided;
@@ -105,7 +105,7 @@ function RelationshipsIndex() {
         description="Every pair of nations that has shared at least one SSC edition, ranked by friendship, rivalry and one-sided support."
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
         <PairPanel
           title="Strongest alliances"
           description="Highest mutual point exchange"
@@ -137,13 +137,13 @@ function RelationshipsIndex() {
           rows={mutual12s.map((e) => ({
             a: e.a,
             b: e.b,
-            value: `${e.rel.mutualTopScores}× mutual top score`,
+            value: `${e.rel.mutualTwelves}× mutual 12`,
             sub: `${e.shared} shared edition${e.shared === 1 ? "" : "s"}`,
           }))}
         />
       </div>
 
-      <Panel title="Browse every relationship" description="Search by country name or code" className="mt-6">
+      <Panel title="Browse every relationship" description="Search by country name or code" className="mt-4 sm:mt-6">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -156,7 +156,7 @@ function RelationshipsIndex() {
               key={`${a.id}-${b.id}`}
               to="/relationships/$pair"
               params={{ pair: pairParam(a, b) }}
-              className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm transition-colors hover:bg-surface-strong"
+              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm transition-colors hover:bg-surface-strong"
             >
               <FlagChip code={a.short_code} color={a.accent_color} image={a.flag_image} size="sm" />
               <span className="truncate">{a.name}</span>
@@ -193,7 +193,7 @@ function PairPanel({
               <Link
                 to="/relationships/$pair"
                 params={{ pair: pairParam(r.a, r.b) }}
-                className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2 transition-colors hover:bg-surface-strong"
+                className="flex min-w-0 items-center gap-2 rounded-xl bg-surface px-3 py-2 transition-colors hover:bg-surface-strong sm:gap-3"
               >
                 <FlagChip code={r.a.short_code} color={r.a.accent_color} image={r.a.flag_image} size="sm" />
                 <FlagChip code={r.b.short_code} color={r.b.accent_color} image={r.b.flag_image} size="sm" />

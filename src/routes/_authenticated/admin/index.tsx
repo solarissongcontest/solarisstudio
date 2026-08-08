@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { Field, Select, TextInput } from "@/components/studio/Controls";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +14,6 @@ import {
   useIsOrganizer,
   type Edition,
 } from "@/lib/data";
-import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({
@@ -20,10 +21,17 @@ export const Route = createFileRoute("/_authenticated/admin/")({
       { title: "Organizer studio — Solaris Spectacle Suite" },
       {
         name: "description",
-        content: "Create and manage Solaris Song Contest editions, shows, voting systems and broadcasts.",
+        content:
+          "Create and manage Solaris Song Contest editions, shows, voting systems and broadcasts.",
       },
-      { property: "og:title", content: "Organizer studio — Solaris Spectacle Suite" },
-      { property: "og:description", content: "Manage SSC editions, shows, votes and broadcast production." },
+      {
+        property: "og:title",
+        content: "Organizer studio — Solaris Spectacle Suite",
+      },
+      {
+        property: "og:description",
+        content: "Manage SSC editions, shows, votes and broadcast production.",
+      },
     ],
   }),
   component: AdminHome,
@@ -36,8 +44,6 @@ function AdminHome() {
   const { data: isOrganizer } = useIsOrganizer();
   const qc = useQueryClient();
 
-  // Until editions have loaded, the next number is unknown — seeding the form
-  // with 1 caused duplicate numbers and duplicate slugs on first submit.
   const nextNumber = editionsLoading
     ? null
     : Math.max(0, ...(editions ?? []).map((e) => e.edition_number ?? 0)) + 1;
@@ -54,11 +60,16 @@ function AdminHome() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Fill in the suggested number once editions arrive, without ever overwriting
-  // a value the organizer typed themselves.
   useEffect(() => {
-    if (nextNumber !== null && !numberTouched && form.edition_number === "") {
-      setForm((f) => ({ ...f, edition_number: nextNumber }));
+    if (
+      nextNumber !== null &&
+      !numberTouched &&
+      form.edition_number === ""
+    ) {
+      setForm((current) => ({
+        ...current,
+        edition_number: nextNumber,
+      }));
     }
   }, [nextNumber, numberTouched, form.edition_number]);
 
@@ -67,25 +78,35 @@ function AdminHome() {
     qc.invalidateQueries({ queryKey: ["shows"] });
   };
 
-  const createEdition = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const createEdition = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (saving) return;
+
     setMsg(null);
     setError(null);
 
     const num = Number(form.edition_number);
+
     if (!Number.isInteger(num) || num < 1) {
       setError("Enter a whole edition number of 1 or higher.");
       return;
     }
+
     const slug = `ssc-${num}`;
-    const clash = (editions ?? []).find((ed) => ed.edition_number === num || ed.slug === slug);
+    const clash = (editions ?? []).find(
+      (edition) =>
+        edition.edition_number === num || edition.slug === slug,
+    );
+
     if (clash) {
-      setError(`Edition ${num} already exists (“${clash.name}”). Pick a different number.`);
+      setError(
+        `Edition ${num} already exists (“${clash.name}”). Pick a different number.`,
+      );
       return;
     }
 
     setSaving(true);
+
     try {
       const { error: insertError } = await supabase.from("editions").insert({
         edition_number: num,
@@ -97,13 +118,25 @@ function AdminHome() {
         status: "draft",
         published: false,
       });
+
       if (insertError) {
-        // Keep everything the organizer typed so they can correct and retry.
-        setError(reportSupabaseError(insertError, "Could not create the edition. Nothing was saved."));
+        setError(
+          reportSupabaseError(
+            insertError,
+            "Could not create the edition. Nothing was saved.",
+          ),
+        );
         return;
       }
+
       setNumberTouched(false);
-      setForm({ edition_number: num + 1, name: "", year: "", host_city: "", host_country_id: "" });
+      setForm({
+        edition_number: num + 1,
+        name: "",
+        year: "",
+        host_city: "",
+        host_country_id: "",
+      });
       setMsg(`Edition ${num} created.`);
       refresh();
     } finally {
@@ -111,29 +144,57 @@ function AdminHome() {
     }
   };
 
-  const togglePublished = async (ed: Edition) => {
+  const togglePublished = async (edition: Edition) => {
     setError(null);
+
     const { error: updateError } = await supabase
       .from("editions")
-      .update({ published: !ed.published })
-      .eq("id", ed.id);
+      .update({ published: !edition.published })
+      .eq("id", edition.id);
+
     if (updateError) {
-      setError(reportSupabaseError(updateError, "Could not change the visibility of this edition."));
+      setError(
+        reportSupabaseError(
+          updateError,
+          "Could not change the visibility of this edition.",
+        ),
+      );
       return;
     }
-    setMsg(`${ed.name} is now ${ed.published ? "private" : "public"}.`);
+
+    setMsg(
+      `${edition.name} is now ${edition.published ? "private" : "public"}.`,
+    );
     refresh();
   };
 
-  const removeEdition = async (ed: Edition) => {
-    if (!window.confirm(`Delete “${ed.name}” and all of its shows, votes and results?`)) return;
-    setError(null);
-    const { error: deleteError } = await supabase.from("editions").delete().eq("id", ed.id);
-    if (deleteError) {
-      setError(reportSupabaseError(deleteError, "Could not delete this edition."));
+  const removeEdition = async (edition: Edition) => {
+    if (
+      !window.confirm(
+        `Delete “${edition.name}” and all of its shows, votes and results?`,
+      )
+    ) {
       return;
     }
-    setMsg(`Deleted ${ed.name}.`);
+
+    setError(null);
+
+    const { error: deleteError } = await supabase
+      .from("editions")
+      .delete()
+      .eq("id", edition.id);
+
+    if (deleteError) {
+      setError(
+        reportSupabaseError(
+          deleteError,
+          "Could not delete this edition.",
+        ),
+      );
+      return;
+    }
+
+    setMsg(`Deleted ${edition.name}.`);
     refresh();
   };
 
@@ -143,98 +204,149 @@ function AdminHome() {
         eyebrow="Organizer studio"
         title="Contest control room"
         description="Create numbered editions, build their shows, and run voting, design and broadcast per show."
-        actions={
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.href = "/";
-            }}
-            className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-surface"
-          >
-            Sign out
-          </button>
-        }
       />
 
       {isOrganizer === false && (
-        <div className="glass mb-6 border border-destructive/40 p-4 text-sm">
-          Your account does not have the <strong>organizer</strong> role yet, so saving changes will be
-          rejected. Ask an existing organizer to grant it.
+        <div className="glass mb-4 border border-destructive/40 p-3 text-xs leading-relaxed sm:mb-6 sm:p-4 sm:text-sm">
+          Your account does not have the <strong>organizer</strong> role yet, so
+          saving changes will be rejected. Ask an existing organizer to grant it.
         </div>
       )}
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:gap-4 lg:grid-cols-4">
         <StatTile label="Editions" value={editions?.length ?? 0} />
         <StatTile label="Shows" value={shows?.length ?? 0} />
         <StatTile label="Countries" value={countries?.length ?? 0} />
-        <StatTile label="Public shows" value={(shows ?? []).filter((s) => s.published).length} />
+        <StatTile
+          label="Public shows"
+          value={(shows ?? []).filter((show) => show.published).length}
+        />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <Panel title="Editions" description="Open an edition to manage its shows, votes, design and broadcast">
+      {error && (
+        <div className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {!error && msg && (
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
+          {msg}
+        </div>
+      )}
+
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[1.4fr_1fr] lg:gap-6">
+        <Panel
+          title="Editions"
+          description="Open an edition to manage its shows, votes, design and broadcast."
+        >
           <ul className="space-y-2">
-            {(editions ?? []).map((ed) => {
-              const eShows = (shows ?? []).filter((s) => s.edition_id === ed.id);
+            {(editions ?? []).map((edition) => {
+              const editionShows = (shows ?? []).filter(
+                (show) => show.edition_id === edition.id,
+              );
+
               return (
-                <li key={ed.id} className="rounded-xl bg-surface px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium">
-                        {editionLabel(ed)} <span className="text-muted-foreground">· {ed.name}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {ed.year ?? "Year TBC"} · {ed.host_city ?? "Host TBC"} · {eShows.length} shows ·{" "}
-                        {ed.published ? "public" : "private"}
-                      </p>
+                <li
+                  key={edition.id}
+                  className="rounded-xl border border-border/60 bg-surface p-3 sm:px-4"
+                >
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words text-sm font-semibold sm:text-base">
+                          {editionLabel(edition)}
+                          <span className="font-normal text-muted-foreground">
+                            {" "}
+                            · {edition.name}
+                          </span>
+                        </p>
+
+                        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                          {edition.year ?? "Year TBC"} ·{" "}
+                          {edition.host_city ?? "Host TBC"} ·{" "}
+                          {editionShows.length} shows ·{" "}
+                          {edition.published ? "public" : "private"}
+                        </p>
+                      </div>
+
+                      <span
+                        className={
+                          edition.published
+                            ? "shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold uppercase text-primary"
+                            : "shrink-0 rounded-full bg-background/60 px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground"
+                        }
+                      >
+                        {edition.published ? "Public" : "Private"}
+                      </span>
                     </div>
-                    <button
-                      onClick={() => togglePublished(ed)}
-                      className="rounded-lg border border-border px-3 py-1.5 text-sm"
-                    >
-                      {ed.published ? "Make private" : "Publish"}
-                    </button>
-                    <Link
-                      to="/admin/$slug"
-                      params={{ slug: ed.slug }}
-                      className="bg-aurora rounded-lg px-3 py-1.5 text-sm font-medium text-primary-foreground"
-                    >
-                      Manage
-                    </Link>
-                    <button
-                      onClick={() => removeEdition(ed)}
-                      className="rounded-lg border border-destructive/50 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
-                    >
-                      Delete
-                    </button>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                      <Link
+                        to="/admin/$slug"
+                        params={{ slug: edition.slug }}
+                        className="bg-aurora flex min-h-10 items-center justify-center rounded-lg px-3 text-sm font-medium text-primary-foreground"
+                      >
+                        Manage
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => togglePublished(edition)}
+                        className="min-h-10 rounded-lg border border-border px-3 text-sm"
+                      >
+                        {edition.published ? "Make private" : "Publish"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => removeEdition(edition)}
+                        className="col-span-2 min-h-10 rounded-lg border border-destructive/50 px-3 text-sm text-destructive hover:bg-destructive/10 sm:col-span-1"
+                      >
+                        Delete
+                      </button>
+                    </div>
+
+                    {!!editionShows.length && (
+                      <div className="scroll-slim mt-3 flex gap-1.5 overflow-x-auto pb-1">
+                        {editionShows.map((show) => (
+                          <Link
+                            key={show.id}
+                            to="/broadcast/$showId"
+                            params={{ showId: show.id }}
+                            className="shrink-0 rounded-lg bg-background/60 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          >
+                            {show.name}
+                            {show.published ? " · public" : " · private"}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {!!eShows.length && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {eShows.map((s) => (
-                        <Link
-                          key={s.id}
-                          to="/broadcast/$showId"
-                          params={{ showId: s.id }}
-                          className="rounded-lg bg-background/60 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          {s.name} {s.published ? "· public" : "· private"}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
                 </li>
               );
             })}
+
             {!(editions ?? []).length && (
-              <p className="text-sm text-muted-foreground">No editions yet — create SSC 1.</p>
+              <p className="text-sm text-muted-foreground">
+                No editions yet — create SSC 1.
+              </p>
             )}
           </ul>
         </Panel>
 
-        <Panel title="New edition" description="Editions are numbered; the year is optional">
+        <Panel
+          title="New edition"
+          description="Editions are numbered; the year is optional."
+        >
           <form onSubmit={createEdition} className="space-y-3">
             <Field
               label="Edition number"
-              hint={editionsLoading ? "Loading existing editions…" : "Suggested from the highest existing edition"}
+              hint={
+                editionsLoading
+                  ? "Loading existing editions…"
+                  : "Suggested from the highest existing edition"
+              }
             >
               <TextInput
                 type="number"
@@ -243,61 +355,89 @@ function AdminHome() {
                 disabled={editionsLoading}
                 className="numeric"
                 value={form.edition_number}
-                onChange={(e) => {
+                onChange={(event) => {
                   setNumberTouched(true);
                   setForm({
                     ...form,
-                    edition_number: e.target.value === "" ? "" : Number(e.target.value),
+                    edition_number:
+                      event.target.value === ""
+                        ? ""
+                        : Number(event.target.value),
                   });
                 }}
               />
             </Field>
-            <Field label="Name" hint={`Defaults to “Solaris Song Contest ${form.edition_number || "…"}”`}>
+
+            <Field
+              label="Name"
+              hint={`Defaults to “Solaris Song Contest ${
+                form.edition_number || "…"
+              }”`}
+            >
               <TextInput
                 value={form.name}
-                placeholder={`Solaris Song Contest ${form.edition_number || ""}`}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder={`Solaris Song Contest ${
+                  form.edition_number || ""
+                }`}
+                onChange={(event) =>
+                  setForm({ ...form, name: event.target.value })
+                }
               />
             </Field>
+
             <Field label="Year (optional)">
               <TextInput
                 type="number"
                 className="numeric"
                 value={form.year}
-                onChange={(e) => setForm({ ...form, year: e.target.value })}
+                onChange={(event) =>
+                  setForm({ ...form, year: event.target.value })
+                }
               />
             </Field>
+
             <Field label="Host country">
               <Select
                 value={form.host_country_id}
-                onChange={(e) => setForm({ ...form, host_country_id: e.target.value })}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    host_country_id: event.target.value,
+                  })
+                }
               >
                 <option value="" className="bg-background">
                   Undecided
                 </option>
-                {(countries ?? []).map((c) => (
-                  <option key={c.id} value={c.id} className="bg-background">
-                    {c.name}
+                {(countries ?? []).map((country) => (
+                  <option
+                    key={country.id}
+                    value={country.id}
+                    className="bg-background"
+                  >
+                    {country.name}
                   </option>
                 ))}
               </Select>
             </Field>
+
             <Field label="Host city">
               <TextInput
                 value={form.host_city}
                 placeholder="Solvarra"
-                onChange={(e) => setForm({ ...form, host_city: e.target.value })}
+                onChange={(event) =>
+                  setForm({ ...form, host_city: event.target.value })
+                }
               />
             </Field>
+
             <button
               type="submit"
               disabled={saving || editionsLoading}
-              className="bg-aurora w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              className="bg-aurora min-h-11 w-full rounded-xl px-4 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Creating edition…" : "Create edition"}
             </button>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            {!error && msg && <p className="text-sm text-muted-foreground">{msg}</p>}
           </form>
         </Panel>
       </div>

@@ -120,7 +120,7 @@ function RelationshipPairPage() {
         <StatTile label="Shared participations" value={rel.participationsTogether} />
         <StatTile label={`${a.short_code} → ${b.short_code}`} value={rel.totalAtoB} hint={`avg ${rel.avgAtoB?.toFixed(1) ?? "—"}`} />
         <StatTile label={`${b.short_code} → ${a.short_code}`} value={rel.totalBtoA} hint={`avg ${rel.avgBtoA?.toFixed(1) ?? "—"}`} />
-        <StatTile label="Mutual top scores" value={rel.mutualTopScores} />
+        <StatTile label="Mutual 12 points" value={rel.mutualTwelves} />
         <StatTile label="Friendship score" value={rel.friendshipScore.toFixed(0)} />
         <StatTile label="Rivalry score" value={rel.rivalryScore.toFixed(0)} />
         <StatTile label="Voting similarity" value={`${(rel.similarity * 100).toFixed(0)}%`} />
@@ -218,8 +218,8 @@ function buildNarrative(
   } else {
     parts.push(`No jury points have been exchanged between the two nations so far.`);
   }
-  if (rel.mutualTopScores > 0) {
-    parts.push(`They have exchanged douze points mutually ${rel.mutualTopScores} time${rel.mutualTopScores === 1 ? "" : "s"}, a hallmark of a strong alliance.`);
+  if (rel.mutualTwelves > 0) {
+    parts.push(`They have exchanged douze points mutually ${rel.mutualTwelves} time${rel.mutualTwelves === 1 ? "" : "s"}, a hallmark of a strong alliance.`);
   }
   if (rel.friendshipScore > rel.rivalryScore) {
     parts.push(`Overall, the relationship leans towards friendship (score ${rel.friendshipScore.toFixed(0)} vs rivalry ${rel.rivalryScore.toFixed(0)}).`);

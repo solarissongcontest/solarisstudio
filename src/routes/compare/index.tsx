@@ -122,7 +122,7 @@ function ComparePage() {
       />
 
       <Panel className="mb-6">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
           <CountryPicker
             label="Country A"
             value={a}
@@ -145,9 +145,11 @@ function ComparePage() {
       ) : (
         <div className="space-y-6">
           <Panel>
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
               <HeaderCard country={countryA} />
-              <span className="font-display text-lg text-muted-foreground">vs</span>
+              <span className="text-center font-display text-sm text-muted-foreground sm:text-lg">
+                vs
+              </span>
               <HeaderCard country={countryB} align="right" />
             </div>
             <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs">
@@ -187,12 +189,44 @@ function ComparePage() {
           >
             {h2h && h2h.sharedEditions ? (
               <>
-                <div className="mb-4 grid grid-cols-3 gap-3 text-center">
+                <div className="mb-4 grid grid-cols-1 gap-2 text-center min-[420px]:grid-cols-3 sm:gap-3">
                   <StatTile label={`${countryA.short_code} finished higher`} value={h2h.aWins} />
                   <StatTile label="Ties" value={h2h.ties} />
                   <StatTile label={`${countryB.short_code} finished higher`} value={h2h.bWins} />
                 </div>
-                <div className="overflow-x-auto">
+                <div className="space-y-2 sm:hidden">
+                  {h2h.rows.map((row) => (
+                    <div
+                      key={row.editionId}
+                      className="grid grid-cols-[auto_1fr_1fr_auto] items-center gap-2 rounded-xl bg-surface px-3 py-2 text-xs"
+                    >
+                      <span className="numeric text-muted-foreground">
+                        {row.year ?? "—"}
+                      </span>
+                      <span className="text-center">
+                        <span className="block text-[9px] uppercase text-muted-foreground">
+                          {countryA.short_code}
+                        </span>
+                        <span className="numeric text-sm font-semibold">
+                          {row.aRank ?? "—"}
+                        </span>
+                      </span>
+                      <span className="text-center">
+                        <span className="block text-[9px] uppercase text-muted-foreground">
+                          {countryB.short_code}
+                        </span>
+                        <span className="numeric text-sm font-semibold">
+                          {row.bRank ?? "—"}
+                        </span>
+                      </span>
+                      <span className="numeric text-muted-foreground">
+                        Δ {row.diff != null ? Math.abs(row.diff) : "—"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden overflow-x-auto sm:block">
                   <table className="w-full min-w-[420px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
@@ -203,12 +237,14 @@ function ComparePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {h2h.rows.map((r) => (
-                        <tr key={r.editionId} className="border-b border-border/60">
-                          <td className="numeric px-3 py-2">{r.year ?? "—"}</td>
-                          <td className="numeric px-3 py-2">{r.aRank ?? "—"}</td>
-                          <td className="numeric px-3 py-2">{r.bRank ?? "—"}</td>
-                          <td className="numeric px-3 py-2">{r.diff != null ? Math.abs(r.diff) : "—"}</td>
+                      {h2h.rows.map((row) => (
+                        <tr key={row.editionId} className="border-b border-border/60">
+                          <td className="numeric px-3 py-2">{row.year ?? "—"}</td>
+                          <td className="numeric px-3 py-2">{row.aRank ?? "—"}</td>
+                          <td className="numeric px-3 py-2">{row.bRank ?? "—"}</td>
+                          <td className="numeric px-3 py-2">
+                            {row.diff != null ? Math.abs(row.diff) : "—"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -222,7 +258,7 @@ function ComparePage() {
 
           <Panel title="Performance timeline" description="Final placement over time (lower is better)">
             {timelineChart.length ? (
-              <div className="h-[300px]">
+              <div className="h-[220px] sm:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={timelineChart}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -276,7 +312,7 @@ function ComparePage() {
                   </li>
                   <li className="flex justify-between rounded-xl bg-surface px-3 py-2">
                     <span>Mutual 12-point exchanges</span>
-                    <span className="numeric font-semibold">{relationship.mutualTopScores}</span>
+                    <span className="numeric font-semibold">{relationship.mutualTwelves}</span>
                   </li>
                   <li className="flex justify-between rounded-xl bg-surface px-3 py-2">
                     <span>Voting similarity</span>
@@ -358,7 +394,7 @@ function HeaderCard({
   align?: "left" | "right";
 }) {
   return (
-    <div className={`flex items-center gap-3 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
+    <div className={`flex min-w-0 items-center gap-3 ${align === "right" ? "sm:flex-row-reverse sm:text-right" : ""}`}>
       <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="lg" />
       <div>
         <h3 className="font-display text-lg font-semibold">{country.name}</h3>
@@ -377,7 +413,7 @@ function MetricColumn({
 }) {
   if (!stats) return <p className="text-sm text-muted-foreground">No data for {country.name}.</p>;
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3">
       <StatTile label="Participations" value={stats.participations} />
       <StatTile label="Wins" value={stats.wins} />
       <StatTile label="Finals reached" value={stats.finals} />

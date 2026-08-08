@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
-import { isTopScore, makeTopScoreResolver } from "@/lib/voting";
+import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { computeHistoricalRecords } from "@/lib/stats";
 import {
   useAllJuryVotes,
@@ -86,14 +86,9 @@ function RecordsPage() {
       "Most successful country (wins)",
       [...byCountry.entries()].map(([id, rows]) => [id, rows.filter((r) => r.final_rank === 1).length]),
     );
-    // One participation per edition, no matter how many shows the country sang in.
-    const partEditions = new Map<string, Set<string>>();
-    (participants ?? []).forEach((p) => {
-      const set = partEditions.get(p.country_id) ?? new Set<string>();
-      set.add(p.edition_id);
-      partEditions.set(p.country_id, set);
-    });
-    push("Most participations", [...partEditions.entries()].map(([id, set]) => [id, set.size]));
+    const partCounts = new Map<string, number>();
+    (participants ?? []).forEach((p) => partCounts.set(p.country_id, (partCounts.get(p.country_id) ?? 0) + 1));
+    push("Most participations", [...partCounts.entries()]);
     push("Most grand finals reached", [...byCountry.entries()].map(([id, rows]) => [id, rows.length]));
     push(
       "Most top-5 finishes",
@@ -112,17 +107,15 @@ function RecordsPage() {
       given.set(v.voter_country_id, (given.get(v.voter_country_id) ?? 0) + v.points);
     });
     push("Most points awarded (career)", [...given.entries()], " pts");
-    // "Top score" is the maximum of each show's own point scale, not a hard-coded 12.
-    const resolveTop = makeTopScoreResolver(shows ?? []);
-    const topReceived = new Map<string, number>();
-    (jury ?? []).filter((v) => isTopScore(v, resolveTop)).forEach((v) => topReceived.set(v.receiving_country_id, (topReceived.get(v.receiving_country_id) ?? 0) + 1));
-    push("Most top scores received", [...topReceived.entries()]);
-    const topGiven = new Map<string, number>();
-    (jury ?? []).filter((v) => isTopScore(v, resolveTop) && v.voter_country_id).forEach((v) => topGiven.set(v.voter_country_id, (topGiven.get(v.voter_country_id) ?? 0) + 1));
-    push("Most top scores given", [...topGiven.entries()]);
+    const twelvesReceived = new Map<string, number>();
+    (jury ?? []).filter((v) => v.points === 12).forEach((v) => twelvesReceived.set(v.receiving_country_id, (twelvesReceived.get(v.receiving_country_id) ?? 0) + 1));
+    push("Most 12 points received", [...twelvesReceived.entries()]);
+    const twelvesGiven = new Map<string, number>();
+    (jury ?? []).filter((v) => v.points === 12 && v.voter_country_id).forEach((v) => twelvesGiven.set(v.voter_country_id, (twelvesGiven.get(v.voter_country_id) ?? 0) + 1));
+    push("Most 12 points given", [...twelvesGiven.entries()]);
 
     return out;
-  }, [results, participants, jury, byId, showById, shows]);
+  }, [results, participants, jury, byId, showById]);
 
   const singleEditionAggregates = useMemo((): Rec[] => {
     const out: Rec[] = [];
@@ -189,23 +182,18 @@ function RecordsPage() {
         description="Automatically recalculated from every stored edition, vote and result. Every card links to the country, edition or show behind it."
       />
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCat(c)}
-            className={
-              c === cat
-                ? "rounded-lg bg-surface-strong px-3 py-1.5 text-sm font-medium"
-                : "rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:bg-surface"
-            }
-          >
-            {c}
-          </button>
-        ))}
-      </div>
+      <ResponsiveTabs
+        value={cat}
+        options={CATEGORIES.map((category) => ({
+          value: category,
+          label: category,
+        }))}
+        onChange={setCat}
+        label="Record category"
+        className="mb-4 sm:mb-6"
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {active.map((r, i) => (
           <RecordCard key={i} rec={r} />
         ))}
@@ -242,5 +230,5 @@ function RecordCard({ rec }: { rec: Rec }) {
       </div>
     </>
   );
-  return <div className="glass p-5">{body}</div>;
+  return <div className="glass min-w-0 p-3 sm:p-5">{body}</div>;
 }

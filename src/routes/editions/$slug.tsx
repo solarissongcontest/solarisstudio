@@ -3,14 +3,11 @@ import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
-  useContestEntities,
   useCountries,
   useEdition,
   useParticipants,
   useShows,
 } from "@/lib/data";
-import { entityDisplayMap } from "@/lib/entities";
-
 
 export const Route = createFileRoute("/editions/$slug")({
   head: ({ params }) => ({
@@ -30,9 +27,7 @@ function EditionPage() {
   const { data: shows } = useShows(edition?.id);
   const { data: participants } = useParticipants(edition?.id);
   const { data: countries } = useCountries();
-  const { data: entities } = useContestEntities(edition?.id);
-  // Resolves both global countries and edition-only custom nations.
-  const countryMap = entityDisplayMap(entities, countries);
+  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
 
   if (isLoading) return <AppShell><p className="text-sm text-muted-foreground">Loading…</p></AppShell>;
   if (!edition)
@@ -61,7 +56,7 @@ function EditionPage() {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-2 min-[380px]:grid-cols-3 sm:mb-6 sm:gap-4">
         <StatTile label="Shows" value={shows?.length ?? 0} />
         <StatTile label="Participating nations" value={nations.size} />
         <StatTile label="Entries" value={participants?.length ?? 0} />
@@ -77,7 +72,7 @@ function EditionPage() {
                 <Link
                   to="/shows/$showId"
                   params={{ showId: s.id }}
-                  className="glass block px-4 py-3 transition-colors hover:bg-surface-strong"
+                  className="glass block min-w-0 px-3 py-3 transition-colors hover:bg-surface-strong sm:px-4"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-medium">{s.name}</span>

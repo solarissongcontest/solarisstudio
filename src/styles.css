@@ -204,3 +204,81 @@
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--primary) 45%, transparent) transparent;
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* Responsive application shell                                               */
+/* -------------------------------------------------------------------------- */
+
+@layer base {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-width: 0;
+  }
+
+  img,
+  svg,
+  canvas,
+  video {
+    max-width: 100%;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    min-width: 0;
+  }
+
+  button,
+  a,
+  select {
+    touch-action: manipulation;
+  }
+
+  select,
+  input,
+  textarea {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .glass,
+  .glass-strong {
+    border-radius: var(--radius-xl);
+  }
+
+  /* Recharts and custom visualisations should never force the document wider
+     than the phone. Individual visualisations can still scroll internally. */
+  .recharts-responsive-container {
+    max-width: 100% !important;
+  }
+
+  table {
+    font-size: 0.8125rem;
+  }
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+.app-main {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  .app-main {
+    padding-bottom: 2rem;
+  }
+}

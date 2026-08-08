@@ -32,7 +32,7 @@ function EditionsPage() {
       {!isLoading && !editions?.length && (
         <p className="text-sm text-muted-foreground">No editions yet — create one in the Studio.</p>
       )}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {(editions ?? []).map((e) => {
           const es = (shows ?? []).filter((s) => s.edition_id === e.id);
           return (
@@ -40,11 +40,11 @@ function EditionsPage() {
               key={e.id}
               to="/editions/$slug"
               params={{ slug: e.slug }}
-              className="glass group p-5 transition-transform hover:-translate-y-0.5"
+              className="glass group min-w-0 p-3 transition-transform hover:-translate-y-0.5 sm:p-5"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-display text-2xl font-bold">{editionLabel(e)}</p>
+                  <p className="font-display text-xl font-bold sm:text-2xl">{editionLabel(e)}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{e.name}</p>
                 </div>
                 <span

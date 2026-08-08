@@ -247,8 +247,8 @@ function CountryProfilePage() {
       />
 
       {/* sticky filter + section nav */}
-      <div className="glass sticky top-[64px] z-30 mb-6 flex flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-center gap-4">
+      <div className="glass mb-4 flex flex-col gap-3 p-3 md:sticky md:top-[72px] md:z-30 md:mb-6 md:p-4">
+        <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-4">
           <FilterGroup
             label="Events"
             value={eventFilter}
@@ -286,18 +286,37 @@ function CountryProfilePage() {
                 ))}
             </select>
           </label>
-          <a href={`/compare?a=${country.short_code}`} className="ml-auto text-xs text-primary hover:underline">
+          <a href={`/compare?a=${country.short_code}`} className="text-xs text-primary hover:underline sm:ml-auto">
             Compare this country →
           </a>
         </div>
-        <nav className="flex flex-wrap gap-1 overflow-x-auto text-xs">
-          {SECTIONS.map((s) => (
+        <label className="block md:hidden">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Jump to section
+          </span>
+          <select
+            defaultValue="overview"
+            onChange={(event) => {
+              window.location.hash = event.target.value;
+            }}
+            className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-medium"
+          >
+            {SECTIONS.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <nav className="scroll-slim hidden gap-1 overflow-x-auto text-xs md:flex">
+          {SECTIONS.map((section) => (
             <a
-              key={s.id}
-              href={`#${s.id}`}
-              className="whitespace-nowrap rounded-lg px-2.5 py-1 text-muted-foreground hover:bg-surface hover:text-foreground"
+              key={section.id}
+              href={`#${section.id}`}
+              className="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-muted-foreground hover:bg-surface hover:text-foreground"
             >
-              {s.label}
+              {section.label}
             </a>
           ))}
         </nav>
@@ -312,7 +331,7 @@ function CountryProfilePage() {
       ) : (
         <div className="space-y-6">
           <div id="overview"><Panel title="Overview" className="scroll-mt-40">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
               <StatTile label="Participations" value={stats.participations} />
               <StatTile label="Wins" value={stats.wins} />
               <StatTile label="Finals reached" value={stats.finals} />
@@ -325,7 +344,7 @@ function CountryProfilePage() {
           </Panel></div>
 
           <div id="performance"><Panel title="Performance" description="Placement milestones across selected events" className="scroll-mt-40">
-            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6">
               <StatTile label="Win %" value={stats.winPct != null ? `${stats.winPct.toFixed(0)}%` : "—"} />
               <StatTile label="Podiums" value={stats.podiums} />
               <StatTile label="Top 5" value={stats.top5} />
@@ -343,7 +362,7 @@ function CountryProfilePage() {
 
           <div id="timeline"><Panel title="Results timeline" description="Final placement per edition (lower is better)" className="scroll-mt-40">
             {stats.timeline.length ? (
-              <div className="h-[280px]">
+              <div className="h-[210px] sm:h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={stats.timeline}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -401,8 +420,8 @@ function CountryProfilePage() {
             <div id="jury"><Panel title="Jury statistics" className="scroll-mt-40">
               <div className="grid grid-cols-2 gap-3">
                 <StatTile label="Avg. jury placement" value={stats.avgJuryPlacement != null ? stats.avgJuryPlacement.toFixed(1) : "—"} />
-                <StatTile label="Top scores received" value={stats.topScoresReceived} />
-                <StatTile label="Top scores given" value={stats.topScoresGiven} />
+                <StatTile label="12s received" value={stats.twelvesReceived} />
+                <StatTile label="12s given" value={stats.twelvesGiven} />
                 <StatTile label="Countries awarded" value={stats.distinctCountriesAwarded} />
               </div>
             </Panel></div>
@@ -541,7 +560,7 @@ function CountryProfilePage() {
           </Panel></div>
 
           <div id="voting"><Panel title="Voting behaviour" description="Favourites, generosity and blind spots" className="scroll-mt-40">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
               <StatTile
                 label="Favourite recipient"
                 value={stats.favouriteRecipient ? cMap.get(stats.favouriteRecipient.countryId)?.name ?? "—" : "—"}

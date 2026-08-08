@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { FlagChip } from "@/components/FlagChip";
 import { ChordDiagram } from "@/components/viz/ChordDiagram";
 import { SankeyFlow } from "@/components/viz/SankeyFlow";
@@ -19,7 +20,6 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/analysis/")({
   head: () => ({
@@ -111,7 +111,7 @@ function AnalysisPage() {
 
       <Filters editions={es} value={filters} onChange={setFilters} />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-4 grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:mb-6 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
         <StatTile
           label="Kingmaker"
           value={intelligence.kingmakers[0] ? cMap.get(intelligence.kingmakers[0].countryId)?.name ?? "—" : "—"}
@@ -142,20 +142,17 @@ function AnalysisPage() {
         />
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-1 overflow-x-auto rounded-xl bg-surface p-1">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setTab(s.id)}
-            className={cn(
-              "shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-              tab === s.id ? "bg-aurora text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+      <ResponsiveTabs
+        value={tab}
+        options={SECTIONS.map((section) => ({
+          value: section.id,
+          label: section.label,
+        }))}
+        onChange={setTab}
+        label="Analysis view"
+        sticky
+        className="mb-4 sm:mb-6"
+      />
 
       <div className="grid gap-6">
         {tab === "network" && (
@@ -209,7 +206,7 @@ function AnalysisPage() {
               {sims.length ? (
                 <ul className="space-y-2">
                   {sims.map((s, i) => (
-                    <li key={i} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
+                    <li key={i} className="flex min-w-0 items-center gap-2 rounded-xl bg-surface px-3 py-2 sm:gap-3">
                       <span className="flex-1 text-sm">
                         <Link to="/countries/$code" params={{ code: cMap.get(s.a)?.short_code ?? "" }} className="hover:underline">
                           {label(s.a)}
@@ -219,7 +216,7 @@ function AnalysisPage() {
                           {label(s.b)}
                         </Link>
                       </span>
-                      <span className="h-1.5 w-24 overflow-hidden rounded-full bg-background">
+                      <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-background sm:block">
                         <span className="bg-aurora block h-full" style={{ width: `${s.score * 100}%` }} />
                       </span>
                       <span className="numeric w-14 text-right text-sm font-semibold">{(s.score * 100).toFixed(0)}%</span>
@@ -312,7 +309,7 @@ function AnalysisPage() {
                   const c = cMap.get(b.id);
                   if (!c) return null;
                   return (
-                    <li key={b.id} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
+                    <li key={b.id} className="flex min-w-0 items-center gap-2 rounded-xl bg-surface px-3 py-2 sm:gap-3">
                       <Link to="/countries/$code" params={{ code: c.short_code }}>
                         <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="sm" />
                       </Link>
