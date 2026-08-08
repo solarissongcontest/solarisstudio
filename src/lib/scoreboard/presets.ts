@@ -422,114 +422,274 @@ function brightRibbon(): ScoreboardConfig {
 
 /** B6 — mandatory SSC21 visual system. */
 function ssc21(): ScoreboardConfig {
+  const diagonalBand = (
+    id: string,
+    order: number,
+    width: number,
+    color: string,
+    z: number,
+  ) =>
+    zone("decoration", {
+      id,
+      order,
+      width,
+      height: 48,
+      shape: shape({
+        kind: "parallelogram",
+        leftSlant: 24,
+        rightSlant: 24,
+        direction: "right",
+      }),
+      surface: surface({
+        fill: "color",
+        color,
+        opacity: 1,
+      }),
+      overlapLeft: -10,
+      overlapRight: -10,
+      z,
+    });
+
   const cfg = makeConfig(
     "SSC21",
-    "live-reveal",
+    "final-results",
     baseCard(
       [
-        zone("flag", {
-          id: "flag",
-          order: 0,
-          width: 74,
-          height: 44,
-          fit: "cover",
-          objectPosition: "center",
-          shape: shape({ kind: "parallelogram", leftSlant: 22, direction: "right" }),
-          overlapRight: -14,
-          z: 3,
-        }),
-        zone("decoration", {
-          id: "transition-band",
-          order: 1,
-          width: 34,
-          shape: shape({ kind: "parallelogram", leftSlant: 40, direction: "right" }),
-          surface: surface({ fill: "gradient", color: "country", color2: "transparent", opacity: 0.85, angle: 90 }),
-          overlapLeft: -14,
-          overlapRight: -12,
-          z: 2,
-        }),
-        nameZone(2, {
-          grow: 1,
-          paddingX: 10,
-          typography: typo({
-            size: 17,
-            weight: 800,
-            uppercase: true,
-            letterSpacing: 1.5,
-            color: "#ffffff",
-          }),
-        }),
+        // In the original SSC21 design the score is at the far left.
         zone("score", {
           id: "score",
-          order: 3,
-          width: 86,
+          order: 0,
+          width: 74,
+          height: 48,
           align: "center",
-          surface: surface({ fill: "color", color: "#ffffff", opacity: 0.95 }),
-          shape: shape({ kind: "rect", radius: 0 }),
-          typography: typo({ size: 24, weight: 900, color: "#08101f", align: "center" }),
-          z: 4,
+          paddingX: 4,
+          surface: surface({
+            fill: "color",
+            color: "#100724",
+            opacity: 0.98,
+          }),
+          shape: shape({
+            kind: "rect",
+            radius: 0,
+          }),
+          typography: typo({
+            family: "display",
+            size: 17,
+            minSize: 10,
+            weight: 400,
+            letterSpacing: 0.2,
+            color: "#d6d2dc",
+            align: "center",
+          }),
+          z: 8,
+        }),
+
+        // Blue-to-teal diagonal fan before the flag.
+        diagonalBand("ssc21-navy-band", 1, 28, "#111340", 2),
+        diagonalBand("ssc21-blue-band", 2, 28, "#153063", 3),
+        diagonalBand("ssc21-teal-band", 3, 28, "#07545a", 4),
+
+        // Flag sits in the middle of the diagonal transition.
+        zone("flag", {
+          id: "flag",
+          order: 4,
+          width: 78,
+          height: 48,
+          fit: "cover",
+          objectPosition: "center",
+          shape: shape({
+            kind: "parallelogram",
+            leftSlant: 14,
+            rightSlant: 14,
+            direction: "right",
+          }),
+          overlapLeft: -9,
+          overlapRight: -10,
+          z: 7,
+        }),
+
+        // Dark green fan after the flag.
+        diagonalBand("ssc21-green-band-a", 5, 28, "#0a4b45", 6),
+        diagonalBand("ssc21-green-band-b", 6, 28, "#173c32", 5),
+        diagonalBand("ssc21-green-band-c", 7, 24, "#122d27", 4),
+
+        // Long country-name bar on the right.
+        zone("country-name", {
+          id: "country-name",
+          order: 8,
+          grow: 1,
+          height: 48,
+          align: "left",
+          paddingX: 22,
+          surface: surface({
+            fill: "gradient",
+            color: "#101f17",
+            color2: "#0b1510",
+            opacity: 0.99,
+            angle: 90,
+          }),
+          shape: shape({
+            kind: "rect",
+            radius: 0,
+          }),
+          overlapLeft: -9,
+          typography: typo({
+            family: "display",
+            size: 16,
+            minSize: 10,
+            weight: 400,
+            uppercase: true,
+            letterSpacing: 1.35,
+            color: "#c8c7ca",
+            align: "left",
+          }),
+          z: 1,
         }),
       ],
       {
         preset: "ssc21",
-        height: 46,
+        height: 48,
         radius: 0,
         gap: 0,
         paddingX: 0,
-        overflow: "hidden",
-        background: surface({ fill: "gradient", color: "#0d1734", color2: "#1b2a55", opacity: 0.94, angle: 92 }),
-        border: border({ width: 0 }),
-        shadow: shadow({ enabled: true, y: 6, blur: 18, spread: -12, opacity: 0.6 }),
-        glow: shadow({ enabled: false }),
-        decorations: [
-          decoration({
-            id: "diag-band-1",
-            kind: "gradient",
-            target: "card",
-            x: 8,
-            width: 26,
-            color: "country",
-            color2: "transparent",
-            opacity: 0.55,
-            angle: 100,
-            shape: shape({ kind: "parallelogram", leftSlant: 55 }),
-            z: 1,
-          }),
-          decoration({
-            id: "diag-band-2",
-            kind: "stripe",
-            target: "card",
-            x: 26,
-            width: 6,
-            color: "#ffffff",
-            opacity: 0.14,
-            shape: shape({ kind: "parallelogram", leftSlant: 120 }),
-            z: 1,
-          }),
-          decoration({
-            id: "score-edge",
-            kind: "accent-bar",
-            target: "card",
-            x: 95.2,
-            width: 0.8,
-            color: "country",
-            opacity: 0.9,
-            z: 5,
-          }),
-        ],
-        stateOverrides: {
-          active: { background: surface({ fill: "gradient", color: "country", color2: "#0d1734", opacity: 0.9, angle: 92 }) },
-          leader: { background: surface({ fill: "gradient", color: "#243a7a", color2: "#0d1734", opacity: 0.96, angle: 92 }) },
-          winner: { background: surface({ fill: "gradient", color: "theme:gold", color2: "#0d1734", opacity: 0.95, angle: 92 }) },
-        },
+        paddingY: 0,
+        opacity: 1,
+        overflow: "visible",
+
+        // The original look is made from the individual segments,
+        // not from one generic blue card behind them.
+        background: surface({
+          fill: "none",
+        }),
+        border: border({
+          width: 0,
+        }),
+        shadow: shadow({
+          enabled: true,
+          x: 0,
+          y: 3,
+          blur: 10,
+          spread: -7,
+          color: "#000000",
+          opacity: 0.75,
+        }),
+        glow: shadow({
+          enabled: false,
+        }),
+        decorations: [],
+        stateOverrides: {},
       },
     ),
   );
-  cfg.layout = { ...cfg.layout, columns: 2, boardWidth: 1280, rowGap: 5, columnGap: 28 };
+
+  // Two dense result columns with the large gap seen in SSC21.
+  cfg.layout = {
+    ...cfg.layout,
+    preset: "two-column",
+    columns: 2,
+    rowsPerColumn: null,
+    distribution: "sequential",
+    boardWidth: 1360,
+    boardHeight: null,
+    positionX: 0,
+    positionY: 0,
+    rowGap: 4,
+    columnGap: 72,
+    alignment: "center",
+    verticalAlignment: "top",
+    safeMarginTop: 150,
+    safeMarginRight: 72,
+    safeMarginBottom: 42,
+    safeMarginLeft: 72,
+    columnHeadings: [],
+  };
+
+  // Large two-line title like the reference:
+  //
+  // GRAND FINAL
+  // RESULTS
   cfg.header = {
     ...cfg.header,
-    upper: { ...cfg.header.upper, text: "Solaris Song Contest", typography: typo({ size: 12, uppercase: true, letterSpacing: 6, weight: 700, color: "theme:accent", align: "center" }) },
+    visible: true,
+    align: "center",
+    marginBottom: 52,
+    lineSpacing: -4,
+    upper: {
+      ...cfg.header.upper,
+      visible: true,
+      text: "GRAND FINAL",
+      offsetY: 0,
+      typography: typo({
+        family: "display",
+        size: 31,
+        minSize: 17,
+        weight: 300,
+        uppercase: true,
+        letterSpacing: 8,
+        color: "#d0d2d7",
+        align: "center",
+      }),
+    },
+    main: {
+      ...cfg.header.main,
+      visible: true,
+      text: "RESULTS",
+      offsetY: -2,
+      typography: typo({
+        family: "display",
+        size: 39,
+        minSize: 22,
+        weight: 700,
+        uppercase: true,
+        letterSpacing: 0.4,
+        color: "#e4e5e8",
+        align: "center",
+      }),
+    },
   };
+
+  // The current scoreboard engine only has simple built-in patterns,
+  // so this recreates the blue-to-green SSC21 atmosphere without
+  // hard-coding an external image.
+  cfg.background = {
+    ...cfg.background,
+    type: "gradient",
+    color: "#132841",
+    gradientFrom: "#172b50",
+    gradientTo: "#17392f",
+    gradientAngle: 180,
+    imageUrl: null,
+    videoUrl: null,
+    pattern: "bands",
+    patternOpacity: 0.12,
+    overlay: 0.12,
+    vignette: 0.2,
+    blur: 0,
+  };
+
+  // ScoreboardBoard now falls back to the show's theme logo when url is null.
+  cfg.logo = {
+    ...cfg.logo,
+    visible: true,
+    url: null,
+    width: 300,
+    maxHeight: 135,
+    align: "center",
+    marginTop: 52,
+    opacity: 0.96,
+    position: "below-board",
+  };
+
+  cfg.footer = {
+    ...cfg.footer,
+    visible: false,
+  };
+
+  cfg.panel = {
+    ...cfg.panel,
+    visible: false,
+  };
+
   return cfg;
 }
 
