@@ -420,9 +420,9 @@ function brightRibbon(): ScoreboardConfig {
   );
 }
 
-/** B6 — mandatory SSC21 visual system. */
+/** B6 — SSC21 reference-accurate scorecard system. */
 function ssc21(): ScoreboardConfig {
-  const diagonalBand = (
+  const band = (
     id: string,
     order: number,
     width: number,
@@ -445,8 +445,10 @@ function ssc21(): ScoreboardConfig {
         color,
         opacity: 1,
       }),
-      overlapLeft: -10,
-      overlapRight: -10,
+
+      // Enough overlap to interlock, but not so much that the bands disappear.
+      overlapLeft: -7,
+      overlapRight: -7,
       z,
     });
 
@@ -455,18 +457,19 @@ function ssc21(): ScoreboardConfig {
     "final-results",
     baseCard(
       [
-        // In the original SSC21 design the score is at the far left.
+        // ~19% of a column. The reference score box is a wide, flat,
+        // near-black plum rectangle at the far left.
         zone("score", {
           id: "score",
           order: 0,
-          width: 74,
+          width: 118,
           height: 48,
           align: "center",
-          paddingX: 4,
+          paddingX: 8,
           surface: surface({
             fill: "color",
-            color: "#100724",
-            opacity: 0.98,
+            color: "#14082b",
+            opacity: 1,
           }),
           shape: shape({
             kind: "rect",
@@ -474,46 +477,50 @@ function ssc21(): ScoreboardConfig {
           }),
           typography: typo({
             family: "display",
-            size: 17,
-            minSize: 10,
-            weight: 400,
-            letterSpacing: 0.2,
-            color: "#d6d2dc",
+            size: 19,
+            minSize: 11,
+            weight: 300,
+            letterSpacing: 0,
+            color: "#d5d0dc",
             align: "center",
           }),
-          z: 8,
+          z: 10,
         }),
 
-        // Blue-to-teal diagonal fan before the flag.
-        diagonalBand("ssc21-navy-band", 1, 28, "#111340", 2),
-        diagonalBand("ssc21-blue-band", 2, 28, "#153063", 3),
-        diagonalBand("ssc21-teal-band", 3, 28, "#07545a", 4),
+        // LEFT FAN.
+        // These bands deliberately occupy real width. The old preset used
+        // 28px bands with -20px total overlap, making them almost disappear.
+        band("ssc21-band-navy", 1, 48, "#10133f", 2),
+        band("ssc21-band-blue", 2, 48, "#102d61", 3),
+        band("ssc21-band-teal", 3, 48, "#07545a", 4),
 
-        // Flag sits in the middle of the diagonal transition.
+        // In the actual SSC21 graphic, the flag reads as a rectangular image
+        // surrounded by diagonal colour pieces. The flag itself is not the
+        // thing producing the slanted fan.
         zone("flag", {
           id: "flag",
           order: 4,
-          width: 78,
+          width: 96,
           height: 48,
           fit: "cover",
           objectPosition: "center",
           shape: shape({
-            kind: "parallelogram",
-            leftSlant: 14,
-            rightSlant: 14,
-            direction: "right",
+            kind: "rect",
+            radius: 0,
           }),
-          overlapLeft: -9,
-          overlapRight: -10,
-          z: 7,
+          overlapLeft: -8,
+          overlapRight: -8,
+          z: 8,
         }),
 
-        // Dark green fan after the flag.
-        diagonalBand("ssc21-green-band-a", 5, 28, "#0a4b45", 6),
-        diagonalBand("ssc21-green-band-b", 6, 28, "#173c32", 5),
-        diagonalBand("ssc21-green-band-c", 7, 24, "#122d27", 4),
+        // RIGHT FAN. Three darker teal/green layers taper into the country bar.
+        band("ssc21-band-teal-dark", 5, 42, "#0b4b49", 7),
+        band("ssc21-band-green", 6, 42, "#123d35", 6),
+        band("ssc21-band-green-dark", 7, 42, "#122b25", 5),
 
-        // Long country-name bar on the right.
+        // The country block should be long, but not 70% of the entire row.
+        // With the corrected fixed zones this ends up around the reference's
+        // ~45-48% share of each card.
         zone("country-name", {
           id: "country-name",
           order: 8,
@@ -523,24 +530,24 @@ function ssc21(): ScoreboardConfig {
           paddingX: 22,
           surface: surface({
             fill: "gradient",
-            color: "#101f17",
-            color2: "#0b1510",
-            opacity: 0.99,
+            color: "#122019",
+            color2: "#0c1712",
+            opacity: 1,
             angle: 90,
           }),
           shape: shape({
             kind: "rect",
             radius: 0,
           }),
-          overlapLeft: -9,
+          overlapLeft: -7,
           typography: typo({
             family: "display",
-            size: 16,
+            size: 17,
             minSize: 10,
-            weight: 400,
+            weight: 300,
             uppercase: true,
-            letterSpacing: 1.35,
-            color: "#c8c7ca",
+            letterSpacing: 1.25,
+            color: "#c8c7c8",
             align: "left",
           }),
           z: 1,
@@ -556,8 +563,7 @@ function ssc21(): ScoreboardConfig {
         opacity: 1,
         overflow: "visible",
 
-        // The original look is made from the individual segments,
-        // not from one generic blue card behind them.
+        // The row is assembled from segments. No generic card fill behind it.
         background: surface({
           fill: "none",
         }),
@@ -567,22 +573,35 @@ function ssc21(): ScoreboardConfig {
         shadow: shadow({
           enabled: true,
           x: 0,
-          y: 3,
-          blur: 10,
-          spread: -7,
+          y: 2,
+          blur: 7,
+          spread: -6,
           color: "#000000",
-          opacity: 0.75,
+          opacity: 0.55,
         }),
         glow: shadow({
           enabled: false,
         }),
         decorations: [],
-        stateOverrides: {},
+
+        // Keep the geometry identical when rows are leader/current/winner.
+        // Highlighting can be handled by the reveal system instead of
+        // recolouring the entire historic SSC21 card.
+        stateOverrides: {
+          active: {
+            opacity: 1,
+          },
+          leader: {
+            opacity: 1,
+          },
+          winner: {
+            opacity: 1,
+          },
+        },
       },
     ),
   );
 
-  // Two dense result columns with the large gap seen in SSC21.
   cfg.layout = {
     ...cfg.layout,
     preset: "two-column",
@@ -593,27 +612,26 @@ function ssc21(): ScoreboardConfig {
     boardHeight: null,
     positionX: 0,
     positionY: 0,
-    rowGap: 4,
+
+    // The original rows are clearly separated instead of touching.
+    rowGap: 7,
     columnGap: 72,
+
     alignment: "center",
     verticalAlignment: "top",
-    safeMarginTop: 150,
-    safeMarginRight: 72,
-    safeMarginBottom: 42,
-    safeMarginLeft: 72,
+    safeMarginTop: 145,
+    safeMarginRight: 70,
+    safeMarginBottom: 40,
+    safeMarginLeft: 70,
     columnHeadings: [],
   };
 
-  // Large two-line title like the reference:
-  //
-  // GRAND FINAL
-  // RESULTS
   cfg.header = {
     ...cfg.header,
     visible: true,
     align: "center",
     marginBottom: 52,
-    lineSpacing: -4,
+    lineSpacing: 0,
     upper: {
       ...cfg.header.upper,
       visible: true,
@@ -621,12 +639,12 @@ function ssc21(): ScoreboardConfig {
       offsetY: 0,
       typography: typo({
         family: "display",
-        size: 31,
-        minSize: 17,
+        size: 33,
+        minSize: 18,
         weight: 300,
         uppercase: true,
         letterSpacing: 8,
-        color: "#d0d2d7",
+        color: "#d4d5d8",
         align: "center",
       }),
     },
@@ -641,48 +659,26 @@ function ssc21(): ScoreboardConfig {
         minSize: 22,
         weight: 700,
         uppercase: true,
-        letterSpacing: 0.4,
-        color: "#e4e5e8",
+        letterSpacing: 0.5,
+        color: "#e6e7e8",
         align: "center",
       }),
     },
   };
 
-  // The current scoreboard engine only has simple built-in patterns,
-  // so this recreates the blue-to-green SSC21 atmosphere without
-  // hard-coding an external image.
+  // Kept merely as a reasonable default. The scorecard itself no longer
+  // depends on the background looking like SSC21.
   cfg.background = {
     ...cfg.background,
     type: "gradient",
-    color: "#132841",
-    gradientFrom: "#172b50",
-    gradientTo: "#17392f",
+    gradientFrom: "#14284d",
+    gradientTo: "#173c34",
     gradientAngle: 180,
-    imageUrl: null,
-    videoUrl: null,
     pattern: "bands",
-    patternOpacity: 0.12,
-    overlay: 0.12,
-    vignette: 0.2,
+    patternOpacity: 0.13,
+    overlay: 0.18,
+    vignette: 0.22,
     blur: 0,
-  };
-
-  // ScoreboardBoard now falls back to the show's theme logo when url is null.
-  cfg.logo = {
-    ...cfg.logo,
-    visible: true,
-    url: null,
-    width: 300,
-    maxHeight: 135,
-    align: "center",
-    marginTop: 52,
-    opacity: 0.96,
-    position: "below-board",
-  };
-
-  cfg.footer = {
-    ...cfg.footer,
-    visible: false,
   };
 
   cfg.panel = {
@@ -690,9 +686,13 @@ function ssc21(): ScoreboardConfig {
     visible: false,
   };
 
+  cfg.footer = {
+    ...cfg.footer,
+    visible: false,
+  };
+
   return cfg;
 }
-
 function classicLive(): ScoreboardConfig {
   return makeConfig(
     "Classic Live Reveal",
