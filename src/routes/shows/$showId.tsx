@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { VotingMatrix } from "@/components/VotingMatrix";
 import { computeStandings } from "@/lib/analysis";
@@ -15,21 +17,22 @@ import {
 } from "@/lib/data";
 import { resolveTheme } from "@/lib/theme";
 import { resolveVoting } from "@/lib/voting";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/shows/$showId")({
   head: () => ({
-    meta: [
-      { title: "Show results — Solaris Spectacle Suite" },
-      { name: "description", content: "Full scoreboard, jury and televote split and voting matrix for this Solaris Song Contest show." },
-      { property: "og:title", content: "SSC show results" },
-      { property: "og:description", content: "Scoreboard, split results and the full voting matrix." },
-    ],
+    meta: [{ title: "Show results — Solaris Studio" }],
   }),
   component: ShowPage,
 });
 
-const TABS = ["Scoreboard", "Split", "Matrix", "Line-up"] as const;
+const TABS = [
+  { value: "scoreboard", label: "Scoreboard" },
+  { value: "split", label: "Jury / Tele" },
+  { value: "matrix", label: "Matrix" },
+  { value: "lineup", label: "Line-up" },
+] as const;
+
+type Tab = (typeof TABS)[number]["value"];
 
 function ShowPage() {
   const { showId } = Route.useParams();
@@ -40,27 +43,43 @@ function ShowPage() {
   const { data: voters } = useShowVoters(showId);
   const { data: countries } = useCountries();
   const { data: themes } = useThemes();
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Scoreboard");
+  const [tab, setTab] = useState<Tab>("scoreboard");
 
   const theme = useMemo(
-    () => resolveTheme((themes ?? []).find((t) => t.id === show?.theme_id)?.config),
+    () => resolveTheme((themes ?? []).find((item) => item.id === show?.theme_id)?.config),
     [themes, show?.theme_id],
   );
-  const voting = useMemo(() => resolveVoting(show?.voting_config), [show?.voting_config]);
 
-  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
-  const participantMap = new Map((participants ?? []).map((p) => [p.country_id, p]));
-  const ids = (participants ?? []).map((p) => p.country_id);
+  const voting = useMemo(
+    () => resolveVoting(show?.voting_config),
+    [show?.voting_config],
+  );
+
+  const countryMap = new Map((countries ?? []).map((country) => [country.id, country]));
+  const participantMap = new Map(
+    (participants ?? []).map((participant) => [participant.country_id, participant]),
+  );
+  const ids = (participants ?? []).map((participant) => participant.country_id);
   const standings = computeStandings(ids, jury ?? [], tele ?? [], voting);
 
-  if (isLoading) return <AppShell><p className="text-sm text-muted-foreground">Loading show…</p></AppShell>;
-  if (!show)
+  if (isLoading) {
     return (
       <AppShell>
-        <PageHeader title="Show unavailable" description="This show is private or does not exist yet." />
-        <Link to="/editions" className="text-sm text-primary">← All editions</Link>
+        <p className="text-sm text-muted-foreground">Loading show…</p>
       </AppShell>
     );
+  }
+
+  if (!show) {
+    return (
+      <AppShell>
+        <PageHeader title="Show unavailable" />
+        <Link to="/editions" className="text-sm text-primary">
+          ← Editions
+        </Link>
+      </AppShell>
+    );
+  }
 
   const winner = standings[0] ? countryMap.get(standings[0].countryId) : null;
 
@@ -69,46 +88,42 @@ function ShowPage() {
       <PageHeader
         eyebrow={show.kind.replace("-", " ")}
         title={show.name}
-        description={winner ? `Winner: ${winner.name} with ${standings[0].total} points.` : "No results yet."}
+        description={
+          winner
+            ? `${winner.name} won with ${standings[0].total} points.`
+            : "Results are not available yet."
+        }
         actions={
-          <>
-            <Link
-              to="/broadcast/$showId"
-              params={{ showId: show.id }}
-              className="bg-aurora rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Watch broadcast
-            </Link>
-            <Link to="/editions" className="rounded-lg border border-border px-4 py-2 text-sm">
-              Editions
-            </Link>
-          </>
+          <Link
+            to="/broadcast/$showId"
+            params={{ showId: show.id }}
+            className="bg-aurora rounded-xl px-4 py-2.5 text-sm font-medium text-primary-foreground"
+          >
+            Watch broadcast
+          </Link>
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-4">
-        <StatTile label="Entries" value={ids.length} />
-        <StatTile label="Jury points" value={(jury ?? []).reduce((a, v) => a + v.points, 0)} />
-        <StatTile label="Televote points" value={(tele ?? []).reduce((a, v) => a + v.points, 0)} />
-        <StatTile label="Qualifiers" value={show.qualifier_count ?? "—"} />
-      </div>
+      <Panel className="mb-5">
+        <div className="grid grid-cols-3 gap-5">
+          <StatTile label="Entries" value={ids.length} />
+          <StatTile
+            label="Total votes"
+            value={(jury ?? []).reduce((sum, vote) => sum + vote.points, 0) + (tele ?? []).reduce((sum, vote) => sum + vote.points, 0)}
+          />
+          <StatTile label="Qualifiers" value={show.qualifier_count ?? "—"} />
+        </div>
+      </Panel>
 
-      <div className="mb-4 flex flex-wrap gap-1">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "rounded-lg px-3 py-1.5 text-sm",
-              tab === t ? "bg-surface-strong" : "text-muted-foreground hover:bg-surface",
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <ResponsiveTabs
+        value={tab}
+        options={TABS}
+        onChange={setTab}
+        label="Show view"
+        className="mb-5"
+      />
 
-      {tab === "Scoreboard" && (
+      {tab === "scoreboard" && (
         <ScoreboardStage
           theme={theme}
           standings={standings}
@@ -118,38 +133,33 @@ function ShowPage() {
         />
       )}
 
-      {tab === "Split" && (
-        <Panel title="Jury vs televote">
-          <ul className="space-y-2">
-            {standings.map((r) => {
-              const c = countryMap.get(r.countryId);
-              const max = Math.max(1, ...standings.map((s) => Math.max(s.jury, s.televote)));
+      {tab === "split" && (
+        <Panel title="Jury and televote">
+          <div className="divide-y divide-border/60">
+            {standings.map((row, index) => {
+              const country = countryMap.get(row.countryId);
               return (
-                <li key={r.countryId} className="glass px-3 py-2">
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span>{c?.name}</span>
-                    <span className="numeric font-semibold">{r.total}</span>
+                <div
+                  key={row.countryId}
+                  className="grid grid-cols-[32px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <span className="numeric text-sm text-muted-foreground">#{index + 1}</span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{country?.name ?? "Unknown"}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Jury {row.jury} · Televote {row.televote}
+                    </p>
                   </div>
-                  <div className="flex gap-1">
-                    <div className="h-2 rounded-full bg-[var(--jury)]" style={{ width: `${(r.jury / max) * 50}%` }} />
-                    <div
-                      className="h-2 rounded-full bg-[var(--televote)]"
-                      style={{ width: `${(r.televote / max) * 50}%` }}
-                    />
-                  </div>
-                  <div className="mt-1 flex gap-3 text-[11px] text-muted-foreground">
-                    <span className="numeric text-[var(--jury)]">Jury {r.jury}</span>
-                    <span className="numeric text-[var(--televote)]">Televote {r.televote}</span>
-                  </div>
-                </li>
+                  <span className="numeric text-sm font-semibold">{row.total}</span>
+                </div>
               );
             })}
-          </ul>
+          </div>
         </Panel>
       )}
 
-      {tab === "Matrix" && (
-        <Panel title="Voting matrix" description="Rows receive, columns give. Hover any cell for the full exchange.">
+      {tab === "matrix" && (
+        <Panel title="Voting matrix" description="Rows receive points, columns give them.">
           <VotingMatrix
             votes={jury ?? []}
             countries={countryMap}
@@ -160,29 +170,40 @@ function ShowPage() {
         </Panel>
       )}
 
-      {tab === "Line-up" && (
+      {tab === "lineup" && (
         <Panel title="Running order">
-          <ol className="space-y-1.5">
-            {(participants ?? []).map((p) => {
-              const c = countryMap.get(p.country_id);
+          <div className="divide-y divide-border/60">
+            {(participants ?? []).map((participant) => {
+              const country = countryMap.get(participant.country_id);
               return (
-                <li key={p.id} className="glass flex items-center gap-3 px-3 py-2">
-                  <span className="numeric w-6 text-center text-sm text-muted-foreground">{p.running_order ?? "–"}</span>
-                  {c?.flag_image ? (
-                    <img src={c.flag_image} alt={c.name} className="h-6 w-9 rounded object-cover" />
-                  ) : null}
-                  <span className="flex-1 truncate">
-                    <span className="font-medium">{c?.name}</span>
-                    {(p.artist || p.song) && (
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {[p.artist, p.song].filter(Boolean).join(" — ")}
-                      </span>
-                    )}
+                <div
+                  key={participant.id}
+                  className="grid grid-cols-[32px_42px_1fr] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <span className="numeric text-sm text-muted-foreground">
+                    {participant.running_order ?? "—"}
                   </span>
-                </li>
+                  {country?.flag_image ? (
+                    <img
+                      src={country.flag_image}
+                      alt=""
+                      className="h-6 w-9 rounded object-cover"
+                    />
+                  ) : (
+                    <div />
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{country?.name ?? "Unknown"}</p>
+                    {(participant.artist || participant.song) && (
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {[participant.artist, participant.song].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
               );
             })}
-          </ol>
+          </div>
         </Panel>
       )}
     </AppShell>

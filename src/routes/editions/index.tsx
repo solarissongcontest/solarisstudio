@@ -1,17 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/editions/")({
   head: () => ({
     meta: [
-      { title: "Editions — Solaris Spectacle Suite" },
+      { title: "Editions — Solaris Studio" },
       {
         name: "description",
-        content: "Every Solaris Song Contest edition with its semi-finals, grand finals and special shows.",
+        content: "Browse every Solaris Song Contest edition.",
       },
-      { property: "og:title", content: "SSC editions" },
-      { property: "og:description", content: "Browse all Solaris Song Contest editions and shows." },
     ],
   }),
   component: EditionsPage,
@@ -25,44 +24,42 @@ function EditionsPage() {
     <AppShell>
       <PageHeader
         eyebrow="Archive"
-        title="Contest editions"
-        description="Each edition is a container of shows. Unpublished editions and shows stay hidden from the public."
+        title="Editions"
+        description="One clean archive of every Solaris Song Contest edition."
       />
+
       {isLoading && <p className="text-sm text-muted-foreground">Loading editions…</p>}
-      {!isLoading && !editions?.length && (
-        <p className="text-sm text-muted-foreground">No editions yet — create one in the Studio.</p>
+
+      {!isLoading && !(editions ?? []).length && (
+        <div className="glass p-6 text-sm text-muted-foreground">No editions yet.</div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        {(editions ?? []).map((e) => {
-          const es = (shows ?? []).filter((s) => s.edition_id === e.id);
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {(editions ?? []).map((edition) => {
+          const editionShows = (shows ?? []).filter(
+            (show) => show.edition_id === edition.id,
+          );
+
           return (
             <Link
-              key={e.id}
+              key={edition.id}
               to="/editions/$slug"
-              params={{ slug: e.slug }}
-              className="glass group min-w-0 p-3 transition-transform hover:-translate-y-0.5 sm:p-5"
+              params={{ slug: edition.slug }}
+              className="glass group block p-4 transition-transform hover:-translate-y-0.5 sm:p-5"
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-display text-xl font-bold sm:text-2xl">{editionLabel(e)}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{e.name}</p>
+                <div className="min-w-0">
+                  <p className="font-display text-2xl font-bold">{editionLabel(edition)}</p>
+                  <h2 className="mt-1 truncate text-sm text-muted-foreground">{edition.name}</h2>
                 </div>
-                <span
-                  className={
-                    e.published
-                      ? "rounded-full bg-surface-strong px-2 py-0.5 text-[10px] uppercase tracking-wider text-primary"
-                      : "rounded-full bg-surface px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
-                  }
-                >
-                  {e.published ? "Public" : "Private"}
-                </span>
+                <span className="text-xs text-primary">→</span>
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                {[e.host_city, e.year ? String(e.year) : null].filter(Boolean).join(" · ") || "Host to be announced"}
-              </p>
-              <p className="mt-3 text-xs text-muted-foreground">
-                {es.length} show{es.length === 1 ? "" : "s"} · {es.filter((s) => s.published).length} published
-              </p>
+
+              <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <span>{edition.host_city ?? "Host TBC"}</span>
+                {edition.year && <span>{edition.year}</span>}
+                <span>{editionShows.length} show{editionShows.length === 1 ? "" : "s"}</span>
+              </div>
             </Link>
           );
         })}

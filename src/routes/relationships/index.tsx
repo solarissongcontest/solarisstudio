@@ -1,216 +1,219 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
-import { computeRelationship } from "@/lib/stats";
+import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { relationships } from "@/lib/analysis";
-import { useAllJuryVotes, useAllParticipants, useAllResults, useCountries, useEditions, type Country } from "@/lib/data";
+import {
+  useAllJuryVotes,
+  useAllParticipants,
+  useAllResults,
+  useCountries,
+  useEditions,
+  type Country,
+} from "@/lib/data";
+import { computeRelationship } from "@/lib/stats";
 
 export const Route = createFileRoute("/relationships/")({
   head: () => ({
-    meta: [
-      { title: "Country relationships — Solaris Scoreboard Studio" },
-      {
-        name: "description",
-        content:
-          "Explore alliances, rivalries and one-sided voting relationships between every pair of nations that has shared an SSC edition.",
-      },
-      { property: "og:title", content: "Country relationships — Solaris Scoreboard Studio" },
-      { property: "og:description", content: "Alliances, rivalries and mutual 12-point exchanges across Terra Solaris." },
-    ],
+    meta: [{ title: "Relationships — Solaris Studio" }],
   }),
-  component: RelationshipsIndex,
+  component: RelationshipsPage,
 });
+
+const TABS = [
+  { value: "all", label: "All" },
+  { value: "alliances", label: "Alliances" },
+  { value: "rivalries", label: "Rivalries" },
+  { value: "one-sided", label: "One-sided" },
+] as const;
+
+type Tab = (typeof TABS)[number]["value"];
 
 function pairParam(a: Country, b: Country) {
   return `${a.short_code}-vs-${b.short_code}`.toUpperCase();
 }
 
-function RelationshipsIndex() {
+function RelationshipsPage() {
   const { data: countries } = useCountries();
   const { data: participants } = useAllParticipants();
   const { data: jury } = useAllJuryVotes();
   const { data: results } = useAllResults();
   const { data: editions } = useEditions();
+
+  const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
 
   const cList = countries ?? [];
-  const cMap = new Map(cList.map((c) => [c.id, c]));
+  const cMap = new Map(cList.map((country) => [country.id, country]));
 
-  const sharedPairs = useMemo(() => {
+  const pairs = useMemo(() => {
     const editionsByCountry = new Map<string, Set<string>>();
-    (participants ?? []).forEach((p) => {
-      const set = editionsByCountry.get(p.country_id) ?? new Set<string>();
-      set.add(p.edition_id);
-      editionsByCountry.set(p.country_id, set);
+
+    (participants ?? []).forEach((participant) => {
+      const set = editionsByCountry.get(participant.country_id) ?? new Set<string>();
+      set.add(participant.edition_id);
+      editionsByCountry.set(participant.country_id, set);
     });
-    const pairs: { a: Country; b: Country; shared: number }[] = [];
-    for (let i = 0; i < cList.length; i++) {
-      for (let j = i + 1; j < cList.length; j++) {
-        const setA = editionsByCountry.get(cList[i].id);
-        const setB = editionsByCountry.get(cList[j].id);
+
+    const out: Array<{
+      a: Country;
+      b: Country;
+      shared: number;
+      rel: ReturnType<typeof computeRelationship>;
+    }> = [];
+
+    for (let i = 0; i < cList.length; i += 1) {
+      for (let j = i + 1; j < cList.length; j += 1) {
+        const a = cList[i];
+        const b = cList[j];
+        const setA = editionsByCountry.get(a.id);
+        const setB = editionsByCountry.get(b.id);
         if (!setA || !setB) continue;
+
         let shared = 0;
         setA.forEach((id) => {
-          if (setB.has(id)) shared++;
+          if (setB.has(id)) shared += 1;
         });
-        if (shared > 0) pairs.push({ a: cList[i], b: cList[j], shared });
+        if (!shared) continue;
+
+        out.push({
+          a,
+          b,
+          shared,
+          rel: computeRelationship(a.id, b.id, {
+            editions: editions ?? [],
+            jury: jury ?? [],
+            results: results ?? [],
+          }),
+        });
       }
     }
-    return pairs;
-  }, [cList, participants]);
 
-  const enriched = useMemo(
-    () =>
-      sharedPairs.map(({ a, b, shared }) => ({
-        a,
-        b,
-        shared,
-        rel: computeRelationship(a.id, b.id, { editions: editions ?? [], jury: jury ?? [], results: results ?? [] }),
-      })),
-    [sharedPairs, editions, jury, results],
-  );
+    return out;
+  }, [cList, participants, editions, jury, results]);
 
-  const alliances = [...enriched].sort((x, y) => y.rel.friendshipScore - x.rel.friendshipScore).slice(0, 8);
-  const rivalries = [...enriched].sort((x, y) => y.rel.rivalryScore - x.rel.rivalryScore).slice(0, 8);
-  const mutual12s = enriched
-    .filter((e) => e.rel.mutualTwelves > 0)
-    .sort((x, y) => y.rel.mutualTwelves - x.rel.mutualTwelves)
-    .slice(0, 8);
+  const oneSidedMap = useMemo(() => {
+    const map = new Map<string, number>();
+    relationships(jury ?? []).oneSided.forEach((item: any) => {
+      map.set([item.a, item.b].sort().join("|"), item.gap);
+    });
+    return map;
+  }, [jury]);
 
-  const oneSidedRaw = relationships(jury ?? []).oneSided;
-  const sharedKeySet = new Set(sharedPairs.map((p) => [p.a.id, p.b.id].sort().join("|")));
-  const oneSided = oneSidedRaw
-    .filter((o: { a: string; b: string; gap: number; ab: number; ba: number }) => sharedKeySet.has([o.a, o.b].sort().join("|")))
-    .slice(0, 8)
-    .map((o: { a: string; b: string; gap: number; ab: number; ba: number }) => ({ a: cMap.get(o.a), b: cMap.get(o.b), gap: o.gap, ab: o.ab, ba: o.ba }))
-    .filter((o): o is { a: Country; b: Country; gap: number; ab: number; ba: number } => !!o.a && !!o.b);
-
-  const filtered = enriched.filter(({ a, b }) => {
-    if (!query.trim()) return true;
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (
-      a.name.toLowerCase().includes(q) ||
-      b.name.toLowerCase().includes(q) ||
-      a.short_code.toLowerCase().includes(q) ||
-      b.short_code.toLowerCase().includes(q)
+
+    let rows = pairs.filter(
+      ({ a, b }) =>
+        !q ||
+        a.name.toLowerCase().includes(q) ||
+        b.name.toLowerCase().includes(q) ||
+        a.short_code.toLowerCase().includes(q) ||
+        b.short_code.toLowerCase().includes(q),
     );
-  });
+
+    if (tab === "alliances") {
+      rows = [...rows].sort((a, b) => b.rel.friendshipScore - a.rel.friendshipScore);
+    } else if (tab === "rivalries") {
+      rows = [...rows].sort((a, b) => b.rel.rivalryScore - a.rel.rivalryScore);
+    } else if (tab === "one-sided") {
+      rows = [...rows]
+        .map((row) => ({
+          ...row,
+          gap: oneSidedMap.get([row.a.id, row.b.id].sort().join("|")) ?? 0,
+        }))
+        .filter((row) => row.gap > 0)
+        .sort((a, b) => b.gap - a.gap);
+    } else {
+      rows = [...rows].sort((a, b) => b.shared - a.shared);
+    }
+
+    return rows;
+  }, [pairs, query, tab, oneSidedMap]);
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="Voting diplomacy"
-        title="Country relationships"
-        description="Every pair of nations that has shared at least one SSC edition, ranked by friendship, rivalry and one-sided support."
+        title="Relationships"
+        description="Alliances, rivalries and one-sided support in one simple list."
       />
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
-        <PairPanel
-          title="Strongest alliances"
-          description="Highest mutual point exchange"
-          rows={alliances.map((e) => ({
-            a: e.a,
-            b: e.b,
-            value: `${e.rel.friendshipScore.toFixed(0)} pts`,
-            sub: `${e.rel.totalAtoB} ⇄ ${e.rel.totalBtoA} exchanged`,
-          }))}
-        />
-        <PairPanel
-          title="Biggest rivalries"
-          description="Frequent close finishes & one-sided voting"
-          rows={rivalries.map((e) => ({
-            a: e.a,
-            b: e.b,
-            value: e.rel.rivalryScore.toFixed(0),
-            sub: `${e.shared} shared edition${e.shared === 1 ? "" : "s"}`,
-          }))}
-        />
-        <PairPanel
-          title="Most one-sided relationships"
-          description="Biggest gap between points given each way"
-          rows={oneSided.map((o: { a: Country; b: Country; gap: number; ab: number; ba: number }) => ({ a: o.a, b: o.b, value: `+${o.gap} pts`, sub: `${o.ab} → vs ${o.ba} ←` }))}
-        />
-        <PairPanel
-          title="Mutual 12-point admirers"
-          description="Pairs that both awarded each other douze points"
-          rows={mutual12s.map((e) => ({
-            a: e.a,
-            b: e.b,
-            value: `${e.rel.mutualTwelves}× mutual 12`,
-            sub: `${e.shared} shared edition${e.shared === 1 ? "" : "s"}`,
-          }))}
-        />
-      </div>
-
-      <Panel title="Browse every relationship" description="Search by country name or code" className="mt-4 sm:mt-6">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search a country…"
-          className="mb-4 w-full max-w-sm rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
-        />
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map(({ a, b, shared }) => (
-            <Link
-              key={`${a.id}-${b.id}`}
-              to="/relationships/$pair"
-              params={{ pair: pairParam(a, b) }}
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm transition-colors hover:bg-surface-strong"
-            >
-              <FlagChip code={a.short_code} color={a.accent_color} image={a.flag_image} size="sm" />
-              <span className="truncate">{a.name}</span>
-              <span className="text-muted-foreground">vs</span>
-              <FlagChip code={b.short_code} color={b.accent_color} image={b.flag_image} size="sm" />
-              <span className="truncate">{b.name}</span>
-              <span className="numeric ml-auto shrink-0 text-xs text-muted-foreground">{shared}×</span>
-            </Link>
-          ))}
-          {!filtered.length && (
-            <p className="text-sm text-muted-foreground">No pairs match your search yet.</p>
-          )}
+      <Panel className="mb-5">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search a country…"
+            className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none"
+          />
+          <ResponsiveTabs
+            value={tab}
+            options={TABS}
+            onChange={setTab}
+            label="Relationship type"
+          />
         </div>
       </Panel>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {filtered.slice(0, 40).map((row: any) => (
+          <Link
+            key={`${row.a.id}-${row.b.id}`}
+            to="/relationships/$pair"
+            params={{ pair: pairParam(row.a, row.b) }}
+            className="glass block p-4 transition-transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center gap-3">
+              <FlagChip
+                code={row.a.short_code}
+                color={row.a.accent_color}
+                image={row.a.flag_image}
+                size="sm"
+              />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.a.name}</span>
+              <span className="text-xs text-muted-foreground">vs</span>
+              <FlagChip
+                code={row.b.short_code}
+                color={row.b.accent_color}
+                image={row.b.flag_image}
+                size="sm"
+              />
+              <span className="min-w-0 flex-1 truncate text-right text-sm font-medium">{row.b.name}</span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-3 border-t border-border/60 pt-3">
+              <Mini label="Shared" value={row.shared} />
+              <Mini label="Friendship" value={row.rel.friendshipScore.toFixed(0)} />
+              <Mini
+                label={tab === "one-sided" ? "Gap" : "Rivalry"}
+                value={
+                  tab === "one-sided"
+                    ? row.gap ?? "—"
+                    : row.rel.rivalryScore.toFixed(0)
+                }
+              />
+            </div>
+          </Link>
+        ))}
+
+        {!filtered.length && (
+          <div className="glass p-6 text-center text-sm text-muted-foreground md:col-span-2">
+            No relationships match this view.
+          </div>
+        )}
+      </div>
     </AppShell>
   );
 }
 
-function PairPanel({
-  title,
-  description,
-  rows,
-}: {
-  title: string;
-  description: string;
-  rows: { a: Country; b: Country; value: string; sub: string }[];
-}) {
+function Mini({ label, value }: { label: string; value: string | number }) {
   return (
-    <Panel title={title} description={description}>
-      {rows.length ? (
-        <ul className="space-y-2">
-          {rows.map((r, i) => (
-            <li key={i}>
-              <Link
-                to="/relationships/$pair"
-                params={{ pair: pairParam(r.a, r.b) }}
-                className="flex min-w-0 items-center gap-2 rounded-xl bg-surface px-3 py-2 transition-colors hover:bg-surface-strong sm:gap-3"
-              >
-                <FlagChip code={r.a.short_code} color={r.a.accent_color} image={r.a.flag_image} size="sm" />
-                <FlagChip code={r.b.short_code} color={r.b.accent_color} image={r.b.flag_image} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  {r.a.name} vs {r.b.name}
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="numeric block text-sm font-semibold">{r.value}</span>
-                  <span className="block text-[11px] text-muted-foreground">{r.sub}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted-foreground">Not enough data recorded yet.</p>
-      )}
-    </Panel>
+    <div>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="numeric mt-1 text-sm font-semibold">{value}</p>
+    </div>
   );
 }

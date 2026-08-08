@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -12,19 +13,11 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Solaris Spectacle Suite — Contest OS for Terra Solaris" },
+      { title: "Solaris Studio" },
       {
         name: "description",
-        content:
-          "Plan editions, build shows, run jury and televote voting, design broadcast themes and analyse every Solaris Song Contest result in one production suite.",
+        content: "Solaris Song Contest editions, countries, results and production tools.",
       },
-      { property: "og:title", content: "Solaris Spectacle Suite" },
-      {
-        property: "og:description",
-        content: "Contest management, broadcast production and analytics for the Solaris Song Contest.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: HomePage,
@@ -36,107 +29,159 @@ function HomePage() {
   const { data: countries } = useCountries();
   const { data: results } = useAllResults();
 
-  const published = (editions ?? []).filter((e) => e.published);
-  const latest = published[0] ?? (editions ?? [])[0];
-  const latestShows = (shows ?? []).filter((s) => s.edition_id === latest?.id && s.published);
-  const winners = (results ?? []).filter((r) => r.final_rank === 1);
-  const countryMap = new Map((countries ?? []).map((c) => [c.id, c]));
+  const publishedEditions = (editions ?? []).filter((edition) => edition.published);
+  const latest = publishedEditions[0] ?? (editions ?? [])[0];
+  const latestShows = (shows ?? []).filter(
+    (show) => show.edition_id === latest?.id && show.published,
+  );
+  const winnerRows = (results ?? []).filter((row) => row.final_rank === 1);
+  const countryMap = new Map((countries ?? []).map((country) => [country.id, country]));
+  const latestWinner = [...winnerRows]
+    .reverse()
+    .map((row) => countryMap.get(row.country_id))
+    .find(Boolean);
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Terra Solaris broadcasting union"
-        title="Solaris Spectacle Suite"
-        description="A complete contest operating system: editions and shows, a voting system builder, a design engine for on-screen graphics, a broadcast control room and cross-edition analytics."
+        eyebrow="Solaris Song Contest"
+        title="Everything Solaris, without the clutter."
+        description="Browse editions, countries and results, or open Studio when you need to manage the contest."
         actions={
           <>
-            <Link to="/editions" className="bg-aurora rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground">
+            <Link
+              to="/editions"
+              className="bg-aurora rounded-xl px-4 py-2.5 text-sm font-medium text-primary-foreground"
+            >
               Browse editions
             </Link>
-            <Link to="/admin" className="rounded-lg border border-border px-4 py-2 text-sm">
+            <Link
+              to="/admin"
+              className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm"
+            >
               Open Studio
             </Link>
           </>
         }
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Editions" value={editions?.length ?? 0} hint={`${published.length} published`} />
-        <StatTile label="Shows" value={shows?.length ?? 0} hint="semi-finals, finals & specials" />
-        <StatTile label="Nations" value={countries?.length ?? 0} hint="official Terra Solaris delegations" />
-        <StatTile label="Victories recorded" value={winners.length} hint="across all published shows" />
-      </div>
+      <Panel className="mb-5">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+          <StatTile label="Editions" value={editions?.length ?? 0} />
+          <StatTile label="Countries" value={countries?.length ?? 0} />
+          <StatTile label="Shows" value={shows?.length ?? 0} />
+          <StatTile label="Latest winner" value={latestWinner?.name ?? "—"} />
+        </div>
+      </Panel>
 
-      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[1.35fr_.85fr]">
         <Panel
-          title={latest ? `${editionLabel(latest)} — ${latest.name}` : "No editions yet"}
-          description={latest ? [latest.host_city, latest.year].filter(Boolean).join(" · ") : "Create your first edition in the Studio."}
+          title={latest ? `${editionLabel(latest)} · ${latest.name}` : "Latest edition"}
+          description={
+            latest
+              ? [latest.host_city, latest.year].filter(Boolean).join(" · ")
+              : "No edition has been created yet."
+          }
           actions={
             latest ? (
               <Link
                 to="/editions/$slug"
                 params={{ slug: latest.slug }}
-                className="rounded-lg border border-border px-3 py-1.5 text-xs"
+                className="text-xs font-medium text-primary hover:underline"
               >
-                Open edition
+                Open edition →
               </Link>
             ) : null
           }
         >
           {latestShows.length ? (
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {latestShows.map((s) => (
-                <li key={s.id}>
-                  <Link
-                    to="/shows/$showId"
-                    params={{ showId: s.id }}
-                    className="glass flex items-center justify-between px-4 py-3 transition-colors hover:bg-surface-strong"
-                  >
-                    <span>
-                      <span className="block text-sm font-medium">{s.name}</span>
-                      <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {s.kind.replace("-", " ")}
-                      </span>
-                    </span>
-                    <span className="text-xs text-primary">View →</span>
-                  </Link>
-                </li>
+            <div className="divide-y divide-border/60">
+              {latestShows.map((show) => (
+                <Link
+                  key={show.id}
+                  to="/shows/$showId"
+                  params={{ showId: show.id }}
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{show.name}</p>
+                    <p className="mt-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {show.kind.replace("-", " ")}
+                    </p>
+                  </div>
+                  <span className="text-xs text-primary">View →</span>
+                </Link>
               ))}
-            </ul>
+            </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              No published shows yet. Shows stay private until you publish them from the Studio.
-            </p>
+            <p className="text-sm text-muted-foreground">No published shows in this edition yet.</p>
           )}
         </Panel>
 
-        <Panel title="Delegations" description="Every nation of Terra Solaris, ready to be drafted into a show.">
-          <div className="flex flex-wrap gap-1.5">
-            {(countries ?? []).slice(0, 40).map((c) => (
-              <Link key={c.id} to="/countries/$code" params={{ code: c.short_code }} title={c.name}>
-                <FlagChip code={c.short_code} color={c.accent_color} image={c.flag_image} size="sm" />
+        <Panel
+          title="Countries"
+          description="Jump straight to a delegation profile."
+          actions={
+            <Link to="/countries" className="text-xs font-medium text-primary hover:underline">
+              All countries →
+            </Link>
+          }
+        >
+          <div className="flex flex-wrap gap-2">
+            {(countries ?? []).slice(0, 28).map((country) => (
+              <Link
+                key={country.id}
+                to="/countries/$code"
+                params={{ code: country.short_code }}
+                title={country.name}
+              >
+                <FlagChip
+                  code={country.short_code}
+                  color={country.accent_color}
+                  image={country.flag_image}
+                  size="sm"
+                />
               </Link>
             ))}
           </div>
-          <Link to="/countries" className="mt-4 inline-block text-xs text-primary">
-            See all {countries?.length ?? 0} nations →
-          </Link>
         </Panel>
       </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { title: "Show builder", body: "Independent semi-finals, finals and specials — each with its own line-up, rules and look." },
-          { title: "Voting engine", body: "Any point scale, jury/televote weighting, tie-break chains and qualifier counts." },
-          { title: "Design engine", body: "Backgrounds, palettes, fonts, card shapes and flag styles saved as reusable themes." },
-          { title: "Control room", body: "Speed-controlled reveals from 0.25× to 2×, scene toggles and instant replay." },
-        ].map((f) => (
-          <div key={f.title} className="glass p-5">
-            <h3 className="font-display text-sm font-semibold">{f.title}</h3>
-            <p className="mt-2 text-xs text-muted-foreground">{f.body}</p>
-          </div>
-        ))}
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <QuickLink
+          title="Compare countries"
+          body="Put two delegations side by side."
+          to="/compare"
+        />
+        <QuickLink
+          title="Voting relationships"
+          body="Explore alliances and rivalries."
+          to="/relationships"
+        />
+        <QuickLink
+          title="Records"
+          body="See the all-time leaders."
+          to="/records"
+        />
       </div>
     </AppShell>
+  );
+}
+
+function QuickLink({
+  title,
+  body,
+  to,
+}: {
+  title: string;
+  body: string;
+  to: "/compare" | "/relationships" | "/records";
+}) {
+  return (
+    <Link to={to} className="glass block p-4 transition-transform hover:-translate-y-0.5">
+      <h2 className="text-sm font-semibold">{title}</h2>
+      <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+      <p className="mt-3 text-xs font-medium text-primary">Open →</p>
+    </Link>
   );
 }
