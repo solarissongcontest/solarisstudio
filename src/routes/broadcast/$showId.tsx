@@ -178,17 +178,24 @@ function BroadcastPage() {
    * Old broadcasts automatically fall back to the default
    * scoreboard preset through resolveScoreboard().
    */
-  const scoreboardConfig =
-    useMemo(
-      () =>
-        resolveScoreboard(
-          show?.broadcast_config,
-        ),
-      [
+ const scoreboardConfig =
+  useMemo(
+    () =>
+      resolveScoreboard(
         show?.broadcast_config,
-      ],
-    );
-
+        {
+          theme,
+          rowCount:
+            participants?.length ??
+            0,
+        },
+      ),
+    [
+      show?.broadcast_config,
+      theme,
+      participants?.length,
+    ],
+  );
   /* ------------------------------------------------------------------------ */
   /* Playback                                                                 */
   /* ------------------------------------------------------------------------ */
