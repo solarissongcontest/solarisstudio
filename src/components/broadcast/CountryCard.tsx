@@ -124,7 +124,7 @@ function SSC21CountryCard({
       size: 16,
       minSize: 10,
       weight: 300,
-      letterSpacing: 1.15,
+      letterSpacing: 1.1,
       uppercase: true,
       color: "#c8c8c9",
       align: "left",
@@ -149,27 +149,27 @@ function SSC21CountryCard({
         opacity: card.opacity,
       }}
     >
-      {/* Long flat country bar. It starts underneath the diagonal fan. */}
+      {/* Flat country bar. Begins underneath the diagonal transition. */}
       <div
         aria-hidden
         style={{
           position: "absolute",
           inset: 0,
-          left: "30.5%",
+          left: "27.2%",
           background:
             "linear-gradient(90deg, #16261f 0%, #111d17 52%, #0c1511 100%)",
           zIndex: 1,
         }}
       />
 
-      {/* SCORE BOX — reference is much shorter than the previous version. */}
+      {/* Points block: deliberately compact like the reference. */}
       <div
         style={{
           position: "absolute",
           left: 0,
           top: 0,
           bottom: 0,
-          width: "13.2%",
+          width: "11.4%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -193,14 +193,14 @@ function SSC21CountryCard({
         </span>
       </div>
 
-      {/* FLAG sits UNDER the diagonal pieces. */}
+      {/* Wider flag area. It sits BELOW the diagonal layers. */}
       <div
         style={{
           position: "absolute",
-          left: "23.2%",
+          left: "18.1%",
           top: 0,
           bottom: 0,
-          width: "9.4%",
+          width: "12.8%",
           zIndex: 3,
           overflow: "hidden",
           background: row.accent,
@@ -236,30 +236,30 @@ function SSC21CountryCard({
         )}
       </div>
 
-      {/* LEFT FAN — much thinner, beginning right at the score box. */}
-      <SSC21Band left="12.3%" width="5.2%" color="#17113f" z={6} slant={28} />
-      <SSC21Band left="15.2%" width="5.0%" color="#142b66" z={7} slant={28} />
-      <SSC21Band left="18.0%" width="4.9%" color="#0b5167" z={8} slant={28} />
-      <SSC21Band left="20.8%" width="4.5%" color="#08606a" z={9} slant={28} />
+      {/* LEFT FAN: thinner strips, tightly stacked into the flag. */}
+      <SSC21Band left="10.7%" width="2.7%" color="#17113f" z={6} slant={28} />
+      <SSC21Band left="12.5%" width="2.6%" color="#142b66" z={7} slant={28} />
+      <SSC21Band left="14.3%" width="2.5%" color="#0b5167" z={8} slant={28} />
+      <SSC21Band left="16.0%" width="2.5%" color="#08606a" z={9} slant={28} />
 
-      {/* RIGHT FAN — compact and layered over the flag edge. */}
-      <SSC21Band left="29.2%" width="4.5%" color="#086158" z={9} slant={28} />
-      <SSC21Band left="31.8%" width="4.7%" color="#0e5147" z={8} slant={28} />
-      <SSC21Band left="34.5%" width="4.8%" color="#164137" z={7} slant={28} />
-      <SSC21Band left="37.3%" width="4.5%" color="#17342c" z={6} slant={28} />
+      {/* RIGHT FAN: also thinner, still overlapping the flag edge. */}
+      <SSC21Band left="28.7%" width="2.5%" color="#086158" z={9} slant={28} />
+      <SSC21Band left="30.4%" width="2.6%" color="#0e5147" z={8} slant={28} />
+      <SSC21Band left="32.2%" width="2.6%" color="#164137" z={7} slant={28} />
+      <SSC21Band left="34.0%" width="2.7%" color="#17342c" z={6} slant={28} />
 
-      {/* Country text starts after the fan, matching the reference spacing. */}
+      {/* Country name starts shortly after the compact right fan. */}
       <div
         style={{
           position: "absolute",
-          left: "39.2%",
+          left: "36.3%",
           right: 0,
           top: 0,
           bottom: 0,
           zIndex: 12,
           display: "flex",
           alignItems: "center",
-          paddingLeft: 11 * scale,
+          paddingLeft: 10 * scale,
           paddingRight: 10 * scale,
           pointerEvents: "none",
         }}
@@ -279,7 +279,7 @@ function SSC21CountryCard({
         </span>
       </div>
 
-      {/* Thin row separation only. */}
+      {/* Thin row separator only. */}
       <div
         aria-hidden
         style={{
