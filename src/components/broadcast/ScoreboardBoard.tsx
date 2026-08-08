@@ -46,9 +46,23 @@ export function ScoreboardBoard({
   animate?: boolean;
 }) {
   const ctx = { theme };
-  const { layout, card, header, footer, logo, background, panel, canvas } = config;
+  const {
+    layout,
+    card,
+    header,
+    footer,
+    logo,
+    background,
+    panel,
+    canvas,
+  } = config;
 
-  const columns = distributeRows(rows, layout.columns, layout.distribution, layout.rowsPerColumn);
+  const columns = distributeRows(
+    rows,
+    layout.columns,
+    layout.distribution,
+    layout.rowsPerColumn,
+  );
 
   const bg: CSSProperties =
     background.type === "theme"
@@ -58,7 +72,9 @@ export function ScoreboardBoard({
         : background.type === "color"
           ? { background: resolveColor(background.color, ctx) }
           : background.type === "image" && background.imageUrl
-            ? { background: `center/cover no-repeat url(${background.imageUrl})` }
+            ? {
+                background: `center/cover no-repeat url(${background.imageUrl})`,
+              }
             : {
                 background: `linear-gradient(${background.gradientAngle}deg, ${resolveColor(
                   background.gradientFrom,
@@ -71,8 +87,12 @@ export function ScoreboardBoard({
       style={{
         width: layout.boardWidth * scale,
         maxWidth: "100%",
-        height: layout.boardHeight ? layout.boardHeight * scale : undefined,
-        transform: `translate(${layout.positionX * scale}px, ${layout.positionY * scale}px)`,
+        height: layout.boardHeight
+          ? layout.boardHeight * scale
+          : undefined,
+        transform: `translate(${layout.positionX * scale}px, ${
+          layout.positionY * scale
+        }px)`,
         display: "grid",
         gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
         gap: layout.columnGap * scale,
@@ -87,11 +107,29 @@ export function ScoreboardBoard({
       {columns.map((col, ci) => (
         <div key={ci} style={{ display: "grid", gap: 6 }}>
           {layout.columnHeadings[ci] && (
-            <p style={{ ...typographyCss(layout.columnHeadingTypography, ctx, scale), margin: 0 }}>
+            <p
+              style={{
+                ...typographyCss(
+                  layout.columnHeadingTypography,
+                  ctx,
+                  scale,
+                ),
+                margin: 0,
+              }}
+            >
               {layout.columnHeadings[ci]}
             </p>
           )}
-          <ul style={{ display: "grid", gap: layout.rowGap * scale, margin: 0, padding: 0, alignContent: "start" }}>
+
+          <ul
+            style={{
+              display: "grid",
+              gap: layout.rowGap * scale,
+              margin: 0,
+              padding: 0,
+              alignContent: "start",
+            }}
+          >
             <AnimatePresence initial={false}>
               {col.map((row) => (
                 <CountryCard
@@ -111,9 +149,16 @@ export function ScoreboardBoard({
     </div>
   );
 
-  const logoBlock = logo.visible && logo.url && (
+  /**
+   * Prefer a scoreboard-specific logo URL when one exists.
+   * Otherwise use the show's theme logo. This is especially useful for
+   * SSC21, whose original composition has a large contest logo below the rows.
+   */
+  const resolvedLogoUrl = logo.url ?? theme.logoUrl;
+
+  const logoBlock = logo.visible && resolvedLogoUrl && (
     <img
-      src={logo.url}
+      src={resolvedLogoUrl}
       alt="Contest logo"
       style={{
         width: logo.width * scale,
@@ -121,9 +166,15 @@ export function ScoreboardBoard({
         objectFit: "contain",
         opacity: logo.opacity,
         marginTop: logo.marginTop * scale,
-        filter: logo.shadow.enabled ? `drop-shadow(${shadowCss(logo.shadow, ctx)})` : undefined,
+        filter: logo.shadow.enabled
+          ? `drop-shadow(${shadowCss(logo.shadow, ctx)})`
+          : undefined,
         alignSelf:
-          logo.align === "left" ? "flex-start" : logo.align === "right" ? "flex-end" : "center",
+          logo.align === "left"
+            ? "flex-start"
+            : logo.align === "right"
+              ? "flex-end"
+              : "center",
       }}
     />
   );
@@ -131,8 +182,14 @@ export function ScoreboardBoard({
   const panelBlock = panel.visible && (
     <aside
       style={{
-        width: panel.side === "left" || panel.side === "right" ? panel.size * scale : undefined,
-        height: panel.side === "top" || panel.side === "bottom" ? panel.size * scale : undefined,
+        width:
+          panel.side === "left" || panel.side === "right"
+            ? panel.size * scale
+            : undefined,
+        height:
+          panel.side === "top" || panel.side === "bottom"
+            ? panel.size * scale
+            : undefined,
         background: surfaceBackground(panel.surface, ctx),
         borderRadius: panel.radius * scale,
         padding: panel.padding * scale,
@@ -141,19 +198,29 @@ export function ScoreboardBoard({
       }}
     >
       {panel.label && (
-        <p className="mb-2 text-[11px] uppercase tracking-widest" style={{ opacity: 0.7 }}>
+        <p
+          className="mb-2 text-[11px] uppercase tracking-widest"
+          style={{ opacity: 0.7 }}
+        >
           {panel.label}
         </p>
       )}
+
       {panel.content === "image" && panel.imageUrl ? (
-        <img src={panel.imageUrl} alt="" className="w-full rounded-lg object-cover" />
+        <img
+          src={panel.imageUrl}
+          alt=""
+          className="w-full rounded-lg object-cover"
+        />
       ) : (
         panelContent
       )}
     </aside>
   );
 
-  const isRow = panel.visible && (panel.side === "left" || panel.side === "right");
+  const isRow =
+    panel.visible &&
+    (panel.side === "left" || panel.side === "right");
 
   return (
     <div
@@ -164,12 +231,20 @@ export function ScoreboardBoard({
         minHeight: "100%",
         fontFamily: "var(--t-font-body)",
         color: theme.colors.text,
-        filter: background.blur ? `blur(${background.blur}px)` : undefined,
+        filter: background.blur
+          ? `blur(${background.blur}px)`
+          : undefined,
       }}
     >
       {background.overlay > 0 && (
-        <div className="absolute inset-0" style={{ background: `rgba(0,0,0,${background.overlay})` }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `rgba(0,0,0,${background.overlay})`,
+          }}
+        />
       )}
+
       {background.vignette > 0 && (
         <div
           className="absolute inset-0"
@@ -178,6 +253,7 @@ export function ScoreboardBoard({
           }}
         />
       )}
+
       {background.pattern !== "none" && (
         <div
           className="absolute inset-0"
@@ -189,7 +265,10 @@ export function ScoreboardBoard({
                 : background.pattern === "bands"
                   ? "repeating-linear-gradient(115deg, rgba(255,255,255,.12) 0 10px, transparent 10px 34px)"
                   : "repeating-conic-gradient(from 30deg, rgba(255,255,255,.1) 0 15deg, transparent 15deg 30deg)",
-            backgroundSize: background.pattern === "grid" ? "48px 48px" : undefined,
+            backgroundSize:
+              background.pattern === "grid"
+                ? "48px 48px"
+                : undefined,
           }}
         />
       )}
@@ -204,7 +283,11 @@ export function ScoreboardBoard({
           display: "flex",
           flexDirection: "column",
           alignItems:
-            layout.alignment === "left" ? "flex-start" : layout.alignment === "right" ? "flex-end" : "center",
+            layout.alignment === "left"
+              ? "flex-start"
+              : layout.alignment === "right"
+                ? "flex-end"
+                : "center",
           gap: 0,
           minHeight: "100%",
         }}
@@ -214,9 +297,11 @@ export function ScoreboardBoard({
             aria-hidden
             className="pointer-events-none absolute"
             style={{
-              inset: `${layout.safeMarginTop * scale}px ${layout.safeMarginRight * scale}px ${
-                layout.safeMarginBottom * scale
-              }px ${layout.safeMarginLeft * scale}px`,
+              inset: `${layout.safeMarginTop * scale}px ${
+                layout.safeMarginRight * scale
+              }px ${layout.safeMarginBottom * scale}px ${
+                layout.safeMarginLeft * scale
+              }px`,
               border: "1px dashed rgba(255,255,255,.35)",
             }}
           />
@@ -232,23 +317,44 @@ export function ScoreboardBoard({
             }}
           >
             {header.upper.visible && (
-              <p style={{ ...typographyCss(header.upper.typography, ctx, scale), margin: 0, transform: `translateY(${header.upper.offsetY}px)` }}>
+              <p
+                style={{
+                  ...typographyCss(
+                    header.upper.typography,
+                    ctx,
+                    scale,
+                  ),
+                  margin: 0,
+                  transform: `translateY(${header.upper.offsetY}px)`,
+                }}
+              >
                 {header.upper.text}
               </p>
             )}
+
             {header.main.visible && (
               <h2
                 style={{
-                  ...typographyCss(header.main.typography, ctx, scale),
+                  ...typographyCss(
+                    header.main.typography,
+                    ctx,
+                    scale,
+                  ),
                   margin: `${header.lineSpacing * scale}px 0 0`,
-                  textShadow: header.main.shadow.enabled ? shadowCss(header.main.shadow, ctx) : undefined,
+                  textShadow: header.main.shadow.enabled
+                    ? shadowCss(header.main.shadow, ctx)
+                    : undefined,
                 }}
               >
                 {header.main.text || title || ""}
               </h2>
             )}
+
             {subtitle && (
-              <p className="mt-1 text-xs opacity-70" style={{ margin: 0 }}>
+              <p
+                className="mt-1 text-xs opacity-70"
+                style={{ margin: 0 }}
+              >
                 {subtitle}
               </p>
             )}
@@ -258,11 +364,19 @@ export function ScoreboardBoard({
         <div
           style={{
             display: "flex",
-            flexDirection: isRow ? (panel.side === "left" ? "row-reverse" : "row") : "column",
+            flexDirection: isRow
+              ? panel.side === "left"
+                ? "row-reverse"
+                : "row"
+              : "column",
             gap: 20 * scale,
             width: "100%",
             justifyContent:
-              layout.alignment === "left" ? "flex-start" : layout.alignment === "right" ? "flex-end" : "center",
+              layout.alignment === "left"
+                ? "flex-start"
+                : layout.alignment === "right"
+                  ? "flex-end"
+                  : "center",
           }}
         >
           {boardBlock}
@@ -272,20 +386,33 @@ export function ScoreboardBoard({
         {logo.position === "below-board" && logoBlock}
 
         {footer.visible && (
-          <p style={{ ...typographyCss(footer.typography, ctx, scale), marginTop: footer.marginTop * scale }}>
+          <p
+            style={{
+              ...typographyCss(footer.typography, ctx, scale),
+              marginTop: footer.marginTop * scale,
+            }}
+          >
             {footer.text}
-            {footer.progressText && progress != null ? ` · ${Math.round(progress * 100)}%` : ""}
+            {footer.progressText && progress != null
+              ? ` · ${Math.round(progress * 100)}%`
+              : ""}
           </p>
         )}
 
-        {progress != null && (
+        {progress != null && card.preset !== "ssc21" && (
           <div
             className="mt-3 h-1 w-full overflow-hidden rounded-full"
-            style={{ maxWidth: layout.boardWidth * scale, background: withAlpha(theme.colors.text, 0.15) }}
+            style={{
+              maxWidth: layout.boardWidth * scale,
+              background: withAlpha(theme.colors.text, 0.15),
+            }}
           >
             <div
               className="h-full rounded-full transition-all"
-              style={{ width: `${Math.min(100, progress * 100)}%`, background: theme.colors.primary }}
+              style={{
+                width: `${Math.min(100, progress * 100)}%`,
+                background: theme.colors.primary,
+              }}
             />
           </div>
         )}
