@@ -193,14 +193,29 @@ function SSC21CountryCard({
         </span>
       </div>
 
-      {/* Wider flag area. It sits BELOW the diagonal layers. */}
+      {/*
+        FLAG BACKPLATE
+
+        The visible flag still ends at 30.9%, exactly as before, but it starts
+        farther left underneath the diagonal layers.
+
+        Old:
+          18.1 + 12.8 = 30.9
+
+        New:
+          15.6 + 15.3 = 30.9
+
+        Because the diagonal bands use z-index 6–9 and the flag uses z-index 3,
+        the extra flag width is hidden beneath the fan. Its only job is to fill
+        the tiny transparent triangular gaps produced by polygon clipping.
+      */}
       <div
         style={{
           position: "absolute",
-          left: "18.1%",
+          left: "15.6%",
           top: 0,
           bottom: 0,
-          width: "12.8%",
+          width: "15.3%",
           zIndex: 3,
           overflow: "hidden",
           background: row.accent,
@@ -236,13 +251,13 @@ function SSC21CountryCard({
         )}
       </div>
 
-      {/* LEFT FAN: thinner strips, tightly stacked into the flag. */}
+      {/* LEFT FAN: thin strips, with the flag continuing underneath them. */}
       <SSC21Band left="10.7%" width="2.7%" color="#17113f" z={6} slant={28} />
       <SSC21Band left="12.5%" width="2.6%" color="#142b66" z={7} slant={28} />
       <SSC21Band left="14.3%" width="2.5%" color="#0b5167" z={8} slant={28} />
       <SSC21Band left="16.0%" width="2.5%" color="#08606a" z={9} slant={28} />
 
-      {/* RIGHT FAN: also thinner, still overlapping the flag edge. */}
+      {/* RIGHT FAN: thin strips overlapping the flag edge. */}
       <SSC21Band left="28.7%" width="2.5%" color="#086158" z={9} slant={28} />
       <SSC21Band left="30.4%" width="2.6%" color="#0e5147" z={8} slant={28} />
       <SSC21Band left="32.2%" width="2.6%" color="#164137" z={7} slant={28} />
