@@ -7,9 +7,18 @@ import { FlagChip } from "@/components/FlagChip";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { Field, Select, TextInput } from "@/components/studio/Controls";
 import { ThemeEditor } from "@/components/studio/ThemeEditor";
-import { VotingEditor } from "@/components/studio/VotingEditor";
+import { Votinimport { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AppShell, PageHeader, Panel } from "@/components/AppShell";gEditor } from "@/components/studio/VotingEditor";
 import { BroadcastEditor } from "@/components/studio/BroadcastEditor";
 import { FastJuryEntry, TelevoteEntry } from "@/components/studio/FastEntry";
+import {
+  hasSavedScoreboard,
+  resolveScoreboard,
+  type BroadcastRowData,
+  type ScoreboardConfig,
+} from "@/lib/scoreboard";
 import { computeStandings } from "@/lib/analysis";
 import { supabase } from "@/integrations/supabase/client";
 import { reportSupabaseError } from "@/lib/errors";
