@@ -14,7 +14,7 @@ import {
 
 import type { ThemeConfig } from "@/lib/theme";
 import { ScoreboardBoard } from "@/components/broadcast/ScoreboardBoard";
-import { Field, Select, Slider, TextInput, Toggle } from "./Controls";
+import { Field, Select, Slider, TextInput, Toggle } from "@/components/studio/Controls";
 import { cn } from "@/lib/utils";
 
 type ScoreboardEditorProps = {
