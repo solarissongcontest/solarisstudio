@@ -1,112 +1,572 @@
-import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { Country, Edition, ResultRow } from "@/lib/data";
-import { editionLabel } from "@/lib/data";
-import { cn } from "@/lib/utils";
+import {
+  useMemo,
+  useState,
+} from "react";
 
-export function HistoricalLeaderboard({
-  countries,
-  editions,
-  results,
-  limit = 8,
+import {
+  cn,
+} from "@/lib/utils";
+
+import type {
+  Edition,
+} from "@/lib/data";
+
+import {
+  editionLabel,
+} from "@/lib/data";
+
+export type ShowKindFilter =
+  | "all"
+  | "grand-final"
+  | "semi-final";
+
+export type VoteTypeFilter =
+  | "all"
+  | "jury"
+  | "televote";
+
+export type AnalysisFiltersState = {
+  editionIds:
+    string[];
+
+  showKind:
+    ShowKindFilter;
+
+  voteType:
+    VoteTypeFilter;
+};
+
+export const DEFAULT_ANALYSIS_FILTERS:
+  AnalysisFiltersState = {
+  editionIds: [],
+  showKind: "all",
+  voteType: "all",
+};
+
+function SegButton({
+  active,
+  onClick,
+  children,
 }: {
-  countries: Country[];
-  editions: Edition[];
-  results: ResultRow[];
-  limit?: number;
+  active:
+    boolean;
+
+  onClick:
+    () => void;
+
+  children:
+    React.ReactNode;
 }) {
-  const [hoverId, setHoverId] = useState<string | null>(null);
-  const cMap = new Map(countries.map((c) => [c.id, c]));
+  return (
+    <button
+      type="button"
+      onClick={
+        onClick
+      }
+      className={cn(
+        "min-h-10 rounded-lg px-3 text-xs font-medium transition-colors",
 
-  const sortedEditions = useMemo(
-    () => [...editions].filter((e) => e.year != null).sort((a, b) => (a.year ?? 0) - (b.year ?? 0)),
-    [editions],
+        active
+          ? "bg-aurora text-primary-foreground"
+          : "bg-surface text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
+}
 
-  const rankedResults = results.filter((r) => r.final_rank != null);
+export function Filters({
+  editions,
+  value,
+  onChange,
+}: {
+  editions:
+    Edition[];
 
-  const topIds = useMemo(() => {
-    const counts = new Map<string, number>();
-    rankedResults.forEach((r) => counts.set(r.country_id, (counts.get(r.country_id) ?? 0) + 1));
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([id]) => id);
-  }, [rankedResults, limit]);
+  value:
+    AnalysisFiltersState;
 
-  const data = useMemo(
-    () =>
-      sortedEditions.map((e) => {
-        const row: Record<string, number | string | null> = { label: editionLabel(e), year: e.year };
-        topIds.forEach((id) => {
-          const r = rankedResults.find((rr) => rr.edition_id === e.id && rr.country_id === id);
-          row[id] = r?.final_rank ?? null;
-        });
-        return row;
-      }),
-    [sortedEditions, topIds, rankedResults],
-  );
+  onChange: (
+    next:
+      AnalysisFiltersState,
+  ) => void;
+}) {
+  const [
+    editionsOpen,
+    setEditionsOpen,
+  ] =
+    useState(false);
 
-  if (!topIds.length || !sortedEditions.length)
-    return <p className="text-sm text-muted-foreground">Not enough historical data yet.</p>;
+  /*
+   * Edition number is the authoritative contest chronology.
+   */
+  const sortedEditions =
+    useMemo(
+      () =>
+        [...editions].sort(
+          (a, b) =>
+            (b.edition_number ??
+              -1) -
+            (a.edition_number ??
+              -1),
+        ),
+      [
+        editions,
+      ],
+    );
 
-  const maxRank = Math.max(1, ...rankedResults.filter((r) => topIds.includes(r.country_id)).map((r) => r.final_rank ?? 1));
+  const toggleEdition = (
+    id: string,
+  ) => {
+    const set =
+      new Set(
+        value.editionIds,
+      );
+
+    if (
+      set.has(id)
+    ) {
+      set.delete(
+        id,
+      );
+    } else {
+      set.add(
+        id,
+      );
+    }
+
+    onChange({
+      ...value,
+
+      editionIds:
+        [...set],
+    });
+  };
+
+  const selectedEdition =
+    value.editionIds.length ===
+    1
+      ? sortedEditions.find(
+          (edition) =>
+            edition.id ===
+            value.editionIds[
+              0
+            ],
+        )
+      : null;
+
+  const editionSummary =
+    value.editionIds.length ===
+    0
+      ? "All editions"
+      : selectedEdition
+        ? editionLabel(
+            selectedEdition,
+          )
+        : `${value.editionIds.length} editions`;
 
   return (
-    <div>
-      <div style={{ width: "100%", height: 380 }}>
-        <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-            <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} />
-            <YAxis reversed domain={[1, maxRank]} stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
-            <Tooltip
-              contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-              labelStyle={{ color: "var(--foreground)" }}
-              formatter={(value: any, key: any) => [value ?? "—", cMap.get(String(key))?.name ?? key]}
-            />
-            {topIds.map((id) => {
-              const c = cMap.get(id);
-              const dim = hoverId && hoverId !== id;
-              return (
-                <Line
-                  key={id}
-                  type="monotone"
-                  dataKey={id}
-                  name={c?.name ?? id}
-                  stroke={c?.accent_color ?? "var(--jury)"}
-                  strokeWidth={hoverId === id ? 3 : 1.75}
-                  strokeOpacity={dim ? 0.15 : 1}
-                  dot={{ r: 2 }}
-                  connectNulls
-                  isAnimationActive
-                  animationDuration={800}
-                />
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {topIds.map((id) => {
-          const c = cMap.get(id);
-          if (!c) return null;
-          return (
-            <Link
-              key={id}
-              to="/countries/$code"
-              params={{ code: c.short_code }}
-              onMouseEnter={() => setHoverId(id)}
-              onMouseLeave={() => setHoverId(null)}
+    <>
+      {/* MOBILE */}
+
+      <details className="glass mb-4 md:hidden">
+        <summary
+          className="
+            flex
+            min-h-12
+            cursor-pointer
+            list-none
+            items-center
+            justify-between
+            gap-3
+            px-3
+            py-2
+          "
+        >
+          <span className="min-w-0">
+            <span
+              className="
+                block
+                text-[10px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-muted-foreground
+              "
+            >
+              Filters
+            </span>
+
+            <span className="block truncate text-sm font-medium">
+              {editionSummary}
+              {" · "}
+
+              {value.showKind ===
+              "all"
+                ? "all shows"
+                : value.showKind ===
+                    "grand-final"
+                  ? "finals"
+                  : "semi-finals"}
+
+              {" · "}
+
+              {value.voteType ===
+              "all"
+                ? "all votes"
+                : value.voteType}
+            </span>
+          </span>
+
+          <span className="shrink-0 text-muted-foreground">
+            ▾
+          </span>
+        </summary>
+
+        <div className="space-y-4 border-t border-border p-3">
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Editions
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  ...value,
+
+                  editionIds:
+                    [],
+                })
+              }
               className={cn(
-                "flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition-colors",
-                hoverId === id ? "bg-surface-strong" : "bg-surface",
+                "mb-2 min-h-10 w-full rounded-lg border px-3 text-left text-xs",
+
+                value.editionIds.length ===
+                  0
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border bg-surface",
               )}
             >
-              <span className="h-2 w-2 rounded-full" style={{ background: c.accent_color }} />
-              {c.name}
-            </Link>
-          );
-        })}
+              All editions
+            </button>
+
+            <div className="scroll-slim max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-1">
+              {sortedEditions.map(
+                (
+                  edition,
+                ) => (
+                  <label
+                    key={
+                      edition.id
+                    }
+                    className="
+                      flex
+                      min-h-10
+                      cursor-pointer
+                      items-center
+                      gap-2
+                      rounded-lg
+                      px-2
+                      text-xs
+                      hover:bg-surface
+                    "
+                  >
+                    <input
+                      type="checkbox"
+                      checked={value.editionIds.includes(
+                        edition.id,
+                      )}
+                      onChange={() =>
+                        toggleEdition(
+                          edition.id,
+                        )
+                      }
+                    />
+
+                    <span className="min-w-0 truncate">
+                      {editionLabel(
+                        edition,
+                      )}
+                    </span>
+                  </label>
+                ),
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Show
+            </p>
+
+            <div className="grid grid-cols-3 gap-1">
+              {(
+                [
+                  "all",
+                  "grand-final",
+                  "semi-final",
+                ] as ShowKindFilter[]
+              ).map(
+                (kind) => (
+                  <SegButton
+                    key={
+                      kind
+                    }
+                    active={
+                      value.showKind ===
+                      kind
+                    }
+                    onClick={() =>
+                      onChange({
+                        ...value,
+
+                        showKind:
+                          kind,
+                      })
+                    }
+                  >
+                    {kind ===
+                    "all"
+                      ? "All"
+                      : kind ===
+                          "grand-final"
+                        ? "Finals"
+                        : "Semis"}
+                  </SegButton>
+                ),
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Votes
+            </p>
+
+            <div className="grid grid-cols-3 gap-1">
+              {(
+                [
+                  "all",
+                  "jury",
+                  "televote",
+                ] as VoteTypeFilter[]
+              ).map(
+                (kind) => (
+                  <SegButton
+                    key={
+                      kind
+                    }
+                    active={
+                      value.voteType ===
+                      kind
+                    }
+                    onClick={() =>
+                      onChange({
+                        ...value,
+
+                        voteType:
+                          kind,
+                      })
+                    }
+                  >
+                    {kind ===
+                    "all"
+                      ? "All"
+                      : kind ===
+                          "jury"
+                        ? "Jury"
+                        : "Televote"}
+                  </SegButton>
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+      </details>
+
+      {/* DESKTOP */}
+
+      <div
+        className="
+          glass
+          sticky
+          top-[72px]
+          z-20
+          mb-6
+          hidden
+          flex-wrap
+          items-center
+          gap-3
+          p-4
+          md:flex
+        "
+      >
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() =>
+              setEditionsOpen(
+                (current) =>
+                  !current,
+              )
+            }
+            className="rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-strong"
+          >
+            {editionSummary} ▾
+          </button>
+
+          {editionsOpen && (
+            <div
+              className="
+                absolute
+                left-0
+                top-full
+                z-30
+                mt-2
+                max-h-72
+                w-56
+                overflow-y-auto
+                rounded-xl
+                border
+                border-border
+                bg-popover
+                p-2
+                shadow-2xl
+              "
+            >
+              <button
+                type="button"
+                className="mb-1 w-full rounded-md px-2 py-1 text-left text-xs text-primary hover:bg-surface"
+                onClick={() =>
+                  onChange({
+                    ...value,
+
+                    editionIds:
+                      [],
+                  })
+                }
+              >
+                Clear (all editions)
+              </button>
+
+              {sortedEditions.map(
+                (
+                  edition,
+                ) => (
+                  <label
+                    key={
+                      edition.id
+                    }
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-surface"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={value.editionIds.includes(
+                        edition.id,
+                      )}
+                      onChange={() =>
+                        toggleEdition(
+                          edition.id,
+                        )
+                      }
+                    />
+
+                    {editionLabel(
+                      edition,
+                    )}
+                  </label>
+                ),
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span className="mr-1 text-[11px] uppercase tracking-widest text-muted-foreground">
+            Show
+          </span>
+
+          {(
+            [
+              "all",
+              "grand-final",
+              "semi-final",
+            ] as ShowKindFilter[]
+          ).map(
+            (kind) => (
+              <SegButton
+                key={
+                  kind
+                }
+                active={
+                  value.showKind ===
+                  kind
+                }
+                onClick={() =>
+                  onChange({
+                    ...value,
+
+                    showKind:
+                      kind,
+                  })
+                }
+              >
+                {kind ===
+                "all"
+                  ? "All"
+                  : kind ===
+                      "grand-final"
+                    ? "Finals"
+                    : "Semi-finals"}
+              </SegButton>
+            ),
+          )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span className="mr-1 text-[11px] uppercase tracking-widest text-muted-foreground">
+            Votes
+          </span>
+
+          {(
+            [
+              "all",
+              "jury",
+              "televote",
+            ] as VoteTypeFilter[]
+          ).map(
+            (kind) => (
+              <SegButton
+                key={
+                  kind
+                }
+                active={
+                  value.voteType ===
+                  kind
+                }
+                onClick={() =>
+                  onChange({
+                    ...value,
+
+                    voteType:
+                      kind,
+                  })
+                }
+              >
+                {kind ===
+                "all"
+                  ? "Jury + Televote"
+                  : kind ===
+                      "jury"
+                    ? "Jury"
+                    : "Televote"}
+              </SegButton>
+            ),
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
