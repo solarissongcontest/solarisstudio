@@ -2,7 +2,9 @@ import {
   createFileRoute,
   Link,
 } from "@tanstack/react-router";
+
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -24,6 +26,7 @@ import {
 
 import {
   ResponsiveTabs,
+  type ResponsiveTabOption,
 } from "@/components/ResponsiveTabs";
 
 import {
@@ -35,18 +38,25 @@ import {
 } from "@/components/VotingMatrix";
 
 import {
-  computeStandings,
-} from "@/lib/analysis";
-
-import {
+  useContestEntities,
   useCountries,
   useJuryVotes,
+  useResults,
   useShow,
   useShowParticipants,
   useShowVoters,
   useTelevotes,
   useThemes,
+  type Participant,
 } from "@/lib/data";
+
+import {
+  entityDisplayMap,
+} from "@/lib/entities";
+
+import {
+  resolvePublicationConfig,
+} from "@/lib/publication";
 
 import {
   resolveTheme,
@@ -56,6 +66,14 @@ import {
   resolveVoting,
 } from "@/lib/voting";
 
+import type {
+  Standing,
+} from "@/lib/analysis";
+
+/* ============================================================
+   ROUTE
+   ============================================================ */
+
 export const Route =
   createFileRoute(
     "/shows/$showId",
@@ -64,7 +82,7 @@ export const Route =
       meta: [
         {
           title:
-            "Show results — Solaris Studio",
+            "Show — Solaris Song Contest",
         },
       ],
     }),
@@ -73,45 +91,20 @@ export const Route =
       ShowPage,
   });
 
-const TABS = [
-  {
-    value:
-      "scoreboard",
-    label:
-      "Scoreboard",
-  },
-
-  {
-    value:
-      "points",
-    label:
-      "Points",
-  },
-
-  {
-    value:
-      "split",
-    label:
-      "Jury / Tele",
-  },
-
-  {
-    value:
-      "matrix",
-    label:
-      "Matrix",
-  },
-
-  {
-    value:
-      "lineup",
-    label:
-      "Line-up",
-  },
-] as const;
+/* ============================================================
+   TAB TYPES
+   ============================================================ */
 
 type Tab =
-  (typeof TABS)[number]["value"];
+  | "scoreboard"
+  | "points"
+  | "split"
+  | "matrix"
+  | "lineup";
+
+/* ============================================================
+   PAGE
+   ============================================================ */
 
 function ShowPage() {
   const {
@@ -120,7 +113,9 @@ function ShowPage() {
     Route.useParams();
 
   const {
-    data: show,
+    data:
+      show,
+
     isLoading,
   } =
     useShow(
@@ -136,21 +131,32 @@ function ShowPage() {
     );
 
   const {
-    data: jury,
+    data:
+      archivedResults,
+  } =
+    useResults(
+      showId,
+    );
+
+  const {
+    data:
+      jury,
   } =
     useJuryVotes(
       showId,
     );
 
   const {
-    data: tele,
+    data:
+      tele,
   } =
     useTelevotes(
       showId,
     );
 
   const {
-    data: voters,
+    data:
+      voters,
   } =
     useShowVoters(
       showId,
@@ -163,16 +169,80 @@ function ShowPage() {
     useCountries();
 
   const {
-    data: themes,
+    data:
+      themes,
   } =
     useThemes();
 
-  const [
-    tab,
-    setTab,
-  ] =
-    useState<Tab>(
-      "scoreboard",
+  const {
+    data:
+      entities,
+  } =
+    useContestEntities(
+      show?.edition_id,
+    );
+
+  /* =========================================================
+     PUBLICATION SETTINGS
+     ========================================================= */
+
+  const publication =
+    useMemo(
+      () =>
+        resolvePublicationConfig(
+          show?.publication_config,
+        ),
+      [
+        show?.publication_config,
+      ],
+    );
+
+  const showIsPublic =
+    !!show?.published &&
+    Object.values(
+      publication,
+    ).some(Boolean);
+
+  /* =========================================================
+     DISPLAY MAP
+     ========================================================= */
+
+  const displayMap =
+    useMemo(
+      () =>
+        entityDisplayMap(
+          entities,
+          countries,
+        ),
+      [
+        entities,
+        countries,
+      ],
+    );
+
+  /* =========================================================
+     PARTICIPANT MAP
+     ========================================================= */
+
+  const participantMap =
+    useMemo(
+      () =>
+        new Map(
+          (
+            participants ??
+            []
+          ).map(
+            (
+              participant,
+            ) => [
+              participant.country_id,
+              participant,
+            ],
+          ),
+        ),
+      [
+        participants,
+      ],
     );
 
   /* =========================================================
@@ -187,7 +257,9 @@ function ShowPage() {
             themes ??
             []
           ).find(
-            (item) =>
+            (
+              item,
+            ) =>
               item.id ===
               show?.theme_id,
           )?.config,
@@ -198,8 +270,42 @@ function ShowPage() {
       ],
     );
 
+  /*
+   * Prevent the generic scoreboard component from leaking
+   * artist/song or jury/tele split information.
+   */
+  const publicTheme =
+    useMemo(
+      () => ({
+        ...theme,
+
+        layout: {
+          ...theme.layout,
+
+          showArtist:
+            theme.layout.showArtist &&
+            (
+              publication.artists ||
+              publication.songs
+            ),
+
+          showSplit:
+            theme.layout.showSplit &&
+            publication.jury_results &&
+            publication.televote_results,
+        },
+      }),
+      [
+        theme,
+        publication.artists,
+        publication.songs,
+        publication.jury_results,
+        publication.televote_results,
+      ],
+    );
+
   /* =========================================================
-     VOTING CONFIG
+     VOTING SYSTEM
      ========================================================= */
 
   const voting =
@@ -214,63 +320,195 @@ function ShowPage() {
     );
 
   /* =========================================================
-     COUNTRY / PARTICIPANT MAPS
-     ========================================================= */
+     ARCHIVED PUBLIC RESULTS
 
-  const countryMap =
-    new Map(
-      (
-        countries ??
-        []
-      ).map(
-        (
-          country,
-        ) => [
-          country.id,
-          country,
-        ],
-      ),
-    );
-
-  const participantMap =
-    new Map(
-      (
-        participants ??
-        []
-      ).map(
-        (
-          participant,
-        ) => [
-          participant.country_id,
-          participant,
-        ],
-      ),
-    );
-
-  const ids =
-    (
-      participants ??
-      []
-    ).map(
-      (
-        participant,
-      ) =>
-        participant.country_id,
-    );
-
-  /* =========================================================
-     STANDINGS
+     IMPORTANT:
+     Public results come from the archived results table,
+     not the live jury / televote entry forms.
      ========================================================= */
 
   const standings =
-    computeStandings(
-      ids,
-      jury ??
-        [],
-      tele ??
-        [],
-      voting,
+    useMemo<
+      Standing[]
+    >(
+      () =>
+        (
+          archivedResults ??
+          []
+        )
+          .filter(
+            (
+              result,
+            ) =>
+              result.final_rank !=
+              null,
+          )
+          .sort(
+            (
+              a,
+              b,
+            ) =>
+              (
+                a.final_rank ??
+                999
+              ) -
+              (
+                b.final_rank ??
+                999
+              ),
+          )
+          .map(
+            (
+              result,
+            ) => ({
+              countryId:
+                result.country_id,
+
+              rank:
+                result.final_rank ??
+                0,
+
+              jury:
+                publication.jury_results
+                  ? result.jury_points
+                  : 0,
+
+              televote:
+                publication.televote_results
+                  ? result.televote_points
+                  : 0,
+
+              total:
+                publication.results
+                  ? result.total_points
+                  : 0,
+            }),
+          ),
+      [
+        archivedResults,
+        publication.results,
+        publication.jury_results,
+        publication.televote_results,
+      ],
     );
+
+  /* =========================================================
+     AVAILABLE TABS
+     ========================================================= */
+
+  const tabOptions =
+    useMemo<
+      ResponsiveTabOption<Tab>[]
+    >(
+      () => {
+        const options:
+          ResponsiveTabOption<Tab>[] =
+          [];
+
+        if (
+          publication.results
+        ) {
+          options.push({
+            value:
+              "scoreboard",
+
+            label:
+              "Scoreboard",
+          });
+        }
+
+        if (
+          publication.detailed_voting
+        ) {
+          options.push({
+            value:
+              "points",
+
+            label:
+              "Points",
+          });
+        }
+
+        if (
+          publication.jury_results ||
+          publication.televote_results
+        ) {
+          options.push({
+            value:
+              "split",
+
+            label:
+              "Jury / Tele",
+          });
+        }
+
+        if (
+          publication.detailed_voting
+        ) {
+          options.push({
+            value:
+              "matrix",
+
+            label:
+              "Matrix",
+          });
+        }
+
+        if (
+          publication.participants
+        ) {
+          options.push({
+            value:
+              "lineup",
+
+            label:
+              publication.running_order
+                ? "Running order"
+                : "Line-up",
+          });
+        }
+
+        return options;
+      },
+      [
+        publication,
+      ],
+    );
+
+  const initialTab =
+    tabOptions[0]?.value ??
+    "lineup";
+
+  const [
+    tab,
+    setTab,
+  ] =
+    useState<Tab>(
+      initialTab,
+    );
+
+  useEffect(
+    () => {
+      if (
+        !tabOptions.some(
+          (
+            option,
+          ) =>
+            option.value ===
+            tab,
+        )
+      ) {
+        setTab(
+          tabOptions[0]?.value ??
+            "lineup",
+        );
+      }
+    },
+    [
+      tabOptions,
+      tab,
+    ],
+  );
 
   /* =========================================================
      LOADING
@@ -281,12 +519,7 @@ function ShowPage() {
   ) {
     return (
       <AppShell>
-        <p
-          className="
-            text-sm
-            text-muted-foreground
-          "
-        >
+        <p className="text-sm text-muted-foreground">
           Loading show…
         </p>
       </AppShell>
@@ -294,7 +527,7 @@ function ShowPage() {
   }
 
   /* =========================================================
-     SHOW NOT FOUND
+     NOT FOUND
      ========================================================= */
 
   if (
@@ -303,16 +536,12 @@ function ShowPage() {
     return (
       <AppShell>
         <PageHeader
-          title=
-            "Show unavailable"
+          title="Show unavailable"
         />
 
         <Link
           to="/editions"
-          className="
-            text-sm
-            text-primary
-          "
+          className="text-sm text-primary"
         >
           ← Editions
         </Link>
@@ -321,15 +550,63 @@ function ShowPage() {
   }
 
   /* =========================================================
+     PRIVATE SHOW
+     ========================================================= */
+
+  if (
+    !showIsPublic
+  ) {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-2xl py-12">
+          <Panel>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+              Solaris Song Contest
+            </p>
+
+            <h1 className="mt-2 font-display text-3xl font-bold">
+              {show.name}
+            </h1>
+
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              This show has not been published yet.
+            </p>
+
+            <Link
+              to="/editions"
+              className="mt-5 inline-flex text-sm font-semibold text-primary"
+            >
+              ← Back to editions
+            </Link>
+          </Panel>
+        </div>
+      </AppShell>
+    );
+  }
+
+  /* =========================================================
      WINNER
      ========================================================= */
 
+  const winnerStanding =
+    publication.results
+      ? standings.find(
+          (
+            standing,
+          ) =>
+            standing.rank ===
+            1,
+        ) ??
+        standings[0] ??
+        null
+      : null;
+
   const winner =
-    standings[0]
-      ? countryMap.get(
-          standings[0]
-            .countryId,
-        )
+    winnerStanding
+      ? displayMap.get(
+          winnerStanding.countryId,
+        ) ??
+        null
       : null;
 
   /* =========================================================
@@ -337,26 +614,30 @@ function ShowPage() {
      ========================================================= */
 
   const juryTotal =
-    standings.reduce(
-      (
-        total,
-        row,
-      ) =>
-        total +
-        row.jury,
-      0,
-    );
+    publication.jury_results
+      ? standings.reduce(
+          (
+            total,
+            row,
+          ) =>
+            total +
+            row.jury,
+          0,
+        )
+      : null;
 
   const televoteTotal =
-    standings.reduce(
-      (
-        total,
-        row,
-      ) =>
-        total +
-        row.televote,
-      0,
-    );
+    publication.televote_results
+      ? standings.reduce(
+          (
+            total,
+            row,
+          ) =>
+            total +
+            row.televote,
+          0,
+        )
+      : null;
 
   /* =========================================================
      PAGE
@@ -364,43 +645,29 @@ function ShowPage() {
 
   return (
     <AppShell>
-      {/* =====================================================
-          HEADER
-         ===================================================== */}
-
       <PageHeader
-        eyebrow={
-          show.kind.replace(
-            "-",
-            " ",
-          )
-        }
+        eyebrow={show.kind.replace(
+          "-",
+          " ",
+        )}
         title={
           show.name
         }
         description={
-          winner
-            ? `${winner.name} won with ${standings[0].total} points.`
-            : "Results are not available yet."
+          winner &&
+          winnerStanding &&
+          publication.results
+            ? `${winner.name} won with ${winnerStanding.total} points.`
+            : publication.participants
+              ? "Entries and show information."
+              : "Published show information."
         }
         actions={
           <Link
-            to="/broadcast/$showId"
-            params={{
-              showId:
-                show.id,
-            }}
-            className="
-              bg-aurora
-              rounded-xl
-              px-4
-              py-2.5
-              text-sm
-              font-medium
-              text-primary-foreground
-            "
+            to="/editions"
+            className="rounded-xl border border-border px-4 py-2.5 text-sm"
           >
-            Watch broadcast
+            ← Editions
           </Link>
         }
       />
@@ -409,289 +676,413 @@ function ShowPage() {
           SUMMARY
          ===================================================== */}
 
-      <Panel
-        className="
-          mb-5
-        "
-      >
-        <div
-          className="
-            grid
-            grid-cols-3
-            gap-5
-          "
-        >
-          <StatTile
-            label=
-              "Entries"
-            value={
-              ids.length
-            }
-          />
+      <Panel className="mb-5">
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+          {publication.participants && (
+            <StatTile
+              label="Entries"
+              value={
+                participants?.length ??
+                0
+              }
+            />
+          )}
 
-          <StatTile
-            label=
-              "Jury points"
-            value={
-              juryTotal
-            }
-          />
+          {publication.results && (
+            <StatTile
+              label="Results"
+              value={
+                standings.length
+              }
+            />
+          )}
 
-          <StatTile
-            label=
-              "Televote points"
-            value={
-              televoteTotal
-            }
-          />
+          {publication.jury_results && (
+            <StatTile
+              label="Jury points"
+              value={
+                juryTotal ??
+                0
+              }
+            />
+          )}
+
+          {publication.televote_results && (
+            <StatTile
+              label="Televote points"
+              value={
+                televoteTotal ??
+                0
+              }
+            />
+          )}
         </div>
       </Panel>
+
+      {/* =====================================================
+          NO ARCHIVED RESULTS WARNING
+         ===================================================== */}
+
+      {publication.results &&
+        !standings.length && (
+          <Panel className="mb-5">
+            <p className="text-sm text-muted-foreground">
+              Results have been marked public, but no archived results are currently available.
+            </p>
+          </Panel>
+        )}
 
       {/* =====================================================
           TABS
          ===================================================== */}
 
-      <ResponsiveTabs
-        value={
-          tab
-        }
-        options={
-          TABS
-        }
-        onChange={
-          setTab
-        }
-        label=
-          "Show view"
-        className=
-          "mb-5"
-      />
+      {!!tabOptions.length && (
+        <ResponsiveTabs
+          value={
+            tab
+          }
+          options={
+            tabOptions
+          }
+          onChange={
+            setTab
+          }
+          label="Show view"
+          className="mb-5"
+        />
+      )}
 
       {/* =====================================================
           SCOREBOARD
          ===================================================== */}
 
       {tab ===
-        "scoreboard" && (
-        <ScoreboardStage
-          theme={
-            theme
-          }
-          standings={
-            standings
-          }
-          countries={
-            countryMap
-          }
-          participants={
-            participantMap
-          }
-          qualifiers={
-            show.qualifier_count
-          }
-        />
-      )}
+        "scoreboard" &&
+        publication.results && (
+          <>
+            {standings.length ? (
+              <ScoreboardStage
+                theme={
+                  publicTheme
+                }
+                standings={
+                  standings
+                }
+                countries={
+                  displayMap
+                }
+                participants={
+                  participantMap
+                }
+                qualifiers={
+                  publication.qualifiers
+                    ? show.qualifier_count
+                    : null
+                }
+              />
+            ) : (
+              <Panel>
+                <p className="text-sm text-muted-foreground">
+                  Results are not available yet.
+                </p>
+              </Panel>
+            )}
+          </>
+        )}
 
       {/* =====================================================
-          POINTS
+          DETAILED POINTS
          ===================================================== */}
 
       {tab ===
-        "points" && (
-        <RadialPointsView
-          participants={
-            participants ??
-            []
-          }
-          countries={
-            countryMap
-          }
-          jury={
-            jury ??
-            []
-          }
-          televote={
-            tele ??
-            []
-          }
-          voters={
-            voters
-          }
-        />
-      )}
-
-      {/* =====================================================
-          EXISTING JURY / TELE TAB
-          Now redesigned visually.
-         ===================================================== */}
-
-      {tab ===
-        "split" && (
-        <JuryTelevoteComparison
-          standings={
-            standings
-          }
-          countries={
-            countryMap
-          }
-        />
-      )}
-
-      {/* =====================================================
-          MATRIX
-         ===================================================== */}
-
-      {tab ===
-        "matrix" && (
-        <Panel
-          title=
-            "Voting matrix"
-          description=
-            "Rows receive points, columns give them."
-        >
-          <VotingMatrix
-            votes={
-              jury ??
+        "points" &&
+        publication.detailed_voting && (
+          <RadialPointsView
+            participants={
+              participants ??
               []
             }
             countries={
-              countryMap
+              displayMap
             }
-            order={
-              ids
+            jury={
+              jury ??
+              []
             }
-            topPoint={
-              voting
-                .juryPoints[
-                  0
-                ] ??
-              12
+            televote={
+              tele ??
+              []
             }
             voters={
               voters
             }
           />
-        </Panel>
-      )}
+        )}
+
+      {/* =====================================================
+          JURY / TELEVOTE
+         ===================================================== */}
+
+      {tab ===
+        "split" &&
+        (
+          publication.jury_results ||
+          publication.televote_results
+        ) && (
+          <>
+            {publication.jury_results &&
+            publication.televote_results ? (
+              <JuryTelevoteComparison
+                standings={
+                  standings
+                }
+                countries={
+                  displayMap
+                }
+              />
+            ) : (
+              <Panel
+                title={
+                  publication.jury_results
+                    ? "Jury results"
+                    : "Televote results"
+                }
+              >
+                <div className="divide-y divide-border/60">
+                  {standings.map(
+                    (
+                      standing,
+                    ) => {
+                      const country =
+                        displayMap.get(
+                          standing.countryId,
+                        );
+
+                      if (
+                        !country
+                      ) {
+                        return null;
+                      }
+
+                      const points =
+                        publication.jury_results
+                          ? standing.jury
+                          : standing.televote;
+
+                      return (
+                        <div
+                          key={
+                            standing.countryId
+                          }
+                          className="grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3"
+                        >
+                          <FlagChip
+                            code={
+                              country.short_code
+                            }
+                            color={
+                              country.accent_color
+                            }
+                            image={
+                              country.flag_image
+                            }
+                            size="sm"
+                          />
+
+                          <span className="truncate text-sm font-semibold">
+                            {
+                              country.name
+                            }
+                          </span>
+
+                          <span className="numeric text-sm font-bold">
+                            {
+                              points
+                            }
+                          </span>
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+              </Panel>
+            )}
+          </>
+        )}
+
+      {/* =====================================================
+          VOTING MATRIX
+         ===================================================== */}
+
+      {tab ===
+        "matrix" &&
+        publication.detailed_voting && (
+          <Panel
+            title="Voting matrix"
+            description="Rows receive points, columns give them."
+          >
+            <VotingMatrix
+              votes={
+                jury ??
+                []
+              }
+              countries={
+                displayMap
+              }
+              order={(
+                participants ??
+                []
+              ).map(
+                (
+                  participant,
+                ) =>
+                  participant.country_id,
+              )}
+              topPoint={
+                voting.juryPoints[
+                  0
+                ] ??
+                12
+              }
+              voters={
+                voters
+              }
+            />
+          </Panel>
+        )}
 
       {/* =====================================================
           LINE-UP
          ===================================================== */}
 
       {tab ===
-        "lineup" && (
-        <Panel
-          title=
-            "Running order"
-        >
-          <div
-            className="
-              divide-y
-              divide-border/60
-            "
+        "lineup" &&
+        publication.participants && (
+          <Panel
+            title={
+              publication.running_order
+                ? "Running order"
+                : "Line-up"
+            }
           >
-            {(
-              participants ??
-              []
-            ).map(
-              (
-                participant,
-              ) => {
-                const country =
-                  countryMap.get(
-                    participant.country_id,
-                  );
+            <div className="divide-y divide-border/60">
+              {(
+                participants ??
+                []
+              ).map(
+                (
+                  participant,
+                  index,
+                ) => {
+                  const country =
+                    displayMap.get(
+                      participant.country_id,
+                    );
 
-                return (
-                  <div
-                    key={
-                      participant.id
-                    }
-                    className="
-                      grid
-                      grid-cols-[32px_42px_1fr]
-                      items-center
-                      gap-3
-                      py-3
-                      first:pt-0
-                      last:pb-0
-                    "
-                  >
-                    <span
-                      className="
-                        numeric
-                        text-sm
-                        text-muted-foreground
-                      "
+                  if (
+                    !country
+                  ) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={
+                        participant.id
+                      }
+                      className="grid grid-cols-[40px_42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
                     >
-                      {participant.running_order ??
-                        "—"}
-                    </span>
+                      <span className="numeric text-sm text-muted-foreground">
+                        {publication.running_order
+                          ? participant.running_order ??
+                            "—"
+                          : index +
+                            1}
+                      </span>
 
-                    {country?.flag_image ? (
-                      <img
-                        src={
+                      <FlagChip
+                        code={
+                          country.short_code
+                        }
+                        color={
+                          country.accent_color
+                        }
+                        image={
                           country.flag_image
                         }
-                        alt=""
-                        className="
-                          h-6
-                          w-9
-                          rounded
-                          object-cover
-                        "
+                        size="sm"
                       />
-                    ) : (
-                      <div />
-                    )}
 
-                    <div
-                      className="
-                        min-w-0
-                      "
-                    >
-                      <p
-                        className="
-                          truncate
-                          text-sm
-                          font-medium
-                        "
-                      >
-                        {country?.name ??
-                          "Unknown"}
-                      </p>
-
-                      {(
-                        participant.artist ||
-                        participant.song
-                      ) && (
-                        <p
-                          className="
-                            truncate
-                            text-[11px]
-                            text-muted-foreground
-                          "
-                        >
-                          {[
-                            participant.artist,
-                            participant.song,
-                          ]
-                            .filter(
-                              Boolean,
-                            )
-                            .join(
-                              " · ",
-                            )}
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {
+                            country.name
+                          }
                         </p>
-                      )}
+
+                        {(publication.artists ||
+                          publication.songs) && (
+                          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                            {[
+                              publication.artists
+                                ? participant.artist
+                                : null,
+
+                              publication.songs
+                                ? participant.song
+                                : null,
+                            ]
+                              .filter(
+                                Boolean,
+                              )
+                              .join(
+                                " · ",
+                              ) ||
+                              "Entry details not announced"}
+                          </p>
+                        )}
+
+                        {publication.semi_split &&
+                          participant.semi_final && (
+                            <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                              {
+                                participant.semi_final
+                              }
+                            </p>
+                          )}
+                      </div>
+
+                      {publication.qualifiers &&
+                        participant.qualified !=
+                          null && (
+                          <span
+                            className={
+                              participant.qualified
+                                ? "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase text-primary"
+                                : "rounded-full bg-surface px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground"
+                            }
+                          >
+                            {participant.qualified
+                              ? "Qualified"
+                              : "Not qualified"}
+                          </span>
+                        )}
                     </div>
-                  </div>
-                );
-              },
-            )}
-          </div>
-        </Panel>
-      )}
+                  );
+                },
+              )}
+
+              {!(
+                participants ??
+                []
+              ).length && (
+                <p className="py-4 text-sm text-muted-foreground">
+                  No entries have been published yet.
+                </p>
+              )}
+            </div>
+          </Panel>
+        )}
     </AppShell>
   );
 }
