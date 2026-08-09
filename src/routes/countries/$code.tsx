@@ -1,5 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import {
+  createFileRoute,
+  Link,
+} from "@tanstack/react-router";
+
+import {
+  useMemo,
+  useState,
+} from "react";
+
 import {
   CartesianGrid,
   Line,
@@ -10,9 +18,20 @@ import {
   YAxis,
 } from "recharts";
 
-import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
-import { FlagChip } from "@/components/FlagChip";
-import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import {
+  AppShell,
+  Panel,
+  StatTile,
+} from "@/components/AppShell";
+
+import {
+  FlagChip,
+} from "@/components/FlagChip";
+
+import {
+  ResponsiveTabs,
+} from "@/components/ResponsiveTabs";
+
 import {
   editionLabel,
   useAllJuryVotes,
@@ -23,279 +42,880 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
-import { computeCountryStats, computeHeadToHead, computeRelationship } from "@/lib/stats";
 
-export const Route = createFileRoute("/countries/$code")({
-  head: ({ params }) => ({
-    meta: [
-      { title: `${params.code} — Country profile — Solaris Studio` },
-      {
-        name: "description",
-        content: "Country results, voting history and relationships in the Solaris Song Contest.",
-      },
-    ],
-  }),
-  component: CountryProfilePage,
-});
+import {
+  computeCountryStats,
+  computeHeadToHead,
+  computeRelationship,
+} from "@/lib/stats";
+
+export const Route =
+  createFileRoute(
+    "/countries/$code",
+  )({
+    head: ({ params }) => ({
+      meta: [
+        {
+          title:
+            `${params.code} — Country profile — Solaris Studio`,
+        },
+      ],
+    }),
+
+    component:
+      CountryProfilePage,
+  });
 
 const TABS = [
-  { value: "overview", label: "Overview" },
-  { value: "results", label: "Results" },
-  { value: "voting", label: "Voting" },
-  { value: "relationships", label: "Relationships" },
+  {
+    value:
+      "overview",
+    label:
+      "Overview",
+  },
+
+  {
+    value:
+      "results",
+    label:
+      "Results",
+  },
+
+  {
+    value:
+      "voting",
+    label:
+      "Voting",
+  },
+
+  {
+    value:
+      "relationships",
+    label:
+      "Relationships",
+  },
 ] as const;
 
-type Tab = (typeof TABS)[number]["value"];
+type Tab =
+  (typeof TABS)[number]["value"];
 
 function CountryProfilePage() {
-  const { code } = Route.useParams();
+  const {
+    code,
+  } =
+    Route.useParams();
 
-  const { data: countries } = useCountries();
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: participants } = useAllParticipants();
-  const { data: results } = useAllResults();
-  const { data: jury } = useAllJuryVotes();
-  const { data: televote } = useAllTelevotes();
+  const {
+    data: countries,
+  } =
+    useCountries();
 
-  const [tab, setTab] = useState<Tab>("overview");
+  const {
+    data: editions,
+  } =
+    useEditions();
 
-  const country = (countries ?? []).find(
-    (item) => item.short_code.toUpperCase() === code.toUpperCase(),
-  );
+  const {
+    data: shows,
+  } =
+    useAllShows();
 
-  const opts = useMemo(
-    () => ({
-      editions: editions ?? [],
-      shows: shows ?? [],
-      participants: participants ?? [],
-      results: results ?? [],
-      jury: jury ?? [],
-      televote: televote ?? [],
-    }),
-    [editions, shows, participants, results, jury, televote],
-  );
+  const {
+    data: participants,
+  } =
+    useAllParticipants();
 
-  const stats = useMemo(
-    () => (country ? computeCountryStats(country.id, opts) : null),
-    [country, opts],
-  );
+  const {
+    data: results,
+  } =
+    useAllResults();
 
-  if (!country) {
+  const {
+    data: jury,
+  } =
+    useAllJuryVotes();
+
+  const {
+    data: televote,
+  } =
+    useAllTelevotes();
+
+  const [
+    tab,
+    setTab,
+  ] =
+    useState<Tab>(
+      "overview",
+    );
+
+  const country =
+    (
+      countries ??
+      []
+    ).find(
+      (item) =>
+        item.short_code.toUpperCase() ===
+        code.toUpperCase(),
+    );
+
+  const opts =
+    useMemo(
+      () => ({
+        editions:
+          editions ??
+          [],
+
+        shows:
+          shows ??
+          [],
+
+        participants:
+          participants ??
+          [],
+
+        results:
+          results ??
+          [],
+
+        jury:
+          jury ??
+          [],
+
+        televote:
+          televote ??
+          [],
+      }),
+      [
+        editions,
+        shows,
+        participants,
+        results,
+        jury,
+        televote,
+      ],
+    );
+
+  const stats =
+    useMemo(
+      () =>
+        country
+          ? computeCountryStats(
+              country.id,
+              opts,
+            )
+          : null,
+      [
+        country,
+        opts,
+      ],
+    );
+
+  if (
+    !country
+  ) {
     return (
       <AppShell>
-        <PageHeader title="Country not found" />
-        <Link to="/countries" className="text-sm text-primary hover:underline">
-          ← Back to countries
-        </Link>
+        <div className="glass p-6">
+          <h1 className="font-display text-2xl font-bold">
+            Country not found
+          </h1>
+
+          <Link
+            to="/countries"
+            className="mt-4 inline-block text-sm text-primary"
+          >
+            ← Countries
+          </Link>
+        </div>
       </AppShell>
     );
   }
 
-  const cMap = new Map((countries ?? []).map((item) => [item.id, item]));
-  const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
-  const showMap = new Map((shows ?? []).map((show) => [show.id, show]));
+  const countryMap =
+    new Map(
+      (
+        countries ??
+        []
+      ).map(
+        (item) => [
+          item.id,
+          item,
+        ],
+      ),
+    );
 
-  const myResults = (results ?? [])
-    .filter((row) => row.country_id === country.id)
-    .sort((a, b) => {
-      const ay = editionMap.get(a.edition_id)?.year ?? 0;
-      const by = editionMap.get(b.edition_id)?.year ?? 0;
-      return by - ay;
-    });
+  const editionMap =
+    new Map(
+      (
+        editions ??
+        []
+      ).map(
+        (edition) => [
+          edition.id,
+          edition,
+        ],
+      ),
+    );
 
-  const finalResults = myResults.filter(
-    (row) => showMap.get(row.show_id ?? "")?.kind === "grand-final",
-  );
+  const showMap =
+    new Map(
+      (
+        shows ??
+        []
+      ).map(
+        (show) => [
+          show.id,
+          show,
+        ],
+      ),
+    );
 
-  const semiRows = (participants ?? [])
-    .filter(
-      (row) =>
-        row.country_id === country.id &&
-        showMap.get(row.show_id ?? "")?.kind === "semi-final",
+  /* =========================================================
+     RESULTS
+     ========================================================= */
+
+  const myResults =
+    (
+      results ??
+      []
     )
-    .map((row) => ({
-      row,
-      edition: editionMap.get(row.edition_id),
-      result: myResults.find((result) => result.show_id === row.show_id),
-    }))
-    .sort((a, b) => (b.edition?.year ?? 0) - (a.edition?.year ?? 0));
+      .filter(
+        (result) =>
+          result.country_id ===
+          country.id,
+      )
+      .sort(
+        (a, b) =>
+          (editionMap.get(
+            b.edition_id,
+          )?.edition_number ??
+            -1) -
+          (editionMap.get(
+            a.edition_id,
+          )?.edition_number ??
+            -1),
+      );
 
-  const given = (jury ?? []).filter((vote) => vote.voter_country_id === country.id);
-  const received = (jury ?? []).filter((vote) => vote.receiving_country_id === country.id);
+  const finalResults =
+    myResults.filter(
+      (result) =>
+        showMap.get(
+          result.show_id ??
+            "",
+        )?.kind ===
+        "grand-final",
+    );
 
-  const aggregate = (rows: typeof given, key: "receiving_country_id" | "voter_country_id") => {
-    const totals = new Map<string, number>();
-    rows.forEach((vote) => {
-      const id = vote[key];
-      if (!id) return;
-      totals.set(id, (totals.get(id) ?? 0) + vote.points);
-    });
-    return [...totals.entries()]
-      .map(([id, points]) => ({ country: cMap.get(id), points }))
-      .filter((item) => item.country)
-      .sort((a, b) => b.points - a.points)
-      .slice(0, 8);
+  const semiRows =
+    (
+      participants ??
+      []
+    )
+      .filter(
+        (participant) =>
+          participant.country_id ===
+            country.id &&
+          showMap.get(
+            participant.show_id ??
+              "",
+          )?.kind ===
+            "semi-final",
+      )
+      .map(
+        (participant) => ({
+          participant,
+
+          edition:
+            editionMap.get(
+              participant.edition_id,
+            ),
+
+          result:
+            myResults.find(
+              (result) =>
+                result.show_id ===
+                participant.show_id,
+            ),
+        }),
+      )
+      .sort(
+        (a, b) =>
+          (b.edition
+            ?.edition_number ??
+            -1) -
+          (a.edition
+            ?.edition_number ??
+            -1),
+      );
+
+  /* =========================================================
+     VOTING
+     ========================================================= */
+
+  const given =
+    (
+      jury ??
+      []
+    ).filter(
+      (vote) =>
+        vote.voter_country_id ===
+        country.id,
+    );
+
+  const received =
+    (
+      jury ??
+      []
+    ).filter(
+      (vote) =>
+        vote.receiving_country_id ===
+        country.id,
+    );
+
+  const aggregate = (
+    rows:
+      typeof given,
+
+    key:
+      | "receiving_country_id"
+      | "voter_country_id",
+  ) => {
+    const totals =
+      new Map<
+        string,
+        number
+      >();
+
+    rows.forEach(
+      (vote) => {
+        const id =
+          vote[key];
+
+        if (
+          !id
+        ) {
+          return;
+        }
+
+        totals.set(
+          id,
+
+          (totals.get(
+            id,
+          ) ?? 0) +
+            vote.points,
+        );
+      },
+    );
+
+    return [
+      ...totals.entries(),
+    ]
+      .map(
+        ([
+          id,
+          points,
+        ]) => ({
+          country:
+            countryMap.get(
+              id,
+            ),
+
+          points,
+        }),
+      )
+      .filter(
+        (
+          item,
+        ): item is {
+          country: NonNullable<
+            typeof item.country
+          >;
+          points: number;
+        } =>
+          !!item.country,
+      )
+      .sort(
+        (a, b) =>
+          b.points -
+          a.points,
+      )
+      .slice(
+        0,
+        8,
+      );
   };
 
-  const topGiven = aggregate(given, "receiving_country_id");
-  const topReceived = aggregate(received, "voter_country_id");
+  const topGiven =
+    aggregate(
+      given,
+      "receiving_country_id",
+    );
 
-  const sharedIds = new Set<string>();
-  const myEditionIds = new Set(myResults.map((row) => row.edition_id));
-  (results ?? []).forEach((row) => {
-    if (row.country_id !== country.id && myEditionIds.has(row.edition_id)) {
-      sharedIds.add(row.country_id);
-    }
-  });
+  const topReceived =
+    aggregate(
+      received,
+      "voter_country_id",
+    );
 
-  const relationshipRows = [...sharedIds]
-    .map((id) => {
-      const other = cMap.get(id);
-      if (!other) return null;
-      return {
-        other,
-        rel: computeRelationship(country.id, id, {
-          editions: editions ?? [],
-          jury: jury ?? [],
-          results: results ?? [],
-        }),
-        h2h: computeHeadToHead(country.id, id, {
-          editions: editions ?? [],
-          results: results ?? [],
-        }),
-      };
-    })
-    .filter((row): row is NonNullable<typeof row> => !!row)
-    .sort((a, b) => b.rel.friendshipScore - a.rel.friendshipScore);
+  /* =========================================================
+     RELATIONSHIPS
+     ========================================================= */
+
+  const myEditionIds =
+    new Set(
+      myResults.map(
+        (result) =>
+          result.edition_id,
+      ),
+    );
+
+  const sharedIds =
+    new Set<string>();
+
+  (
+    results ??
+    []
+  ).forEach(
+    (result) => {
+      if (
+        result.country_id !==
+          country.id &&
+        myEditionIds.has(
+          result.edition_id,
+        )
+      ) {
+        sharedIds.add(
+          result.country_id,
+        );
+      }
+    },
+  );
+
+  const relationshipRows =
+    [
+      ...sharedIds,
+    ]
+      .map(
+        (id) => {
+          const other =
+            countryMap.get(
+              id,
+            );
+
+          if (
+            !other
+          ) {
+            return null;
+          }
+
+          return {
+            other,
+
+            relationship:
+              computeRelationship(
+                country.id,
+                id,
+                {
+                  editions:
+                    editions ??
+                    [],
+
+                  jury:
+                    jury ??
+                    [],
+
+                  results:
+                    results ??
+                    [],
+
+                  shows:
+                    shows ??
+                    [],
+                },
+              ),
+
+            headToHead:
+              computeHeadToHead(
+                country.id,
+                id,
+                {
+                  editions:
+                    editions ??
+                    [],
+
+                  results:
+                    results ??
+                    [],
+                },
+              ),
+          };
+        },
+      )
+      .filter(
+        (
+          row,
+        ): row is NonNullable<
+          typeof row
+        > =>
+          !!row,
+      )
+      .sort(
+        (a, b) =>
+          b.relationship
+            .friendshipScore -
+          a.relationship
+            .friendshipScore,
+      );
+
+  /* =========================================================
+     CHART
+     ========================================================= */
 
   const chartData =
     stats?.timeline
-      .filter((point) => point.rank != null)
-      .map((point) => ({
-        label: point.year ?? point.label,
-        rank: point.rank,
-      })) ?? [];
+      .filter(
+        (point) =>
+          point.rank !=
+          null,
+      )
+      .map(
+        (point) => ({
+          edition:
+            point.label,
+
+          editionNumber:
+            point.editionNumber,
+
+          rank:
+            point.rank,
+        }),
+      ) ?? [];
 
   return (
     <AppShell>
-      <div className="mb-6 glass p-4 sm:p-5">
-        <div className="flex items-center gap-4">
-          <FlagChip
-            code={country.short_code}
-            color={country.accent_color}
-            image={country.flag_image}
-            size="xl"
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-              {country.region}
-            </p>
-            <h1 className="mt-1 truncate font-display text-2xl font-bold sm:text-3xl">
-              {country.name}
-            </h1>
-            {country.description && (
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                {country.description}
+      {/* =====================================================
+          COUNTRY HERO
+         ===================================================== */}
+
+      <section
+        className="
+          glass
+          relative
+          mb-6
+          overflow-hidden
+          p-5
+          sm:p-6
+        "
+      >
+        {country.flag_image && (
+          <div
+            className="
+              absolute
+              -right-20
+              -top-20
+              h-72
+              w-72
+              overflow-hidden
+              rounded-full
+              opacity-[0.08]
+            "
+          >
+            <img
+              src={
+                country.flag_image
+              }
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
+
+        <div className="relative z-10">
+          <div
+            className="
+              flex
+              items-center
+              gap-4
+            "
+          >
+            <FlagChip
+              code={
+                country.short_code
+              }
+              color={
+                country.accent_color
+              }
+              image={
+                country.flag_image
+              }
+              size="xl"
+            />
+
+            <div className="min-w-0">
+              <p
+                className="
+                  text-[10px]
+                  font-semibold
+                  uppercase
+                  tracking-[0.18em]
+                  text-primary
+                "
+              >
+                {country.region}
               </p>
-            )}
+
+              <h1
+                className="
+                  mt-1
+                  truncate
+                  font-display
+                  text-3xl
+                  font-bold
+                  sm:text-4xl
+                "
+              >
+                {country.name}
+              </h1>
+
+              {country.native_name &&
+                country.native_name !==
+                  country.name && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {
+                      country.native_name
+                    }
+                  </p>
+                )}
+            </div>
+          </div>
+
+          {country.description && (
+            <p
+              className="
+                mt-4
+                max-w-2xl
+                text-sm
+                leading-relaxed
+                text-muted-foreground
+              "
+            >
+              {
+                country.description
+              }
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              to="/countries"
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-xs"
+            >
+              ← Countries
+            </Link>
+
+            <Link
+              to="/compare"
+              search={{
+                a:
+                  country.short_code,
+              }}
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-xs"
+            >
+              Compare
+            </Link>
           </div>
         </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Link
-            to="/countries"
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-xs"
-          >
-            ← Countries
-          </Link>
-          <Link
-            to="/compare"
-            search={{ a: country.short_code }}
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-xs"
-          >
-            Compare
-          </Link>
-        </div>
-      </div>
+      </section>
 
       <ResponsiveTabs
         value={tab}
         options={TABS}
-        onChange={setTab}
+        onChange={
+          setTab
+        }
         label="Country section"
         className="mb-5"
       />
 
-      {!stats || stats.participations === 0 ? (
+      {!stats ||
+      stats.participations ===
+        0 ? (
         <Panel>
-          <p className="text-sm text-muted-foreground">No contest data is available for this country yet.</p>
+          <p className="text-sm text-muted-foreground">
+            No contest data is available for this country yet.
+          </p>
         </Panel>
       ) : (
         <>
-          {tab === "overview" && (
+          {/* =================================================
+              OVERVIEW
+             ================================================= */}
+
+          {tab ===
+            "overview" && (
             <div className="space-y-5">
               <Panel>
-                <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
-                  <StatTile label="Participations" value={stats.participations} />
-                  <StatTile label="Wins" value={stats.wins} />
+                <div
+                  className="
+                    grid
+                    grid-cols-2
+                    gap-x-5
+                    gap-y-5
+                    sm:grid-cols-4
+                  "
+                >
+                  <StatTile
+                    label="Participations"
+                    value={
+                      stats.participations
+                    }
+                  />
+
+                  <StatTile
+                    label="Wins"
+                    value={
+                      stats.wins
+                    }
+                  />
+
                   <StatTile
                     label="Avg. placement"
-                    value={stats.avgCombinedPlacement?.toFixed(1) ?? "—"}
+                    value={
+                      stats.avgCombinedPlacement?.toFixed(
+                        1,
+                      ) ??
+                      "—"
+                    }
                   />
+
                   <StatTile
                     label="Qualification"
                     value={
-                      stats.qualificationPct != null
-                        ? `${stats.qualificationPct.toFixed(0)}%`
+                      stats.qualificationPct !=
+                      null
+                        ? `${stats.qualificationPct.toFixed(
+                            0,
+                          )}%`
                         : "—"
                     }
                   />
                 </div>
               </Panel>
 
-              <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
-                <Panel title="Recent results">
+              <div
+                className="
+                  grid
+                  gap-5
+                  lg:grid-cols-[1.2fr_.8fr]
+                "
+              >
+                <Panel title="Recent editions">
                   <div className="divide-y divide-border/60">
-                    {myResults.slice(0, 6).map((row) => {
-                      const edition = editionMap.get(row.edition_id);
-                      const show = showMap.get(row.show_id ?? "");
-                      return (
-                        <div
-                          key={`${row.edition_id}-${row.show_id}`}
-                          className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 last:pb-0"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {edition ? editionLabel(edition) : "Edition"}
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              {show?.name ?? "Show"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="numeric text-sm font-semibold">
-                              {row.final_rank ? `#${row.final_rank}` : "—"}
-                            </p>
-                            <p className="numeric mt-0.5 text-[11px] text-muted-foreground">
-                              {row.total_points} pts
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {myResults
+                      .slice(
+                        0,
+                        6,
+                      )
+                      .map(
+                        (
+                          result,
+                        ) => {
+                          const edition =
+                            editionMap.get(
+                              result.edition_id,
+                            );
+
+                          const show =
+                            showMap.get(
+                              result.show_id ??
+                                "",
+                            );
+
+                          return (
+                            <div
+                              key={`${result.edition_id}-${result.show_id}`}
+                              className="
+                                grid
+                                grid-cols-[1fr_auto]
+                                gap-3
+                                py-3
+                                first:pt-0
+                                last:pb-0
+                              "
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium">
+                                  {edition
+                                    ? editionLabel(
+                                        edition,
+                                      )
+                                    : "Edition"}
+                                </p>
+
+                                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                  {show?.name ??
+                                    "Show"}
+                                </p>
+                              </div>
+
+                              <div className="text-right">
+                                <p className="numeric text-sm font-semibold">
+                                  {result.final_rank
+                                    ? `#${result.final_rank}`
+                                    : "—"}
+                                </p>
+
+                                <p className="numeric mt-0.5 text-[11px] text-muted-foreground">
+                                  {
+                                    result.total_points
+                                  }{" "}
+                                  pts
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        },
+                      )}
                   </div>
                 </Panel>
 
                 <Panel title="Career">
                   <div className="divide-y divide-border/60">
-                    <Row label="Finals reached" value={stats.finals} />
-                    <Row label="Podiums" value={stats.podiums} />
-                    <Row label="Top 10 finishes" value={stats.top10} />
-                    <Row label="Highest score" value={stats.highestScore ?? "—"} />
+                    <Row
+                      label="Finals reached"
+                      value={
+                        stats.finals
+                      }
+                    />
+
+                    <Row
+                      label="Podiums"
+                      value={
+                        stats.podiums
+                      }
+                    />
+
+                    <Row
+                      label="Top 10 finishes"
+                      value={
+                        stats.top10
+                      }
+                    />
+
+                    <Row
+                      label="Highest score"
+                      value={
+                        stats.highestScore ??
+                        "—"
+                      }
+                    />
+
                     <Row
                       label="Current qualification streak"
-                      value={stats.consecutiveQualifications}
+                      value={
+                        stats.consecutiveQualifications
+                      }
                     />
                   </div>
                 </Panel>
@@ -303,146 +923,320 @@ function CountryProfilePage() {
             </div>
           )}
 
-          {tab === "results" && (
+          {/* =================================================
+              RESULTS
+             ================================================= */}
+
+          {tab ===
+            "results" && (
             <div className="space-y-5">
-              <Panel title="Placement timeline" description="Lower is better.">
+              <Panel
+                title="Placement timeline"
+                description="Edition numbers are used as the historical timeline. Lower placement is better."
+              >
                 {chartData.length ? (
-                  <div className="h-[260px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                        <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={11} />
-                        <YAxis reversed allowDecimals={false} stroke="var(--muted-foreground)" fontSize={11} />
+                  <div className="h-[270px]">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                    >
+                      <LineChart
+                        data={
+                          chartData
+                        }
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="var(--border)"
+                        />
+
+                        <XAxis
+                          dataKey="edition"
+                          stroke="var(--muted-foreground)"
+                          fontSize={
+                            11
+                          }
+                        />
+
+                        <YAxis
+                          reversed
+                          allowDecimals={
+                            false
+                          }
+                          stroke="var(--muted-foreground)"
+                          fontSize={
+                            11
+                          }
+                        />
+
                         <Tooltip
                           contentStyle={{
-                            background: "var(--popover)",
-                            border: "1px solid var(--border)",
-                            borderRadius: 14,
+                            background:
+                              "var(--popover)",
+
+                            border:
+                              "1px solid var(--border)",
+
+                            borderRadius:
+                              14,
                           }}
                         />
+
                         <Line
                           type="monotone"
                           dataKey="rank"
+                          name="Placement"
                           stroke="var(--primary)"
-                          strokeWidth={3}
+                          strokeWidth={
+                            3
+                          }
                           dot
                         />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No ranked results recorded yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No ranked results recorded yet.
+                  </p>
                 )}
               </Panel>
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <Panel title="Grand finals">
-                  <ResultList rows={finalResults} editionMap={editionMap} showMap={showMap} />
+                  <ResultList
+                    rows={
+                      finalResults
+                    }
+                    editionMap={
+                      editionMap
+                    }
+                    showMap={
+                      showMap
+                    }
+                  />
                 </Panel>
 
                 <Panel title="Qualification history">
                   {semiRows.length ? (
                     <div className="divide-y divide-border/60">
-                      {semiRows.map(({ row, edition, result }) => (
-                        <div key={row.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                          <div>
-                            <p className="text-sm font-medium">
-                              {edition ? editionLabel(edition) : "Edition"}
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              {result?.total_points ?? "—"} pts
-                            </p>
-                          </div>
-                          <span
-                            className={
-                              row.qualified
-                                ? "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
-                                : "rounded-full bg-surface px-2 py-1 text-[10px] text-muted-foreground"
+                      {semiRows.map(
+                        ({
+                          participant,
+                          edition,
+                          result,
+                        }) => (
+                          <div
+                            key={
+                              participant.id
                             }
+                            className="
+                              flex
+                              items-center
+                              justify-between
+                              gap-3
+                              py-3
+                              first:pt-0
+                              last:pb-0
+                            "
                           >
-                            {row.qualified ? "Qualified" : "Eliminated"}
-                          </span>
-                        </div>
-                      ))}
+                            <div>
+                              <p className="text-sm font-medium">
+                                {edition
+                                  ? editionLabel(
+                                      edition,
+                                    )
+                                  : "Edition"}
+                              </p>
+
+                              <p className="numeric mt-0.5 text-[11px] text-muted-foreground">
+                                {result?.total_points ??
+                                  "—"}{" "}
+                                pts
+                              </p>
+                            </div>
+
+                            <span
+                              className={
+                                participant.qualified
+                                  ? "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
+                                  : "rounded-full bg-surface px-2 py-1 text-[10px] text-muted-foreground"
+                              }
+                            >
+                              {participant.qualified
+                                ? "Qualified"
+                                : "Eliminated"}
+                            </span>
+                          </div>
+                        ),
+                      )}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No semi-final history recorded.</p>
+                    <p className="text-sm text-muted-foreground">
+                      No semi-final history recorded.
+                    </p>
                   )}
                 </Panel>
               </div>
             </div>
           )}
 
-          {tab === "voting" && (
+          {/* =================================================
+              VOTING
+             ================================================= */}
+
+          {tab ===
+            "voting" && (
             <div className="space-y-5">
               <Panel>
-                <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
+                <div
+                  className="
+                    grid
+                    grid-cols-2
+                    gap-x-5
+                    gap-y-5
+                    sm:grid-cols-4
+                  "
+                >
                   <StatTile
                     label="Avg. received"
-                    value={stats.avgReceivedPerContest?.toFixed(0) ?? "—"}
+                    value={
+                      stats.avgReceivedPerContest?.toFixed(
+                        0,
+                      ) ??
+                      "—"
+                    }
                   />
+
                   <StatTile
                     label="Avg. given"
-                    value={stats.avgGivenPerContest?.toFixed(0) ?? "—"}
+                    value={
+                      stats.avgGivenPerContest?.toFixed(
+                        0,
+                      ) ??
+                      "—"
+                    }
                   />
-                  <StatTile label="Top scores received" value={stats.topScoresReceived} />
-                  <StatTile label="Top scores given" value={stats.topScoresGiven} />
+
+                  <StatTile
+                    label="Top scores received"
+                    value={
+                      stats.topScoresReceived
+                    }
+                  />
+
+                  <StatTile
+                    label="Top scores given"
+                    value={
+                      stats.topScoresGiven
+                    }
+                  />
                 </div>
               </Panel>
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <CountryPointList
                   title="Most support received"
-                  rows={topReceived}
+                  rows={
+                    topReceived
+                  }
                 />
+
                 <CountryPointList
                   title="Most points given"
-                  rows={topGiven}
+                  rows={
+                    topGiven
+                  }
                 />
               </div>
             </div>
           )}
 
-          {tab === "relationships" && (
-            <div className="space-y-5">
-              <Panel
-                title="Closest relationships"
-                description="Ranked by historical friendship score."
-              >
-                {relationshipRows.length ? (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {relationshipRows.slice(0, 10).map(({ other, rel, h2h }) => (
-                      <Link
-                        key={other.id}
-                        to="/relationships/$pair"
-                        params={{
-                          pair: `${country.short_code}-vs-${other.short_code}`.toUpperCase(),
-                        }}
-                        className="rounded-xl bg-surface px-3 py-3 hover:bg-surface-strong"
-                      >
-                        <div className="flex items-center gap-3">
-                          <FlagChip
-                            code={other.short_code}
-                            color={other.accent_color}
-                            image={other.flag_image}
-                            size="sm"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{other.name}</p>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              Friendship {rel.friendshipScore.toFixed(0)} · H2H {h2h.sharedEditions} editions
-                            </p>
+          {/* =================================================
+              RELATIONSHIPS
+             ================================================= */}
+
+          {tab ===
+            "relationships" && (
+            <Panel
+              title="Closest relationships"
+              description="Ranked by historical friendship score across SSC editions."
+            >
+              {relationshipRows.length ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {relationshipRows
+                    .slice(
+                      0,
+                      10,
+                    )
+                    .map(
+                      ({
+                        other,
+                        relationship,
+                        headToHead,
+                      }) => (
+                        <Link
+                          key={
+                            other.id
+                          }
+                          to="/relationships/$pair"
+                          params={{
+                            pair:
+                              `${country.short_code}-vs-${other.short_code}`.toUpperCase(),
+                          }}
+                          className="
+                            rounded-xl
+                            bg-surface
+                            px-3
+                            py-3
+                            hover:bg-surface-strong
+                          "
+                        >
+                          <div className="flex items-center gap-3">
+                            <FlagChip
+                              code={
+                                other.short_code
+                              }
+                              color={
+                                other.accent_color
+                              }
+                              image={
+                                other.flag_image
+                              }
+                              size="sm"
+                            />
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">
+                                {
+                                  other.name
+                                }
+                              </p>
+
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                {
+                                  relationship.friendshipScore.toFixed(
+                                    0,
+                                  )
+                                }{" "}
+                                friendship ·{" "}
+                                {
+                                  headToHead.sharedEditions
+                                }{" "}
+                                shared editions
+                              </p>
+                            </div>
                           </div>
-                          <span className="text-xs text-primary">→</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No shared history yet.</p>
-                )}
-              </Panel>
-            </div>
+                        </Link>
+                      ),
+                    )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No relationships recorded yet.
+                </p>
+              )}
+            </Panel>
           )}
         </>
       )}
@@ -450,14 +1244,9 @@ function CountryProfilePage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="numeric text-sm font-semibold">{value}</span>
-    </div>
-  );
-}
+/* =========================================================
+   RESULT LIST
+   ========================================================= */
 
 function ResultList({
   rows,
@@ -465,72 +1254,212 @@ function ResultList({
   showMap,
 }: {
   rows: Array<{
+    id: string;
     edition_id: string;
     show_id: string | null;
-    total_points: number;
     final_rank: number | null;
+    total_points: number;
   }>;
-  editionMap: Map<string, any>;
-  showMap: Map<string, any>;
+
+  editionMap:
+    Map<
+      string,
+      any
+    >;
+
+  showMap:
+    Map<
+      string,
+      any
+    >;
 }) {
-  if (!rows.length) {
-    return <p className="text-sm text-muted-foreground">No grand-final results recorded.</p>;
+  if (
+    !rows.length
+  ) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No Grand Final results recorded.
+      </p>
+    );
   }
 
   return (
     <div className="divide-y divide-border/60">
-      {rows.map((row, index) => {
-        const edition = editionMap.get(row.edition_id);
-        const show = showMap.get(row.show_id ?? "");
-        return (
-          <div key={`${row.edition_id}-${row.show_id}-${index}`} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-            <div>
-              <p className="text-sm font-medium">{edition ? editionLabel(edition) : "Edition"}</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">{show?.name ?? "Grand final"}</p>
+      {rows.map(
+        (row) => {
+          const edition =
+            editionMap.get(
+              row.edition_id,
+            );
+
+          const show =
+            showMap.get(
+              row.show_id ??
+                "",
+            );
+
+          return (
+            <div
+              key={
+                row.id
+              }
+              className="
+                flex
+                items-center
+                justify-between
+                gap-3
+                py-3
+                first:pt-0
+                last:pb-0
+              "
+            >
+              <div>
+                <p className="text-sm font-medium">
+                  {edition
+                    ? editionLabel(
+                        edition,
+                      )
+                    : "Edition"}
+                </p>
+
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {show?.name ??
+                    "Grand Final"}
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="numeric text-sm font-semibold">
+                  {row.final_rank
+                    ? `#${row.final_rank}`
+                    : "—"}
+                </p>
+
+                <p className="numeric mt-0.5 text-[11px] text-muted-foreground">
+                  {
+                    row.total_points
+                  }{" "}
+                  pts
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="numeric text-sm font-semibold">{row.final_rank ? `#${row.final_rank}` : "—"}</p>
-              <p className="numeric text-[11px] text-muted-foreground">{row.total_points} pts</p>
-            </div>
-          </div>
-        );
-      })}
+          );
+        },
+      )}
     </div>
   );
 }
+
+/* =========================================================
+   COUNTRY POINT LIST
+   ========================================================= */
 
 function CountryPointList({
   title,
   rows,
 }: {
   title: string;
-  rows: Array<{ country: any; points: number }>;
+
+  rows: Array<{
+    country: any;
+    points: number;
+  }>;
 }) {
   return (
-    <Panel title={title}>
+    <Panel
+      title={title}
+    >
       {rows.length ? (
         <div className="divide-y divide-border/60">
-          {rows.map(({ country, points }) => (
-            <Link
-              key={country.id}
-              to="/countries/$code"
-              params={{ code: country.short_code }}
-              className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-            >
-              <FlagChip
-                code={country.short_code}
-                color={country.accent_color}
-                image={country.flag_image}
-                size="sm"
-              />
-              <span className="min-w-0 flex-1 truncate text-sm">{country.name}</span>
-              <span className="numeric text-sm font-semibold">{points}</span>
-            </Link>
-          ))}
+          {rows.map(
+            ({
+              country,
+              points,
+            }) => (
+              <Link
+                key={
+                  country.id
+                }
+                to="/countries/$code"
+                params={{
+                  code:
+                    country.short_code,
+                }}
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  py-3
+                  first:pt-0
+                  last:pb-0
+                "
+              >
+                <FlagChip
+                  code={
+                    country.short_code
+                  }
+                  color={
+                    country.accent_color
+                  }
+                  image={
+                    country.flag_image
+                  }
+                  size="sm"
+                />
+
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {
+                    country.name
+                  }
+                </span>
+
+                <span className="numeric text-sm font-semibold">
+                  {
+                    points
+                  }
+                </span>
+              </Link>
+            ),
+          )}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No voting data yet.</p>
+        <p className="text-sm text-muted-foreground">
+          No voting data.
+        </p>
       )}
     </Panel>
+  );
+}
+
+function Row({
+  label,
+  value,
+}: {
+  label: string;
+
+  value:
+    | string
+    | number;
+}) {
+  return (
+    <div
+      className="
+        flex
+        items-center
+        justify-between
+        gap-4
+        py-3
+        first:pt-0
+        last:pb-0
+      "
+    >
+      <span className="text-sm text-muted-foreground">
+        {label}
+      </span>
+
+      <span className="numeric text-sm font-semibold">
+        {value}
+      </span>
+    </div>
   );
 }
