@@ -45,18 +45,44 @@ export type PublicationPreset = {
 };
 
 /* ============================================================
+   SHOW KIND COMPATIBILITY
+   ============================================================ */
+
+/**
+ * Older Solaris data may use `final`.
+ * Newer editions use `grand-final`.
+ *
+ * Treat both as the Grand Final so historical editions
+ * continue working without a database rewrite.
+ */
+export function isGrandFinalKind(
+  kind: string | null | undefined,
+) {
+  return (
+    kind === "grand-final" ||
+    kind === "final"
+  );
+}
+
+export function isSemiFinalKind(
+  kind: string | null | undefined,
+) {
+  return (
+    kind === "semi-final" ||
+    kind === "semi"
+  );
+}
+
+/* ============================================================
    PRESETS
    ============================================================ */
 
 export const PUBLICATION_PRESETS: PublicationPreset[] = [
   {
     id: "private",
-
     name: "Private",
-
     description:
       "Nothing from this show is public.",
-
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
     },
@@ -64,30 +90,22 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
 
   {
     id: "participants",
-
     name: "Participants only",
-
     description:
       "Reveal the participating countries, but no artists, songs or running order.",
-
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
-
       participants: true,
     },
   },
 
   {
     id: "entries",
-
     name: "Entry reveal",
-
     description:
       "Reveal participating countries, artists and songs.",
-
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
-
       participants: true,
       artists: true,
       songs: true,
@@ -96,15 +114,11 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
 
   {
     id: "split",
-
     name: "Semi-final split",
-
     description:
       "Reveal countries, entries and their semi-final allocation.",
-
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
-
       participants: true,
       artists: true,
       songs: true,
@@ -114,15 +128,11 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
 
   {
     id: "running-order",
-
     name: "Running order",
-
     description:
       "Reveal the entries, split and running order.",
-
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
-
       participants: true,
       artists: true,
       songs: true,
@@ -133,15 +143,11 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
 
   {
     id: "qualifiers",
-
     name: "Qualifiers",
-
     description:
       "Reveal entries, running order and qualification outcomes.",
-
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
-
       participants: true,
       artists: true,
       songs: true,
@@ -153,12 +159,9 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
 
   {
     id: "results",
-
     name: "Results",
-
     description:
-      "Reveal final standings plus jury and televote result totals.",
-
+      "Reveal final standings plus jury and televote totals.",
     config: {
       participants: true,
       artists: true,
@@ -166,23 +169,18 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
       semi_split: true,
       running_order: true,
       qualifiers: true,
-
       results: true,
       jury_results: true,
       televote_results: true,
-
       detailed_voting: false,
     },
   },
 
   {
     id: "full",
-
     name: "Full show",
-
     description:
       "Everything is public, including detailed jury voting.",
-
     config: {
       participants: true,
       artists: true,
@@ -190,7 +188,6 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
       semi_split: true,
       running_order: true,
       qualifiers: true,
-
       results: true,
       jury_results: true,
       televote_results: true,
@@ -280,13 +277,6 @@ export function applyPublicationPreset(
 
 /* ============================================================
    DEPENDENCIES
-
-   Publishing later-stage information automatically enables
-   information that is required for it to make sense publicly.
-
-   Example:
-   Running order without participants would be nonsense.
-   Humanity has produced enough nonsense already.
    ============================================================ */
 
 export function normalisePublicationDependencies(
@@ -333,7 +323,6 @@ export function normalisePublicationDependencies(
   }
 
   if (
-    next.results ||
     next.jury_results ||
     next.televote_results ||
     next.detailed_voting
@@ -397,7 +386,6 @@ export const PUBLICATION_LABELS: Record<
   participants: {
     title:
       "Participating countries",
-
     description:
       "Show which countries are competing.",
   },
@@ -405,7 +393,6 @@ export const PUBLICATION_LABELS: Record<
   artists: {
     title:
       "Artists",
-
     description:
       "Reveal the artists representing each country.",
   },
@@ -413,7 +400,6 @@ export const PUBLICATION_LABELS: Record<
   songs: {
     title:
       "Songs",
-
     description:
       "Reveal song titles.",
   },
@@ -421,7 +407,6 @@ export const PUBLICATION_LABELS: Record<
   semi_split: {
     title:
       "Semi-final split",
-
     description:
       "Reveal which semi-final each entry belongs to.",
   },
@@ -429,7 +414,6 @@ export const PUBLICATION_LABELS: Record<
   running_order: {
     title:
       "Running order",
-
     description:
       "Reveal performance positions.",
   },
@@ -437,7 +421,6 @@ export const PUBLICATION_LABELS: Record<
   qualifiers: {
     title:
       "Qualification results",
-
     description:
       "Reveal who qualified and who did not.",
   },
@@ -445,7 +428,6 @@ export const PUBLICATION_LABELS: Record<
   results: {
     title:
       "Overall results",
-
     description:
       "Reveal ranks and total points.",
   },
@@ -453,7 +435,6 @@ export const PUBLICATION_LABELS: Record<
   jury_results: {
     title:
       "Jury results",
-
     description:
       "Reveal jury totals.",
   },
@@ -461,7 +442,6 @@ export const PUBLICATION_LABELS: Record<
   televote_results: {
     title:
       "Televote results",
-
     description:
       "Reveal televote totals.",
   },
@@ -469,7 +449,6 @@ export const PUBLICATION_LABELS: Record<
   detailed_voting: {
     title:
       "Detailed voting",
-
     description:
       "Reveal jury ballots, points views and voting matrices.",
   },
@@ -484,31 +463,25 @@ export type AutomaticEditionStatus =
   | "published"
   | "completed";
 
-/**
- * Calculate the edition lifecycle from its public shows.
- *
- * draft:
- * Nothing public.
- *
- * published:
- * At least some edition/show information is public.
- *
- * completed:
- * A published grand final has public results.
- */
 export function resolveAutomaticEditionStatus(
   shows: Array<{
     kind: string;
     published: boolean;
     publication_config:
       | Record<string, unknown>
+      | PublicationConfig
       | null;
   }>,
 ): AutomaticEditionStatus {
   const publicShows =
     shows.filter(
       (show) =>
-        show.published,
+        show.published &&
+        hasAnyPublicInformation(
+          resolvePublicationConfig(
+            show.publication_config,
+          ),
+        ),
     );
 
   if (
@@ -521,8 +494,9 @@ export function resolveAutomaticEditionStatus(
     publicShows.some(
       (show) => {
         if (
-          show.kind !==
-          "grand-final"
+          !isGrandFinalKind(
+            show.kind,
+          )
         ) {
           return false;
         }
@@ -536,11 +510,7 @@ export function resolveAutomaticEditionStatus(
       },
     );
 
-  if (
-    completedFinal
-  ) {
-    return "completed";
-  }
-
-  return "published";
+  return completedFinal
+    ? "completed"
+    : "published";
 }
