@@ -4,569 +4,424 @@ import {
 } from "react";
 
 import {
-  cn,
-} from "@/lib/utils";
+  Link,
+} from "@tanstack/react-router";
+
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import type {
+  Country,
   Edition,
+  ResultRow,
 } from "@/lib/data";
 
 import {
   editionLabel,
 } from "@/lib/data";
 
-export type ShowKindFilter =
-  | "all"
-  | "grand-final"
-  | "semi-final";
+import {
+  cn,
+} from "@/lib/utils";
 
-export type VoteTypeFilter =
-  | "all"
-  | "jury"
-  | "televote";
-
-export type AnalysisFiltersState = {
-  editionIds:
-    string[];
-
-  showKind:
-    ShowKindFilter;
-
-  voteType:
-    VoteTypeFilter;
-};
-
-export const DEFAULT_ANALYSIS_FILTERS:
-  AnalysisFiltersState = {
-  editionIds: [],
-  showKind: "all",
-  voteType: "all",
-};
-
-function SegButton({
-  active,
-  onClick,
-  children,
-}: {
-  active:
-    boolean;
-
-  onClick:
-    () => void;
-
-  children:
-    React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={
-        onClick
-      }
-      className={cn(
-        "min-h-10 rounded-lg px-3 text-xs font-medium transition-colors",
-
-        active
-          ? "bg-aurora text-primary-foreground"
-          : "bg-surface text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-export function Filters({
+export function HistoricalLeaderboard({
+  countries,
   editions,
-  value,
-  onChange,
+  results,
+  limit = 8,
 }: {
+  countries:
+    Country[];
+
   editions:
     Edition[];
 
-  value:
-    AnalysisFiltersState;
+  results:
+    ResultRow[];
 
-  onChange: (
-    next:
-      AnalysisFiltersState,
-  ) => void;
+  limit?:
+    number;
 }) {
   const [
-    editionsOpen,
-    setEditionsOpen,
+    hoverId,
+    setHoverId,
   ] =
-    useState(false);
+    useState<
+      string | null
+    >(null);
 
-  /*
-   * Edition number is the authoritative contest chronology.
-   */
+  const countryMap =
+    new Map(
+      countries.map(
+        (country) => [
+          country.id,
+          country,
+        ],
+      ),
+    );
+
+  /* =========================================================
+     IMPORTANT:
+     Chronology is edition_number, never year.
+     ========================================================= */
+
   const sortedEditions =
     useMemo(
       () =>
-        [...editions].sort(
-          (a, b) =>
-            (b.edition_number ??
-              -1) -
-            (a.edition_number ??
-              -1),
-        ),
+        [...editions]
+          .filter(
+            (edition) =>
+              edition.edition_number !=
+              null,
+          )
+          .sort(
+            (a, b) =>
+              (a.edition_number ??
+                0) -
+              (b.edition_number ??
+                0),
+          ),
       [
         editions,
       ],
     );
 
-  const toggleEdition = (
-    id: string,
-  ) => {
-    const set =
-      new Set(
-        value.editionIds,
-      );
+  const rankedResults =
+    results.filter(
+      (result) =>
+        result.final_rank !=
+        null,
+    );
 
-    if (
-      set.has(id)
-    ) {
-      set.delete(
-        id,
-      );
-    } else {
-      set.add(
-        id,
-      );
-    }
+  const topIds =
+    useMemo(
+      () => {
+        const counts =
+          new Map<
+            string,
+            number
+          >();
 
-    onChange({
-      ...value,
+        rankedResults.forEach(
+          (result) => {
+            counts.set(
+              result.country_id,
 
-      editionIds:
-        [...set],
-    });
-  };
+              (counts.get(
+                result.country_id,
+              ) ?? 0) + 1,
+            );
+          },
+        );
 
-  const selectedEdition =
-    value.editionIds.length ===
-    1
-      ? sortedEditions.find(
-          (edition) =>
-            edition.id ===
-            value.editionIds[
-              0
-            ],
-        )
-      : null;
-
-  const editionSummary =
-    value.editionIds.length ===
-    0
-      ? "All editions"
-      : selectedEdition
-        ? editionLabel(
-            selectedEdition,
+        return [
+          ...counts.entries(),
+        ]
+          .sort(
+            (a, b) =>
+              b[1] -
+              a[1],
           )
-        : `${value.editionIds.length} editions`;
+          .slice(
+            0,
+            limit,
+          )
+          .map(
+            ([id]) =>
+              id,
+          );
+      },
+      [
+        rankedResults,
+        limit,
+      ],
+    );
+
+  const data =
+    useMemo(
+      () =>
+        sortedEditions.map(
+          (edition) => {
+            const row:
+              Record<
+                string,
+                | number
+                | string
+                | null
+              > = {
+              label:
+                editionLabel(
+                  edition,
+                ),
+
+              editionNumber:
+                edition.edition_number,
+            };
+
+            topIds.forEach(
+              (id) => {
+                const result =
+                  rankedResults.find(
+                    (candidate) =>
+                      candidate.edition_id ===
+                        edition.id &&
+                      candidate.country_id ===
+                        id,
+                  );
+
+                row[id] =
+                  result?.final_rank ??
+                  null;
+              },
+            );
+
+            return row;
+          },
+        ),
+      [
+        sortedEditions,
+        topIds,
+        rankedResults,
+      ],
+    );
+
+  if (
+    !topIds.length ||
+    !sortedEditions.length
+  ) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Not enough historical data yet.
+      </p>
+    );
+  }
+
+  const maxRank =
+    Math.max(
+      1,
+
+      ...rankedResults
+        .filter(
+          (result) =>
+            topIds.includes(
+              result.country_id,
+            ),
+        )
+        .map(
+          (result) =>
+            result.final_rank ??
+            1,
+        ),
+    );
 
   return (
-    <>
-      {/* MOBILE */}
-
-      <details className="glass mb-4 md:hidden">
-        <summary
-          className="
-            flex
-            min-h-12
-            cursor-pointer
-            list-none
-            items-center
-            justify-between
-            gap-3
-            px-3
-            py-2
-          "
-        >
-          <span className="min-w-0">
-            <span
-              className="
-                block
-                text-[10px]
-                font-semibold
-                uppercase
-                tracking-[0.18em]
-                text-muted-foreground
-              "
-            >
-              Filters
-            </span>
-
-            <span className="block truncate text-sm font-medium">
-              {editionSummary}
-              {" · "}
-
-              {value.showKind ===
-              "all"
-                ? "all shows"
-                : value.showKind ===
-                    "grand-final"
-                  ? "finals"
-                  : "semi-finals"}
-
-              {" · "}
-
-              {value.voteType ===
-              "all"
-                ? "all votes"
-                : value.voteType}
-            </span>
-          </span>
-
-          <span className="shrink-0 text-muted-foreground">
-            ▾
-          </span>
-        </summary>
-
-        <div className="space-y-4 border-t border-border p-3">
-          <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Editions
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                onChange({
-                  ...value,
-
-                  editionIds:
-                    [],
-                })
-              }
-              className={cn(
-                "mb-2 min-h-10 w-full rounded-lg border px-3 text-left text-xs",
-
-                value.editionIds.length ===
-                  0
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-border bg-surface",
-              )}
-            >
-              All editions
-            </button>
-
-            <div className="scroll-slim max-h-48 space-y-1 overflow-y-auto rounded-xl border border-border p-1">
-              {sortedEditions.map(
-                (
-                  edition,
-                ) => (
-                  <label
-                    key={
-                      edition.id
-                    }
-                    className="
-                      flex
-                      min-h-10
-                      cursor-pointer
-                      items-center
-                      gap-2
-                      rounded-lg
-                      px-2
-                      text-xs
-                      hover:bg-surface
-                    "
-                  >
-                    <input
-                      type="checkbox"
-                      checked={value.editionIds.includes(
-                        edition.id,
-                      )}
-                      onChange={() =>
-                        toggleEdition(
-                          edition.id,
-                        )
-                      }
-                    />
-
-                    <span className="min-w-0 truncate">
-                      {editionLabel(
-                        edition,
-                      )}
-                    </span>
-                  </label>
-                ),
-              )}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Show
-            </p>
-
-            <div className="grid grid-cols-3 gap-1">
-              {(
-                [
-                  "all",
-                  "grand-final",
-                  "semi-final",
-                ] as ShowKindFilter[]
-              ).map(
-                (kind) => (
-                  <SegButton
-                    key={
-                      kind
-                    }
-                    active={
-                      value.showKind ===
-                      kind
-                    }
-                    onClick={() =>
-                      onChange({
-                        ...value,
-
-                        showKind:
-                          kind,
-                      })
-                    }
-                  >
-                    {kind ===
-                    "all"
-                      ? "All"
-                      : kind ===
-                          "grand-final"
-                        ? "Finals"
-                        : "Semis"}
-                  </SegButton>
-                ),
-              )}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Votes
-            </p>
-
-            <div className="grid grid-cols-3 gap-1">
-              {(
-                [
-                  "all",
-                  "jury",
-                  "televote",
-                ] as VoteTypeFilter[]
-              ).map(
-                (kind) => (
-                  <SegButton
-                    key={
-                      kind
-                    }
-                    active={
-                      value.voteType ===
-                      kind
-                    }
-                    onClick={() =>
-                      onChange({
-                        ...value,
-
-                        voteType:
-                          kind,
-                      })
-                    }
-                  >
-                    {kind ===
-                    "all"
-                      ? "All"
-                      : kind ===
-                          "jury"
-                        ? "Jury"
-                        : "Televote"}
-                  </SegButton>
-                ),
-              )}
-            </div>
-          </div>
-        </div>
-      </details>
-
-      {/* DESKTOP */}
-
+    <div>
       <div
-        className="
-          glass
-          sticky
-          top-[72px]
-          z-20
-          mb-6
-          hidden
-          flex-wrap
-          items-center
-          gap-3
-          p-4
-          md:flex
-        "
+        style={{
+          width:
+            "100%",
+
+          height:
+            380,
+        }}
       >
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() =>
-              setEditionsOpen(
-                (current) =>
-                  !current,
-              )
-            }
-            className="rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-strong"
+        <ResponsiveContainer>
+          <LineChart
+            data={data}
+            margin={{
+              top: 10,
+              right: 20,
+              bottom: 10,
+              left: 0,
+            }}
           >
-            {editionSummary} ▾
-          </button>
+            <CartesianGrid
+              stroke="var(--border)"
+              strokeDasharray="3 3"
+            />
 
-          {editionsOpen && (
-            <div
-              className="
-                absolute
-                left-0
-                top-full
-                z-30
-                mt-2
-                max-h-72
-                w-56
-                overflow-y-auto
-                rounded-xl
-                border
-                border-border
-                bg-popover
-                p-2
-                shadow-2xl
-              "
-            >
-              <button
-                type="button"
-                className="mb-1 w-full rounded-md px-2 py-1 text-left text-xs text-primary hover:bg-surface"
-                onClick={() =>
-                  onChange({
-                    ...value,
+            <XAxis
+              dataKey="label"
+              stroke="var(--muted-foreground)"
+              fontSize={
+                10
+              }
+            />
 
-                    editionIds:
-                      [],
-                  })
-                }
-              >
-                Clear (all editions)
-              </button>
+            <YAxis
+              reversed
+              domain={[
+                1,
+                maxRank,
+              ]}
+              stroke="var(--muted-foreground)"
+              fontSize={
+                11
+              }
+              allowDecimals={
+                false
+              }
+            />
 
-              {sortedEditions.map(
-                (
-                  edition,
-                ) => (
-                  <label
+            <Tooltip
+              contentStyle={{
+                background:
+                  "var(--popover)",
+
+                border:
+                  "1px solid var(--border)",
+
+                borderRadius:
+                  8,
+
+                fontSize:
+                  12,
+              }}
+              labelStyle={{
+                color:
+                  "var(--foreground)",
+              }}
+              formatter={(
+                value:
+                  any,
+
+                key:
+                  any,
+              ) => [
+                value ??
+                  "—",
+
+                countryMap.get(
+                  String(
+                    key,
+                  ),
+                )?.name ??
+                  key,
+              ]}
+            />
+
+            {topIds.map(
+              (id) => {
+                const country =
+                  countryMap.get(
+                    id,
+                  );
+
+                const dim =
+                  hoverId &&
+                  hoverId !==
+                    id;
+
+                return (
+                  <Line
                     key={
-                      edition.id
+                      id
                     }
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs hover:bg-surface"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={value.editionIds.includes(
-                        edition.id,
-                      )}
-                      onChange={() =>
-                        toggleEdition(
-                          edition.id,
-                        )
-                      }
-                    />
-
-                    {editionLabel(
-                      edition,
-                    )}
-                  </label>
-                ),
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          <span className="mr-1 text-[11px] uppercase tracking-widest text-muted-foreground">
-            Show
-          </span>
-
-          {(
-            [
-              "all",
-              "grand-final",
-              "semi-final",
-            ] as ShowKindFilter[]
-          ).map(
-            (kind) => (
-              <SegButton
-                key={
-                  kind
-                }
-                active={
-                  value.showKind ===
-                  kind
-                }
-                onClick={() =>
-                  onChange({
-                    ...value,
-
-                    showKind:
-                      kind,
-                  })
-                }
-              >
-                {kind ===
-                "all"
-                  ? "All"
-                  : kind ===
-                      "grand-final"
-                    ? "Finals"
-                    : "Semi-finals"}
-              </SegButton>
-            ),
-          )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          <span className="mr-1 text-[11px] uppercase tracking-widest text-muted-foreground">
-            Votes
-          </span>
-
-          {(
-            [
-              "all",
-              "jury",
-              "televote",
-            ] as VoteTypeFilter[]
-          ).map(
-            (kind) => (
-              <SegButton
-                key={
-                  kind
-                }
-                active={
-                  value.voteType ===
-                  kind
-                }
-                onClick={() =>
-                  onChange({
-                    ...value,
-
-                    voteType:
-                      kind,
-                  })
-                }
-              >
-                {kind ===
-                "all"
-                  ? "Jury + Televote"
-                  : kind ===
-                      "jury"
-                    ? "Jury"
-                    : "Televote"}
-              </SegButton>
-            ),
-          )}
-        </div>
+                    type="monotone"
+                    dataKey={
+                      id
+                    }
+                    name={
+                      country?.name ??
+                      id
+                    }
+                    stroke={
+                      country?.accent_color ??
+                      "var(--jury)"
+                    }
+                    strokeWidth={
+                      hoverId ===
+                      id
+                        ? 3
+                        : 1.75
+                    }
+                    strokeOpacity={
+                      dim
+                        ? 0.15
+                        : 1
+                    }
+                    dot={{
+                      r: 2,
+                    }}
+                    connectNulls
+                    isAnimationActive
+                    animationDuration={
+                      800
+                    }
+                  />
+                );
+              },
+            )}
+          </LineChart>
+        </ResponsiveContainer>
       </div>
-    </>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {topIds.map(
+          (id) => {
+            const country =
+              countryMap.get(
+                id,
+              );
+
+            if (
+              !country
+            ) {
+              return null;
+            }
+
+            return (
+              <Link
+                key={
+                  id
+                }
+                to="/countries/$code"
+                params={{
+                  code:
+                    country.short_code,
+                }}
+                onMouseEnter={() =>
+                  setHoverId(
+                    id,
+                  )
+                }
+                onMouseLeave={() =>
+                  setHoverId(
+                    null,
+                  )
+                }
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition-colors",
+
+                  hoverId ===
+                    id
+                    ? "bg-surface-strong"
+                    : "bg-surface",
+                )}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{
+                    background:
+                      country.accent_color,
+                  }}
+                />
+
+                {
+                  country.name
+                }
+              </Link>
+            );
+          },
+        )}
+      </div>
+    </div>
   );
 }
