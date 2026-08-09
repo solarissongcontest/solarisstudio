@@ -1,888 +1,876 @@
 import {
-  createFileRoute,
-  Link,
-} from "@tanstack/react-router";
-
-import {
   useMemo,
+  useState,
+  type ReactNode,
 } from "react";
 
-import {
-  AppShell,
-} from "@/components/AppShell";
-
-import {
-  FlagChip,
-} from "@/components/FlagChip";
+import type {
+  Edition,
+} from "@/lib/data";
 
 import {
   editionLabel,
-  useAllResults,
-  useAllShows,
-  useCountries,
-  useEditions,
 } from "@/lib/data";
 
-export const Route =
-  createFileRoute(
-    "/",
-  )({
-    head: () => ({
-      meta: [
-        {
-          title:
-            "Solaris Song Contest",
-        },
+import {
+  cn,
+} from "@/lib/utils";
 
-        {
-          name:
-            "description",
+/* =========================================================
+   TYPES
+   ========================================================= */
 
-          content:
-            "Latest results, editions, countries and stories from the Solaris Song Contest.",
-        },
-      ],
-    }),
+export type ShowKindFilter =
+  | "all"
+  | "grand-final"
+  | "semi-final";
 
-    component:
-      HomePage,
-  });
+export type VoteTypeFilter =
+  | "all"
+  | "jury"
+  | "televote";
 
-function HomePage() {
-  const {
-    data: editions,
-  } =
-    useEditions();
+export type AnalysisFiltersState = {
+  editionIds: string[];
 
-  const {
-    data: shows,
-  } =
-    useAllShows();
+  showKind:
+    ShowKindFilter;
 
-  const {
-    data: countries,
-  } =
-    useCountries();
+  voteType:
+    VoteTypeFilter;
+};
 
-  const {
-    data: results,
-  } =
-    useAllResults();
+/* =========================================================
+   DEFAULT STATE
+   ========================================================= */
 
-  const editionList =
-    editions ?? [];
+export const DEFAULT_ANALYSIS_FILTERS:
+  AnalysisFiltersState = {
+  editionIds: [],
+  showKind: "all",
+  voteType: "all",
+};
 
-  const showList =
-    shows ?? [];
+/* =========================================================
+   SEGMENT BUTTON
+   ========================================================= */
 
-  const countryList =
-    countries ?? [];
+function SegButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
 
-  const resultList =
-    results ?? [];
+  onClick: () => void;
 
-  const countryMap =
-    useMemo(
-      () =>
-        new Map(
-          countryList.map(
-            (country) => [
-              country.id,
-              country,
-            ],
-          ),
-        ),
-      [
-        countryList,
-      ],
-    );
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        `
+          min-h-10
+          rounded-lg
+          px-3
+          text-xs
+          font-medium
+          transition-colors
+        `,
+        active
+          ? "bg-aurora text-primary-foreground"
+          : "bg-surface text-muted-foreground hover:bg-surface-strong hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
+/* =========================================================
+   FILTERS
+   ========================================================= */
+
+export function Filters({
+  editions,
+  value,
+  onChange,
+}: {
+  editions: Edition[];
+
+  value:
+    AnalysisFiltersState;
+
+  onChange: (
+    next:
+      AnalysisFiltersState,
+  ) => void;
+}) {
+  const [
+    editionsOpen,
+    setEditionsOpen,
+  ] =
+    useState(false);
+
+  /*
+   * Solaris history follows edition_number.
+   *
+   * SSC 22
+   * SSC 21
+   * SSC 20
+   *
+   * Calendar year is deliberately not used here.
+   */
   const sortedEditions =
     useMemo(
       () =>
-        [...editionList].sort(
+        [...editions].sort(
           (a, b) =>
             (b.edition_number ??
               -1) -
             (a.edition_number ??
               -1),
         ),
-      [
-        editionList,
-      ],
+      [editions],
     );
 
-  const publishedEditions =
-    sortedEditions.filter(
-      (edition) =>
-        edition.published,
-    );
+  /* =======================================================
+     EDITION SELECTION
+     ======================================================= */
 
-  const latestEdition =
-    publishedEditions[
-      0
-    ] ??
-    sortedEditions[
-      0
-    ] ??
-    null;
+  const toggleEdition = (
+    id: string,
+  ) => {
+    const selected =
+      new Set(
+        value.editionIds,
+      );
 
-  const latestEditionShows =
-    latestEdition
-      ? showList
-          .filter(
-            (show) =>
-              show.edition_id ===
-                latestEdition.id &&
-              show.published,
-          )
-          .sort(
-            (a, b) =>
-              a.sort_order -
-              b.sort_order,
-          )
-      : [];
+    if (
+      selected.has(id)
+    ) {
+      selected.delete(id);
+    } else {
+      selected.add(id);
+    }
 
-  const featuredShow =
-    latestEditionShows.find(
-      (show) =>
-        show.kind ===
-        "grand-final",
-    ) ??
-    latestEditionShows[
-      latestEditionShows.length -
-        1
-    ] ??
-    null;
+    onChange({
+      ...value,
 
-  const featuredResults =
-    featuredShow
-      ? resultList
-          .filter(
-            (result) =>
-              result.show_id ===
-                featuredShow.id &&
-              result.final_rank !=
-                null,
-          )
-          .sort(
-            (a, b) =>
-              (a.final_rank ??
-                999) -
-              (b.final_rank ??
-                999),
-          )
-      : [];
+      editionIds:
+        [...selected],
+    });
+  };
 
-  const featuredWinnerResult =
-    featuredResults[
-      0
-    ] ??
-    null;
-
-  const featuredWinner =
-    featuredWinnerResult
-      ? countryMap.get(
-          featuredWinnerResult.country_id,
-        ) ??
-        null
-      : null;
-
-  /* =========================================================
-     LATEST COMPLETED SHOW BY EDITION NUMBER
-     ========================================================= */
-
-  const latestCompletedShow =
-    useMemo(
-      () => {
-        const completed =
-          showList.filter(
-            (show) =>
-              show.published &&
-              resultList.some(
-                (result) =>
-                  result.show_id ===
-                    show.id &&
-                  result.final_rank !=
-                    null,
-              ),
-          );
-
-        return (
-          [...completed].sort(
-            (a, b) => {
-              const editionA =
-                editionList.find(
-                  (edition) =>
-                    edition.id ===
-                    a.edition_id,
-                );
-
-              const editionB =
-                editionList.find(
-                  (edition) =>
-                    edition.id ===
-                    b.edition_id,
-                );
-
-              const editionDiff =
-                (editionB?.edition_number ??
-                  -1) -
-                (editionA?.edition_number ??
-                  -1);
-
-              if (
-                editionDiff !==
-                0
-              ) {
-                return editionDiff;
-              }
-
-              return (
-                b.sort_order -
-                a.sort_order
-              );
-            },
-          )[0] ?? null
-        );
-      },
-      [
-        showList,
-        resultList,
-        editionList,
-      ],
-    );
-
-  const latestCompletedResults =
-    latestCompletedShow
-      ? resultList
-          .filter(
-            (result) =>
-              result.show_id ===
-                latestCompletedShow.id &&
-              result.final_rank !=
-                null,
-          )
-          .sort(
-            (a, b) =>
-              (a.final_rank ??
-                999) -
-              (b.final_rank ??
-                999),
-          )
-      : [];
-
-  const latestWinnerResult =
-    latestCompletedResults[
-      0
-    ] ??
-    null;
-
-  const latestWinner =
-    latestWinnerResult
-      ? countryMap.get(
-          latestWinnerResult.country_id,
-        ) ??
-        null
-      : null;
-
-  const latestCompletedEdition =
-    latestCompletedShow
-      ? editionList.find(
+  const selectedEdition =
+    value.editionIds.length ===
+    1
+      ? sortedEditions.find(
           (edition) =>
             edition.id ===
-            latestCompletedShow.edition_id,
-        ) ??
-        null
+            value.editionIds[0],
+        )
       : null;
 
-  const topFive =
-    latestCompletedResults.slice(
-      0,
-      5,
-    );
+  const editionSummary =
+    value.editionIds.length ===
+    0
+      ? "All editions"
+      : selectedEdition
+        ? editionLabel(
+            selectedEdition,
+          )
+        : `${value.editionIds.length} editions`;
 
-  const grandFinals =
-    showList.filter(
-      (show) =>
-        show.kind ===
-          "grand-final" &&
-        show.published,
-    );
+  /* =======================================================
+     SHOW LABEL
+     ======================================================= */
 
-  const totalWinners =
-    resultList.filter(
-      (result) =>
-        result.final_rank ===
-          1 &&
-        grandFinals.some(
-          (show) =>
-            show.id ===
-            result.show_id,
-        ),
-    ).length;
+  const showSummary =
+    value.showKind ===
+    "all"
+      ? "all shows"
+      : value.showKind ===
+          "grand-final"
+        ? "finals"
+        : "semi-finals";
+
+  /* =======================================================
+     VOTE LABEL
+     ======================================================= */
+
+  const voteSummary =
+    value.voteType ===
+    "all"
+      ? "all votes"
+      : value.voteType ===
+          "jury"
+        ? "jury"
+        : "televote";
 
   return (
-    <AppShell>
-      <div className="space-y-8">
-        {/* MASTHEAD */}
+    <>
+      {/* ===================================================
+          MOBILE
+         =================================================== */}
 
-        <section>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary sm:text-xs">
-            Terra Solaris Broadcasting Union
-          </p>
-
-          <div className="mt-3 flex flex-col gap-3 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="max-w-3xl font-display text-3xl font-bold leading-[0.95] tracking-[-0.04em] sm:text-5xl lg:text-6xl">
-                Solaris Song Contest
-              </h1>
-
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Results, editions and stories from across Terra Solaris.
-              </p>
-            </div>
-
-            {latestEdition && (
-              <Link
-                to="/editions/$slug"
-                params={{
-                  slug:
-                    latestEdition.slug,
-                }}
-                className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary hover:underline"
-              >
-                {editionLabel(
-                  latestEdition,
-                )}{" "}
-                →
-              </Link>
-            )}
-          </div>
-        </section>
-
-        {/* LEAD */}
-
-        {latestEdition && (
-          <section>
-            <SectionLabel>
-              Latest
-            </SectionLabel>
-
-            <Link
-              to="/editions/$slug"
-              params={{
-                slug:
-                  latestEdition.slug,
-              }}
-              className="group relative mt-3 block min-h-[390px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/20 shadow-2xl sm:min-h-[440px]"
+      <details
+        className="
+          glass
+          mb-4
+          overflow-hidden
+          md:hidden
+        "
+      >
+        <summary
+          className="
+            flex
+            min-h-12
+            cursor-pointer
+            list-none
+            items-center
+            justify-between
+            gap-3
+            px-3
+            py-2.5
+          "
+        >
+          <span className="min-w-0">
+            <span
+              className="
+                block
+                text-[10px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-muted-foreground
+              "
             >
-              {featuredWinner?.flag_image && (
-                <div className="absolute -right-[12%] top-1/2 aspect-square w-[78%] -translate-y-1/2 overflow-hidden rounded-full opacity-[0.20] sm:w-[55%]">
-                  <img
-                    src={
-                      featuredWinner.flag_image
-                    }
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              )}
+              Filters
+            </span>
 
-              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/95 via-[#06162d]/78 to-[#06162d]/20" />
-
-              <div className="absolute inset-0 flex flex-col justify-between p-5 sm:p-8 lg:p-10">
-                <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-                  Current edition
-                </span>
-
-                <div className="relative z-10 max-w-3xl">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-                    {editionLabel(
-                      latestEdition,
-                    )}
-                  </p>
-
-                  <h2 className="mt-2 max-w-2xl font-display text-3xl font-bold leading-[1.02] tracking-[-0.035em] text-white sm:text-5xl">
-                    {featuredWinner
-                      ? `${featuredWinner.name} takes the spotlight`
-                      : latestEdition.name}
-                  </h2>
-
-                  <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65 sm:text-base">
-                    {featuredWinnerResult &&
-                    featuredShow
-                      ? `${featuredWinner.name} finished first in ${featuredShow.name} with ${featuredWinnerResult.total_points} points.`
-                      : latestEdition.description ||
-                        `${editionLabel(
-                          latestEdition,
-                        )} is the latest chapter of the Solaris Song Contest.`}
-                  </p>
-
-                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#051223] transition-transform group-hover:translate-x-1">
-                    Open edition →
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </section>
-        )}
-
-        {/* TOP STORIES */}
-
-        <section>
-          <div className="flex items-end justify-between gap-4">
-            <SectionLabel>
-              Top stories
-            </SectionLabel>
-
-            <Link
-              to="/editions"
-              className="text-xs font-medium text-primary hover:underline"
+            <span
+              className="
+                mt-0.5
+                block
+                truncate
+                text-sm
+                font-medium
+              "
             >
-              All editions →
-            </Link>
-          </div>
+              {editionSummary}
+              {" · "}
+              {showSummary}
+              {" · "}
+              {voteSummary}
+            </span>
+          </span>
 
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {latestCompletedShow &&
-              latestWinner &&
-              latestWinnerResult && (
-                <StoryCard
-                  eyebrow={
-                    latestCompletedEdition
-                      ? editionLabel(
-                          latestCompletedEdition,
-                        )
-                      : "Results"
-                  }
-                  title={`${latestWinner.name} wins ${latestCompletedShow.name}`}
-                  body={`${latestWinnerResult.total_points} points secured first place.`}
-                  to={`/shows/${latestCompletedShow.id}`}
-                  country={
-                    latestWinner
-                  }
-                  large
-                />
-              )}
+          <span
+            className="
+              shrink-0
+              text-sm
+              text-muted-foreground
+            "
+          >
+            ▾
+          </span>
+        </summary>
 
-            {latestEdition && (
-              <StoryCard
-                eyebrow="Edition"
-                title={`${editionLabel(
-                  latestEdition,
-                )} is the current Solaris edition`}
-                body={
-                  latestEdition.host_city
-                    ? `Hosted in ${latestEdition.host_city}.`
-                    : latestEdition.name
-                }
-                to={`/editions/${latestEdition.slug}`}
-              />
-            )}
+        <div
+          className="
+            space-y-5
+            border-t
+            border-border/60
+            p-3
+          "
+        >
+          {/* ===============================================
+              EDITIONS
+             =============================================== */}
 
-            <StoryCard
-              eyebrow="Voting"
-              title="Jury vs televote"
-              body="See where juries and the public agreed, and where they absolutely did not."
-              to={
-                latestCompletedShow
-                  ? `/shows/${latestCompletedShow.id}`
-                  : "/analysis"
-              }
-            />
-
-            <StoryCard
-              eyebrow="Records"
-              title="The Solaris record book"
-              body="Wins, streaks and all-time contest records."
-              to="/records"
-            />
-          </div>
-        </section>
-
-        {/* RESULTS */}
-
-        <section className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]">
           <div>
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <SectionLabel>
-                  Latest results
-                </SectionLabel>
+            <p
+              className="
+                mb-2
+                text-[10px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-muted-foreground
+              "
+            >
+              Editions
+            </p>
 
-                {latestCompletedShow && (
-                  <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">
-                    {latestCompletedEdition
-                      ? `${editionLabel(
-                          latestCompletedEdition,
-                        )} · `
-                      : ""}
-                    {
-                      latestCompletedShow.name
-                    }
-                  </h2>
-                )}
-              </div>
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  ...value,
 
-              {latestCompletedShow && (
-                <Link
-                  to="/shows/$showId"
-                  params={{
-                    showId:
-                      latestCompletedShow.id,
-                  }}
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Full results →
-                </Link>
+                  editionIds:
+                    [],
+                })
+              }
+              className={cn(
+                `
+                  mb-2
+                  min-h-10
+                  w-full
+                  rounded-lg
+                  border
+                  px-3
+                  text-left
+                  text-xs
+                  transition-colors
+                `,
+                value.editionIds.length ===
+                  0
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border bg-surface text-foreground",
               )}
-            </div>
+            >
+              All editions
+            </button>
 
-            <div className="glass mt-3 overflow-hidden p-2 sm:p-3">
-              {topFive.map(
-                (
-                  result,
-                  index,
-                ) => {
-                  const country =
-                    countryMap.get(
-                      result.country_id,
+            <div
+              className="
+                scroll-slim
+                max-h-52
+                space-y-1
+                overflow-y-auto
+                rounded-xl
+                border
+                border-border
+                bg-black/5
+                p-1
+              "
+            >
+              {sortedEditions.map(
+                (edition) => {
+                  const checked =
+                    value.editionIds.includes(
+                      edition.id,
                     );
 
-                  if (
-                    !country
-                  ) {
-                    return null;
-                  }
-
                   return (
-                    <Link
+                    <label
                       key={
-                        result.id
+                        edition.id
                       }
-                      to="/countries/$code"
-                      params={{
-                        code:
-                          country.short_code,
-                      }}
-                      className="grid grid-cols-[34px_42px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3 hover:bg-surface"
+                      className={cn(
+                        `
+                          flex
+                          min-h-10
+                          cursor-pointer
+                          items-center
+                          gap-2.5
+                          rounded-lg
+                          px-2.5
+                          text-xs
+                          transition-colors
+                        `,
+                        checked
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-surface",
+                      )}
                     >
-                      <span className="numeric text-center text-sm text-muted-foreground">
-                        #
-                        {result.final_rank ??
-                          index +
-                            1}
-                      </span>
-
-                      <FlagChip
-                        code={
-                          country.short_code
+                      <input
+                        type="checkbox"
+                        checked={
+                          checked
                         }
-                        color={
-                          country.accent_color
+                        onChange={() =>
+                          toggleEdition(
+                            edition.id,
+                          )
                         }
-                        image={
-                          country.flag_image
-                        }
-                        size="sm"
                       />
 
-                      <span className="truncate text-sm font-semibold">
-                        {
-                          country.name
-                        }
+                      <span
+                        className="
+                          min-w-0
+                          flex-1
+                          truncate
+                          font-medium
+                        "
+                      >
+                        {editionLabel(
+                          edition,
+                        )}
                       </span>
 
-                      <span className="numeric text-sm font-bold">
-                        {
-                          result.total_points
-                        }{" "}
-                        <span className="text-[10px] font-normal text-muted-foreground">
-                          pts
+                      {edition.edition_number !=
+                        null && (
+                        <span
+                          className="
+                            numeric
+                            text-[10px]
+                            text-muted-foreground
+                          "
+                        >
+                          #
+                          {
+                            edition.edition_number
+                          }
                         </span>
-                      </span>
-                    </Link>
+                      )}
+                    </label>
                   );
                 },
               )}
             </div>
           </div>
 
+          {/* ===============================================
+              SHOW TYPE
+             =============================================== */}
+
           <div>
-            <SectionLabel>
-              Current edition
-            </SectionLabel>
+            <p
+              className="
+                mb-2
+                text-[10px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-muted-foreground
+              "
+            >
+              Show
+            </p>
 
-            {latestEdition && (
-              <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">
-                {editionLabel(
-                  latestEdition,
-                )}
-              </h2>
-            )}
+            <div
+              className="
+                grid
+                grid-cols-3
+                gap-1
+              "
+            >
+              {(
+                [
+                  "all",
+                  "grand-final",
+                  "semi-final",
+                ] as ShowKindFilter[]
+              ).map(
+                (kind) => (
+                  <SegButton
+                    key={
+                      kind
+                    }
+                    active={
+                      value.showKind ===
+                      kind
+                    }
+                    onClick={() =>
+                      onChange({
+                        ...value,
 
-            <div className="glass mt-3 p-3">
-              <div className="divide-y divide-border/50">
-                {latestEditionShows.map(
-                  (show) => (
-                    <Link
-                      key={
-                        show.id
-                      }
-                      to="/shows/$showId"
-                      params={{
-                        showId:
-                          show.id,
-                      }}
-                      className="flex items-center justify-between gap-3 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {
-                            show.name
-                          }
-                        </p>
-
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                          {show.kind.replace(
-                            "-",
-                            " ",
-                          )}
-                        </p>
-                      </div>
-
-                      <span className="text-primary">
-                        →
-                      </span>
-                    </Link>
-                  ),
-                )}
-              </div>
+                        showKind:
+                          kind,
+                      })
+                    }
+                  >
+                    {kind ===
+                    "all"
+                      ? "All"
+                      : kind ===
+                          "grand-final"
+                        ? "Finals"
+                        : "Semis"}
+                  </SegButton>
+                ),
+              )}
             </div>
           </div>
-        </section>
 
-        {/* EXPLORE */}
+          {/* ===============================================
+              VOTE TYPE
+             =============================================== */}
 
-        <section>
-          <SectionLabel>
-            Explore Solaris
-          </SectionLabel>
+          <div>
+            <p
+              className="
+                mb-2
+                text-[10px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-muted-foreground
+              "
+            >
+              Votes
+            </p>
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <ExploreLink
-              title="Editions"
-              description="Every SSC edition."
-              to="/editions"
-            />
+            <div
+              className="
+                grid
+                grid-cols-3
+                gap-1
+              "
+            >
+              {(
+                [
+                  "all",
+                  "jury",
+                  "televote",
+                ] as VoteTypeFilter[]
+              ).map(
+                (kind) => (
+                  <SegButton
+                    key={
+                      kind
+                    }
+                    active={
+                      value.voteType ===
+                      kind
+                    }
+                    onClick={() =>
+                      onChange({
+                        ...value,
 
-            <ExploreLink
-              title="Countries"
-              description="Delegation histories."
-              to="/countries"
-            />
-
-            <ExploreLink
-              title="Relationships"
-              description="Voting alliances and rivalries."
-              to="/relationships"
-            />
-
-            <ExploreLink
-              title="Records"
-              description="All-time records."
-              to="/records"
-            />
+                        voteType:
+                          kind,
+                      })
+                    }
+                  >
+                    {kind ===
+                    "all"
+                      ? "All"
+                      : kind ===
+                          "jury"
+                        ? "Jury"
+                        : "Tele"}
+                  </SegButton>
+                ),
+              )}
+            </div>
           </div>
-        </section>
-
-        {/* NUMBERS */}
-
-        <section className="border-y border-border/60 py-6">
-          <SectionLabel>
-            Solaris in numbers
-          </SectionLabel>
-
-          <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-4">
-            <NumberStat
-              label="Editions"
-              value={
-                editionList.length
-              }
-            />
-
-            <NumberStat
-              label="Countries"
-              value={
-                countryList.length
-              }
-            />
-
-            <NumberStat
-              label="Shows"
-              value={
-                showList.length
-              }
-            />
-
-            <NumberStat
-              label="Winners"
-              value={
-                totalWinners
-              }
-            />
-          </div>
-        </section>
-      </div>
-    </AppShell>
-  );
-}
-
-function SectionLabel({
-  children,
-}: {
-  children:
-    string;
-}) {
-  return (
-    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
-      {children}
-    </p>
-  );
-}
-
-function StoryCard({
-  eyebrow,
-  title,
-  body,
-  to,
-  country,
-  large = false,
-}: {
-  eyebrow:
-    string;
-
-  title:
-    string;
-
-  body:
-    string;
-
-  to:
-    string;
-
-  country?: any;
-
-  large?:
-    boolean;
-}) {
-  return (
-    <Link
-      to={to}
-      className={`glass group relative block min-h-[190px] overflow-hidden p-4 transition-transform hover:-translate-y-0.5 sm:p-5 ${
-        large
-          ? "md:col-span-2 xl:col-span-2"
-          : ""
-      }`}
-    >
-      {country?.flag_image && (
-        <div className="absolute -bottom-8 -right-8 h-40 w-40 overflow-hidden rounded-full opacity-[0.13]">
-          <img
-            src={
-              country.flag_image
-            }
-            alt=""
-            className="h-full w-full object-cover"
-          />
         </div>
-      )}
+      </details>
 
-      <div className="relative z-10 flex min-h-[158px] flex-col">
-        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-          {eyebrow}
-        </p>
+      {/* ===================================================
+          DESKTOP / TABLET
+         =================================================== */}
 
-        <h3
-          className={`mt-3 font-display font-bold leading-tight ${
-            large
-              ? "text-xl sm:text-2xl"
-              : "text-lg"
-          }`}
+      <div
+        className="
+          glass
+          sticky
+          top-[72px]
+          z-20
+          mb-6
+          hidden
+          flex-wrap
+          items-center
+          gap-3
+          p-4
+          md:flex
+        "
+      >
+        {/* ===============================================
+            EDITION DROPDOWN
+           =============================================== */}
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() =>
+              setEditionsOpen(
+                (current) =>
+                  !current,
+              )
+            }
+            className="
+              min-h-10
+              rounded-lg
+              bg-surface
+              px-3
+              text-xs
+              font-medium
+              text-foreground
+              transition-colors
+              hover:bg-surface-strong
+            "
+          >
+            {editionSummary} ▾
+          </button>
+
+          {editionsOpen && (
+            <div
+              className="
+                absolute
+                left-0
+                top-full
+                z-30
+                mt-2
+                max-h-80
+                w-60
+                overflow-y-auto
+                rounded-xl
+                border
+                border-border
+                bg-popover
+                p-2
+                shadow-2xl
+              "
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  onChange({
+                    ...value,
+
+                    editionIds:
+                      [],
+                  });
+
+                  setEditionsOpen(
+                    false,
+                  );
+                }}
+                className="
+                  mb-1
+                  w-full
+                  rounded-lg
+                  px-2.5
+                  py-2
+                  text-left
+                  text-xs
+                  font-medium
+                  text-primary
+                  transition-colors
+                  hover:bg-surface
+                "
+              >
+                All editions
+              </button>
+
+              <div
+                className="
+                  mb-1
+                  border-t
+                  border-border/60
+                "
+              />
+
+              {sortedEditions.map(
+                (edition) => {
+                  const checked =
+                    value.editionIds.includes(
+                      edition.id,
+                    );
+
+                  return (
+                    <label
+                      key={
+                        edition.id
+                      }
+                      className={cn(
+                        `
+                          flex
+                          min-h-9
+                          cursor-pointer
+                          items-center
+                          gap-2.5
+                          rounded-lg
+                          px-2.5
+                          text-xs
+                          transition-colors
+                        `,
+                        checked
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-surface",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          checked
+                        }
+                        onChange={() =>
+                          toggleEdition(
+                            edition.id,
+                          )
+                        }
+                      />
+
+                      <span
+                        className="
+                          min-w-0
+                          flex-1
+                          truncate
+                        "
+                      >
+                        {editionLabel(
+                          edition,
+                        )}
+                      </span>
+                    </label>
+                  );
+                },
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ===============================================
+            SHOW FILTER
+           =============================================== */}
+
+        <div
+          className="
+            flex
+            items-center
+            gap-1
+          "
         >
-          {title}
-        </h3>
+          <span
+            className="
+              mr-1
+              text-[11px]
+              uppercase
+              tracking-widest
+              text-muted-foreground
+            "
+          >
+            Show
+          </span>
 
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {body}
-        </p>
+          {(
+            [
+              "all",
+              "grand-final",
+              "semi-final",
+            ] as ShowKindFilter[]
+          ).map(
+            (kind) => (
+              <SegButton
+                key={
+                  kind
+                }
+                active={
+                  value.showKind ===
+                  kind
+                }
+                onClick={() =>
+                  onChange({
+                    ...value,
 
-        <p className="mt-auto pt-5 text-xs font-semibold text-primary">
-          Read more →
-        </p>
+                    showKind:
+                      kind,
+                  })
+                }
+              >
+                {kind ===
+                "all"
+                  ? "All"
+                  : kind ===
+                      "grand-final"
+                    ? "Finals"
+                    : "Semi-finals"}
+              </SegButton>
+            ),
+          )}
+        </div>
+
+        {/* ===============================================
+            VOTE FILTER
+           =============================================== */}
+
+        <div
+          className="
+            flex
+            items-center
+            gap-1
+          "
+        >
+          <span
+            className="
+              mr-1
+              text-[11px]
+              uppercase
+              tracking-widest
+              text-muted-foreground
+            "
+          >
+            Votes
+          </span>
+
+          {(
+            [
+              "all",
+              "jury",
+              "televote",
+            ] as VoteTypeFilter[]
+          ).map(
+            (kind) => (
+              <SegButton
+                key={
+                  kind
+                }
+                active={
+                  value.voteType ===
+                  kind
+                }
+                onClick={() =>
+                  onChange({
+                    ...value,
+
+                    voteType:
+                      kind,
+                  })
+                }
+              >
+                {kind ===
+                "all"
+                  ? "Jury + Televote"
+                  : kind ===
+                      "jury"
+                    ? "Jury"
+                    : "Televote"}
+              </SegButton>
+            ),
+          )}
+        </div>
+
+        {/* ===============================================
+            RESET
+           =============================================== */}
+
+        {(value.editionIds.length >
+          0 ||
+          value.showKind !==
+            "all" ||
+          value.voteType !==
+            "all") && (
+          <button
+            type="button"
+            onClick={() =>
+              onChange(
+                DEFAULT_ANALYSIS_FILTERS,
+              )
+            }
+            className="
+              ml-auto
+              min-h-10
+              rounded-lg
+              px-3
+              text-xs
+              text-muted-foreground
+              transition-colors
+              hover:bg-surface
+              hover:text-foreground
+            "
+          >
+            Reset
+          </button>
+        )}
       </div>
-    </Link>
-  );
-}
-
-function ExploreLink({
-  title,
-  description,
-  to,
-}: {
-  title:
-    string;
-
-  description:
-    string;
-
-  to:
-    | "/editions"
-    | "/countries"
-    | "/relationships"
-    | "/records";
-}) {
-  return (
-    <Link
-      to={to}
-      className="group flex min-h-[110px] items-end justify-between gap-3 rounded-2xl border border-border/70 bg-surface/40 p-4 hover:bg-surface"
-    >
-      <div>
-        <h3 className="font-display text-base font-semibold">
-          {title}
-        </h3>
-
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {description}
-        </p>
-      </div>
-
-      <span className="text-lg text-primary">
-        →
-      </span>
-    </Link>
-  );
-}
-
-function NumberStat({
-  label,
-  value,
-}: {
-  label:
-    string;
-
-  value:
-    number;
-}) {
-  return (
-    <div>
-      <p className="numeric font-display text-2xl font-bold sm:text-3xl">
-        {value}
-      </p>
-
-      <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </p>
-    </div>
+    </>
   );
 }
