@@ -47,7 +47,6 @@ import {
   useShowVoters,
   useTelevotes,
   useThemes,
-  type Participant,
 } from "@/lib/data";
 
 import {
@@ -92,7 +91,7 @@ export const Route =
   });
 
 /* ============================================================
-   TAB TYPES
+   TABS
    ============================================================ */
 
 type Tab =
@@ -183,7 +182,7 @@ function ShowPage() {
     );
 
   /* =========================================================
-     PUBLICATION SETTINGS
+     PUBLICATION
      ========================================================= */
 
   const publication =
@@ -204,7 +203,7 @@ function ShowPage() {
     ).some(Boolean);
 
   /* =========================================================
-     DISPLAY MAP
+     DISPLAY IDENTITIES
      ========================================================= */
 
   const displayMap =
@@ -219,10 +218,6 @@ function ShowPage() {
         countries,
       ],
     );
-
-  /* =========================================================
-     PARTICIPANT MAP
-     ========================================================= */
 
   const participantMap =
     useMemo(
@@ -270,10 +265,6 @@ function ShowPage() {
       ],
     );
 
-  /*
-   * Prevent the generic scoreboard component from leaking
-   * artist/song or jury/tele split information.
-   */
   const publicTheme =
     useMemo(
       () => ({
@@ -305,7 +296,7 @@ function ShowPage() {
     );
 
   /* =========================================================
-     VOTING SYSTEM
+     VOTING CONFIG
      ========================================================= */
 
   const voting =
@@ -320,11 +311,7 @@ function ShowPage() {
     );
 
   /* =========================================================
-     ARCHIVED PUBLIC RESULTS
-
-     IMPORTANT:
-     Public results come from the archived results table,
-     not the live jury / televote entry forms.
+     ARCHIVED RESULTS
      ========================================================= */
 
   const standings =
@@ -382,6 +369,13 @@ function ShowPage() {
                 publication.results
                   ? result.total_points
                   : 0,
+
+              /*
+               * Required by Standing.
+               * Archived result rows do not store the count of top scores.
+               */
+              topPoints:
+                0,
             }),
           ),
       [
@@ -393,7 +387,7 @@ function ShowPage() {
     );
 
   /* =========================================================
-     AVAILABLE TABS
+     PUBLIC TABS
      ========================================================= */
 
   const tabOptions =
@@ -475,20 +469,22 @@ function ShowPage() {
       ],
     );
 
-  const initialTab =
-    tabOptions[0]?.value ??
-    "lineup";
-
   const [
     tab,
     setTab,
   ] =
     useState<Tab>(
-      initialTab,
+      "lineup",
     );
 
   useEffect(
     () => {
+      if (
+        !tabOptions.length
+      ) {
+        return;
+      }
+
       if (
         !tabOptions.some(
           (
@@ -499,8 +495,7 @@ function ShowPage() {
         )
       ) {
         setTab(
-          tabOptions[0]?.value ??
-            "lineup",
+          tabOptions[0].value,
         );
       }
     },
@@ -550,7 +545,7 @@ function ShowPage() {
   }
 
   /* =========================================================
-     PRIVATE SHOW
+     PRIVATE
      ========================================================= */
 
   if (
@@ -608,10 +603,6 @@ function ShowPage() {
         ) ??
         null
       : null;
-
-  /* =========================================================
-     TOTALS
-     ========================================================= */
 
   const juryTotal =
     publication.jury_results
@@ -672,10 +663,6 @@ function ShowPage() {
         }
       />
 
-      {/* =====================================================
-          SUMMARY
-         ===================================================== */}
-
       <Panel className="mb-5">
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
           {publication.participants && (
@@ -719,10 +706,6 @@ function ShowPage() {
         </div>
       </Panel>
 
-      {/* =====================================================
-          NO ARCHIVED RESULTS WARNING
-         ===================================================== */}
-
       {publication.results &&
         !standings.length && (
           <Panel className="mb-5">
@@ -731,10 +714,6 @@ function ShowPage() {
             </p>
           </Panel>
         )}
-
-      {/* =====================================================
-          TABS
-         ===================================================== */}
 
       {!!tabOptions.length && (
         <ResponsiveTabs
@@ -751,10 +730,6 @@ function ShowPage() {
           className="mb-5"
         />
       )}
-
-      {/* =====================================================
-          SCOREBOARD
-         ===================================================== */}
 
       {tab ===
         "scoreboard" &&
@@ -790,10 +765,6 @@ function ShowPage() {
           </>
         )}
 
-      {/* =====================================================
-          DETAILED POINTS
-         ===================================================== */}
-
       {tab ===
         "points" &&
         publication.detailed_voting && (
@@ -818,10 +789,6 @@ function ShowPage() {
             }
           />
         )}
-
-      {/* =====================================================
-          JURY / TELEVOTE
-         ===================================================== */}
 
       {tab ===
         "split" &&
@@ -876,18 +843,19 @@ function ShowPage() {
                           }
                           className="grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3"
                         >
-                          <FlagChip
-                            code={
+                          <span>
+                            {country.flag_image ? (
+                              <img
+                                src={
+                                  country.flag_image
+                                }
+                                alt=""
+                                className="h-6 w-9 rounded object-cover"
+                              />
+                            ) : (
                               country.short_code
-                            }
-                            color={
-                              country.accent_color
-                            }
-                            image={
-                              country.flag_image
-                            }
-                            size="sm"
-                          />
+                            )}
+                          </span>
 
                           <span className="truncate text-sm font-semibold">
                             {
@@ -909,10 +877,6 @@ function ShowPage() {
             )}
           </>
         )}
-
-      {/* =====================================================
-          VOTING MATRIX
-         ===================================================== */}
 
       {tab ===
         "matrix" &&
@@ -950,10 +914,6 @@ function ShowPage() {
             />
           </Panel>
         )}
-
-      {/* =====================================================
-          LINE-UP
-         ===================================================== */}
 
       {tab ===
         "lineup" &&
@@ -1000,18 +960,19 @@ function ShowPage() {
                             1}
                       </span>
 
-                      <FlagChip
-                        code={
+                      <span>
+                        {country.flag_image ? (
+                          <img
+                            src={
+                              country.flag_image
+                            }
+                            alt=""
+                            className="h-6 w-9 rounded object-cover"
+                          />
+                        ) : (
                           country.short_code
-                        }
-                        color={
-                          country.accent_color
-                        }
-                        image={
-                          country.flag_image
-                        }
-                        size="sm"
-                      />
+                        )}
+                      </span>
 
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">
@@ -1070,15 +1031,6 @@ function ShowPage() {
                     </div>
                   );
                 },
-              )}
-
-              {!(
-                participants ??
-                []
-              ).length && (
-                <p className="py-4 text-sm text-muted-foreground">
-                  No entries have been published yet.
-                </p>
               )}
             </div>
           </Panel>
