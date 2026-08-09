@@ -410,7 +410,8 @@ function HomePage() {
                   </h2>
 
                   <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65 sm:text-base">
-                    {featuredWinnerResult &&
+                    {featuredWinner &&
+                    featuredWinnerResult &&
                     featuredShow
                       ? `${featuredWinner.name} finished first in ${featuredShow.name} with ${featuredWinnerResult.total_points} points.`
                       : latestEdition.description ||
@@ -540,71 +541,77 @@ function HomePage() {
             </div>
 
             <div className="glass mt-3 overflow-hidden p-2 sm:p-3">
-              {topFive.map(
-                (
-                  result,
-                  index,
-                ) => {
-                  const country =
-                    countryMap.get(
-                      result.country_id,
-                    );
+              {topFive.length ? (
+                topFive.map(
+                  (
+                    result,
+                    index,
+                  ) => {
+                    const country =
+                      countryMap.get(
+                        result.country_id,
+                      );
 
-                  if (
-                    !country
-                  ) {
-                    return null;
-                  }
+                    if (
+                      !country
+                    ) {
+                      return null;
+                    }
 
-                  return (
-                    <Link
-                      key={
-                        result.id
-                      }
-                      to="/countries/$code"
-                      params={{
-                        code:
-                          country.short_code,
-                      }}
-                      className="grid grid-cols-[34px_42px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3 hover:bg-surface"
-                    >
-                      <span className="numeric text-center text-sm text-muted-foreground">
-                        #
-                        {result.final_rank ??
-                          index +
-                            1}
-                      </span>
-
-                      <FlagChip
-                        code={
-                          country.short_code
+                    return (
+                      <Link
+                        key={
+                          result.id
                         }
-                        color={
-                          country.accent_color
-                        }
-                        image={
-                          country.flag_image
-                        }
-                        size="sm"
-                      />
-
-                      <span className="truncate text-sm font-semibold">
-                        {
-                          country.name
-                        }
-                      </span>
-
-                      <span className="numeric text-sm font-bold">
-                        {
-                          result.total_points
-                        }{" "}
-                        <span className="text-[10px] font-normal text-muted-foreground">
-                          pts
+                        to="/countries/$code"
+                        params={{
+                          code:
+                            country.short_code,
+                        }}
+                        className="grid grid-cols-[34px_42px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3 hover:bg-surface"
+                      >
+                        <span className="numeric text-center text-sm text-muted-foreground">
+                          #
+                          {result.final_rank ??
+                            index +
+                              1}
                         </span>
-                      </span>
-                    </Link>
-                  );
-                },
+
+                        <FlagChip
+                          code={
+                            country.short_code
+                          }
+                          color={
+                            country.accent_color
+                          }
+                          image={
+                            country.flag_image
+                          }
+                          size="sm"
+                        />
+
+                        <span className="truncate text-sm font-semibold">
+                          {
+                            country.name
+                          }
+                        </span>
+
+                        <span className="numeric text-sm font-bold">
+                          {
+                            result.total_points
+                          }{" "}
+                          <span className="text-[10px] font-normal text-muted-foreground">
+                            pts
+                          </span>
+                        </span>
+                      </Link>
+                    );
+                  },
+                )
+              ) : (
+                <p className="p-4 text-sm text-muted-foreground">
+                  No published results yet.
+                </p>
               )}
             </div>
           </div>
@@ -623,42 +630,48 @@ function HomePage() {
             )}
 
             <div className="glass mt-3 p-3">
-              <div className="divide-y divide-border/50">
-                {latestEditionShows.map(
-                  (show) => (
-                    <Link
-                      key={
-                        show.id
-                      }
-                      to="/shows/$showId"
-                      params={{
-                        showId:
-                          show.id,
-                      }}
-                      className="flex items-center justify-between gap-3 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {
-                            show.name
-                          }
-                        </p>
+              {latestEditionShows.length ? (
+                <div className="divide-y divide-border/50">
+                  {latestEditionShows.map(
+                    (show) => (
+                      <Link
+                        key={
+                          show.id
+                        }
+                        to="/shows/$showId"
+                        params={{
+                          showId:
+                            show.id,
+                        }}
+                        className="flex items-center justify-between gap-3 py-3"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {
+                              show.name
+                            }
+                          </p>
 
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                          {show.kind.replace(
-                            "-",
-                            " ",
-                          )}
-                        </p>
-                      </div>
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                            {show.kind.replace(
+                              "-",
+                              " ",
+                            )}
+                          </p>
+                        </div>
 
-                      <span className="text-primary">
-                        →
-                      </span>
-                    </Link>
-                  ),
-                )}
-              </div>
+                        <span className="text-primary">
+                          →
+                        </span>
+                      </Link>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <p className="p-2 text-sm text-muted-foreground">
+                  No published shows yet.
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -772,7 +785,13 @@ function StoryCard({
   to:
     string;
 
-  country?: any;
+  country?: {
+    id?: string;
+    name?: string;
+    short_code?: string;
+    flag_image?: string | null;
+    accent_color?: string | null;
+  } | null;
 
   large?:
     boolean;
