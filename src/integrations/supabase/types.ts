@@ -410,69 +410,72 @@ export type Database = {
           },
         ]
       }
-      shows: {
-        Row: {
-          broadcast_config: Json
-          created_at: string
-          edition_id: string
-          id: string
-          kind: string
-          name: string
-          published: boolean
-          qualifier_count: number | null
-          sort_order: number
-          status: string
-          theme_id: string | null
-          updated_at: string
-          voting_config: Json
-        }
-        Insert: {
-          broadcast_config?: Json
-          created_at?: string
-          edition_id: string
-          id?: string
-          kind?: string
-          name: string
-          published?: boolean
-          qualifier_count?: number | null
-          sort_order?: number
-          status?: string
-          theme_id?: string | null
-          updated_at?: string
-          voting_config?: Json
-        }
-        Update: {
-          broadcast_config?: Json
-          created_at?: string
-          edition_id?: string
-          id?: string
-          kind?: string
-          name?: string
-          published?: boolean
-          qualifier_count?: number | null
-          sort_order?: number
-          status?: string
-          theme_id?: string | null
-          updated_at?: string
-          voting_config?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shows_edition_id_fkey"
-            columns: ["edition_id"]
-            isOneToOne: false
-            referencedRelation: "editions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shows_theme_id_fkey"
-            columns: ["theme_id"]
-            isOneToOne: false
-            referencedRelation: "themes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+     shows: {
+  Row: {
+    broadcast_config: Json
+    created_at: string
+    edition_id: string
+    id: string
+    kind: string
+    name: string
+    publication_config: Json
+    published: boolean
+    qualifier_count: number | null
+    sort_order: number
+    status: string
+    theme_id: string | null
+    updated_at: string
+    voting_config: Json
+  }
+  Insert: {
+    broadcast_config?: Json
+    created_at?: string
+    edition_id: string
+    id?: string
+    kind?: string
+    name: string
+    publication_config?: Json
+    published?: boolean
+    qualifier_count?: number | null
+    sort_order?: number
+    status?: string
+    theme_id?: string | null
+    updated_at?: string
+    voting_config?: Json
+  }
+  Update: {
+    broadcast_config?: Json
+    created_at?: string
+    edition_id?: string
+    id?: string
+    kind?: string
+    name?: string
+    publication_config?: Json
+    published?: boolean
+    qualifier_count?: number | null
+    sort_order?: number
+    status?: string
+    theme_id?: string | null
+    updated_at?: string
+    voting_config?: Json
+  }
+  Relationships: [
+    {
+      foreignKeyName: "shows_edition_id_fkey"
+      columns: ["edition_id"]
+      isOneToOne: false
+      referencedRelation: "editions"
+      referencedColumns: ["id"]
+    },
+    {
+      foreignKeyName: "shows_theme_id_fkey"
+      columns: ["theme_id"]
+      isOneToOne: false
+      referencedRelation: "themes"
+      referencedColumns: ["id"]
+    },
+  ]
+}
       televote_votes: {
         Row: {
           contest_entity_id: string | null
