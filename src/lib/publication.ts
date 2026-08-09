@@ -24,8 +24,7 @@ export const DEFAULT_PUBLICATION_CONFIG: PublicationConfig = {
   detailed_voting: false,
 };
 
-export type PublicationKey =
-  keyof PublicationConfig;
+export type PublicationKey = keyof PublicationConfig;
 
 export type PublicationPresetId =
   | "private"
@@ -45,32 +44,19 @@ export type PublicationPreset = {
 };
 
 /* ============================================================
-   SHOW KIND COMPATIBILITY
+   SHOW KINDS
    ============================================================ */
 
-/**
- * Older Solaris data may use `final`.
- * Newer editions use `grand-final`.
- *
- * Treat both as the Grand Final so historical editions
- * continue working without a database rewrite.
- */
 export function isGrandFinalKind(
   kind: string | null | undefined,
 ) {
-  return (
-    kind === "grand-final" ||
-    kind === "final"
-  );
+  return kind === "grand-final" || kind === "final";
 }
 
 export function isSemiFinalKind(
   kind: string | null | undefined,
 ) {
-  return (
-    kind === "semi-final" ||
-    kind === "semi"
-  );
+  return kind === "semi-final" || kind === "semi";
 }
 
 /* ============================================================
@@ -81,29 +67,26 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
   {
     id: "private",
     name: "Private",
-    description:
-      "Nothing from this show is public.",
+    description: "Nothing from this show is public.",
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
     },
   },
-
   {
     id: "participants",
     name: "Participants only",
     description:
-      "Reveal the participating countries, but no artists, songs or running order.",
+      "Reveal participating countries, but keep artists, songs and running order private.",
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
       participants: true,
     },
   },
-
   {
     id: "entries",
     name: "Entry reveal",
     description:
-      "Reveal participating countries, artists and songs.",
+      "Reveal countries, artists and songs.",
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
       participants: true,
@@ -111,12 +94,11 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
       songs: true,
     },
   },
-
   {
     id: "split",
     name: "Semi-final split",
     description:
-      "Reveal countries, entries and their semi-final allocation.",
+      "Reveal entries and their semi-final allocation.",
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
       participants: true,
@@ -125,12 +107,11 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
       semi_split: true,
     },
   },
-
   {
     id: "running-order",
     name: "Running order",
     description:
-      "Reveal the entries, split and running order.",
+      "Reveal entries, allocation and performance order.",
     config: {
       ...DEFAULT_PUBLICATION_CONFIG,
       participants: true,
@@ -140,7 +121,6 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
       running_order: true,
     },
   },
-
   {
     id: "qualifiers",
     name: "Qualifiers",
@@ -156,12 +136,11 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
       qualifiers: true,
     },
   },
-
   {
     id: "results",
     name: "Results",
     description:
-      "Reveal final standings plus jury and televote totals.",
+      "Reveal overall results plus jury and televote totals.",
     config: {
       participants: true,
       artists: true,
@@ -175,12 +154,11 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
       detailed_voting: false,
     },
   },
-
   {
     id: "full",
     name: "Full show",
     description:
-      "Everything is public, including detailed jury voting.",
+      "Publish everything, including detailed voting.",
     config: {
       participants: true,
       artists: true,
@@ -197,7 +175,7 @@ export const PUBLICATION_PRESETS: PublicationPreset[] = [
 ];
 
 /* ============================================================
-   CONFIG NORMALISATION
+   NORMALISE
    ============================================================ */
 
 export function resolvePublicationConfig(
@@ -207,45 +185,23 @@ export function resolvePublicationConfig(
     | null
     | undefined,
 ): PublicationConfig {
-  if (
-    !raw ||
-    typeof raw !== "object"
-  ) {
+  if (!raw || typeof raw !== "object") {
     return {
       ...DEFAULT_PUBLICATION_CONFIG,
     };
   }
 
   return {
-    participants:
-      raw.participants === true,
-
-    artists:
-      raw.artists === true,
-
-    songs:
-      raw.songs === true,
-
-    semi_split:
-      raw.semi_split === true,
-
-    running_order:
-      raw.running_order === true,
-
-    qualifiers:
-      raw.qualifiers === true,
-
-    results:
-      raw.results === true,
-
-    jury_results:
-      raw.jury_results === true,
-
-    televote_results:
-      raw.televote_results === true,
-
-    detailed_voting:
-      raw.detailed_voting === true,
+    participants: raw.participants === true,
+    artists: raw.artists === true,
+    songs: raw.songs === true,
+    semi_split: raw.semi_split === true,
+    running_order: raw.running_order === true,
+    qualifiers: raw.qualifiers === true,
+    results: raw.results === true,
+    jury_results: raw.jury_results === true,
+    televote_results: raw.televote_results === true,
+    detailed_voting: raw.detailed_voting === true,
   };
 }
 
@@ -258,10 +214,8 @@ export function getPublicationPreset(
 ): PublicationPreset {
   return (
     PUBLICATION_PRESETS.find(
-      (preset) =>
-        preset.id === id,
-    ) ??
-    PUBLICATION_PRESETS[0]
+      (preset) => preset.id === id,
+    ) ?? PUBLICATION_PRESETS[0]
   );
 }
 
@@ -269,9 +223,7 @@ export function applyPublicationPreset(
   id: PublicationPresetId,
 ): PublicationConfig {
   return {
-    ...getPublicationPreset(
-      id,
-    ).config,
+    ...getPublicationPreset(id).config,
   };
 }
 
@@ -297,8 +249,7 @@ export function normalisePublicationDependencies(
     next.televote_results ||
     next.detailed_voting
   ) {
-    next.participants =
-      true;
+    next.participants = true;
   }
 
   if (
@@ -308,18 +259,12 @@ export function normalisePublicationDependencies(
     next.results ||
     next.detailed_voting
   ) {
-    next.artists =
-      true;
-
-    next.songs =
-      true;
+    next.artists = true;
+    next.songs = true;
   }
 
-  if (
-    next.qualifiers
-  ) {
-    next.semi_split =
-      true;
+  if (next.qualifiers) {
+    next.semi_split = true;
   }
 
   if (
@@ -327,15 +272,11 @@ export function normalisePublicationDependencies(
     next.televote_results ||
     next.detailed_voting
   ) {
-    next.results =
-      true;
+    next.results = true;
   }
 
-  if (
-    next.detailed_voting
-  ) {
-    next.jury_results =
-      true;
+  if (next.detailed_voting) {
+    next.jury_results = true;
   }
 
   return next;
@@ -348,9 +289,7 @@ export function normalisePublicationDependencies(
 export function hasAnyPublicInformation(
   config: PublicationConfig,
 ) {
-  return Object.values(
-    config,
-  ).some(Boolean);
+  return Object.values(config).some(Boolean);
 }
 
 export function hasPublishedResults(
@@ -367,9 +306,7 @@ export function hasPublishedResults(
 export function isFullyPublished(
   config: PublicationConfig,
 ) {
-  return Object.values(
-    config,
-  ).every(Boolean);
+  return Object.values(config).every(Boolean);
 }
 
 /* ============================================================
@@ -384,73 +321,54 @@ export const PUBLICATION_LABELS: Record<
   }
 > = {
   participants: {
-    title:
-      "Participating countries",
-    description:
-      "Show which countries are competing.",
+    title: "Participating countries",
+    description: "Show which countries are competing.",
   },
 
   artists: {
-    title:
-      "Artists",
-    description:
-      "Reveal the artists representing each country.",
+    title: "Artists",
+    description: "Reveal the artists representing each country.",
   },
 
   songs: {
-    title:
-      "Songs",
-    description:
-      "Reveal song titles.",
+    title: "Songs",
+    description: "Reveal song titles.",
   },
 
   semi_split: {
-    title:
-      "Semi-final split",
-    description:
-      "Reveal which semi-final each entry belongs to.",
+    title: "Semi-final split",
+    description: "Reveal which semi-final each entry belongs to.",
   },
 
   running_order: {
-    title:
-      "Running order",
-    description:
-      "Reveal performance positions.",
+    title: "Running order",
+    description: "Reveal performance positions.",
   },
 
   qualifiers: {
-    title:
-      "Qualification results",
-    description:
-      "Reveal who qualified and who did not.",
+    title: "Qualification results",
+    description: "Reveal who qualified and who did not.",
   },
 
   results: {
-    title:
-      "Overall results",
-    description:
-      "Reveal ranks and total points.",
+    title: "Overall results",
+    description: "Reveal final ranks and total points.",
   },
 
   jury_results: {
-    title:
-      "Jury results",
-    description:
-      "Reveal jury totals.",
+    title: "Jury results",
+    description: "Reveal jury totals.",
   },
 
   televote_results: {
-    title:
-      "Televote results",
-    description:
-      "Reveal televote totals.",
+    title: "Televote results",
+    description: "Reveal televote totals.",
   },
 
   detailed_voting: {
-    title:
-      "Detailed voting",
+    title: "Detailed voting",
     description:
-      "Reveal jury ballots, points views and voting matrices.",
+      "Reveal individual jury ballots, points views and matrices.",
   },
 };
 
@@ -467,50 +385,44 @@ export function resolveAutomaticEditionStatus(
   shows: Array<{
     kind: string;
     published: boolean;
+
     publication_config:
       | Record<string, unknown>
       | PublicationConfig
       | null;
   }>,
 ): AutomaticEditionStatus {
-  const publicShows =
-    shows.filter(
-      (show) =>
-        show.published &&
-        hasAnyPublicInformation(
-          resolvePublicationConfig(
-            show.publication_config,
-          ),
-        ),
-    );
+  const publicShows = shows.filter((show) => {
+    const config =
+      resolvePublicationConfig(
+        show.publication_config,
+      );
 
-  if (
-    !publicShows.length
-  ) {
+    return (
+      show.published &&
+      hasAnyPublicInformation(config)
+    );
+  });
+
+  if (!publicShows.length) {
     return "draft";
   }
 
-  const completedFinal =
-    publicShows.some(
-      (show) => {
-        if (
-          !isGrandFinalKind(
-            show.kind,
-          )
-        ) {
-          return false;
-        }
+  const finalWithResults =
+    publicShows.some((show) => {
+      if (!isGrandFinalKind(show.kind)) {
+        return false;
+      }
 
-        const publication =
-          resolvePublicationConfig(
-            show.publication_config,
-          );
+      const config =
+        resolvePublicationConfig(
+          show.publication_config,
+        );
 
-        return publication.results;
-      },
-    );
+      return config.results;
+    });
 
-  return completedFinal
+  return finalWithResults
     ? "completed"
     : "published";
 }
