@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 export function ActionBar({
@@ -10,7 +11,12 @@ export function ActionBar({
 }) {
   return (
     <>
-      <div className={cn("hidden flex-wrap justify-end gap-2 md:flex", className)}>
+      <div
+        className={cn(
+          "hidden flex-wrap justify-end gap-2 md:flex",
+          className,
+        )}
+      >
         {children}
       </div>
 
@@ -20,10 +26,13 @@ export function ActionBar({
           className,
         )}
         style={{
-          bottom: "calc(4.25rem + env(safe-area-inset-bottom))",
+          bottom:
+            "calc(4.25rem + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="mx-auto grid max-w-lg grid-cols-2 gap-2">{children}</div>
+        <div className="mx-auto grid max-w-lg grid-cols-2 gap-2">
+          {children}
+        </div>
       </div>
     </>
   );
