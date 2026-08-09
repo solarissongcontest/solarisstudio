@@ -17,6 +17,10 @@ import {
 } from "@/components/AppShell";
 
 import {
+  FlagChip,
+} from "@/components/FlagChip";
+
+import {
   JuryTelevoteComparison,
 } from "@/components/JuryTelevoteComparison";
 
@@ -54,6 +58,7 @@ import {
 } from "@/lib/entities";
 
 import {
+  hasAnyPublicInformation,
   resolvePublicationConfig,
 } from "@/lib/publication";
 
@@ -112,70 +117,50 @@ function ShowPage() {
     Route.useParams();
 
   const {
-    data:
-      show,
-
+    data: show,
     isLoading,
   } =
-    useShow(
-      showId,
-    );
+    useShow(showId);
 
   const {
-    data:
-      participants,
+    data: participants,
   } =
     useShowParticipants(
       showId,
     );
 
   const {
-    data:
-      archivedResults,
+    data: archivedResults,
   } =
-    useResults(
-      showId,
-    );
+    useResults(showId);
 
   const {
-    data:
-      jury,
+    data: jury,
   } =
-    useJuryVotes(
-      showId,
-    );
+    useJuryVotes(showId);
 
   const {
-    data:
-      tele,
+    data: tele,
   } =
-    useTelevotes(
-      showId,
-    );
+    useTelevotes(showId);
 
   const {
-    data:
-      voters,
+    data: voters,
   } =
-    useShowVoters(
-      showId,
-    );
+    useShowVoters(showId);
 
   const {
-    data:
-      countries,
+    data: countries,
   } =
     useCountries();
 
   const {
-    data:
-      themes,
+    data: themes,
   } =
     useThemes();
 
   const {
-    data:
-      entities,
+    data: entities,
   } =
     useContestEntities(
       show?.edition_id,
@@ -198,12 +183,12 @@ function ShowPage() {
 
   const showIsPublic =
     !!show?.published &&
-    Object.values(
+    hasAnyPublicInformation(
       publication,
-    ).some(Boolean);
+    );
 
   /* =========================================================
-     DISPLAY IDENTITIES
+     IDENTITIES
      ========================================================= */
 
   const displayMap =
@@ -227,9 +212,7 @@ function ShowPage() {
             participants ??
             []
           ).map(
-            (
-              participant,
-            ) => [
+            (participant) => [
               participant.country_id,
               participant,
             ],
@@ -252,9 +235,7 @@ function ShowPage() {
             themes ??
             []
           ).find(
-            (
-              item,
-            ) =>
+            (item) =>
               item.id ===
               show?.theme_id,
           )?.config,
@@ -296,7 +277,7 @@ function ShowPage() {
     );
 
   /* =========================================================
-     VOTING CONFIG
+     VOTING
      ========================================================= */
 
   const voting =
@@ -312,29 +293,25 @@ function ShowPage() {
 
   /* =========================================================
      ARCHIVED RESULTS
+
+     Results shown publicly come from the archived results table,
+     never directly from the live vote-entry state.
      ========================================================= */
 
   const standings =
-    useMemo<
-      Standing[]
-    >(
+    useMemo<Standing[]>(
       () =>
         (
           archivedResults ??
           []
         )
           .filter(
-            (
-              result,
-            ) =>
+            (result) =>
               result.final_rank !=
               null,
           )
           .sort(
-            (
-              a,
-              b,
-            ) =>
+            (a, b) =>
               (
                 a.final_rank ??
                 999
@@ -345,15 +322,9 @@ function ShowPage() {
               ),
           )
           .map(
-            (
-              result,
-            ) => ({
+            (result) => ({
               countryId:
                 result.country_id,
-
-              rank:
-                result.final_rank ??
-                0,
 
               jury:
                 publication.jury_results
@@ -370,9 +341,13 @@ function ShowPage() {
                   ? result.total_points
                   : 0,
 
+              rank:
+                result.final_rank ??
+                0,
+
               /*
-               * Required by Standing.
-               * Archived result rows do not store the count of top scores.
+               * Standing requires this.
+               * Archived results currently do not store it.
                */
               topPoints:
                 0,
@@ -387,7 +362,7 @@ function ShowPage() {
     );
 
   /* =========================================================
-     PUBLIC TABS
+     TABS
      ========================================================= */
 
   const tabOptions =
@@ -485,33 +460,30 @@ function ShowPage() {
         return;
       }
 
-      if (
-        !tabOptions.some(
-          (
-            option,
-          ) =>
+      const valid =
+        tabOptions.some(
+          (option) =>
             option.value ===
             tab,
-        )
-      ) {
+        );
+
+      if (!valid) {
         setTab(
           tabOptions[0].value,
         );
       }
     },
     [
-      tabOptions,
       tab,
+      tabOptions,
     ],
   );
 
   /* =========================================================
-     LOADING
+     LOADING / PRIVATE
      ========================================================= */
 
-  if (
-    isLoading
-  ) {
+  if (isLoading) {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">
@@ -521,13 +493,7 @@ function ShowPage() {
     );
   }
 
-  /* =========================================================
-     NOT FOUND
-     ========================================================= */
-
-  if (
-    !show
-  ) {
+  if (!show) {
     return (
       <AppShell>
         <PageHeader
@@ -544,13 +510,7 @@ function ShowPage() {
     );
   }
 
-  /* =========================================================
-     PRIVATE
-     ========================================================= */
-
-  if (
-    !showIsPublic
-  ) {
+  if (!showIsPublic) {
     return (
       <AppShell>
         <div className="mx-auto max-w-2xl py-12">
@@ -563,7 +523,7 @@ function ShowPage() {
               {show.name}
             </h1>
 
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-3 text-sm text-muted-foreground">
               This show has not been published yet.
             </p>
 
@@ -586,11 +546,8 @@ function ShowPage() {
   const winnerStanding =
     publication.results
       ? standings.find(
-          (
-            standing,
-          ) =>
-            standing.rank ===
-            1,
+          (standing) =>
+            standing.rank === 1,
         ) ??
         standings[0] ??
         null
@@ -607,10 +564,7 @@ function ShowPage() {
   const juryTotal =
     publication.jury_results
       ? standings.reduce(
-          (
-            total,
-            row,
-          ) =>
+          (total, row) =>
             total +
             row.jury,
           0,
@@ -620,10 +574,7 @@ function ShowPage() {
   const televoteTotal =
     publication.televote_results
       ? standings.reduce(
-          (
-            total,
-            row,
-          ) =>
+          (total, row) =>
             total +
             row.televote,
           0,
@@ -710,7 +661,7 @@ function ShowPage() {
         !standings.length && (
           <Panel className="mb-5">
             <p className="text-sm text-muted-foreground">
-              Results have been marked public, but no archived results are currently available.
+              Results are marked public, but no saved result archive exists yet.
             </p>
           </Panel>
         )}
@@ -730,6 +681,8 @@ function ShowPage() {
           className="mb-5"
         />
       )}
+
+      {/* SCOREBOARD */}
 
       {tab ===
         "scoreboard" &&
@@ -765,6 +718,8 @@ function ShowPage() {
           </>
         )}
 
+      {/* POINTS */}
+
       {tab ===
         "points" &&
         publication.detailed_voting && (
@@ -789,6 +744,8 @@ function ShowPage() {
             }
           />
         )}
+
+      {/* SPLIT */}
 
       {tab ===
         "split" &&
@@ -817,17 +774,13 @@ function ShowPage() {
               >
                 <div className="divide-y divide-border/60">
                   {standings.map(
-                    (
-                      standing,
-                    ) => {
+                    (standing) => {
                       const country =
                         displayMap.get(
                           standing.countryId,
                         );
 
-                      if (
-                        !country
-                      ) {
+                      if (!country) {
                         return null;
                       }
 
@@ -843,19 +796,18 @@ function ShowPage() {
                           }
                           className="grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3"
                         >
-                          <span>
-                            {country.flag_image ? (
-                              <img
-                                src={
-                                  country.flag_image
-                                }
-                                alt=""
-                                className="h-6 w-9 rounded object-cover"
-                              />
-                            ) : (
+                          <FlagChip
+                            code={
                               country.short_code
-                            )}
-                          </span>
+                            }
+                            color={
+                              country.accent_color
+                            }
+                            image={
+                              country.flag_image
+                            }
+                            size="sm"
+                          />
 
                           <span className="truncate text-sm font-semibold">
                             {
@@ -864,9 +816,7 @@ function ShowPage() {
                           </span>
 
                           <span className="numeric text-sm font-bold">
-                            {
-                              points
-                            }
+                            {points}
                           </span>
                         </div>
                       );
@@ -877,6 +827,8 @@ function ShowPage() {
             )}
           </>
         )}
+
+      {/* MATRIX */}
 
       {tab ===
         "matrix" &&
@@ -897,9 +849,7 @@ function ShowPage() {
                 participants ??
                 []
               ).map(
-                (
-                  participant,
-                ) =>
+                (participant) =>
                   participant.country_id,
               )}
               topPoint={
@@ -914,6 +864,8 @@ function ShowPage() {
             />
           </Panel>
         )}
+
+      {/* LINE-UP */}
 
       {tab ===
         "lineup" &&
@@ -939,9 +891,7 @@ function ShowPage() {
                       participant.country_id,
                     );
 
-                  if (
-                    !country
-                  ) {
+                  if (!country) {
                     return null;
                   }
 
@@ -956,23 +906,21 @@ function ShowPage() {
                         {publication.running_order
                           ? participant.running_order ??
                             "—"
-                          : index +
-                            1}
+                          : index + 1}
                       </span>
 
-                      <span>
-                        {country.flag_image ? (
-                          <img
-                            src={
-                              country.flag_image
-                            }
-                            alt=""
-                            className="h-6 w-9 rounded object-cover"
-                          />
-                        ) : (
+                      <FlagChip
+                        code={
                           country.short_code
-                        )}
-                      </span>
+                        }
+                        color={
+                          country.accent_color
+                        }
+                        image={
+                          country.flag_image
+                        }
+                        size="sm"
+                      />
 
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">
@@ -993,12 +941,8 @@ function ShowPage() {
                                 ? participant.song
                                 : null,
                             ]
-                              .filter(
-                                Boolean,
-                              )
-                              .join(
-                                " · ",
-                              ) ||
+                              .filter(Boolean)
+                              .join(" · ") ||
                               "Entry details not announced"}
                           </p>
                         )}
@@ -1031,6 +975,15 @@ function ShowPage() {
                     </div>
                   );
                 },
+              )}
+
+              {!(
+                participants ??
+                []
+              ).length && (
+                <p className="py-4 text-sm text-muted-foreground">
+                  No entries have been published.
+                </p>
               )}
             </div>
           </Panel>
