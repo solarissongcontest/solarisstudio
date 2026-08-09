@@ -1,5 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import {
+  createFileRoute,
+  Link,
+} from "@tanstack/react-router";
 
 import {
   AppShell,
@@ -7,7 +9,9 @@ import {
   StatTile,
 } from "@/components/AppShell";
 
-import { FlagChip } from "@/components/FlagChip";
+import {
+  FlagChip,
+} from "@/components/FlagChip";
 
 import {
   editionLabel,
@@ -25,7 +29,8 @@ export const Route =
     head: ({ params }) => ({
       meta: [
         {
-          title: `${params.slug} — Solaris Song Contest`,
+          title:
+            `${params.slug} — Solaris Song Contest`,
         },
       ],
     }),
@@ -44,7 +49,9 @@ function EditionPage() {
     data: edition,
     isLoading,
   } =
-    useEdition(slug);
+    useEdition(
+      slug,
+    );
 
   const {
     data: shows,
@@ -70,11 +77,9 @@ function EditionPage() {
   } =
     useAllResults();
 
-  /* =========================================================
-     LOADING / MISSING
-     ========================================================= */
-
-  if (isLoading) {
+  if (
+    isLoading
+  ) {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">
@@ -84,30 +89,21 @@ function EditionPage() {
     );
   }
 
-  if (!edition) {
+  if (
+    !edition
+  ) {
     return (
       <AppShell>
         <div className="glass p-6">
-          <h1
-            className="
-              font-display
-              text-2xl
-              font-bold
-            "
-          >
+          <h1 className="font-display text-2xl font-bold">
             Edition not found
           </h1>
 
           <Link
             to="/editions"
-            className="
-              mt-4
-              inline-block
-              text-sm
-              text-primary
-            "
+            className="mt-4 inline-block text-sm text-primary"
           >
-            ← All editions
+            ← Editions
           </Link>
         </div>
       </AppShell>
@@ -118,10 +114,14 @@ function EditionPage() {
     shows ?? [];
 
   const participantList =
-    participants ?? [];
+    participants ??
+    [];
 
   const resultList =
-    (allResults ?? []).filter(
+    (
+      allResults ??
+      []
+    ).filter(
       (result) =>
         result.edition_id ===
         edition.id,
@@ -129,7 +129,10 @@ function EditionPage() {
 
   const countryMap =
     new Map(
-      (countries ?? []).map(
+      (
+        countries ??
+        []
+      ).map(
         (country) => [
           country.id,
           country,
@@ -137,19 +140,13 @@ function EditionPage() {
       ),
     );
 
-  /* =========================================================
-     PARTICIPATING COUNTRIES
-     ========================================================= */
-
   const nationIds =
     [
       ...new Set(
-        participantList
-          .map(
-            (participant) =>
-              participant.country_id,
-          )
-          .filter(Boolean),
+        participantList.map(
+          (participant) =>
+            participant.country_id,
+        ),
       ),
     ];
 
@@ -157,27 +154,19 @@ function EditionPage() {
     nationIds
       .map(
         (id) =>
-          countryMap.get(id),
+          countryMap.get(
+            id,
+          ),
       )
-      .filter(
-        (
-          country,
-        ): country is NonNullable<
-          typeof country
-        > =>
-          !!country,
-      );
-
-  /* =========================================================
-     GRAND FINAL
-     ========================================================= */
+      .filter(Boolean) as any[];
 
   const grandFinal =
     showList.find(
       (show) =>
         show.kind ===
         "grand-final",
-    ) ?? null;
+    ) ??
+    null;
 
   const finalResults =
     grandFinal
@@ -202,25 +191,18 @@ function EditionPage() {
         result.final_rank ===
         1,
     ) ??
-    finalResults[0] ??
+    finalResults[
+      0
+    ] ??
     null;
 
   const winner =
     winnerResult
       ? countryMap.get(
           winnerResult.country_id,
-        ) ?? null
+        ) ??
+        null
       : null;
-
-  const topFive =
-    finalResults.slice(
-      0,
-      5,
-    );
-
-  /* =========================================================
-     JURY / TELEVOTE WINNERS
-     ========================================================= */
 
   const juryWinnerResult =
     finalResults.length
@@ -231,7 +213,7 @@ function EditionPage() {
         )[0]
       : null;
 
-  const televoteWinnerResult =
+  const teleWinnerResult =
     finalResults.length
       ? [...finalResults].sort(
           (a, b) =>
@@ -244,19 +226,24 @@ function EditionPage() {
     juryWinnerResult
       ? countryMap.get(
           juryWinnerResult.country_id,
-        ) ?? null
+        ) ??
+        null
       : null;
 
-  const televoteWinner =
-    televoteWinnerResult
+  const teleWinner =
+    teleWinnerResult
       ? countryMap.get(
-          televoteWinnerResult.country_id,
-        ) ?? null
+          teleWinnerResult.country_id,
+        ) ??
+        null
       : null;
 
-  /* =========================================================
-     FINAL PARTICIPANTS
-     ========================================================= */
+  const semiFinals =
+    showList.filter(
+      (show) =>
+        show.kind ===
+        "semi-final",
+    );
 
   const finalistCount =
     grandFinal
@@ -267,223 +254,60 @@ function EditionPage() {
         ).length
       : 0;
 
-  /* =========================================================
-     SEMI COUNT
-     ========================================================= */
-
-  const semiFinals =
-    showList.filter(
-      (show) =>
-        show.kind ===
-        "semi-final",
-    );
-
-  /* =========================================================
-     PAGE
-     ========================================================= */
-
   return (
     <AppShell>
       <div className="space-y-7">
-        {/* =====================================================
-            BACK
-           ===================================================== */}
-
-        <div>
-          <Link
-            to="/editions"
-            className="
-              inline-flex
-              items-center
-              gap-1
-              text-xs
-              font-medium
-              text-muted-foreground
-              hover:text-foreground
-            "
-          >
-            ← Editions
-          </Link>
-        </div>
-
-        {/* =====================================================
-            HERO
-           ===================================================== */}
-
-        <section
-          className="
-            relative
-            min-h-[420px]
-            overflow-hidden
-            rounded-[2rem]
-            border
-            border-white/20
-            bg-black/25
-            shadow-2xl
-            sm:min-h-[480px]
-          "
+        <Link
+          to="/editions"
+          className="text-xs font-medium text-muted-foreground hover:text-foreground"
         >
-          {/* Winner visual */}
+          ← Editions
+        </Link>
 
+        {/* HERO */}
+
+        <section className="relative min-h-[420px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[480px]">
           {winner?.flag_image && (
-            <div
-              className="
-                absolute
-                -right-[18%]
-                top-1/2
-                aspect-square
-                w-[95%]
-                -translate-y-1/2
-                overflow-hidden
-                rounded-full
-                opacity-[0.22]
-                sm:w-[62%]
-              "
-            >
+            <div className="absolute -right-[18%] top-1/2 aspect-square w-[95%] -translate-y-1/2 overflow-hidden rounded-full opacity-[0.22] sm:w-[62%]">
               <img
                 src={
                   winner.flag_image
                 }
                 alt=""
-                className="
-                  h-full
-                  w-full
-                  object-cover
-                "
+                className="h-full w-full object-cover"
               />
             </div>
           )}
 
-          {/* Edition logo */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/96 via-[#041429]/84 to-[#041429]/30" />
 
-          {edition.logo && (
-            <img
-              src={
-                edition.logo
-              }
-              alt=""
-              className="
-                absolute
-                right-5
-                top-5
-                z-10
-                h-20
-                w-20
-                object-contain
-                opacity-80
-                sm:h-32
-                sm:w-32
-              "
-            />
-          )}
-
-          {/* Gradient */}
-
-          <div
-            className="
-              absolute
-              inset-0
-              bg-gradient-to-r
-              from-[#020817]/96
-              via-[#041429]/84
-              to-[#041429]/30
-            "
-          />
-
-          <div
-            className="
-              relative
-              z-20
-              flex
-              min-h-[420px]
-              flex-col
-              justify-between
-              p-5
-              sm:min-h-[480px]
-              sm:p-8
-              lg:p-10
-            "
-          >
-            <div>
-              <span
-                className="
-                  inline-flex
-                  rounded-full
-                  border
-                  border-primary/30
-                  bg-primary/10
-                  px-3
-                  py-1.5
-                  text-[9px]
-                  font-bold
-                  uppercase
-                  tracking-[0.18em]
-                  text-primary
-                "
-              >
-                {edition.published
-                  ? "Contest archive"
-                  : "Upcoming edition"}
-              </span>
-            </div>
+          <div className="relative z-20 flex min-h-[420px] flex-col justify-between p-5 sm:min-h-[480px] sm:p-8 lg:p-10">
+            <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+              Edition{" "}
+              {edition.edition_number ??
+                "—"}
+            </span>
 
             <div className="max-w-3xl">
-              <p
-                className="
-                  text-xs
-                  font-semibold
-                  uppercase
-                  tracking-[0.2em]
-                  text-primary
-                "
-              >
-                {[
-                  edition.host_city,
-                  edition.year,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+                {edition.host_city ??
+                  "Solaris Song Contest"}
               </p>
 
-              <h1
-                className="
-                  mt-2
-                  font-display
-                  text-5xl
-                  font-bold
-                  leading-[0.9]
-                  tracking-[-0.055em]
-                  text-white
-                  sm:text-7xl
-                "
-              >
+              <h1 className="mt-2 font-display text-5xl font-bold leading-[0.9] tracking-[-0.055em] text-white sm:text-7xl">
                 {editionLabel(
                   edition,
                 )}
               </h1>
 
-              <p
-                className="
-                  mt-3
-                  text-lg
-                  font-medium
-                  text-white/80
-                  sm:text-2xl
-                "
-              >
-                {edition.name}
+              <p className="mt-3 text-lg font-medium text-white/80 sm:text-2xl">
+                {
+                  edition.name
+                }
               </p>
 
               {edition.description && (
-                <p
-                  className="
-                    mt-4
-                    max-w-xl
-                    text-sm
-                    leading-relaxed
-                    text-white/60
-                  "
-                >
+                <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/60">
                   {
                     edition.description
                   }
@@ -491,14 +315,7 @@ function EditionPage() {
               )}
 
               {winner && (
-                <div
-                  className="
-                    mt-7
-                    flex
-                    items-center
-                    gap-4
-                  "
-                >
+                <div className="mt-7 flex items-center gap-4">
                   <FlagChip
                     code={
                       winner.short_code
@@ -513,46 +330,22 @@ function EditionPage() {
                   />
 
                   <div>
-                    <p
-                      className="
-                        text-[9px]
-                        font-bold
-                        uppercase
-                        tracking-[0.18em]
-                        text-white/50
-                      "
-                    >
+                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/50">
                       Winner
                     </p>
 
-                    <p
-                      className="
-                        mt-1
-                        font-display
-                        text-xl
-                        font-bold
-                        text-white
-                        sm:text-2xl
-                      "
-                    >
-                      {winner.name}
+                    <p className="mt-1 font-display text-xl font-bold text-white">
+                      {
+                        winner.name
+                      }
                     </p>
 
-                    {winnerResult && (
-                      <p
-                        className="
-                          numeric
-                          mt-1
-                          text-xs
-                          text-white/55
-                        "
-                      >
-                        {
-                          winnerResult.total_points
-                        }{" "}
-                        points
-                      </p>
-                    )}
+                    <p className="numeric mt-1 text-xs text-white/55">
+                      {
+                        winnerResult?.total_points
+                      }{" "}
+                      points
+                    </p>
                   </div>
                 </div>
               )}
@@ -560,31 +353,24 @@ function EditionPage() {
           </div>
         </section>
 
-        {/* =====================================================
-            EDITION NUMBERS
-           ===================================================== */}
+        {/* STATS */}
 
         <Panel>
-          <div
-            className="
-              grid
-              grid-cols-2
-              gap-x-5
-              gap-y-5
-              sm:grid-cols-4
-            "
-          >
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
             <StatTile
-              label="Countries"
+              label="Edition"
               value={
-                nationIds.length
+                edition.edition_number !=
+                null
+                  ? `SSC ${edition.edition_number}`
+                  : "—"
               }
             />
 
             <StatTile
-              label="Shows"
+              label="Countries"
               value={
-                showList.length
+                nationIds.length
               }
             />
 
@@ -605,295 +391,156 @@ function EditionPage() {
           </div>
         </Panel>
 
-        {/* =====================================================
-            WINNER + TOP FIVE
-           ===================================================== */}
+        {/* FINAL */}
 
         {finalResults.length >
           0 && (
-          <section
-            className="
-              grid
-              gap-5
-              lg:grid-cols-[.85fr_1.15fr]
-            "
-          >
-            {/* WINNER */}
+          <section className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
+            <div className="glass relative overflow-hidden p-5">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                {editionLabel(
+                  edition,
+                )} winner
+              </p>
 
-            <div
-              className="
-                glass
-                relative
-                overflow-hidden
-                p-5
-                sm:p-6
-              "
-            >
-              {winner?.flag_image && (
-                <div
-                  className="
-                    absolute
-                    -bottom-16
-                    -right-16
-                    h-64
-                    w-64
-                    overflow-hidden
-                    rounded-full
-                    opacity-[0.10]
-                  "
-                >
-                  <img
-                    src={
-                      winner.flag_image
-                    }
-                    alt=""
-                    className="
-                      h-full
-                      w-full
-                      object-cover
-                    "
-                  />
-                </div>
-              )}
+              {winner && (
+                <>
+                  <div className="mt-5 flex items-center gap-4">
+                    <FlagChip
+                      code={
+                        winner.short_code
+                      }
+                      color={
+                        winner.accent_color
+                      }
+                      image={
+                        winner.flag_image
+                      }
+                      size="xl"
+                    />
 
-              <div className="relative z-10">
-                <p
-                  className="
-                    text-[10px]
-                    font-bold
-                    uppercase
-                    tracking-[0.18em]
-                    text-primary
-                  "
-                >
-                  Grand Final winner
-                </p>
-
-                {winner ? (
-                  <>
-                    <div
-                      className="
-                        mt-5
-                        flex
-                        items-center
-                        gap-4
-                      "
-                    >
-                      <FlagChip
-                        code={
-                          winner.short_code
+                    <div>
+                      <h2 className="font-display text-2xl font-bold">
+                        {
+                          winner.name
                         }
-                        color={
-                          winner.accent_color
-                        }
-                        image={
-                          winner.flag_image
-                        }
-                        size="xl"
-                      />
+                      </h2>
 
-                      <div>
-                        <h2
-                          className="
-                            font-display
-                            text-2xl
-                            font-bold
-                          "
-                        >
-                          {
-                            winner.name
-                          }
-                        </h2>
-
-                        <p
-                          className="
-                            numeric
-                            mt-1
-                            text-sm
-                            text-muted-foreground
-                          "
-                        >
-                          {
-                            winnerResult?.total_points
-                          }{" "}
-                          points
-                        </p>
-                      </div>
+                      <p className="numeric mt-1 text-sm text-muted-foreground">
+                        {
+                          winnerResult?.total_points
+                        }{" "}
+                        points
+                      </p>
                     </div>
+                  </div>
 
-                    {grandFinal && (
-                      <Link
-                        to="/shows/$showId"
-                        params={{
-                          showId:
-                            grandFinal.id,
-                        }}
-                        className="
-                          mt-6
-                          inline-flex
-                          min-h-11
-                          items-center
-                          rounded-xl
-                          bg-aurora
-                          px-4
-                          text-sm
-                          font-semibold
-                          text-primary-foreground
-                        "
-                      >
-                        Grand Final results →
-                      </Link>
-                    )}
-                  </>
-                ) : (
-                  <p
-                    className="
-                      mt-4
-                      text-sm
-                      text-muted-foreground
-                    "
-                  >
-                    Winner unavailable.
-                  </p>
-                )}
-              </div>
+                  {grandFinal && (
+                    <Link
+                      to="/shows/$showId"
+                      params={{
+                        showId:
+                          grandFinal.id,
+                      }}
+                      className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground"
+                    >
+                      Grand Final results →
+                    </Link>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* TOP FIVE */}
-
             <Panel
-              title="Grand Final"
+              title={`${editionLabel(
+                edition,
+              )} Grand Final`}
               description="Top five"
             >
-              <div
-                className="
-                  divide-y
-                  divide-border/60
-                "
-              >
-                {topFive.map(
-                  (
-                    result,
-                    index,
-                  ) => {
-                    const country =
-                      countryMap.get(
-                        result.country_id,
+              <div className="divide-y divide-border/60">
+                {finalResults
+                  .slice(
+                    0,
+                    5,
+                  )
+                  .map(
+                    (
+                      result,
+                      index,
+                    ) => {
+                      const country =
+                        countryMap.get(
+                          result.country_id,
+                        );
+
+                      if (
+                        !country
+                      ) {
+                        return null;
+                      }
+
+                      return (
+                        <Link
+                          key={
+                            result.id
+                          }
+                          to="/countries/$code"
+                          params={{
+                            code:
+                              country.short_code,
+                          }}
+                          className="grid grid-cols-[32px_40px_1fr_auto] items-center gap-3 py-3"
+                        >
+                          <span className="numeric text-xs text-muted-foreground">
+                            #
+                            {result.final_rank ??
+                              index +
+                                1}
+                          </span>
+
+                          <FlagChip
+                            code={
+                              country.short_code
+                            }
+                            color={
+                              country.accent_color
+                            }
+                            image={
+                              country.flag_image
+                            }
+                            size="sm"
+                          />
+
+                          <span className="truncate text-sm font-semibold">
+                            {
+                              country.name
+                            }
+                          </span>
+
+                          <span className="numeric text-sm font-semibold">
+                            {
+                              result.total_points
+                            }
+                          </span>
+                        </Link>
                       );
-
-                    if (
-                      !country
-                    ) {
-                      return null;
-                    }
-
-                    return (
-                      <Link
-                        key={
-                          result.id
-                        }
-                        to="/countries/$code"
-                        params={{
-                          code:
-                            country.short_code,
-                        }}
-                        className="
-                          grid
-                          grid-cols-[32px_40px_1fr_auto]
-                          items-center
-                          gap-3
-                          py-3
-                          first:pt-0
-                          last:pb-0
-                        "
-                      >
-                        <span
-                          className="
-                            numeric
-                            text-center
-                            text-xs
-                            text-muted-foreground
-                          "
-                        >
-                          #
-                          {result.final_rank ??
-                            index +
-                              1}
-                        </span>
-
-                        <FlagChip
-                          code={
-                            country.short_code
-                          }
-                          color={
-                            country.accent_color
-                          }
-                          image={
-                            country.flag_image
-                          }
-                          size="sm"
-                        />
-
-                        <p
-                          className="
-                            min-w-0
-                            truncate
-                            text-sm
-                            font-semibold
-                          "
-                        >
-                          {
-                            country.name
-                          }
-                        </p>
-
-                        <span
-                          className="
-                            numeric
-                            text-sm
-                            font-semibold
-                          "
-                        >
-                          {
-                            result.total_points
-                          }
-                        </span>
-                      </Link>
-                    );
-                  },
-                )}
+                    },
+                  )}
               </div>
             </Panel>
           </section>
         )}
 
-        {/* =====================================================
-            JURY / TELE WINNERS
-           ===================================================== */}
+        {/* VOTING */}
 
         {finalResults.length >
           0 && (
           <section>
-            <p
-              className="
-                mb-3
-                text-[10px]
-                font-bold
-                uppercase
-                tracking-[0.2em]
-                text-muted-foreground
-              "
-            >
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
               Voting highlights
             </p>
 
-            <div
-              className="
-                grid
-                gap-3
-                sm:grid-cols-2
-              "
-            >
+            <div className="grid gap-3 sm:grid-cols-2">
               <VotingWinner
                 label="Jury winner"
                 country={
@@ -903,439 +550,185 @@ function EditionPage() {
                   juryWinnerResult?.jury_points ??
                   0
                 }
-                kind="jury"
+                type="jury"
               />
 
               <VotingWinner
                 label="Televote winner"
                 country={
-                  televoteWinner
+                  teleWinner
                 }
                 points={
-                  televoteWinnerResult?.televote_points ??
+                  teleWinnerResult?.televote_points ??
                   0
                 }
-                kind="televote"
+                type="televote"
               />
             </div>
           </section>
         )}
 
-        {/* =====================================================
-            SHOWS
-           ===================================================== */}
+        {/* SHOWS */}
 
         <section>
-          <div
-            className="
-              mb-3
-              flex
-              items-end
-              justify-between
-              gap-4
-            "
-          >
-            <div>
-              <p
-                className="
-                  text-[10px]
-                  font-bold
-                  uppercase
-                  tracking-[0.2em]
-                  text-muted-foreground
-                "
-              >
-                The edition
-              </p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+            {editionLabel(
+              edition,
+            )}
+          </p>
 
-              <h2
-                className="
-                  mt-1
-                  font-display
-                  text-2xl
-                  font-bold
-                "
-              >
-                Shows
-              </h2>
-            </div>
+          <h2 className="mt-1 font-display text-2xl font-bold">
+            Shows
+          </h2>
 
-            <span
-              className="
-                text-xs
-                text-muted-foreground
-              "
-            >
-              {
-                showList.length
-              }{" "}
-              total
-            </span>
-          </div>
-
-          {showList.length ? (
-            <div
-              className="
-                grid
-                gap-3
-                md:grid-cols-2
-              "
-            >
-              {showList.map(
-                (show) => {
-                  const line =
-                    participantList.filter(
-                      (
-                        participant,
-                      ) =>
-                        participant.show_id ===
-                        show.id,
-                    );
-
-                  const showResults =
-                    resultList.filter(
-                      (result) =>
-                        result.show_id ===
-                        show.id,
-                    );
-
-                  const showWinnerResult =
-                    [...showResults]
-                      .filter(
-                        (result) =>
-                          result.final_rank !=
-                          null,
-                      )
-                      .sort(
-                        (a, b) =>
-                          (a.final_rank ??
-                            999) -
-                          (b.final_rank ??
-                            999),
-                      )[0] ??
-                    null;
-
-                  const showWinner =
-                    showWinnerResult
-                      ? countryMap.get(
-                          showWinnerResult.country_id,
-                        ) ??
-                        null
-                      : null;
-
-                  return (
-                    <Link
-                      key={
-                        show.id
-                      }
-                      to="/shows/$showId"
-                      params={{
-                        showId:
-                          show.id,
-                      }}
-                      className="
-                        glass
-                        group
-                        block
-                        p-4
-                        transition-transform
-                        hover:-translate-y-0.5
-                        sm:p-5
-                      "
-                    >
-                      <div
-                        className="
-                          flex
-                          items-start
-                          justify-between
-                          gap-4
-                        "
-                      >
-                        <div>
-                          <p
-                            className="
-                              text-[9px]
-                              font-semibold
-                              uppercase
-                              tracking-[0.16em]
-                              text-primary
-                            "
-                          >
-                            {show.kind.replace(
-                              "-",
-                              " ",
-                            )}
-                          </p>
-
-                          <h3
-                            className="
-                              mt-1
-                              font-display
-                              text-lg
-                              font-bold
-                            "
-                          >
-                            {
-                              show.name
-                            }
-                          </h3>
-
-                          <p
-                            className="
-                              mt-1
-                              text-xs
-                              text-muted-foreground
-                            "
-                          >
-                            {
-                              line.length
-                            }{" "}
-                            entries
-                            {show.qualifier_count !=
-                            null
-                              ? ` · ${show.qualifier_count} qualifiers`
-                              : ""}
-                          </p>
-                        </div>
-
-                        <span
-                          className="
-                            text-lg
-                            text-primary
-                            transition-transform
-                            group-hover:translate-x-1
-                          "
-                        >
-                          →
-                        </span>
-                      </div>
-
-                      {showWinner && (
-                        <div
-                          className="
-                            mt-4
-                            flex
-                            items-center
-                            gap-2
-                            border-t
-                            border-border/60
-                            pt-3
-                          "
-                        >
-                          <FlagChip
-                            code={
-                              showWinner.short_code
-                            }
-                            color={
-                              showWinner.accent_color
-                            }
-                            image={
-                              showWinner.flag_image
-                            }
-                            size="sm"
-                          />
-
-                          <div>
-                            <p
-                              className="
-                                text-[9px]
-                                uppercase
-                                tracking-[0.12em]
-                                text-muted-foreground
-                              "
-                            >
-                              Winner
-                            </p>
-
-                            <p
-                              className="
-                                text-xs
-                                font-semibold
-                              "
-                            >
-                              {
-                                showWinner.name
-                              }
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div
-                        className="
-                          mt-4
-                          flex
-                          flex-wrap
-                          gap-1.5
-                        "
-                      >
-                        {line
-                          .slice(
-                            0,
-                            14,
-                          )
-                          .map(
-                            (
-                              participant,
-                            ) => {
-                              const country =
-                                countryMap.get(
-                                  participant.country_id,
-                                );
-
-                              return country ? (
-                                <FlagChip
-                                  key={
-                                    participant.id
-                                  }
-                                  code={
-                                    country.short_code
-                                  }
-                                  color={
-                                    country.accent_color
-                                  }
-                                  image={
-                                    country.flag_image
-                                  }
-                                  size="sm"
-                                />
-                              ) : null;
-                            },
-                          )}
-                      </div>
-                    </Link>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {showList.map(
+              (show) => {
+                const line =
+                  participantList.filter(
+                    (participant) =>
+                      participant.show_id ===
+                      show.id,
                   );
-                },
-              )}
-            </div>
-          ) : (
-            <div
-              className="
-                glass
-                p-6
-                text-sm
-                text-muted-foreground
-              "
-            >
-              No shows yet.
-            </div>
-          )}
+
+                return (
+                  <Link
+                    key={
+                      show.id
+                    }
+                    to="/shows/$showId"
+                    params={{
+                      showId:
+                        show.id,
+                    }}
+                    className="glass group block p-4 sm:p-5"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-primary">
+                          {show.kind.replace(
+                            "-",
+                            " ",
+                          )}
+                        </p>
+
+                        <h3 className="mt-1 font-display text-lg font-bold">
+                          {
+                            show.name
+                          }
+                        </h3>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {
+                            line.length
+                          }{" "}
+                          entries
+                        </p>
+                      </div>
+
+                      <span className="text-primary">
+                        →
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {line
+                        .slice(
+                          0,
+                          14,
+                        )
+                        .map(
+                          (
+                            participant,
+                          ) => {
+                            const country =
+                              countryMap.get(
+                                participant.country_id,
+                              );
+
+                            return country ? (
+                              <FlagChip
+                                key={
+                                  participant.id
+                                }
+                                code={
+                                  country.short_code
+                                }
+                                color={
+                                  country.accent_color
+                                }
+                                image={
+                                  country.flag_image
+                                }
+                                size="sm"
+                              />
+                            ) : null;
+                          },
+                        )}
+                    </div>
+                  </Link>
+                );
+              },
+            )}
+          </div>
         </section>
 
-        {/* =====================================================
-            PARTICIPATING COUNTRIES
-           ===================================================== */}
+        {/* COUNTRIES */}
 
         <section>
-          <div
-            className="
-              mb-3
-              flex
-              items-end
-              justify-between
-              gap-4
-            "
-          >
+          <div className="flex items-end justify-between">
             <div>
-              <p
-                className="
-                  text-[10px]
-                  font-bold
-                  uppercase
-                  tracking-[0.2em]
-                  text-muted-foreground
-                "
-              >
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
                 Delegations
               </p>
 
-              <h2
-                className="
-                  mt-1
-                  font-display
-                  text-2xl
-                  font-bold
-                "
-              >
+              <h2 className="mt-1 font-display text-2xl font-bold">
                 Participating countries
               </h2>
             </div>
 
-            <span
-              className="
-                numeric
-                text-xs
-                text-muted-foreground
-              "
-            >
+            <span className="numeric text-xs text-muted-foreground">
               {
                 participatingCountries.length
               }
             </span>
           </div>
 
-          <div
-            className="
-              glass
-              p-4
-              sm:p-5
-            "
-          >
-            {participatingCountries.length ? (
-              <div
-                className="
-                  flex
-                  flex-wrap
-                  gap-2
-                "
-              >
-                {participatingCountries.map(
-                  (
-                    country,
-                  ) => (
-                    <Link
-                      key={
-                        country.id
+          <div className="glass mt-3 p-4">
+            <div className="flex flex-wrap gap-2">
+              {participatingCountries.map(
+                (
+                  country,
+                ) => (
+                  <Link
+                    key={
+                      country.id
+                    }
+                    to="/countries/$code"
+                    params={{
+                      code:
+                        country.short_code,
+                    }}
+                    title={
+                      country.name
+                    }
+                  >
+                    <FlagChip
+                      code={
+                        country.short_code
                       }
-                      to="/countries/$code"
-                      params={{
-                        code:
-                          country.short_code,
-                      }}
-                      title={
-                        country.name
+                      color={
+                        country.accent_color
                       }
-                      className="
-                        transition-transform
-                        hover:-translate-y-0.5
-                      "
-                    >
-                      <FlagChip
-                        code={
-                          country.short_code
-                        }
-                        color={
-                          country.accent_color
-                        }
-                        image={
-                          country.flag_image
-                        }
-                        size="sm"
-                      />
-                    </Link>
-                  ),
-                )}
-              </div>
-            ) : (
-              <p
-                className="
-                  text-sm
-                  text-muted-foreground
-                "
-              >
-                No participating countries recorded yet.
-              </p>
-            )}
+                      image={
+                        country.flag_image
+                      }
+                      size="sm"
+                    />
+                  </Link>
+                ),
+              )}
+            </div>
           </div>
         </section>
       </div>
@@ -1343,163 +736,76 @@ function EditionPage() {
   );
 }
 
-/* =========================================================
-   VOTING WINNER
-   ========================================================= */
-
 function VotingWinner({
   label,
   country,
   points,
-  kind,
+  type,
 }: {
-  label: string;
+  label:
+    string;
 
   country:
-    | {
-        id: string;
-        name: string;
-        short_code: string;
-        flag_image: string | null;
-        accent_color: string;
-      }
-    | null;
+    any;
 
-  points: number;
+  points:
+    number;
 
-  kind:
+  type:
     | "jury"
     | "televote";
 }) {
   return (
-    <div
-      className="
-        glass
-        relative
-        overflow-hidden
-        p-4
-        sm:p-5
-      "
-    >
-      {country?.flag_image && (
-        <div
-          className="
-            absolute
-            -bottom-12
-            -right-12
-            h-44
-            w-44
-            overflow-hidden
-            rounded-full
-            opacity-[0.08]
-          "
-        >
-          <img
-            src={
+    <div className="glass p-4 sm:p-5">
+      <div className="flex items-center gap-2">
+        <span
+          className="h-2.5 w-2.5 rounded-full"
+          style={{
+            backgroundColor:
+              type ===
+              "jury"
+                ? "var(--jury)"
+                : "var(--televote)",
+          }}
+        />
+
+        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          {label}
+        </p>
+      </div>
+
+      {country ? (
+        <div className="mt-4 flex items-center gap-3">
+          <FlagChip
+            code={
+              country.short_code
+            }
+            color={
+              country.accent_color
+            }
+            image={
               country.flag_image
             }
-            alt=""
-            className="
-              h-full
-              w-full
-              object-cover
-            "
-          />
-        </div>
-      )}
-
-      <div className="relative z-10">
-        <div
-          className="
-            flex
-            items-center
-            gap-2
-          "
-        >
-          <span
-            className="
-              h-2.5
-              w-2.5
-              rounded-full
-            "
-            style={{
-              backgroundColor:
-                kind ===
-                "jury"
-                  ? "var(--jury)"
-                  : "var(--televote)",
-            }}
+            size="sm"
           />
 
-          <p
-            className="
-              text-[9px]
-              font-bold
-              uppercase
-              tracking-[0.16em]
-              text-muted-foreground
-            "
-          >
-            {label}
-          </p>
-        </div>
-
-        {country ? (
-          <div
-            className="
-              mt-4
-              flex
-              items-center
-              gap-3
-            "
-          >
-            <FlagChip
-              code={
-                country.short_code
+          <div>
+            <p className="text-sm font-semibold">
+              {
+                country.name
               }
-              color={
-                country.accent_color
-              }
-              image={
-                country.flag_image
-              }
-              size="sm"
-            />
+            </p>
 
-            <div>
-              <p
-                className="
-                  text-sm
-                  font-semibold
-                "
-              >
-                {country.name}
-              </p>
-
-              <p
-                className="
-                  numeric
-                  mt-1
-                  text-xs
-                  text-muted-foreground
-                "
-              >
-                {points} points
-              </p>
-            </div>
+            <p className="numeric mt-1 text-xs text-muted-foreground">
+              {points} points
+            </p>
           </div>
-        ) : (
-          <p
-            className="
-              mt-4
-              text-sm
-              text-muted-foreground
-            "
-          >
-            No result available.
-          </p>
-        )}
-      </div>
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">
+          No result available.
+        </p>
+      )}
     </div>
   );
 }
