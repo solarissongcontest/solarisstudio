@@ -20,31 +20,66 @@ export function BackgroundFlag({
         pointer-events-none
         absolute
         aspect-square
-        overflow-hidden
-        rounded-full
         select-none
         ${className}
       `}
       style={{
         opacity,
-        WebkitMaskImage:
-          "radial-gradient(circle, black 0%, black 56%, rgba(0,0,0,0.96) 66%, rgba(0,0,0,0.72) 78%, rgba(0,0,0,0.32) 89%, transparent 100%)",
-        maskImage:
-          "radial-gradient(circle, black 0%, black 56%, rgba(0,0,0,0.96) 66%, rgba(0,0,0,0.72) 78%, rgba(0,0,0,0.32) 89%, transparent 100%)",
       }}
     >
-      <img
-        src={image}
-        alt=""
+      {/* Soft blurred edge only */}
+      <div
         className="
-          h-full
-          w-full
-          scale-[1.02]
+          absolute
+          -inset-[3%]
+          overflow-hidden
           rounded-full
-          object-cover
-          blur-[0.6px]
         "
-      />
+        style={{
+          WebkitMaskImage:
+            "radial-gradient(circle, transparent 0%, transparent 55%, rgba(0,0,0,0.18) 66%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.85) 84%, rgba(0,0,0,0.45) 92%, transparent 100%)",
+          maskImage:
+            "radial-gradient(circle, transparent 0%, transparent 55%, rgba(0,0,0,0.18) 66%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.85) 84%, rgba(0,0,0,0.45) 92%, transparent 100%)",
+        }}
+      >
+        <img
+          src={image}
+          alt=""
+          className="
+            h-full
+            w-full
+            scale-[1.04]
+            object-cover
+            blur-[14px]
+          "
+        />
+      </div>
+
+      {/* Main flag stays sharp */}
+      <div
+        className="
+          absolute
+          inset-0
+          overflow-hidden
+          rounded-full
+        "
+        style={{
+          WebkitMaskImage:
+            "radial-gradient(circle, black 0%, black 52%, rgba(0,0,0,0.96) 60%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.28) 84%, rgba(0,0,0,0.08) 92%, transparent 100%)",
+          maskImage:
+            "radial-gradient(circle, black 0%, black 52%, rgba(0,0,0,0.96) 60%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.28) 84%, rgba(0,0,0,0.08) 92%, transparent 100%)",
+        }}
+      >
+        <img
+          src={image}
+          alt=""
+          className="
+            h-full
+            w-full
+            object-cover
+          "
+        />
+      </div>
     </div>
   );
 }
