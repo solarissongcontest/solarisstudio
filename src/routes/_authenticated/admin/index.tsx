@@ -28,14 +28,6 @@ import {
 } from "@/components/studio/Controls";
 
 import {
-  ThemeEditor,
-} from "@/components/studio/ThemeEditor";
-
-import {
-  BroadcastEditor,
-} from "@/components/studio/BroadcastEditor";
-
-import {
   supabase,
 } from "@/integrations/supabase/client";
 
@@ -50,24 +42,8 @@ import {
   useCountries,
   useEditions,
   useIsOrganizer,
-  useThemes,
   type Edition,
 } from "@/lib/data";
-
-import {
-  backgroundStyle,
-  resolveTheme,
-  type ThemeConfig,
-} from "@/lib/theme";
-
-import {
-  resolveBroadcast,
-  type BroadcastConfig,
-} from "@/lib/broadcast";
-
-/* ============================================================
-   ROUTE
-   ============================================================ */
 
 export const Route =
   createFileRoute(
@@ -87,46 +63,12 @@ export const Route =
           content:
             "Create and manage Solaris Song Contest editions, shows, voting systems, edition design and broadcast production.",
         },
-
-        {
-          property:
-            "og:title",
-
-          content:
-            "Organizer studio — Solaris Spectacle Suite",
-        },
-
-        {
-          property:
-            "og:description",
-
-          content:
-            "Manage SSC editions, shows, votes, edition design and broadcast production.",
-        },
       ],
     }),
 
     component:
       AdminHome,
   });
-
-/* ============================================================
-   TYPES
-   ============================================================ */
-
-type EditionWithBroadcast =
-  Edition & {
-    broadcast_config?:
-      | Record<
-          string,
-          unknown
-        >
-      | null;
-  };
-
-/* ============================================================
-   HELPERS
-   ============================================================ */
 
 function editionStatusLabel(
   edition: Edition,
@@ -147,40 +89,6 @@ function editionStatusLabel(
 
   return "Draft";
 }
-
-/**
- * The same edition identity can use a different number of columns
- * depending on the show size.
- *
- * 1–14 entries  -> 1 column
- * 15–30 entries -> 2 columns
- * 31+ entries   -> 3 columns when the theme allows grid, otherwise 2
- */
-function recommendedColumns(
-  count: number,
-  theme: ThemeConfig,
-) {
-  if (
-    count <= 14
-  ) {
-    return 1;
-  }
-
-  if (
-    count <= 30
-  ) {
-    return 2;
-  }
-
-  return theme.layout.mode ===
-    "grid"
-    ? 3
-    : 2;
-}
-
-/* ============================================================
-   PAGE
-   ============================================================ */
 
 function AdminHome() {
   const {
@@ -206,21 +114,12 @@ function AdminHome() {
     useAllParticipants();
 
   const {
-    data: themes,
-  } =
-    useThemes();
-
-  const {
     data: isOrganizer,
   } =
     useIsOrganizer();
 
   const qc =
     useQueryClient();
-
-  /* =========================================================
-     NEXT EDITION NUMBER
-     ========================================================= */
 
   const nextNumber =
     editionsLoading
@@ -238,10 +137,6 @@ function AdminHome() {
               0,
           ),
         ) + 1;
-
-  /* =========================================================
-     CREATE FORM
-     ========================================================= */
 
   const [
     form,
@@ -288,96 +183,6 @@ function AdminHome() {
   ] =
     useState(false);
 
-  /* =========================================================
-     EDITION DESIGN STATE
-     ========================================================= */
-
-  const [
-    designEditionId,
-    setDesignEditionId,
-  ] =
-    useState("");
-
-  const [
-    designThemeId,
-    setDesignThemeId,
-  ] =
-    useState("");
-
-  const [
-    themeDraft,
-    setThemeDraft,
-  ] =
-    useState<ThemeConfig>(
-      resolveTheme(
-        undefined,
-      ),
-    );
-
-  const [
-    broadcastDraft,
-    setBroadcastDraft,
-  ] =
-    useState<BroadcastConfig>(
-      resolveBroadcast(
-        undefined,
-      ),
-    );
-
-  const [
-    designSaving,
-    setDesignSaving,
-  ] =
-    useState(false);
-
-  const designEdition =
-    useMemo(
-      () =>
-        (
-          editions ??
-          []
-        ).find(
-          (
-            edition,
-          ) =>
-            edition.id ===
-            designEditionId,
-        ) ??
-        null,
-      [
-        editions,
-        designEditionId,
-      ],
-    );
-
-  const designShows =
-    useMemo(
-      () =>
-        (
-          shows ??
-          []
-        )
-          .filter(
-            (
-              show,
-            ) =>
-              show.edition_id ===
-              designEdition?.id,
-          )
-          .sort(
-            (
-              a,
-              b,
-            ) =>
-              a.sort_order -
-              b.sort_order,
-          ),
-      [
-        shows,
-        designEdition?.id,
-      ],
-    );
-
   const participantCountByShow =
     useMemo(
       () => {
@@ -420,10 +225,6 @@ function AdminHome() {
       ],
     );
 
-  /* =========================================================
-     AUTO-FILL NEXT EDITION NUMBER
-     ========================================================= */
-
   useEffect(
     () => {
       if (
@@ -452,75 +253,6 @@ function AdminHome() {
     ],
   );
 
-  /* =========================================================
-     LOAD EDITION DESIGN
-     ========================================================= */
-
-  useEffect(
-    () => {
-      if (
-        !designEdition
-      ) {
-        setDesignThemeId(
-          "",
-        );
-
-        setThemeDraft(
-          resolveTheme(
-            undefined,
-          ),
-        );
-
-        setBroadcastDraft(
-          resolveBroadcast(
-            undefined,
-          ),
-        );
-
-        return;
-      }
-
-      const themeRow =
-        (
-          themes ??
-          []
-        ).find(
-          (
-            theme,
-          ) =>
-            theme.id ===
-            designEdition.theme_id,
-        );
-
-      setDesignThemeId(
-        designEdition.theme_id ??
-          "",
-      );
-
-      setThemeDraft(
-        resolveTheme(
-          themeRow?.config,
-        ),
-      );
-
-      setBroadcastDraft(
-        resolveBroadcast(
-          (
-            designEdition as EditionWithBroadcast
-          ).broadcast_config,
-        ),
-      );
-    },
-    [
-      designEdition,
-      themes,
-    ],
-  );
-
-  /* =========================================================
-     CACHE REFRESH
-     ========================================================= */
-
   const refresh =
     () => {
       [
@@ -528,7 +260,6 @@ function AdminHome() {
         "edition",
         "shows",
         "show",
-        "themes",
         "participants",
         "results",
       ].forEach(
@@ -543,10 +274,6 @@ function AdminHome() {
           }),
       );
     };
-
-  /* =========================================================
-     CREATE EDITION
-     ========================================================= */
 
   const createEdition =
     async (
@@ -694,10 +421,6 @@ function AdminHome() {
       }
     };
 
-  /* =========================================================
-     PUBLISH / UNPUBLISH
-     ========================================================= */
-
   const togglePublished =
     async (
       edition:
@@ -708,11 +431,6 @@ function AdminHome() {
 
       const nextPublished =
         !edition.published;
-
-      const nextStatus =
-        nextPublished
-          ? "published"
-          : "draft";
 
       const {
         error:
@@ -727,7 +445,9 @@ function AdminHome() {
               nextPublished,
 
             status:
-              nextStatus,
+              nextPublished
+                ? "published"
+                : "draft",
           })
           .eq(
             "id",
@@ -760,10 +480,6 @@ function AdminHome() {
 
       refresh();
     };
-
-  /* =========================================================
-     DELETE EDITION
-     ========================================================= */
 
   const removeEdition =
     async (
@@ -809,15 +525,6 @@ function AdminHome() {
         return;
       }
 
-      if (
-        designEditionId ===
-        edition.id
-      ) {
-        setDesignEditionId(
-          "",
-        );
-      }
-
       setMsg(
         `Deleted ${editionLabel(
           edition,
@@ -827,234 +534,13 @@ function AdminHome() {
       refresh();
     };
 
-  /* =========================================================
-     THEME LIBRARY SELECTION
-     ========================================================= */
-
-  const selectThemeFromLibrary =
-    (
-      id:
-        string,
-    ) => {
-      setDesignThemeId(
-        id,
-      );
-
-      const selected =
-        (
-          themes ??
-          []
-        ).find(
-          (
-            theme,
-          ) =>
-            theme.id ===
-            id,
-        );
-
-      setThemeDraft(
-        resolveTheme(
-          selected?.config,
-        ),
-      );
-    };
-
-  /* =========================================================
-     SAVE EDITION DESIGN + BROADCAST AS ONE UNIT
-     ========================================================= */
-
-  const saveEditionDesign =
-    async () => {
-      if (
-        !designEdition ||
-        designSaving
-      ) {
-        return;
-      }
-
-      setDesignSaving(
-        true,
-      );
-
-      setError(null);
-      setMsg(null);
-
-      try {
-        let themeId =
-          designThemeId ||
-          null;
-
-        if (
-          themeId
-        ) {
-          const {
-            error:
-              themeError,
-          } =
-            await supabase
-              .from(
-                "themes",
-              )
-              .update({
-                config:
-                  themeDraft,
-              })
-              .eq(
-                "id",
-                themeId,
-              );
-
-          if (
-            themeError
-          ) {
-            setError(
-              reportSupabaseError(
-                themeError,
-
-                "Could not save the edition theme.",
-              ),
-            );
-
-            return;
-          }
-        } else {
-          const {
-            data:
-              newTheme,
-            error:
-              themeError,
-          } =
-            await supabase
-              .from(
-                "themes",
-              )
-              .insert({
-                name:
-                  `${editionLabel(
-                    designEdition,
-                  )} design`,
-
-                description:
-                  `Edition-wide visual identity for ${editionLabel(
-                    designEdition,
-                  )}`,
-
-                config:
-                  themeDraft,
-
-                is_public:
-                  false,
-              })
-              .select()
-              .maybeSingle();
-
-          if (
-            themeError ||
-            !newTheme
-          ) {
-            setError(
-              reportSupabaseError(
-                themeError,
-
-                "Could not create the edition theme.",
-              ),
-            );
-
-            return;
-          }
-
-          themeId =
-            newTheme.id;
-
-          setDesignThemeId(
-            newTheme.id,
-          );
-        }
-
-        /*
-         * Cast to any because the generated Supabase types pre-date the
-         * new editions.broadcast_config migration. The SQL migration is
-         * still the real database contract.
-         */
-        const {
-          error:
-            editionError,
-        } =
-          await (
-            supabase.from(
-              "editions",
-            ) as any
-          )
-            .update({
-              theme_id:
-                themeId,
-
-              broadcast_config:
-                broadcastDraft,
-            })
-            .eq(
-              "id",
-              designEdition.id,
-            );
-
-        if (
-          editionError
-        ) {
-          setError(
-            reportSupabaseError(
-              editionError,
-
-              "The theme saved, but the edition broadcast settings could not be saved.",
-            ),
-          );
-
-          return;
-        }
-
-        setMsg(
-          `${editionLabel(
-            designEdition,
-          )} design & broadcast saved for every show.`,
-        );
-
-        refresh();
-      } finally {
-        setDesignSaving(
-          false,
-        );
-      }
-    };
-
-  /* =========================================================
-     CREATE A PRIVATE COPY OF CURRENT THEME
-     ========================================================= */
-
-  const makeThemeCopy =
-    () => {
-      setDesignThemeId(
-        "",
-      );
-
-      setMsg(
-        "This design will be saved as a new edition theme the next time you press Save edition design.",
-      );
-    };
-
-  /* =========================================================
-     PAGE
-     ========================================================= */
-
   return (
     <AppShell>
       <PageHeader
         eyebrow="Organizer studio"
         title="Manage editions"
-        description="Create editions, manage their shows, and control one shared visual identity and broadcast system for every show in the edition."
+        description="Create editions, manage show data, and open each edition's dedicated Design & Broadcast page."
       />
-
-      {/* =====================================================
-          ORGANIZER WARNING
-         ===================================================== */}
 
       {isOrganizer ===
         false && (
@@ -1071,10 +557,6 @@ function AdminHome() {
           grant it.
         </div>
       )}
-
-      {/* =====================================================
-          STATS
-         ===================================================== */}
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:gap-4 lg:grid-cols-4">
         <StatTile
@@ -1117,10 +599,6 @@ function AdminHome() {
         />
       </div>
 
-      {/* =====================================================
-          MESSAGES
-         ===================================================== */}
-
       {error && (
         <div className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
@@ -1134,14 +612,10 @@ function AdminHome() {
           </div>
         )}
 
-      {/* =====================================================
-          EDITIONS + NEW EDITION
-         ===================================================== */}
-
       <div className="grid min-w-0 gap-4 lg:grid-cols-[1.4fr_1fr] lg:gap-6">
         <Panel
           title="Editions"
-          description="Manage show data separately, but keep design and broadcast identity edition-wide."
+          description="Show management and presentation design are separate pages, so each tool has enough room to actually exist."
         >
           <ul className="space-y-2">
             {(
@@ -1167,10 +641,6 @@ function AdminHome() {
                   editionStatusLabel(
                     edition,
                   );
-
-                const designOpen =
-                  designEditionId ===
-                  edition.id;
 
                 return (
                   <li
@@ -1240,25 +710,16 @@ function AdminHome() {
                           Manage shows
                         </Link>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setDesignEditionId(
-                              designOpen
-                                ? ""
-                                : edition.id,
-                            )
-                          }
-                          className={
-                            designOpen
-                              ? "bg-aurora min-h-10 rounded-lg px-3 text-sm font-semibold text-primary-foreground"
-                              : "min-h-10 rounded-lg border border-primary/40 bg-primary/10 px-3 text-sm font-semibold text-primary"
-                          }
+                        <Link
+                          to="/admin/design/$slug"
+                          params={{
+                            slug:
+                              edition.slug,
+                          }}
+                          className="flex min-h-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 px-3 text-center text-sm font-semibold text-primary"
                         >
-                          {designOpen
-                            ? "Design editor open"
-                            : "Design & broadcast"}
-                        </button>
+                          Design &amp; Broadcast
+                        </Link>
 
                         <button
                           type="button"
@@ -1331,8 +792,10 @@ function AdminHome() {
               },
             )}
 
-            {!(editions ?? [])
-              .length && (
+            {!(
+              editions ??
+              []
+            ).length && (
               <p className="text-sm text-muted-foreground">
                 No editions yet.
                 Create SSC 1.
@@ -1525,365 +988,6 @@ function AdminHome() {
           </form>
         </Panel>
       </div>
-
-      {/* =====================================================
-          ONE COMBINED EDITION DESIGN + BROADCAST PAGE
-         ===================================================== */}
-
-      {designEdition && (
-        <section className="mt-6 space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-                Edition-wide presentation
-              </p>
-
-              <h2 className="mt-1 font-display text-3xl font-bold">
-                {editionLabel(
-                  designEdition,
-                )}{" "}
-                Design &amp; Broadcast
-              </h2>
-
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                This is the single design page for the entire edition. Every scoreboard, running-order style and broadcast show inherits this identity automatically.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              disabled={
-                designSaving
-              }
-              onClick={
-                saveEditionDesign
-              }
-              className="bg-aurora min-h-11 rounded-xl px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {designSaving
-                ? "Saving edition design…"
-                : "Save edition design"}
-            </button>
-          </div>
-
-          {/* SHOW-AWARE LAYOUT EXPLANATION */}
-
-          <Panel
-            title="Automatic show layouts"
-            description="The style is shared, but column count adapts to each show's participant count."
-          >
-            {designShows.length ? (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {designShows.map(
-                  (
-                    show,
-                  ) => {
-                    const count =
-                      participantCountByShow.get(
-                        show.id,
-                      ) ??
-                      0;
-
-                    const columns =
-                      recommendedColumns(
-                        count,
-                        themeDraft,
-                      );
-
-                    return (
-                      <div
-                        key={
-                          show.id
-                        }
-                        className="rounded-xl border border-border/70 bg-surface/50 p-3"
-                      >
-                        <p className="text-sm font-semibold">
-                          {
-                            show.name
-                          }
-                        </p>
-
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {
-                            count
-                          }{" "}
-                          participant
-                          {count === 1
-                            ? ""
-                            : "s"}
-                        </p>
-
-                        <p className="mt-2 text-xs font-semibold text-primary">
-                          {columns}{" "}
-                          column
-                          {columns === 1
-                            ? ""
-                            : "s"}
-                          {" "}
-                          automatically
-                        </p>
-                      </div>
-                    );
-                  },
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Create shows first. They will inherit this edition design automatically.
-              </p>
-            )}
-          </Panel>
-
-          {/* THEME LIBRARY */}
-
-          <Panel
-            title="Edition visual identity"
-            description="Background, palette, typography, country cards, flags and shared scoreboard styling."
-          >
-            <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-              <Field
-                label="Theme from library"
-                hint="Choose a saved design or create a private edition theme."
-              >
-                <Select
-                  value={
-                    designThemeId
-                  }
-                  onChange={(
-                    event,
-                  ) =>
-                    selectThemeFromLibrary(
-                      event.target.value,
-                    )
-                  }
-                >
-                  <option
-                    value=""
-                    className="bg-background"
-                  >
-                    New private edition theme
-                  </option>
-
-                  {(
-                    themes ??
-                    []
-                  ).map(
-                    (
-                      theme,
-                    ) => (
-                      <option
-                        key={
-                          theme.id
-                        }
-                        value={
-                          theme.id
-                        }
-                        className="bg-background"
-                      >
-                        {
-                          theme.name
-                        }
-                      </option>
-                    ),
-                  )}
-                </Select>
-              </Field>
-
-              <button
-                type="button"
-                onClick={
-                  makeThemeCopy
-                }
-                className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm"
-              >
-                Save edits as new theme
-              </button>
-            </div>
-
-            <ThemeEditor
-              theme={
-                themeDraft
-              }
-              onChange={
-                setThemeDraft
-              }
-            />
-          </Panel>
-
-          {/* SAME PAGE, BROADCAST DIRECTLY BELOW THEME */}
-
-          <Panel
-            title="Edition broadcast"
-            description="Scenes, titles, timings, animations, winner effects and spokesperson presentation shared by the whole edition."
-          >
-            <BroadcastEditor
-              config={
-                broadcastDraft
-              }
-              onChange={
-                setBroadcastDraft
-              }
-            />
-          </Panel>
-
-          {/* VISUAL BACKDROP PREVIEW */}
-
-          <Panel
-            title="Edition identity preview"
-            description="Backdrop and typography preview. Actual scoreboard columns still adapt per show."
-          >
-            <div
-              className="relative min-h-[280px] overflow-hidden rounded-2xl border border-white/10 p-6 sm:p-8"
-              style={
-                backgroundStyle(
-                  themeDraft,
-                )
-              }
-            >
-              <div className="relative z-10 flex min-h-[220px] flex-col justify-between">
-                <div>
-                  <p
-                    className="text-xs font-bold uppercase tracking-[0.2em]"
-                    style={{
-                      color:
-                        themeDraft.colors.accent,
-                    }}
-                  >
-                    Solaris Song Contest
-                  </p>
-
-                  <h3
-                    className="mt-2 text-4xl font-black"
-                    style={{
-                      color:
-                        themeDraft.colors.text,
-
-                      fontFamily:
-                        themeDraft.fontDisplay,
-                    }}
-                  >
-                    {editionLabel(
-                      designEdition,
-                    )}
-                  </h3>
-
-                  <p
-                    className="mt-2 text-sm"
-                    style={{
-                      color:
-                        themeDraft.text.artistSong,
-
-                      fontFamily:
-                        themeDraft.fontBody,
-                    }}
-                  >
-                    Shared visual identity across every show
-                  </p>
-                </div>
-
-                <div className="grid max-w-xl gap-2 sm:grid-cols-2">
-                  {[
-                    "Country One",
-                    "Country Two",
-                    "Country Three",
-                    "Country Four",
-                  ].map(
-                    (
-                      name,
-                      index,
-                    ) => (
-                      <div
-                        key={
-                          name
-                        }
-                        className="flex items-center gap-3 px-3"
-                        style={{
-                          minHeight:
-                            themeDraft.card.height,
-
-                          borderRadius:
-                            themeDraft.card.radius,
-
-                          background:
-                            themeDraft.card.backgroundColor,
-
-                          border:
-                            `${themeDraft.card.borderWidth}px solid ${themeDraft.card.borderColor}`,
-
-                          opacity:
-                            Math.max(
-                              0.35,
-                              themeDraft.card.opacity,
-                            ),
-                        }}
-                      >
-                        <span
-                          className="numeric w-6 text-center text-xs font-bold"
-                          style={{
-                            color:
-                              themeDraft.text.rank,
-                          }}
-                        >
-                          {
-                            index +
-                            1
-                          }
-                        </span>
-
-                        <span
-                          className="flex-1 text-sm font-semibold"
-                          style={{
-                            color:
-                              themeDraft.text.countryName,
-
-                            fontFamily:
-                              themeDraft.fontDisplay,
-                          }}
-                        >
-                          {
-                            name
-                          }
-                        </span>
-
-                        <span
-                          className="numeric text-sm font-bold"
-                          style={{
-                            color:
-                              themeDraft.text.countryScore,
-                          }}
-                        >
-                          {
-                            100 -
-                            index *
-                              7
-                          }
-                        </span>
-                      </div>
-                    ),
-                  )}
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              disabled={
-                designSaving
-              }
-              onClick={
-                saveEditionDesign
-              }
-              className="bg-aurora min-h-11 rounded-xl px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-            >
-              {designSaving
-                ? "Saving edition design…"
-                : "Save edition design"}
-            </button>
-          </div>
-        </section>
-      )}
     </AppShell>
   );
 }
