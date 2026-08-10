@@ -22,136 +22,64 @@ import type {
 
 export type Country = {
   id: string;
-
   name: string;
-
-  native_name:
-    | string
-    | null;
-
+  native_name: string | null;
   short_code: string;
-
-  flag_image:
-    | string
-    | null;
-
+  flag_image: string | null;
   region: string;
-
   accent_color: string;
-
-  description:
-    | string
-    | null;
-
-  first_participation:
-    | number
-    | null;
+  description: string | null;
+  first_participation: number | null;
 };
 
 export type Theme = {
   id: string;
-
   name: string;
-
-  description:
-    | string
-    | null;
-
-  config:
-    Record<
-      string,
-      unknown
-    >;
-
+  description: string | null;
+  config: Record<string, unknown>;
   is_public: boolean;
 };
 
 export type Edition = {
   id: string;
-
-  edition_number:
-    | number
-    | null;
-
+  edition_number: number | null;
   name: string;
-
-  year:
-    | number
-    | null;
-
+  year: number | null;
   slug: string;
-
-  description:
-    | string
-    | null;
-
-  host_country_id:
-    | string
-    | null;
-
-  host_city:
-    | string
-    | null;
-
-  logo:
-    | string
-    | null;
-
-  theme_id:
-    | string
-    | null;
-
+  description: string | null;
+  host_country_id: string | null;
+  host_city: string | null;
+  logo: string | null;
+  theme_id: string | null;
   status: string;
-
   published: boolean;
 };
 
 export type Show = {
   id: string;
-
   edition_id: string;
-
   name: string;
-
   kind: string;
-
   sort_order: number;
 
   /**
    * Whether the public show route exists.
-   *
-   * This no longer means every piece of information is public.
-   * publication_config controls the individual information layers.
+   * publication_config controls the individual public layers.
    */
   published: boolean;
 
   status: string;
-
-  qualifier_count:
-    | number
-    | null;
-
-  theme_id:
-    | string
-    | null;
+  qualifier_count: number | null;
+  theme_id: string | null;
 
   voting_config:
-    | Record<
-        string,
-        unknown
-      >
+    | Record<string, unknown>
     | null;
 
   broadcast_config:
-    | Record<
-        string,
-        unknown
-      >
+    | Record<string, unknown>
     | null;
 
-  /**
-   * Controls which parts of a show the public can see.
-   */
   publication_config:
     | PublicationConfig
     | null;
@@ -168,25 +96,16 @@ export const SHOW_KINDS = [
    PARTICIPANTS
    ============================================================ */
 
-/**
- * Identity note:
- *
- * country_id / receiving_country_id contain the canonical
- * contest identity after fetching.
- *
- * Global nations use their country id.
- * Edition-only custom nations use their contest entity id.
- */
-
 export type Participant = {
   id: string;
-
   edition_id: string;
+  show_id: string | null;
 
-  show_id:
-    | string
-    | null;
-
+  /**
+   * Canonical contest identity.
+   * Global nations use country ID.
+   * Custom edition entities use contest entity ID after fetching.
+   */
   country_id: string;
 
   contest_entity_id:
@@ -222,18 +141,9 @@ export type Participant = {
 
 export type JuryVote = {
   id: string;
-
   edition_id: string;
+  show_id: string | null;
 
-  show_id:
-    | string
-    | null;
-
-  /**
-   * Legacy/global country voter.
-   *
-   * Empty string is possible for custom juries.
-   */
   voter_country_id: string;
 
   voter_id?:
@@ -244,8 +154,7 @@ export type JuryVote = {
     | string
     | null;
 
-  receiving_country_id:
-    string;
+  receiving_country_id: string;
 
   receiving_entity_id?:
     | string
@@ -271,23 +180,15 @@ export type VoterKind =
 
 export type Voter = {
   id: string;
-
   edition_id: string;
-
-  show_id:
-    | string
-    | null;
-
-  country_id:
-    | string
-    | null;
+  show_id: string | null;
+  country_id: string | null;
 
   contest_entity_id?:
     | string
     | null;
 
   name: string;
-
   kind: VoterKind;
 
   flag_image:
@@ -295,9 +196,7 @@ export type Voter = {
     | null;
 
   accent_color: string;
-
   sort_order: number;
-
   created_at: string;
 };
 
@@ -492,13 +391,8 @@ export function resolveShowVoters(
 
 export type Televote = {
   id: string;
-
   edition_id: string;
-
-  show_id:
-    | string
-    | null;
-
+  show_id: string | null;
   country_id: string;
 
   contest_entity_id?:
@@ -514,13 +408,8 @@ export type Televote = {
 
 export type ResultRow = {
   id: string;
-
   edition_id: string;
-
-  show_id:
-    | string
-    | null;
-
+  show_id: string | null;
   country_id: string;
 
   contest_entity_id?:
@@ -528,9 +417,7 @@ export type ResultRow = {
     | null;
 
   jury_points: number;
-
   televote_points: number;
-
   total_points: number;
 
   final_rank:
@@ -546,9 +433,7 @@ function canonicalise(
   table: string,
   row: any,
 ) {
-  if (
-    !row
-  ) {
+  if (!row) {
     return row;
   }
 
@@ -589,12 +474,12 @@ function canonicalise(
 
 async function all<T>(
   table: string,
+
   apply?: (
     query: any,
   ) => any,
 ): Promise<T[]> {
-  let query:
-    any =
+  let query: any =
     (
       supabase as any
     )
@@ -605,9 +490,7 @@ async function all<T>(
         "*",
       );
 
-  if (
-    apply
-  ) {
+  if (apply) {
     query =
       apply(
         query,
@@ -620,9 +503,7 @@ async function all<T>(
   } =
     await query;
 
-  if (
-    error
-  ) {
+  if (error) {
     throw error;
   }
 
@@ -632,9 +513,7 @@ async function all<T>(
       []
     ) as any[]
   ).map(
-    (
-      row,
-    ) =>
+    (row) =>
       canonicalise(
         table,
         row,
@@ -648,19 +527,16 @@ async function all<T>(
 
 export function useCountries() {
   return useQuery({
-    queryKey:
-      [
-        "countries",
-      ],
+    queryKey: [
+      "countries",
+    ],
 
     queryFn:
       () =>
         all<Country>(
           "countries",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query.order(
               "name",
             ),
@@ -679,19 +555,16 @@ export function useCountries() {
 
 export function useThemes() {
   return useQuery({
-    queryKey:
-      [
-        "themes",
-      ],
+    queryKey: [
+      "themes",
+    ],
 
     queryFn:
       () =>
         all<Theme>(
           "themes",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query.order(
               "name",
             ),
@@ -705,19 +578,16 @@ export function useThemes() {
 
 export function useEditions() {
   return useQuery({
-    queryKey:
-      [
-        "editions",
-      ],
+    queryKey: [
+      "editions",
+    ],
 
     queryFn:
       () =>
         all<Edition>(
           "editions",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query.order(
               "edition_number",
               {
@@ -736,11 +606,10 @@ export function useEdition(
   slug: string,
 ) {
   return useQuery({
-    queryKey:
-      [
-        "edition",
-        slug,
-      ],
+    queryKey: [
+      "edition",
+      slug,
+    ],
 
     queryFn:
       async () => {
@@ -761,16 +630,13 @@ export function useEdition(
             )
             .maybeSingle();
 
-        if (
-          error
-        ) {
+        if (error) {
           throw error;
         }
 
         return (
           data as Edition
-        ) ??
-          null;
+        ) ?? null;
       },
   });
 }
@@ -787,20 +653,17 @@ export function useShows(
     enabled:
       !!editionId,
 
-    queryKey:
-      [
-        "shows",
-        editionId,
-      ],
+    queryKey: [
+      "shows",
+      editionId,
+    ],
 
     queryFn:
       () =>
         all<Show>(
           "shows",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query
               .eq(
                 "edition_id",
@@ -815,11 +678,10 @@ export function useShows(
 
 export function useAllShows() {
   return useQuery({
-    queryKey:
-      [
-        "shows",
-        "all",
-      ],
+    queryKey: [
+      "shows",
+      "all",
+    ],
 
     queryFn:
       () =>
@@ -837,11 +699,10 @@ export function useShow(
     enabled:
       !!showId,
 
-    queryKey:
-      [
-        "show",
-        showId,
-      ],
+    queryKey: [
+      "show",
+      showId,
+    ],
 
     queryFn:
       async () => {
@@ -862,16 +723,13 @@ export function useShow(
             )
             .maybeSingle();
 
-        if (
-          error
-        ) {
+        if (error) {
           throw error;
         }
 
         return (
           data as Show
-        ) ??
-          null;
+        ) ?? null;
       },
   });
 }
@@ -888,20 +746,17 @@ export function useParticipants(
     enabled:
       !!editionId,
 
-    queryKey:
-      [
-        "participants",
-        editionId,
-      ],
+    queryKey: [
+      "participants",
+      editionId,
+    ],
 
     queryFn:
       () =>
         all<Participant>(
           "participants",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query
               .eq(
                 "edition_id",
@@ -926,21 +781,18 @@ export function useShowParticipants(
     enabled:
       !!showId,
 
-    queryKey:
-      [
-        "participants",
-        "show",
-        showId,
-      ],
+    queryKey: [
+      "participants",
+      "show",
+      showId,
+    ],
 
     queryFn:
       () =>
         all<Participant>(
           "participants",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query
               .eq(
                 "show_id",
@@ -957,6 +809,25 @@ export function useShowParticipants(
   });
 }
 
+export function useAllParticipants() {
+  return useQuery({
+    queryKey: [
+      "participants",
+      "all",
+    ],
+
+    queryFn:
+      () =>
+        all<Participant>(
+          "participants",
+        ),
+
+    staleTime:
+      60 *
+      1000,
+  });
+}
+
 /* ============================================================
    CONTEST ENTITIES
    ============================================================ */
@@ -969,21 +840,18 @@ export function useContestEntities(
     enabled:
       !!editionId,
 
-    queryKey:
-      [
-        "contest_entities",
-        "edition",
-        editionId,
-      ],
+    queryKey: [
+      "contest_entities",
+      "edition",
+      editionId,
+    ],
 
     queryFn:
       () =>
         all<ContestEntityRow>(
           "contest_entities",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query
               .eq(
                 "edition_id",
@@ -998,11 +866,10 @@ export function useContestEntities(
 
 export function useAllContestEntities() {
   return useQuery({
-    queryKey:
-      [
-        "contest_entities",
-        "all",
-      ],
+    queryKey: [
+      "contest_entities",
+      "all",
+    ],
 
     queryFn:
       () =>
@@ -1028,21 +895,18 @@ export function useVoters(
     enabled:
       !!editionId,
 
-    queryKey:
-      [
-        "voters",
-        "edition",
-        editionId,
-      ],
+    queryKey: [
+      "voters",
+      "edition",
+      editionId,
+    ],
 
     queryFn:
       () =>
         all<Voter>(
           "voters",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query
               .eq(
                 "edition_id",
@@ -1063,21 +927,18 @@ export function useShowVoters(
     enabled:
       !!showId,
 
-    queryKey:
-      [
-        "voters",
-        "show",
-        showId,
-      ],
+    queryKey: [
+      "voters",
+      "show",
+      showId,
+    ],
 
     queryFn:
       () =>
         all<Voter>(
           "voters",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query
               .eq(
                 "show_id",
@@ -1092,11 +953,10 @@ export function useShowVoters(
 
 export function useAllVoters() {
   return useQuery({
-    queryKey:
-      [
-        "voters",
-        "all",
-      ],
+    queryKey: [
+      "voters",
+      "all",
+    ],
 
     queryFn:
       () =>
@@ -1133,16 +993,12 @@ export function matchVoterKey(
   ) {
     const direct =
       options.find(
-        (
-          option,
-        ) =>
+        (option) =>
           option.voterId ===
           vote.voter_id,
       );
 
-    if (
-      direct
-    ) {
+    if (direct) {
       return direct.key;
     }
   }
@@ -1152,16 +1008,12 @@ export function matchVoterKey(
   ) {
     const byEntity =
       options.find(
-        (
-          option,
-        ) =>
+        (option) =>
           option.countryId ===
           vote.voter_entity_id,
       );
 
-    if (
-      byEntity
-    ) {
+    if (byEntity) {
       return byEntity.key;
     }
   }
@@ -1171,16 +1023,12 @@ export function matchVoterKey(
   ) {
     const byCountry =
       options.find(
-        (
-          option,
-        ) =>
+        (option) =>
           option.countryId ===
           vote.voter_country_id,
       );
 
-    if (
-      byCountry
-    ) {
+    if (byCountry) {
       return byCountry.key;
     }
 
@@ -1210,21 +1058,18 @@ export function useJuryVotes(
     enabled:
       !!showId,
 
-    queryKey:
-      [
-        "jury_votes",
-        "show",
-        showId,
-      ],
+    queryKey: [
+      "jury_votes",
+      "show",
+      showId,
+    ],
 
     queryFn:
       () =>
         all<JuryVote>(
           "jury_votes",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query.eq(
               "show_id",
               showId,
@@ -1235,11 +1080,10 @@ export function useJuryVotes(
 
 export function useAllJuryVotes() {
   return useQuery({
-    queryKey:
-      [
-        "jury_votes",
-        "all",
-      ],
+    queryKey: [
+      "jury_votes",
+      "all",
+    ],
 
     queryFn:
       () =>
@@ -1261,21 +1105,18 @@ export function useTelevotes(
     enabled:
       !!showId,
 
-    queryKey:
-      [
-        "televote_votes",
-        "show",
-        showId,
-      ],
+    queryKey: [
+      "televote_votes",
+      "show",
+      showId,
+    ],
 
     queryFn:
       () =>
         all<Televote>(
           "televote_votes",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query.eq(
               "show_id",
               showId,
@@ -1286,11 +1127,10 @@ export function useTelevotes(
 
 export function useAllTelevotes() {
   return useQuery({
-    queryKey:
-      [
-        "televote_votes",
-        "all",
-      ],
+    queryKey: [
+      "televote_votes",
+      "all",
+    ],
 
     queryFn:
       () =>
@@ -1301,32 +1141,9 @@ export function useAllTelevotes() {
 }
 
 /* ============================================================
-   ALL PARTICIPANTS
+   RESULTS
    ============================================================ */
 
-export function useAllParticipants() {
-  return useQuery({
-    queryKey:
-      [
-        "participants",
-        "all",
-      ],
-
-    queryFn:
-      () =>
-        all<Participant>(
-          "participants",
-        ),
-
-    staleTime:
-      60 *
-      1000,
-  });
-}
-
-/* ============================================================
-   RESULTS
-   ============================================================
 export function useResults(
   showId?:
     string,
@@ -1335,21 +1152,18 @@ export function useResults(
     enabled:
       !!showId,
 
-    queryKey:
-      [
-        "results",
-        "show",
-        showId,
-      ],
+    queryKey: [
+      "results",
+      "show",
+      showId,
+    ],
 
     queryFn:
       () =>
         all<ResultRow>(
           "results",
 
-          (
-            query,
-          ) =>
+          (query) =>
             query.eq(
               "show_id",
               showId,
@@ -1360,11 +1174,10 @@ export function useResults(
 
 export function useAllResults() {
   return useQuery({
-    queryKey:
-      [
-        "results",
-        "all",
-      ],
+    queryKey: [
+      "results",
+      "all",
+    ],
 
     queryFn:
       () =>
@@ -1380,10 +1193,9 @@ export function useAllResults() {
 
 export function useIsOrganizer() {
   return useQuery({
-    queryKey:
-      [
-        "is-organizer",
-      ],
+    queryKey: [
+      "is-organizer",
+    ],
 
     queryFn:
       async () => {
@@ -1420,9 +1232,7 @@ export function useIsOrganizer() {
             )
             .maybeSingle();
 
-        if (
-          error
-        ) {
+        if (error) {
           return false;
         }
 
@@ -1444,14 +1254,11 @@ export function useInvalidate() {
       string[]
   ) =>
     keys.forEach(
-      (
-        key,
-      ) =>
+      (key) =>
         qc.invalidateQueries({
-          queryKey:
-            [
-              key,
-            ],
+          queryKey: [
+            key,
+          ],
         }),
     );
 }
@@ -1462,6 +1269,7 @@ export function useInvalidate() {
 
 export function useTableMutation(
   table: string,
+
   invalidateKeys:
     string[],
 ) {
@@ -1478,11 +1286,9 @@ export function useTableMutation(
             | "delete"
             | "upsert";
 
-          values?:
-            any;
+          values?: any;
 
-          id?:
-            string;
+          id?: string;
 
           match?:
             Record<
@@ -1494,16 +1300,14 @@ export function useTableMutation(
             string;
         },
       ) => {
-        const target:
-          any =
+        const target: any =
           (
             supabase as any
           ).from(
             table,
           );
 
-        let response:
-          any;
+        let response: any;
 
         if (
           op.action ===
@@ -1541,9 +1345,7 @@ export function useTableMutation(
               op.values,
             );
 
-          if (
-            op.id
-          ) {
+          if (op.id) {
             query =
               query.eq(
                 "id",
@@ -1573,9 +1375,7 @@ export function useTableMutation(
           let query =
             target.delete();
 
-          if (
-            op.id
-          ) {
+          if (op.id) {
             query =
               query.eq(
                 "id",
@@ -1643,9 +1443,7 @@ export function byId<
     rows ??
     []
   ).forEach(
-    (
-      row,
-    ) =>
+    (row) =>
       map.set(
         row.id,
         row,
