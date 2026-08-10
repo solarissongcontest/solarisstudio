@@ -14,6 +14,10 @@ import {
 } from "@/components/AppShell";
 
 import {
+  BackgroundFlag,
+} from "@/components/BackgroundFlag";
+
+import {
   FlagChip,
 } from "@/components/FlagChip";
 
@@ -520,17 +524,17 @@ function EditionPage() {
            =================================================== */}
 
         <section className="relative min-h-[420px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[480px]">
-          {winner?.flag_image && (
-            <div className="absolute -right-[18%] top-1/2 aspect-square w-[95%] -translate-y-1/2 overflow-hidden rounded-full opacity-[0.22] sm:w-[62%]">
-              <img
-                src={
-                  winner.flag_image
-                }
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            </div>
-          )}
+          <BackgroundFlag
+            image={winner?.flag_image}
+            className="
+              -right-[18%]
+              top-1/2
+              w-[95%]
+              -translate-y-1/2
+              sm:w-[62%]
+            "
+            opacity={0.26}
+          />
 
           <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/96 via-[#041429]/84 to-[#041429]/30" />
 
