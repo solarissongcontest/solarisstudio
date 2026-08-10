@@ -4,10 +4,6 @@ import {
 } from "@tanstack/react-router";
 
 import {
-  useMemo,
-} from "react";
-
-import {
   AppShell,
   Panel,
   StatTile,
@@ -37,13 +33,9 @@ import {
 } from "@/lib/entities";
 
 import {
-  hasAnyPublicInformation,
-  resolvePublicationConfig,
+  isShowPublic,
+  resolveShowPublication,
 } from "@/lib/publication";
-
-/* ============================================================
-   ROUTE
-   ============================================================ */
 
 export const Route =
   createFileRoute(
@@ -65,10 +57,6 @@ export const Route =
       EditionPage,
   });
 
-/* ============================================================
-   PAGE
-   ============================================================ */
-
 function EditionPage() {
   const {
     slug,
@@ -78,7 +66,6 @@ function EditionPage() {
   const {
     data:
       edition,
-
     isLoading,
   } =
     useEdition(
@@ -121,13 +108,7 @@ function EditionPage() {
   } =
     useAllResults();
 
-  /* =========================================================
-     LOADING
-     ========================================================= */
-
-  if (
-    isLoading
-  ) {
+  if (isLoading) {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">
@@ -137,13 +118,7 @@ function EditionPage() {
     );
   }
 
-  /* =========================================================
-     NOT FOUND
-     ========================================================= */
-
-  if (
-    !edition
-  ) {
+  if (!edition) {
     return (
       <AppShell>
         <div className="glass p-6">
@@ -161,10 +136,6 @@ function EditionPage() {
       </AppShell>
     );
   }
-
-  /* =========================================================
-     PRIVATE EDITION
-     ========================================================= */
 
   if (
     !edition.published
@@ -199,10 +170,6 @@ function EditionPage() {
     );
   }
 
-  /* =========================================================
-     BASE DATA
-     ========================================================= */
-
   const showList =
     shows ?? [];
 
@@ -228,28 +195,15 @@ function EditionPage() {
         edition.id,
     );
 
-  /* =========================================================
-     PUBLIC SHOWS ONLY
-     ========================================================= */
-
   const publicShows =
     showList
       .filter(
         (
           show,
-        ) => {
-          const publication =
-            resolvePublicationConfig(
-              show.publication_config,
-            );
-
-          return (
-            show.published &&
-            hasAnyPublicInformation(
-              publication,
-            )
-          );
-        },
+        ) =>
+          isShowPublic(
+            show,
+          ),
       )
       .sort(
         (
@@ -259,23 +213,6 @@ function EditionPage() {
           a.sort_order -
           b.sort_order,
       );
-
-  const publicShowIds =
-    new Set(
-      publicShows.map(
-        (
-          show,
-        ) =>
-          show.id,
-      ),
-    );
-
-  /* =========================================================
-     PARTICIPATING COUNTRIES
-
-     Only include participants from shows where participant
-     identities themselves have been published.
-     ========================================================= */
 
   const publishedParticipantRows =
     participantList.filter(
@@ -297,18 +234,15 @@ function EditionPage() {
               participant.show_id,
           );
 
-        if (
-          !show
-        ) {
+        if (!show) {
           return false;
         }
 
-        const publication =
-          resolvePublicationConfig(
-            show.publication_config,
-          );
-
-        return publication.participants;
+        return (
+          resolveShowPublication(
+            show,
+          ).participants
+        );
       },
     );
 
@@ -341,32 +275,24 @@ function EditionPage() {
           !!country,
       );
 
-  /* =========================================================
-     GRAND FINAL
-     ========================================================= */
-
   const grandFinal =
     publicShows.find(
       (
         show,
       ) =>
         show.kind ===
-        "grand-final",
+        "grand-final" ||
+        show.kind ===
+        "final",
     ) ??
     null;
 
   const grandFinalPublication =
     grandFinal
-      ? resolvePublicationConfig(
-          grandFinal.publication_config,
+      ? resolveShowPublication(
+          grandFinal,
         )
       : null;
-
-  /* =========================================================
-     FINAL RESULTS
-
-     Only available if overall results have been published.
-     ========================================================= */
 
   const finalResults =
     grandFinal &&
@@ -397,10 +323,6 @@ function EditionPage() {
           )
       : [];
 
-  /* =========================================================
-     WINNER
-     ========================================================= */
-
   const winnerResult =
     finalResults.find(
       (
@@ -419,10 +341,6 @@ function EditionPage() {
         ) ??
         null
       : null;
-
-  /* =========================================================
-     JURY WINNER
-     ========================================================= */
 
   const juryWinnerResult =
     grandFinalPublication?.jury_results &&
@@ -447,10 +365,6 @@ function EditionPage() {
         null
       : null;
 
-  /* =========================================================
-     TELEVOTE WINNER
-     ========================================================= */
-
   const teleWinnerResult =
     grandFinalPublication?.televote_results &&
     finalResults.length
@@ -474,24 +388,16 @@ function EditionPage() {
         null
       : null;
 
-  /* =========================================================
-     SEMI FINALS
-     ========================================================= */
-
   const semiFinals =
     publicShows.filter(
       (
         show,
       ) =>
         show.kind ===
-        "semi-final",
+        "semi-final" ||
+        show.kind ===
+        "semi",
     );
-
-  /* =========================================================
-     FINALIST COUNT
-
-     Only expose it if Grand Final participants are public.
-     ========================================================= */
 
   const finalistCount =
     grandFinal &&
@@ -505,10 +411,6 @@ function EditionPage() {
         ).length
       : null;
 
-  /* =========================================================
-     PAGE
-     ========================================================= */
-
   return (
     <AppShell>
       <div className="space-y-7">
@@ -519,20 +421,12 @@ function EditionPage() {
           ← Editions
         </Link>
 
-        {/* ===================================================
-            HERO
-           =================================================== */}
-
         <section className="relative min-h-[420px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[480px]">
           <BackgroundFlag
-            image={winner?.flag_image}
-            className="
-              -right-[18%]
-              top-1/2
-              w-[95%]
-              -translate-y-1/2
-              sm:w-[62%]
-            "
+            image={
+              winner?.flag_image
+            }
+            className="-right-[18%] top-1/2 w-[95%] -translate-y-1/2 sm:w-[62%]"
             opacity={0.26}
           />
 
@@ -618,10 +512,6 @@ function EditionPage() {
           </div>
         </section>
 
-        {/* ===================================================
-            STATS
-           =================================================== */}
-
         <Panel>
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
             <StatTile
@@ -660,9 +550,14 @@ function EditionPage() {
           </div>
         </Panel>
 
-        {/* ===================================================
-            FINAL RESULTS
-           =================================================== */}
+        {grandFinalPublication?.results &&
+          !finalResults.length && (
+            <Panel>
+              <p className="text-sm text-muted-foreground">
+                Grand Final results are marked public, but no archived ranked results exist yet.
+              </p>
+            </Panel>
+          )}
 
         {grandFinalPublication?.results &&
           finalResults.length >
@@ -752,42 +647,41 @@ function EditionPage() {
                           return null;
                         }
 
-                        const content =
-                          (
-                            <>
-                              <span className="numeric text-xs text-muted-foreground">
-                                #
-                                {result.final_rank ??
-                                  index +
-                                    1}
-                              </span>
+                        const content = (
+                          <>
+                            <span className="numeric text-xs text-muted-foreground">
+                              #
+                              {result.final_rank ??
+                                index +
+                                  1}
+                            </span>
 
-                              <FlagChip
-                                code={
-                                  country.short_code
-                                }
-                                color={
-                                  country.accent_color
-                                }
-                                image={
-                                  country.flag_image
-                                }
-                                size="sm"
-                              />
+                            <FlagChip
+                              code={
+                                country.short_code
+                              }
+                              color={
+                                country.accent_color
+                              }
+                              image={
+                                country.flag_image
+                              }
+                              size="sm"
+                            />
 
-                              <span className="truncate text-sm font-semibold">
-                                {
-                                  country.name
-                                }
-                              </span>
+                            <span className="truncate text-sm font-semibold">
+                              {
+                                country.name
+                              }
+                            </span>
 
-                              <span className="numeric text-sm font-semibold">
-                                {
-                                  result.total_points
-                                }
-                              </span>
-                            </>
-                          );
+                            <span className="numeric text-sm font-semibold">
+                              {
+                                result.total_points
+                              }
+                            </span>
+                          </>
+                        );
 
                         if (
                           country.entityType ===
@@ -832,10 +726,6 @@ function EditionPage() {
             </section>
           )}
 
-        {/* ===================================================
-            VOTING HIGHLIGHTS
-           =================================================== */}
-
         {(juryWinner ||
           teleWinner) && (
           <section>
@@ -875,10 +765,6 @@ function EditionPage() {
           </section>
         )}
 
-        {/* ===================================================
-            SHOWS
-           =================================================== */}
-
         {!!publicShows.length && (
           <section>
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
@@ -897,8 +783,8 @@ function EditionPage() {
                   show,
                 ) => {
                   const publication =
-                    resolvePublicationConfig(
-                      show.publication_config,
+                    resolveShowPublication(
+                      show,
                     );
 
                   const line =
@@ -909,6 +795,19 @@ function EditionPage() {
                           ) =>
                             participant.show_id ===
                             show.id,
+                        )
+                      : [];
+
+                  const showResults =
+                    publication.results
+                      ? resultList.filter(
+                          (
+                            result,
+                          ) =>
+                            result.show_id ===
+                              show.id &&
+                            result.final_rank !=
+                              null,
                         )
                       : [];
 
@@ -939,16 +838,19 @@ function EditionPage() {
                             }
                           </h3>
 
-                          {publication.participants && (
+                          {publication.results &&
+                          showResults.length ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Results available
+                            </p>
+                          ) : publication.participants ? (
                             <p className="mt-1 text-xs text-muted-foreground">
                               {
                                 line.length
                               }{" "}
                               entries
                             </p>
-                          )}
-
-                          {!publication.participants && (
+                          ) : (
                             <p className="mt-1 text-xs text-muted-foreground">
                               Information published
                             </p>
@@ -1006,10 +908,6 @@ function EditionPage() {
           </section>
         )}
 
-        {/* ===================================================
-            PARTICIPATING COUNTRIES
-           =================================================== */}
-
         {!!participatingCountries.length && (
           <section>
             <div className="flex items-end justify-between">
@@ -1029,37 +927,36 @@ function EditionPage() {
                 (
                   country,
                 ) => {
-                  const card =
-                    (
-                      <div className="glass flex items-center gap-3 p-3">
-                        <FlagChip
-                          code={
+                  const card = (
+                    <div className="glass flex items-center gap-3 p-3">
+                      <FlagChip
+                        code={
+                          country.short_code
+                        }
+                        color={
+                          country.accent_color
+                        }
+                        image={
+                          country.flag_image
+                        }
+                        size="md"
+                      />
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {
+                            country.name
+                          }
+                        </p>
+
+                        <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                          {
                             country.short_code
                           }
-                          color={
-                            country.accent_color
-                          }
-                          image={
-                            country.flag_image
-                          }
-                          size="md"
-                        />
-
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">
-                            {
-                              country.name
-                            }
-                          </p>
-
-                          <p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                            {
-                              country.short_code
-                            }
-                          </p>
-                        </div>
+                        </p>
                       </div>
-                    );
+                    </div>
+                  );
 
                   if (
                     country.entityType ===
@@ -1101,14 +998,10 @@ function EditionPage() {
           </section>
         )}
 
-        {/* ===================================================
-            EMPTY PUBLIC EDITION
-           =================================================== */}
-
         {!publicShows.length && (
           <Panel>
             <p className="text-sm text-muted-foreground">
-              This edition is public, but no individual shows have been released yet.
+              This edition is public, but no individual show currently has public information. Open the edition in Studio and save its Publication settings.
             </p>
           </Panel>
         )}
@@ -1117,10 +1010,6 @@ function EditionPage() {
   );
 }
 
-/* ============================================================
-   VOTING WINNER
-   ============================================================ */
-
 function VotingWinner({
   label,
   country,
@@ -1128,10 +1017,8 @@ function VotingWinner({
 }: {
   label:
     string;
-
   country:
     EntityDisplay;
-
   points:
     number;
 }) {
