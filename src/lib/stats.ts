@@ -1,1646 +1,2601 @@
-/**
- * Advanced statistics & analytics engine.
- *
- * Solaris chronology is based on EDITION NUMBER.
- * Calendar years must never be used to order contest history.
- */
+import {
+  createFileRoute,
+  Link,
+} from "@tanstack/react-router";
 
-import type {
-  Country,
-  Edition,
-  JuryVote,
-  Participant,
-  ResultRow,
-  Show,
-  Televote,
-} from "./data";
+import {
+  useMemo,
+  useState,
+} from "react";
 
-import { isTopScore, makeTopScoreResolver } from "./voting";
+import {
+  AppShell,
+  PageHeader,
+  Panel,
+  StatTile,
+} from "@/components/AppShell";
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
+import {
+  FlagChip,
+} from "@/components/FlagChip";
 
-export type EditionMeta = {
-  id: string;
-  editionNumber: number | null;
-  label: string;
-};
+import {
+  ResponsiveTabs,
+} from "@/components/ResponsiveTabs";
 
-export function toEditionMeta(editions: Edition[]): Map<string, EditionMeta> {
-  const map = new Map<string, EditionMeta>();
+import {
+  ChordDiagram,
+} from "@/components/viz/ChordDiagram";
 
-  for (const edition of editions) {
-    map.set(edition.id, {
-      id: edition.id,
-      editionNumber: edition.edition_number,
-      label:
-        edition.edition_number != null
-          ? `SSC ${edition.edition_number}`
-          : edition.name,
-    });
-  }
+import {
+  DEFAULT_ANALYSIS_FILTERS,
+  Filters,
+  type AnalysisFiltersState,
+} from "@/components/viz/Filters";
 
-  return map;
-}
+import {
+  HistoricalLeaderboard,
+} from "@/components/viz/HistoricalLeaderboard";
 
-function editionOrder(meta: EditionMeta | undefined): number {
-  return meta?.editionNumber ?? Number.MAX_SAFE_INTEGER;
-}
+import {
+  JuryVsTelevote,
+} from "@/components/viz/JuryVsTelevote";
 
-const avg = (values: number[]): number | null =>
-  values.length
-    ? values.reduce((sum, value) => sum + value, 0) / values.length
-    : null;
+import {
+  NetworkGraph,
+} from "@/components/viz/NetworkGraph";
 
-const finiteRanks = (rows: ResultRow[]): number[] =>
-  rows
-    .map((row) => row.final_rank)
-    .filter((rank): rank is number => rank != null);
+import {
+  VotingHeatmap,
+} from "@/components/viz/VotingHeatmap";
 
-function withVoterCountry(
-  jury: JuryVote[],
-): Array<JuryVote & { voter_country_id: string }> {
-  return jury.filter(
-    (vote): vote is JuryVote & { voter_country_id: string } =>
-      !!vote.voter_country_id,
-  );
-}
+import {
+  regionalBias,
+  relationships,
+  topRecipients,
+  topSupporters,
+  votingSimilarity,
+} from "@/lib/analysis";
 
-function longestStreak(values: boolean[]): number {
-  let best = 0;
-  let current = 0;
+import {
+  type Country,
+  type ResultRow,
+  useAllJuryVotes,
+  useAllResults,
+  useAllShows,
+  useCountries,
+  useEditions,
+} from "@/lib/data";
 
-  for (const value of values) {
-    current = value ? current + 1 : 0;
-    best = Math.max(best, current);
-  }
+import {
+  computeVotingIntelligence,
+} from "@/lib/stats";
 
-  return best;
-}
+export const Route =
+  createFileRoute(
+    "/analysis/",
+  )({
+    head: () => ({
+      meta: [
+        {
+          title:
+            "Analysis — Solaris Studio",
+        },
+      ],
+    }),
 
-function currentStreak(values: boolean[]): number {
-  let current = 0;
-
-  for (let index = values.length - 1; index >= 0; index -= 1) {
-    if (!values[index]) break;
-    current += 1;
-  }
-
-  return current;
-}
-
-/* ============================================================
-   1. COUNTRY STATISTICS
-   ============================================================ */
-
-export type CountryTimelinePoint = {
-  editionId: string;
-  editionNumber: number | null;
-  label: string;
-  showId: string | null;
-  jury: number;
-  televote: number;
-  total: number;
-  rank: number | null;
-  qualified: boolean | null;
-};
-
-export type CountryStats = {
-  countryId: string;
-  participations: number;
-  finals: number;
-  semis: number;
-  qualifications: number;
-  qualificationPct: number | null;
-  grandFinalAppearancePct: number | null;
-  wins: number;
-  winPct: number | null;
-  podiums: number;
-  podiumPct: number | null;
-  top5: number;
-  top5Pct: number | null;
-  top10: number;
-  top10Pct: number | null;
-  lastPlaces: number;
-  nilPointers: number;
-  avgJuryPlacement: number | null;
-  avgTelevotePlacement: number | null;
-  avgCombinedPlacement: number | null;
-  avgPointsPerParticipation: number | null;
-  avgPointsPerVoter: number | null;
-  avgReceivedPerContest: number | null;
-  avgGivenPerContest: number | null;
-  avgQualificationRank: number | null;
-  highestScore: number | null;
-  lowestScore: number | null;
-  timeline: CountryTimelinePoint[];
-  rolling5: Array<{
-    editionId: string;
-    editionNumber: number | null;
-    avgPlacement: number | null;
-  }>;
-  biggestImprovement:
-    | {
-        fromEdition: number | null;
-        toEdition: number | null;
-        delta: number;
-      }
-    | null;
-  biggestDecline:
-    | {
-        fromEdition: number | null;
-        toEdition: number | null;
-        delta: number;
-      }
-    | null;
-  bestPlacementStreak: number;
-  worstPlacementStreak: number;
-  consecutiveQualifications: number;
-  consecutiveFinals: number;
-  consecutiveTop10: number;
-  consecutivePodiums: number;
-  favouriteRecipient: { countryId: string; points: number } | null;
-  mostGenerousTowards: { countryId: string; points: number } | null;
-  harshestTowards: { countryId: string; points: number } | null;
-  distinctCountriesAwarded: number;
-  neverAwarded: string[];
-  neverVotedForThem: string[];
-  neverVotedFor: string[];
-  topScoresReceived: number;
-  topScoresGiven: number;
-  topGiversOfTopScore: Array<{ countryId: string; count: number }>;
-  topReceiversOfTopScore: Array<{ countryId: string; count: number }>;
-  firstTopScore:
-    | {
-        editionNumber: number | null;
-        from: string;
-        to: string;
-      }
-    | null;
-  latestTopScore:
-    | {
-        editionNumber: number | null;
-        from: string;
-        to: string;
-      }
-    | null;
-  longestDroughtWithoutTopScore: number;
-};
-
-export function computeCountryStats(
-  countryId: string,
-  opts: {
-    editions: Edition[];
-    shows: Show[];
-    participants: Participant[];
-    results: ResultRow[];
-    jury: JuryVote[];
-    televote: Televote[];
-  },
-): CountryStats {
-  const editionMeta = toEditionMeta(opts.editions);
-  const showById = new Map(opts.shows.map((show) => [show.id, show]));
-  const jury = withVoterCountry(opts.jury);
-  const resolveTop = makeTopScoreResolver(opts.shows);
-
-  const myResults = opts.results.filter(
-    (result) => result.country_id === countryId,
-  );
-
-  const myParticipants = opts.participants.filter(
-    (participant) => participant.country_id === countryId,
-  );
-
-  const finalsResults = myResults.filter(
-    (result) =>
-      showById.get(result.show_id ?? "")?.kind === "grand-final",
-  );
-
-  const semiResults = myResults.filter(
-    (result) => showById.get(result.show_id ?? "")?.kind === "semi-final",
-  );
-
-  const semiParticipants = myParticipants.filter(
-    (participant) =>
-      showById.get(participant.show_id ?? "")?.kind === "semi-final",
-  );
-
-  const qualified = semiParticipants.filter(
-    (participant) => participant.qualified === true,
-  );
-
-  const finalRanks = finiteRanks(finalsResults);
-  const wins = finalRanks.filter((rank) => rank === 1).length;
-  const podiums = finalRanks.filter((rank) => rank <= 3).length;
-  const top5 = finalRanks.filter((rank) => rank <= 5).length;
-  const top10 = finalRanks.filter((rank) => rank <= 10).length;
-
-  const lastPlaces = finalsResults.filter((result) => {
-    const showRows = opts.results.filter(
-      (row) => row.show_id === result.show_id,
-    );
-    const maxRank = Math.max(0, ...finiteRanks(showRows));
-    return result.final_rank != null && result.final_rank === maxRank;
-  }).length;
-
-  const nilPointers = myResults.filter(
-    (result) => result.total_points === 0,
-  ).length;
-
-  const timeline: CountryTimelinePoint[] = myResults
-    .map((result) => {
-      const meta = editionMeta.get(result.edition_id);
-      const participant = myParticipants.find(
-        (candidate) => candidate.show_id === result.show_id,
-      );
-
-      return {
-        editionId: result.edition_id,
-        editionNumber: meta?.editionNumber ?? null,
-        label: meta?.label ?? "Edition",
-        showId: result.show_id,
-        jury: result.jury_points,
-        televote: result.televote_points,
-        total: result.total_points,
-        rank: result.final_rank,
-        qualified: participant?.qualified ?? null,
-      };
-    })
-    .sort(
-      (a, b) =>
-        (a.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
-    );
-
-  const finalTimeline = timeline.filter(
-    (point) => showById.get(point.showId ?? "")?.kind === "grand-final",
-  );
-
-  const rolling5 = finalTimeline.map((_, index) => {
-    const window = finalTimeline.slice(Math.max(0, index - 4), index + 1);
-    const ranks = window
-      .map((point) => point.rank)
-      .filter((rank): rank is number => rank != null);
-
-    return {
-      editionId: finalTimeline[index].editionId,
-      editionNumber: finalTimeline[index].editionNumber,
-      avgPlacement: avg(ranks),
-    };
+    component:
+      AnalysisPage,
   });
 
-  let biggestImprovement: CountryStats["biggestImprovement"] = null;
-  let biggestDecline: CountryStats["biggestDecline"] = null;
+const DESKTOP_TABS = [
+  {
+    value: "network",
+    label: "Network",
+  },
+  {
+    value: "heatmap",
+    label: "Heat map",
+  },
+  {
+    value: "jurytele",
+    label: "Jury vs Tele",
+  },
+  {
+    value: "relationships",
+    label: "Relationships",
+  },
+  {
+    value: "history",
+    label: "History",
+  },
+] as const;
 
-  for (let index = 1; index < finalTimeline.length; index += 1) {
-    const previous = finalTimeline[index - 1];
-    const current = finalTimeline[index];
+const MOBILE_TABS = [
+  {
+    value: "network",
+    label: "Connections",
+  },
+  {
+    value: "heatmap",
+    label: "Support",
+  },
+  {
+    value: "jurytele",
+    label: "Jury vs Tele",
+  },
+  {
+    value: "relationships",
+    label: "Pairs",
+  },
+  {
+    value: "history",
+    label: "History",
+  },
+] as const;
 
-    if (previous.rank == null || current.rank == null) continue;
+type Tab =
+  (typeof DESKTOP_TABS)[number]["value"];
 
-    const delta = previous.rank - current.rank;
+function AnalysisPage() {
+  const {
+    data: countries,
+  } =
+    useCountries();
 
-    if (
-      delta > 0 &&
-      (biggestImprovement === null || delta > biggestImprovement.delta)
-    ) {
-      biggestImprovement = {
-        fromEdition: previous.editionNumber,
-        toEdition: current.editionNumber,
-        delta,
-      };
-    }
+  const {
+    data: jury,
+  } =
+    useAllJuryVotes();
 
-    if (
-      delta < 0 &&
-      (biggestDecline === null || delta < biggestDecline.delta)
-    ) {
-      biggestDecline = {
-        fromEdition: previous.editionNumber,
-        toEdition: current.editionNumber,
-        delta,
-      };
-    }
-  }
+  const {
+    data: results,
+  } =
+    useAllResults();
 
-  const top10Flags = finalTimeline.map(
-    (point) => point.rank != null && point.rank <= 10,
-  );
+  const {
+    data: shows,
+  } =
+    useAllShows();
 
-  const podiumFlags = finalTimeline.map(
-    (point) => point.rank != null && point.rank <= 3,
-  );
+  const {
+    data: editions,
+  } =
+    useEditions();
 
-  const qualFlagsBySemi = semiParticipants
-    .slice()
-    .sort(
-      (a, b) =>
-        editionOrder(editionMeta.get(a.edition_id)) -
-        editionOrder(editionMeta.get(b.edition_id)),
+  const [
+    filters,
+    setFilters,
+  ] =
+    useState<AnalysisFiltersState>(
+      DEFAULT_ANALYSIS_FILTERS,
+    );
+
+  const [
+    tab,
+    setTab,
+  ] =
+    useState<Tab>(
+      "network",
+    );
+
+  const [
+    selectedCountryId,
+    setSelectedCountryId,
+  ] =
+    useState("");
+
+  const cs =
+    countries ?? [];
+
+  const es =
+    editions ?? [];
+
+  const showsList =
+    shows ?? [];
+
+  const allowedShowIds =
+    useMemo(
+      () =>
+        new Set(
+          showsList
+            .filter(
+              (show) =>
+                filters.editionIds.length
+                  ? filters.editionIds.includes(
+                      show.edition_id,
+                    )
+                  : true,
+            )
+            .filter(
+              (show) =>
+                filters.showKind === "all"
+                  ? true
+                  : show.kind ===
+                    filters.showKind,
+            )
+            .map(
+              (show) =>
+                show.id,
+            ),
+        ),
+      [
+        showsList,
+        filters,
+      ],
+    );
+
+  const filteredJury =
+    useMemo(
+      () =>
+        (
+          jury ??
+          []
+        ).filter(
+          (vote) =>
+            vote.show_id
+              ? allowedShowIds.has(
+                  vote.show_id,
+                )
+              : filters.editionIds.length ===
+                  0 &&
+                filters.showKind ===
+                  "all",
+        ),
+      [
+        jury,
+        allowedShowIds,
+        filters,
+      ],
+    );
+
+  const filteredResults =
+    useMemo(
+      () =>
+        (
+          results ??
+          []
+        ).filter(
+          (row) =>
+            row.show_id
+              ? allowedShowIds.has(
+                  row.show_id,
+                )
+              : filters.editionIds.length ===
+                  0 &&
+                filters.showKind ===
+                  "all",
+        ),
+      [
+        results,
+        allowedShowIds,
+        filters,
+      ],
+    );
+
+  const intelligence =
+    useMemo(
+      () =>
+        computeVotingIntelligence({
+          countries: cs,
+          jury:
+            filteredJury,
+          results:
+            filteredResults,
+        }),
+      [
+        cs,
+        filteredJury,
+        filteredResults,
+      ],
+    );
+
+  const cMap =
+    useMemo(
+      () =>
+        new Map(
+          cs.map(
+            (country) => [
+              country.id,
+              country,
+            ],
+          ),
+        ),
+      [
+        cs,
+      ],
+    );
+
+  const similarity =
+    useMemo(
+      () =>
+        votingSimilarity(
+          filteredJury,
+          cs,
+        ),
+      [
+        filteredJury,
+        cs,
+      ],
+    );
+
+  const relationData =
+    useMemo(
+      () =>
+        relationships(
+          filteredJury,
+        ),
+      [
+        filteredJury,
+      ],
+    );
+
+  const bias =
+    useMemo(
+      () =>
+        regionalBias(
+          filteredJury,
+          cs,
+        ),
+      [
+        filteredJury,
+        cs,
+      ],
+    );
+
+  const countryOptions =
+    useMemo(
+      () =>
+        cs
+          .filter(
+            (country) =>
+              filteredJury.some(
+                (vote) =>
+                  vote.voter_country_id ===
+                    country.id ||
+                  vote.receiving_country_id ===
+                    country.id,
+              ),
+          )
+          .sort(
+            (a, b) =>
+              a.name.localeCompare(
+                b.name,
+              ),
+          ),
+      [
+        cs,
+        filteredJury,
+      ],
+    );
+
+  const activeCountryId =
+    selectedCountryId &&
+    countryOptions.some(
+      (country) =>
+        country.id ===
+        selectedCountryId,
     )
-    .map((participant) => participant.qualified === true);
+      ? selectedCountryId
+      : countryOptions[0]?.id ??
+        "";
 
-  const finalsFlags = opts.editions
-    .slice()
-    .sort(
-      (a, b) =>
-        (a.edition_number ?? Number.MAX_SAFE_INTEGER) -
-        (b.edition_number ?? Number.MAX_SAFE_INTEGER),
-    )
-    .map((edition) =>
-      myResults.some(
-        (result) =>
-          result.edition_id === edition.id &&
-          showById.get(result.show_id ?? "")?.kind === "grand-final",
-      ),
+  const activeCountry =
+    activeCountryId
+      ? cMap.get(
+          activeCountryId,
+        ) ??
+        null
+      : null;
+
+  const supporters =
+    activeCountryId
+      ? topSupporters(
+          filteredJury,
+          activeCountryId,
+          7,
+        )
+      : [];
+
+  const recipients =
+    activeCountryId
+      ? topRecipients(
+          filteredJury,
+          activeCountryId,
+          7,
+        )
+      : [];
+
+  const juryTeleRows =
+    useMemo(
+      () =>
+        buildJuryTeleRows(
+          filteredResults,
+          cMap,
+        ),
+      [
+        filteredResults,
+        cMap,
+      ],
     );
 
-  const bestPlacementStreak = longestStreak(top10Flags);
-  const worstPlacementStreak = longestStreak(
-    qualFlagsBySemi.map((qualifiedFlag) => !qualifiedFlag),
-  );
-  const consecutiveQualifications = currentStreak(qualFlagsBySemi);
-  const consecutiveFinals = currentStreak(finalsFlags);
-  const consecutiveTop10 = currentStreak(top10Flags);
-  const consecutivePodiums = currentStreak(podiumFlags);
-
-  const given = jury.filter((vote) => vote.voter_country_id === countryId);
-  const received = jury.filter(
-    (vote) => vote.receiving_country_id === countryId,
-  );
-
-  const givenTotals = new Map<string, number>();
-  for (const vote of given) {
-    givenTotals.set(
-      vote.receiving_country_id,
-      (givenTotals.get(vote.receiving_country_id) ?? 0) + vote.points,
-    );
-  }
-
-  const receivedTotals = new Map<string, number>();
-  for (const vote of received) {
-    receivedTotals.set(
-      vote.voter_country_id,
-      (receivedTotals.get(vote.voter_country_id) ?? 0) + vote.points,
-    );
-  }
-
-  const sortedGiven = [...givenTotals.entries()].sort((a, b) => b[1] - a[1]);
-
-  const facedCountries = new Set<string>();
-  for (const vote of jury) {
-    if (
-      vote.voter_country_id === countryId ||
-      vote.receiving_country_id === countryId
-    ) {
-      facedCountries.add(vote.voter_country_id);
-      facedCountries.add(vote.receiving_country_id);
-    }
-  }
-  facedCountries.delete(countryId);
-
-  const neverAwarded = [...facedCountries].filter((id) => !givenTotals.has(id));
-  const neverVotedForThem = [...facedCountries].filter(
-    (id) => !receivedTotals.has(id),
-  );
-
-  const topScoreGivenVotes = given.filter((vote) =>
-    isTopScore(vote, resolveTop),
-  );
-  const topScoreReceivedVotes = received.filter((vote) =>
-    isTopScore(vote, resolveTop),
-  );
-
-  const topGiveCount = new Map<string, number>();
-  for (const vote of topScoreGivenVotes) {
-    topGiveCount.set(
-      vote.receiving_country_id,
-      (topGiveCount.get(vote.receiving_country_id) ?? 0) + 1,
-    );
-  }
-
-  const topReceiveCount = new Map<string, number>();
-  for (const vote of topScoreReceivedVotes) {
-    topReceiveCount.set(
-      vote.voter_country_id,
-      (topReceiveCount.get(vote.voter_country_id) ?? 0) + 1,
-    );
-  }
-
-  const allTopScoresReceivedSorted = topScoreReceivedVotes
-    .map((vote) => ({
-      vote,
-      editionNumber: editionMeta.get(vote.edition_id)?.editionNumber ?? null,
-    }))
-    .sort(
-      (a, b) =>
-        (a.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
-    );
-
-  const firstTopScoreEntry = allTopScoresReceivedSorted[0];
-  const latestTopScoreEntry =
-    allTopScoresReceivedSorted[allTopScoresReceivedSorted.length - 1];
-
-  const firstTopScore = firstTopScoreEntry
-    ? {
-        editionNumber: firstTopScoreEntry.editionNumber,
-        from: firstTopScoreEntry.vote.voter_country_id,
-        to: countryId,
-      }
-    : null;
-
-  const latestTopScore = latestTopScoreEntry
-    ? {
-        editionNumber: latestTopScoreEntry.editionNumber,
-        from: latestTopScoreEntry.vote.voter_country_id,
-        to: countryId,
-      }
-    : null;
-
-  const editionsSorted = opts.editions
-    .slice()
-    .sort(
-      (a, b) =>
-        (a.edition_number ?? Number.MAX_SAFE_INTEGER) -
-        (b.edition_number ?? Number.MAX_SAFE_INTEGER),
-    );
-
-  const topScoreEditionIds = new Set(
-    topScoreReceivedVotes.map((vote) => vote.edition_id),
-  );
-
-  let longestDrought = 0;
-  let droughtRun = 0;
-
-  for (const edition of editionsSorted) {
-    const participated = myResults.some(
-      (result) => result.edition_id === edition.id,
-    );
-
-    if (!participated) continue;
-
-    if (topScoreEditionIds.has(edition.id)) {
-      droughtRun = 0;
-    } else {
-      droughtRun += 1;
-      longestDrought = Math.max(longestDrought, droughtRun);
-    }
-  }
-
-  const distinctVoters = new Set(
-    received.map((vote) => vote.voter_country_id),
-  ).size;
-
-  const scores = myResults.map((result) => result.total_points);
-
-  return {
-    countryId,
-    participations: new Set(
-      myParticipants.map((participant) => participant.edition_id),
-    ).size,
-    finals: finalsResults.length,
-    semis: semiResults.length,
-    qualifications: qualified.length,
-    qualificationPct: semiParticipants.length
-      ? (qualified.length / semiParticipants.length) * 100
-      : null,
-    grandFinalAppearancePct: myParticipants.length
-      ? (finalsResults.length / myParticipants.length) * 100
-      : null,
-    wins,
-    winPct: finalRanks.length ? (wins / finalRanks.length) * 100 : null,
-    podiums,
-    podiumPct: finalRanks.length ? (podiums / finalRanks.length) * 100 : null,
-    top5,
-    top5Pct: finalRanks.length ? (top5 / finalRanks.length) * 100 : null,
-    top10,
-    top10Pct: finalRanks.length ? (top10 / finalRanks.length) * 100 : null,
-    lastPlaces,
-    nilPointers,
-    avgJuryPlacement: null,
-    avgTelevotePlacement: null,
-    avgCombinedPlacement: avg(finalRanks),
-    avgPointsPerParticipation: avg(scores),
-    avgPointsPerVoter: distinctVoters
-      ? received.reduce((total, vote) => total + vote.points, 0) /
-        distinctVoters
-      : null,
-    avgReceivedPerContest: avg(myResults.map((result) => result.total_points)),
-    avgGivenPerContest: avg(
-      [...new Set(given.map((vote) => vote.show_id))].map((showId) =>
-        given
-          .filter((vote) => vote.show_id === showId)
-          .reduce((total, vote) => total + vote.points, 0),
-      ),
-    ),
-    avgQualificationRank: null,
-    highestScore: scores.length ? Math.max(...scores) : null,
-    lowestScore: scores.length ? Math.min(...scores) : null,
-    timeline,
-    rolling5,
-    biggestImprovement,
-    biggestDecline,
-    bestPlacementStreak,
-    worstPlacementStreak,
-    consecutiveQualifications,
-    consecutiveFinals,
-    consecutiveTop10,
-    consecutivePodiums,
-    favouriteRecipient: sortedGiven[0]
-      ? { countryId: sortedGiven[0][0], points: sortedGiven[0][1] }
-      : null,
-    mostGenerousTowards: sortedGiven[0]
-      ? { countryId: sortedGiven[0][0], points: sortedGiven[0][1] }
-      : null,
-    harshestTowards: sortedGiven[sortedGiven.length - 1]
-      ? {
-          countryId: sortedGiven[sortedGiven.length - 1][0],
-          points: sortedGiven[sortedGiven.length - 1][1],
-        }
-      : null,
-    distinctCountriesAwarded: givenTotals.size,
-    neverAwarded,
-    neverVotedForThem,
-    neverVotedFor: neverVotedForThem,
-    topScoresReceived: topScoreReceivedVotes.length,
-    topScoresGiven: topScoreGivenVotes.length,
-    topGiversOfTopScore: [...topReceiveCount.entries()]
-      .map(([countryIdValue, count]) => ({
-        countryId: countryIdValue,
-        count,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5),
-    topReceiversOfTopScore: [...topGiveCount.entries()]
-      .map(([countryIdValue, count]) => ({
-        countryId: countryIdValue,
-        count,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5),
-    firstTopScore,
-    latestTopScore,
-    longestDroughtWithoutTopScore: longestDrought,
-  };
-}
-
-/* ============================================================
-   2. RELATIONSHIPS
-   ============================================================ */
-
-export type RelationshipTimelineEntry = {
-  editionId: string;
-  editionNumber: number | null;
-  label: string;
-  aToB: number;
-  bToA: number;
-};
-
-export type CountryRelationship = {
-  a: string;
-  b: string;
-  participationsTogether: number;
-  totalAtoB: number;
-  totalBtoA: number;
-  avgAtoB: number | null;
-  avgBtoA: number | null;
-  juryAtoB: number;
-  juryBtoA: number;
-  televoteA: number;
-  televoteB: number;
-  mutualTopScores: number;
-  timeline: RelationshipTimelineEntry[];
-  biggestDisagreement:
-    | {
-        editionId: string;
-        editionNumber: number | null;
-        gap: number;
-      }
-    | null;
-  similarity: number;
-  rivalryScore: number;
-  friendshipScore: number;
-};
-
-export function computeRelationship(
-  a: string,
-  b: string,
-  opts: {
-    editions: Edition[];
-    jury: JuryVote[];
-    results: ResultRow[];
-    shows?: Show[];
-  },
-): CountryRelationship {
-  const editionMeta = toEditionMeta(opts.editions);
-  const jury = withVoterCountry(opts.jury);
-
-  const aToB = jury.filter(
-    (vote) =>
-      vote.voter_country_id === a && vote.receiving_country_id === b,
-  );
-
-  const bToA = jury.filter(
-    (vote) =>
-      vote.voter_country_id === b && vote.receiving_country_id === a,
-  );
-
-  const editionIds = new Set<string>([
-    ...aToB.map((vote) => vote.edition_id),
-    ...bToA.map((vote) => vote.edition_id),
-  ]);
-
-  const timeline: RelationshipTimelineEntry[] = [...editionIds]
-    .map((editionId) => {
-      const meta = editionMeta.get(editionId);
-      return {
-        editionId,
-        editionNumber: meta?.editionNumber ?? null,
-        label: meta?.label ?? "Edition",
-        aToB: aToB
-          .filter((vote) => vote.edition_id === editionId)
-          .reduce((total, vote) => total + vote.points, 0),
-        bToA: bToA
-          .filter((vote) => vote.edition_id === editionId)
-          .reduce((total, vote) => total + vote.points, 0),
-      };
-    })
-    .sort(
-      (x, y) =>
-        (x.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (y.editionNumber ?? Number.MAX_SAFE_INTEGER),
-    );
-
-  const aEditionIds = new Set(
-    opts.results
-      .filter((result) => result.country_id === a)
-      .map((result) => result.edition_id),
-  );
-
-  const participationsTogether = [...aEditionIds].filter((editionId) =>
-    opts.results.some(
-      (result) =>
-        result.country_id === b && result.edition_id === editionId,
-    ),
-  ).length;
-
-  let biggestDisagreement: CountryRelationship["biggestDisagreement"] = null;
-
-  for (const point of timeline) {
-    const gap = Math.abs(point.aToB - point.bToA);
-    if (biggestDisagreement === null || gap > biggestDisagreement.gap) {
-      biggestDisagreement = {
-        editionId: point.editionId,
-        editionNumber: point.editionNumber,
-        gap,
-      };
-    }
-  }
-
-  const totalAtoB = aToB.reduce((total, vote) => total + vote.points, 0);
-  const totalBtoA = bToA.reduce((total, vote) => total + vote.points, 0);
-  const resolveTop = makeTopScoreResolver(opts.shows);
-
-  const mutualTopScores = Math.min(
-    aToB.filter((vote) => isTopScore(vote, resolveTop)).length,
-    bToA.filter((vote) => isTopScore(vote, resolveTop)).length,
-  );
-
-  const vecA = new Map<string, number>();
-  const vecB = new Map<string, number>();
-
-  for (const vote of jury) {
-    if (vote.voter_country_id === a) {
-      vecA.set(
-        vote.receiving_country_id,
-        (vecA.get(vote.receiving_country_id) ?? 0) + vote.points,
-      );
-    }
-
-    if (vote.voter_country_id === b) {
-      vecB.set(
-        vote.receiving_country_id,
-        (vecB.get(vote.receiving_country_id) ?? 0) + vote.points,
-      );
-    }
-  }
-
-  const keys = new Set([...vecA.keys(), ...vecB.keys()]);
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (const key of keys) {
-    const x = vecA.get(key) ?? 0;
-    const y = vecB.get(key) ?? 0;
-    dot += x * y;
-    normA += x * x;
-    normB += y * y;
-  }
-
-  const similarity = normA && normB ? dot / Math.sqrt(normA * normB) : 0;
-  const avgGap =
-    avg(timeline.map((point) => Math.abs(point.aToB - point.bToA))) ?? 0;
-  const rivalryScore = timeline.length ? Math.max(0, 100 - avgGap * 5) : 0;
-  const friendshipScore = timeline.length
-    ? Math.min(100, ((totalAtoB + totalBtoA) / timeline.length / 24) * 100)
-    : 0;
-
-  return {
-    a,
-    b,
-    participationsTogether,
-    totalAtoB,
-    totalBtoA,
-    avgAtoB: aToB.length
-      ? totalAtoB / new Set(aToB.map((vote) => vote.edition_id)).size
-      : null,
-    avgBtoA: bToA.length
-      ? totalBtoA / new Set(bToA.map((vote) => vote.edition_id)).size
-      : null,
-    juryAtoB: totalAtoB,
-    juryBtoA: totalBtoA,
-    televoteA: 0,
-    televoteB: 0,
-    mutualTopScores,
-    timeline,
-    biggestDisagreement,
-    similarity,
-    rivalryScore,
-    friendshipScore,
-  };
-}
-
-/* ============================================================
-   3. HEAD TO HEAD
-   ============================================================ */
-
-export type HeadToHeadRow = {
-  editionId: string;
-  editionNumber: number | null;
-  label: string;
-  aRank: number | null;
-  bRank: number | null;
-  diff: number | null;
-};
-
-export type HeadToHead = {
-  a: string;
-  b: string;
-  sharedEditions: number;
-  aWins: number;
-  bWins: number;
-  ties: number;
-  avgDiff: number | null;
-  closest: HeadToHeadRow | null;
-  largest: HeadToHeadRow | null;
-  rows: HeadToHeadRow[];
-};
-
-export function computeHeadToHead(
-  a: string,
-  b: string,
-  opts: {
-    editions: Edition[];
-    results: ResultRow[];
-  },
-): HeadToHead {
-  const editionMeta = toEditionMeta(opts.editions);
-  const byEdition = new Map<
-    string,
-    {
-      a?: ResultRow;
-      b?: ResultRow;
-    }
-  >();
-
-  for (const result of opts.results) {
-    if (result.country_id !== a && result.country_id !== b) continue;
-
-    const current = byEdition.get(result.edition_id) ?? {};
-    if (result.country_id === a) current.a = result;
-    else current.b = result;
-    byEdition.set(result.edition_id, current);
-  }
-
-  const rows: HeadToHeadRow[] = [...byEdition.entries()]
-    .filter(([, value]) => !!value.a && !!value.b)
-    .map(([editionId, value]) => {
-      const aRank = value.a!.final_rank;
-      const bRank = value.b!.final_rank;
-      const meta = editionMeta.get(editionId);
-
-      return {
-        editionId,
-        editionNumber: meta?.editionNumber ?? null,
-        label: meta?.label ?? "Edition",
-        aRank,
-        bRank,
-        diff: aRank != null && bRank != null ? aRank - bRank : null,
-      };
-    })
-    .sort(
-      (x, y) =>
-        (x.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (y.editionNumber ?? Number.MAX_SAFE_INTEGER),
-    );
-
-  const aWins = rows.filter((row) => row.diff != null && row.diff < 0).length;
-  const bWins = rows.filter((row) => row.diff != null && row.diff > 0).length;
-  const ties = rows.filter((row) => row.diff === 0).length;
-
-  const validDiffs = rows.filter(
-    (row): row is HeadToHeadRow & { diff: number } => row.diff != null,
-  );
-
-  const closest = validDiffs.length
-    ? validDiffs.reduce((previous, current) =>
-        Math.abs(current.diff) < Math.abs(previous.diff) ? current : previous,
-      )
-    : null;
-
-  const largest = validDiffs.length
-    ? validDiffs.reduce((previous, current) =>
-        Math.abs(current.diff) > Math.abs(previous.diff) ? current : previous,
-      )
-    : null;
-
-  return {
-    a,
-    b,
-    sharedEditions: rows.length,
-    aWins,
-    bWins,
-    ties,
-    avgDiff: avg(validDiffs.map((row) => Math.abs(row.diff))),
-    closest,
-    largest,
-    rows,
-  };
-}
-
-/* ============================================================
-   4. CONTEST STATISTICS
-   ============================================================ */
-
-export type ContestStats = {
-  showId: string;
-  closestVictory:
-    | { margin: number; winner: string; runnerUp: string }
-    | null;
-  biggestLandslide:
-    | { margin: number; winner: string; runnerUp: string }
-    | null;
-  biggestTelevoteWinner: { countryId: string; points: number } | null;
-  biggestJuryWinner: { countryId: string; points: number } | null;
-  highestScoringDebut: { countryId: string; points: number } | null;
-  largestRankingJump: { countryId: string; jump: number } | null;
-  mostExchangedTopScores: { a: string; b: string; count: number } | null;
-  strongestAlliance: { a: string; b: string; total: number } | null;
-  averageScore: number | null;
-  highestScore: number | null;
-  lowestScore: number | null;
-  unpredictabilityIndex: number | null;
-};
-
-export function computeContestStats(
-  showId: string,
-  opts: {
-    results: ResultRow[];
-    jury: JuryVote[];
-    debutCountryIds?: Set<string>;
-    shows?: Show[];
-  },
-): ContestStats {
-  const rows = opts.results
-    .filter((result) => result.show_id === showId)
-    .sort(
-      (a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999),
-    );
-
-  const jury = withVoterCountry(opts.jury).filter(
-    (vote) => vote.show_id === showId,
-  );
-
-  if (!rows.length) {
-    return {
-      showId,
-      closestVictory: null,
-      biggestLandslide: null,
-      biggestTelevoteWinner: null,
-      biggestJuryWinner: null,
-      highestScoringDebut: null,
-      largestRankingJump: null,
-      mostExchangedTopScores: null,
-      strongestAlliance: null,
-      averageScore: null,
-      highestScore: null,
-      lowestScore: null,
-      unpredictabilityIndex: null,
-    };
-  }
-
-  const winner = rows[0];
-  const runnerUp = rows[1];
-  const margin = runnerUp
-    ? winner.total_points - runnerUp.total_points
-    : null;
-
-  const byTelevote = [...rows].sort(
-    (a, b) => b.televote_points - a.televote_points,
-  )[0];
-  const byJury = [...rows].sort(
-    (a, b) => b.jury_points - a.jury_points,
-  )[0];
-
-  const debutRows = opts.debutCountryIds
-    ? rows.filter((result) => opts.debutCountryIds!.has(result.country_id))
-    : [];
-  const highestDebut = debutRows.length
-    ? [...debutRows].sort((a, b) => b.total_points - a.total_points)[0]
-    : null;
-
-  const juryRank = new Map(
-    [...rows]
-      .sort((a, b) => b.jury_points - a.jury_points)
-      .map((result, index) => [result.country_id, index + 1]),
-  );
-
-  const teleRank = new Map(
-    [...rows]
-      .sort((a, b) => b.televote_points - a.televote_points)
-      .map((result, index) => [result.country_id, index + 1]),
-  );
-
-  let largestJump: ContestStats["largestRankingJump"] = null;
-
-  for (const result of rows) {
-    const juryPosition = juryRank.get(result.country_id) ?? 0;
-    const televotePosition = teleRank.get(result.country_id) ?? 0;
-    const jump = juryPosition - televotePosition;
-
-    if (largestJump === null || Math.abs(jump) > Math.abs(largestJump.jump)) {
-      largestJump = { countryId: result.country_id, jump };
-    }
-  }
-
-  const resolveTop = makeTopScoreResolver(opts.shows);
-  const pairTotals = new Map<
-    string,
-    { a: string; b: string; total: number; topScores: number }
-  >();
-
-  for (const vote of jury) {
-    const key = [vote.voter_country_id, vote.receiving_country_id]
-      .sort()
-      .join("|");
-
-    const current = pairTotals.get(key) ?? {
-      a: vote.voter_country_id,
-      b: vote.receiving_country_id,
-      total: 0,
-      topScores: 0,
-    };
-
-    current.total += vote.points;
-    if (isTopScore(vote, resolveTop)) current.topScores += 1;
-    pairTotals.set(key, current);
-  }
-
-  const byTopScores = [...pairTotals.values()].sort(
-    (a, b) => b.topScores - a.topScores,
-  )[0];
-
-  const byAlliance = [...pairTotals.values()].sort(
-    (a, b) => b.total - a.total,
-  )[0];
-
-  const scores = rows.map((result) => result.total_points);
-  const diffs = rows.map((result) =>
-    Math.abs(
-      (juryRank.get(result.country_id) ?? 0) -
-        (teleRank.get(result.country_id) ?? 0),
-    ),
-  );
-
-  return {
-    showId,
-    closestVictory:
-      margin != null && runnerUp
-        ? {
-            margin,
-            winner: winner.country_id,
-            runnerUp: runnerUp.country_id,
-          }
-        : null,
-    biggestLandslide:
-      margin != null && runnerUp
-        ? {
-            margin,
-            winner: winner.country_id,
-            runnerUp: runnerUp.country_id,
-          }
-        : null,
-    biggestTelevoteWinner: byTelevote
-      ? { countryId: byTelevote.country_id, points: byTelevote.televote_points }
-      : null,
-    biggestJuryWinner: byJury
-      ? { countryId: byJury.country_id, points: byJury.jury_points }
-      : null,
-    highestScoringDebut: highestDebut
-      ? { countryId: highestDebut.country_id, points: highestDebut.total_points }
-      : null,
-    largestRankingJump: largestJump,
-    mostExchangedTopScores: byTopScores
-      ? { a: byTopScores.a, b: byTopScores.b, count: byTopScores.topScores }
-      : null,
-    strongestAlliance: byAlliance
-      ? { a: byAlliance.a, b: byAlliance.b, total: byAlliance.total }
-      : null,
-    averageScore: avg(scores),
-    highestScore: Math.max(...scores),
-    lowestScore: Math.min(...scores),
-    unpredictabilityIndex: avg(diffs),
-  };
-}
-
-/* ============================================================
-   5. HISTORICAL RECORDS
-   ============================================================ */
-
-export type HistoricalRecordEntry = {
-  label: string;
-  value: string;
-  detail: string;
-};
-
-export function computeHistoricalRecords(opts: {
-  countries: Country[];
-  editions: Edition[];
-  shows: Show[];
-  participants: Participant[];
-  results: ResultRow[];
-  jury: JuryVote[];
-}): HistoricalRecordEntry[] {
-  const countryName = new Map(
-    opts.countries.map((country) => [country.id, country.name]),
-  );
-  const editionMeta = toEditionMeta(opts.editions);
-  const showById = new Map(opts.shows.map((show) => [show.id, show]));
-  const finalResults = opts.results.filter(
-    (result) =>
-      showById.get(result.show_id ?? "")?.kind === "grand-final",
-  );
-
-  const byCountry = new Map<string, ResultRow[]>();
-  for (const result of opts.results) {
-    byCountry.set(result.country_id, [
-      ...(byCountry.get(result.country_id) ?? []),
-      result,
-    ]);
-  }
-
-  const output: HistoricalRecordEntry[] = [];
-  const push = (label: string, value: string, detail: string) => {
-    output.push({ label, value, detail });
-  };
-
-  const partEditions = new Map<string, Set<string>>();
-  for (const participant of opts.participants) {
-    const set = partEditions.get(participant.country_id) ?? new Set<string>();
-    set.add(participant.edition_id);
-    partEditions.set(participant.country_id, set);
-  }
-
-  const topParts = [...partEditions.entries()]
-    .map(([id, set]) => [id, set.size] as const)
-    .sort((a, b) => b[1] - a[1])[0];
-
-  if (topParts) {
-    push(
-      "Most participations",
-      String(topParts[1]),
-      countryName.get(topParts[0]) ?? "?",
-    );
-  }
-
-  const semiParts = opts.participants.filter(
-    (participant) =>
-      showById.get(participant.show_id ?? "")?.kind === "semi-final",
-  );
-
-  const byCountrySemis = new Map<string, Participant[]>();
-  for (const participant of semiParts) {
-    byCountrySemis.set(participant.country_id, [
-      ...(byCountrySemis.get(participant.country_id) ?? []),
-      participant,
-    ]);
-  }
-
-  let bestQualStreak = { id: "", n: 0 };
-  let bestNonQualStreak = { id: "", n: 0 };
-
-  for (const [id, rows] of byCountrySemis.entries()) {
-    const sorted = rows.slice().sort(
-      (a, b) =>
-        editionOrder(editionMeta.get(a.edition_id)) -
-        editionOrder(editionMeta.get(b.edition_id)),
-    );
-
-    const qualStreak = longestStreak(
-      sorted.map((row) => row.qualified === true),
-    );
-    const nonQualStreak = longestStreak(
-      sorted.map((row) => row.qualified === false),
-    );
-
-    if (qualStreak > bestQualStreak.n) {
-      bestQualStreak = { id, n: qualStreak };
-    }
-
-    if (nonQualStreak > bestNonQualStreak.n) {
-      bestNonQualStreak = { id, n: nonQualStreak };
-    }
-  }
-
-  if (bestQualStreak.n) {
-    push(
-      "Longest qualification streak",
-      String(bestQualStreak.n),
-      countryName.get(bestQualStreak.id) ?? "?",
-    );
-  }
-
-  if (bestNonQualStreak.n) {
-    push(
-      "Longest non-qualification streak",
-      String(bestNonQualStreak.n),
-      countryName.get(bestNonQualStreak.id) ?? "?",
-    );
-  }
-
-  let bestWinStreak = { id: "", n: 0 };
-  let bestTop10Streak = { id: "", n: 0 };
-  let longestWinDrought = { id: "", n: 0 };
-
-  for (const [id, rows] of byCountry.entries()) {
-    const finals = rows
+  const juryFavoured =
+    juryTeleRows
       .filter(
-        (result) =>
-          showById.get(result.show_id ?? "")?.kind === "grand-final",
+        (row) =>
+          row.difference >
+          0,
       )
       .sort(
         (a, b) =>
-          editionOrder(editionMeta.get(a.edition_id)) -
-          editionOrder(editionMeta.get(b.edition_id)),
+          b.difference -
+          a.difference,
+      )
+      .slice(
+        0,
+        6,
       );
 
-    const winFlags = finals.map((result) => result.final_rank === 1);
-    const top10Flags = finals.map(
-      (result) => result.final_rank != null && result.final_rank <= 10,
-    );
-
-    const winStreak = longestStreak(winFlags);
-    const top10Streak = longestStreak(top10Flags);
-
-    if (winStreak > bestWinStreak.n) {
-      bestWinStreak = { id, n: winStreak };
-    }
-
-    if (top10Streak > bestTop10Streak.n) {
-      bestTop10Streak = { id, n: top10Streak };
-    }
-
-    if (winFlags.some(Boolean)) {
-      let run = 0;
-      let maxRun = 0;
-      let started = false;
-
-      for (const won of winFlags) {
-        if (won) {
-          started = true;
-          run = 0;
-        } else if (started) {
-          run += 1;
-          maxRun = Math.max(maxRun, run);
-        }
-      }
-
-      if (maxRun > longestWinDrought.n) {
-        longestWinDrought = { id, n: maxRun };
-      }
-    }
-  }
-
-  if (bestWinStreak.n) {
-    push(
-      "Most consecutive wins",
-      String(bestWinStreak.n),
-      countryName.get(bestWinStreak.id) ?? "?",
-    );
-  }
-
-  if (bestTop10Streak.n) {
-    push(
-      "Most consecutive top-10 finishes",
-      String(bestTop10Streak.n),
-      countryName.get(bestTop10Streak.id) ?? "?",
-    );
-  }
-
-  if (longestWinDrought.n) {
-    push(
-      "Longest win drought",
-      `${longestWinDrought.n} editions`,
-      countryName.get(longestWinDrought.id) ?? "?",
-    );
-  }
-
-  if (finalResults.length) {
-    const top = [...finalResults].sort(
-      (a, b) => b.total_points - a.total_points,
-    )[0];
-
-    push(
-      "Most points in one edition",
-      String(top.total_points),
-      `${countryName.get(top.country_id) ?? "?"} · ${
-        editionMeta.get(top.edition_id)?.label ?? "Edition"
-      }`,
-    );
-
-    const showRows = new Map<string, ResultRow[]>();
-    for (const result of finalResults) {
-      const key = result.show_id ?? `edition:${result.edition_id}`;
-      showRows.set(key, [...(showRows.get(key) ?? []), result]);
-    }
-
-    const rankWithin = (
-      rows: ResultRow[],
-      value: (row: ResultRow) => number,
-    ): Map<string, number> => {
-      const sorted = [...rows].sort((a, b) => value(b) - value(a));
-      const ranks = new Map<string, number>();
-
-      for (let index = 0; index < sorted.length; index += 1) {
-        const result = sorted[index];
-        const previous = sorted[index - 1];
-
-        if (previous && value(previous) === value(result)) {
-          ranks.set(
-            result.country_id,
-            ranks.get(previous.country_id) ?? index + 1,
-          );
-        } else {
-          ranks.set(result.country_id, index + 1);
-        }
-      }
-
-      return ranks;
-    };
-
-    let bestClimb: { places: number; row: ResultRow } | null = null;
-    let worstDrop: { places: number; row: ResultRow } | null = null;
-
-    for (const rows of showRows.values()) {
-      if (rows.length < 2) continue;
-
-      const juryRank = rankWithin(rows, (row) => row.jury_points);
-      const finalRank = rankWithin(rows, (row) => row.total_points);
-
-      for (const row of rows) {
-        const juryPosition = juryRank.get(row.country_id);
-        const finalPosition = finalRank.get(row.country_id);
-
-        if (juryPosition == null || finalPosition == null) continue;
-
-        const moved = juryPosition - finalPosition;
-
-        if (
-          moved > 0 &&
-          (bestClimb === null || moved > bestClimb.places)
-        ) {
-          bestClimb = { places: moved, row };
-        }
-
-        if (
-          moved < 0 &&
-          (worstDrop === null || -moved > worstDrop.places)
-        ) {
-          worstDrop = { places: -moved, row };
-        }
-      }
-    }
-
-    if (worstDrop !== null) {
-      push(
-        "Biggest collapse (places lost after the jury vote)",
-        `-${worstDrop.places}`,
-        `${countryName.get(worstDrop.row.country_id) ?? "?"} · ${
-          editionMeta.get(worstDrop.row.edition_id)?.label ?? "Edition"
-        }`,
+  const teleFavoured =
+    juryTeleRows
+      .filter(
+        (row) =>
+          row.difference <
+          0,
+      )
+      .sort(
+        (a, b) =>
+          a.difference -
+          b.difference,
+      )
+      .slice(
+        0,
+        6,
       );
-    }
 
-    if (bestClimb !== null) {
-      push(
-        "Biggest comeback (places gained after the jury vote)",
-        `+${bestClimb.places}`,
-        `${countryName.get(bestClimb.row.country_id) ?? "?"} · ${
-          editionMeta.get(bestClimb.row.edition_id)?.label ?? "Edition"
-        }`,
+  const mostAgreed =
+    [...juryTeleRows]
+      .sort(
+        (a, b) =>
+          Math.abs(
+            a.difference,
+          ) -
+          Math.abs(
+            b.difference,
+          ),
+      )
+      .slice(
+        0,
+        6,
       );
-    }
-  }
 
-  const winnersByEdition = new Map<string, string>();
-  for (const result of finalResults) {
-    if (result.final_rank === 1) {
-      winnersByEdition.set(result.edition_id, result.country_id);
-    }
-  }
-
-  const defeatedWinners = new Map<string, Set<string>>();
-  for (const result of finalResults) {
-    const winner = winnersByEdition.get(result.edition_id);
-    if (!winner || winner === result.country_id) continue;
-
-    const set = defeatedWinners.get(result.country_id) ?? new Set<string>();
-    set.add(winner);
-    defeatedWinners.set(result.country_id, set);
-  }
-
-  let mostDefeated = { id: "", n: 0 };
-  for (const [id, set] of defeatedWinners.entries()) {
-    if (set.size > mostDefeated.n) {
-      mostDefeated = { id, n: set.size };
-    }
-  }
-
-  if (mostDefeated.n) {
-    push(
-      "Most different winners finished below",
-      String(mostDefeated.n),
-      countryName.get(mostDefeated.id) ?? "?",
+  const historyRows =
+    useMemo(
+      () =>
+        buildHistoryRows(
+          filteredResults,
+          cMap,
+        ),
+      [
+        filteredResults,
+        cMap,
+      ],
     );
-  }
 
-  return output;
+  const strongestFriendship =
+    relationData.friendships[
+      0
+    ];
+
+  const strongestOneSided =
+    relationData.oneSided[
+      0
+    ];
+
+  return (
+    <AppShell>
+      <PageHeader
+        eyebrow="Intelligence"
+        title="Analysis"
+        description="Explore the patterns behind Solaris voting, relationships and results."
+      />
+
+      <div className="mb-5">
+        <Filters
+          editions={
+            es
+          }
+          value={
+            filters
+          }
+          onChange={
+            setFilters
+          }
+        />
+      </div>
+
+      {/* =====================================================
+          MOBILE OVERVIEW
+         ===================================================== */}
+
+      <div className="mb-5 md:hidden">
+        <div className="grid grid-cols-2 gap-3">
+          <InsightCard
+            label="Kingmaker"
+            value={
+              intelligence.kingmakers[
+                0
+              ]
+                ? cMap.get(
+                    intelligence.kingmakers[
+                      0
+                    ].countryId,
+                  )?.name ??
+                  "—"
+                : "—"
+            }
+            detail="Most aligned with winners"
+          />
+
+          <InsightCard
+            label="Most loyal"
+            value={
+              intelligence.loyaltyScore[
+                0
+              ]
+                ? cMap.get(
+                    intelligence.loyaltyScore[
+                      0
+                    ].countryId,
+                  )?.name ??
+                  "—"
+                : "—"
+            }
+            detail="Strongest repeat support"
+          />
+
+          <InsightCard
+            label="Top friendship"
+            value={
+              strongestFriendship
+                ? pairName(
+                    strongestFriendship.a,
+                    strongestFriendship.b,
+                    cMap,
+                  )
+                : "—"
+            }
+            detail={
+              strongestFriendship
+                ? `${strongestFriendship.total} exchanged pts`
+                : "No pair data"
+            }
+          />
+
+          <InsightCard
+            label="Regional bias"
+            value={
+              bias[
+                0
+              ]
+                ? cMap.get(
+                    bias[
+                      0
+                    ].id,
+                  )?.name ??
+                  "—"
+                : "—"
+            }
+            detail={
+              bias[
+                0
+              ]
+                ? `${(
+                    bias[
+                      0
+                    ].share *
+                    100
+                  ).toFixed(
+                    0,
+                  )}% in-region`
+                : "No regional data"
+            }
+          />
+        </div>
+      </div>
+
+      {/* =====================================================
+          DESKTOP OVERVIEW
+         ===================================================== */}
+
+      <Panel className="mb-5 hidden md:block">
+        <div className="grid grid-cols-3 gap-5">
+          <StatTile
+            label="Kingmaker"
+            value={
+              intelligence.kingmakers[
+                0
+              ]
+                ? cMap.get(
+                    intelligence.kingmakers[
+                      0
+                    ].countryId,
+                  )?.name ??
+                  "—"
+                : "—"
+            }
+          />
+
+          <StatTile
+            label="Most loyal"
+            value={
+              intelligence.loyaltyScore[
+                0
+              ]
+                ? cMap.get(
+                    intelligence.loyaltyScore[
+                      0
+                    ].countryId,
+                  )?.name ??
+                  "—"
+                : "—"
+            }
+          />
+
+          <StatTile
+            label="Regional bias"
+            value={
+              bias[
+                0
+              ]
+                ? cMap.get(
+                    bias[
+                      0
+                    ].id,
+                  )?.name ??
+                  "—"
+                : "—"
+            }
+          />
+        </div>
+      </Panel>
+
+      {/* =====================================================
+          MOBILE TABS
+         ===================================================== */}
+
+      <div className="md:hidden">
+        <ResponsiveTabs
+          value={
+            tab
+          }
+          options={
+            MOBILE_TABS
+          }
+          onChange={
+            setTab
+          }
+          label="Analysis view"
+          className="mb-5"
+        />
+      </div>
+
+      {/* =====================================================
+          DESKTOP TABS
+         ===================================================== */}
+
+      <div className="hidden md:block">
+        <ResponsiveTabs
+          value={
+            tab
+          }
+          options={
+            DESKTOP_TABS
+          }
+          onChange={
+            setTab
+          }
+          label="Analysis view"
+          className="mb-5"
+        />
+      </div>
+
+      {/* =====================================================
+          CONNECTIONS
+         ===================================================== */}
+
+      {tab ===
+        "network" && (
+        <>
+          <div className="space-y-4 md:hidden">
+            <SectionIntro
+              eyebrow="Voting network"
+              title="Strongest connections"
+              description="The pairs with the strongest two-way voting history."
+            />
+
+            {relationData.friendships.length ? (
+              <div className="space-y-2">
+                {relationData.friendships
+                  .slice(
+                    0,
+                    10,
+                  )
+                  .map(
+                    (
+                      row,
+                      index,
+                    ) => (
+                      <RelationshipCard
+                        key={`${row.a}-${row.b}`}
+                        rank={
+                          index +
+                          1
+                        }
+                        a={
+                          cMap.get(
+                            row.a,
+                          )
+                        }
+                        b={
+                          cMap.get(
+                            row.b,
+                          )
+                        }
+                        aPoints={
+                          row.ab
+                        }
+                        bPoints={
+                          row.ba
+                        }
+                        total={
+                          row.total
+                        }
+                      />
+                    ),
+                  )}
+              </div>
+            ) : (
+              <Empty />
+            )}
+
+            {strongestOneSided && (
+              <Panel
+                title="Most one-sided"
+                description="When the affection is not exactly mutual."
+              >
+                <OneSidedCard
+                  row={
+                    strongestOneSided
+                  }
+                  cMap={
+                    cMap
+                  }
+                />
+              </Panel>
+            )}
+          </div>
+
+          <div className="hidden md:block">
+            <Panel
+              title="Voting network"
+              description="The strongest historical voting connections."
+            >
+              {filteredJury.length ? (
+                <NetworkGraph
+                  countries={
+                    cs
+                  }
+                  jury={
+                    filteredJury
+                  }
+                />
+              ) : (
+                <Empty />
+              )}
+            </Panel>
+          </div>
+        </>
+      )}
+
+      {/* =====================================================
+          SUPPORT
+         ===================================================== */}
+
+      {tab ===
+        "heatmap" && (
+        <>
+          <div className="space-y-4 md:hidden">
+            <SectionIntro
+              eyebrow="Voting behaviour"
+              title="Who supports who?"
+              description="Choose a country to see where its support comes from and where its own points go."
+            />
+
+            {countryOptions.length ? (
+              <>
+                <Panel>
+                  <label
+                    htmlFor="analysis-country"
+                    className="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground"
+                  >
+                    Country
+                  </label>
+
+                  <select
+                    id="analysis-country"
+                    value={
+                      activeCountryId
+                    }
+                    onChange={
+                      (event) =>
+                        setSelectedCountryId(
+                          event.target.value,
+                        )
+                    }
+                    className="min-h-12 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none"
+                  >
+                    {countryOptions.map(
+                      (country) => (
+                        <option
+                          key={
+                            country.id
+                          }
+                          value={
+                            country.id
+                          }
+                        >
+                          {
+                            country.name
+                          }
+                        </option>
+                      ),
+                    )}
+                  </select>
+
+                  {activeCountry && (
+                    <div className="mt-4 flex items-center gap-3">
+                      <FlagChip
+                        code={
+                          activeCountry.short_code
+                        }
+                        color={
+                          activeCountry.accent_color
+                        }
+                        image={
+                          activeCountry.flag_image
+                        }
+                        size="md"
+                      />
+
+                      <div>
+                        <p className="font-display text-lg font-bold">
+                          {
+                            activeCountry.name
+                          }
+                        </p>
+
+                        <p className="text-[11px] text-muted-foreground">
+                          Voting support profile
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </Panel>
+
+                <MobileRankingPanel
+                  title="Receives most from"
+                  description={
+                    activeCountry
+                      ? `Countries giving ${activeCountry.name} the most points.`
+                      : undefined
+                  }
+                  rows={
+                    supporters
+                  }
+                  cMap={
+                    cMap
+                  }
+                />
+
+                <MobileRankingPanel
+                  title="Gives most to"
+                  description={
+                    activeCountry
+                      ? `Countries receiving the most points from ${activeCountry.name}.`
+                      : undefined
+                  }
+                  rows={
+                    recipients
+                  }
+                  cMap={
+                    cMap
+                  }
+                />
+
+                {activeCountry &&
+                  supporters[
+                    0
+                  ] &&
+                  recipients[
+                    0
+                  ] && (
+                    <Panel>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                        Quick read
+                      </p>
+
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        {
+                          activeCountry.name
+                        }{" "}
+                        receives the most support from{" "}
+                        <strong className="text-foreground">
+                          {cMap.get(
+                            supporters[
+                              0
+                            ][0],
+                          )?.name ??
+                            "another country"}
+                        </strong>
+                        , while giving the most points to{" "}
+                        <strong className="text-foreground">
+                          {cMap.get(
+                            recipients[
+                              0
+                            ][0],
+                          )?.name ??
+                            "another country"}
+                        </strong>
+                        .
+                      </p>
+                    </Panel>
+                  )}
+              </>
+            ) : (
+              <Empty />
+            )}
+          </div>
+
+          <div className="hidden md:block">
+            <Panel title="Voting heat map">
+              {filteredJury.length ? (
+                <VotingHeatmap
+                  countries={
+                    cs
+                  }
+                  jury={
+                    filteredJury
+                  }
+                />
+              ) : (
+                <Empty />
+              )}
+            </Panel>
+          </div>
+        </>
+      )}
+
+      {/* =====================================================
+          JURY VS TELE
+         ===================================================== */}
+
+      {tab ===
+        "jurytele" && (
+        <>
+          <div className="space-y-4 md:hidden">
+            <SectionIntro
+              eyebrow="Split vote"
+              title="Where jury and televote disagreed"
+              description="The biggest differences between jury and public support."
+            />
+
+            <DifferencePanel
+              title="Most jury-favoured"
+              description="Countries whose jury score most exceeded their televote."
+              rows={
+                juryFavoured
+              }
+            />
+
+            <DifferencePanel
+              title="Most televote-favoured"
+              description="Countries whose televote most exceeded their jury score."
+              rows={
+                teleFavoured
+              }
+            />
+
+            <DifferencePanel
+              title="Most agreed upon"
+              description="Countries where jury and televote landed closest together."
+              rows={
+                mostAgreed
+              }
+            />
+          </div>
+
+          <div className="hidden md:block">
+            <Panel title="Jury vs televote">
+              {filteredResults.length ? (
+                <JuryVsTelevote
+                  countries={
+                    cs
+                  }
+                  results={
+                    filteredResults
+                  }
+                />
+              ) : (
+                <Empty />
+              )}
+            </Panel>
+          </div>
+        </>
+      )}
+
+      {/* =====================================================
+          RELATIONSHIPS
+         ===================================================== */}
+
+      {tab ===
+        "relationships" && (
+        <>
+          <div className="space-y-4 md:hidden">
+            <SectionIntro
+              eyebrow="Relationships"
+              title="Voting pairs"
+              description="Similarity, friendships and one-sided voting relationships."
+            />
+
+            <Panel
+              title="Voting twins"
+              description="Pairs whose voting patterns are most alike."
+            >
+              {similarity.length ? (
+                <div className="divide-y divide-border/60">
+                  {similarity
+                    .slice(
+                      0,
+                      8,
+                    )
+                    .map(
+                      (
+                        row,
+                        index,
+                      ) => (
+                        <PairRow
+                          key={`${row.a}-${row.b}`}
+                          rank={
+                            index +
+                            1
+                          }
+                          a={
+                            cMap.get(
+                              row.a,
+                            )
+                          }
+                          b={
+                            cMap.get(
+                              row.b,
+                            )
+                          }
+                          value={`${(
+                            row.score *
+                            100
+                          ).toFixed(
+                            0,
+                          )}%`}
+                          sublabel="similarity"
+                        />
+                      ),
+                    )}
+                </div>
+              ) : (
+                <Empty compact />
+              )}
+            </Panel>
+
+            <Panel
+              title="Strongest friendships"
+              description="Pairs exchanging the most points in both directions."
+            >
+              {relationData.friendships.length ? (
+                <div className="divide-y divide-border/60">
+                  {relationData.friendships
+                    .slice(
+                      0,
+                      8,
+                    )
+                    .map(
+                      (
+                        row,
+                        index,
+                      ) => {
+                        const a =
+                          cMap.get(
+                            row.a,
+                          );
+
+                        const b =
+                          cMap.get(
+                            row.b,
+                          );
+
+                        if (
+                          !a ||
+                          !b
+                        ) {
+                          return null;
+                        }
+
+                        return (
+                          <Link
+                            key={`${row.a}-${row.b}`}
+                            to="/relationships/$pair"
+                            params={{
+                              pair:
+                                `${a.short_code}-vs-${b.short_code}`.toUpperCase(),
+                            }}
+                            className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                          >
+                            <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+                              {
+                                index +
+                                1
+                              }
+                            </span>
+
+                            <div className="flex -space-x-2">
+                              <FlagChip
+                                code={
+                                  a.short_code
+                                }
+                                color={
+                                  a.accent_color
+                                }
+                                image={
+                                  a.flag_image
+                                }
+                                size="sm"
+                              />
+
+                              <FlagChip
+                                code={
+                                  b.short_code
+                                }
+                                color={
+                                  b.accent_color
+                                }
+                                image={
+                                  b.flag_image
+                                }
+                                size="sm"
+                              />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold">
+                                {
+                                  a.name
+                                }{" "}
+                                ·{" "}
+                                {
+                                  b.name
+                                }
+                              </p>
+
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                {
+                                  row.ab
+                                }{" "}
+                                ↔{" "}
+                                {
+                                  row.ba
+                                }{" "}
+                                pts
+                              </p>
+                            </div>
+
+                            <span className="numeric text-sm font-bold">
+                              {
+                                row.total
+                              }
+                            </span>
+                          </Link>
+                        );
+                      },
+                    )}
+                </div>
+              ) : (
+                <Empty compact />
+              )}
+            </Panel>
+
+            <Panel
+              title="Most one-sided"
+              description="The biggest gaps between points given and returned."
+            >
+              {relationData.oneSided.length ? (
+                <div className="divide-y divide-border/60">
+                  {relationData.oneSided
+                    .slice(
+                      0,
+                      8,
+                    )
+                    .map(
+                      (
+                        row,
+                        index,
+                      ) => (
+                        <OneSidedRow
+                          key={`${row.a}-${row.b}`}
+                          rank={
+                            index +
+                            1
+                          }
+                          row={
+                            row
+                          }
+                          cMap={
+                            cMap
+                          }
+                        />
+                      ),
+                    )}
+                </div>
+              ) : (
+                <Empty compact />
+              )}
+            </Panel>
+          </div>
+
+          {/* DESKTOP RELATIONSHIPS */}
+
+          <div className="hidden md:block">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <Panel title="Most similar voting">
+                <div className="divide-y divide-border/60">
+                  {similarity
+                    .slice(
+                      0,
+                      8,
+                    )
+                    .map(
+                      (
+                        row,
+                        index,
+                      ) => (
+                        <div
+                          key={
+                            index
+                          }
+                          className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <span className="min-w-0 truncate text-sm">
+                            {cMap.get(
+                              row.a,
+                            )?.name ??
+                              "?"}{" "}
+                            ·{" "}
+                            {cMap.get(
+                              row.b,
+                            )?.name ??
+                              "?"}
+                          </span>
+
+                          <span className="numeric text-sm font-semibold">
+                            {(
+                              row.score *
+                              100
+                            ).toFixed(
+                              0,
+                            )}
+                            %
+                          </span>
+                        </div>
+                      ),
+                    )}
+                </div>
+              </Panel>
+
+              <Panel title="Strong friendships">
+                <div className="divide-y divide-border/60">
+                  {relationData.friendships
+                    .slice(
+                      0,
+                      8,
+                    )
+                    .map(
+                      (
+                        row,
+                        index,
+                      ) => {
+                        const a =
+                          cMap.get(
+                            row.a,
+                          );
+
+                        const b =
+                          cMap.get(
+                            row.b,
+                          );
+
+                        return (
+                          <Link
+                            key={
+                              index
+                            }
+                            to="/relationships/$pair"
+                            params={{
+                              pair:
+                                `${a?.short_code ?? ""}-vs-${b?.short_code ?? ""}`.toUpperCase(),
+                            }}
+                            className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                          >
+                            <span className="min-w-0 truncate text-sm">
+                              {
+                                a?.name ??
+                                "?"
+                              }{" "}
+                              ·{" "}
+                              {
+                                b?.name ??
+                                "?"
+                              }
+                            </span>
+
+                            <span className="numeric text-sm font-semibold">
+                              {
+                                row.total
+                              }{" "}
+                              pts
+                            </span>
+                          </Link>
+                        );
+                      },
+                    )}
+                </div>
+              </Panel>
+
+              <Panel
+                title="Chord view"
+                className="lg:col-span-2"
+              >
+                {filteredJury.length ? (
+                  <ChordDiagram
+                    countries={
+                      cs
+                    }
+                    jury={
+                      filteredJury
+                    }
+                  />
+                ) : (
+                  <Empty />
+                )}
+              </Panel>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* =====================================================
+          HISTORY
+         ===================================================== */}
+
+      {tab ===
+        "history" && (
+        <>
+          <div className="space-y-4 md:hidden">
+            <SectionIntro
+              eyebrow="All-time performance"
+              title="Historical leaders"
+              description="Countries ranked by accumulated points in the selected period."
+            />
+
+            <Panel>
+              {historyRows.length ? (
+                <div className="divide-y divide-border/60">
+                  {historyRows
+                    .slice(
+                      0,
+                      12,
+                    )
+                    .map(
+                      (
+                        row,
+                        index,
+                      ) => (
+                        <Link
+                          key={
+                            row.country.id
+                          }
+                          to="/countries/$code"
+                          params={{
+                            code:
+                              row.country.short_code,
+                          }}
+                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <span className="numeric w-7 shrink-0 text-center text-xs font-semibold text-muted-foreground">
+                            #
+                            {
+                              index +
+                              1
+                            }
+                          </span>
+
+                          <FlagChip
+                            code={
+                              row.country.short_code
+                            }
+                            color={
+                              row.country.accent_color
+                            }
+                            image={
+                              row.country.flag_image
+                            }
+                            size="sm"
+                          />
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">
+                              {
+                                row.country.name
+                              }
+                            </p>
+
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {
+                                row.appearances
+                              }{" "}
+                              results
+                              {row.averageRank !=
+                              null
+                                ? ` · avg #${row.averageRank.toFixed(
+                                    1,
+                                  )}`
+                                : ""}
+                            </p>
+                          </div>
+
+                          <div className="text-right">
+                            <p className="numeric text-sm font-bold">
+                              {
+                                row.totalPoints
+                              }
+                            </p>
+
+                            <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                              pts
+                            </p>
+                          </div>
+                        </Link>
+                      ),
+                    )}
+                </div>
+              ) : (
+                <Empty compact />
+              )}
+            </Panel>
+
+            {historyRows.length >
+              0 && (
+              <div className="grid grid-cols-2 gap-3">
+                <InsightCard
+                  label="Most points"
+                  value={
+                    historyRows[
+                      0
+                    ].country.name
+                  }
+                  detail={`${historyRows[
+                    0
+                  ].totalPoints} pts`}
+                />
+
+                <InsightCard
+                  label="Best average"
+                  value={
+                    [...historyRows]
+                      .filter(
+                        (row) =>
+                          row.averageRank !=
+                          null,
+                      )
+                      .sort(
+                        (a, b) =>
+                          (
+                            a.averageRank ??
+                            999
+                          ) -
+                          (
+                            b.averageRank ??
+                            999
+                          ),
+                      )[
+                      0
+                    ]?.country.name ??
+                    "—"
+                  }
+                  detail="Lowest average placing"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="hidden md:block">
+            <Panel title="Historical leaderboard">
+              {filteredResults.length ? (
+                <HistoricalLeaderboard
+                  countries={
+                    cs
+                  }
+                  editions={
+                    es
+                  }
+                  results={
+                    filteredResults
+                  }
+                />
+              ) : (
+                <Empty />
+              )}
+            </Panel>
+          </div>
+        </>
+      )}
+    </AppShell>
+  );
 }
 
 /* ============================================================
-   6. VOTING INTELLIGENCE
+   INSIGHT CARD
    ============================================================ */
 
-export type Kingmaker = {
-  countryId: string;
-  influenceScore: number;
-};
+function InsightCard({
+  label,
+  value,
+  detail,
+}: {
+  label:
+    string;
 
-export type VotingIntelligence = {
-  kingmakers: Kingmaker[];
-  voteVolatility: Array<{ countryId: string; stdDev: number }>;
-  predictability: Array<{ countryId: string; score: number }>;
-  loyaltyScore: Array<{ countryId: string; score: number }>;
-  diversityScore: Array<{ countryId: string; score: number }>;
-  strategicVotingIndex: Array<{ countryId: string; score: number }>;
-  regionalDependence: Array<{ countryId: string; share: number }>;
-  juryPublicDisagreement: number | null;
-};
+  value:
+    string;
 
-export function computeVotingIntelligence(opts: {
-  countries: Country[];
-  jury: JuryVote[];
-  results: ResultRow[];
-}): VotingIntelligence {
-  const jury = withVoterCountry(opts.jury);
-  const region = new Map(
-    opts.countries.map((country) => [country.id, country.region]),
+  detail:
+    string;
+}) {
+  return (
+    <div className="glass min-h-[132px] p-4">
+      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+        {
+          label
+        }
+      </p>
+
+      <p className="mt-3 break-words font-display text-lg font-bold leading-tight">
+        {
+          value
+        }
+      </p>
+
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+        {
+          detail
+        }
+      </p>
+    </div>
   );
+}
 
-  const winnersByEdition = new Map<string, string>();
-  for (const result of opts.results) {
-    if (result.final_rank === 1) {
-      winnersByEdition.set(result.edition_id, result.country_id);
-    }
+/* ============================================================
+   SECTION INTRO
+   ============================================================ */
+
+function SectionIntro({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow:
+    string;
+
+  title:
+    string;
+
+  description:
+    string;
+}) {
+  return (
+    <div>
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">
+        {
+          eyebrow
+        }
+      </p>
+
+      <h2 className="mt-1 font-display text-2xl font-bold">
+        {
+          title
+        }
+      </h2>
+
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+        {
+          description
+        }
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   RELATIONSHIP CARD
+   ============================================================ */
+
+function RelationshipCard({
+  rank,
+  a,
+  b,
+  aPoints,
+  bPoints,
+  total,
+}: {
+  rank:
+    number;
+
+  a:
+    Country | undefined;
+
+  b:
+    Country | undefined;
+
+  aPoints:
+    number;
+
+  bPoints:
+    number;
+
+  total:
+    number;
+}) {
+  if (
+    !a ||
+    !b
+  ) {
+    return null;
   }
 
-  const kingmakerScore = new Map<
-    string,
-    { given: number; toWinner: number }
-  >();
-
-  for (const vote of jury) {
-    const current = kingmakerScore.get(vote.voter_country_id) ?? {
-      given: 0,
-      toWinner: 0,
-    };
-
-    current.given += vote.points;
-    if (
-      winnersByEdition.get(vote.edition_id) === vote.receiving_country_id
-    ) {
-      current.toWinner += vote.points;
-    }
-    kingmakerScore.set(vote.voter_country_id, current);
-  }
-
-  const kingmakers: Kingmaker[] = [...kingmakerScore.entries()]
-    .map(([countryId, values]) => ({
-      countryId,
-      influenceScore: values.given
-        ? (values.toWinner / values.given) * 100
-        : 0,
-    }))
-    .sort((a, b) => b.influenceScore - a.influenceScore);
-
-  const byCountryEdition = new Map<string, Map<string, number>>();
-  for (const vote of jury) {
-    const map = byCountryEdition.get(vote.voter_country_id) ?? new Map();
-    map.set(
-      vote.edition_id,
-      (map.get(vote.edition_id) ?? 0) + vote.points,
-    );
-    byCountryEdition.set(vote.voter_country_id, map);
-  }
-
-  const voteVolatility: Array<{ countryId: string; stdDev: number }> = [];
-
-  for (const [countryId, map] of byCountryEdition.entries()) {
-    const values = [...map.values()];
-    const mean = avg(values) ?? 0;
-    const variance = values.length
-      ? values.reduce((total, value) => total + (value - mean) ** 2, 0) /
-        values.length
+  const reciprocity =
+    total
+      ? Math.round(
+          (
+            Math.min(
+              aPoints,
+              bPoints,
+            ) /
+            Math.max(
+              aPoints,
+              bPoints,
+              1,
+            )
+          ) *
+            100,
+        )
       : 0;
 
-    voteVolatility.push({ countryId, stdDev: Math.sqrt(variance) });
-  }
+  return (
+    <Link
+      to="/relationships/$pair"
+      params={{
+        pair:
+          `${a.short_code}-vs-${b.short_code}`.toUpperCase(),
+      }}
+      className="glass block p-4"
+    >
+      <div className="flex items-start gap-3">
+        <span className="numeric mt-1 w-6 shrink-0 text-xs font-bold text-muted-foreground">
+          #
+          {
+            rank
+          }
+        </span>
 
-  voteVolatility.sort((a, b) => b.stdDev - a.stdDev);
-  const maxStd = Math.max(1, ...voteVolatility.map((value) => value.stdDev));
+        <div className="flex -space-x-2">
+          <FlagChip
+            code={
+              a.short_code
+            }
+            color={
+              a.accent_color
+            }
+            image={
+              a.flag_image
+            }
+            size="sm"
+          />
 
-  const predictability = voteVolatility.map((value) => ({
-    countryId: value.countryId,
-    score: 100 - (value.stdDev / maxStd) * 100,
-  }));
+          <FlagChip
+            code={
+              b.short_code
+            }
+            color={
+              b.accent_color
+            }
+            image={
+              b.flag_image
+            }
+            size="sm"
+          />
+        </div>
 
-  const loyaltyScore: Array<{ countryId: string; score: number }> = [];
-  const diversityScore: Array<{ countryId: string; score: number }> = [];
-  const byCountry = new Map<string, Array<JuryVote & { voter_country_id: string }>>();
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-base font-bold">
+            {
+              a.name
+            }{" "}
+            ↔{" "}
+            {
+              b.name
+            }
+          </p>
 
-  for (const vote of jury) {
-    byCountry.set(vote.voter_country_id, [
-      ...(byCountry.get(vote.voter_country_id) ?? []),
-      vote,
-    ]);
-  }
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Strong two-way connection
+          </p>
+        </div>
 
-  for (const [countryId, votes] of byCountry.entries()) {
-    const recipientTotals = new Map<string, number>();
-    for (const vote of votes) {
-      recipientTotals.set(
-        vote.receiving_country_id,
-        (recipientTotals.get(vote.receiving_country_id) ?? 0) + vote.points,
-      );
-    }
+        <span className="numeric text-sm font-bold">
+          {
+            total
+          }
+        </span>
+      </div>
 
-    const total = votes.reduce((sum, vote) => sum + vote.points, 0);
-    const top = Math.max(0, ...recipientTotals.values());
+      <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-surface/50 p-3 text-center">
+        <MiniStat
+          label={`${a.short_code} → ${b.short_code}`}
+          value={
+            aPoints
+          }
+        />
 
-    loyaltyScore.push({
-      countryId,
-      score: total ? (top / total) * 100 : 0,
-    });
+        <MiniStat
+          label={`${b.short_code} → ${a.short_code}`}
+          value={
+            bPoints
+          }
+        />
 
-    const editionsVoted = new Set(votes.map((vote) => vote.edition_id)).size;
-    diversityScore.push({
-      countryId,
-      score: editionsVoted ? recipientTotals.size / editionsVoted : 0,
-    });
-  }
-
-  loyaltyScore.sort((a, b) => b.score - a.score);
-  diversityScore.sort((a, b) => b.score - a.score);
-
-  const regionalDependence: Array<{ countryId: string; share: number }> = [];
-
-  for (const [countryId, votes] of byCountry.entries()) {
-    const total = votes.reduce((sum, vote) => sum + vote.points, 0);
-    const inRegion = votes
-      .filter(
-        (vote) =>
-          region.get(vote.voter_country_id) ===
-          region.get(vote.receiving_country_id),
-      )
-      .reduce((sum, vote) => sum + vote.points, 0);
-
-    regionalDependence.push({
-      countryId,
-      share: total ? (inRegion / total) * 100 : 0,
-    });
-  }
-
-  regionalDependence.sort((a, b) => b.share - a.share);
-
-  const strategicVotingIndex = regionalDependence.map((row) => ({
-    countryId: row.countryId,
-    score: row.share,
-  }));
-
-  const byShow = new Map<string, ResultRow[]>();
-  for (const result of opts.results) {
-    const key = result.show_id ?? "";
-    byShow.set(key, [...(byShow.get(key) ?? []), result]);
-  }
-
-  const differences: number[] = [];
-
-  for (const rows of byShow.values()) {
-    if (rows.length < 2) continue;
-
-    const juryRank = new Map(
-      [...rows]
-        .sort((a, b) => b.jury_points - a.jury_points)
-        .map((result, index) => [result.country_id, index + 1]),
-    );
-
-    const teleRank = new Map(
-      [...rows]
-        .sort((a, b) => b.televote_points - a.televote_points)
-        .map((result, index) => [result.country_id, index + 1]),
-    );
-
-    for (const result of rows) {
-      differences.push(
-        Math.abs(
-          (juryRank.get(result.country_id) ?? 0) -
-            (teleRank.get(result.country_id) ?? 0),
-        ),
-      );
-    }
-  }
-
-  return {
-    kingmakers: kingmakers.slice(0, 15),
-    voteVolatility: voteVolatility.slice(0, 15),
-    predictability: predictability
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 15),
-    loyaltyScore: loyaltyScore.slice(0, 15),
-    diversityScore: diversityScore.slice(0, 15),
-    strategicVotingIndex: strategicVotingIndex.slice(0, 15),
-    regionalDependence: regionalDependence.slice(0, 15),
-    juryPublicDisagreement: avg(differences),
-  };
+        <MiniStat
+          label="Reciprocity"
+          value={`${reciprocity}%`}
+        />
+      </div>
+    </Link>
+  );
 }
 
 /* ============================================================
-   POINT FLOW / HEATMAP
+   ONE SIDED CARD
    ============================================================ */
 
-export type PointFlowLink = {
-  source: string;
-  target: string;
-  value: number;
-};
+function OneSidedCard({
+  row,
+  cMap,
+}: {
+  row: {
+    a:
+      string;
+    b:
+      string;
+    ab:
+      number;
+    ba:
+      number;
+    gap:
+      number;
+  };
 
-export function buildPointFlow(
-  jury: JuryVote[],
-  minValue = 1,
-): PointFlowLink[] {
-  const votes = withVoterCountry(jury);
-  const map = new Map<string, number>();
+  cMap:
+    Map<
+      string,
+      Country
+    >;
+}) {
+  const a =
+    cMap.get(
+      row.a,
+    );
 
-  for (const vote of votes) {
-    const key = `${vote.voter_country_id}>${vote.receiving_country_id}`;
-    map.set(key, (map.get(key) ?? 0) + vote.points);
+  const b =
+    cMap.get(
+      row.b,
+    );
+
+  if (
+    !a ||
+    !b
+  ) {
+    return (
+      <Empty compact />
+    );
   }
 
-  return [...map.entries()]
-    .map(([key, value]) => {
-      const [source, target] = key.split(">");
-      return { source, target, value };
-    })
-    .filter((link) => link.value >= minValue)
-    .sort((a, b) => b.value - a.value);
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <FlagChip
+          code={
+            a.short_code
+          }
+          color={
+            a.accent_color
+          }
+          image={
+            a.flag_image
+          }
+          size="md"
+        />
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">
+            {
+              a.name
+            }{" "}
+            →{" "}
+            {
+              b.name
+            }
+          </p>
+
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {
+              row.gap
+            }{" "}
+            point gap
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <MiniStat
+          label={`${a.short_code} → ${b.short_code}`}
+          value={
+            row.ab
+          }
+        />
+
+        <MiniStat
+          label={`${b.short_code} → ${a.short_code}`}
+          value={
+            row.ba
+          }
+        />
+      </div>
+    </div>
+  );
 }
 
-export function buildHeatmapMatrix(countries: Country[], jury: JuryVote[]) {
-  const votes = withVoterCountry(jury);
-  const ids = countries.map((country) => country.id);
-  const index = new Map(ids.map((id, i) => [id, i]));
-  const matrix = ids.map(() => ids.map(() => 0));
+/* ============================================================
+   ONE SIDED ROW
+   ============================================================ */
 
-  for (const vote of votes) {
-    const i = index.get(vote.voter_country_id);
-    const j = index.get(vote.receiving_country_id);
+function OneSidedRow({
+  rank,
+  row,
+  cMap,
+}: {
+  rank:
+    number;
 
-    if (i == null || j == null) continue;
-    matrix[i][j] += vote.points;
+  row: {
+    a:
+      string;
+    b:
+      string;
+    ab:
+      number;
+    ba:
+      number;
+    gap:
+      number;
+  };
+
+  cMap:
+    Map<
+      string,
+      Country
+    >;
+}) {
+  const a =
+    cMap.get(
+      row.a,
+    );
+
+  const b =
+    cMap.get(
+      row.b,
+    );
+
+  if (
+    !a ||
+    !b
+  ) {
+    return null;
   }
 
-  return { ids, matrix };
+  return (
+    <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+        {
+          rank
+        }
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">
+          {
+            a.name
+          }{" "}
+          →{" "}
+          {
+            b.name
+          }
+        </p>
+
+        <p className="mt-0.5 text-[10px] text-muted-foreground">
+          {
+            row.ab
+          }{" "}
+          given ·{" "}
+          {
+            row.ba
+          }{" "}
+          returned
+        </p>
+      </div>
+
+      <span className="numeric text-sm font-bold text-primary">
+        +
+        {
+          row.gap
+        }
+      </span>
+    </div>
+  );
+}
+
+/* ============================================================
+   PAIR ROW
+   ============================================================ */
+
+function PairRow({
+  rank,
+  a,
+  b,
+  value,
+  sublabel,
+}: {
+  rank:
+    number;
+
+  a:
+    Country | undefined;
+
+  b:
+    Country | undefined;
+
+  value:
+    string;
+
+  sublabel:
+    string;
+}) {
+  if (
+    !a ||
+    !b
+  ) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+        {
+          rank
+        }
+      </span>
+
+      <div className="flex -space-x-2">
+        <FlagChip
+          code={
+            a.short_code
+          }
+          color={
+            a.accent_color
+          }
+          image={
+            a.flag_image
+          }
+          size="sm"
+        />
+
+        <FlagChip
+          code={
+            b.short_code
+          }
+          color={
+            b.accent_color
+          }
+          image={
+            b.flag_image
+          }
+          size="sm"
+        />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">
+          {
+            a.name
+          }{" "}
+          ·{" "}
+          {
+            b.name
+          }
+        </p>
+
+        <p className="mt-0.5 text-[10px] text-muted-foreground">
+          {
+            sublabel
+          }
+        </p>
+      </div>
+
+      <span className="numeric text-sm font-bold">
+        {
+          value
+        }
+      </span>
+    </div>
+  );
+}
+
+/* ============================================================
+   RANKING PANEL
+   ============================================================ */
+
+function MobileRankingPanel({
+  title,
+  description,
+  rows,
+  cMap,
+}: {
+  title:
+    string;
+
+  description?:
+    string;
+
+  rows:
+    Array<
+      [
+        string,
+        number,
+      ]
+    >;
+
+  cMap:
+    Map<
+      string,
+      Country
+    >;
+}) {
+  return (
+    <Panel
+      title={
+        title
+      }
+      description={
+        description
+      }
+    >
+      {rows.length ? (
+        <div className="divide-y divide-border/60">
+          {rows.map(
+            (
+              [
+                id,
+                points,
+              ],
+              index,
+            ) => {
+              const country =
+                cMap.get(
+                  id,
+                );
+
+              if (
+                !country
+              ) {
+                return null;
+              }
+
+              return (
+                <Link
+                  key={
+                    id
+                  }
+                  to="/countries/$code"
+                  params={{
+                    code:
+                      country.short_code,
+                  }}
+                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+                    {
+                      index +
+                      1
+                    }
+                  </span>
+
+                  <FlagChip
+                    code={
+                      country.short_code
+                    }
+                    color={
+                      country.accent_color
+                    }
+                    image={
+                      country.flag_image
+                    }
+                    size="sm"
+                  />
+
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                    {
+                      country.name
+                    }
+                  </span>
+
+                  <span className="numeric text-sm font-bold">
+                    {
+                      points
+                    }{" "}
+                    <span className="text-[9px] font-normal text-muted-foreground">
+                      pts
+                    </span>
+                  </span>
+                </Link>
+              );
+            },
+          )}
+        </div>
+      ) : (
+        <Empty compact />
+      )}
+    </Panel>
+  );
+}
+
+/* ============================================================
+   JURY / TELE
+   ============================================================ */
+
+type JuryTeleRow = {
+  country:
+    Country;
+
+  jury:
+    number;
+
+  tele:
+    number;
+
+  difference:
+    number;
+};
+
+function DifferencePanel({
+  title,
+  description,
+  rows,
+}: {
+  title:
+    string;
+
+  description:
+    string;
+
+  rows:
+    JuryTeleRow[];
+}) {
+  return (
+    <Panel
+      title={
+        title
+      }
+      description={
+        description
+      }
+    >
+      {rows.length ? (
+        <div className="divide-y divide-border/60">
+          {rows.map(
+            (
+              row,
+              index,
+            ) => {
+              const gap =
+                Math.abs(
+                  row.difference,
+                );
+
+              return (
+                <Link
+                  key={
+                    row.country.id
+                  }
+                  to="/countries/$code"
+                  params={{
+                    code:
+                      row.country.short_code,
+                  }}
+                  className="block py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+                      {
+                        index +
+                        1
+                      }
+                    </span>
+
+                    <FlagChip
+                      code={
+                        row.country.short_code
+                      }
+                      color={
+                        row.country.accent_color
+                      }
+                      image={
+                        row.country.flag_image
+                      }
+                      size="sm"
+                    />
+
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                      {
+                        row.country.name
+                      }
+                    </span>
+
+                    <span className="numeric text-sm font-bold">
+                      {
+                        gap
+                      }
+                    </span>
+                  </div>
+
+                  <div className="ml-8 mt-2 grid grid-cols-2 gap-2">
+                    <MiniStat
+                      label="Jury"
+                      value={
+                        row.jury
+                      }
+                    />
+
+                    <MiniStat
+                      label="Televote"
+                      value={
+                        row.tele
+                      }
+                    />
+                  </div>
+                </Link>
+              );
+            },
+          )}
+        </div>
+      ) : (
+        <Empty compact />
+      )}
+    </Panel>
+  );
+}
+
+/* ============================================================
+   SMALL STAT
+   ============================================================ */
+
+function MiniStat({
+  label,
+  value,
+}: {
+  label:
+    string;
+
+  value:
+    string | number;
+}) {
+  return (
+    <div className="rounded-lg bg-surface/70 px-2 py-2">
+      <p className="numeric text-sm font-bold">
+        {
+          value
+        }
+      </p>
+
+      <p className="mt-0.5 truncate text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
+        {
+          label
+        }
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   EMPTY
+   ============================================================ */
+
+function Empty({
+  compact = false,
+}: {
+  compact?:
+    boolean;
+}) {
+  return (
+    <div
+      className={
+        compact
+          ? "py-5 text-center text-sm text-muted-foreground"
+          : "py-12 text-center text-sm text-muted-foreground"
+      }
+    >
+      Not enough data for this view.
+    </div>
+  );
+}
+
+/* ============================================================
+   DATA HELPERS
+   ============================================================ */
+
+function pairName(
+  aId:
+    string,
+  bId:
+    string,
+  cMap:
+    Map<
+      string,
+      Country
+    >,
+) {
+  const a =
+    cMap.get(
+      aId,
+    )?.name ??
+    "?";
+
+  const b =
+    cMap.get(
+      bId,
+    )?.name ??
+    "?";
+
+  return `${a} · ${b}`;
+}
+
+function buildJuryTeleRows(
+  results:
+    ResultRow[],
+  cMap:
+    Map<
+      string,
+      Country
+    >,
+): JuryTeleRow[] {
+  const totals =
+    new Map<
+      string,
+      {
+        jury:
+          number;
+        tele:
+          number;
+      }
+    >();
+
+  results.forEach(
+    (row) => {
+      const current =
+        totals.get(
+          row.country_id,
+        ) ?? {
+          jury: 0,
+          tele: 0,
+        };
+
+      current.jury +=
+        row.jury_points;
+
+      current.tele +=
+        row.televote_points;
+
+      totals.set(
+        row.country_id,
+        current,
+      );
+    },
+  );
+
+  return [
+    ...totals.entries(),
+  ]
+    .map(
+      ([
+        id,
+        values,
+      ]) => {
+        const country =
+          cMap.get(
+            id,
+          );
+
+        if (
+          !country
+        ) {
+          return null;
+        }
+
+        return {
+          country,
+          jury:
+            values.jury,
+          tele:
+            values.tele,
+          difference:
+            values.jury -
+            values.tele,
+        };
+      },
+    )
+    .filter(
+      (
+        row,
+      ): row is JuryTeleRow =>
+        !!row,
+    );
+}
+
+type HistoryRow = {
+  country:
+    Country;
+
+  totalPoints:
+    number;
+
+  appearances:
+    number;
+
+  averageRank:
+    number | null;
+};
+
+function buildHistoryRows(
+  results:
+    ResultRow[],
+  cMap:
+    Map<
+      string,
+      Country
+    >,
+): HistoryRow[] {
+  const totals =
+    new Map<
+      string,
+      {
+        totalPoints:
+          number;
+        appearances:
+          number;
+        ranks:
+          number[];
+      }
+    >();
+
+  results.forEach(
+    (row) => {
+      const current =
+        totals.get(
+          row.country_id,
+        ) ?? {
+          totalPoints: 0,
+          appearances: 0,
+          ranks: [],
+        };
+
+      current.totalPoints +=
+        row.total_points;
+
+      current.appearances +=
+        1;
+
+      if (
+        row.final_rank !=
+        null
+      ) {
+        current.ranks.push(
+          row.final_rank,
+        );
+      }
+
+      totals.set(
+        row.country_id,
+        current,
+      );
+    },
+  );
+
+  return [
+    ...totals.entries(),
+  ]
+    .map(
+      ([
+        id,
+        values,
+      ]) => {
+        const country =
+          cMap.get(
+            id,
+          );
+
+        if (
+          !country
+        ) {
+          return null;
+        }
+
+        const averageRank =
+          values.ranks.length
+            ? values.ranks.reduce(
+                (
+                  sum,
+                  rank,
+                ) =>
+                  sum +
+                  rank,
+                0,
+              ) /
+              values.ranks.length
+            : null;
+
+        return {
+          country,
+          totalPoints:
+            values.totalPoints,
+          appearances:
+            values.appearances,
+          averageRank,
+        };
+      },
+    )
+    .filter(
+      (
+        row,
+      ): row is HistoryRow =>
+        !!row,
+    )
+    .sort(
+      (a, b) =>
+        b.totalPoints -
+        a.totalPoints,
+    );
 }
