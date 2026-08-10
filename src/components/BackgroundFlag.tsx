@@ -27,19 +27,22 @@ export function BackgroundFlag({
         opacity,
       }}
     >
-      {/* Soft blurred edge only */}
+      {/* BLURRED BASE
+          This extends past the circle and actually melts
+          the outer pixels into the surrounding background.
+      */}
       <div
         className="
           absolute
-          -inset-[3%]
-          overflow-hidden
+          -inset-[5%]
           rounded-full
         "
         style={{
+          filter: "blur(22px)",
           WebkitMaskImage:
-            "radial-gradient(circle, transparent 0%, transparent 55%, rgba(0,0,0,0.18) 66%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.85) 84%, rgba(0,0,0,0.45) 92%, transparent 100%)",
+            "radial-gradient(circle, black 0%, black 58%, rgba(0,0,0,0.95) 68%, rgba(0,0,0,0.72) 78%, rgba(0,0,0,0.38) 88%, rgba(0,0,0,0.12) 95%, transparent 100%)",
           maskImage:
-            "radial-gradient(circle, transparent 0%, transparent 55%, rgba(0,0,0,0.18) 66%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.85) 84%, rgba(0,0,0,0.45) 92%, transparent 100%)",
+            "radial-gradient(circle, black 0%, black 58%, rgba(0,0,0,0.95) 68%, rgba(0,0,0,0.72) 78%, rgba(0,0,0,0.38) 88%, rgba(0,0,0,0.12) 95%, transparent 100%)",
         }}
       >
         <img
@@ -48,26 +51,28 @@ export function BackgroundFlag({
           className="
             h-full
             w-full
-            scale-[1.04]
+            scale-[1.08]
+            rounded-full
             object-cover
-            blur-[14px]
           "
         />
       </div>
 
-      {/* Main flag stays sharp */}
+      {/* SHARP CENTRE
+          The middle stays readable, but it fades away
+          BEFORE reaching the original circular edge.
+      */}
       <div
         className="
           absolute
           inset-0
-          overflow-hidden
           rounded-full
         "
         style={{
           WebkitMaskImage:
-            "radial-gradient(circle, black 0%, black 52%, rgba(0,0,0,0.96) 60%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.28) 84%, rgba(0,0,0,0.08) 92%, transparent 100%)",
+            "radial-gradient(circle, black 0%, black 48%, rgba(0,0,0,0.98) 56%, rgba(0,0,0,0.82) 64%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.28) 80%, rgba(0,0,0,0.08) 87%, transparent 94%)",
           maskImage:
-            "radial-gradient(circle, black 0%, black 52%, rgba(0,0,0,0.96) 60%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.55) 76%, rgba(0,0,0,0.28) 84%, rgba(0,0,0,0.08) 92%, transparent 100%)",
+            "radial-gradient(circle, black 0%, black 48%, rgba(0,0,0,0.98) 56%, rgba(0,0,0,0.82) 64%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.28) 80%, rgba(0,0,0,0.08) 87%, transparent 94%)",
         }}
       >
         <img
@@ -76,6 +81,7 @@ export function BackgroundFlag({
           className="
             h-full
             w-full
+            rounded-full
             object-cover
           "
         />
