@@ -26,19 +26,22 @@ export function BackgroundFlag({
     return null;
   }
 
+  const patternId =
+    `background-flag-pattern-${id}`;
+
   const blurId =
     `background-flag-blur-${id}`;
 
   const sharpMaskId =
-    `background-flag-sharp-${id}`;
+    `background-flag-sharp-mask-${id}`;
 
-  const blurMaskId =
-    `background-flag-soft-${id}`;
+  const softMaskId =
+    `background-flag-soft-mask-${id}`;
 
   const sharpGradientId =
     `background-flag-sharp-gradient-${id}`;
 
-  const blurGradientId =
+  const softGradientId =
     `background-flag-soft-gradient-${id}`;
 
   return (
@@ -56,7 +59,7 @@ export function BackgroundFlag({
       }}
     >
       <svg
-        viewBox="0 0 100 100"
+        viewBox="-18 -18 136 136"
         xmlns="http://www.w3.org/2000/svg"
         className="
           absolute
@@ -72,30 +75,53 @@ export function BackgroundFlag({
       >
         <defs>
           {/* ================================================
-              HEAVY EDGE BLUR
+              FLAG IMAGE
 
-              This blurred version is allowed to spread
-              outside the original flag area.
+              The image is used as a fill for actual circles.
+              This prevents the square source image from ever
+              becoming visible.
+             ================================================ */}
+
+          <pattern
+            id={patternId}
+            patternUnits="userSpaceOnUse"
+            width="100"
+            height="100"
+          >
+            <image
+              href={image}
+              x="0"
+              y="0"
+              width="100"
+              height="100"
+              preserveAspectRatio="xMidYMid slice"
+            />
+          </pattern>
+
+          {/* ================================================
+              BLUR
+
+              Blurs the circular flag outward.
              ================================================ */}
 
           <filter
             id={blurId}
-            x="-35%"
-            y="-35%"
-            width="170%"
-            height="170%"
+            x="-45%"
+            y="-45%"
+            width="190%"
+            height="190%"
             colorInterpolationFilters="sRGB"
           >
             <feGaussianBlur
-              stdDeviation="6.5"
+              stdDeviation="7"
             />
           </filter>
 
           {/* ================================================
-              SHARP CENTRE MASK
+              SHARP CENTRE GRADIENT
 
-              Fully sharp through the middle, then smoothly
-              disappears before reaching the outer edge.
+              Strong and clear in the middle.
+              Gradually disappears toward the edge.
              ================================================ */}
 
           <radialGradient
@@ -109,39 +135,47 @@ export function BackgroundFlag({
             <stop
               offset="0%"
               stopColor="white"
+              stopOpacity="1"
             />
 
             <stop
-              offset="48%"
+              offset="45%"
               stopColor="white"
+              stopOpacity="1"
             />
 
             <stop
-              offset="58%"
+              offset="55%"
               stopColor="white"
-              stopOpacity="0.95"
+              stopOpacity="0.98"
             />
 
             <stop
-              offset="66%"
+              offset="64%"
               stopColor="white"
-              stopOpacity="0.72"
+              stopOpacity="0.82"
             />
 
             <stop
-              offset="74%"
+              offset="72%"
               stopColor="white"
-              stopOpacity="0.42"
+              stopOpacity="0.58"
             />
 
             <stop
-              offset="82%"
+              offset="80%"
               stopColor="white"
-              stopOpacity="0.16"
+              stopOpacity="0.32"
             />
 
             <stop
-              offset="90%"
+              offset="87%"
+              stopColor="white"
+              stopOpacity="0.12"
+            />
+
+            <stop
+              offset="93%"
               stopColor="white"
               stopOpacity="0"
             />
@@ -158,67 +192,68 @@ export function BackgroundFlag({
               sharpMaskId
             }
             maskUnits="userSpaceOnUse"
-            x="-20"
-            y="-20"
-            width="140"
-            height="140"
+            x="0"
+            y="0"
+            width="100"
+            height="100"
           >
-            <rect
-              x="-20"
-              y="-20"
-              width="140"
-              height="140"
+            <circle
+              cx="50"
+              cy="50"
+              r="50"
               fill={`url(#${sharpGradientId})`}
             />
           </mask>
 
           {/* ================================================
-              BLURRED EDGE MASK
+              SOFT OUTER GRADIENT
 
-              The blurred copy remains underneath the sharp
-              image and then itself fades into nothing.
+              Allows the blurred colours to spread beyond the
+              main flag and then dissolve into the background.
              ================================================ */}
 
           <radialGradient
             id={
-              blurGradientId
+              softGradientId
             }
             cx="50%"
             cy="50%"
-            r="70%"
+            r="50%"
           >
             <stop
               offset="0%"
               stopColor="white"
+              stopOpacity="1"
             />
 
             <stop
-              offset="58%"
+              offset="55%"
               stopColor="white"
+              stopOpacity="1"
             />
 
             <stop
-              offset="70%"
+              offset="68%"
               stopColor="white"
               stopOpacity="0.95"
             />
 
             <stop
-              offset="80%"
+              offset="78%"
               stopColor="white"
               stopOpacity="0.72"
             />
 
             <stop
-              offset="89%"
+              offset="87%"
               stopColor="white"
-              stopOpacity="0.38"
+              stopOpacity="0.42"
             />
 
             <stop
-              offset="96%"
+              offset="94%"
               stopColor="white"
-              stopOpacity="0.1"
+              stopOpacity="0.16"
             />
 
             <stop
@@ -230,56 +265,54 @@ export function BackgroundFlag({
 
           <mask
             id={
-              blurMaskId
+              softMaskId
             }
             maskUnits="userSpaceOnUse"
-            x="-30"
-            y="-30"
-            width="160"
-            height="160"
+            x="-18"
+            y="-18"
+            width="136"
+            height="136"
           >
-            <rect
-              x="-30"
-              y="-30"
-              width="160"
-              height="160"
-              fill={`url(#${blurGradientId})`}
+            <circle
+              cx="50"
+              cy="50"
+              r="65"
+              fill={`url(#${softGradientId})`}
             />
           </mask>
         </defs>
 
         {/* ================================================
-            ONE BLURRED COPY
+            BLURRED CIRCULAR FLAG
 
-            Same exact size and crop as the sharp image.
-            No larger circle underneath it.
+            IMPORTANT:
+            This is a CIRCLE, not a rectangular image.
+
+            The blur can spread outside the original circle,
+            but its source shape remains circular.
            ================================================ */}
 
-        <image
-          href={image}
-          x="0"
-          y="0"
-          width="100"
-          height="100"
-          preserveAspectRatio="xMidYMid slice"
+        <circle
+          cx="50"
+          cy="50"
+          r="50"
+          fill={`url(#${patternId})`}
           filter={`url(#${blurId})`}
-          mask={`url(#${blurMaskId})`}
+          mask={`url(#${softMaskId})`}
         />
 
         {/* ================================================
-            ONE SHARP COPY
+            SHARP CIRCULAR FLAG
 
-            EXACTLY aligned with the blurred copy.
-            It gradually gives way to the blur.
+            Same exact flag underneath/above.
+            Sharp centre fades gradually into blurred layer.
            ================================================ */}
 
-        <image
-          href={image}
-          x="0"
-          y="0"
-          width="100"
-          height="100"
-          preserveAspectRatio="xMidYMid slice"
+        <circle
+          cx="50"
+          cy="50"
+          r="50"
+          fill={`url(#${patternId})`}
           mask={`url(#${sharpMaskId})`}
         />
       </svg>
