@@ -33,6 +33,10 @@ import {
 } from "@/components/studio/BroadcastEditor";
 
 import {
+  ScoreboardEditor,
+} from "@/components/studio/ScoreboardEditor";
+
+import {
   supabase,
 } from "@/integrations/supabase/client";
 
@@ -42,16 +46,21 @@ import {
 
 import {
   editionLabel,
-  useAllParticipants,
   useAllShows,
+  useContestEntities,
+  useCountries,
   useEditions,
   useIsOrganizer,
+  useShowParticipants,
   useThemes,
   type Edition,
 } from "@/lib/data";
 
 import {
-  backgroundStyle,
+  entityDisplayMap,
+} from "@/lib/entities";
+
+import {
   resolveTheme,
   type ThemeConfig,
 } from "@/lib/theme";
@@ -60,6 +69,12 @@ import {
   resolveBroadcast,
   type BroadcastConfig,
 } from "@/lib/broadcast";
+
+import {
+  resolveScoreboard,
+  type BroadcastRowData,
+  type ScoreboardConfig,
+} from "@/lib/scoreboard";
 
 export const Route =
   createFileRoute(
@@ -90,28 +105,6 @@ type EditionWithBroadcast =
       | null;
   };
 
-function recommendedColumns(
-  count: number,
-  theme: ThemeConfig,
-) {
-  if (
-    count <= 14
-  ) {
-    return 1;
-  }
-
-  if (
-    count <= 30
-  ) {
-    return 2;
-  }
-
-  return theme.layout.mode ===
-    "grid"
-    ? 3
-    : 2;
-}
-
 function EditionDesignPage() {
   const {
     slug,
@@ -126,14 +119,14 @@ function EditionDesignPage() {
     useEditions();
 
   const {
+    data: countries,
+  } =
+    useCountries();
+
+  const {
     data: shows,
   } =
     useAllShows();
-
-  const {
-    data: participants,
-  } =
-    useAllParticipants();
 
   const {
     data: themes,
@@ -196,62 +189,163 @@ function EditionDesignPage() {
       ],
     );
 
-  const participantCountByShow =
-    useMemo(
-      () => {
-        const counts =
-          new Map<
-            string,
-            number
-          >();
+  const [
+    previewShowId,
+    setPreviewShowId,
+  ] =
+    useState("");
 
-        (
-          participants ??
-          []
-        ).forEach(
-          (
-            participant,
-          ) => {
-            if (
-              !participant.show_id
-            ) {
-              return;
-            }
-
-            counts.set(
-              participant.show_id,
-              (
-                counts.get(
-                  participant.show_id,
-                ) ??
-                0
-              ) +
-                1,
-            );
-          },
+  useEffect(
+    () => {
+      if (
+        !previewShowId &&
+        editionShows[
+          0
+        ]
+      ) {
+        setPreviewShowId(
+          editionShows[
+            0
+          ].id,
         );
+      }
 
-        return counts;
-      },
+      if (
+        previewShowId &&
+        !editionShows.some(
+          (
+            show,
+          ) =>
+            show.id ===
+            previewShowId,
+        )
+      ) {
+        setPreviewShowId(
+          editionShows[
+            0
+          ]?.id ??
+            "",
+        );
+      }
+    },
+    [
+      editionShows,
+      previewShowId,
+    ],
+  );
+
+  const previewShow =
+    editionShows.find(
+      (
+        show,
+      ) =>
+        show.id ===
+        previewShowId,
+    ) ??
+    editionShows[
+      0
+    ] ??
+    null;
+
+  const {
+    data:
+      previewParticipants,
+  } =
+    useShowParticipants(
+      previewShow?.id,
+    );
+
+  const {
+    data: entities,
+  } =
+    useContestEntities(
+      edition?.id,
+    );
+
+  const displayMap =
+    useMemo(
+      () =>
+        entityDisplayMap(
+          entities ??
+            [],
+          countries ??
+            [],
+        ),
       [
-        participants,
+        entities,
+        countries,
       ],
     );
 
-  const [
-    designThemeId,
-    setDesignThemeId,
-  ] =
-    useState("");
+  const savedTheme =
+    useMemo(
+      () =>
+        resolveTheme(
+          (
+            themes ??
+            []
+          ).find(
+            (
+              theme,
+            ) =>
+              theme.id ===
+              edition?.theme_id,
+          )?.config,
+        ),
+      [
+        themes,
+        edition?.theme_id,
+      ],
+    );
+
+  const savedBroadcast =
+    useMemo(
+      () =>
+        resolveBroadcast(
+          (
+            edition as
+              | EditionWithBroadcast
+              | null
+          )
+            ?.broadcast_config,
+        ),
+      [
+        edition,
+      ],
+    );
+
+  const savedScoreboard =
+    useMemo(
+      () =>
+        resolveScoreboard(
+          (
+            edition as
+              | EditionWithBroadcast
+              | null
+          )
+            ?.broadcast_config,
+          {
+            theme:
+              savedTheme,
+
+            rowCount:
+              previewParticipants?.length ??
+              0,
+          },
+        ),
+      [
+        edition,
+        savedTheme,
+        previewParticipants?.length,
+      ],
+    );
 
   const [
     themeDraft,
     setThemeDraft,
   ] =
     useState<ThemeConfig>(
-      resolveTheme(
-        undefined,
-      ),
+      savedTheme,
     );
 
   const [
@@ -259,9 +353,15 @@ function EditionDesignPage() {
     setBroadcastDraft,
   ] =
     useState<BroadcastConfig>(
-      resolveBroadcast(
-        undefined,
-      ),
+      savedBroadcast,
+    );
+
+  const [
+    scoreboardDraft,
+    setScoreboardDraft,
+  ] =
+    useState<ScoreboardConfig>(
+      savedScoreboard,
     );
 
   const [
@@ -288,48 +388,189 @@ function EditionDesignPage() {
 
   useEffect(
     () => {
-      if (
-        !edition
-      ) {
-        return;
-      }
-
-      const themeRow =
-        (
-          themes ??
-          []
-        ).find(
-          (
-            theme,
-          ) =>
-            theme.id ===
-            edition.theme_id,
-        );
-
-      setDesignThemeId(
-        edition.theme_id ??
-          "",
-      );
-
       setThemeDraft(
-        resolveTheme(
-          themeRow?.config,
-        ),
+        savedTheme,
       );
 
       setBroadcastDraft(
-        resolveBroadcast(
-          (
-            edition as EditionWithBroadcast
-          ).broadcast_config,
-        ),
+        savedBroadcast,
+      );
+
+      setScoreboardDraft(
+        savedScoreboard,
       );
     },
     [
-      edition,
-      themes,
+      edition?.id,
+      savedTheme,
+      savedBroadcast,
+      savedScoreboard,
     ],
   );
+
+  const previewRows =
+    useMemo<
+      BroadcastRowData[]
+    >(
+      () =>
+        (
+          previewParticipants ??
+          []
+        ).map(
+          (
+            participant,
+            index,
+          ) => {
+            const display =
+              displayMap.get(
+                participant.country_id,
+              );
+
+            const total =
+              Math.max(
+                0,
+                248 -
+                  index *
+                    7,
+              );
+
+            return {
+              id:
+                participant.country_id,
+
+              entityType:
+                display?.entityType ??
+                "global",
+
+              name:
+                display?.name ??
+                participant.country_id,
+
+              abbreviation:
+                display?.short_code ??
+                "",
+
+              flagImage:
+                display?.flag_image ??
+                null,
+
+              accent:
+                display?.accent_color ??
+                themeDraft.colors.accent,
+
+              rank:
+                index +
+                1,
+
+              runningOrder:
+                participant.running_order ??
+                index +
+                  1,
+
+              score:
+                total,
+
+              juryScore:
+                Math.round(
+                  total *
+                    0.53,
+                ),
+
+              televoteScore:
+                Math.round(
+                  total *
+                    0.47,
+                ),
+
+              movement:
+                index % 4 ===
+                0
+                  ? 2
+                  : index % 4 ===
+                      1
+                    ? -1
+                    : 0,
+
+              qualified:
+                participant.qualified,
+
+              eliminated:
+                participant.qualified ===
+                false
+                  ? true
+                  : participant.qualified ===
+                      true
+                    ? false
+                    : null,
+
+              active:
+                index ===
+                2,
+
+              highlighted:
+                index ===
+                1,
+
+              leader:
+                index ===
+                0,
+
+              winner:
+                index ===
+                  0 &&
+                previewShow?.kind ===
+                  "grand-final",
+
+              subtitle:
+                participant.artist &&
+                participant.song
+                  ? `${participant.artist} — ${participant.song}`
+                  : participant.artist ??
+                    participant.song ??
+                    null,
+            };
+          },
+        ),
+      [
+        previewParticipants,
+        displayMap,
+        themeDraft.colors.accent,
+        previewShow?.kind,
+      ],
+    );
+
+  const participantCount =
+    previewParticipants?.length ??
+    0;
+
+  const automaticColumns =
+    participantCount <=
+    14
+      ? 1
+      : participantCount <=
+          30
+        ? 2
+        : 3;
+
+  const resetScoreboard =
+    () => {
+      setScoreboardDraft(
+        resolveScoreboard(
+          null,
+          {
+            theme:
+              themeDraft,
+
+            rowCount:
+              participantCount,
+          },
+        ),
+      );
+
+      setMsg(
+        "Scoreboard reset to the automatic edition theme design.",
+      );
+    };
 
   const refresh =
     () => {
@@ -350,45 +591,6 @@ function EditionDesignPage() {
                 key,
               ],
           }),
-      );
-    };
-
-  const selectThemeFromLibrary =
-    (
-      id:
-        string,
-    ) => {
-      setDesignThemeId(
-        id,
-      );
-
-      const selected =
-        (
-          themes ??
-          []
-        ).find(
-          (
-            theme,
-          ) =>
-            theme.id ===
-            id,
-        );
-
-      setThemeDraft(
-        resolveTheme(
-          selected?.config,
-        ),
-      );
-    };
-
-  const makeThemeCopy =
-    () => {
-      setDesignThemeId(
-        "",
-      );
-
-      setMsg(
-        "This design will be saved as a new private edition theme when you press Save edition design.",
       );
     };
 
@@ -415,8 +617,7 @@ function EditionDesignPage() {
 
       try {
         let themeId =
-          designThemeId ||
-          null;
+          edition.theme_id;
 
         if (
           themeId
@@ -454,7 +655,7 @@ function EditionDesignPage() {
         } else {
           const {
             data:
-              newTheme,
+              createdTheme,
 
             error:
               themeError,
@@ -469,11 +670,6 @@ function EditionDesignPage() {
                     edition,
                   )} design`,
 
-                description:
-                  `Edition-wide visual identity for ${editionLabel(
-                    edition,
-                  )}`,
-
                 config:
                   themeDraft,
 
@@ -485,42 +681,70 @@ function EditionDesignPage() {
 
           if (
             themeError ||
-            !newTheme
+            !createdTheme
           ) {
             setError(
-              reportSupabaseError(
-                themeError,
+              themeError
+                ? reportSupabaseError(
+                    themeError,
 
-                "Could not create the edition theme.",
-              ),
+                    "Could not create the edition theme.",
+                  )
+                : "Could not create the edition theme.",
             );
 
             return;
           }
 
           themeId =
-            newTheme.id;
-
-          setDesignThemeId(
-            newTheme.id,
-          );
+            createdTheme.id;
         }
+
+        const currentBroadcast =
+          (
+            edition as
+              EditionWithBroadcast
+          )
+            .broadcast_config &&
+          typeof (
+            edition as
+              EditionWithBroadcast
+          )
+            .broadcast_config ===
+            "object"
+            ? (
+                edition as
+                  EditionWithBroadcast
+              )
+                .broadcast_config ??
+              {}
+            : {};
+
+        const nextBroadcastConfig =
+          {
+            ...currentBroadcast,
+            ...broadcastDraft,
+
+            scoreboard:
+              scoreboardDraft,
+          };
+
+        const editionQuery =
+          supabase.from(
+            "editions",
+          ) as any;
 
         const {
           error:
             editionError,
         } =
-          await (
-            supabase.from(
-              "editions",
-            ) as any
-          )
+          await editionQuery
             .update({
               theme_id:
                 themeId,
 
               broadcast_config:
-                broadcastDraft,
+                nextBroadcastConfig,
             })
             .eq(
               "id",
@@ -534,7 +758,7 @@ function EditionDesignPage() {
             reportSupabaseError(
               editionError,
 
-              "The theme saved, but the edition broadcast settings could not be saved.",
+              "Could not save the edition-wide Design & Broadcast settings.",
             ),
           );
 
@@ -544,7 +768,7 @@ function EditionDesignPage() {
         setMsg(
           `${editionLabel(
             edition,
-          )} Design & Broadcast saved for every show.`,
+          )} design saved for every show.`,
         );
 
         refresh();
@@ -604,7 +828,7 @@ function EditionDesignPage() {
         title={`${editionLabel(
           edition,
         )} Design & Broadcast`}
-        description="One page controls the visual identity and broadcast behaviour inherited by every show in this edition."
+        description="Build the scoreboard and country cards once, then use the same visual system across every show in this edition."
       />
 
       {isOrganizer ===
@@ -631,16 +855,51 @@ function EditionDesignPage() {
           </div>
         )}
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">
-            {editionShows.length} show
-            {editionShows.length ===
-            1
-              ? ""
-              : "s"} inherit this edition identity.
-          </p>
-        </div>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <Field
+          label="Preview show"
+          hint="Only changes the preview. The saved design belongs to the whole edition."
+        >
+          <Select
+            value={
+              previewShow?.id ??
+              ""
+            }
+            onChange={(
+              event,
+            ) =>
+              setPreviewShowId(
+                event.target.value,
+              )
+            }
+          >
+            {!editionShows.length && (
+              <option value="">
+                No shows yet
+              </option>
+            )}
+
+            {editionShows.map(
+              (
+                show,
+              ) => (
+                <option
+                  key={
+                    show.id
+                  }
+                  value={
+                    show.id
+                  }
+                  className="bg-background"
+                >
+                  {
+                    show.name
+                  }
+                </option>
+              ),
+            )}
+          </Select>
+        </Field>
 
         <button
           type="button"
@@ -653,15 +912,65 @@ function EditionDesignPage() {
           className="bg-aurora min-h-11 rounded-xl px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {saving
-            ? "Saving edition design…"
+            ? "Saving…"
             : "Save edition design"}
         </button>
       </div>
 
       <div className="space-y-5">
+        {/* ===================================================
+            MAIN SIMPLIFIED EDITOR
+           =================================================== */}
+
         <Panel
-          title="Automatic show layouts"
-          description="The visual style is shared edition-wide, but column count adapts to each show's participant count."
+          title="Scoreboard & country cards"
+          description="This is the main visual editor. Pick a style, customise the country cards, layers, background and jury panel, then preview it live."
+        >
+          <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+              Recommended workflow
+            </p>
+
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Start here. You usually do not need the full Theme Editor below unless you want to change the edition-wide branding, typography or base colour palette.
+            </p>
+          </div>
+
+          {previewShow ? (
+            <ScoreboardEditor
+              config={
+                scoreboardDraft
+              }
+              onChange={
+                setScoreboardDraft
+              }
+              rows={
+                previewRows
+              }
+              theme={
+                themeDraft
+              }
+              showName={
+                previewShow.name
+              }
+              onReset={
+                resetScoreboard
+              }
+            />
+          ) : (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              Create at least one show to preview the scoreboard and country cards.
+            </div>
+          )}
+        </Panel>
+
+        {/* ===================================================
+            ADAPTIVE SHOW LAYOUTS
+           =================================================== */}
+
+        <Panel
+          title="Automatic layouts per show"
+          description="The country-card style stays identical, while each show can use a different number of columns depending on its participant count."
         >
           {editionShows.length ? (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -670,51 +979,29 @@ function EditionDesignPage() {
                   show,
                 ) => {
                   const count =
-                    participantCountByShow.get(
-                      show.id,
-                    ) ??
-                    0;
-
-                  const columns =
-                    recommendedColumns(
-                      count,
-                      themeDraft,
-                    );
+                    show.id ===
+                    previewShow?.id
+                      ? participantCount
+                      : null;
 
                   return (
                     <div
                       key={
                         show.id
                       }
-                      className="rounded-xl border border-border/70 bg-surface/50 p-3"
+                      className="rounded-xl border border-border bg-surface/50 p-3"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold">
-                            {
-                              show.name
-                            }
-                          </p>
+                      <p className="text-sm font-semibold">
+                        {
+                          show.name
+                        }
+                      </p>
 
-                          <p className="mt-1 text-[11px] text-muted-foreground">
-                            {
-                              count
-                            }{" "}
-                            participant
-                            {count ===
-                            1
-                              ? ""
-                              : "s"}
-                          </p>
-                        </div>
-
-                        <span className="rounded-full bg-primary/10 px-2 py-1 text-[9px] font-bold uppercase text-primary">
-                          {columns} col
-                        </span>
-                      </div>
-
-                      <p className="mt-3 text-[10px] leading-relaxed text-muted-foreground">
-                        Same colours, fonts, cards and broadcast identity. Layout density adjusts automatically.
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {count !=
+                        null
+                          ? `${count} entries · ${automaticColumns} column${automaticColumns === 1 ? "" : "s"}`
+                          : "Layout adapts automatically from its entry count"}
                       </p>
                     </div>
                   );
@@ -723,236 +1010,76 @@ function EditionDesignPage() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              No shows yet. Create shows first and they will inherit this edition design automatically.
+              No shows yet.
             </p>
           )}
         </Panel>
 
-        <Panel
-          title="Theme & visual identity"
-          description="Background, palette, typography, country cards, flag treatment and the shared look used by scoreboards and running-order surfaces."
-        >
-          <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
-            <Field
-              label="Theme from library"
-              hint="Choose a saved design or make a private copy for this edition."
-            >
-              <Select
-                value={
-                  designThemeId
-                }
-                onChange={(
-                  event,
-                ) =>
-                  selectThemeFromLibrary(
-                    event.target.value,
-                  )
-                }
-              >
-                <option
-                  value=""
-                  className="bg-background"
-                >
-                  New private edition theme
-                </option>
+        {/* ===================================================
+            ADVANCED THEME
+           =================================================== */}
 
-                {(
-                  themes ??
-                  []
-                ).map(
-                  (
-                    theme,
-                  ) => (
-                    <option
-                      key={
-                        theme.id
-                      }
-                      value={
-                        theme.id
-                      }
-                      className="bg-background"
-                    >
-                      {
-                        theme.name
-                      }
-                    </option>
-                  ),
-                )}
-              </Select>
-            </Field>
+        <details className="glass overflow-hidden">
+          <summary className="cursor-pointer list-none p-4 sm:p-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                Advanced
+              </p>
 
-            <button
-              type="button"
-              onClick={
-                makeThemeCopy
-              }
-              className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm"
-            >
-              Save edits as new theme
-            </button>
-          </div>
+              <h2 className="mt-1 font-display text-lg font-bold">
+                Edition theme & branding
+              </h2>
 
-          <ThemeEditor
-            theme={
-              themeDraft
-            }
-            onChange={
-              setThemeDraft
-            }
-          />
-        </Panel>
-
-        <Panel
-          title="Broadcast behaviour"
-          description="Scenes, titles, timings, animations, winner effects and spokesperson presentation for the whole edition."
-        >
-          <BroadcastEditor
-            config={
-              broadcastDraft
-            }
-            onChange={
-              setBroadcastDraft
-            }
-          />
-        </Panel>
-
-        <Panel
-          title="Edition identity preview"
-          description="A quick visual preview of the shared edition identity. Actual scoreboard row count and columns still adapt per show."
-        >
-          <div
-            className="relative min-h-[300px] overflow-hidden rounded-2xl border border-white/10 p-6 sm:p-8"
-            style={
-              backgroundStyle(
-                themeDraft,
-              )
-            }
-          >
-            <div className="relative z-10 flex min-h-[240px] flex-col justify-between">
-              <div>
-                <p
-                  className="text-xs font-bold uppercase tracking-[0.2em]"
-                  style={{
-                    color:
-                      themeDraft.colors.accent,
-                  }}
-                >
-                  Solaris Song Contest
-                </p>
-
-                <h3
-                  className="mt-2 text-4xl font-black"
-                  style={{
-                    color:
-                      themeDraft.colors.text,
-
-                    fontFamily:
-                      themeDraft.fontDisplay,
-                  }}
-                >
-                  {editionLabel(
-                    edition,
-                  )}
-                </h3>
-
-                <p
-                  className="mt-2 text-sm"
-                  style={{
-                    color:
-                      themeDraft.text.artistSong,
-
-                    fontFamily:
-                      themeDraft.fontBody,
-                  }}
-                >
-                  Shared visual identity across every show
-                </p>
-              </div>
-
-              <div className="grid max-w-xl gap-2 sm:grid-cols-2">
-                {[
-                  "Country One",
-                  "Country Two",
-                  "Country Three",
-                  "Country Four",
-                ].map(
-                  (
-                    name,
-                    index,
-                  ) => (
-                    <div
-                      key={
-                        name
-                      }
-                      className="flex items-center gap-3 px-3"
-                      style={{
-                        minHeight:
-                          themeDraft.card.height,
-
-                        borderRadius:
-                          themeDraft.card.radius,
-
-                        background:
-                          themeDraft.card.backgroundColor,
-
-                        border:
-                          `${themeDraft.card.borderWidth}px solid ${themeDraft.card.borderColor}`,
-
-                        opacity:
-                          Math.max(
-                            0.35,
-                            themeDraft.card.opacity,
-                          ),
-                      }}
-                    >
-                      <span
-                        className="numeric w-6 text-center text-xs font-bold"
-                        style={{
-                          color:
-                            themeDraft.text.rank,
-                        }}
-                      >
-                        {
-                          index +
-                          1
-                        }
-                      </span>
-
-                      <span
-                        className="flex-1 text-sm font-semibold"
-                        style={{
-                          color:
-                            themeDraft.text.countryName,
-
-                          fontFamily:
-                            themeDraft.fontDisplay,
-                        }}
-                      >
-                        {
-                          name
-                        }
-                      </span>
-
-                      <span
-                        className="numeric text-sm font-bold"
-                        style={{
-                          color:
-                            themeDraft.text.countryScore,
-                        }}
-                      >
-                        {
-                          100 -
-                          index *
-                            7
-                        }
-                      </span>
-                    </div>
-                  ),
-                )}
-              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Background, global colours, typography and base identity. Most users can leave this closed after setting the edition look.
+              </p>
             </div>
+          </summary>
+
+          <div className="border-t border-border p-4 sm:p-5">
+            <ThemeEditor
+              theme={
+                themeDraft
+              }
+              onChange={
+                setThemeDraft
+              }
+            />
           </div>
-        </Panel>
+        </details>
+
+        {/* ===================================================
+            BROADCAST
+           =================================================== */}
+
+        <details className="glass overflow-hidden">
+          <summary className="cursor-pointer list-none p-4 sm:p-5">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                Production
+              </p>
+
+              <h2 className="mt-1 font-display text-lg font-bold">
+                Broadcast behaviour
+              </h2>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                Scenes, reveal timing, animations, winner effects and spokesperson presentation.
+              </p>
+            </div>
+          </summary>
+
+          <div className="border-t border-border p-4 sm:p-5">
+            <BroadcastEditor
+              config={
+                broadcastDraft
+              }
+              onChange={
+                setBroadcastDraft
+              }
+            />
+          </div>
+        </details>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
           <Link
@@ -973,7 +1100,7 @@ function EditionDesignPage() {
             className="bg-aurora min-h-11 rounded-xl px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
             {saving
-              ? "Saving edition design…"
+              ? "Saving…"
               : "Save edition design"}
           </button>
         </div>
