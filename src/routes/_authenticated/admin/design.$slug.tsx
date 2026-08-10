@@ -601,16 +601,25 @@ function EditionDesignPage() {
       : selectedShowBroadcast;
 
   const sourceScoreboard =
-    scope ===
-    "edition"
-      ? normalizeScoreboard(
-          editionScoreboard,
-          previewParticipants.length,
-        )
-      : normalizeScoreboard(
-          selectedShowScoreboard,
-          previewParticipants.length,
-        );
+    useMemo(
+      () =>
+        scope ===
+        "edition"
+          ? normalizeScoreboard(
+              editionScoreboard,
+              previewParticipants.length,
+            )
+          : normalizeScoreboard(
+              selectedShowScoreboard,
+              previewParticipants.length,
+            ),
+      [
+        scope,
+        editionScoreboard,
+        selectedShowScoreboard,
+        previewParticipants.length,
+      ],
+    );
 
   const [
     themeDraft,
@@ -658,6 +667,11 @@ function EditionDesignPage() {
       string | null
     >(null);
 
+  /*
+   * Reset the editor only when the selected editing scope/source actually
+   * changes. Previously sourceScoreboard was recreated on every render, so
+   * touching any control immediately reset the draft back to its saved value.
+   */
   useEffect(
     () => {
       setThemeDraft(
@@ -669,10 +683,7 @@ function EditionDesignPage() {
       );
 
       setScoreboardDraft(
-        normalizeScoreboard(
-          sourceScoreboard,
-          previewParticipants.length,
-        ),
+        sourceScoreboard,
       );
 
       setMsg(
@@ -689,7 +700,6 @@ function EditionDesignPage() {
       sourceTheme,
       sourceBroadcast,
       sourceScoreboard,
-      previewParticipants.length,
     ],
   );
 
@@ -1713,7 +1723,7 @@ function EditionDesignPage() {
           SAVE
          ===================================================== */}
 
-      <div className="sticky bottom-20 z-40 mt-5 rounded-2xl border border-border bg-background/95 p-3 shadow-2xl backdrop-blur sm:bottom-4">
+      <div className="mt-5 rounded-2xl border border-border bg-background/70 p-3">
         <button
           type="button"
           disabled={
