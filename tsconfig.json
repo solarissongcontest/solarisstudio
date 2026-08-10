@@ -21,29 +21,13 @@
       "vite/client"
     ],
 
-    /* Bundler mode */
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
     "noEmit": true,
 
-    /* Type safety */
     "strict": true,
 
-    /*
-     * Temporary compatibility setting.
-     *
-     * The statistics engine contains synchronously-mutated nullable
-     * records inside nested callbacks. TypeScript 5.8 can narrow those
-     * variables to `never` after the callback even though they are
-     * legitimately assigned.
-     *
-     * Keep every other strict rule enabled while avoiding that
-     * control-flow false positive.
-     */
-    "strictNullChecks": false,
-
-    /* Project checks */
     "skipLibCheck": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
