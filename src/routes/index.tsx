@@ -12,6 +12,10 @@ import {
 } from "@/components/AppShell";
 
 import {
+  BackgroundFlag,
+} from "@/components/BackgroundFlag";
+
+import {
   FlagChip,
 } from "@/components/FlagChip";
 
@@ -377,17 +381,17 @@ function HomePage() {
               }}
               className="group relative mt-3 block min-h-[390px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/20 shadow-2xl sm:min-h-[440px]"
             >
-              {featuredWinner?.flag_image && (
-                <div className="absolute -right-[12%] top-1/2 aspect-square w-[78%] -translate-y-1/2 overflow-hidden rounded-full opacity-[0.20] sm:w-[55%]">
-                  <img
-                    src={
-                      featuredWinner.flag_image
-                    }
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              )}
+              <BackgroundFlag
+                image={featuredWinner?.flag_image}
+                className="
+                  -right-[12%]
+                  top-1/2
+                  w-[78%]
+                  -translate-y-1/2
+                  sm:w-[55%]
+                "
+                opacity={0.24}
+              />
 
               <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/95 via-[#06162d]/78 to-[#06162d]/20" />
 
@@ -805,17 +809,16 @@ function StoryCard({
           : ""
       }`}
     >
-      {country?.flag_image && (
-        <div className="absolute -bottom-8 -right-8 h-40 w-40 overflow-hidden rounded-full opacity-[0.13]">
-          <img
-            src={
-              country.flag_image
-            }
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        </div>
-      )}
+      <BackgroundFlag
+        image={country?.flag_image}
+        className="
+          -bottom-8
+          -right-8
+          h-40
+          w-40
+        "
+        opacity={0.17}
+      />
 
       <div className="relative z-10 flex min-h-[158px] flex-col">
         <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
