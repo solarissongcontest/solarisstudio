@@ -58,8 +58,8 @@ import {
 } from "@/lib/entities";
 
 import {
-  hasAnyPublicInformation,
-  resolvePublicationConfig,
+  isShowPublic,
+  resolveShowPublication,
 } from "@/lib/publication";
 
 import {
@@ -74,10 +74,6 @@ import type {
   Standing,
 } from "@/lib/analysis";
 
-/* ============================================================
-   ROUTE
-   ============================================================ */
-
 export const Route =
   createFileRoute(
     "/shows/$showId",
@@ -90,14 +86,9 @@ export const Route =
         },
       ],
     }),
-
     component:
       ShowPage,
   });
-
-/* ============================================================
-   TABS
-   ============================================================ */
 
 type Tab =
   | "scoreboard"
@@ -105,10 +96,6 @@ type Tab =
   | "split"
   | "matrix"
   | "lineup";
-
-/* ============================================================
-   PAGE
-   ============================================================ */
 
 function ShowPage() {
   const {
@@ -120,7 +107,9 @@ function ShowPage() {
     data: show,
     isLoading,
   } =
-    useShow(showId);
+    useShow(
+      showId,
+    );
 
   const {
     data: participants,
@@ -132,22 +121,30 @@ function ShowPage() {
   const {
     data: archivedResults,
   } =
-    useResults(showId);
+    useResults(
+      showId,
+    );
 
   const {
     data: jury,
   } =
-    useJuryVotes(showId);
+    useJuryVotes(
+      showId,
+    );
 
   const {
     data: tele,
   } =
-    useTelevotes(showId);
+    useTelevotes(
+      showId,
+    );
 
   const {
     data: voters,
   } =
-    useShowVoters(showId);
+    useShowVoters(
+      showId,
+    );
 
   const {
     data: countries,
@@ -166,30 +163,22 @@ function ShowPage() {
       show?.edition_id,
     );
 
-  /* =========================================================
-     PUBLICATION
-     ========================================================= */
-
   const publication =
     useMemo(
       () =>
-        resolvePublicationConfig(
-          show?.publication_config,
+        resolveShowPublication(
+          show,
         ),
       [
+        show?.published,
         show?.publication_config,
       ],
     );
 
   const showIsPublic =
-    !!show?.published &&
-    hasAnyPublicInformation(
-      publication,
+    isShowPublic(
+      show,
     );
-
-  /* =========================================================
-     IDENTITIES
-     ========================================================= */
 
   const displayMap =
     useMemo(
@@ -212,7 +201,9 @@ function ShowPage() {
             participants ??
             []
           ).map(
-            (participant) => [
+            (
+              participant,
+            ) => [
               participant.country_id,
               participant,
             ],
@@ -223,10 +214,6 @@ function ShowPage() {
       ],
     );
 
-  /* =========================================================
-     THEME
-     ========================================================= */
-
   const theme =
     useMemo(
       () =>
@@ -235,7 +222,9 @@ function ShowPage() {
             themes ??
             []
           ).find(
-            (item) =>
+            (
+              item,
+            ) =>
               item.id ===
               show?.theme_id,
           )?.config,
@@ -250,17 +239,14 @@ function ShowPage() {
     useMemo(
       () => ({
         ...theme,
-
         layout: {
           ...theme.layout,
-
           showArtist:
             theme.layout.showArtist &&
             (
               publication.artists ||
               publication.songs
             ),
-
           showSplit:
             theme.layout.showSplit &&
             publication.jury_results &&
@@ -276,10 +262,6 @@ function ShowPage() {
       ],
     );
 
-  /* =========================================================
-     VOTING
-     ========================================================= */
-
   const voting =
     useMemo(
       () =>
@@ -291,27 +273,32 @@ function ShowPage() {
       ],
     );
 
-  /* =========================================================
-     ARCHIVED RESULTS
-
-     Results shown publicly come from the archived results table,
-     never directly from the live vote-entry state.
-     ========================================================= */
-
+  /*
+   * Public results always come from the archived results table.
+   * We never calculate a public scoreboard directly from mutable
+   * live vote-entry rows.
+   */
   const standings =
-    useMemo<Standing[]>(
+    useMemo<
+      Standing[]
+    >(
       () =>
         (
           archivedResults ??
           []
         )
           .filter(
-            (result) =>
+            (
+              result,
+            ) =>
               result.final_rank !=
               null,
           )
           .sort(
-            (a, b) =>
+            (
+              a,
+              b,
+            ) =>
               (
                 a.final_rank ??
                 999
@@ -322,33 +309,26 @@ function ShowPage() {
               ),
           )
           .map(
-            (result) => ({
+            (
+              result,
+            ) => ({
               countryId:
                 result.country_id,
-
               jury:
                 publication.jury_results
                   ? result.jury_points
                   : 0,
-
               televote:
                 publication.televote_results
                   ? result.televote_points
                   : 0,
-
               total:
                 publication.results
                   ? result.total_points
                   : 0,
-
               rank:
                 result.final_rank ??
                 0,
-
-              /*
-               * Standing requires this.
-               * Archived results currently do not store it.
-               */
               topPoints:
                 0,
             }),
@@ -361,17 +341,17 @@ function ShowPage() {
       ],
     );
 
-  /* =========================================================
-     TABS
-     ========================================================= */
-
   const tabOptions =
     useMemo<
-      ResponsiveTabOption<Tab>[]
+      ResponsiveTabOption<
+        Tab
+      >[]
     >(
       () => {
         const options:
-          ResponsiveTabOption<Tab>[] =
+          ResponsiveTabOption<
+            Tab
+          >[] =
           [];
 
         if (
@@ -380,7 +360,6 @@ function ShowPage() {
           options.push({
             value:
               "scoreboard",
-
             label:
               "Scoreboard",
           });
@@ -392,7 +371,6 @@ function ShowPage() {
           options.push({
             value:
               "points",
-
             label:
               "Points",
           });
@@ -405,7 +383,6 @@ function ShowPage() {
           options.push({
             value:
               "split",
-
             label:
               "Jury / Tele",
           });
@@ -417,7 +394,6 @@ function ShowPage() {
           options.push({
             value:
               "matrix",
-
             label:
               "Matrix",
           });
@@ -429,7 +405,6 @@ function ShowPage() {
           options.push({
             value:
               "lineup",
-
             label:
               publication.running_order
                 ? "Running order"
@@ -448,7 +423,9 @@ function ShowPage() {
     tab,
     setTab,
   ] =
-    useState<Tab>(
+    useState<
+      Tab
+    >(
       "lineup",
     );
 
@@ -462,14 +439,18 @@ function ShowPage() {
 
       const valid =
         tabOptions.some(
-          (option) =>
+          (
+            option,
+          ) =>
             option.value ===
             tab,
         );
 
       if (!valid) {
         setTab(
-          tabOptions[0].value,
+          tabOptions[
+            0
+          ].value,
         );
       }
     },
@@ -478,10 +459,6 @@ function ShowPage() {
       tabOptions,
     ],
   );
-
-  /* =========================================================
-     LOADING / PRIVATE
-     ========================================================= */
 
   if (isLoading) {
     return (
@@ -539,15 +516,14 @@ function ShowPage() {
     );
   }
 
-  /* =========================================================
-     WINNER
-     ========================================================= */
-
   const winnerStanding =
     publication.results
       ? standings.find(
-          (standing) =>
-            standing.rank === 1,
+          (
+            standing,
+          ) =>
+            standing.rank ===
+            1,
         ) ??
         standings[0] ??
         null
@@ -564,7 +540,10 @@ function ShowPage() {
   const juryTotal =
     publication.jury_results
       ? standings.reduce(
-          (total, row) =>
+          (
+            total,
+            row,
+          ) =>
             total +
             row.jury,
           0,
@@ -574,24 +553,25 @@ function ShowPage() {
   const televoteTotal =
     publication.televote_results
       ? standings.reduce(
-          (total, row) =>
+          (
+            total,
+            row,
+          ) =>
             total +
             row.televote,
           0,
         )
       : null;
 
-  /* =========================================================
-     PAGE
-     ========================================================= */
-
   return (
     <AppShell>
       <PageHeader
-        eyebrow={show.kind.replace(
-          "-",
-          " ",
-        )}
+        eyebrow={
+          show.kind.replace(
+            "-",
+            " ",
+          )
+        }
         title={
           show.name
         }
@@ -661,7 +641,7 @@ function ShowPage() {
         !standings.length && (
           <Panel className="mb-5">
             <p className="text-sm text-muted-foreground">
-              Results are marked public, but no saved result archive exists yet.
+              Results are public, but no saved result archive exists for this show yet. Save the show results once in Studio and they will appear here.
             </p>
           </Panel>
         )}
@@ -681,8 +661,6 @@ function ShowPage() {
           className="mb-5"
         />
       )}
-
-      {/* SCOREBOARD */}
 
       {tab ===
         "scoreboard" &&
@@ -718,8 +696,6 @@ function ShowPage() {
           </>
         )}
 
-      {/* POINTS */}
-
       {tab ===
         "points" &&
         publication.detailed_voting && (
@@ -744,8 +720,6 @@ function ShowPage() {
             }
           />
         )}
-
-      {/* SPLIT */}
 
       {tab ===
         "split" &&
@@ -774,7 +748,9 @@ function ShowPage() {
               >
                 <div className="divide-y divide-border/60">
                   {standings.map(
-                    (standing) => {
+                    (
+                      standing,
+                    ) => {
                       const country =
                         displayMap.get(
                           standing.countryId,
@@ -816,7 +792,9 @@ function ShowPage() {
                           </span>
 
                           <span className="numeric text-sm font-bold">
-                            {points}
+                            {
+                              points
+                            }
                           </span>
                         </div>
                       );
@@ -827,8 +805,6 @@ function ShowPage() {
             )}
           </>
         )}
-
-      {/* MATRIX */}
 
       {tab ===
         "matrix" &&
@@ -845,13 +821,17 @@ function ShowPage() {
               countries={
                 displayMap
               }
-              order={(
-                participants ??
-                []
-              ).map(
-                (participant) =>
-                  participant.country_id,
-              )}
+              order={
+                (
+                  participants ??
+                  []
+                ).map(
+                  (
+                    participant,
+                  ) =>
+                    participant.country_id,
+                )
+              }
               topPoint={
                 voting.juryPoints[
                   0
@@ -864,8 +844,6 @@ function ShowPage() {
             />
           </Panel>
         )}
-
-      {/* LINE-UP */}
 
       {tab ===
         "lineup" &&
@@ -906,7 +884,8 @@ function ShowPage() {
                         {publication.running_order
                           ? participant.running_order ??
                             "—"
-                          : index + 1}
+                          : index +
+                            1}
                       </span>
 
                       <FlagChip
@@ -936,13 +915,16 @@ function ShowPage() {
                               publication.artists
                                 ? participant.artist
                                 : null,
-
                               publication.songs
                                 ? participant.song
                                 : null,
                             ]
-                              .filter(Boolean)
-                              .join(" · ") ||
+                              .filter(
+                                Boolean,
+                              )
+                              .join(
+                                " · ",
+                              ) ||
                               "Entry details not announced"}
                           </p>
                         )}
