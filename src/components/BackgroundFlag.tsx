@@ -1,3 +1,7 @@
+import {
+  useId,
+} from "react";
+
 type BackgroundFlagProps = {
   image?: string | null;
   className?: string;
@@ -9,9 +13,33 @@ export function BackgroundFlag({
   className = "",
   opacity = 0.18,
 }: BackgroundFlagProps) {
+  const reactId =
+    useId();
+
+  const id =
+    reactId.replace(
+      /:/g,
+      "",
+    );
+
   if (!image) {
     return null;
   }
+
+  const blurId =
+    `background-flag-blur-${id}`;
+
+  const sharpMaskId =
+    `background-flag-sharp-${id}`;
+
+  const blurMaskId =
+    `background-flag-soft-${id}`;
+
+  const sharpGradientId =
+    `background-flag-sharp-gradient-${id}`;
+
+  const blurGradientId =
+    `background-flag-soft-gradient-${id}`;
 
   return (
     <div
@@ -27,93 +55,234 @@ export function BackgroundFlag({
         opacity,
       }}
     >
-      {/* =====================================================
-          OUTER BLUR
-
-          Very blurred copy of the flag.
-          It extends beyond the original circle so the colours
-          actually bleed into the background.
-         ===================================================== */}
-      <img
-        src={image}
-        alt=""
-        className="
-          absolute
-          inset-[-8%]
-          h-[116%]
-          w-[116%]
-          object-cover
-        "
-        style={{
-          borderRadius: "50%",
-          filter: "blur(28px)",
-          transform: "scale(1.03)",
-
-          WebkitMaskImage:
-            "radial-gradient(circle at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.12) 52%, rgba(0,0,0,0.45) 66%, rgba(0,0,0,0.8) 78%, rgba(0,0,0,0.55) 90%, transparent 100%)",
-
-          maskImage:
-            "radial-gradient(circle at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.12) 52%, rgba(0,0,0,0.45) 66%, rgba(0,0,0,0.8) 78%, rgba(0,0,0,0.55) 90%, transparent 100%)",
-        }}
-      />
-
-      {/* =====================================================
-          MEDIUM BLUR
-
-          Bridges the sharp centre and the heavily blurred edge.
-          This is what stops it looking like a sharp circle
-          surrounded by a random glow.
-         ===================================================== */}
-      <img
-        src={image}
-        alt=""
-        className="
-          absolute
-          inset-[-3%]
-          h-[106%]
-          w-[106%]
-          object-cover
-        "
-        style={{
-          borderRadius: "50%",
-          filter: "blur(11px)",
-          transform: "scale(1.025)",
-
-          WebkitMaskImage:
-            "radial-gradient(circle at center, transparent 0%, transparent 38%, rgba(0,0,0,0.12) 47%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.9) 72%, rgba(0,0,0,0.6) 84%, rgba(0,0,0,0.18) 93%, transparent 100%)",
-
-          maskImage:
-            "radial-gradient(circle at center, transparent 0%, transparent 38%, rgba(0,0,0,0.12) 47%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.9) 72%, rgba(0,0,0,0.6) 84%, rgba(0,0,0,0.18) 93%, transparent 100%)",
-        }}
-      />
-
-      {/* =====================================================
-          MAIN FLAG
-
-          Sharp in the centre.
-          It disappears gradually BEFORE reaching the outside,
-          allowing the blurred copies underneath to take over.
-         ===================================================== */}
-      <img
-        src={image}
-        alt=""
+      <svg
+        viewBox="0 0 100 100"
+        xmlns="http://www.w3.org/2000/svg"
         className="
           absolute
           inset-0
           h-full
           w-full
-          object-cover
+          overflow-visible
         "
         style={{
-          borderRadius: "50%",
-
-          WebkitMaskImage:
-            "radial-gradient(circle at center, black 0%, black 45%, rgba(0,0,0,0.98) 52%, rgba(0,0,0,0.9) 59%, rgba(0,0,0,0.7) 66%, rgba(0,0,0,0.42) 73%, rgba(0,0,0,0.18) 80%, rgba(0,0,0,0.05) 86%, transparent 92%)",
-
-          maskImage:
-            "radial-gradient(circle at center, black 0%, black 45%, rgba(0,0,0,0.98) 52%, rgba(0,0,0,0.9) 59%, rgba(0,0,0,0.7) 66%, rgba(0,0,0,0.42) 73%, rgba(0,0,0,0.18) 80%, rgba(0,0,0,0.05) 86%, transparent 92%)",
+          overflow:
+            "visible",
         }}
-      />
+      >
+        <defs>
+          {/* ================================================
+              HEAVY EDGE BLUR
+
+              This blurred version is allowed to spread
+              outside the original flag area.
+             ================================================ */}
+
+          <filter
+            id={blurId}
+            x="-35%"
+            y="-35%"
+            width="170%"
+            height="170%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feGaussianBlur
+              stdDeviation="6.5"
+            />
+          </filter>
+
+          {/* ================================================
+              SHARP CENTRE MASK
+
+              Fully sharp through the middle, then smoothly
+              disappears before reaching the outer edge.
+             ================================================ */}
+
+          <radialGradient
+            id={
+              sharpGradientId
+            }
+            cx="50%"
+            cy="50%"
+            r="50%"
+          >
+            <stop
+              offset="0%"
+              stopColor="white"
+            />
+
+            <stop
+              offset="48%"
+              stopColor="white"
+            />
+
+            <stop
+              offset="58%"
+              stopColor="white"
+              stopOpacity="0.95"
+            />
+
+            <stop
+              offset="66%"
+              stopColor="white"
+              stopOpacity="0.72"
+            />
+
+            <stop
+              offset="74%"
+              stopColor="white"
+              stopOpacity="0.42"
+            />
+
+            <stop
+              offset="82%"
+              stopColor="white"
+              stopOpacity="0.16"
+            />
+
+            <stop
+              offset="90%"
+              stopColor="white"
+              stopOpacity="0"
+            />
+
+            <stop
+              offset="100%"
+              stopColor="white"
+              stopOpacity="0"
+            />
+          </radialGradient>
+
+          <mask
+            id={
+              sharpMaskId
+            }
+            maskUnits="userSpaceOnUse"
+            x="-20"
+            y="-20"
+            width="140"
+            height="140"
+          >
+            <rect
+              x="-20"
+              y="-20"
+              width="140"
+              height="140"
+              fill={`url(#${sharpGradientId})`}
+            />
+          </mask>
+
+          {/* ================================================
+              BLURRED EDGE MASK
+
+              The blurred copy remains underneath the sharp
+              image and then itself fades into nothing.
+             ================================================ */}
+
+          <radialGradient
+            id={
+              blurGradientId
+            }
+            cx="50%"
+            cy="50%"
+            r="70%"
+          >
+            <stop
+              offset="0%"
+              stopColor="white"
+            />
+
+            <stop
+              offset="58%"
+              stopColor="white"
+            />
+
+            <stop
+              offset="70%"
+              stopColor="white"
+              stopOpacity="0.95"
+            />
+
+            <stop
+              offset="80%"
+              stopColor="white"
+              stopOpacity="0.72"
+            />
+
+            <stop
+              offset="89%"
+              stopColor="white"
+              stopOpacity="0.38"
+            />
+
+            <stop
+              offset="96%"
+              stopColor="white"
+              stopOpacity="0.1"
+            />
+
+            <stop
+              offset="100%"
+              stopColor="white"
+              stopOpacity="0"
+            />
+          </radialGradient>
+
+          <mask
+            id={
+              blurMaskId
+            }
+            maskUnits="userSpaceOnUse"
+            x="-30"
+            y="-30"
+            width="160"
+            height="160"
+          >
+            <rect
+              x="-30"
+              y="-30"
+              width="160"
+              height="160"
+              fill={`url(#${blurGradientId})`}
+            />
+          </mask>
+        </defs>
+
+        {/* ================================================
+            ONE BLURRED COPY
+
+            Same exact size and crop as the sharp image.
+            No larger circle underneath it.
+           ================================================ */}
+
+        <image
+          href={image}
+          x="0"
+          y="0"
+          width="100"
+          height="100"
+          preserveAspectRatio="xMidYMid slice"
+          filter={`url(#${blurId})`}
+          mask={`url(#${blurMaskId})`}
+        />
+
+        {/* ================================================
+            ONE SHARP COPY
+
+            EXACTLY aligned with the blurred copy.
+            It gradually gives way to the blur.
+           ================================================ */}
+
+        <image
+          href={image}
+          x="0"
+          y="0"
+          width="100"
+          height="100"
+          preserveAspectRatio="xMidYMid slice"
+          mask={`url(#${sharpMaskId})`}
+        />
+      </svg>
     </div>
   );
 }
