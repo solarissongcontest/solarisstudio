@@ -7,7 +7,7 @@ type BackgroundFlagProps = {
 export function BackgroundFlag({
   image,
   className = "",
-  opacity = 0.16,
+  opacity = 0.18,
 }: BackgroundFlagProps) {
   if (!image) {
     return null;
@@ -27,65 +27,93 @@ export function BackgroundFlag({
         opacity,
       }}
     >
-      {/* BLURRED BASE
-          This extends past the circle and actually melts
-          the outer pixels into the surrounding background.
-      */}
-      <div
+      {/* =====================================================
+          OUTER BLUR
+
+          Very blurred copy of the flag.
+          It extends beyond the original circle so the colours
+          actually bleed into the background.
+         ===================================================== */}
+      <img
+        src={image}
+        alt=""
         className="
           absolute
-          -inset-[5%]
-          rounded-full
+          inset-[-8%]
+          h-[116%]
+          w-[116%]
+          object-cover
         "
         style={{
-          filter: "blur(22px)",
-          WebkitMaskImage:
-            "radial-gradient(circle, black 0%, black 58%, rgba(0,0,0,0.95) 68%, rgba(0,0,0,0.72) 78%, rgba(0,0,0,0.38) 88%, rgba(0,0,0,0.12) 95%, transparent 100%)",
-          maskImage:
-            "radial-gradient(circle, black 0%, black 58%, rgba(0,0,0,0.95) 68%, rgba(0,0,0,0.72) 78%, rgba(0,0,0,0.38) 88%, rgba(0,0,0,0.12) 95%, transparent 100%)",
-        }}
-      >
-        <img
-          src={image}
-          alt=""
-          className="
-            h-full
-            w-full
-            scale-[1.08]
-            rounded-full
-            object-cover
-          "
-        />
-      </div>
+          borderRadius: "50%",
+          filter: "blur(28px)",
+          transform: "scale(1.03)",
 
-      {/* SHARP CENTRE
-          The middle stays readable, but it fades away
-          BEFORE reaching the original circular edge.
-      */}
-      <div
+          WebkitMaskImage:
+            "radial-gradient(circle at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.12) 52%, rgba(0,0,0,0.45) 66%, rgba(0,0,0,0.8) 78%, rgba(0,0,0,0.55) 90%, transparent 100%)",
+
+          maskImage:
+            "radial-gradient(circle at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 42%, rgba(0,0,0,0.12) 52%, rgba(0,0,0,0.45) 66%, rgba(0,0,0,0.8) 78%, rgba(0,0,0,0.55) 90%, transparent 100%)",
+        }}
+      />
+
+      {/* =====================================================
+          MEDIUM BLUR
+
+          Bridges the sharp centre and the heavily blurred edge.
+          This is what stops it looking like a sharp circle
+          surrounded by a random glow.
+         ===================================================== */}
+      <img
+        src={image}
+        alt=""
+        className="
+          absolute
+          inset-[-3%]
+          h-[106%]
+          w-[106%]
+          object-cover
+        "
+        style={{
+          borderRadius: "50%",
+          filter: "blur(11px)",
+          transform: "scale(1.025)",
+
+          WebkitMaskImage:
+            "radial-gradient(circle at center, transparent 0%, transparent 38%, rgba(0,0,0,0.12) 47%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.9) 72%, rgba(0,0,0,0.6) 84%, rgba(0,0,0,0.18) 93%, transparent 100%)",
+
+          maskImage:
+            "radial-gradient(circle at center, transparent 0%, transparent 38%, rgba(0,0,0,0.12) 47%, rgba(0,0,0,0.55) 60%, rgba(0,0,0,0.9) 72%, rgba(0,0,0,0.6) 84%, rgba(0,0,0,0.18) 93%, transparent 100%)",
+        }}
+      />
+
+      {/* =====================================================
+          MAIN FLAG
+
+          Sharp in the centre.
+          It disappears gradually BEFORE reaching the outside,
+          allowing the blurred copies underneath to take over.
+         ===================================================== */}
+      <img
+        src={image}
+        alt=""
         className="
           absolute
           inset-0
-          rounded-full
+          h-full
+          w-full
+          object-cover
         "
         style={{
+          borderRadius: "50%",
+
           WebkitMaskImage:
-            "radial-gradient(circle, black 0%, black 48%, rgba(0,0,0,0.98) 56%, rgba(0,0,0,0.82) 64%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.28) 80%, rgba(0,0,0,0.08) 87%, transparent 94%)",
+            "radial-gradient(circle at center, black 0%, black 45%, rgba(0,0,0,0.98) 52%, rgba(0,0,0,0.9) 59%, rgba(0,0,0,0.7) 66%, rgba(0,0,0,0.42) 73%, rgba(0,0,0,0.18) 80%, rgba(0,0,0,0.05) 86%, transparent 92%)",
+
           maskImage:
-            "radial-gradient(circle, black 0%, black 48%, rgba(0,0,0,0.98) 56%, rgba(0,0,0,0.82) 64%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.28) 80%, rgba(0,0,0,0.08) 87%, transparent 94%)",
+            "radial-gradient(circle at center, black 0%, black 45%, rgba(0,0,0,0.98) 52%, rgba(0,0,0,0.9) 59%, rgba(0,0,0,0.7) 66%, rgba(0,0,0,0.42) 73%, rgba(0,0,0,0.18) 80%, rgba(0,0,0,0.05) 86%, transparent 92%)",
         }}
-      >
-        <img
-          src={image}
-          alt=""
-          className="
-            h-full
-            w-full
-            rounded-full
-            object-cover
-          "
-        />
-      </div>
+      />
     </div>
   );
 }
