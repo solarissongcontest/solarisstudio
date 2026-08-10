@@ -28,6 +28,11 @@ import {
   useEditions,
 } from "@/lib/data";
 
+import {
+  isShowPublic,
+  resolveShowPublication,
+} from "@/lib/publication";
+
 export const Route =
   createFileRoute(
     "/editions/",
@@ -40,7 +45,6 @@ export const Route =
         },
       ],
     }),
-
     component:
       EditionsPage,
   });
@@ -71,14 +75,28 @@ function EditionsPage() {
     useMemo(
       () =>
         [
-          ...(editions ??
-            []),
+          ...(
+            editions ??
+            []
+          ).filter(
+            (
+              edition,
+            ) =>
+              edition.published,
+          ),
         ].sort(
-          (a, b) =>
-            (b.edition_number ??
-              -1) -
-            (a.edition_number ??
-              -1),
+          (
+            a,
+            b,
+          ) =>
+            (
+              b.edition_number ??
+              -1
+            ) -
+            (
+              a.edition_number ??
+              -1
+            ),
         ),
       [
         editions,
@@ -97,7 +115,9 @@ function EditionsPage() {
         countries ??
         []
       ).map(
-        (country) => [
+        (
+          country,
+        ) => [
           country.id,
           country,
         ],
@@ -106,42 +126,83 @@ function EditionsPage() {
 
   const cards =
     editionList.map(
-      (edition) => {
+      (
+        edition,
+      ) => {
         const editionShows =
-          showList.filter(
-            (show) =>
-              show.edition_id ===
-              edition.id,
-          );
+          showList
+            .filter(
+              (
+                show,
+              ) =>
+                show.edition_id ===
+                  edition.id &&
+                isShowPublic(
+                  show,
+                ),
+            )
+            .sort(
+              (
+                a,
+                b,
+              ) =>
+                a.sort_order -
+                b.sort_order,
+            );
 
         const grandFinal =
           editionShows.find(
-            (show) =>
+            (
+              show,
+            ) =>
               show.kind ===
-              "grand-final",
+                "grand-final" ||
+              show.kind ===
+                "final",
           ) ??
           null;
 
-        const finalResults =
+        const finalPublication =
           grandFinal
+            ? resolveShowPublication(
+                grandFinal,
+              )
+            : null;
+
+        const finalResults =
+          grandFinal &&
+          finalPublication?.results
             ? resultList
                 .filter(
-                  (result) =>
+                  (
+                    result,
+                  ) =>
                     result.show_id ===
-                    grandFinal.id,
+                      grandFinal.id &&
+                    result.final_rank !=
+                      null,
                 )
                 .sort(
-                  (a, b) =>
-                    (a.final_rank ??
-                      999) -
-                    (b.final_rank ??
-                      999),
+                  (
+                    a,
+                    b,
+                  ) =>
+                    (
+                      a.final_rank ??
+                      999
+                    ) -
+                    (
+                      b.final_rank ??
+                      999
+                    ),
                 )
             : [];
 
         const winnerResult =
           finalResults.find(
-            (result) =>
+            (
+              result,
+            ) =>
               result.final_rank ===
               1,
           ) ??
@@ -172,7 +233,7 @@ function EditionsPage() {
       <PageHeader
         eyebrow="Contest archive"
         title="Editions"
-        description="Every Solaris Song Contest edition in numerical order."
+        description="Every public Solaris Song Contest edition in numerical order."
       />
 
       {isLoading && (
@@ -226,7 +287,9 @@ function EditionsPage() {
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {cards
-              .slice(1)
+              .slice(
+                1,
+              )
               .map(
                 ({
                   edition,
@@ -246,13 +309,10 @@ function EditionsPage() {
                     className="glass group relative block min-h-[260px] overflow-hidden p-5 transition-transform hover:-translate-y-1"
                   >
                     <BackgroundFlag
-                      image={winner?.flag_image}
-                      className="
-                        -bottom-14
-                        -right-14
-                        h-52
-                        w-52
-                      "
+                      image={
+                        winner?.flag_image
+                      }
+                      className="-bottom-14 -right-14 h-52 w-52"
                       opacity={0.14}
                     />
 
@@ -322,7 +382,7 @@ function EditionsPage() {
                           </div>
                         ) : (
                           <p className="mb-4 text-xs text-muted-foreground">
-                            Winner not decided
+                            Results not public yet
                           </p>
                         )}
 
@@ -336,7 +396,7 @@ function EditionsPage() {
                             {
                               editionShows.length
                             }{" "}
-                            shows
+                            public shows
                           </span>
                         </div>
                       </div>
@@ -347,6 +407,15 @@ function EditionsPage() {
           </div>
         </section>
       )}
+
+      {!isLoading &&
+        !cards.length && (
+          <div className="glass p-6">
+            <p className="text-sm text-muted-foreground">
+              No editions are public yet.
+            </p>
+          </div>
+        )}
     </AppShell>
   );
 }
@@ -359,13 +428,10 @@ function EditionHero({
 }: {
   edition:
     any;
-
   shows:
     any[];
-
   winner:
     any;
-
   winnerResult:
     any;
 }) {
@@ -379,14 +445,10 @@ function EditionHero({
       className="group relative block min-h-[390px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[430px]"
     >
       <BackgroundFlag
-        image={winner?.flag_image}
-        className="
-          -right-[15%]
-          top-1/2
-          w-[90%]
-          -translate-y-1/2
-          sm:w-[58%]
-        "
+        image={
+          winner?.flag_image
+        }
+        className="-right-[15%] top-1/2 w-[90%] -translate-y-1/2 sm:w-[58%]"
         opacity={0.24}
       />
 
@@ -394,9 +456,7 @@ function EditionHero({
 
       <div className="relative z-20 flex min-h-[390px] flex-col justify-between p-5 sm:min-h-[430px] sm:p-8 lg:p-10">
         <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-          {edition.published
-            ? "Published"
-            : "Upcoming"}
+          Published
         </span>
 
         <div className="max-w-3xl">
@@ -457,7 +517,7 @@ function EditionHero({
             </span>
 
             <span className="text-xs text-white/50">
-              {shows.length} shows
+              {shows.length} public shows
             </span>
           </div>
         </div>
