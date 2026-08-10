@@ -43,7 +43,14 @@ import {
   useEditions,
   useIsOrganizer,
   type Edition,
+  type Show,
 } from "@/lib/data";
+
+import {
+  hasAnyPublicInformation,
+  resolveAutomaticEditionStatus,
+  resolveShowPublication,
+} from "@/lib/publication";
 
 export const Route =
   createFileRoute(
@@ -55,39 +62,55 @@ export const Route =
           title:
             "Organizer studio — Solaris Spectacle Suite",
         },
-
         {
           name:
             "description",
-
           content:
             "Create and manage Solaris Song Contest editions, shows, voting systems, edition design and broadcast production.",
         },
       ],
     }),
-
     component:
       AdminHome,
   });
 
-function editionStatusLabel(
+function derivedEditionStatus(
   edition: Edition,
+  editionShows: Show[],
 ) {
-  if (
-    edition.published
-  ) {
-    return "Published";
+  if (!editionShows.length) {
+    return {
+      label: "Draft",
+      published: false,
+      status: "draft",
+    };
   }
 
-  if (
-    edition.status &&
-    edition.status !==
-      "draft"
-  ) {
-    return edition.status;
-  }
+  const status =
+    resolveAutomaticEditionStatus(
+      editionShows.map(
+        (show) => ({
+          kind:
+            show.kind,
+          published:
+            show.published,
+          publication_config:
+            show.publication_config,
+        }),
+      ),
+    );
 
-  return "Draft";
+  return {
+    label:
+      status === "completed"
+        ? "Completed"
+        : status === "published"
+          ? "Published"
+          : "Draft",
+    published:
+      status !== "draft",
+    status,
+  };
 }
 
 function AdminHome() {
@@ -212,8 +235,7 @@ function AdminHome() {
                   participant.show_id,
                 ) ??
                 0
-              ) +
-                1,
+              ) + 1,
             );
           },
         );
@@ -239,7 +261,6 @@ function AdminHome() {
             current,
           ) => ({
             ...current,
-
             edition_number:
               nextNumber,
           }),
@@ -282,9 +303,7 @@ function AdminHome() {
     ) => {
       event.preventDefault();
 
-      if (
-        saving
-      ) {
+      if (saving) {
         return;
       }
 
@@ -305,7 +324,6 @@ function AdminHome() {
         setError(
           "Enter a whole edition number of 1 or higher.",
         );
-
         return;
       }
 
@@ -326,13 +344,10 @@ function AdminHome() {
               slug,
         );
 
-      if (
-        clash
-      ) {
+      if (clash) {
         setError(
           `Edition ${num} already exists (“${clash.name}”). Pick a different number.`,
         );
-
         return;
       }
 
@@ -350,31 +365,24 @@ function AdminHome() {
             .insert({
               edition_number:
                 num,
-
               name:
                 form.name ||
                 `Solaris Song Contest ${num}`,
-
               year:
                 form.year
                   ? Number(
                       form.year,
                     )
                   : null,
-
               slug,
-
               host_city:
                 form.host_city ||
                 null,
-
               host_country_id:
                 form.host_country_id ||
                 null,
-
               status:
                 "draft",
-
               published:
                 false,
             });
@@ -385,11 +393,9 @@ function AdminHome() {
           setError(
             reportSupabaseError(
               insertError,
-
               "Could not create the edition. Nothing was saved.",
             ),
           );
-
           return;
         }
 
@@ -400,11 +406,9 @@ function AdminHome() {
         setForm({
           edition_number:
             num + 1,
-
           name: "",
           year: "",
           host_city: "",
-
           host_country_id:
             "",
         });
@@ -421,20 +425,56 @@ function AdminHome() {
       }
     };
 
-  const togglePublished =
+  const makeEditionPrivate =
     async (
       edition:
         Edition,
+      editionShows:
+        Show[],
     ) => {
+      if (
+        !window.confirm(
+          `Make ${editionLabel(
+            edition,
+          )} and all of its shows private? No contest data will be deleted.`,
+        )
+      ) {
+        return;
+      }
+
       setError(null);
       setMsg(null);
 
-      const nextPublished =
-        !edition.published;
+      const {
+        error:
+          showError,
+      } =
+        await supabase
+          .from(
+            "shows",
+          )
+          .update({
+            published:
+              false,
+          })
+          .eq(
+            "edition_id",
+            edition.id,
+          );
+
+      if (showError) {
+        setError(
+          reportSupabaseError(
+            showError,
+            "Could not make the edition private.",
+          ),
+        );
+        return;
+      }
 
       const {
         error:
-          updateError,
+          editionError,
       } =
         await supabase
           .from(
@@ -442,12 +482,9 @@ function AdminHome() {
           )
           .update({
             published:
-              nextPublished,
-
+              false,
             status:
-              nextPublished
-                ? "published"
-                : "draft",
+              "draft",
           })
           .eq(
             "id",
@@ -455,27 +492,21 @@ function AdminHome() {
           );
 
       if (
-        updateError
+        editionError
       ) {
         setError(
           reportSupabaseError(
-            updateError,
-
-            "Could not change the visibility of this edition.",
+            editionError,
+            "Shows were made private, but the edition status could not be updated.",
           ),
         );
-
         return;
       }
 
       setMsg(
-        nextPublished
-          ? `${editionLabel(
-              edition,
-            )} is now published.`
-          : `${editionLabel(
-              edition,
-            )} is now private and has returned to draft status.`,
+        `${editionLabel(
+          edition,
+        )} is private. Publication settings are still saved, so you can release the shows again from Manage shows → Publication.`,
       );
 
       refresh();
@@ -517,11 +548,9 @@ function AdminHome() {
         setError(
           reportSupabaseError(
             deleteError,
-
             "Could not delete this edition.",
           ),
         );
-
         return;
       }
 
@@ -539,7 +568,7 @@ function AdminHome() {
       <PageHeader
         eyebrow="Organizer studio"
         title="Manage editions"
-        description="Create editions, manage show data, and open each edition's dedicated Design & Broadcast page."
+        description="Create editions here. What becomes public is controlled by each edition's show Publication settings, so the homepage, edition pages and result pages all use one source of truth."
       />
 
       {isOrganizer ===
@@ -584,7 +613,7 @@ function AdminHome() {
         />
 
         <StatTile
-          label="Published editions"
+          label="Public editions"
           value={
             (
               editions ??
@@ -592,8 +621,26 @@ function AdminHome() {
             ).filter(
               (
                 edition,
-              ) =>
-                edition.published,
+              ) => {
+                const editionShows =
+                  (
+                    shows ??
+                    []
+                  ).filter(
+                    (
+                      show,
+                    ) =>
+                      show.edition_id ===
+                      edition.id,
+                  );
+
+                return (
+                  derivedEditionStatus(
+                    edition,
+                    editionShows,
+                  ).published
+                );
+              },
             ).length
           }
         />
@@ -615,7 +662,7 @@ function AdminHome() {
       <div className="grid min-w-0 gap-4 lg:grid-cols-[1.4fr_1fr] lg:gap-6">
         <Panel
           title="Editions"
-          description="Show management and presentation design are separate pages, so each tool has enough room to actually exist."
+          description="An edition becomes public automatically when at least one of its shows has public information. A Grand Final with public results marks the edition completed."
         >
           <ul className="space-y-2">
             {(
@@ -637,9 +684,23 @@ function AdminHome() {
                       edition.id,
                   );
 
-                const status =
-                  editionStatusLabel(
+                const derived =
+                  derivedEditionStatus(
                     edition,
+                    editionShows,
+                  );
+
+                const publicShows =
+                  editionShows.filter(
+                    (
+                      show,
+                    ) =>
+                      show.published &&
+                      hasAnyPublicInformation(
+                        resolveShowPublication(
+                          show,
+                        ),
+                      ),
                   );
 
                 return (
@@ -679,21 +740,22 @@ function AdminHome() {
                               ? ""
                               : "s"}{" "}
                             ·{" "}
-                            {edition.published
-                              ? "public"
-                              : "private"}
+                            {
+                              publicShows.length
+                            }{" "}
+                            public
                           </p>
                         </div>
 
                         <span
                           className={
-                            edition.published
+                            derived.published
                               ? "shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold uppercase text-primary"
                               : "shrink-0 rounded-full bg-background/60 px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground"
                           }
                         >
                           {
-                            status
+                            derived.label
                           }
                         </span>
                       </div>
@@ -721,19 +783,32 @@ function AdminHome() {
                           Design &amp; Broadcast
                         </Link>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            togglePublished(
-                              edition,
-                            )
-                          }
-                          className="min-h-10 rounded-lg border border-border px-3 text-sm"
+                        <Link
+                          to="/admin/$slug"
+                          params={{
+                            slug:
+                              edition.slug,
+                          }}
+                          className="flex min-h-10 items-center justify-center rounded-lg border border-primary/30 px-3 text-center text-sm font-semibold text-primary"
+                          title="Open the edition, then choose the Publication tab."
                         >
-                          {edition.published
-                            ? "Make private"
-                            : "Publish"}
-                        </button>
+                          Publication settings
+                        </Link>
+
+                        {derived.published && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              makeEditionPrivate(
+                                edition,
+                                editionShows,
+                              )
+                            }
+                            className="min-h-10 rounded-lg border border-border px-3 text-sm"
+                          >
+                            Make private
+                          </button>
+                        )}
 
                         <button
                           type="button"
@@ -760,6 +835,17 @@ function AdminHome() {
                                 ) ??
                                 0;
 
+                              const publication =
+                                resolveShowPublication(
+                                  show,
+                                );
+
+                              const isPublic =
+                                show.published &&
+                                hasAnyPublicInformation(
+                                  publication,
+                                );
+
                               return (
                                 <Link
                                   key={
@@ -780,6 +866,10 @@ function AdminHome() {
                                     count
                                   }{" "}
                                   entries
+                                  {" · "}
+                                  {isPublic
+                                    ? "public"
+                                    : "private"}
                                 </Link>
                               );
                             },
@@ -806,7 +896,7 @@ function AdminHome() {
 
         <Panel
           title="New edition"
-          description="Editions are numbered; the year is optional metadata."
+          description="Editions start private. Release information later from Manage shows → Publication."
         >
           <form
             onSubmit={
@@ -842,7 +932,6 @@ function AdminHome() {
 
                   setForm({
                     ...form,
-
                     edition_number:
                       event.target.value ===
                       ""
@@ -875,7 +964,6 @@ function AdminHome() {
                 ) =>
                   setForm({
                     ...form,
-
                     name:
                       event.target.value,
                   })
@@ -898,7 +986,6 @@ function AdminHome() {
                 ) =>
                   setForm({
                     ...form,
-
                     year:
                       event.target.value,
                   })
@@ -916,7 +1003,6 @@ function AdminHome() {
                 ) =>
                   setForm({
                     ...form,
-
                     host_country_id:
                       event.target.value,
                   })
@@ -965,7 +1051,6 @@ function AdminHome() {
                 ) =>
                   setForm({
                     ...form,
-
                     host_city:
                       event.target.value,
                   })
