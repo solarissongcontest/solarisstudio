@@ -46,14 +46,15 @@ import {
 
 import {
   editionLabel,
+  useAllParticipants,
   useAllShows,
   useContestEntities,
   useCountries,
   useEditions,
   useIsOrganizer,
-  useShowParticipants,
   useThemes,
   type Edition,
+  type Show,
 } from "@/lib/data";
 
 import {
@@ -105,6 +106,10 @@ type EditionWithBroadcast =
       | null;
   };
 
+type DesignScope =
+  | "edition"
+  | string;
+
 function EditionDesignPage() {
   const {
     slug,
@@ -119,14 +124,19 @@ function EditionDesignPage() {
     useEditions();
 
   const {
-    data: countries,
-  } =
-    useCountries();
-
-  const {
     data: shows,
   } =
     useAllShows();
+
+  const {
+    data: participants,
+  } =
+    useAllParticipants();
+
+  const {
+    data: countries,
+  } =
+    useCountries();
 
   const {
     data: themes,
@@ -190,6 +200,14 @@ function EditionDesignPage() {
     );
 
   const [
+    scope,
+    setScope,
+  ] =
+    useState<DesignScope>(
+      "edition",
+    );
+
+  const [
     previewShowId,
     setPreviewShowId,
   ] =
@@ -227,14 +245,45 @@ function EditionDesignPage() {
             "",
         );
       }
+
+      if (
+        scope !==
+          "edition" &&
+        !editionShows.some(
+          (
+            show,
+          ) =>
+            show.id ===
+            scope,
+        )
+      ) {
+        setScope(
+          "edition",
+        );
+      }
     },
     [
       editionShows,
       previewShowId,
+      scope,
     ],
   );
 
+  const selectedShow =
+    scope ===
+    "edition"
+      ? null
+      : editionShows.find(
+          (
+            show,
+          ) =>
+            show.id ===
+            scope,
+        ) ??
+        null;
+
   const previewShow =
+    selectedShow ??
     editionShows.find(
       (
         show,
@@ -247,12 +296,80 @@ function EditionDesignPage() {
     ] ??
     null;
 
-  const {
-    data:
-      previewParticipants,
-  } =
-    useShowParticipants(
-      previewShow?.id,
+  const previewParticipants =
+    useMemo(
+      () =>
+        (
+          participants ??
+          []
+        )
+          .filter(
+            (
+              participant,
+            ) =>
+              participant.show_id ===
+              previewShow?.id,
+          )
+          .sort(
+            (
+              a,
+              b,
+            ) =>
+              (
+                a.running_order ??
+                999
+              ) -
+              (
+                b.running_order ??
+                999
+              ),
+          ),
+      [
+        participants,
+        previewShow?.id,
+      ],
+    );
+
+  const participantCountByShow =
+    useMemo(
+      () => {
+        const counts =
+          new Map<
+            string,
+            number
+          >();
+
+        (
+          participants ??
+          []
+        ).forEach(
+          (
+            participant,
+          ) => {
+            if (
+              !participant.show_id
+            ) {
+              return;
+            }
+
+            counts.set(
+              participant.show_id,
+              (
+                counts.get(
+                  participant.show_id,
+                ) ??
+                0
+              ) +
+                1,
+            );
+          },
+        );
+
+        return counts;
+      },
+      [
+        participants,
+      ],
     );
 
   const {
@@ -277,28 +394,38 @@ function EditionDesignPage() {
       ],
     );
 
-  const savedTheme =
+  const editionThemeRow =
     useMemo(
       () =>
-        resolveTheme(
+        (
+          themes ??
+          []
+        ).find(
           (
-            themes ??
-            []
-          ).find(
-            (
-              theme,
-            ) =>
-              theme.id ===
-              edition?.theme_id,
-          )?.config,
-        ),
+            theme,
+          ) =>
+            theme.id ===
+            edition?.theme_id,
+        ) ??
+        null,
       [
         themes,
         edition?.theme_id,
       ],
     );
 
-  const savedBroadcast =
+  const editionTheme =
+    useMemo(
+      () =>
+        resolveTheme(
+          editionThemeRow?.config,
+        ),
+      [
+        editionThemeRow,
+      ],
+    );
+
+  const editionBroadcast =
     useMemo(
       () =>
         resolveBroadcast(
@@ -314,68 +441,183 @@ function EditionDesignPage() {
       ],
     );
 
-  const savedScoreboard =
+  const editionScoreboard =
     useMemo(
-      () => {
-        const editionBroadcast =
+      () =>
+        resolveScoreboard(
           (
             edition as
               | EditionWithBroadcast
               | null
           )
-            ?.broadcast_config;
+            ?.broadcast_config ??
+            (
+              editionTheme.scoreboardConfig
+                ? {
+                    scoreboard:
+                      editionTheme.scoreboardConfig,
+                  }
+                : null
+            ),
+          {
+            theme:
+              editionTheme,
+
+            rowCount:
+              previewParticipants.length,
+          },
+        ),
+      [
+        edition,
+        editionTheme,
+        previewParticipants.length,
+      ],
+    );
+
+  const selectedShowThemeRow =
+    useMemo(
+      () => {
+        if (
+          !selectedShow
+        ) {
+          return null;
+        }
+
+        return (
+          themes ??
+          []
+        ).find(
+          (
+            theme,
+          ) =>
+            theme.id ===
+            selectedShow.theme_id,
+        ) ??
+        null;
+      },
+      [
+        themes,
+        selectedShow,
+      ],
+    );
+
+  const selectedShowTheme =
+    useMemo(
+      () =>
+        selectedShow
+          ? resolveTheme(
+              selectedShowThemeRow?.config ??
+                editionTheme,
+            )
+          : editionTheme,
+      [
+        selectedShow,
+        selectedShowThemeRow,
+        editionTheme,
+      ],
+    );
+
+  const selectedShowBroadcast =
+    useMemo(
+      () =>
+        selectedShow
+          ? resolveBroadcast(
+              selectedShow.broadcast_config ??
+                (
+                  edition as
+                    | EditionWithBroadcast
+                    | null
+                )
+                  ?.broadcast_config,
+            )
+          : editionBroadcast,
+      [
+        selectedShow,
+        edition,
+        editionBroadcast,
+      ],
+    );
+
+  const selectedShowScoreboard =
+    useMemo(
+      () => {
+        if (
+          !selectedShow
+        ) {
+          return editionScoreboard;
+        }
 
         if (
-          editionBroadcast &&
-          typeof editionBroadcast ===
+          selectedShow.broadcast_config &&
+          typeof selectedShow.broadcast_config ===
             "object" &&
           "scoreboard" in
-            editionBroadcast
+            selectedShow.broadcast_config
         ) {
           return resolveScoreboard(
-            editionBroadcast,
+            selectedShow.broadcast_config,
             {
               theme:
-                savedTheme,
+                selectedShowTheme,
 
               rowCount:
-                previewParticipants?.length ??
-                0,
+                previewParticipants.length,
             },
           );
         }
 
         if (
-          savedTheme.scoreboardConfig
+          selectedShowTheme.scoreboardConfig
         ) {
-          return savedTheme.scoreboardConfig;
+          return normalizeScoreboard(
+            selectedShowTheme.scoreboardConfig,
+            previewParticipants.length,
+          );
         }
 
-        return resolveScoreboard(
-          null,
-          {
-            theme:
-              savedTheme,
-
-            rowCount:
-              previewParticipants?.length ??
-              0,
-          },
+        return normalizeScoreboard(
+          editionScoreboard,
+          previewParticipants.length,
         );
       },
       [
-        edition,
-        savedTheme,
-        previewParticipants?.length,
+        selectedShow,
+        selectedShowTheme,
+        editionScoreboard,
+        previewParticipants.length,
       ],
     );
+
+  const sourceTheme =
+    scope ===
+    "edition"
+      ? editionTheme
+      : selectedShowTheme;
+
+  const sourceBroadcast =
+    scope ===
+    "edition"
+      ? editionBroadcast
+      : selectedShowBroadcast;
+
+  const sourceScoreboard =
+    scope ===
+    "edition"
+      ? normalizeScoreboard(
+          editionScoreboard,
+          previewParticipants.length,
+        )
+      : normalizeScoreboard(
+          selectedShowScoreboard,
+          previewParticipants.length,
+        );
 
   const [
     themeDraft,
     setThemeDraft,
   ] =
     useState<ThemeConfig>(
-      savedTheme,
+      sourceTheme,
     );
 
   const [
@@ -383,7 +625,7 @@ function EditionDesignPage() {
     setBroadcastDraft,
   ] =
     useState<BroadcastConfig>(
-      savedBroadcast,
+      sourceBroadcast,
     );
 
   const [
@@ -391,7 +633,7 @@ function EditionDesignPage() {
     setScoreboardDraft,
   ] =
     useState<ScoreboardConfig>(
-      savedScoreboard,
+      sourceScoreboard,
     );
 
   const [
@@ -419,22 +661,35 @@ function EditionDesignPage() {
   useEffect(
     () => {
       setThemeDraft(
-        savedTheme,
+        sourceTheme,
       );
 
       setBroadcastDraft(
-        savedBroadcast,
+        sourceBroadcast,
       );
 
       setScoreboardDraft(
-        savedScoreboard,
+        normalizeScoreboard(
+          sourceScoreboard,
+          previewParticipants.length,
+        ),
+      );
+
+      setMsg(
+        null,
+      );
+
+      setError(
+        null,
       );
     },
     [
-      edition?.id,
-      savedTheme,
-      savedBroadcast,
-      savedScoreboard,
+      scope,
+      previewShow?.id,
+      sourceTheme,
+      sourceBroadcast,
+      sourceScoreboard,
+      previewParticipants.length,
     ],
   );
 
@@ -443,10 +698,7 @@ function EditionDesignPage() {
       BroadcastRowData[]
     >(
       () =>
-        (
-          previewParticipants ??
-          []
-        ).map(
+        previewParticipants.map(
           (
             participant,
             index,
@@ -486,7 +738,7 @@ function EditionDesignPage() {
 
               accent:
                 display?.accent_color ??
-                themeDraft.colors.accent,
+                themeDraft.colors.primary,
 
               rank:
                 index +
@@ -513,33 +765,20 @@ function EditionDesignPage() {
                 ),
 
               movement:
-                index % 4 ===
-                0
-                  ? 2
-                  : index % 4 ===
-                      1
-                    ? -1
-                    : 0,
+                0,
 
               qualified:
                 participant.qualified,
 
               eliminated:
                 participant.qualified ===
-                false
-                  ? true
-                  : participant.qualified ===
-                      true
-                    ? false
-                    : null,
+                false,
 
               active:
-                index ===
-                2,
+                false,
 
               highlighted:
-                index ===
-                1,
+                false,
 
               leader:
                 index ===
@@ -564,43 +803,10 @@ function EditionDesignPage() {
       [
         previewParticipants,
         displayMap,
-        themeDraft.colors.accent,
+        themeDraft.colors.primary,
         previewShow?.kind,
       ],
     );
-
-  const participantCount =
-    previewParticipants?.length ??
-    0;
-
-  const automaticColumns =
-    participantCount <=
-    14
-      ? 1
-      : participantCount <=
-          30
-        ? 2
-        : 3;
-
-  const resetScoreboard =
-    () => {
-      setScoreboardDraft(
-        resolveScoreboard(
-          null,
-          {
-            theme:
-              themeDraft,
-
-            rowCount:
-              participantCount,
-          },
-        ),
-      );
-
-      setMsg(
-        "Scoreboard reset to the automatic edition theme design.",
-      );
-    };
 
   const refresh =
     () => {
@@ -624,7 +830,7 @@ function EditionDesignPage() {
       );
     };
 
-  const saveEditionDesign =
+  const saveEditionDefault =
     async () => {
       if (
         !edition ||
@@ -646,8 +852,21 @@ function EditionDesignPage() {
       );
 
       try {
+        const cleanBase =
+          normalizeScoreboard(
+            scoreboardDraft,
+            previewParticipants.length,
+          );
+
         let themeId =
           edition.theme_id;
+
+        const themeConfig = {
+          ...themeDraft,
+
+          scoreboardConfig:
+            cleanBase,
+        };
 
         if (
           themeId
@@ -661,11 +880,8 @@ function EditionDesignPage() {
                 "themes",
               )
               .update({
-                config: {
-                  ...themeDraft,
-                  scoreboardConfig:
-                    scoreboardDraft,
-                },
+                config:
+                  themeConfig,
               })
               .eq(
                 "id",
@@ -679,7 +895,7 @@ function EditionDesignPage() {
               reportSupabaseError(
                 themeError,
 
-                "Could not save the edition theme.",
+                "Could not save the edition design.",
               ),
             );
 
@@ -701,13 +917,15 @@ function EditionDesignPage() {
                 name:
                   `${editionLabel(
                     edition,
-                  )} design`,
+                  )} default design`,
 
-                config: {
-                  ...themeDraft,
-                  scoreboardConfig:
-                    scoreboardDraft,
-                },
+                description:
+                  `Default design for every round of ${editionLabel(
+                    edition,
+                  )}`,
+
+                config:
+                  themeConfig,
 
                 is_public:
                   false,
@@ -724,9 +942,9 @@ function EditionDesignPage() {
                 ? reportSupabaseError(
                     themeError,
 
-                    "Could not create the edition theme.",
+                    "Could not create the edition design.",
                   )
-                : "Could not create the edition theme.",
+                : "Could not create the edition design.",
             );
 
             return;
@@ -736,51 +954,29 @@ function EditionDesignPage() {
             createdTheme.id;
         }
 
-        const currentBroadcast =
-          (
-            edition as
-              EditionWithBroadcast
-          )
-            .broadcast_config &&
-          typeof (
-            edition as
-              EditionWithBroadcast
-          )
-            .broadcast_config ===
-            "object"
-            ? (
-                edition as
-                  EditionWithBroadcast
-              )
-                .broadcast_config ??
-              {}
-            : {};
-
-        const nextBroadcastConfig =
+        const editionBroadcastConfig =
           {
-            ...currentBroadcast,
             ...broadcastDraft,
 
             scoreboard:
-              scoreboardDraft,
+              cleanBase,
           };
-
-        const editionQuery =
-          supabase.from(
-            "editions",
-          ) as any;
 
         const {
           error:
             editionError,
         } =
-          await editionQuery
+          await (
+            supabase.from(
+              "editions",
+            ) as any
+          )
             .update({
               theme_id:
                 themeId,
 
               broadcast_config:
-                nextBroadcastConfig,
+                editionBroadcastConfig,
             })
             .eq(
               "id",
@@ -794,7 +990,258 @@ function EditionDesignPage() {
             reportSupabaseError(
               editionError,
 
-              "Could not save the edition-wide Design & Broadcast settings.",
+              "Could not save the edition-wide design.",
+            ),
+          );
+
+          return;
+        }
+
+        /*
+         * "Save for all rounds" means exactly that:
+         * every show gets the edition default now.
+         *
+         * Afterward, any individual round can be opened and tweaked.
+         */
+        for (
+          const show of
+          editionShows
+        ) {
+          const count =
+            participantCountByShow.get(
+              show.id,
+            ) ??
+            0;
+
+          const showScoreboard =
+            normalizeScoreboard(
+              cleanBase,
+              count,
+            );
+
+          const {
+            error:
+              showError,
+          } =
+            await supabase
+              .from(
+                "shows",
+              )
+              .update({
+                theme_id:
+                  themeId,
+
+                broadcast_config:
+                  {
+                    ...broadcastDraft,
+
+                    scoreboard:
+                      showScoreboard,
+                  },
+              })
+              .eq(
+                "id",
+                show.id,
+              );
+
+          if (
+            showError
+          ) {
+            setError(
+              reportSupabaseError(
+                showError,
+
+                `The edition saved, but ${show.name} could not be updated.`,
+              ),
+            );
+
+            return;
+          }
+        }
+
+        setMsg(
+          `${editionLabel(
+            edition,
+          )} default design saved to every round. You can now choose a round above and make a small override.`,
+        );
+
+        refresh();
+      } finally {
+        setSaving(
+          false,
+        );
+      }
+    };
+
+  const saveRoundOverride =
+    async () => {
+      if (
+        !edition ||
+        !selectedShow ||
+        saving
+      ) {
+        return;
+      }
+
+      setSaving(
+        true,
+      );
+
+      setError(
+        null,
+      );
+
+      setMsg(
+        null,
+      );
+
+      try {
+        const count =
+          participantCountByShow.get(
+            selectedShow.id,
+          ) ??
+          0;
+
+        const cleanScoreboard =
+          normalizeScoreboard(
+            scoreboardDraft,
+            count,
+          );
+
+        /*
+         * A round override gets a private theme copy.
+         * This lets the public show page and broadcast both see the override.
+         */
+        let roundThemeId =
+          selectedShow.theme_id !==
+          edition.theme_id
+            ? selectedShow.theme_id
+            : null;
+
+        const roundThemeConfig = {
+          ...themeDraft,
+
+          scoreboardConfig:
+            cleanScoreboard,
+        };
+
+        if (
+          roundThemeId
+        ) {
+          const {
+            error:
+              themeError,
+          } =
+            await supabase
+              .from(
+                "themes",
+              )
+              .update({
+                config:
+                  roundThemeConfig,
+              })
+              .eq(
+                "id",
+                roundThemeId,
+              );
+
+          if (
+            themeError
+          ) {
+            setError(
+              reportSupabaseError(
+                themeError,
+
+                "Could not save the round design.",
+              ),
+            );
+
+            return;
+          }
+        } else {
+          const {
+            data:
+              roundTheme,
+
+            error:
+              themeError,
+          } =
+            await supabase
+              .from(
+                "themes",
+              )
+              .insert({
+                name:
+                  `${editionLabel(
+                    edition,
+                  )} · ${selectedShow.name} override`,
+
+                description:
+                  `Small visual override for ${selectedShow.name}`,
+
+                config:
+                  roundThemeConfig,
+
+                is_public:
+                  false,
+              })
+              .select()
+              .maybeSingle();
+
+          if (
+            themeError ||
+            !roundTheme
+          ) {
+            setError(
+              themeError
+                ? reportSupabaseError(
+                    themeError,
+
+                    "Could not create the round override.",
+                  )
+                : "Could not create the round override.",
+            );
+
+            return;
+          }
+
+          roundThemeId =
+            roundTheme.id;
+        }
+
+        const {
+          error:
+            showError,
+        } =
+          await supabase
+            .from(
+              "shows",
+            )
+            .update({
+              theme_id:
+                roundThemeId,
+
+              broadcast_config:
+                {
+                  ...broadcastDraft,
+
+                  scoreboard:
+                    cleanScoreboard,
+                },
+            })
+            .eq(
+              "id",
+              selectedShow.id,
+            );
+
+        if (
+          showError
+        ) {
+          setError(
+            reportSupabaseError(
+              showError,
+
+              "Could not save this round override.",
             ),
           );
 
@@ -802,9 +1249,94 @@ function EditionDesignPage() {
         }
 
         setMsg(
-          `${editionLabel(
-            edition,
-          )} design saved for every show.`,
+          `${selectedShow.name} now has its own small override. The other rounds still use the edition default.`,
+        );
+
+        refresh();
+      } finally {
+        setSaving(
+          false,
+        );
+      }
+    };
+
+  const resetRound =
+    async () => {
+      if (
+        !edition ||
+        !selectedShow ||
+        !edition.theme_id ||
+        saving
+      ) {
+        return;
+      }
+
+      setSaving(
+        true,
+      );
+
+      setError(
+        null,
+      );
+
+      setMsg(
+        null,
+      );
+
+      try {
+        const count =
+          participantCountByShow.get(
+            selectedShow.id,
+          ) ??
+          0;
+
+        const cleanScoreboard =
+          normalizeScoreboard(
+            editionScoreboard,
+            count,
+          );
+
+        const {
+          error:
+            showError,
+        } =
+          await supabase
+            .from(
+              "shows",
+            )
+            .update({
+              theme_id:
+                edition.theme_id,
+
+              broadcast_config:
+                {
+                  ...editionBroadcast,
+
+                  scoreboard:
+                    cleanScoreboard,
+                },
+            })
+            .eq(
+              "id",
+              selectedShow.id,
+            );
+
+        if (
+          showError
+        ) {
+          setError(
+            reportSupabaseError(
+              showError,
+
+              "Could not reset this round to the edition default.",
+            ),
+          );
+
+          return;
+        }
+
+        setMsg(
+          `${selectedShow.name} is using the edition default again.`,
         );
 
         refresh();
@@ -821,7 +1353,7 @@ function EditionDesignPage() {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">
-          Loading edition design…
+          Loading design…
         </p>
       </AppShell>
     );
@@ -848,6 +1380,12 @@ function EditionDesignPage() {
     );
   }
 
+  const roundHasOverride =
+    !!selectedShow &&
+    !!selectedShow.theme_id &&
+    selectedShow.theme_id !==
+      edition.theme_id;
+
   return (
     <AppShell>
       <div className="mb-5">
@@ -860,11 +1398,11 @@ function EditionDesignPage() {
       </div>
 
       <PageHeader
-        eyebrow="Edition-wide presentation"
+        eyebrow="Edition design"
         title={`${editionLabel(
           edition,
-        )} Design & Broadcast`}
-        description="Build the scoreboard and country cards once, then use the same visual system across every show in this edition."
+        )} Design`}
+        description="Create one simple default for the whole edition, then optionally tweak individual rounds."
       />
 
       {isOrganizer ===
@@ -891,29 +1429,35 @@ function EditionDesignPage() {
           </div>
         )}
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <Field
-          label="Preview show"
-          hint="Only changes the preview. The saved design belongs to the whole edition."
-        >
+      {/* =====================================================
+          WHAT ARE WE EDITING?
+         ===================================================== */}
+
+      <Panel
+        title="What are you editing?"
+        description="Use the edition default for almost everything. Only open a specific round when you want a small difference."
+        className="mb-5"
+      >
+        <Field label="Design">
           <Select
             value={
-              previewShow?.id ??
-              ""
+              scope
             }
             onChange={(
               event,
             ) =>
-              setPreviewShowId(
-                event.target.value,
+              setScope(
+                event.target
+                  .value,
               )
             }
           >
-            {!editionShows.length && (
-              <option value="">
-                No shows yet
-              </option>
-            )}
+            <option
+              value="edition"
+              className="bg-background"
+            >
+              All rounds · edition default
+            </option>
 
             {editionShows.map(
               (
@@ -931,145 +1475,194 @@ function EditionDesignPage() {
                   {
                     show.name
                   }
+                  {show.theme_id &&
+                  show.theme_id !==
+                    edition.theme_id
+                    ? " · custom"
+                    : ""}
                 </option>
               ),
             )}
           </Select>
         </Field>
 
-        <button
-          type="button"
-          disabled={
-            saving
-          }
-          onClick={
-            saveEditionDesign
-          }
-          className="bg-aurora min-h-11 rounded-xl px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {saving
-            ? "Saving…"
-            : "Save edition design"}
-        </button>
-      </div>
-
-      <div className="space-y-5">
-        {/* ===================================================
-            MAIN SIMPLIFIED EDITOR
-           =================================================== */}
-
-        <Panel
-          title="Custom scoreboard & country cards"
-          description="This is the main visual editor. Pick a style, customise the country cards, layers, background and jury panel, then preview it live."
-        >
-          <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-              Recommended workflow
+        {scope ===
+        "edition" ? (
+          <div className="mt-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
+            <p className="text-sm font-semibold">
+              Edition default
             </p>
 
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Start here. You usually do not need the full Theme Editor below unless you want to change the edition-wide branding, typography or base colour palette.
+              Saving here applies this design to every round. Any old round overrides are reset so all rounds start from the same clean base again.
             </p>
           </div>
+        ) : (
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-border bg-surface/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">
+                {selectedShow?.name}
+              </p>
 
-          {previewShow ? (
-            <ScoreboardEditor
-              config={
-                scoreboardDraft
-              }
-              onChange={
-                setScoreboardDraft
-              }
-              rows={
-                previewRows
-              }
-              theme={
-                themeDraft
-              }
-              showName={
-                previewShow.name
-              }
-              onReset={
-                resetScoreboard
-              }
-            />
-          ) : (
-            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              Create at least one show to preview the scoreboard and country cards.
+              <p className="mt-1 text-xs text-muted-foreground">
+                {roundHasOverride
+                  ? "This round currently has its own override."
+                  : "This round currently uses the edition default."}
+              </p>
             </div>
-          )}
-        </Panel>
 
-        {/* ===================================================
-            ADAPTIVE SHOW LAYOUTS
-           =================================================== */}
+            {roundHasOverride && (
+              <button
+                type="button"
+                disabled={
+                  saving
+                }
+                onClick={
+                  resetRound
+                }
+                className="min-h-10 rounded-xl border border-border px-3 text-sm"
+              >
+                Reset to edition default
+              </button>
+            )}
+          </div>
+        )}
+      </Panel>
 
-        <Panel
-          title="Automatic layouts per show"
-          description="The country-card style stays identical, while each show can use a different number of columns depending on its participant count."
-        >
-          {editionShows.length ? (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {editionShows.map(
-                (
-                  show,
-                ) => {
-                  const count =
-                    show.id ===
-                    previewShow?.id
-                      ? participantCount
-                      : null;
+      {/* =====================================================
+          PREVIEW SHOW WHEN EDITING DEFAULT
+         ===================================================== */}
 
-                  return (
-                    <div
+      {scope ===
+        "edition" &&
+        editionShows.length >
+          1 && (
+          <Panel
+            title="Preview with"
+            description="The design is still for every round. This only changes which participant list you see in the preview."
+            className="mb-5"
+          >
+            <Field label="Preview round">
+              <Select
+                value={
+                  previewShow?.id ??
+                  ""
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setPreviewShowId(
+                    event.target
+                      .value,
+                  )
+                }
+              >
+                {editionShows.map(
+                  (
+                    show,
+                  ) => (
+                    <option
                       key={
                         show.id
                       }
-                      className="rounded-xl border border-border bg-surface/50 p-3"
+                      value={
+                        show.id
+                      }
+                      className="bg-background"
                     >
-                      <p className="text-sm font-semibold">
-                        {
-                          show.name
-                        }
-                      </p>
+                      {
+                        show.name
+                      }
+                      {" · "}
+                      {
+                        participantCountByShow.get(
+                          show.id,
+                        ) ??
+                        0
+                      }{" "}
+                      entries
+                    </option>
+                  ),
+                )}
+              </Select>
+            </Field>
+          </Panel>
+        )}
 
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {count !=
-                        null
-                          ? `${count} entries · ${automaticColumns} column${automaticColumns === 1 ? "" : "s"}`
-                          : "Layout adapts automatically from its entry count"}
-                      </p>
-                    </div>
-                  );
-                },
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No shows yet.
-            </p>
-          )}
-        </Panel>
+      {/* =====================================================
+          SIMPLE SCOREBOARD EDITOR
+         ===================================================== */}
 
-        {/* ===================================================
-            ADVANCED THEME
-           =================================================== */}
+      <Panel
+        title={
+          scope ===
+          "edition"
+            ? "Edition scoreboard & country cards"
+            : `${selectedShow?.name ?? "Round"} scoreboard`
+        }
+        description={
+          scope ===
+          "edition"
+            ? "This is the main editor. Background, cards and layout are all here."
+            : "Make only the small differences you want for this round."
+        }
+      >
+        {previewShow ? (
+          <ScoreboardEditor
+            config={
+              scoreboardDraft
+            }
+            onChange={
+              setScoreboardDraft
+            }
+            rows={
+              previewRows
+            }
+            theme={
+              themeDraft
+            }
+            showName={
+              previewShow.name
+            }
+            onReset={
+              scope ===
+              "edition"
+                ? undefined
+                : () =>
+                    setScoreboardDraft(
+                      normalizeScoreboard(
+                        editionScoreboard,
+                        previewParticipants.length,
+                      ),
+                    )
+            }
+          />
+        ) : (
+          <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Create at least one show first.
+          </div>
+        )}
+      </Panel>
 
-        <details className="glass overflow-hidden">
+      {/* =====================================================
+          EDITION BRANDING ONLY
+         ===================================================== */}
+
+      {scope ===
+        "edition" && (
+        <details className="glass mt-5 overflow-hidden">
           <summary className="cursor-pointer list-none p-4 sm:p-5">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                Advanced
-              </p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+              Optional
+            </p>
 
-              <h2 className="mt-1 font-display text-lg font-bold">
-                Edition theme & branding
-              </h2>
+            <h2 className="mt-1 font-display text-lg font-bold">
+              Edition branding
+            </h2>
 
-              <p className="mt-1 text-xs text-muted-foreground">
-                Background, global colours, typography and base identity. Most users can leave this closed after setting the edition look.
-              </p>
-            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Logo, base colours, fonts and the edition background. Most editing happens above.
+            </p>
           </summary>
 
           <div className="border-t border-border p-4 sm:p-5">
@@ -1083,64 +1676,170 @@ function EditionDesignPage() {
             />
           </div>
         </details>
+      )}
 
-        {/* ===================================================
-            BROADCAST
-           =================================================== */}
+      {/* =====================================================
+          BROADCAST BEHAVIOUR
+         ===================================================== */}
 
-        <details className="glass overflow-hidden">
-          <summary className="cursor-pointer list-none p-4 sm:p-5">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                Production
-              </p>
+      <details className="glass mt-5 overflow-hidden">
+        <summary className="cursor-pointer list-none p-4 sm:p-5">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+            Optional
+          </p>
 
-              <h2 className="mt-1 font-display text-lg font-bold">
-                Broadcast behaviour
-              </h2>
+          <h2 className="mt-1 font-display text-lg font-bold">
+            Broadcast behaviour
+          </h2>
 
-              <p className="mt-1 text-xs text-muted-foreground">
-                Scenes, reveal timing, animations, winner effects and spokesperson presentation.
-              </p>
-            </div>
-          </summary>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Reveal timing and production behaviour. Leave this closed if you only want to change the look.
+          </p>
+        </summary>
 
-          <div className="border-t border-border p-4 sm:p-5">
-            <BroadcastEditor
-              config={
-                broadcastDraft
-              }
-              onChange={
-                setBroadcastDraft
-              }
-            />
-          </div>
-        </details>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-          <Link
-            to="/admin"
-            className="flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
-          >
-            ← Back to Manage Editions
-          </Link>
-
-          <button
-            type="button"
-            disabled={
-              saving
+        <div className="border-t border-border p-4 sm:p-5">
+          <BroadcastEditor
+            config={
+              broadcastDraft
             }
-            onClick={
-              saveEditionDesign
+            onChange={
+              setBroadcastDraft
             }
-            className="bg-aurora min-h-11 rounded-xl px-5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {saving
-              ? "Saving…"
-              : "Save edition design"}
-          </button>
+          />
         </div>
+      </details>
+
+      {/* =====================================================
+          SAVE
+         ===================================================== */}
+
+      <div className="sticky bottom-20 z-40 mt-5 rounded-2xl border border-border bg-background/95 p-3 shadow-2xl backdrop-blur sm:bottom-4">
+        <button
+          type="button"
+          disabled={
+            saving ||
+            !previewShow
+          }
+          onClick={
+            scope ===
+            "edition"
+              ? saveEditionDefault
+              : saveRoundOverride
+          }
+          className="bg-aurora min-h-12 w-full rounded-xl px-5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+        >
+          {saving
+            ? "Saving…"
+            : scope ===
+                "edition"
+              ? "Save as default for ALL rounds"
+              : `Save only ${selectedShow?.name ?? "this round"}`}
+        </button>
       </div>
     </AppShell>
   );
+}
+
+function normalizeScoreboard(
+  config:
+    ScoreboardConfig,
+
+  participantCount:
+    number,
+): ScoreboardConfig {
+  const columns =
+    columnsForCount(
+      participantCount,
+    );
+
+  const rowsPerColumn =
+    columns >
+    1
+      ? Math.ceil(
+          Math.max(
+            participantCount,
+            1,
+          ) /
+            columns,
+        )
+      : null;
+
+  return {
+    ...config,
+
+    layout: {
+      ...config.layout,
+
+      columns,
+
+      rowsPerColumn,
+
+      distribution:
+        "sequential",
+
+      boardWidth:
+        boardWidthForColumns(
+          columns,
+        ),
+    },
+
+    background: {
+      ...config.background,
+
+      pattern:
+        "none",
+
+      patternOpacity:
+        0,
+    },
+  };
+}
+
+function columnsForCount(
+  count:
+    number,
+): 1 | 2 | 3 | 4 {
+  if (
+    count <=
+    14
+  ) {
+    return 1;
+  }
+
+  if (
+    count <=
+    30
+  ) {
+    return 2;
+  }
+
+  if (
+    count <=
+    48
+  ) {
+    return 3;
+  }
+
+  return 4;
+}
+
+function boardWidthForColumns(
+  columns:
+    1 | 2 | 3 | 4,
+) {
+  switch (
+    columns
+  ) {
+    case 1:
+      return 920;
+
+    case 2:
+      return 1280;
+
+    case 3:
+      return 1460;
+
+    case 4:
+      return 1600;
+  }
 }
