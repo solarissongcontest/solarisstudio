@@ -13,6 +13,10 @@ import {
 } from "@/components/AppShell";
 
 import {
+  BackgroundFlag,
+} from "@/components/BackgroundFlag";
+
+import {
   FlagChip,
 } from "@/components/FlagChip";
 
@@ -241,17 +245,16 @@ function EditionsPage() {
                     }}
                     className="glass group relative block min-h-[260px] overflow-hidden p-5 transition-transform hover:-translate-y-1"
                   >
-                    {winner?.flag_image && (
-                      <div className="absolute -bottom-14 -right-14 h-52 w-52 overflow-hidden rounded-full opacity-[0.08]">
-                        <img
-                          src={
-                            winner.flag_image
-                          }
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    )}
+                    <BackgroundFlag
+                      image={winner?.flag_image}
+                      className="
+                        -bottom-14
+                        -right-14
+                        h-52
+                        w-52
+                      "
+                      opacity={0.14}
+                    />
 
                     <div className="relative z-10 flex min-h-[220px] flex-col">
                       <div className="flex items-start justify-between gap-3">
@@ -375,17 +378,17 @@ function EditionHero({
       }}
       className="group relative block min-h-[390px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[430px]"
     >
-      {winner?.flag_image && (
-        <div className="absolute -right-[15%] top-1/2 aspect-square w-[90%] -translate-y-1/2 overflow-hidden rounded-full opacity-[0.20] sm:w-[58%]">
-          <img
-            src={
-              winner.flag_image
-            }
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        </div>
-      )}
+      <BackgroundFlag
+        image={winner?.flag_image}
+        className="
+          -right-[15%]
+          top-1/2
+          w-[90%]
+          -translate-y-1/2
+          sm:w-[58%]
+        "
+        opacity={0.24}
+      />
 
       <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/95 via-[#041328]/82 to-[#041328]/30" />
 
