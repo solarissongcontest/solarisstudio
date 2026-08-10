@@ -54,22 +54,26 @@ export const Route =
 
 function HomePage() {
   const {
-    data: editions,
+    data:
+      editions,
   } =
     useEditions();
 
   const {
-    data: shows,
+    data:
+      shows,
   } =
     useAllShows();
 
   const {
-    data: countries,
+    data:
+      countries,
   } =
     useCountries();
 
   const {
-    data: results,
+    data:
+      results,
   } =
     useAllResults();
 
@@ -90,7 +94,9 @@ function HomePage() {
       () =>
         new Map(
           countryList.map(
-            (country) => [
+            (
+              country,
+            ) => [
               country.id,
               country,
             ],
@@ -104,12 +110,21 @@ function HomePage() {
   const sortedEditions =
     useMemo(
       () =>
-        [...editionList].sort(
-          (a, b) =>
-            (b.edition_number ??
-              -1) -
-            (a.edition_number ??
-              -1),
+        [
+          ...editionList,
+        ].sort(
+          (
+            a,
+            b,
+          ) =>
+            (
+              b.edition_number ??
+              -1
+            ) -
+            (
+              a.edition_number ??
+              -1
+            ),
         ),
       [
         editionList,
@@ -118,7 +133,9 @@ function HomePage() {
 
   const publishedEditions =
     sortedEditions.filter(
-      (edition) =>
+      (
+        edition,
+      ) =>
         edition.published,
     );
 
@@ -135,13 +152,18 @@ function HomePage() {
     latestEdition
       ? showList
           .filter(
-            (show) =>
+            (
+              show,
+            ) =>
               show.edition_id ===
                 latestEdition.id &&
               show.published,
           )
           .sort(
-            (a, b) =>
+            (
+              a,
+              b,
+            ) =>
               a.sort_order -
               b.sort_order,
           )
@@ -149,7 +171,9 @@ function HomePage() {
 
   const featuredShow =
     latestEditionShows.find(
-      (show) =>
+      (
+        show,
+      ) =>
         show.kind ===
         "grand-final",
     ) ??
@@ -163,18 +187,27 @@ function HomePage() {
     featuredShow
       ? resultList
           .filter(
-            (result) =>
+            (
+              result,
+            ) =>
               result.show_id ===
                 featuredShow.id &&
               result.final_rank !=
                 null,
           )
           .sort(
-            (a, b) =>
-              (a.final_rank ??
-                999) -
-              (b.final_rank ??
-                999),
+            (
+              a,
+              b,
+            ) =>
+              (
+                a.final_rank ??
+                999
+              ) -
+              (
+                b.final_rank ??
+                999
+              ),
           )
       : [];
 
@@ -193,7 +226,7 @@ function HomePage() {
       : null;
 
   /* =========================================================
-     LATEST COMPLETED SHOW BY EDITION NUMBER
+     LATEST COMPLETED SHOW
      ========================================================= */
 
   const latestCompletedShow =
@@ -201,10 +234,14 @@ function HomePage() {
       () => {
         const completed =
           showList.filter(
-            (show) =>
+            (
+              show,
+            ) =>
               show.published &&
               resultList.some(
-                (result) =>
+                (
+                  result,
+                ) =>
                   result.show_id ===
                     show.id &&
                   result.final_rank !=
@@ -213,27 +250,40 @@ function HomePage() {
           );
 
         return (
-          [...completed].sort(
-            (a, b) => {
+          [
+            ...completed,
+          ].sort(
+            (
+              a,
+              b,
+            ) => {
               const editionA =
                 editionList.find(
-                  (edition) =>
+                  (
+                    edition,
+                  ) =>
                     edition.id ===
                     a.edition_id,
                 );
 
               const editionB =
                 editionList.find(
-                  (edition) =>
+                  (
+                    edition,
+                  ) =>
                     edition.id ===
                     b.edition_id,
                 );
 
               const editionDiff =
-                (editionB?.edition_number ??
-                  -1) -
-                (editionA?.edition_number ??
-                  -1);
+                (
+                  editionB?.edition_number ??
+                  -1
+                ) -
+                (
+                  editionA?.edition_number ??
+                  -1
+                );
 
               if (
                 editionDiff !==
@@ -247,7 +297,10 @@ function HomePage() {
                 a.sort_order
               );
             },
-          )[0] ?? null
+          )[
+            0
+          ] ??
+          null
         );
       },
       [
@@ -261,18 +314,27 @@ function HomePage() {
     latestCompletedShow
       ? resultList
           .filter(
-            (result) =>
+            (
+              result,
+            ) =>
               result.show_id ===
                 latestCompletedShow.id &&
               result.final_rank !=
                 null,
           )
           .sort(
-            (a, b) =>
-              (a.final_rank ??
-                999) -
-              (b.final_rank ??
-                999),
+            (
+              a,
+              b,
+            ) =>
+              (
+                a.final_rank ??
+                999
+              ) -
+              (
+                b.final_rank ??
+                999
+              ),
           )
       : [];
 
@@ -293,7 +355,9 @@ function HomePage() {
   const latestCompletedEdition =
     latestCompletedShow
       ? editionList.find(
-          (edition) =>
+          (
+            edition,
+          ) =>
             edition.id ===
             latestCompletedShow.edition_id,
         ) ??
@@ -306,9 +370,39 @@ function HomePage() {
       5,
     );
 
+  const runnerUpResult =
+    latestCompletedResults[
+      1
+    ] ??
+    null;
+
+  const runnerUp =
+    runnerUpResult
+      ? countryMap.get(
+          runnerUpResult.country_id,
+        ) ??
+        null
+      : null;
+
+  const thirdResult =
+    latestCompletedResults[
+      2
+    ] ??
+    null;
+
+  const third =
+    thirdResult
+      ? countryMap.get(
+          thirdResult.country_id,
+        ) ??
+        null
+      : null;
+
   const grandFinals =
     showList.filter(
-      (show) =>
+      (
+        show,
+      ) =>
         show.kind ===
           "grand-final" &&
         show.published,
@@ -316,168 +410,374 @@ function HomePage() {
 
   const totalWinners =
     resultList.filter(
-      (result) =>
+      (
+        result,
+      ) =>
         result.final_rank ===
           1 &&
         grandFinals.some(
-          (show) =>
+          (
+            show,
+          ) =>
             show.id ===
             result.show_id,
         ),
     ).length;
 
+  const leadEdition =
+    latestCompletedEdition ??
+    latestEdition;
+
+  const leadWinner =
+    latestWinner ??
+    featuredWinner;
+
+  const leadWinnerResult =
+    latestWinnerResult ??
+    featuredWinnerResult;
+
+  const leadShow =
+    latestCompletedShow ??
+    featuredShow;
+
+  const leadHeadline =
+    leadWinner &&
+    leadShow
+      ? `${leadWinner.name} takes ${leadShow.name} — but the numbers tell a bigger story`
+      : latestEdition
+        ? `${editionLabel(
+            latestEdition,
+          )} is here — see what has changed`
+        : "The Solaris story continues";
+
+  const leadDek =
+    leadWinner &&
+    leadWinnerResult &&
+    runnerUp &&
+    runnerUpResult
+      ? `${leadWinner.name} finished on ${leadWinnerResult.total_points} points, ahead of ${runnerUp.name} on ${runnerUpResult.total_points}. Here is the result, the gap and what happened next.`
+      : latestEdition?.description ||
+        "Results, voting patterns, records and the latest developments from across Terra Solaris.";
+
+  const editionIsLive =
+    latestEdition &&
+    latestEdition.status !==
+      "completed";
+
   return (
     <AppShell>
-      <div className="space-y-8">
-        {/* MASTHEAD */}
+      <div className="space-y-7 sm:space-y-9">
+        {/* ===================================================
+            NEWSROOM MASTHEAD
+           =================================================== */}
 
-        <section>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary sm:text-xs">
-            Terra Solaris Broadcasting Union
-          </p>
-
-          <div className="mt-3 flex flex-col gap-3 border-b border-border/60 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <section className="border-b border-border/60 pb-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <h1 className="max-w-3xl font-display text-3xl font-bold leading-[0.95] tracking-[-0.04em] sm:text-5xl lg:text-6xl">
-                Solaris Song Contest
-              </h1>
+              <p className="text-[9px] font-bold uppercase tracking-[0.26em] text-primary sm:text-[10px]">
+                TSBC Newsroom
+              </p>
 
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Results, editions and stories from across Terra Solaris.
+              <h1 className="mt-1 font-display text-2xl font-black tracking-[-0.035em] sm:text-4xl">
+                Solaris Today
+              </h1>
+            </div>
+
+            <div className="text-right">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Terra Solaris
+              </p>
+
+              <p className="mt-1 text-xs font-semibold">
+                Song Contest Desk
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex min-w-0 items-center gap-3 overflow-hidden border-y border-border/60 py-2.5">
+            <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-primary-foreground">
+              {editionIsLive
+                ? "Now"
+                : "Latest"}
+            </span>
+
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <p className="truncate text-xs font-semibold sm:text-sm">
+                {leadWinner &&
+                leadShow
+                  ? `${leadWinner.name} leads the conversation after ${leadShow.name}`
+                  : latestEdition
+                    ? `${editionLabel(
+                        latestEdition,
+                      )} is the current Solaris edition`
+                    : "Follow the latest Solaris developments"}
               </p>
             </div>
 
-            {latestEdition && (
+            {leadEdition && (
               <Link
                 to="/editions/$slug"
                 params={{
                   slug:
-                    latestEdition.slug,
+                    leadEdition.slug,
                 }}
-                className="inline-flex shrink-0 items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary hover:underline"
+                className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-primary"
               >
-                {editionLabel(
-                  latestEdition,
-                )}{" "}
-                →
+                Follow →
               </Link>
             )}
           </div>
         </section>
 
-        {/* LEAD */}
+        {/* ===================================================
+            LEAD NEWS GRID
+           =================================================== */}
 
-        {latestEdition && (
-          <section>
-            <SectionLabel>
-              Latest
-            </SectionLabel>
-
+        <section className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.65fr)]">
+          {leadEdition && (
             <Link
               to="/editions/$slug"
               params={{
                 slug:
-                  latestEdition.slug,
+                  leadEdition.slug,
               }}
-              className="group relative mt-3 block min-h-[390px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/20 shadow-2xl sm:min-h-[440px]"
+              className="group relative min-h-[470px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[520px]"
             >
               <BackgroundFlag
-                image={featuredWinner?.flag_image}
+                image={
+                  leadWinner?.flag_image
+                }
                 className="
-                  -right-[12%]
-                  top-1/2
-                  w-[78%]
+                  -right-[14%]
+                  top-[42%]
+                  w-[92%]
                   -translate-y-1/2
-                  sm:w-[55%]
+                  sm:w-[62%]
                 "
-                opacity={0.24}
+                opacity={
+                  0.3
+                }
               />
 
-              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/95 via-[#06162d]/78 to-[#06162d]/20" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020817]/98 via-[#041329]/70 to-[#061d39]/22" />
 
-              <div className="absolute inset-0 flex flex-col justify-between p-5 sm:p-8 lg:p-10">
-                <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-                  Current edition
-                </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/74 via-transparent to-transparent" />
 
-                <div className="relative z-10 max-w-3xl">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              <div className="relative z-10 flex min-h-[470px] flex-col justify-between p-5 sm:min-h-[520px] sm:p-8 lg:p-9">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-primary px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-primary-foreground">
+                    Lead story
+                  </span>
+
+                  <span className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.16em] text-white/65 backdrop-blur">
                     {editionLabel(
-                      latestEdition,
+                      leadEdition,
                     )}
+                  </span>
+                </div>
+
+                <div className="max-w-3xl">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+                    Results desk
                   </p>
 
-                  <h2 className="mt-2 max-w-2xl font-display text-3xl font-bold leading-[1.02] tracking-[-0.035em] text-white sm:text-5xl">
-                    {featuredWinner
-                      ? `${featuredWinner.name} takes the spotlight`
-                      : latestEdition.name}
+                  <h2 className="mt-3 max-w-3xl font-display text-[2rem] font-black leading-[0.98] tracking-[-0.045em] text-white sm:text-5xl lg:text-6xl">
+                    {
+                      leadHeadline
+                    }
                   </h2>
 
-                  <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/65 sm:text-base">
-                    {featuredWinner &&
-                    featuredWinnerResult &&
-                    featuredShow
-                      ? `${featuredWinner.name} finished first in ${featuredShow.name} with ${featuredWinnerResult.total_points} points.`
-                      : latestEdition.description ||
-                        `${editionLabel(
-                          latestEdition,
-                        )} is the latest chapter of the Solaris Song Contest.`}
+                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base">
+                    {
+                      leadDek
+                    }
                   </p>
 
-                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#051223] transition-transform group-hover:translate-x-1">
-                    Open edition →
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    <span className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-bold text-[#061225] transition-transform group-hover:translate-x-1">
+                      Read the full story →
+                    </span>
+
+                    {leadWinnerResult && (
+                      <span className="numeric text-xs font-semibold text-white/55">
+                        {
+                          leadWinnerResult.total_points
+                        }{" "}
+                        points
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             </Link>
-          </section>
-        )}
+          )}
 
-        {/* TOP STORIES */}
+          <aside className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            <NewsBrief
+              label="Result"
+              headline={
+                runnerUp &&
+                runnerUpResult
+                  ? `${runnerUp.name} came closest — the margin was ${
+                      Math.max(
+                        0,
+                        (
+                          latestWinnerResult?.total_points ??
+                          0
+                        ) -
+                          runnerUpResult.total_points,
+                      )
+                    } points`
+                  : "See the latest completed scoreboard"
+              }
+              detail={
+                latestCompletedShow
+                  ? latestCompletedShow.name
+                  : "Latest published results"
+              }
+              to={
+                latestCompletedShow
+                  ? `/shows/${latestCompletedShow.id}`
+                  : "/editions"
+              }
+            />
+
+            <NewsBrief
+              label="Analysis"
+              headline="Where did the jury and televote see things completely differently?"
+              detail="Open the voting split and relationship analysis."
+              to="/analysis"
+              accent
+            />
+
+            <NewsBrief
+              label="Records"
+              headline="The results that changed the all-time record book"
+              detail={`${totalWinners} Grand Final winning results are currently in the archive.`}
+              to="/records"
+            />
+          </aside>
+        </section>
+
+        {/* ===================================================
+            THE STORY IN 30 SECONDS
+           =================================================== */}
+
+        {latestCompletedShow &&
+          latestWinner && (
+            <section>
+              <NewsSectionHeader
+                kicker="At a glance"
+                title="The story in 30 seconds"
+                linkLabel="Full results"
+                linkTo={`/shows/${latestCompletedShow.id}`}
+              />
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <QuickTake
+                  number="01"
+                  label="Winner"
+                  title={
+                    latestWinner.name
+                  }
+                  detail={`${latestWinnerResult?.total_points ?? 0} points`}
+                  country={
+                    latestWinner
+                  }
+                />
+
+                <QuickTake
+                  number="02"
+                  label="Runner-up"
+                  title={
+                    runnerUp?.name ??
+                    "—"
+                  }
+                  detail={
+                    runnerUpResult
+                      ? `${runnerUpResult.total_points} points`
+                      : "No result"
+                  }
+                  country={
+                    runnerUp
+                  }
+                />
+
+                <QuickTake
+                  number="03"
+                  label="Third"
+                  title={
+                    third?.name ??
+                    "—"
+                  }
+                  detail={
+                    thirdResult
+                      ? `${thirdResult.total_points} points`
+                      : "No result"
+                  }
+                  country={
+                    third
+                  }
+                />
+              </div>
+            </section>
+          )}
+
+        {/* ===================================================
+            NEWS DESK
+           =================================================== */}
 
         <section>
-          <div className="flex items-end justify-between gap-4">
-            <SectionLabel>
-              Top stories
-            </SectionLabel>
+          <NewsSectionHeader
+            kicker="News desk"
+            title="What people will want to open next"
+            linkLabel="All editions"
+            linkTo="/editions"
+          />
 
-            <Link
-              to="/editions"
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              All editions →
-            </Link>
-          </div>
-
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.25fr_.75fr_.75fr]">
             {latestCompletedShow &&
               latestWinner &&
               latestWinnerResult && (
-                <StoryCard
-                  eyebrow={
+                <NewsStory
+                  label={
                     latestCompletedEdition
                       ? editionLabel(
                           latestCompletedEdition,
                         )
                       : "Results"
                   }
-                  title={`${latestWinner.name} wins ${latestCompletedShow.name}`}
-                  body={`${latestWinnerResult.total_points} points secured first place.`}
+                  headline={`${latestWinner.name} won. The interesting part is what happened underneath.`}
+                  detail={`The top five, the scoring gap and the countries that came closest in ${latestCompletedShow.name}.`}
                   to={`/shows/${latestCompletedShow.id}`}
                   country={
                     latestWinner
                   }
-                  large
+                  feature
                 />
               )}
 
+            <NewsStory
+              label="Voting"
+              headline="The jury and televote did not always agree. Here are the biggest splits."
+              detail="Compare who benefited from each side of the vote."
+              to="/analysis"
+            />
+
+            <NewsStory
+              label="Relationships"
+              headline="Which countries keep finding each other in the voting?"
+              detail="See the strongest friendships, similarities and one-sided support."
+              to="/relationships"
+            />
+
             {latestEdition && (
-              <StoryCard
-                eyebrow="Edition"
-                title={`${editionLabel(
+              <NewsStory
+                label="Edition watch"
+                headline={`${editionLabel(
                   latestEdition,
-                )} is the current Solaris edition`}
-                body={
+                )}: everything currently public in one place`}
+                detail={
                   latestEdition.host_city
                     ? `Hosted in ${latestEdition.host_city}.`
                     : latestEdition.name
@@ -486,63 +786,46 @@ function HomePage() {
               />
             )}
 
-            <StoryCard
-              eyebrow="Voting"
-              title="Jury vs televote"
-              body="See where juries and the public agreed, and where they absolutely did not."
-              to={
-                latestCompletedShow
-                  ? `/shows/${latestCompletedShow.id}`
-                  : "/analysis"
-              }
+            <NewsStory
+              label="Records"
+              headline="Who owns Solaris history right now?"
+              detail="Wins, streaks, points and the records still standing."
+              to="/records"
             />
 
-            <StoryCard
-              eyebrow="Records"
-              title="The Solaris record book"
-              body="Wins, streaks and all-time contest records."
-              to="/records"
+            <NewsStory
+              label="Countries"
+              headline="Every delegation has a history. Some are much stranger than others."
+              detail="Browse placements, voting patterns and relationships country by country."
+              to="/countries"
             />
           </div>
         </section>
 
-        {/* RESULTS */}
+        {/* ===================================================
+            LATEST SCOREBOARD
+           =================================================== */}
 
-        <section className="grid gap-5 lg:grid-cols-[1.25fr_.75fr]">
+        <section className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
           <div>
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <SectionLabel>
-                  Latest results
-                </SectionLabel>
-
-                {latestCompletedShow && (
-                  <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">
-                    {latestCompletedEdition
+            <NewsSectionHeader
+              kicker="Scoreboard"
+              title={
+                latestCompletedShow
+                  ? `${latestCompletedEdition
                       ? `${editionLabel(
                           latestCompletedEdition,
                         )} · `
-                      : ""}
-                    {
-                      latestCompletedShow.name
-                    }
-                  </h2>
-                )}
-              </div>
-
-              {latestCompletedShow && (
-                <Link
-                  to="/shows/$showId"
-                  params={{
-                    showId:
-                      latestCompletedShow.id,
-                  }}
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Full results →
-                </Link>
-              )}
-            </div>
+                      : ""}${latestCompletedShow.name}`
+                  : "Latest results"
+              }
+              linkLabel="Open scoreboard"
+              linkTo={
+                latestCompletedShow
+                  ? `/shows/${latestCompletedShow.id}`
+                  : "/editions"
+              }
+            />
 
             <div className="glass mt-3 overflow-hidden p-2 sm:p-3">
               {topFive.length ? (
@@ -572,9 +855,19 @@ function HomePage() {
                           code:
                             country.short_code,
                         }}
-                        className="grid grid-cols-[34px_42px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3 hover:bg-surface"
+                        className={`grid grid-cols-[38px_42px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-surface ${
+                          index ===
+                          0
+                            ? "bg-primary/5"
+                            : ""
+                        }`}
                       >
-                        <span className="numeric text-center text-sm text-muted-foreground">
+                        <span className={`numeric text-center text-sm font-bold ${
+                          index ===
+                          0
+                            ? "text-primary"
+                            : "text-muted-foreground"
+                        }`}>
                           #
                           {result.final_rank ??
                             index +
@@ -594,17 +887,26 @@ function HomePage() {
                           size="sm"
                         />
 
-                        <span className="truncate text-sm font-semibold">
-                          {
-                            country.name
-                          }
-                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">
+                            {
+                              country.name
+                            }
+                          </p>
+
+                          {index ===
+                            0 && (
+                            <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
+                              Winner
+                            </p>
+                          )}
+                        </div>
 
                         <span className="numeric text-sm font-bold">
                           {
                             result.total_points
                           }{" "}
-                          <span className="text-[10px] font-normal text-muted-foreground">
+                          <span className="text-[9px] font-normal text-muted-foreground">
                             pts
                           </span>
                         </span>
@@ -621,23 +923,25 @@ function HomePage() {
           </div>
 
           <div>
-            <SectionLabel>
-              Current edition
-            </SectionLabel>
+            <NewsSectionHeader
+              kicker="Edition desk"
+              title={
+                latestEdition
+                  ? editionLabel(
+                      latestEdition,
+                    )
+                  : "Current edition"
+              }
+            />
 
-            {latestEdition && (
-              <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">
-                {editionLabel(
-                  latestEdition,
-                )}
-              </h2>
-            )}
-
-            <div className="glass mt-3 p-3">
+            <div className="glass mt-3 p-4">
               {latestEditionShows.length ? (
                 <div className="divide-y divide-border/50">
                   {latestEditionShows.map(
-                    (show) => (
+                    (
+                      show,
+                      index,
+                    ) => (
                       <Link
                         key={
                           show.id
@@ -647,16 +951,24 @@ function HomePage() {
                           showId:
                             show.id,
                         }}
-                        className="flex items-center justify-between gap-3 py-3"
+                        className="group flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                       >
-                        <div>
-                          <p className="text-sm font-semibold">
+                        <span className="numeric w-6 shrink-0 text-[10px] font-bold text-muted-foreground">
+                          0
+                          {
+                            index +
+                            1
+                          }
+                        </span>
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">
                             {
                               show.name
                             }
                           </p>
 
-                          <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                          <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                             {show.kind.replace(
                               "-",
                               " ",
@@ -664,7 +976,7 @@ function HomePage() {
                           </p>
                         </div>
 
-                        <span className="text-primary">
+                        <span className="text-primary transition-transform group-hover:translate-x-1">
                           →
                         </span>
                       </Link>
@@ -672,7 +984,7 @@ function HomePage() {
                   )}
                 </div>
               ) : (
-                <p className="p-2 text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   No published shows yet.
                 </p>
               )}
@@ -680,46 +992,55 @@ function HomePage() {
           </div>
         </section>
 
-        {/* EXPLORE */}
+        {/* ===================================================
+            DISCOVER
+           =================================================== */}
 
         <section>
-          <SectionLabel>
-            Explore Solaris
-          </SectionLabel>
+          <NewsSectionHeader
+            kicker="Keep exploring"
+            title="Go deeper into Solaris"
+          />
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <ExploreLink
+            <DeskLink
+              number="01"
               title="Editions"
-              description="Every SSC edition."
+              description="Every contest chapter."
               to="/editions"
             />
 
-            <ExploreLink
+            <DeskLink
+              number="02"
               title="Countries"
-              description="Delegation histories."
+              description="Placements and delegation histories."
               to="/countries"
             />
 
-            <ExploreLink
-              title="Relationships"
-              description="Voting alliances and rivalries."
-              to="/relationships"
+            <DeskLink
+              number="03"
+              title="Analysis"
+              description="Voting patterns and relationships."
+              to="/analysis"
             />
 
-            <ExploreLink
+            <DeskLink
+              number="04"
               title="Records"
-              description="All-time records."
+              description="The numbers that still stand."
               to="/records"
             />
           </div>
         </section>
 
-        {/* NUMBERS */}
+        {/* ===================================================
+            NUMBERS
+           =================================================== */}
 
         <section className="border-y border-border/60 py-6">
-          <SectionLabel>
-            Solaris in numbers
-          </SectionLabel>
+          <p className="text-[9px] font-black uppercase tracking-[0.24em] text-muted-foreground">
+            The archive
+          </p>
 
           <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-4">
             <NumberStat
@@ -756,102 +1077,302 @@ function HomePage() {
   );
 }
 
-function SectionLabel({
-  children,
-}: {
-  children:
-    string;
-}) {
-  return (
-    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
-      {children}
-    </p>
-  );
-}
+/* ============================================================
+   SECTION HEADER
+   ============================================================ */
 
-function StoryCard({
-  eyebrow,
+function NewsSectionHeader({
+  kicker,
   title,
-  body,
-  to,
-  country,
-  large = false,
+  linkLabel,
+  linkTo,
 }: {
-  eyebrow:
+  kicker:
     string;
 
   title:
     string;
 
-  body:
+  linkLabel?:
+    string;
+
+  linkTo?:
+    string;
+}) {
+  return (
+    <div className="flex items-end justify-between gap-4 border-b border-border/60 pb-2.5">
+      <div>
+        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">
+          {
+            kicker
+          }
+        </p>
+
+        <h2 className="mt-1 font-display text-xl font-black tracking-[-0.025em] sm:text-2xl">
+          {
+            title
+          }
+        </h2>
+      </div>
+
+      {linkLabel &&
+        linkTo && (
+          <Link
+            to={
+              linkTo
+            }
+            className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-primary"
+          >
+            {
+              linkLabel
+            }{" "}
+            →
+          </Link>
+        )}
+    </div>
+  );
+}
+
+/* ============================================================
+   NEWS BRIEF
+   ============================================================ */
+
+function NewsBrief({
+  label,
+  headline,
+  detail,
+  to,
+  accent = false,
+}: {
+  label:
+    string;
+
+  headline:
+    string;
+
+  detail:
     string;
 
   to:
     string;
 
-  country?: {
-    id?: string;
-    name?: string;
-    short_code?: string;
-    flag_image?: string | null;
-    accent_color?: string | null;
-  } | null;
-
-  large?:
+  accent?:
     boolean;
 }) {
   return (
     <Link
-      to={to}
-      className={`glass group relative block min-h-[190px] overflow-hidden p-4 transition-transform hover:-translate-y-0.5 sm:p-5 ${
-        large
-          ? "md:col-span-2 xl:col-span-2"
-          : ""
+      to={
+        to
+      }
+      className={`group flex min-h-[150px] flex-col rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 ${
+        accent
+          ? "border-primary/35 bg-primary/10"
+          : "border-border/70 bg-surface/45"
+      }`}
+    >
+      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
+        {
+          label
+        }
+      </p>
+
+      <h3 className="mt-2 font-display text-lg font-bold leading-[1.08] tracking-[-0.02em]">
+        {
+          headline
+        }
+      </h3>
+
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+        {
+          detail
+        }
+      </p>
+
+      <span className="mt-auto pt-4 text-xs font-bold text-primary transition-transform group-hover:translate-x-1">
+        Open →
+      </span>
+    </Link>
+  );
+}
+
+/* ============================================================
+   QUICK TAKE
+   ============================================================ */
+
+function QuickTake({
+  number,
+  label,
+  title,
+  detail,
+  country,
+}: {
+  number:
+    string;
+
+  label:
+    string;
+
+  title:
+    string;
+
+  detail:
+    string;
+
+  country?:
+    {
+      short_code:
+        string;
+      flag_image:
+        string | null;
+      accent_color:
+        string;
+    } | null;
+}) {
+  return (
+    <div className="glass relative overflow-hidden p-4">
+      <BackgroundFlag
+        image={
+          country?.flag_image
+        }
+        className="-bottom-8 -right-8 h-40 w-40"
+        opacity={0.14}
+      />
+
+      <div className="relative z-10 flex min-h-[120px] flex-col">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[8px] font-black uppercase tracking-[0.18em] text-primary">
+            {
+              label
+            }
+          </p>
+
+          <span className="numeric text-[10px] font-bold text-muted-foreground">
+            {
+              number
+            }
+          </span>
+        </div>
+
+        <h3 className="mt-auto font-display text-xl font-black">
+          {
+            title
+          }
+        </h3>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          {
+            detail
+          }
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   NEWS STORY
+   ============================================================ */
+
+function NewsStory({
+  label,
+  headline,
+  detail,
+  to,
+  country,
+  feature = false,
+}: {
+  label:
+    string;
+
+  headline:
+    string;
+
+  detail:
+    string;
+
+  to:
+    string;
+
+  country?:
+    {
+      flag_image?:
+        string | null;
+    } | null;
+
+  feature?:
+    boolean;
+}) {
+  return (
+    <Link
+      to={
+        to
+      }
+      className={`glass group relative block overflow-hidden p-4 transition-transform hover:-translate-y-0.5 sm:p-5 ${
+        feature
+          ? "min-h-[280px] md:row-span-2"
+          : "min-h-[190px]"
       }`}
     >
       <BackgroundFlag
-        image={country?.flag_image}
-        className="
-          -bottom-8
-          -right-8
-          h-40
-          w-40
-        "
-        opacity={0.17}
+        image={
+          country?.flag_image
+        }
+        className={feature
+          ? "-bottom-16 -right-12 h-64 w-64"
+          : "-bottom-10 -right-10 h-44 w-44"}
+        opacity={feature
+          ? 0.2
+          : 0.12}
       />
 
-      <div className="relative z-10 flex min-h-[158px] flex-col">
-        <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-          {eyebrow}
+      <div className={`relative z-10 flex ${
+        feature
+          ? "min-h-[240px]"
+          : "min-h-[150px]"
+      } flex-col`}>
+        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
+          {
+            label
+          }
         </p>
 
-        <h3
-          className={`mt-3 font-display font-bold leading-tight ${
-            large
-              ? "text-xl sm:text-2xl"
-              : "text-lg"
-          }`}
-        >
-          {title}
+        <h3 className={`mt-3 font-display font-black leading-[1.05] tracking-[-0.025em] ${
+          feature
+            ? "text-2xl sm:text-3xl"
+            : "text-lg"
+        }`}>
+          {
+            headline
+          }
         </h3>
 
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {body}
+        <p className="mt-3 max-w-xl text-xs leading-relaxed text-muted-foreground">
+          {
+            detail
+          }
         </p>
 
-        <p className="mt-auto pt-5 text-xs font-semibold text-primary">
-          Read more →
+        <p className="mt-auto pt-5 text-xs font-bold text-primary transition-transform group-hover:translate-x-1">
+          Read story →
         </p>
       </div>
     </Link>
   );
 }
 
-function ExploreLink({
+/* ============================================================
+   DESK LINK
+   ============================================================ */
+
+function DeskLink({
+  number,
   title,
   description,
   to,
 }: {
+  number:
+    string;
+
   title:
     string;
 
@@ -861,30 +1382,46 @@ function ExploreLink({
   to:
     | "/editions"
     | "/countries"
-    | "/relationships"
+    | "/analysis"
     | "/records";
 }) {
   return (
     <Link
-      to={to}
-      className="group flex min-h-[110px] items-end justify-between gap-3 rounded-2xl border border-border/70 bg-surface/40 p-4 hover:bg-surface"
+      to={
+        to
+      }
+      className="group flex min-h-[110px] items-end gap-3 rounded-2xl border border-border/70 bg-surface/35 p-4 transition-colors hover:bg-surface"
     >
-      <div>
-        <h3 className="font-display text-base font-semibold">
-          {title}
+      <span className="numeric text-xs font-bold text-primary">
+        {
+          number
+        }
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <h3 className="font-display text-base font-bold">
+          {
+            title
+          }
         </h3>
 
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {description}
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          {
+            description
+          }
         </p>
       </div>
 
-      <span className="text-lg text-primary">
+      <span className="text-primary transition-transform group-hover:translate-x-1">
         →
       </span>
     </Link>
   );
 }
+
+/* ============================================================
+   NUMBER STAT
+   ============================================================ */
 
 function NumberStat({
   label,
@@ -898,12 +1435,16 @@ function NumberStat({
 }) {
   return (
     <div>
-      <p className="numeric font-display text-2xl font-bold sm:text-3xl">
-        {value}
+      <p className="numeric font-display text-2xl font-black sm:text-3xl">
+        {
+          value
+        }
       </p>
 
-      <p className="mt-1 text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
+      <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+        {
+          label
+        }
       </p>
     </div>
   );
