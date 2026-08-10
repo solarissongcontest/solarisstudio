@@ -27,6 +27,12 @@ import {
   useEditions,
 } from "@/lib/data";
 
+import {
+  isShowPublic,
+  resolveShowPublication,
+  showPublishesResults,
+} from "@/lib/publication";
+
 export const Route =
   createFileRoute(
     "/",
@@ -37,17 +43,14 @@ export const Route =
           title:
             "Solaris Song Contest",
         },
-
         {
           name:
             "description",
-
           content:
             "Latest results, editions, countries and stories from the Solaris Song Contest.",
         },
       ],
     }),
-
     component:
       HomePage,
   });
@@ -78,7 +81,15 @@ function HomePage() {
     useAllResults();
 
   const editionList =
-    editions ?? [];
+    (
+      editions ??
+      []
+    ).filter(
+      (
+        edition,
+      ) =>
+        edition.published,
+    );
 
   const showList =
     shows ?? [];
@@ -131,18 +142,7 @@ function HomePage() {
       ],
     );
 
-  const publishedEditions =
-    sortedEditions.filter(
-      (
-        edition,
-      ) =>
-        edition.published,
-    );
-
   const latestEdition =
-    publishedEditions[
-      0
-    ] ??
     sortedEditions[
       0
     ] ??
@@ -157,7 +157,9 @@ function HomePage() {
             ) =>
               show.edition_id ===
                 latestEdition.id &&
-              show.published,
+              isShowPublic(
+                show,
+              ),
           )
           .sort(
             (
@@ -183,8 +185,16 @@ function HomePage() {
     ] ??
     null;
 
-  const featuredResults =
+  const featuredPublication =
     featuredShow
+      ? resolveShowPublication(
+          featuredShow,
+        )
+      : null;
+
+  const featuredResults =
+    featuredShow &&
+    featuredPublication?.results
       ? resultList
           .filter(
             (
@@ -226,7 +236,12 @@ function HomePage() {
       : null;
 
   /* =========================================================
-     LATEST COMPLETED SHOW
+     LATEST COMPLETED PUBLIC SHOW
+
+     A show counts as a completed public result only if:
+       1. the show itself is public,
+       2. its publication config exposes results,
+       3. an archived ranked result actually exists.
      ========================================================= */
 
   const latestCompletedShow =
@@ -237,7 +252,9 @@ function HomePage() {
             (
               show,
             ) =>
-              show.published &&
+              showPublishesResults(
+                show,
+              ) &&
               resultList.some(
                 (
                   result,
@@ -405,7 +422,9 @@ function HomePage() {
       ) =>
         show.kind ===
           "grand-final" &&
-        show.published,
+        showPublishesResults(
+          show,
+        ),
     );
 
   const totalWinners =
@@ -467,10 +486,6 @@ function HomePage() {
   return (
     <AppShell>
       <div className="space-y-7 sm:space-y-9">
-        {/* ===================================================
-            NEWSROOM MASTHEAD
-           =================================================== */}
-
         <section className="border-b border-border/60 pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -529,12 +544,8 @@ function HomePage() {
           </div>
         </section>
 
-        {/* ===================================================
-            LEAD NEWS GRID
-           =================================================== */}
-
         <section className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.65fr)]">
-          {leadEdition && (
+          {leadEdition ? (
             <Link
               to="/editions/$slug"
               params={{
@@ -547,20 +558,11 @@ function HomePage() {
                 image={
                   leadWinner?.flag_image
                 }
-                className="
-                  -right-[14%]
-                  top-[42%]
-                  w-[92%]
-                  -translate-y-1/2
-                  sm:w-[62%]
-                "
-                opacity={
-                  0.3
-                }
+                className="-right-[14%] top-[42%] w-[92%] -translate-y-1/2 sm:w-[62%]"
+                opacity={0.3}
               />
 
               <div className="absolute inset-0 bg-gradient-to-t from-[#020817]/98 via-[#041329]/70 to-[#061d39]/22" />
-
               <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/74 via-transparent to-transparent" />
 
               <div className="relative z-10 flex min-h-[470px] flex-col justify-between p-5 sm:min-h-[520px] sm:p-8 lg:p-9">
@@ -578,7 +580,9 @@ function HomePage() {
 
                 <div className="max-w-3xl">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-                    Results desk
+                    {leadWinner
+                      ? "Results desk"
+                      : "Edition desk"}
                   </p>
 
                   <h2 className="mt-3 max-w-3xl font-display text-[2rem] font-black leading-[0.98] tracking-[-0.045em] text-white sm:text-5xl lg:text-6xl">
@@ -610,6 +614,20 @@ function HomePage() {
                 </div>
               </div>
             </Link>
+          ) : (
+            <div className="glass flex min-h-[360px] items-end p-6">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+                  Solaris
+                </p>
+                <h2 className="mt-2 font-display text-4xl font-black">
+                  No edition is public yet
+                </h2>
+                <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+                  Publish information from an edition's Publication tab and it will appear here automatically.
+                </p>
+              </div>
+            </div>
           )}
 
           <aside className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -633,7 +651,7 @@ function HomePage() {
               detail={
                 latestCompletedShow
                   ? latestCompletedShow.name
-                  : "Latest published results"
+                  : "No public result archive yet"
               }
               to={
                 latestCompletedShow
@@ -653,15 +671,11 @@ function HomePage() {
             <NewsBrief
               label="Records"
               headline="The results that changed the all-time record book"
-              detail={`${totalWinners} Grand Final winning results are currently in the archive.`}
+              detail={`${totalWinners} Grand Final winning results are currently public in the archive.`}
               to="/records"
             />
           </aside>
         </section>
-
-        {/* ===================================================
-            THE STORY IN 30 SECONDS
-           =================================================== */}
 
         {latestCompletedShow &&
           latestWinner && (
@@ -722,10 +736,6 @@ function HomePage() {
               </div>
             </section>
           )}
-
-        {/* ===================================================
-            NEWS DESK
-           =================================================== */}
 
         <section>
           <NewsSectionHeader
@@ -801,10 +811,6 @@ function HomePage() {
             />
           </div>
         </section>
-
-        {/* ===================================================
-            LATEST SCOREBOARD
-           =================================================== */}
 
         <section className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
           <div>
@@ -954,11 +960,13 @@ function HomePage() {
                         className="group flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                       >
                         <span className="numeric w-6 shrink-0 text-[10px] font-bold text-muted-foreground">
-                          0
-                          {
+                          {String(
                             index +
-                            1
-                          }
+                              1,
+                          ).padStart(
+                            2,
+                            "0",
+                          )}
                         </span>
 
                         <div className="min-w-0 flex-1">
@@ -985,16 +993,12 @@ function HomePage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No published shows yet.
+                  No shows from this edition are public yet.
                 </p>
               )}
             </div>
           </div>
         </section>
-
-        {/* ===================================================
-            DISCOVER
-           =================================================== */}
 
         <section>
           <NewsSectionHeader
@@ -1033,13 +1037,9 @@ function HomePage() {
           </div>
         </section>
 
-        {/* ===================================================
-            NUMBERS
-           =================================================== */}
-
         <section className="border-y border-border/60 py-6">
           <p className="text-[9px] font-black uppercase tracking-[0.24em] text-muted-foreground">
-            The archive
+            The public archive
           </p>
 
           <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-4">
@@ -1060,7 +1060,14 @@ function HomePage() {
             <NumberStat
               label="Shows"
               value={
-                showList.length
+                showList.filter(
+                  (
+                    show,
+                  ) =>
+                    isShowPublic(
+                      show,
+                    ),
+                ).length
               }
             />
 
@@ -1077,10 +1084,6 @@ function HomePage() {
   );
 }
 
-/* ============================================================
-   SECTION HEADER
-   ============================================================ */
-
 function NewsSectionHeader({
   kicker,
   title,
@@ -1089,13 +1092,10 @@ function NewsSectionHeader({
 }: {
   kicker:
     string;
-
   title:
     string;
-
   linkLabel?:
     string;
-
   linkTo?:
     string;
 }) {
@@ -1133,10 +1133,6 @@ function NewsSectionHeader({
   );
 }
 
-/* ============================================================
-   NEWS BRIEF
-   ============================================================ */
-
 function NewsBrief({
   label,
   headline,
@@ -1146,16 +1142,12 @@ function NewsBrief({
 }: {
   label:
     string;
-
   headline:
     string;
-
   detail:
     string;
-
   to:
     string;
-
   accent?:
     boolean;
 }) {
@@ -1195,10 +1187,6 @@ function NewsBrief({
   );
 }
 
-/* ============================================================
-   QUICK TAKE
-   ============================================================ */
-
 function QuickTake({
   number,
   label,
@@ -1208,25 +1196,20 @@ function QuickTake({
 }: {
   number:
     string;
-
   label:
     string;
-
   title:
     string;
-
   detail:
     string;
-
-  country?:
-    {
-      short_code:
-        string;
-      flag_image:
-        string | null;
-      accent_color:
-        string;
-    } | null;
+  country?: {
+    short_code:
+      string;
+    flag_image:
+      string | null;
+    accent_color:
+      string;
+  } | null;
 }) {
   return (
     <div className="glass relative overflow-hidden p-4">
@@ -1269,10 +1252,6 @@ function QuickTake({
   );
 }
 
-/* ============================================================
-   NEWS STORY
-   ============================================================ */
-
 function NewsStory({
   label,
   headline,
@@ -1283,22 +1262,16 @@ function NewsStory({
 }: {
   label:
     string;
-
   headline:
     string;
-
   detail:
     string;
-
   to:
     string;
-
-  country?:
-    {
-      flag_image?:
-        string | null;
-    } | null;
-
+  country?: {
+    flag_image?:
+      string | null;
+  } | null;
   feature?:
     boolean;
 }) {
@@ -1317,12 +1290,16 @@ function NewsStory({
         image={
           country?.flag_image
         }
-        className={feature
-          ? "-bottom-16 -right-12 h-64 w-64"
-          : "-bottom-10 -right-10 h-44 w-44"}
-        opacity={feature
-          ? 0.2
-          : 0.12}
+        className={
+          feature
+            ? "-bottom-16 -right-12 h-64 w-64"
+            : "-bottom-10 -right-10 h-44 w-44"
+        }
+        opacity={
+          feature
+            ? 0.2
+            : 0.12
+        }
       />
 
       <div className={`relative z-10 flex ${
@@ -1360,10 +1337,6 @@ function NewsStory({
   );
 }
 
-/* ============================================================
-   DESK LINK
-   ============================================================ */
-
 function DeskLink({
   number,
   title,
@@ -1372,13 +1345,10 @@ function DeskLink({
 }: {
   number:
     string;
-
   title:
     string;
-
   description:
     string;
-
   to:
     | "/editions"
     | "/countries"
@@ -1419,17 +1389,12 @@ function DeskLink({
   );
 }
 
-/* ============================================================
-   NUMBER STAT
-   ============================================================ */
-
 function NumberStat({
   label,
   value,
 }: {
   label:
     string;
-
   value:
     number;
 }) {
