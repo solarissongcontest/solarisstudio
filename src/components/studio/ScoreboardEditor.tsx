@@ -225,76 +225,10 @@ export function ScoreboardEditor({
       );
 
   /*
-   * Keep layout density automatic.
-   *
-   * This runs when previewing a different round, so a 14-entry semi
-   * naturally shows one column while a 26-entry final shows two.
+   * Column count is normalised by the edition page when a round is loaded
+   * or saved. Do not push automatic changes from an effect here: doing so
+   * can fight with user input on mobile and make controls feel unresponsive.
    */
-  useEffect(
-    () => {
-      const rowsPerColumn =
-        automaticColumns >
-        1
-          ? Math.ceil(
-              Math.max(
-                rows.length,
-                1,
-              ) /
-                automaticColumns,
-            )
-          : null;
-
-      if (
-        config.layout.columns ===
-          automaticColumns &&
-        config.layout.rowsPerColumn ===
-          rowsPerColumn &&
-        config.background.pattern ===
-          "none" &&
-        config.background.patternOpacity ===
-          0
-      ) {
-        return;
-      }
-
-      onChange({
-        ...config,
-
-        layout: {
-          ...config.layout,
-
-          columns:
-            automaticColumns,
-
-          rowsPerColumn,
-
-          distribution:
-            "sequential",
-
-          boardWidth:
-            boardWidthForColumns(
-              automaticColumns,
-            ),
-        },
-
-        background: {
-          ...config.background,
-
-          pattern:
-            "none",
-
-          patternOpacity:
-            0,
-        },
-      });
-    },
-    [
-      automaticColumns,
-      rows.length,
-      config,
-      onChange,
-    ],
-  );
 
   const applyPreset =
     (
