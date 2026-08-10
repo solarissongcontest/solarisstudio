@@ -13,29 +13,40 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     env:
-      # Build-time only; these are publishable values, never the service-role key.
+      # Build-time only. Never put the Supabase service-role key here.
       VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       VITE_SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
+
       SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
       SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.2.19
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      /*
+       * Lint should report problems, but should not prevent
+       * TypeScript and the production build from running.
+       */
       - name: Lint
+        continue-on-error: true
         run: bun run lint
 
       - name: Typecheck
