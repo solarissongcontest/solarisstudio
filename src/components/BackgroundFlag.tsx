@@ -11,7 +11,7 @@ type BackgroundFlagProps = {
 export function BackgroundFlag({
   image,
   className = "",
-  opacity = 0.18,
+  opacity = 0.2,
 }: BackgroundFlagProps) {
   const reactId =
     useId();
@@ -59,7 +59,7 @@ export function BackgroundFlag({
       }}
     >
       <svg
-        viewBox="-18 -18 136 136"
+        viewBox="-10 -10 120 120"
         xmlns="http://www.w3.org/2000/svg"
         className="
           absolute
@@ -74,14 +74,6 @@ export function BackgroundFlag({
         }}
       >
         <defs>
-          {/* ================================================
-              FLAG IMAGE
-
-              The image is used as a fill for actual circles.
-              This prevents the square source image from ever
-              becoming visible.
-             ================================================ */}
-
           <pattern
             id={patternId}
             patternUnits="userSpaceOnUse"
@@ -98,32 +90,20 @@ export function BackgroundFlag({
             />
           </pattern>
 
-          {/* ================================================
-              BLUR
-
-              Blurs the circular flag outward.
-             ================================================ */}
-
           <filter
             id={blurId}
-            x="-45%"
-            y="-45%"
-            width="190%"
-            height="190%"
+            x="-60%"
+            y="-60%"
+            width="220%"
+            height="220%"
             colorInterpolationFilters="sRGB"
           >
             <feGaussianBlur
-              stdDeviation="7"
+              stdDeviation="9"
             />
           </filter>
 
-          {/* ================================================
-              SHARP CENTRE GRADIENT
-
-              Strong and clear in the middle.
-              Gradually disappears toward the edge.
-             ================================================ */}
-
+          {/* Sharp centre */}
           <radialGradient
             id={
               sharpGradientId
@@ -139,43 +119,43 @@ export function BackgroundFlag({
             />
 
             <stop
-              offset="45%"
+              offset="50%"
               stopColor="white"
               stopOpacity="1"
             />
 
             <stop
-              offset="55%"
+              offset="60%"
               stopColor="white"
-              stopOpacity="0.98"
+              stopOpacity="0.96"
             />
 
             <stop
-              offset="64%"
+              offset="69%"
               stopColor="white"
-              stopOpacity="0.82"
+              stopOpacity="0.78"
             />
 
             <stop
-              offset="72%"
+              offset="77%"
               stopColor="white"
-              stopOpacity="0.58"
+              stopOpacity="0.5"
             />
 
             <stop
-              offset="80%"
+              offset="84%"
               stopColor="white"
-              stopOpacity="0.32"
+              stopOpacity="0.22"
             />
 
             <stop
-              offset="87%"
+              offset="90%"
               stopColor="white"
-              stopOpacity="0.12"
+              stopOpacity="0.05"
             />
 
             <stop
-              offset="93%"
+              offset="95%"
               stopColor="white"
               stopOpacity="0"
             />
@@ -205,13 +185,7 @@ export function BackgroundFlag({
             />
           </mask>
 
-          {/* ================================================
-              SOFT OUTER GRADIENT
-
-              Allows the blurred colours to spread beyond the
-              main flag and then dissolve into the background.
-             ================================================ */}
-
+          {/* Long blurred fade */}
           <radialGradient
             id={
               softGradientId
@@ -227,15 +201,15 @@ export function BackgroundFlag({
             />
 
             <stop
-              offset="55%"
+              offset="54%"
               stopColor="white"
               stopOpacity="1"
             />
 
             <stop
-              offset="68%"
+              offset="66%"
               stopColor="white"
-              stopOpacity="0.95"
+              stopOpacity="0.96"
             />
 
             <stop
@@ -245,15 +219,15 @@ export function BackgroundFlag({
             />
 
             <stop
-              offset="87%"
+              offset="88%"
               stopColor="white"
-              stopOpacity="0.42"
+              stopOpacity="0.4"
             />
 
             <stop
-              offset="94%"
+              offset="95%"
               stopColor="white"
-              stopOpacity="0.16"
+              stopOpacity="0.14"
             />
 
             <stop
@@ -268,46 +242,31 @@ export function BackgroundFlag({
               softMaskId
             }
             maskUnits="userSpaceOnUse"
-            x="-18"
-            y="-18"
-            width="136"
-            height="136"
+            x="-20"
+            y="-20"
+            width="140"
+            height="140"
           >
             <circle
               cx="50"
               cy="50"
-              r="65"
+              r="72"
               fill={`url(#${softGradientId})`}
             />
           </mask>
         </defs>
 
-        {/* ================================================
-            BLURRED CIRCULAR FLAG
-
-            IMPORTANT:
-            This is a CIRCLE, not a rectangular image.
-
-            The blur can spread outside the original circle,
-            but its source shape remains circular.
-           ================================================ */}
-
+        {/* Bigger / longer blurred dissolve */}
         <circle
           cx="50"
           cy="50"
-          r="50"
+          r="58"
           fill={`url(#${patternId})`}
           filter={`url(#${blurId})`}
           mask={`url(#${softMaskId})`}
         />
 
-        {/* ================================================
-            SHARP CIRCULAR FLAG
-
-            Same exact flag underneath/above.
-            Sharp centre fades gradually into blurred layer.
-           ================================================ */}
-
+        {/* Main sharp flag */}
         <circle
           cx="50"
           cy="50"
