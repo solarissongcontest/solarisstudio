@@ -316,14 +316,43 @@ function EditionDesignPage() {
 
   const savedScoreboard =
     useMemo(
-      () =>
-        resolveScoreboard(
+      () => {
+        const editionBroadcast =
           (
             edition as
               | EditionWithBroadcast
               | null
           )
-            ?.broadcast_config,
+            ?.broadcast_config;
+
+        if (
+          editionBroadcast &&
+          typeof editionBroadcast ===
+            "object" &&
+          "scoreboard" in
+            editionBroadcast
+        ) {
+          return resolveScoreboard(
+            editionBroadcast,
+            {
+              theme:
+                savedTheme,
+
+              rowCount:
+                previewParticipants?.length ??
+                0,
+            },
+          );
+        }
+
+        if (
+          savedTheme.scoreboardConfig
+        ) {
+          return savedTheme.scoreboardConfig;
+        }
+
+        return resolveScoreboard(
+          null,
           {
             theme:
               savedTheme,
@@ -332,7 +361,8 @@ function EditionDesignPage() {
               previewParticipants?.length ??
               0,
           },
-        ),
+        );
+      },
       [
         edition,
         savedTheme,
@@ -631,8 +661,11 @@ function EditionDesignPage() {
                 "themes",
               )
               .update({
-                config:
-                  themeDraft,
+                config: {
+                  ...themeDraft,
+                  scoreboardConfig:
+                    scoreboardDraft,
+                },
               })
               .eq(
                 "id",
@@ -670,8 +703,11 @@ function EditionDesignPage() {
                     edition,
                   )} design`,
 
-                config:
-                  themeDraft,
+                config: {
+                  ...themeDraft,
+                  scoreboardConfig:
+                    scoreboardDraft,
+                },
 
                 is_public:
                   false,
@@ -923,7 +959,7 @@ function EditionDesignPage() {
            =================================================== */}
 
         <Panel
-          title="Scoreboard & country cards"
+          title="Custom scoreboard & country cards"
           description="This is the main visual editor. Pick a style, customise the country cards, layers, background and jury panel, then preview it live."
         >
           <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 p-3">
