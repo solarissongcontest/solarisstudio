@@ -1,9 +1,8 @@
 "use client";
 
 import {
-  AnimatePresence,
-  motion,
-} from "framer-motion";
+  CountryCard,
+} from "@/components/broadcast/CountryCard";
 
 import type {
   Country,
@@ -15,10 +14,14 @@ import type {
 } from "@/lib/analysis";
 
 import {
-  cardBackground,
-  flagStyle,
-  themeVars,
-  type ThemeConfig,
+  resolveScoreboard,
+  type BroadcastRowData,
+  type CardTemplateConfig,
+  type ScoreboardConfig,
+} from "@/lib/scoreboard";
+
+import type {
+  ThemeConfig,
 } from "@/lib/theme";
 
 import {
@@ -26,18 +29,17 @@ import {
 } from "@/lib/utils";
 
 /**
- * Theme-driven scoreboard.
+ * Public / embedded scoreboard renderer.
  *
- * The edition owns the visual identity, but the number of columns is
- * resolved from the CURRENT SHOW'S row count.
+ * This now uses the SAME CountryCard engine as the live broadcast.
  *
- * This means the same edition can naturally render:
- *   1–14 entries  -> 1 column
- *   15–30 entries -> 2 columns
- *   31+ entries   -> 3 columns
+ * Source of truth:
+ *   theme.scoreboardConfig
  *
- * No show needs its own visual theme just because it has a different
- * number of participants.
+ * That value is written by the edition Design & Broadcast page.
+ *
+ * Old editions without a custom card config still get an automatic
+ * resolveScoreboard() fallback, so old data does not break.
  */
 export function ScoreboardStage({
   theme,
@@ -51,606 +53,320 @@ export function ScoreboardStage({
   className,
   compact,
 }: {
-  theme: ThemeConfig;
-  standings: Standing[];
-  countries: Map<string, Country>;
-  participants?: Map<string, Participant>;
-  awarded?: Record<string, number>;
-  highlight?: string | null;
+  theme:
+    ThemeConfig;
 
-  /** Country currently casting jury votes. */
-  votingCountryId?: string | null;
+  standings:
+    Standing[];
 
-  qualifiers?: number | null;
-  className?: string;
-  compact?: boolean;
+  countries:
+    Map<
+      string,
+      Country
+    >;
+
+  participants?:
+    Map<
+      string,
+      Participant
+    >;
+
+  awarded?:
+    Record<
+      string,
+      number
+    >;
+
+  highlight?:
+    string | null;
+
+  votingCountryId?:
+    string | null;
+
+  qualifiers?:
+    number | null;
+
+  className?:
+    string;
+
+  compact?:
+    boolean;
 }) {
   const rows =
     standings.slice(
       0,
-      theme.layout.maxVisible ||
-        standings.length,
+      standings.length,
+    );
+
+  const resolved =
+    theme.scoreboardConfig ??
+    resolveScoreboard(
+      null,
+      {
+        theme,
+
+        rowCount:
+          rows.length,
+      },
     );
 
   const columns =
     resolveShowColumns(
       rows.length,
+      resolved,
+    );
+
+  const card =
+    prepareCardForPublicSurface(
+      resolved.card,
       theme,
+      compact,
     );
 
   const topAward =
     Math.max(
       0,
       ...Object.values(
-        awarded ?? {},
+        awarded ??
+          {},
       ),
+    );
+
+  const broadcastRows =
+    rows.map<BroadcastRowData>(
+      (
+        standing,
+        index,
+      ) => {
+        const country =
+          countries.get(
+            standing.countryId,
+          );
+
+        const participant =
+          participants?.get(
+            standing.countryId,
+          );
+
+        const gain =
+          awarded?.[
+            standing.countryId
+          ];
+
+        const qualified =
+          qualifiers
+            ? standing.rank <=
+              qualifiers
+            : participant?.qualified ??
+              null;
+
+        return {
+          id:
+            standing.countryId,
+
+          entityType:
+            "global",
+
+          name:
+            country?.name ??
+            standing.countryId,
+
+          abbreviation:
+            country?.short_code ??
+            "",
+
+          flagImage:
+            country?.flag_image ??
+            null,
+
+          accent:
+            country?.accent_color ??
+            theme.colors.primary,
+
+          rank:
+            standing.rank,
+
+          runningOrder:
+            participant?.running_order ??
+            index +
+              1,
+
+          score:
+            standing.total,
+
+          juryScore:
+            standing.jury,
+
+          televoteScore:
+            standing.televote,
+
+          movement:
+            0,
+
+          qualified:
+            qualified ===
+            true,
+
+          eliminated:
+            qualified ===
+            false,
+
+          active:
+            votingCountryId ===
+            standing.countryId,
+
+          highlighted:
+            highlight ===
+            standing.countryId,
+
+          leader:
+            standing.rank ===
+            1,
+
+          winner:
+            standing.rank ===
+            1,
+
+          subtitle:
+            participant?.artist &&
+            participant?.song
+              ? `${participant.artist} — ${participant.song}`
+              : participant?.artist ??
+                participant?.song ??
+                null,
+
+          /**
+           * This is not part of the visual identity itself, but it allows
+           * the same award animation to appear on the custom row.
+           */
+          topPoints:
+            gain ===
+              topAward &&
+            topAward >
+              0,
+        } as BroadcastRowData;
+      },
+    );
+
+  const perColumn =
+    Math.ceil(
+      broadcastRows.length /
+        columns,
+    );
+
+  const columnRows =
+    Array.from(
+      {
+        length:
+          columns,
+      },
+
+      (
+        _,
+        columnIndex,
+      ) =>
+        broadcastRows.slice(
+          columnIndex *
+            perColumn,
+
+          (
+            columnIndex +
+            1
+          ) *
+            perColumn,
+        ),
     );
 
   return (
     <div
-      style={
-        themeVars(
-          theme,
-        )
-      }
       className={cn(
-        "grid",
-        columns === 2 &&
+        "grid min-w-0 gap-3",
+
+        columns ===
+          2 &&
           "sm:grid-cols-2",
-        columns === 3 &&
+
+        columns ===
+          3 &&
           "sm:grid-cols-2 lg:grid-cols-3",
+
+        columns ===
+          4 &&
+          "sm:grid-cols-2 xl:grid-cols-4",
+
         className,
       )}
     >
-      {Array.from({
-        length:
-          columns,
-      }).map(
+      {columnRows.map(
         (
-          _,
           column,
-        ) => {
-          const per =
-            Math.ceil(
-              rows.length /
-                columns,
-            );
-
-          const slice =
-            rows.slice(
-              column * per,
-              (column + 1) *
-                per,
-            );
-
-          return (
-            <ol
-              key={
-                column
-              }
-              style={{
-                display:
-                  "grid",
-
-                gap:
-                  "var(--t-gap)",
-
-                alignContent:
-                  "start",
-              }}
-            >
-              {slice.map(
-                (row) => {
-                  const country =
-                    countries.get(
-                      row.countryId,
-                    );
-
-                  if (
-                    !country
-                  ) {
-                    return null;
+          columnIndex,
+        ) => (
+          <ol
+            key={
+              columnIndex
+            }
+            className="grid min-w-0 content-start"
+            style={{
+              gap:
+                Math.max(
+                  2,
+                  resolved.layout.rowGap,
+                ),
+            }}
+          >
+            {column.map(
+              (
+                row,
+              ) => (
+                <CountryCard
+                  key={
+                    row.id
                   }
-
-                  const participant =
-                    participants?.get(
-                      row.countryId,
-                    );
-
-                  const gain =
+                  card={
+                    card
+                  }
+                  theme={
+                    theme
+                  }
+                  row={
+                    row
+                  }
+                  awarded={
                     awarded?.[
-                      row.countryId
-                    ];
-
-                  const isTop =
-                    !!gain &&
-                    gain ===
-                      topAward &&
-                    topAward >
-                      0;
-
-                  const qualified =
-                    qualifiers
-                      ? row.rank <=
-                        qualifiers
-                      : false;
-
-                  const accent =
-                    theme.card
-                      .useCountryColor
-                      ? country.accent_color
-                      : theme
-                          .colors
-                          .primary;
-
-                  const isLeader =
-                    row.rank ===
-                    1;
-
-                  const isVoting =
-                    votingCountryId ===
-                    row.countryId;
-
-                  const isHighlighted =
-                    highlight ===
-                    row.countryId;
-
-                  const background =
-                    isVoting
-                      ? theme
-                          .states
-                          .votingBackground
-                      : isLeader
-                        ? theme
-                            .states
-                            .leaderBackground
-                        : gain
-                          ? `linear-gradient(90deg, ${hexA(
-                              accent,
-                              0.55,
-                            )}, ${hexA(
-                              accent,
-                              theme
-                                .card
-                                .opacity +
-                                0.12,
-                            )})`
-                          : cardBackground(
-                              theme,
-                              accent,
-                              hexA,
-                            );
-
-                  const borderColor =
-                    isHighlighted
-                      ? theme
-                          .states
-                          .highlight
-                      : isLeader
-                        ? theme
-                            .states
-                            .leaderBorder
-                        : theme
-                            .card
-                            .borderColor;
-
-                  const nameColor =
-                    isVoting
-                      ? theme
-                          .states
-                          .votingText
-                      : isLeader
-                        ? theme
-                            .states
-                            .leaderText
-                        : theme
-                            .text
-                            .countryName;
-
-                  const scoreColor =
-                    isVoting
-                      ? theme
-                          .states
-                          .votingText
-                      : isLeader
-                        ? theme
-                            .states
-                            .leaderText
-                        : theme
-                            .text
-                            .countryScore;
-
-                  return (
-                    <motion.li
-                      key={
-                        row.countryId
-                      }
-                      layout
-                      transition={{
-                        type:
-                          "spring",
-
-                        stiffness:
-                          400,
-
-                        damping:
-                          34,
-                      }}
-                      className="relative flex items-center overflow-hidden"
-                      style={{
-                        minHeight:
-                          compact
-                            ? theme
-                                .card
-                                .height *
-                              0.78
-                            : theme
-                                .card
-                                .height,
-
-                        borderRadius:
-                          "var(--t-radius)",
-
-                        gap: 12,
-
-                        paddingLeft:
-                          theme
-                            .card
-                            .padding,
-
-                        paddingRight:
-                          theme
-                            .card
-                            .padding,
-
-                        background,
-
-                        border:
-                          `${theme.card.borderWidth}px solid ${borderColor}`,
-
-                        backdropFilter:
-                          `blur(${theme.card.blur}px)`,
-
-                        boxShadow:
-                          theme.card
-                            .shadow
-                            ? `0 12px 30px -18px ${hexA(
-                                theme
-                                  .card
-                                  .shadowColor,
-                                theme
-                                  .card
-                                  .shadowStrength,
-                              )}`
-                            : undefined,
-                      }}
-                    >
-                      {theme
-                        .layout
-                        .showRank && (
-                        <span
-                          className="numeric w-7 shrink-0 text-center text-sm font-bold"
-                          style={{
-                            color:
-                              row.rank ===
-                              1
-                                ? theme
-                                    .colors
-                                    .gold
-                                : hexA(
-                                    theme
-                                      .text
-                                      .rank,
-                                    0.6,
-                                  ),
-                          }}
-                        >
-                          {
-                            row.rank
-                          }
-                        </span>
-                      )}
-
-                      {country.flag_image ? (
-                        <img
-                          src={
-                            country.flag_image
-                          }
-                          alt={`Flag of ${country.name}`}
-                          style={
-                            flagStyle(
-                              theme,
-                            )
-                          }
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span
-                          style={{
-                            ...flagStyle(
-                              theme,
-                            ),
-
-                            background:
-                              accent,
-
-                            display:
-                              "grid",
-
-                            placeItems:
-                              "center",
-
-                            fontSize:
-                              10,
-
-                            fontWeight:
-                              700,
-                          }}
-                        >
-                          {
-                            country.short_code
-                          }
-                        </span>
-                      )}
-
-                      <span className="min-w-0 flex-1">
-                        <span
-                          className="block truncate font-semibold"
-                          style={{
-                            fontFamily:
-                              "var(--t-font-display)",
-
-                            fontSize:
-                              compact
-                                ? 13
-                                : 15,
-
-                            color:
-                              nameColor,
-                          }}
-                        >
-                          {
-                            country.name
-                          }
-                        </span>
-
-                        {theme
-                          .layout
-                          .showArtist &&
-                          participant &&
-                          (participant.artist ||
-                            participant.song) && (
-                            <span
-                              className="block truncate text-[11px]"
-                              style={{
-                                color:
-                                  theme
-                                    .text
-                                    .artistSong,
-
-                                opacity:
-                                  0.62,
-                              }}
-                            >
-                              {[
-                                participant.artist,
-                                participant.song,
-                              ]
-                                .filter(
-                                  Boolean,
-                                )
-                                .join(
-                                  " — ",
-                                )}
-                            </span>
-                          )}
-                      </span>
-
-                      {theme
-                        .layout
-                        .showSplit &&
-                        !compact && (
-                          <span className="hidden shrink-0 gap-1.5 text-[10px] sm:flex">
-                            <span
-                              className="numeric rounded px-1.5 py-0.5"
-                              style={{
-                                background:
-                                  hexA(
-                                    theme
-                                      .colors
-                                      .jury,
-                                    0.18,
-                                  ),
-
-                                color:
-                                  theme
-                                    .colors
-                                    .jury,
-                              }}
-                            >
-                              J{" "}
-                              {
-                                row.jury
-                              }
-                            </span>
-
-                            <span
-                              className="numeric rounded px-1.5 py-0.5"
-                              style={{
-                                background:
-                                  hexA(
-                                    theme
-                                      .colors
-                                      .televote,
-                                    0.18,
-                                  ),
-
-                                color:
-                                  theme
-                                    .colors
-                                    .televote,
-                              }}
-                            >
-                              T{" "}
-                              {
-                                row.televote
-                              }
-                            </span>
-                          </span>
-                        )}
-
-                      {qualified && (
-                        <span
-                          className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                          style={{
-                            background:
-                              hexA(
-                                theme
-                                  .states
-                                  .qualified,
-                                0.2,
-                              ),
-
-                            color:
-                              theme
-                                .states
-                                .qualified,
-                          }}
-                        >
-                          Q
-                        </span>
-                      )}
-
-                      <AnimatePresence>
-                        {gain ? (
-                          <motion.span
-                            key={`g-${gain}`}
-                            initial={{
-                              scale:
-                                isTop
-                                  ? 0.2
-                                  : 0.7,
-
-                              opacity:
-                                0,
-
-                              x: 18,
-                            }}
-                            animate={{
-                              scale:
-                                1,
-
-                              opacity:
-                                1,
-
-                              x: 0,
-                            }}
-                            exit={{
-                              opacity:
-                                0,
-
-                              scale:
-                                0.8,
-                            }}
-                            transition={{
-                              type:
-                                "spring",
-
-                              stiffness:
-                                430,
-
-                              damping:
-                                18,
-                            }}
-                            className="numeric grid shrink-0 place-items-center rounded-lg px-2 py-1 font-bold"
-                            style={{
-                              minWidth:
-                                isTop
-                                  ? 52
-                                  : 38,
-
-                              fontSize:
-                                isTop
-                                  ? 18
-                                  : 14,
-
-                              background:
-                                isTop
-                                  ? `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.secondary})`
-                                  : hexA(
-                                      theme
-                                        .text
-                                        .countryScore,
-                                      0.16,
-                                    ),
-
-                              color:
-                                isTop
-                                  ? "#08101f"
-                                  : theme
-                                      .text
-                                      .countryScore,
-
-                              boxShadow:
-                                isTop
-                                  ? `0 0 34px -4px ${theme.colors.primary}`
-                                  : undefined,
-                            }}
-                          >
-                            +
-                            {
-                              gain
-                            }
-                          </motion.span>
-                        ) : null}
-                      </AnimatePresence>
-
-                      <motion.span
-                        layout
-                        className="numeric shrink-0 text-right font-bold"
-                        style={{
-                          width:
-                            56,
-
-                          fontSize:
-                            compact
-                              ? 15
-                              : 19,
-
-                          color:
-                            scoreColor,
-                        }}
-                      >
-                        {
-                          row.total
-                        }
-                      </motion.span>
-                    </motion.li>
-                  );
-                },
-              )}
-            </ol>
-          );
-        },
+                      row.id
+                    ] ??
+                    null
+                  }
+                  scale={
+                    compact
+                      ? 0.86
+                      : 1
+                  }
+                  animate
+                />
+              ),
+            )}
+          </ol>
+        ),
       )}
     </div>
   );
 }
 
 /**
- * Automatic show-aware layout.
+ * The edition shares one card style, while density adapts to each show.
  *
- * We intentionally do not let a saved edition style force a tiny show
- * into multiple columns. Likewise, a 26-country final should not be
- * trapped in one enormous vertical list.
- *
- * `grid` is allowed to expand to 3 columns for very large shows.
- * Other theme modes top out at 2.
+ * Saved board layout may suggest a column count, but we never force a
+ * 14-entry semi into 3 columns or a 26-entry final into one huge column.
  */
 export function resolveShowColumns(
-  rowCount: number,
-  theme: ThemeConfig,
-): 1 | 2 | 3 {
+  rowCount:
+    number,
+
+  config:
+    ScoreboardConfig,
+): 1 | 2 | 3 | 4 {
   if (
     rowCount <=
     14
@@ -665,16 +381,104 @@ export function resolveShowColumns(
     return 2;
   }
 
-  return theme.layout.mode ===
-    "grid"
-    ? 3
-    : 2;
+  if (
+    rowCount <=
+    48
+  ) {
+    return Math.max(
+      2,
+      Math.min(
+        3,
+        config.layout.columns,
+      ),
+    ) as
+      | 2
+      | 3;
+  }
+
+  return 4;
 }
 
-/** Hex (#rgb/#rrggbb) → rgba() string. Falls back to the raw value. */
+/**
+ * Public pages are responsive. The custom design itself is preserved,
+ * but a fixed broadcast-only width is released so the row can fit the
+ * website column it is placed in.
+ */
+function prepareCardForPublicSurface(
+  card:
+    CardTemplateConfig,
+
+  theme:
+    ThemeConfig,
+
+  compact:
+    boolean | undefined,
+): CardTemplateConfig {
+  const zones =
+    card.zones.map(
+      (
+        zone,
+      ) => {
+        if (
+          zone.type ===
+            "jury-score" ||
+          zone.type ===
+            "televote-score"
+        ) {
+          return {
+            ...zone,
+
+            visible:
+              zone.visible &&
+              theme.layout.showSplit,
+          };
+        }
+
+        if (
+          zone.type ===
+          "custom-text"
+        ) {
+          return zone;
+        }
+
+        return zone;
+      },
+    );
+
+  return {
+    ...card,
+
+    width:
+      null,
+
+    minWidth:
+      null,
+
+    maxWidth:
+      null,
+
+    height:
+      compact
+        ? Math.max(
+            28,
+            card.height *
+              0.82,
+          )
+        : card.height,
+
+    zones,
+  };
+}
+
+/**
+ * Retained because a few older helpers import hexA from this module.
+ */
 export function hexA(
-  hex: string,
-  alpha: number,
+  hex:
+    string,
+
+  alpha:
+    number,
 ) {
   const match =
     /^#?([a-f\d]{3}|[a-f\d]{6})$/i.exec(
@@ -688,7 +492,9 @@ export function hexA(
   }
 
   let value =
-    match[1];
+    match[
+      1
+    ];
 
   if (
     value.length ===
@@ -696,13 +502,19 @@ export function hexA(
   ) {
     value =
       value
-        .split("")
-        .map(
-          (part) =>
-            part +
-            part,
+        .split(
+          "",
         )
-        .join("");
+        .map(
+          (
+            character,
+          ) =>
+            character +
+            character,
+        )
+        .join(
+          "",
+        );
   }
 
   const number =
@@ -711,5 +523,23 @@ export function hexA(
       16,
     );
 
-  return `rgba(${(number >> 16) & 255}, ${(number >> 8) & 255}, ${number & 255}, ${alpha})`;
+  const red =
+    (
+      number >>
+      16
+    ) &
+    255;
+
+  const green =
+    (
+      number >>
+      8
+    ) &
+    255;
+
+  const blue =
+    number &
+    255;
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
