@@ -25,6 +25,10 @@ import {
 } from "@/components/AppShell";
 
 import {
+  BackgroundFlag,
+} from "@/components/BackgroundFlag";
+
+import {
   FlagChip,
 } from "@/components/FlagChip";
 
@@ -608,28 +612,16 @@ function CountryProfilePage() {
           sm:p-6
         "
       >
-        {country.flag_image && (
-          <div
-            className="
-              absolute
-              -right-20
-              -top-20
-              h-72
-              w-72
-              overflow-hidden
-              rounded-full
-              opacity-[0.08]
-            "
-          >
-            <img
-              src={
-                country.flag_image
-              }
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          </div>
-        )}
+        <BackgroundFlag
+          image={country.flag_image}
+          className="
+            -right-20
+            -top-20
+            h-72
+            w-72
+          "
+          opacity={0.14}
+        />
 
         <div className="relative z-10">
           <div
