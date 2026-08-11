@@ -13,6 +13,9 @@ import appCss from "../styles.css?url";
 import accessibilityCss from "../accessibility.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
+const SITE_DESCRIPTION =
+  "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -79,17 +82,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Solaris Studio" },
-      { name: "description", content: "Solaris Studio is a professional contest management platform for creating, hosting, and analyzing international competitions with advanced voting, animated scor" },
-      { name: "author", content: "Lovable" },
+      { name: "description", content: SITE_DESCRIPTION },
+      { name: "author", content: "Solaris Studio" },
+      { name: "application-name", content: "Solaris Studio" },
+      { name: "theme-color", content: "#020817" },
       { property: "og:title", content: "Solaris Studio" },
-      { property: "og:description", content: "Solaris Studio is a professional contest management platform for creating, hosting, and analyzing international competitions with advanced voting, animated scor" },
+      { property: "og:description", content: SITE_DESCRIPTION },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Solaris Studio" },
-      { name: "twitter:description", content: "Solaris Studio is a professional contest management platform for creating, hosting, and analyzing international competitions with advanced voting, animated scor" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/21e59c81-ab03-425b-99f4-fc607e9116d5/id-preview-bb598516--4677004e-1f85-4ed4-b23a-b11bcfa45a6f.lovable.app-1785083467101.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/21e59c81-ab03-425b-99f4-fc607e9116d5/id-preview-bb598516--4677004e-1f85-4ed4-b23a-b11bcfa45a6f.lovable.app-1785083467101.png" },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
     ],
     links: [
       {
@@ -127,7 +129,6 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>
   );
