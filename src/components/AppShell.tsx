@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { CountryProfileExtension } from "@/components/CountryProfileExtension";
+import { HomeAnniversaryTakeover } from "@/components/HomeAnniversaryTakeover";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { cn } from "@/lib/utils";
@@ -146,6 +147,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const isCountryPage = /^\/countries\/[^/]+\/?$/i.test(pathname);
+  const isHomePage = pathname === "/";
 
   return (
     <div className="relative isolate min-h-screen overflow-x-clip">
@@ -260,6 +262,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="app-main relative z-10 mx-auto min-w-0 max-w-[1280px] px-3 py-5 sm:px-5 sm:py-7 lg:px-6 lg:py-8">
+        {isHomePage && <HomeAnniversaryTakeover />}
         {children}
         {isCountryPage && <CountryProfileExtension pathname={pathname} />}
       </main>
