@@ -30,7 +30,7 @@ export function CountryProfileExtension({ pathname }: { pathname: string }) {
   if (!country || !data?.schemaReady) return null;
 
   const profile = data.profile;
-  const facts = profile
+  const facts: Array<[string, string | null | undefined]> = profile
     ? [
         ["Capital", profile.capital],
         ["Government", profile.government_type],
