@@ -9,108 +9,43 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
-import { Route as AuthIndexRouteImport } from './routes/auth/index'
-import { Route as BroadcastShowIdRouteImport } from './routes/broadcast/$showId'
-import { Route as CompareIndexRouteImport } from './routes/compare/index'
-import { Route as CountriesIndexRouteImport } from './routes/countries/index'
-import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
-import { Route as EditionsIndexRouteImport } from './routes/editions/index'
-import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
-import { Route as MeIndexRouteImport } from './routes/me/index'
-import { Route as PredictionsIndexRouteImport } from './routes/predictions/index'
-import { Route as PredictionsShowIdRouteImport } from './routes/predictions/$showId'
-import { Route as PulseIndexRouteImport } from './routes/pulse/index'
-import { Route as RecordsIndexRouteImport } from './routes/records/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as RelationshipsIndexRouteImport } from './routes/relationships/index'
-import { Route as RelationshipsPairRouteImport } from './routes/relationships/$pair'
+import { Route as RecordsIndexRouteImport } from './routes/records/index'
+import { Route as PulseIndexRouteImport } from './routes/pulse/index'
+import { Route as PredictionsIndexRouteImport } from './routes/predictions/index'
+import { Route as MeIndexRouteImport } from './routes/me/index'
+import { Route as EditionsIndexRouteImport } from './routes/editions/index'
+import { Route as CountriesIndexRouteImport } from './routes/countries/index'
+import { Route as CompareIndexRouteImport } from './routes/compare/index'
+import { Route as AuthIndexRouteImport } from './routes/auth/index'
+import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
 import { Route as ShowsShowIdRouteImport } from './routes/shows/$showId'
+import { Route as RelationshipsPairRouteImport } from './routes/relationships/$pair'
+import { Route as PredictionsShowIdRouteImport } from './routes/predictions/$showId'
+import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
+import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
+import { Route as BroadcastShowIdRouteImport } from './routes/broadcast/$showId'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
-import { Route as AuthenticatedAdminSlugRouteImport } from './routes/_authenticated/admin/$slug'
-import { Route as AuthenticatedAdminPredictionsRouteImport } from './routes/_authenticated/admin/predictions'
 import { Route as PredictionsShareTokenRouteImport } from './routes/predictions/share/$token'
+import { Route as AuthenticatedAdminPredictionsRouteImport } from './routes/_authenticated/admin/predictions'
+import { Route as AuthenticatedAdminSlugRouteImport } from './routes/_authenticated/admin/$slug'
 import { Route as AuthenticatedAdminDesignSlugRouteImport } from './routes/_authenticated/admin/design.$slug'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AnalysisIndexRoute = AnalysisIndexRouteImport.update({
-  id: '/analysis/',
-  path: '/analysis/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthIndexRoute = AuthIndexRouteImport.update({
-  id: '/auth/',
-  path: '/auth/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BroadcastShowIdRoute = BroadcastShowIdRouteImport.update({
-  id: '/broadcast/$showId',
-  path: '/broadcast/$showId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CompareIndexRoute = CompareIndexRouteImport.update({
-  id: '/compare/',
-  path: '/compare/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CountriesIndexRoute = CountriesIndexRouteImport.update({
-  id: '/countries/',
-  path: '/countries/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CountriesCodeRoute = CountriesCodeRouteImport.update({
-  id: '/countries/$code',
-  path: '/countries/$code',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EditionsIndexRoute = EditionsIndexRouteImport.update({
-  id: '/editions/',
-  path: '/editions/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EditionsSlugRoute = EditionsSlugRouteImport.update({
-  id: '/editions/$slug',
-  path: '/editions/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MeIndexRoute = MeIndexRouteImport.update({
-  id: '/me/',
-  path: '/me/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PredictionsIndexRoute = PredictionsIndexRouteImport.update({
-  id: '/predictions/',
-  path: '/predictions/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PredictionsShowIdRoute = PredictionsShowIdRouteImport.update({
-  id: '/predictions/$showId',
-  path: '/predictions/$showId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PulseIndexRoute = PulseIndexRouteImport.update({
-  id: '/pulse/',
-  path: '/pulse/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecordsIndexRoute = RecordsIndexRouteImport.update({
-  id: '/records/',
-  path: '/records/',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RelationshipsIndexRoute = RelationshipsIndexRouteImport.update({
@@ -118,9 +53,49 @@ const RelationshipsIndexRoute = RelationshipsIndexRouteImport.update({
   path: '/relationships/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RelationshipsPairRoute = RelationshipsPairRouteImport.update({
-  id: '/relationships/$pair',
-  path: '/relationships/$pair',
+const RecordsIndexRoute = RecordsIndexRouteImport.update({
+  id: '/records/',
+  path: '/records/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PulseIndexRoute = PulseIndexRouteImport.update({
+  id: '/pulse/',
+  path: '/pulse/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PredictionsIndexRoute = PredictionsIndexRouteImport.update({
+  id: '/predictions/',
+  path: '/predictions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeIndexRoute = MeIndexRouteImport.update({
+  id: '/me/',
+  path: '/me/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditionsIndexRoute = EditionsIndexRouteImport.update({
+  id: '/editions/',
+  path: '/editions/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CountriesIndexRoute = CountriesIndexRouteImport.update({
+  id: '/countries/',
+  path: '/countries/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompareIndexRoute = CompareIndexRouteImport.update({
+  id: '/compare/',
+  path: '/compare/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthIndexRoute = AuthIndexRouteImport.update({
+  id: '/auth/',
+  path: '/auth/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnalysisIndexRoute = AnalysisIndexRouteImport.update({
+  id: '/analysis/',
+  path: '/analysis/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShowsShowIdRoute = ShowsShowIdRouteImport.update({
@@ -128,15 +103,40 @@ const ShowsShowIdRoute = ShowsShowIdRouteImport.update({
   path: '/shows/$showId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelationshipsPairRoute = RelationshipsPairRouteImport.update({
+  id: '/relationships/$pair',
+  path: '/relationships/$pair',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PredictionsShowIdRoute = PredictionsShowIdRouteImport.update({
+  id: '/predictions/$showId',
+  path: '/predictions/$showId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditionsSlugRoute = EditionsSlugRouteImport.update({
+  id: '/editions/$slug',
+  path: '/editions/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CountriesCodeRoute = CountriesCodeRouteImport.update({
+  id: '/countries/$code',
+  path: '/countries/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BroadcastShowIdRoute = BroadcastShowIdRouteImport.update({
+  id: '/broadcast/$showId',
+  path: '/broadcast/$showId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAdminSlugRoute = AuthenticatedAdminSlugRouteImport.update({
-  id: '/admin/$slug',
-  path: '/admin/$slug',
-  getParentRoute: () => AuthenticatedRouteRoute,
+const PredictionsShareTokenRoute = PredictionsShareTokenRouteImport.update({
+  id: '/predictions/share/$token',
+  path: '/predictions/share/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminPredictionsRoute =
   AuthenticatedAdminPredictionsRouteImport.update({
@@ -144,10 +144,10 @@ const AuthenticatedAdminPredictionsRoute =
     path: '/admin/predictions',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const PredictionsShareTokenRoute = PredictionsShareTokenRouteImport.update({
-  id: '/predictions/share/$token',
-  path: '/predictions/share/$token',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedAdminSlugRoute = AuthenticatedAdminSlugRouteImport.update({
+  id: '/admin/$slug',
+  path: '/admin/$slug',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminDesignSlugRoute =
   AuthenticatedAdminDesignSlugRouteImport.update({
@@ -337,11 +337,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -351,102 +351,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/analysis/': {
-      id: '/analysis/'
-      path: '/analysis'
-      fullPath: '/analysis/'
-      preLoaderRoute: typeof AnalysisIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/': {
-      id: '/auth/'
-      path: '/auth'
-      fullPath: '/auth/'
-      preLoaderRoute: typeof AuthIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/broadcast/$showId': {
-      id: '/broadcast/$showId'
-      path: '/broadcast/$showId'
-      fullPath: '/broadcast/$showId'
-      preLoaderRoute: typeof BroadcastShowIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compare/': {
-      id: '/compare/'
-      path: '/compare'
-      fullPath: '/compare/'
-      preLoaderRoute: typeof CompareIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/countries/': {
-      id: '/countries/'
-      path: '/countries'
-      fullPath: '/countries/'
-      preLoaderRoute: typeof CountriesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/countries/$code': {
-      id: '/countries/$code'
-      path: '/countries/$code'
-      fullPath: '/countries/$code'
-      preLoaderRoute: typeof CountriesCodeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/editions/': {
-      id: '/editions/'
-      path: '/editions'
-      fullPath: '/editions/'
-      preLoaderRoute: typeof EditionsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/editions/$slug': {
-      id: '/editions/$slug'
-      path: '/editions/$slug'
-      fullPath: '/editions/$slug'
-      preLoaderRoute: typeof EditionsSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/me/': {
-      id: '/me/'
-      path: '/me'
-      fullPath: '/me/'
-      preLoaderRoute: typeof MeIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/predictions/': {
-      id: '/predictions/'
-      path: '/predictions'
-      fullPath: '/predictions/'
-      preLoaderRoute: typeof PredictionsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/predictions/$showId': {
-      id: '/predictions/$showId'
-      path: '/predictions/$showId'
-      fullPath: '/predictions/$showId'
-      preLoaderRoute: typeof PredictionsShowIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pulse/': {
-      id: '/pulse/'
-      path: '/pulse'
-      fullPath: '/pulse/'
-      preLoaderRoute: typeof PulseIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/records/': {
-      id: '/records/'
-      path: '/records'
-      fullPath: '/records/'
-      preLoaderRoute: typeof RecordsIndexRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/relationships/': {
@@ -456,11 +365,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RelationshipsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/relationships/$pair': {
-      id: '/relationships/$pair'
-      path: '/relationships/$pair'
-      fullPath: '/relationships/$pair'
-      preLoaderRoute: typeof RelationshipsPairRouteImport
+    '/records/': {
+      id: '/records/'
+      path: '/records'
+      fullPath: '/records/'
+      preLoaderRoute: typeof RecordsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pulse/': {
+      id: '/pulse/'
+      path: '/pulse'
+      fullPath: '/pulse/'
+      preLoaderRoute: typeof PulseIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/predictions/': {
+      id: '/predictions/'
+      path: '/predictions'
+      fullPath: '/predictions/'
+      preLoaderRoute: typeof PredictionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me/': {
+      id: '/me/'
+      path: '/me'
+      fullPath: '/me/'
+      preLoaderRoute: typeof MeIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editions/': {
+      id: '/editions/'
+      path: '/editions'
+      fullPath: '/editions/'
+      preLoaderRoute: typeof EditionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/countries/': {
+      id: '/countries/'
+      path: '/countries'
+      fullPath: '/countries/'
+      preLoaderRoute: typeof CountriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compare/': {
+      id: '/compare/'
+      path: '/compare'
+      fullPath: '/compare/'
+      preLoaderRoute: typeof CompareIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/': {
+      id: '/auth/'
+      path: '/auth'
+      fullPath: '/auth/'
+      preLoaderRoute: typeof AuthIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/analysis/': {
+      id: '/analysis/'
+      path: '/analysis'
+      fullPath: '/analysis/'
+      preLoaderRoute: typeof AnalysisIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/shows/$showId': {
@@ -470,25 +435,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShowsShowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relationships/$pair': {
+      id: '/relationships/$pair'
+      path: '/relationships/$pair'
+      fullPath: '/relationships/$pair'
+      preLoaderRoute: typeof RelationshipsPairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/predictions/$showId': {
+      id: '/predictions/$showId'
+      path: '/predictions/$showId'
+      fullPath: '/predictions/$showId'
+      preLoaderRoute: typeof PredictionsShowIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editions/$slug': {
+      id: '/editions/$slug'
+      path: '/editions/$slug'
+      fullPath: '/editions/$slug'
+      preLoaderRoute: typeof EditionsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/countries/$code': {
+      id: '/countries/$code'
+      path: '/countries/$code'
+      fullPath: '/countries/$code'
+      preLoaderRoute: typeof CountriesCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/broadcast/$showId': {
+      id: '/broadcast/$showId'
+      path: '/broadcast/$showId'
+      fullPath: '/broadcast/$showId'
+      preLoaderRoute: typeof BroadcastShowIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/$slug': {
-      id: '/_authenticated/admin/$slug'
-      path: '/admin/$slug'
-      fullPath: '/admin/$slug'
-      preLoaderRoute: typeof AuthenticatedAdminSlugRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/admin/predictions': {
-      id: '/_authenticated/admin/predictions'
-      path: '/admin/predictions'
-      fullPath: '/admin/predictions'
-      preLoaderRoute: typeof AuthenticatedAdminPredictionsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/predictions/share/$token': {
@@ -497,6 +483,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/predictions/share/$token'
       preLoaderRoute: typeof PredictionsShareTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/admin/predictions': {
+      id: '/_authenticated/admin/predictions'
+      path: '/admin/predictions'
+      fullPath: '/admin/predictions'
+      preLoaderRoute: typeof AuthenticatedAdminPredictionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/$slug': {
+      id: '/_authenticated/admin/$slug'
+      path: '/admin/$slug'
+      fullPath: '/admin/$slug'
+      preLoaderRoute: typeof AuthenticatedAdminSlugRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin/design/$slug': {
       id: '/_authenticated/admin/design/$slug'
