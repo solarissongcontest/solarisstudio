@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-// TODO: replace with your project URL once a project name or custom domain is set.
+// TODO: replace with the production origin once a permanent custom domain is set.
 const BASE_URL = "";
 
 interface SitemapEntry {
@@ -18,7 +18,16 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/editions", changefreq: "weekly", priority: "0.9" },
           { path: "/countries", changefreq: "weekly", priority: "0.8" },
+          { path: "/pulse", changefreq: "daily", priority: "0.8" },
+          { path: "/predictions", changefreq: "daily", priority: "0.8" },
+          { path: "/tools", changefreq: "monthly", priority: "0.8" },
           { path: "/analysis", changefreq: "monthly", priority: "0.7" },
+          { path: "/result-lab", changefreq: "monthly", priority: "0.7" },
+          { path: "/taste-dna", changefreq: "monthly", priority: "0.7" },
+          { path: "/broadcast-intelligence", changefreq: "monthly", priority: "0.7" },
+          { path: "/archive-games", changefreq: "monthly", priority: "0.7" },
+          { path: "/relationships", changefreq: "monthly", priority: "0.7" },
+          { path: "/compare", changefreq: "monthly", priority: "0.7" },
           { path: "/records", changefreq: "monthly", priority: "0.7" },
           { path: "/auth", changefreq: "yearly", priority: "0.2" },
         ];
@@ -32,26 +41,34 @@ export const Route = createFileRoute("/sitemap.xml")({
               auth: { persistSession: false, autoRefreshToken: false },
             });
             const [{ data: editions }, { data: countries }] = await Promise.all([
-              client.from("editions").select("slug"),
+              client.from("editions").select("slug").eq("published", true),
               client.from("countries").select("short_code"),
             ]);
-            (editions ?? []).forEach((e: { slug: string }) =>
-              entries.push({ path: `/editions/${e.slug}`, changefreq: "monthly", priority: "0.8" }),
+            (editions ?? []).forEach((edition: { slug: string }) =>
+              entries.push({
+                path: `/editions/${edition.slug}`,
+                changefreq: "monthly",
+                priority: "0.8",
+              }),
             );
-            (countries ?? []).forEach((c: { short_code: string }) =>
-              entries.push({ path: `/countries/${c.short_code}`, changefreq: "monthly", priority: "0.6" }),
+            (countries ?? []).forEach((country: { short_code: string }) =>
+              entries.push({
+                path: `/countries/${country.short_code}`,
+                changefreq: "monthly",
+                priority: "0.6",
+              }),
             );
           }
         } catch {
-          // fall back to static entries
+          // Static routes are still returned if public data cannot be loaded.
         }
 
-        const urls = entries.map((e) =>
+        const urls = entries.map((entry) =>
           [
             `  <url>`,
-            `    <loc>${BASE_URL}${e.path}</loc>`,
-            e.changefreq ? `    <changefreq>${e.changefreq}</changefreq>` : null,
-            e.priority ? `    <priority>${e.priority}</priority>` : null,
+            `    <loc>${BASE_URL}${entry.path}</loc>`,
+            entry.changefreq ? `    <changefreq>${entry.changefreq}</changefreq>` : null,
+            entry.priority ? `    <priority>${entry.priority}</priority>` : null,
             `  </url>`,
           ]
             .filter(Boolean)
@@ -66,7 +83,10 @@ export const Route = createFileRoute("/sitemap.xml")({
         ].join("\n");
 
         return new Response(xml, {
-          headers: { "Content-Type": "application/xml", "Cache-Control": "public, max-age=3600" },
+          headers: {
+            "Content-Type": "application/xml",
+            "Cache-Control": "public, max-age=3600",
+          },
         });
       },
     },
