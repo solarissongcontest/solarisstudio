@@ -413,7 +413,7 @@ function EditionPage() {
 
   return (
     <AppShell>
-      <div className="space-y-7">
+      <div className="space-y-5 sm:space-y-7">
         <Link
           to="/editions"
           className="text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -421,7 +421,7 @@ function EditionPage() {
           ← Editions
         </Link>
 
-        <section className="relative min-h-[420px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[480px]">
+        <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[480px]">
           <BackgroundFlag
             image={
               winner?.flag_image
@@ -432,7 +432,7 @@ function EditionPage() {
 
           <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/96 via-[#041429]/84 to-[#041429]/30" />
 
-          <div className="relative z-20 flex min-h-[420px] flex-col justify-between p-5 sm:min-h-[480px] sm:p-8 lg:p-10">
+          <div className="relative z-20 flex min-h-[340px] flex-col justify-between p-5 sm:min-h-[480px] sm:p-8 lg:p-10">
             <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
               {edition.status ===
               "completed"

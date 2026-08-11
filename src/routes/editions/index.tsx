@@ -306,7 +306,7 @@ function EditionsPage() {
                       slug:
                         edition.slug,
                     }}
-                    className="glass group relative block min-h-[260px] overflow-hidden p-5 transition-transform hover:-translate-y-1"
+                    className="glass group relative block overflow-hidden p-5 transition-transform hover:-translate-y-1 sm:min-h-[260px]"
                   >
                     <BackgroundFlag
                       image={
@@ -316,7 +316,7 @@ function EditionsPage() {
                       opacity={0.14}
                     />
 
-                    <div className="relative z-10 flex min-h-[220px] flex-col">
+                    <div className="relative z-10 flex min-h-[180px] flex-col sm:min-h-[220px]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -442,7 +442,7 @@ function EditionHero({
         slug:
           edition.slug,
       }}
-      className="group relative block min-h-[390px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[430px]"
+      className="group relative block min-h-[320px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[430px]"
     >
       <BackgroundFlag
         image={
@@ -454,7 +454,7 @@ function EditionHero({
 
       <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/95 via-[#041328]/82 to-[#041328]/30" />
 
-      <div className="relative z-20 flex min-h-[390px] flex-col justify-between p-5 sm:min-h-[430px] sm:p-8 lg:p-10">
+      <div className="relative z-20 flex min-h-[320px] flex-col justify-between p-5 sm:min-h-[430px] sm:p-8 lg:p-10">
         <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
           Published
         </span>

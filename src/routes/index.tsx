@@ -485,7 +485,7 @@ function HomePage() {
 
   return (
     <AppShell>
-      <div className="space-y-7 sm:space-y-9">
+      <div className="space-y-5 sm:space-y-9">
         <section className="border-b border-border/60 pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -552,7 +552,7 @@ function HomePage() {
                 slug:
                   leadEdition.slug,
               }}
-              className="group relative min-h-[470px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[520px]"
+              className="group relative min-h-[380px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[520px]"
             >
               <BackgroundFlag
                 image={
@@ -565,7 +565,7 @@ function HomePage() {
               <div className="absolute inset-0 bg-gradient-to-t from-[#020817]/98 via-[#041329]/70 to-[#061d39]/22" />
               <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/74 via-transparent to-transparent" />
 
-              <div className="relative z-10 flex min-h-[470px] flex-col justify-between p-5 sm:min-h-[520px] sm:p-8 lg:p-9">
+              <div className="relative z-10 flex min-h-[380px] flex-col justify-between p-5 sm:min-h-[520px] sm:p-8 lg:p-9">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-primary px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-primary-foreground">
                     Lead story
@@ -615,7 +615,7 @@ function HomePage() {
               </div>
             </Link>
           ) : (
-            <div className="glass flex min-h-[360px] items-end p-6">
+            <div className="glass flex min-h-[280px] items-end p-6 sm:min-h-[360px]">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
                   Solaris
@@ -1156,7 +1156,7 @@ function NewsBrief({
       to={
         to
       }
-      className={`group flex min-h-[150px] flex-col rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 ${
+      className={`group flex flex-col rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 sm:min-h-[150px] ${
         accent
           ? "border-primary/35 bg-primary/10"
           : "border-border/70 bg-surface/45"
@@ -1221,7 +1221,7 @@ function QuickTake({
         opacity={0.14}
       />
 
-      <div className="relative z-10 flex min-h-[120px] flex-col">
+      <div className="relative z-10 flex min-h-[96px] flex-col sm:min-h-[120px]">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[8px] font-black uppercase tracking-[0.18em] text-primary">
             {
@@ -1282,8 +1282,8 @@ function NewsStory({
       }
       className={`glass group relative block overflow-hidden p-4 transition-transform hover:-translate-y-0.5 sm:p-5 ${
         feature
-          ? "min-h-[280px] md:row-span-2"
-          : "min-h-[190px]"
+          ? "min-h-[220px] sm:min-h-[280px] md:row-span-2"
+          : "min-h-[150px] sm:min-h-[190px]"
       }`}
     >
       <BackgroundFlag
@@ -1304,8 +1304,8 @@ function NewsStory({
 
       <div className={`relative z-10 flex ${
         feature
-          ? "min-h-[240px]"
-          : "min-h-[150px]"
+          ? "min-h-[180px] sm:min-h-[240px]"
+          : "min-h-[110px] sm:min-h-[150px]"
       } flex-col`}>
         <p className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
           {
@@ -1360,7 +1360,7 @@ function DeskLink({
       to={
         to
       }
-      className="group flex min-h-[110px] items-end gap-3 rounded-2xl border border-border/70 bg-surface/35 p-4 transition-colors hover:bg-surface"
+      className="group flex min-h-[96px] items-end gap-3 rounded-2xl border border-border/70 bg-surface/35 p-4 transition-colors hover:bg-surface sm:min-h-[110px]"
     >
       <span className="numeric text-xs font-bold text-primary">
         {
