@@ -174,35 +174,37 @@ export function predictionLeaderMovements(
     Object.keys(current.items).map((key) => key.split(":", 1)[0]).filter(Boolean),
   );
 
-  return [...predictionTypes]
-    .map((predictionType) => {
-      const currentLeader = leaderForType(current, predictionType);
-      if (!currentLeader) return null;
-      const previousLeader = leaderForType(previous, predictionType);
-      const previousSameCountry = previous.items[`${predictionType}:${currentLeader.countryId}`];
+  const movements: PredictionLeaderMovement[] = [];
 
-      return {
-        predictionType,
-        currentCountryId: currentLeader.countryId,
-        currentPercentage: currentLeader.percentage,
-        previousCountryId: previousLeader?.countryId ?? null,
-        previousPercentage: previousSameCountry?.percentage ?? null,
-        leaderChanged: Boolean(
-          previousLeader && previousLeader.countryId !== currentLeader.countryId,
-        ),
-        percentageDelta:
-          previousSameCountry == null
-            ? null
-            : Number((currentLeader.percentage - previousSameCountry.percentage).toFixed(1)),
-        sampleSize: current.sampleSize,
-        previousSampleSize: previous.sampleSize,
-      } satisfies PredictionLeaderMovement;
-    })
-    .filter((movement): movement is PredictionLeaderMovement => Boolean(movement))
-    .sort((a, b) => {
-      if (a.leaderChanged !== b.leaderChanged) return a.leaderChanged ? -1 : 1;
-      return Math.abs(b.percentageDelta ?? 0) - Math.abs(a.percentageDelta ?? 0);
+  for (const predictionType of predictionTypes) {
+    const currentLeader = leaderForType(current, predictionType);
+    if (!currentLeader) continue;
+
+    const previousLeader = leaderForType(previous, predictionType);
+    const previousSameCountry = previous.items[`${predictionType}:${currentLeader.countryId}`];
+
+    movements.push({
+      predictionType,
+      currentCountryId: currentLeader.countryId,
+      currentPercentage: currentLeader.percentage,
+      previousCountryId: previousLeader?.countryId ?? null,
+      previousPercentage: previousSameCountry?.percentage ?? null,
+      leaderChanged: Boolean(
+        previousLeader && previousLeader.countryId !== currentLeader.countryId,
+      ),
+      percentageDelta:
+        previousSameCountry == null
+          ? null
+          : Number((currentLeader.percentage - previousSameCountry.percentage).toFixed(1)),
+      sampleSize: current.sampleSize,
+      previousSampleSize: previous.sampleSize,
     });
+  }
+
+  return movements.sort((a, b) => {
+    if (a.leaderChanged !== b.leaderChanged) return a.leaderChanged ? -1 : 1;
+    return Math.abs(b.percentageDelta ?? 0) - Math.abs(a.percentageDelta ?? 0);
+  });
 }
 
 export type RecordInsight = {
