@@ -68,6 +68,18 @@ export function AppShell({
   }, [pathname]);
 
   useEffect(() => {
+    if (
+      pathname !== "/" &&
+      !pathname.startsWith("/pulse") &&
+      !pathname.startsWith("/auth") &&
+      !pathname.startsWith("/me") &&
+      !pathname.startsWith("/admin")
+    ) {
+      window.localStorage.setItem("solaris:last-meaningful-route", pathname);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
     if (!menuOpen) {
       return;
     }
@@ -170,23 +182,21 @@ export function AppShell({
             })}
 
             {email ? (
-              <button
-                type="button"
-                onClick={signOut}
-                className="
-                  ml-2
-                  rounded-xl
-                  border
-                  border-border
-                  px-3
-                  py-2
-                  text-xs
-                  text-muted-foreground
-                  hover:text-foreground
-                "
-              >
-                Sign out
-              </button>
+              <>
+                <Link
+                  to="/me"
+                  className="ml-2 rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  My Solaris
+                </Link>
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Sign out
+                </button>
+              </>
             ) : (
               <Link
                 to="/auth"
@@ -368,6 +378,13 @@ export function AppShell({
                   >
                     {email}
                   </p>
+
+                  <Link
+                    to="/me"
+                    className="flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm"
+                  >
+                    My Solaris
+                  </Link>
 
                   <button
                     type="button"

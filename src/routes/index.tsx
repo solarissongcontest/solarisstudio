@@ -20,6 +20,10 @@ import {
 } from "@/components/FlagChip";
 
 import {
+  PulseStrip,
+} from "@/components/PulseStrip";
+
+import {
   editionLabel,
   useAllResults,
   useAllShows,
@@ -543,6 +547,8 @@ function HomePage() {
             )}
           </div>
         </section>
+
+        <PulseStrip />
 
         <section className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.65fr)]">
           {leadEdition ? (

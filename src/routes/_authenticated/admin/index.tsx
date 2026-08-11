@@ -569,6 +569,14 @@ function AdminHome() {
         eyebrow="Organizer studio"
         title="Manage editions"
         description="Create editions here. What becomes public is controlled by each edition's show Publication settings, so the homepage, edition pages and result pages all use one source of truth."
+        actions={
+          <Link
+            to="/admin/predictions"
+            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
+          >
+            Prediction rounds
+          </Link>
+        }
       />
 
       {isOrganizer ===
