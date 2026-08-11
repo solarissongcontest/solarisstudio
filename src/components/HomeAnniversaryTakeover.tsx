@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { AnniversaryTakeover } from "@/components/AnniversaryTakeover";
 import {
@@ -20,6 +20,12 @@ export function HomeAnniversaryTakeover() {
   const { data: participants } = useAllParticipants();
   const { data: results } = useAllResults();
   const { data: countries } = useCountries();
+
+  useEffect(() => {
+    if (!anniversary.active) return;
+    document.body.classList.add("solaris-anniversary-day");
+    return () => document.body.classList.remove("solaris-anniversary-day");
+  }, [anniversary.active]);
 
   const recap = useMemo(
     () =>
