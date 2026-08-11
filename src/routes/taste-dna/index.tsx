@@ -43,12 +43,12 @@ function moveItem(items: string[], from: number, to: number) {
 
 function MetricBar({ label, value }: { label: string; value: number }) {
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <strong>{value.toFixed(1)}%</strong>
+    <div className="min-w-0">
+      <div className="flex min-w-0 items-center justify-between gap-3 text-xs">
+        <span className="min-w-0 truncate text-muted-foreground">{label}</span>
+        <strong className="shrink-0">{value.toFixed(1)}%</strong>
       </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-strong">
+      <div className="mt-2 h-2 min-w-0 overflow-hidden rounded-full bg-surface-strong">
         <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
     </div>
@@ -270,14 +270,17 @@ function TasteDnaPage() {
         title="Taste DNA"
         description="Rank a published field and Solaris compares your taste with the jury, televote, overall consensus and individual voting juries. Saved ballots are private to your account."
         actions={
-          <Link to="/result-lab" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+          <Link
+            to="/result-lab"
+            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+          >
             ← Result Lab
           </Link>
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
-        <div className="space-y-5">
+      <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
           <Panel title="1. Choose the field" description="Taste DNA needs public jury and televote results">
             <label className="block text-xs font-semibold text-muted-foreground">Edition</label>
             <select
@@ -286,7 +289,7 @@ function TasteDnaPage() {
                 setEditionId(event.target.value);
                 setShowId("");
               }}
-              className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
               {(editions ?? []).filter((edition) => edition.published).map((edition) => (
                 <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>
@@ -298,7 +301,7 @@ function TasteDnaPage() {
               value={showId}
               onChange={(event) => setShowId(event.target.value)}
               disabled={!eligibleShows.length}
-              className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-60"
+              className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-60"
             >
               {!eligibleShows.length && <option value="">No eligible published show</option>}
               {eligibleShows.map((show) => (
@@ -307,31 +310,31 @@ function TasteDnaPage() {
             </select>
 
             {!eligibleShows.length && selectedEdition && (
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
                 Publish overall, jury and televote results for a show before Taste DNA can compare the three rankings.
               </p>
             )}
           </Panel>
 
-          <Panel title="2. Build your ranking" description={`${ranking.length} entries · drag-free because tiny arrow buttons are less theatrical and more reliable`}>
-            <div className="grid grid-cols-3 gap-2">
-              <button type="button" onClick={() => setPreset("official")} className="min-h-10 rounded-xl border border-border bg-surface px-2 text-xs font-semibold">
+          <Panel title="2. Build your ranking" description={`${ranking.length} entries · use the arrows to reorder`}>
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
+              <button type="button" onClick={() => setPreset("official")} className="min-h-10 min-w-0 rounded-xl border border-border bg-surface px-2 text-xs font-semibold">
                 Official
               </button>
-              <button type="button" onClick={() => setPreset("jury")} className="min-h-10 rounded-xl border border-border bg-surface px-2 text-xs font-semibold">
+              <button type="button" onClick={() => setPreset("jury")} className="min-h-10 min-w-0 rounded-xl border border-border bg-surface px-2 text-xs font-semibold">
                 Jury
               </button>
-              <button type="button" onClick={() => setPreset("televote")} className="min-h-10 rounded-xl border border-border bg-surface px-2 text-xs font-semibold">
+              <button type="button" onClick={() => setPreset("televote")} className="min-h-10 min-w-0 rounded-xl border border-border bg-surface px-2 text-xs font-semibold">
                 Televote
               </button>
             </div>
 
-            <div className="mt-3 max-h-[620px] space-y-1 overflow-y-auto pr-1">
+            <div className="mt-3 max-h-[620px] min-w-0 space-y-1 overflow-y-auto pr-1">
               {ranking.map((id, index) => {
                 const display = displayMap.get(id);
                 const participant = participantMap.get(id);
                 return (
-                  <div key={id} className="flex min-h-12 items-center gap-2 rounded-xl bg-surface px-2 py-1.5">
+                  <div key={id} className="flex min-h-12 min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-xl bg-surface px-2 py-1.5">
                     <span className="w-6 shrink-0 text-center font-display text-sm font-semibold">{index + 1}</span>
                     {display && (
                       <FlagChip
@@ -341,7 +344,7 @@ function TasteDnaPage() {
                         size="sm"
                       />
                     )}
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 overflow-hidden">
                       <p className="truncate text-xs font-semibold">{display?.name ?? "Unknown entry"}</p>
                       {(participant?.artist || participant?.song) && (
                         <p className="truncate text-[10px] text-muted-foreground">
@@ -355,7 +358,7 @@ function TasteDnaPage() {
                         aria-label={`Move ${display?.name ?? "entry"} up`}
                         disabled={index === 0}
                         onClick={() => setRanking((current) => moveItem(current, index, index - 1))}
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-border disabled:opacity-30"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border disabled:opacity-30"
                       >
                         ↑
                       </button>
@@ -364,7 +367,7 @@ function TasteDnaPage() {
                         aria-label={`Move ${display?.name ?? "entry"} down`}
                         disabled={index === ranking.length - 1}
                         onClick={() => setRanking((current) => moveItem(current, index, index + 1))}
-                        className="grid h-8 w-8 place-items-center rounded-lg border border-border disabled:opacity-30"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border disabled:opacity-30"
                       >
                         ↓
                       </button>
@@ -374,12 +377,12 @@ function TasteDnaPage() {
               })}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={save}
                 disabled={!ranking.length || saveBallot.isPending}
-                className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm font-semibold disabled:opacity-60"
+                className="min-h-11 min-w-0 rounded-xl border border-border bg-surface px-3 text-sm font-semibold disabled:opacity-60"
               >
                 {saveBallot.isPending ? "Saving…" : savedBallot ? "Update saved ballot" : "Save privately"}
               </button>
@@ -387,72 +390,72 @@ function TasteDnaPage() {
                 type="button"
                 onClick={removeSaved}
                 disabled={!savedBallot || deleteBallot.isPending}
-                className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm font-semibold disabled:opacity-40"
+                className="min-h-11 min-w-0 rounded-xl border border-border bg-surface px-3 text-sm font-semibold disabled:opacity-40"
               >
                 Remove saved
               </button>
             </div>
 
             {tasteData?.schemaReady === false && user && (
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
                 Saving needs the Phase 4 SQL migration. The live DNA calculation still works without it.
               </p>
             )}
-            {message && <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{message}</p>}
+            {message && <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">{message}</p>}
           </Panel>
         </div>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
           {profile ? (
             <>
               <Panel
                 title="Your fingerprint"
                 description={`${selectedShow?.name ?? "Selected show"} · ${profile.personalityLabel}`}
                 actions={
-                  <button type="button" onClick={copyFingerprint} className="text-xs font-semibold text-primary">
+                  <button type="button" onClick={copyFingerprint} className="min-h-9 rounded-lg px-2 text-xs font-semibold text-primary">
                     Copy summary
                   </button>
                 }
               >
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-xl bg-surface p-4">
+                <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="min-w-0 rounded-xl bg-surface p-3 sm:p-4">
                     <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Identity</p>
-                    <p className="mt-2 font-display text-xl font-semibold">{profile.personalityLabel}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{profile.alignmentLabel}</p>
+                    <p className="mt-2 break-words font-display text-lg font-semibold sm:text-xl">{profile.personalityLabel}</p>
+                    <p className="mt-1 break-words text-xs text-muted-foreground">{profile.alignmentLabel}</p>
                   </div>
-                  <div className="rounded-xl bg-surface p-4">
+                  <div className="min-w-0 rounded-xl bg-surface p-3 sm:p-4">
                     <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Jury match</p>
                     <p className="mt-2 font-display text-2xl font-semibold">{profile.jurySimilarity}%</p>
                   </div>
-                  <div className="rounded-xl bg-surface p-4">
+                  <div className="min-w-0 rounded-xl bg-surface p-3 sm:p-4">
                     <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Televote match</p>
                     <p className="mt-2 font-display text-2xl font-semibold">{profile.televoteSimilarity}%</p>
                   </div>
-                  <div className="rounded-xl bg-surface p-4">
+                  <div className="min-w-0 rounded-xl bg-surface p-3 sm:p-4">
                     <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Consensus match</p>
                     <p className="mt-2 font-display text-2xl font-semibold">{profile.overallSimilarity}%</p>
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-5 md:grid-cols-2">
-                  <div className="space-y-4 rounded-xl bg-surface p-4">
+                <div className="mt-5 grid min-w-0 gap-3 md:grid-cols-2 md:gap-5">
+                  <div className="min-w-0 space-y-4 rounded-xl bg-surface p-3 sm:p-4">
                     <MetricBar label="Mainstream" value={profile.mainstreamScore} />
                     <MetricBar label="Contrarian" value={profile.contrarianScore} />
                   </div>
-                  <div className="space-y-4 rounded-xl bg-surface p-4">
+                  <div className="min-w-0 space-y-4 rounded-xl bg-surface p-3 sm:p-4">
                     <MetricBar label="Jury side" value={profile.juryLean} />
                     <MetricBar label="Televote side" value={profile.televoteLean} />
                   </div>
                 </div>
               </Panel>
 
-              <div className="grid gap-5 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">
                 <Panel title="Closest jury tastes" description="Based on overlap and position inside each published jury top ten">
                   {profile.similarJuries.length ? (
-                    <div className="space-y-2">
+                    <div className="min-w-0 space-y-2">
                       {profile.similarJuries.map((match, index) => (
-                        <div key={match.key} className="flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-3">
-                          <div className="min-w-0">
+                        <div key={match.key} className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-surface px-3 py-3">
+                          <div className="min-w-0 flex-1">
                             <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-primary">#{index + 1} match</p>
                             <p className="truncate text-sm font-semibold">{match.name}</p>
                           </div>
@@ -461,7 +464,7 @@ function TasteDnaPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm leading-relaxed text-muted-foreground">
+                    <p className="break-words text-sm leading-relaxed text-muted-foreground">
                       Individual jury comparisons appear when detailed voting is public for this show.
                     </p>
                   )}
@@ -469,19 +472,19 @@ function TasteDnaPage() {
 
                 <Panel title="Biggest disagreements" description="The juries whose top choices clash most with yours">
                   {profile.oppositeJuries.length ? (
-                    <div className="space-y-2">
+                    <div className="min-w-0 space-y-2">
                       {profile.oppositeJuries.map((match, index) => (
-                        <div key={match.key} className="flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-3">
-                          <div className="min-w-0">
+                        <div key={match.key} className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-surface px-3 py-3">
+                          <div className="min-w-0 flex-1">
                             <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-primary">#{index + 1} opposite</p>
                             <p className="truncate text-sm font-semibold">{match.name}</p>
                           </div>
-                          <strong className="shrink-0 text-sm">{match.similarity}% match</strong>
+                          <strong className="shrink-0 text-xs sm:text-sm">{match.similarity}% match</strong>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm leading-relaxed text-muted-foreground">
+                    <p className="break-words text-sm leading-relaxed text-muted-foreground">
                       No individual jury ballots are available publicly for this show.
                     </p>
                   )}
@@ -490,12 +493,12 @@ function TasteDnaPage() {
 
               <Panel title="Recurring favourites" description="Patterns across the Taste DNA ballots saved on your account">
                 {user && profile.recurringFavourites.length ? (
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     {profile.recurringFavourites.map((favourite) => {
                       const display = displayMap.get(favourite.id);
                       return (
-                        <div key={favourite.id} className="rounded-xl bg-surface p-3">
-                          <div className="flex items-center gap-2">
+                        <div key={favourite.id} className="min-w-0 rounded-xl bg-surface p-3">
+                          <div className="flex min-w-0 items-center gap-2">
                             {display && (
                               <FlagChip
                                 code={display.short_code}
@@ -504,9 +507,9 @@ function TasteDnaPage() {
                                 size="sm"
                               />
                             )}
-                            <p className="min-w-0 truncate text-sm font-semibold">{favourite.name}</p>
+                            <p className="min-w-0 flex-1 truncate text-sm font-semibold">{favourite.name}</p>
                           </div>
-                          <p className="mt-2 text-xs text-muted-foreground">
+                          <p className="mt-2 break-words text-xs text-muted-foreground">
                             Top 3 in {favourite.topThreeCount} · Top 10 in {favourite.topTenCount}
                           </p>
                         </div>
@@ -514,7 +517,7 @@ function TasteDnaPage() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm leading-relaxed text-muted-foreground">
+                  <p className="break-words text-sm leading-relaxed text-muted-foreground">
                     {user
                       ? "Save Taste DNA rankings for more than one show and recurring favourites will start appearing here."
                       : "Sign in and save rankings across shows to unlock recurring favourite patterns."}
@@ -524,7 +527,7 @@ function TasteDnaPage() {
             </>
           ) : (
             <Panel title="Taste DNA">
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="break-words text-sm leading-relaxed text-muted-foreground">
                 Choose a show with published jury and televote results. Your ranking will become the comparison baseline.
               </p>
             </Panel>
