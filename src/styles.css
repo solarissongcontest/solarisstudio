@@ -761,6 +761,34 @@ a.bg-primary:active,
     );
 }
 
+.app-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background-color: #020817;
+
+  background-image:
+    linear-gradient(
+      rgba(1, 5, 20, 0.025),
+      rgba(1, 5, 20, 0.025)
+    ),
+    url("/IMG_8815.jpeg");
+
+  background-size:
+    cover,
+    cover;
+
+  background-position:
+    center,
+    center center;
+
+  background-repeat:
+    no-repeat,
+    no-repeat;
+}
+
 @supports (padding: max(0px)) {
   body {
     padding-left: env(safe-area-inset-left);
@@ -795,32 +823,7 @@ a.bg-primary:active,
       scroll;
   }
 
-  body::before {
-    content:
-      "";
-
-    position:
-      fixed;
-
-    inset:
-      -2px;
-
-    z-index:
-      0;
-
-    pointer-events:
-      none;
-
-    background-color:
-      #020817;
-
-    background-image:
-      linear-gradient(
-        rgba(1, 5, 20, 0.025),
-        rgba(1, 5, 20, 0.025)
-      ),
-      url("/IMG_8815.jpeg");
-
+  .app-background {
     background-size:
       cover,
       auto 100vh;
@@ -836,17 +839,6 @@ a.bg-primary:active,
     background-repeat:
       no-repeat,
       no-repeat;
-
-    transform:
-      translateZ(0);
-  }
-
-  body > #root {
-    position:
-      relative;
-
-    z-index:
-      1;
   }
 
   .glass,

@@ -90,7 +90,11 @@ export function AppShell({
   };
 
   return (
-    <div className="min-h-screen overflow-x-clip">
+    <div className="relative isolate min-h-screen overflow-x-clip">
+      <div
+        aria-hidden="true"
+        className="app-background"
+      />
       {/* =====================================================
           TOP HEADER
          ===================================================== */}
@@ -412,6 +416,8 @@ export function AppShell({
       <main
         className="
           app-main
+          relative
+          z-10
           mx-auto
           min-w-0
           max-w-[1280px]
