@@ -241,14 +241,17 @@ function ResultLabPage() {
         title="Result Lab"
         description="Rewrite a published result without touching the official scoreboard. Change the jury/televote balance, re-score jury ballots, remove juries and test tie-break rules in real time."
         actions={
-          <Link to="/taste-dna" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+          <Link
+            to="/taste-dna"
+            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+          >
             Taste DNA →
           </Link>
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="space-y-5">
+      <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
           <Panel title="1. Pick a result" description="Only shows with public jury and televote totals appear">
             <label className="block text-xs font-semibold text-muted-foreground">Edition</label>
             <select
@@ -257,7 +260,7 @@ function ResultLabPage() {
                 setEditionId(event.target.value);
                 setShowId("");
               }}
-              className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
               {(editions ?? []).filter((edition) => edition.published).map((edition) => (
                 <option key={edition.id} value={edition.id}>
@@ -271,7 +274,7 @@ function ResultLabPage() {
               value={showId}
               onChange={(event) => setShowId(event.target.value)}
               disabled={!eligibleShows.length}
-              className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-60"
+              className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-60"
             >
               {!eligibleShows.length && <option value="">No eligible published show</option>}
               {eligibleShows.map((show) => (
@@ -282,19 +285,19 @@ function ResultLabPage() {
             </select>
 
             {!eligibleShows.length && selectedEdition && (
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
                 Publish overall, jury and televote results for one of this edition's shows before using Result Lab.
               </p>
             )}
           </Panel>
 
           <Panel title="2. Voting balance" description="The two channels always add up to 100%">
-            <div className="flex items-end justify-between gap-3">
-              <div>
+            <div className="flex min-w-0 items-end justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Jury</p>
                 <p className="font-display text-2xl font-semibold">{juryWeight}%</p>
               </div>
-              <div className="text-right">
+              <div className="min-w-0 text-right">
                 <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Televote</p>
                 <p className="font-display text-2xl font-semibold">{100 - juryWeight}%</p>
               </div>
@@ -306,9 +309,9 @@ function ResultLabPage() {
               step={5}
               value={juryWeight}
               onChange={(event) => setJuryWeight(Number(event.target.value))}
-              className="mt-4 w-full"
+              className="mt-4 block w-full min-w-0"
             />
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {[
                 [100, "Jury only"],
                 [50, "50 / 50"],
@@ -318,7 +321,7 @@ function ResultLabPage() {
                   key={String(label)}
                   type="button"
                   onClick={() => setJuryWeight(Number(value))}
-                  className="min-h-10 rounded-xl border border-border bg-surface px-2 text-xs font-semibold"
+                  className="min-h-10 min-w-0 rounded-xl border border-border bg-surface px-2 text-xs font-semibold"
                 >
                   {label}
                 </button>
@@ -331,13 +334,13 @@ function ResultLabPage() {
             <select
               value={blendMode}
               onChange={(event) => setBlendMode(event.target.value as ResultLabBlendMode)}
-              className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
               {RESULT_LAB_BLEND_MODES.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-2 break-words text-xs leading-relaxed text-muted-foreground">
               {RESULT_LAB_BLEND_MODES.find(([value]) => value === blendMode)?.[2]}
             </p>
 
@@ -346,13 +349,13 @@ function ResultLabPage() {
               value={juryScheme}
               onChange={(event) => setJuryScheme(event.target.value as ResultLabJuryScheme)}
               disabled={!detailedVotingPublic || !labJuryVotes.length}
-              className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-60"
+              className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-60"
             >
               {RESULT_LAB_JURY_SCHEMES.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-2 break-words text-xs leading-relaxed text-muted-foreground">
               {detailedVotingPublic && labJuryVotes.length
                 ? RESULT_LAB_JURY_SCHEMES.find(([value]) => value === juryScheme)?.[2]
                 : "Alternative jury scoring needs detailed voting to be public."}
@@ -362,7 +365,7 @@ function ResultLabPage() {
             <select
               value={tieBreak}
               onChange={(event) => setTieBreak(event.target.value as ResultLabTieBreak)}
-              className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+              className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
               {RESULT_LAB_TIE_BREAKS.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
@@ -384,52 +387,53 @@ function ResultLabPage() {
                   value={voterSearch}
                   onChange={(event) => setVoterSearch(event.target.value)}
                   placeholder="Search juries…"
-                  className="min-h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  className="min-h-10 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
                 />
-                <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1">
+                <div className="mt-3 max-h-64 min-w-0 space-y-1 overflow-y-auto pr-1">
                   {filteredVoters.map((voter) => {
                     const included = !excludedVoters.has(voter.key);
                     return (
-                      <label key={voter.key} className="flex min-h-10 items-center gap-2 rounded-xl bg-surface px-3 text-xs">
+                      <label key={voter.key} className="flex min-h-10 min-w-0 items-center gap-2 rounded-xl bg-surface px-3 text-xs">
                         <input
                           type="checkbox"
                           checked={included}
                           onChange={() => toggleVoter(voter.key)}
+                          className="shrink-0"
                         />
                         <span className="min-w-0 flex-1 truncate">{voter.name}</span>
                       </label>
                     );
                   })}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => setExcludedVoters(new Set())}
-                    className="min-h-10 rounded-xl border border-border bg-surface px-2 text-xs font-semibold"
+                    className="min-h-10 min-w-0 rounded-xl border border-border bg-surface px-2 text-xs font-semibold"
                   >
                     Include all
                   </button>
                   <button
                     type="button"
                     onClick={() => setExcludedVoters(new Set(selectableVoters.map((voter) => voter.key)))}
-                    className="min-h-10 rounded-xl border border-border bg-surface px-2 text-xs font-semibold"
+                    className="min-h-10 min-w-0 rounded-xl border border-border bg-surface px-2 text-xs font-semibold"
                   >
                     Remove all
                   </button>
                 </div>
               </>
             ) : (
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="break-words text-xs leading-relaxed text-muted-foreground">
                 Result Lab can still change jury/televote weighting from public totals. Removing individual juries becomes available when detailed voting is published.
               </p>
             )}
           </Panel>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={resetScenario}
-              className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm font-semibold"
+              className="min-h-11 min-w-0 rounded-xl border border-border bg-surface px-3 text-sm font-semibold"
             >
               Reset
             </button>
@@ -437,17 +441,17 @@ function ResultLabPage() {
               type="button"
               onClick={exportCsv}
               disabled={!simulation.rows.length}
-              className="min-h-11 rounded-xl border border-border bg-surface px-3 text-sm font-semibold disabled:opacity-60"
+              className="min-h-11 min-w-0 rounded-xl border border-border bg-surface px-3 text-sm font-semibold disabled:opacity-60"
             >
               Export CSV
             </button>
           </div>
         </div>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-4 sm:space-y-5">
           {winner ? (
             <Panel title="Simulated winner" description={`${selectedShow?.name ?? "Selected show"} · ${juryWeight}/${100 - juryWeight} jury/televote`}>
-              <div className="flex items-center gap-4">
+              <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
                 {(() => {
                   const display = displayMap.get(winner.id);
                   return display ? (
@@ -459,9 +463,9 @@ function ResultLabPage() {
                     />
                   ) : null;
                 })()}
-                <div className="min-w-0">
-                  <p className="font-display text-2xl font-semibold">{winner.name}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                <div className="min-w-0 max-w-full">
+                  <p className="break-words font-display text-xl font-semibold sm:text-2xl">{winner.name}</p>
+                  <p className="mt-1 break-words text-sm text-muted-foreground">
                     {winner.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)} simulated score
                     {winner.officialRank != null && ` · officially #${winner.officialRank}`}
                   </p>
@@ -470,30 +474,30 @@ function ResultLabPage() {
             </Panel>
           ) : (
             <Panel title="Result Lab">
-              <p className="text-sm text-muted-foreground">Choose a published show with jury and televote results to start.</p>
+              <p className="break-words text-sm text-muted-foreground">Choose a published show with jury and televote results to start.</p>
             </Panel>
           )}
 
           {simulation.rows.length > 0 && (
             <Panel title="Biggest changes" description="Movement compared with the official ranking">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl bg-surface p-3">
+              <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                <div className="min-w-0 rounded-xl bg-surface p-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Gainers</p>
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-2 min-w-0 space-y-2">
                     {biggestGainers.length ? biggestGainers.map((row) => (
-                      <div key={row.id} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="truncate">{row.name}</span>
+                      <div key={row.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 flex-1 truncate">{row.name}</span>
                         <strong className="shrink-0">+{row.rankDelta}</strong>
                       </div>
                     )) : <p className="text-xs text-muted-foreground">Nobody moves up.</p>}
                   </div>
                 </div>
-                <div className="rounded-xl bg-surface p-3">
+                <div className="min-w-0 rounded-xl bg-surface p-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Losers</p>
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-2 min-w-0 space-y-2">
                     {biggestLosers.length ? biggestLosers.map((row) => (
-                      <div key={row.id} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="truncate">{row.name}</span>
+                      <div key={row.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 flex-1 truncate">{row.name}</span>
                         <strong className="shrink-0">{row.rankDelta}</strong>
                       </div>
                     )) : <p className="text-xs text-muted-foreground">Nobody moves down.</p>}
@@ -505,8 +509,51 @@ function ResultLabPage() {
 
           {simulation.rows.length > 0 && (
             <Panel title="Recalculated scoreboard" description="Official data stays untouched">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-sm">
+              <div className="space-y-2 sm:hidden">
+                {simulation.rows.map((row) => {
+                  const display = displayMap.get(row.id);
+                  return (
+                    <div key={row.id} className="min-w-0 rounded-xl bg-surface p-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="w-7 shrink-0 font-display text-lg font-semibold">{row.simulatedRank}</span>
+                        {display && (
+                          <FlagChip
+                            code={display.short_code}
+                            color={display.accent_color}
+                            image={display.flag_image}
+                            size="sm"
+                          />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{row.name}</span>
+                        <span className="shrink-0 text-xs font-semibold tabular-nums">
+                          {row.rankDelta == null ? "" : row.rankDelta > 0 ? `+${row.rankDelta}` : row.rankDelta}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid min-w-0 grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                        <div className="min-w-0">
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Jury</span>
+                          <strong className="tabular-nums">{row.simulatedJuryPoints}</strong>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Televote</span>
+                          <strong className="tabular-nums">{row.simulatedTelevotePoints}</strong>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Score</span>
+                          <strong className="tabular-nums">{row.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)}</strong>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Official rank</span>
+                          <strong className="tabular-nums">{row.officialRank ?? "—"}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="hidden max-w-full overflow-x-auto sm:block">
+                <table className="w-full min-w-[680px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-border text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
                       <th className="pb-3 pr-3">#</th>
@@ -525,7 +572,7 @@ function ResultLabPage() {
                         <tr key={row.id} className="border-b border-border/50 last:border-0">
                           <td className="py-3 pr-3 font-display text-lg font-semibold">{row.simulatedRank}</td>
                           <td className="py-3 pr-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
                               {display && (
                                 <FlagChip
                                   code={display.short_code}
