@@ -91,6 +91,7 @@ export type ContentEventRow = {
   payload: Json;
   published_at: string;
   created_at: string;
+  dedupe_key?: string | null;
 };
 
 export type FanEventReadRow = {
@@ -104,6 +105,15 @@ export type NotificationPreferenceRow = {
   in_app_enabled: boolean;
   categories: string[];
   external_enabled: boolean;
+  updated_at: string;
+};
+
+export type FanTasteBallotRow = {
+  id: string;
+  profile_id: string;
+  show_id: string;
+  ranking: string[];
+  created_at: string;
   updated_at: string;
 };
 
@@ -219,6 +229,7 @@ export type AppDatabase = Omit<Database, "public"> & {
           payload?: Json;
           published_at?: string;
           created_at?: string;
+          dedupe_key?: string | null;
         },
         Partial<ContentEventRow>
       >;
@@ -237,6 +248,18 @@ export type AppDatabase = Omit<Database, "public"> & {
           updated_at?: string;
         },
         Partial<NotificationPreferenceRow>
+      >;
+      fan_taste_ballots: TableDefinition<
+        FanTasteBallotRow,
+        {
+          id?: string;
+          profile_id: string;
+          show_id: string;
+          ranking: string[];
+          created_at?: string;
+          updated_at?: string;
+        },
+        Partial<FanTasteBallotRow>
       >;
     };
     Functions: PublicSchema["Functions"] & {
