@@ -26,6 +26,7 @@ import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
 import { Route as BroadcastShowIdRouteImport } from './routes/broadcast/$showId'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedAdminSlugRouteImport } from './routes/_authenticated/admin/$slug'
+import { Route as AuthenticatedAdminDesignSlugRouteImport } from './routes/_authenticated/admin/design.$slug'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -111,6 +112,12 @@ const AuthenticatedAdminSlugRoute = AuthenticatedAdminSlugRouteImport.update({
   path: '/admin/$slug',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminDesignSlugRoute =
+  AuthenticatedAdminDesignSlugRouteImport.update({
+    id: '/admin/design/$slug',
+    path: '/admin/design/$slug',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/relationships/': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/design/$slug': typeof AuthenticatedAdminDesignSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -147,6 +155,7 @@ export interface FileRoutesByTo {
   '/relationships': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/design/$slug': typeof AuthenticatedAdminDesignSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -167,6 +176,7 @@ export interface FileRoutesById {
   '/relationships/': typeof RelationshipsIndexRoute
   '/_authenticated/admin/$slug': typeof AuthenticatedAdminSlugRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/design/$slug': typeof AuthenticatedAdminDesignSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/relationships/'
     | '/admin/$slug'
     | '/admin/'
+    | '/admin/design/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/relationships'
     | '/admin/$slug'
     | '/admin'
+    | '/admin/design/$slug'
   id:
     | '__root__'
     | '/'
@@ -224,6 +236,7 @@ export interface FileRouteTypes {
     | '/relationships/'
     | '/_authenticated/admin/$slug'
     | '/_authenticated/admin/'
+    | '/_authenticated/admin/design/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -365,17 +378,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSlugRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/design/$slug': {
+      id: '/_authenticated/admin/design/$slug'
+      path: '/admin/design/$slug'
+      fullPath: '/admin/design/$slug'
+      preLoaderRoute: typeof AuthenticatedAdminDesignSlugRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminSlugRoute: typeof AuthenticatedAdminSlugRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminDesignSlugRoute: typeof AuthenticatedAdminDesignSlugRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminSlugRoute: AuthenticatedAdminSlugRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminDesignSlugRoute: AuthenticatedAdminDesignSlugRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

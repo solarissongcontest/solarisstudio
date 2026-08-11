@@ -1,9 +1,12 @@
-name: CI
+name: Quality checks
 
 on:
   push:
     branches: [main]
   pull_request:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -25,33 +28,33 @@ jobs:
       SUPABASE_PROJECT_ID: ${{ vars.VITE_SUPABASE_PROJECT_ID }}
 
     steps:
-      - name: Checkout
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Setup Bun
+      - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.2.19
+          bun-version: 1.2.22
 
-      - name: Setup Node
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: bun install --frozen-lockfile
 
-      # Lint still reports issues, but it cannot prevent the actual
-      # TypeScript and production-build checks from running.
-      - name: Lint
-        continue-on-error: true
-        run: bun run lint
+      - name: Build production application
+        run: bun run build
 
-      - name: Typecheck
+      - name: Verify generated routes are committed
+        run: git diff --exit-code -- src/routeTree.gen.ts
+
+      - name: Type-check
         run: bun run typecheck
 
-      - name: Unit tests
+      - name: Run tests
         run: bun run test
 
-      - name: Production build
-        run: bun run build
+      - name: Lint errors
+        run: bun run lint:ci

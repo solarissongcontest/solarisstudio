@@ -138,6 +138,7 @@ import {
   PUBLICATION_PRESETS,
   resolveAutomaticEditionStatus,
   resolvePublicationConfig,
+  resolveShowPublication,
   type PublicationConfig,
   type PublicationKey,
   type PublicationPresetId,
@@ -2658,8 +2659,8 @@ function AdminEdition() {
               publication_config:
                 override
                   ? override.config
-                  : resolvePublicationConfig(
-                      show.publication_config,
+                  : resolveShowPublication(
+                      show,
                     ),
             };
           },
@@ -2854,15 +2855,21 @@ function AdminEdition() {
           return;
         }
 
-        await syncEditionPublication(
-          overrides,
-        );
+        const editionSynced =
+          await syncEditionPublication(
+            overrides,
+          );
+
+        if (!editionSynced) {
+          await refresh();
+          return;
+        }
 
         setMsg(
           `Publication settings saved for ${ids.length} show${ids.length === 1 ? "" : "s"}.`,
         );
 
-        refresh();
+        await refresh();
       } finally {
         setPublicationSaving(
           false,
