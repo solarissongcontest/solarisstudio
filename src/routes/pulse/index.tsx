@@ -225,7 +225,7 @@ function SolarisPulsePage() {
       <PageHeader
         eyebrow="Personal update desk"
         title="Solaris Pulse"
-        description="The useful changes from the contest, your follows and Prediction Arena, without manufacturing a twelve-hour doomscroll from six database rows."
+        description="The useful changes from the contest, your follows and Prediction Arena, without turning every quiet update into noise."
         actions={
           <Link to="/me" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
             My Solaris
@@ -304,7 +304,7 @@ function SolarisPulsePage() {
               <p className="text-sm text-muted-foreground">Loading updates…</p>
             ) : eventsData?.schemaReady === false ? (
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Pulse needs the Phase 3 SQL migration before its automatic update feed can run.
+                The update feed is temporarily unavailable. Other public contest pages still work normally.
               </p>
             ) : inboxEvents.length ? (
               <div className="divide-y divide-border/60">
@@ -368,7 +368,7 @@ function SolarisPulsePage() {
                 </p>
               ) : movementData?.schemaReady === false ? (
                 <p className="text-sm text-muted-foreground">
-                  Apply the Phase 3 SQL to switch on movement snapshots.
+                  Prediction movement is not available for this round yet.
                 </p>
               ) : movements.length ? (
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -446,7 +446,9 @@ function SolarisPulsePage() {
                 Sign in, then follow countries, editions and shows from their public pages.
               </p>
             ) : followData?.schemaReady === false ? (
-              <p className="text-sm text-muted-foreground">Follows need the existing Phase 2/3 setup SQL.</p>
+              <p className="text-sm text-muted-foreground">
+                Following is temporarily unavailable. You can still browse countries, editions and shows.
+              </p>
             ) : follows.length ? (
               <div className="space-y-2">
                 {follows.map((follow) => (
