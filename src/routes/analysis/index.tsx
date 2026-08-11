@@ -1,31 +1,14 @@
-import {
-  createFileRoute,
-  Link,
-} from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
-import {
-  useMemo,
-  useState,
-} from "react";
+import { useMemo, useState } from "react";
 
-import {
-  AppShell,
-  PageHeader,
-  Panel,
-  StatTile,
-} from "@/components/AppShell";
+import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 
-import {
-  FlagChip,
-} from "@/components/FlagChip";
+import { FlagChip } from "@/components/FlagChip";
 
-import {
-  ResponsiveTabs,
-} from "@/components/ResponsiveTabs";
+import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 
-import {
-  ChordDiagram,
-} from "@/components/viz/ChordDiagram";
+import { ChordDiagram } from "@/components/viz/ChordDiagram";
 
 import {
   DEFAULT_ANALYSIS_FILTERS,
@@ -33,29 +16,15 @@ import {
   type AnalysisFiltersState,
 } from "@/components/viz/Filters";
 
-import {
-  HistoricalLeaderboard,
-} from "@/components/viz/HistoricalLeaderboard";
+import { HistoricalLeaderboard } from "@/components/viz/HistoricalLeaderboard";
 
-import {
-  JuryVsTelevote,
-} from "@/components/viz/JuryVsTelevote";
+import { JuryVsTelevote } from "@/components/viz/JuryVsTelevote";
 
-import {
-  NetworkGraph,
-} from "@/components/viz/NetworkGraph";
+import { NetworkGraph } from "@/components/viz/NetworkGraph";
 
-import {
-  VotingHeatmap,
-} from "@/components/viz/VotingHeatmap";
+import { VotingHeatmap } from "@/components/viz/VotingHeatmap";
 
-import {
-  regionalBias,
-  relationships,
-  topRecipients,
-  topSupporters,
-  votingSimilarity,
-} from "@/lib/analysis";
+import { regionalBias, topRecipients, topSupporters, votingSimilarity } from "@/lib/analysis";
 
 import {
   type Country,
@@ -67,26 +36,19 @@ import {
   useEditions,
 } from "@/lib/data";
 
-import {
-  computeVotingIntelligence,
-} from "@/lib/stats";
+import { computeRelationship, computeVotingIntelligence } from "@/lib/stats";
 
-export const Route =
-  createFileRoute(
-    "/analysis/",
-  )({
-    head: () => ({
-      meta: [
-        {
-          title:
-            "Analysis — Solaris Studio",
-        },
-      ],
-    }),
+export const Route = createFileRoute("/analysis/")({
+  head: () => ({
+    meta: [
+      {
+        title: "Analysis — Solaris Studio",
+      },
+    ],
+  }),
 
-    component:
-      AnalysisPage,
-  });
+  component: AnalysisPage,
+});
 
 const DESKTOP_TABS = [
   {
@@ -134,363 +96,182 @@ const MOBILE_TABS = [
   },
 ] as const;
 
-type Tab =
-  (typeof DESKTOP_TABS)[number]["value"];
+type Tab = (typeof DESKTOP_TABS)[number]["value"];
 
 function AnalysisPage() {
-  const {
-    data: countries,
-  } =
-    useCountries();
+  const { data: countries } = useCountries();
 
-  const {
-    data: jury,
-  } =
-    useAllJuryVotes();
+  const { data: jury } = useAllJuryVotes();
 
-  const {
-    data: results,
-  } =
-    useAllResults();
+  const { data: results } = useAllResults();
 
-  const {
-    data: shows,
-  } =
-    useAllShows();
+  const { data: shows } = useAllShows();
 
-  const {
-    data: editions,
-  } =
-    useEditions();
+  const { data: editions } = useEditions();
 
-  const [
-    filters,
-    setFilters,
-  ] =
-    useState<AnalysisFiltersState>(
-      DEFAULT_ANALYSIS_FILTERS,
-    );
+  const [filters, setFilters] = useState<AnalysisFiltersState>(DEFAULT_ANALYSIS_FILTERS);
 
-  const [
-    tab,
-    setTab,
-  ] =
-    useState<Tab>(
-      "network",
-    );
+  const [tab, setTab] = useState<Tab>("network");
 
-  const [
-    selectedCountryId,
-    setSelectedCountryId,
-  ] =
-    useState("");
+  const [selectedCountryId, setSelectedCountryId] = useState("");
 
-  const cs =
-    countries ?? [];
+  const cs = countries ?? [];
 
-  const es =
-    editions ?? [];
+  const es = editions ?? [];
 
-  const showsList =
-    shows ?? [];
+  const showsList = shows ?? [];
 
-  const allowedShowIds =
-    useMemo(
-      () =>
-        new Set(
-          showsList
-            .filter(
-              (show) =>
-                filters.editionIds.length
-                  ? filters.editionIds.includes(
-                      show.edition_id,
-                    )
-                  : true,
-            )
-            .filter(
-              (show) =>
-                filters.showKind === "all"
-                  ? true
-                  : show.kind ===
-                    filters.showKind,
-            )
-            .map(
-              (show) =>
-                show.id,
-            ),
-        ),
-      [
-        showsList,
-        filters,
-      ],
-    );
-
-  const filteredJury =
-    useMemo(
-      () =>
-        (
-          jury ??
-          []
-        ).filter(
-          (vote) =>
-            vote.show_id
-              ? allowedShowIds.has(
-                  vote.show_id,
-                )
-              : filters.editionIds.length ===
-                  0 &&
-                filters.showKind ===
-                  "all",
-        ),
-      [
-        jury,
-        allowedShowIds,
-        filters,
-      ],
-    );
-
-  const filteredResults =
-    useMemo(
-      () =>
-        (
-          results ??
-          []
-        ).filter(
-          (row) =>
-            row.show_id
-              ? allowedShowIds.has(
-                  row.show_id,
-                )
-              : filters.editionIds.length ===
-                  0 &&
-                filters.showKind ===
-                  "all",
-        ),
-      [
-        results,
-        allowedShowIds,
-        filters,
-      ],
-    );
-
-  const intelligence =
-    useMemo(
-      () =>
-        computeVotingIntelligence({
-          countries: cs,
-          jury:
-            filteredJury,
-          results:
-            filteredResults,
-        }),
-      [
-        cs,
-        filteredJury,
-        filteredResults,
-      ],
-    );
-
-  const cMap =
-    useMemo(
-      () =>
-        new Map(
-          cs.map(
-            (country) => [
-              country.id,
-              country,
-            ],
-          ),
-        ),
-      [
-        cs,
-      ],
-    );
-
-  const similarity =
-    useMemo(
-      () =>
-        votingSimilarity(
-          filteredJury,
-          cs,
-        ),
-      [
-        filteredJury,
-        cs,
-      ],
-    );
-
-  const relationData =
-    useMemo(
-      () =>
-        relationships(
-          filteredJury,
-        ),
-      [
-        filteredJury,
-      ],
-    );
-
-  const bias =
-    useMemo(
-      () =>
-        regionalBias(
-          filteredJury,
-          cs,
-        ),
-      [
-        filteredJury,
-        cs,
-      ],
-    );
-
-  const countryOptions =
-    useMemo(
-      () =>
-        cs
-          .filter(
-            (country) =>
-              filteredJury.some(
-                (vote) =>
-                  vote.voter_country_id ===
-                    country.id ||
-                  vote.receiving_country_id ===
-                    country.id,
-              ),
+  const allowedShowIds = useMemo(
+    () =>
+      new Set(
+        showsList
+          .filter((show) =>
+            filters.editionIds.length ? filters.editionIds.includes(show.edition_id) : true,
           )
-          .sort(
-            (a, b) =>
-              a.name.localeCompare(
-                b.name,
-              ),
+          .filter((show) => (filters.showKind === "all" ? true : show.kind === filters.showKind))
+          .map((show) => show.id),
+      ),
+    [showsList, filters],
+  );
+
+  const filteredJury = useMemo(
+    () =>
+      (jury ?? []).filter((vote) =>
+        vote.show_id
+          ? allowedShowIds.has(vote.show_id)
+          : filters.editionIds.length === 0 && filters.showKind === "all",
+      ),
+    [jury, allowedShowIds, filters],
+  );
+
+  const filteredResults = useMemo(
+    () =>
+      (results ?? []).filter((row) =>
+        row.show_id
+          ? allowedShowIds.has(row.show_id)
+          : filters.editionIds.length === 0 && filters.showKind === "all",
+      ),
+    [results, allowedShowIds, filters],
+  );
+
+  const intelligence = useMemo(
+    () =>
+      computeVotingIntelligence({
+        countries: cs,
+        jury: filteredJury,
+        results: filteredResults,
+      }),
+    [cs, filteredJury, filteredResults],
+  );
+
+  const cMap = useMemo(() => new Map(cs.map((country) => [country.id, country])), [cs]);
+
+  const similarity = useMemo(() => votingSimilarity(filteredJury, cs), [filteredJury, cs]);
+
+  const relationData = useMemo(() => {
+    const pairs = [];
+
+    for (let aIndex = 0; aIndex < cs.length; aIndex += 1) {
+      for (let bIndex = aIndex + 1; bIndex < cs.length; bIndex += 1) {
+        const a = cs[aIndex];
+        const b = cs[bIndex];
+
+        const relationship = computeRelationship(a.id, b.id, {
+          editions: es,
+          jury: filteredJury,
+          results: filteredResults,
+          shows: showsList.filter((show) => allowedShowIds.has(show.id)),
+        });
+
+        if (relationship.opportunitiesAtoB === 0 && relationship.opportunitiesBtoA === 0) {
+          continue;
+        }
+
+        pairs.push({
+          a: a.id,
+          b: b.id,
+          ab: Math.round(relationship.normalizedAtoB),
+          ba: Math.round(relationship.normalizedBtoA),
+          total: Math.round(relationship.friendshipScore),
+          gap: Math.round(Math.abs(relationship.normalizedAtoB - relationship.normalizedBtoA)),
+        });
+      }
+    }
+
+    return {
+      friendships: pairs
+        .filter((pair) => pair.ab > 0 && pair.ba > 0)
+        .sort((a, b) => b.total - a.total),
+      oneSided: pairs
+        .filter((pair) => pair.gap >= 15)
+        .map((pair) =>
+          pair.ab >= pair.ba
+            ? pair
+            : {
+                ...pair,
+                a: pair.b,
+                b: pair.a,
+                ab: pair.ba,
+                ba: pair.ab,
+              },
+        )
+        .sort((a, b) => b.gap - a.gap),
+    };
+  }, [cs, es, filteredJury, filteredResults, showsList, allowedShowIds]);
+
+  const bias = useMemo(() => regionalBias(filteredJury, cs), [filteredJury, cs]);
+
+  const countryOptions = useMemo(
+    () =>
+      cs
+        .filter((country) =>
+          filteredJury.some(
+            (vote) =>
+              vote.voter_country_id === country.id || vote.receiving_country_id === country.id,
           ),
-      [
-        cs,
-        filteredJury,
-      ],
-    );
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [cs, filteredJury],
+  );
 
   const activeCountryId =
-    selectedCountryId &&
-    countryOptions.some(
-      (country) =>
-        country.id ===
-        selectedCountryId,
-    )
+    selectedCountryId && countryOptions.some((country) => country.id === selectedCountryId)
       ? selectedCountryId
-      : countryOptions[0]?.id ??
-        "";
+      : (countryOptions[0]?.id ?? "");
 
-  const activeCountry =
-    activeCountryId
-      ? cMap.get(
-          activeCountryId,
-        ) ??
-        null
-      : null;
+  const activeCountry = activeCountryId ? (cMap.get(activeCountryId) ?? null) : null;
 
-  const supporters =
-    activeCountryId
-      ? topSupporters(
-          filteredJury,
-          activeCountryId,
-          7,
-        )
-      : [];
+  const supporters = activeCountryId ? topSupporters(filteredJury, activeCountryId, 7) : [];
 
-  const recipients =
-    activeCountryId
-      ? topRecipients(
-          filteredJury,
-          activeCountryId,
-          7,
-        )
-      : [];
+  const recipients = activeCountryId ? topRecipients(filteredJury, activeCountryId, 7) : [];
 
-  const juryTeleRows =
-    useMemo(
-      () =>
-        buildJuryTeleRows(
-          filteredResults,
-          cMap,
-        ),
-      [
-        filteredResults,
-        cMap,
-      ],
-    );
+  const juryTeleRows = useMemo(
+    () => buildJuryTeleRows(filteredResults, cMap),
+    [filteredResults, cMap],
+  );
 
-  const juryFavoured =
-    juryTeleRows
-      .filter(
-        (row) =>
-          row.difference >
-          0,
-      )
-      .sort(
-        (a, b) =>
-          b.difference -
-          a.difference,
-      )
-      .slice(
-        0,
-        6,
-      );
+  const juryFavoured = juryTeleRows
+    .filter((row) => row.difference > 0)
+    .sort((a, b) => b.difference - a.difference)
+    .slice(0, 6);
 
-  const teleFavoured =
-    juryTeleRows
-      .filter(
-        (row) =>
-          row.difference <
-          0,
-      )
-      .sort(
-        (a, b) =>
-          a.difference -
-          b.difference,
-      )
-      .slice(
-        0,
-        6,
-      );
+  const teleFavoured = juryTeleRows
+    .filter((row) => row.difference < 0)
+    .sort((a, b) => a.difference - b.difference)
+    .slice(0, 6);
 
-  const mostAgreed =
-    [...juryTeleRows]
-      .sort(
-        (a, b) =>
-          Math.abs(
-            a.difference,
-          ) -
-          Math.abs(
-            b.difference,
-          ),
-      )
-      .slice(
-        0,
-        6,
-      );
+  const mostAgreed = [...juryTeleRows]
+    .sort((a, b) => Math.abs(a.difference) - Math.abs(b.difference))
+    .slice(0, 6);
 
-  const historyRows =
-    useMemo(
-      () =>
-        buildHistoryRows(
-          filteredResults,
-          cMap,
-        ),
-      [
-        filteredResults,
-        cMap,
-      ],
-    );
+  const historyRows = useMemo(
+    () => buildHistoryRows(filteredResults, cMap),
+    [filteredResults, cMap],
+  );
 
-  const strongestFriendship =
-    relationData.friendships[
-      0
-    ];
+  const strongestFriendship = relationData.friendships[0];
 
-  const strongestOneSided =
-    relationData.oneSided[
-      0
-    ];
+  const strongestOneSided = relationData.oneSided[0];
 
   return (
     <AppShell>
@@ -501,17 +282,7 @@ function AnalysisPage() {
       />
 
       <div className="mb-5">
-        <Filters
-          editions={
-            es
-          }
-          value={
-            filters
-          }
-          onChange={
-            setFilters
-          }
-        />
+        <Filters editions={es} value={filters} onChange={setFilters} />
       </div>
 
       {/* =====================================================
@@ -523,15 +294,8 @@ function AnalysisPage() {
           <InsightCard
             label="Kingmaker"
             value={
-              intelligence.kingmakers[
-                0
-              ]
-                ? cMap.get(
-                    intelligence.kingmakers[
-                      0
-                    ].countryId,
-                  )?.name ??
-                  "—"
+              intelligence.kingmakers[0]
+                ? (cMap.get(intelligence.kingmakers[0].countryId)?.name ?? "—")
                 : "—"
             }
             detail="Most aligned with winners"
@@ -540,15 +304,8 @@ function AnalysisPage() {
           <InsightCard
             label="Most loyal"
             value={
-              intelligence.loyaltyScore[
-                0
-              ]
-                ? cMap.get(
-                    intelligence.loyaltyScore[
-                      0
-                    ].countryId,
-                  )?.name ??
-                  "—"
+              intelligence.loyaltyScore[0]
+                ? (cMap.get(intelligence.loyaltyScore[0].countryId)?.name ?? "—")
                 : "—"
             }
             detail="Strongest repeat support"
@@ -558,48 +315,18 @@ function AnalysisPage() {
             label="Top friendship"
             value={
               strongestFriendship
-                ? pairName(
-                    strongestFriendship.a,
-                    strongestFriendship.b,
-                    cMap,
-                  )
+                ? pairName(strongestFriendship.a, strongestFriendship.b, cMap)
                 : "—"
             }
             detail={
-              strongestFriendship
-                ? `${strongestFriendship.total} exchanged pts`
-                : "No pair data"
+              strongestFriendship ? `${strongestFriendship.total} exchanged pts` : "No pair data"
             }
           />
 
           <InsightCard
             label="Regional bias"
-            value={
-              bias[
-                0
-              ]
-                ? cMap.get(
-                    bias[
-                      0
-                    ].id,
-                  )?.name ??
-                  "—"
-                : "—"
-            }
-            detail={
-              bias[
-                0
-              ]
-                ? `${(
-                    bias[
-                      0
-                    ].share *
-                    100
-                  ).toFixed(
-                    0,
-                  )}% in-region`
-                : "No regional data"
-            }
+            value={bias[0] ? (cMap.get(bias[0].id)?.name ?? "—") : "—"}
+            detail={bias[0] ? `${(bias[0].share * 100).toFixed(0)}% in-region` : "No regional data"}
           />
         </div>
       </div>
@@ -613,15 +340,8 @@ function AnalysisPage() {
           <StatTile
             label="Kingmaker"
             value={
-              intelligence.kingmakers[
-                0
-              ]
-                ? cMap.get(
-                    intelligence.kingmakers[
-                      0
-                    ].countryId,
-                  )?.name ??
-                  "—"
+              intelligence.kingmakers[0]
+                ? (cMap.get(intelligence.kingmakers[0].countryId)?.name ?? "—")
                 : "—"
             }
           />
@@ -629,33 +349,15 @@ function AnalysisPage() {
           <StatTile
             label="Most loyal"
             value={
-              intelligence.loyaltyScore[
-                0
-              ]
-                ? cMap.get(
-                    intelligence.loyaltyScore[
-                      0
-                    ].countryId,
-                  )?.name ??
-                  "—"
+              intelligence.loyaltyScore[0]
+                ? (cMap.get(intelligence.loyaltyScore[0].countryId)?.name ?? "—")
                 : "—"
             }
           />
 
           <StatTile
             label="Regional bias"
-            value={
-              bias[
-                0
-              ]
-                ? cMap.get(
-                    bias[
-                      0
-                    ].id,
-                  )?.name ??
-                  "—"
-                : "—"
-            }
+            value={bias[0] ? (cMap.get(bias[0].id)?.name ?? "—") : "—"}
           />
         </div>
       </Panel>
@@ -666,15 +368,9 @@ function AnalysisPage() {
 
       <div className="md:hidden">
         <ResponsiveTabs
-          value={
-            tab
-          }
-          options={
-            MOBILE_TABS
-          }
-          onChange={
-            setTab
-          }
+          value={tab}
+          options={MOBILE_TABS}
+          onChange={setTab}
           label="Analysis view"
           className="mb-5"
         />
@@ -686,15 +382,9 @@ function AnalysisPage() {
 
       <div className="hidden md:block">
         <ResponsiveTabs
-          value={
-            tab
-          }
-          options={
-            DESKTOP_TABS
-          }
-          onChange={
-            setTab
-          }
+          value={tab}
+          options={DESKTOP_TABS}
+          onChange={setTab}
           label="Analysis view"
           className="mb-5"
         />
@@ -704,74 +394,36 @@ function AnalysisPage() {
           CONNECTIONS
          ===================================================== */}
 
-      {tab ===
-        "network" && (
+      {tab === "network" && (
         <>
           <div className="space-y-4 md:hidden">
             <SectionIntro
               eyebrow="Voting network"
               title="Strongest connections"
-              description="The pairs with the strongest two-way voting history."
+              description="The pairs with the strongest opportunity-normalized two-way support."
             />
 
             {relationData.friendships.length ? (
               <div className="space-y-2">
-                {relationData.friendships
-                  .slice(
-                    0,
-                    10,
-                  )
-                  .map(
-                    (
-                      row,
-                      index,
-                    ) => (
-                      <RelationshipCard
-                        key={`${row.a}-${row.b}`}
-                        rank={
-                          index +
-                          1
-                        }
-                        a={
-                          cMap.get(
-                            row.a,
-                          )
-                        }
-                        b={
-                          cMap.get(
-                            row.b,
-                          )
-                        }
-                        aPoints={
-                          row.ab
-                        }
-                        bPoints={
-                          row.ba
-                        }
-                        total={
-                          row.total
-                        }
-                      />
-                    ),
-                  )}
+                {relationData.friendships.slice(0, 10).map((row, index) => (
+                  <RelationshipCard
+                    key={`${row.a}-${row.b}`}
+                    rank={index + 1}
+                    a={cMap.get(row.a)}
+                    b={cMap.get(row.b)}
+                    aPoints={row.ab}
+                    bPoints={row.ba}
+                    total={row.total}
+                  />
+                ))}
               </div>
             ) : (
               <Empty />
             )}
 
             {strongestOneSided && (
-              <Panel
-                title="Most one-sided"
-                description="When the affection is not exactly mutual."
-              >
-                <OneSidedCard
-                  row={
-                    strongestOneSided
-                  }
-                  cMap={
-                    cMap
-                  }
-                />
+              <Panel title="Most one-sided" description="When the affection is not exactly mutual.">
+                <OneSidedCard row={strongestOneSided} cMap={cMap} />
               </Panel>
             )}
           </div>
@@ -779,17 +431,10 @@ function AnalysisPage() {
           <div className="hidden md:block">
             <Panel
               title="Voting network"
-              description="The strongest historical voting connections."
+              description="Raw point-flow network; open a pair for normalized support and expected-value analysis."
             >
               {filteredJury.length ? (
-                <NetworkGraph
-                  countries={
-                    cs
-                  }
-                  jury={
-                    filteredJury
-                  }
-                />
+                <NetworkGraph countries={cs} jury={filteredJury} />
               ) : (
                 <Empty />
               )}
@@ -802,8 +447,7 @@ function AnalysisPage() {
           SUPPORT
          ===================================================== */}
 
-      {tab ===
-        "heatmap" && (
+      {tab === "heatmap" && (
         <>
           <div className="space-y-4 md:hidden">
             <SectionIntro
@@ -824,60 +468,30 @@ function AnalysisPage() {
 
                   <select
                     id="analysis-country"
-                    value={
-                      activeCountryId
-                    }
-                    onChange={
-                      (event) =>
-                        setSelectedCountryId(
-                          event.target.value,
-                        )
-                    }
+                    value={activeCountryId}
+                    onChange={(event) => setSelectedCountryId(event.target.value)}
                     className="min-h-12 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none"
                   >
-                    {countryOptions.map(
-                      (country) => (
-                        <option
-                          key={
-                            country.id
-                          }
-                          value={
-                            country.id
-                          }
-                        >
-                          {
-                            country.name
-                          }
-                        </option>
-                      ),
-                    )}
+                    {countryOptions.map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
                   </select>
 
                   {activeCountry && (
                     <div className="mt-4 flex items-center gap-3">
                       <FlagChip
-                        code={
-                          activeCountry.short_code
-                        }
-                        color={
-                          activeCountry.accent_color
-                        }
-                        image={
-                          activeCountry.flag_image
-                        }
+                        code={activeCountry.short_code}
+                        color={activeCountry.accent_color}
+                        image={activeCountry.flag_image}
                         size="md"
                       />
 
                       <div>
-                        <p className="font-display text-lg font-bold">
-                          {
-                            activeCountry.name
-                          }
-                        </p>
+                        <p className="font-display text-lg font-bold">{activeCountry.name}</p>
 
-                        <p className="text-[11px] text-muted-foreground">
-                          Voting support profile
-                        </p>
+                        <p className="text-[11px] text-muted-foreground">Voting support profile</p>
                       </div>
                     </div>
                   )}
@@ -890,12 +504,8 @@ function AnalysisPage() {
                       ? `Countries giving ${activeCountry.name} the most points.`
                       : undefined
                   }
-                  rows={
-                    supporters
-                  }
-                  cMap={
-                    cMap
-                  }
+                  rows={supporters}
+                  cMap={cMap}
                 />
 
                 <MobileRankingPanel
@@ -905,52 +515,29 @@ function AnalysisPage() {
                       ? `Countries receiving the most points from ${activeCountry.name}.`
                       : undefined
                   }
-                  rows={
-                    recipients
-                  }
-                  cMap={
-                    cMap
-                  }
+                  rows={recipients}
+                  cMap={cMap}
                 />
 
-                {activeCountry &&
-                  supporters[
-                    0
-                  ] &&
-                  recipients[
-                    0
-                  ] && (
-                    <Panel>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                        Quick read
-                      </p>
+                {activeCountry && supporters[0] && recipients[0] && (
+                  <Panel>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                      Quick read
+                    </p>
 
-                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                        {
-                          activeCountry.name
-                        }{" "}
-                        receives the most support from{" "}
-                        <strong className="text-foreground">
-                          {cMap.get(
-                            supporters[
-                              0
-                            ][0],
-                          )?.name ??
-                            "another country"}
-                        </strong>
-                        , while giving the most points to{" "}
-                        <strong className="text-foreground">
-                          {cMap.get(
-                            recipients[
-                              0
-                            ][0],
-                          )?.name ??
-                            "another country"}
-                        </strong>
-                        .
-                      </p>
-                    </Panel>
-                  )}
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {activeCountry.name} receives the most support from{" "}
+                      <strong className="text-foreground">
+                        {cMap.get(supporters[0][0])?.name ?? "another country"}
+                      </strong>
+                      , while giving the most points to{" "}
+                      <strong className="text-foreground">
+                        {cMap.get(recipients[0][0])?.name ?? "another country"}
+                      </strong>
+                      .
+                    </p>
+                  </Panel>
+                )}
               </>
             ) : (
               <Empty />
@@ -960,14 +547,7 @@ function AnalysisPage() {
           <div className="hidden md:block">
             <Panel title="Voting heat map">
               {filteredJury.length ? (
-                <VotingHeatmap
-                  countries={
-                    cs
-                  }
-                  jury={
-                    filteredJury
-                  }
-                />
+                <VotingHeatmap countries={cs} jury={filteredJury} />
               ) : (
                 <Empty />
               )}
@@ -980,8 +560,7 @@ function AnalysisPage() {
           JURY VS TELE
          ===================================================== */}
 
-      {tab ===
-        "jurytele" && (
+      {tab === "jurytele" && (
         <>
           <div className="space-y-4 md:hidden">
             <SectionIntro
@@ -993,39 +572,26 @@ function AnalysisPage() {
             <DifferencePanel
               title="Most jury-favoured"
               description="Countries whose jury score most exceeded their televote."
-              rows={
-                juryFavoured
-              }
+              rows={juryFavoured}
             />
 
             <DifferencePanel
               title="Most televote-favoured"
               description="Countries whose televote most exceeded their jury score."
-              rows={
-                teleFavoured
-              }
+              rows={teleFavoured}
             />
 
             <DifferencePanel
               title="Most agreed upon"
               description="Countries where jury and televote landed closest together."
-              rows={
-                mostAgreed
-              }
+              rows={mostAgreed}
             />
           </div>
 
           <div className="hidden md:block">
             <Panel title="Jury vs televote">
               {filteredResults.length ? (
-                <JuryVsTelevote
-                  countries={
-                    cs
-                  }
-                  results={
-                    filteredResults
-                  }
-                />
+                <JuryVsTelevote countries={cs} results={filteredResults} />
               ) : (
                 <Empty />
               )}
@@ -1038,8 +604,7 @@ function AnalysisPage() {
           RELATIONSHIPS
          ===================================================== */}
 
-      {tab ===
-        "relationships" && (
+      {tab === "relationships" && (
         <>
           <div className="space-y-4 md:hidden">
             <SectionIntro
@@ -1048,48 +613,19 @@ function AnalysisPage() {
               description="Similarity, friendships and one-sided voting relationships."
             />
 
-            <Panel
-              title="Voting twins"
-              description="Pairs whose voting patterns are most alike."
-            >
+            <Panel title="Voting twins" description="Pairs whose voting patterns are most alike.">
               {similarity.length ? (
                 <div className="divide-y divide-border/60">
-                  {similarity
-                    .slice(
-                      0,
-                      8,
-                    )
-                    .map(
-                      (
-                        row,
-                        index,
-                      ) => (
-                        <PairRow
-                          key={`${row.a}-${row.b}`}
-                          rank={
-                            index +
-                            1
-                          }
-                          a={
-                            cMap.get(
-                              row.a,
-                            )
-                          }
-                          b={
-                            cMap.get(
-                              row.b,
-                            )
-                          }
-                          value={`${(
-                            row.score *
-                            100
-                          ).toFixed(
-                            0,
-                          )}%`}
-                          sublabel="similarity"
-                        />
-                      ),
-                    )}
+                  {similarity.slice(0, 8).map((row, index) => (
+                    <PairRow
+                      key={`${row.a}-${row.b}`}
+                      rank={index + 1}
+                      a={cMap.get(row.a)}
+                      b={cMap.get(row.b)}
+                      value={`${(row.score * 100).toFixed(0)}%`}
+                      sublabel="similarity"
+                    />
+                  ))}
                 </div>
               ) : (
                 <Empty compact />
@@ -1098,114 +634,62 @@ function AnalysisPage() {
 
             <Panel
               title="Strongest friendships"
-              description="Pairs exchanging the most points in both directions."
+              description="Pairs with the strongest normalized support in both directions."
             >
               {relationData.friendships.length ? (
                 <div className="divide-y divide-border/60">
-                  {relationData.friendships
-                    .slice(
-                      0,
-                      8,
-                    )
-                    .map(
-                      (
-                        row,
-                        index,
-                      ) => {
-                        const a =
-                          cMap.get(
-                            row.a,
-                          );
+                  {relationData.friendships.slice(0, 8).map((row, index) => {
+                    const a = cMap.get(row.a);
 
-                        const b =
-                          cMap.get(
-                            row.b,
-                          );
+                    const b = cMap.get(row.b);
 
-                        if (
-                          !a ||
-                          !b
-                        ) {
-                          return null;
-                        }
+                    if (!a || !b) {
+                      return null;
+                    }
 
-                        return (
-                          <Link
-                            key={`${row.a}-${row.b}`}
-                            to="/relationships/$pair"
-                            params={{
-                              pair:
-                                `${a.short_code}-vs-${b.short_code}`.toUpperCase(),
-                            }}
-                            className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                          >
-                            <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
-                              {
-                                index +
-                                1
-                              }
-                            </span>
+                    return (
+                      <Link
+                        key={`${row.a}-${row.b}`}
+                        to="/relationships/$pair"
+                        params={{
+                          pair: `${a.short_code}-vs-${b.short_code}`.toUpperCase(),
+                        }}
+                        className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+                          {index + 1}
+                        </span>
 
-                            <div className="flex -space-x-2">
-                              <FlagChip
-                                code={
-                                  a.short_code
-                                }
-                                color={
-                                  a.accent_color
-                                }
-                                image={
-                                  a.flag_image
-                                }
-                                size="sm"
-                              />
+                        <div className="flex -space-x-2">
+                          <FlagChip
+                            code={a.short_code}
+                            color={a.accent_color}
+                            image={a.flag_image}
+                            size="sm"
+                          />
 
-                              <FlagChip
-                                code={
-                                  b.short_code
-                                }
-                                color={
-                                  b.accent_color
-                                }
-                                image={
-                                  b.flag_image
-                                }
-                                size="sm"
-                              />
-                            </div>
+                          <FlagChip
+                            code={b.short_code}
+                            color={b.accent_color}
+                            image={b.flag_image}
+                            size="sm"
+                          />
+                        </div>
 
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-semibold">
-                                {
-                                  a.name
-                                }{" "}
-                                ·{" "}
-                                {
-                                  b.name
-                                }
-                              </p>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">
+                            {a.name} · {b.name}
+                          </p>
 
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                {
-                                  row.ab
-                                }{" "}
-                                ↔{" "}
-                                {
-                                  row.ba
-                                }{" "}
-                                pts
-                              </p>
-                            </div>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            {row.ab} ↔ {row.ba} normalized
+                          </p>
+                        </div>
 
-                            <span className="numeric text-sm font-bold">
-                              {
-                                row.total
-                              }
-                            </span>
-                          </Link>
-                        );
-                      },
-                    )}
+                        <span className="numeric text-sm font-bold">{row.total}%</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               ) : (
                 <Empty compact />
@@ -1218,31 +702,9 @@ function AnalysisPage() {
             >
               {relationData.oneSided.length ? (
                 <div className="divide-y divide-border/60">
-                  {relationData.oneSided
-                    .slice(
-                      0,
-                      8,
-                    )
-                    .map(
-                      (
-                        row,
-                        index,
-                      ) => (
-                        <OneSidedRow
-                          key={`${row.a}-${row.b}`}
-                          rank={
-                            index +
-                            1
-                          }
-                          row={
-                            row
-                          }
-                          cMap={
-                            cMap
-                          }
-                        />
-                      ),
-                    )}
+                  {relationData.oneSided.slice(0, 8).map((row, index) => (
+                    <OneSidedRow key={`${row.a}-${row.b}`} rank={index + 1} row={row} cMap={cMap} />
+                  ))}
                 </div>
               ) : (
                 <Empty compact />
@@ -1256,121 +718,53 @@ function AnalysisPage() {
             <div className="grid gap-5 lg:grid-cols-2">
               <Panel title="Most similar voting">
                 <div className="divide-y divide-border/60">
-                  {similarity
-                    .slice(
-                      0,
-                      8,
-                    )
-                    .map(
-                      (
-                        row,
-                        index,
-                      ) => (
-                        <div
-                          key={
-                            index
-                          }
-                          className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                        >
-                          <span className="min-w-0 truncate text-sm">
-                            {cMap.get(
-                              row.a,
-                            )?.name ??
-                              "?"}{" "}
-                            ·{" "}
-                            {cMap.get(
-                              row.b,
-                            )?.name ??
-                              "?"}
-                          </span>
+                  {similarity.slice(0, 8).map((row, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <span className="min-w-0 truncate text-sm">
+                        {cMap.get(row.a)?.name ?? "?"} · {cMap.get(row.b)?.name ?? "?"}
+                      </span>
 
-                          <span className="numeric text-sm font-semibold">
-                            {(
-                              row.score *
-                              100
-                            ).toFixed(
-                              0,
-                            )}
-                            %
-                          </span>
-                        </div>
-                      ),
-                    )}
+                      <span className="numeric text-sm font-semibold">
+                        {(row.score * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </Panel>
 
-              <Panel title="Strong friendships">
+              <Panel title="Normalized relationships">
                 <div className="divide-y divide-border/60">
-                  {relationData.friendships
-                    .slice(
-                      0,
-                      8,
-                    )
-                    .map(
-                      (
-                        row,
-                        index,
-                      ) => {
-                        const a =
-                          cMap.get(
-                            row.a,
-                          );
+                  {relationData.friendships.slice(0, 8).map((row, index) => {
+                    const a = cMap.get(row.a);
 
-                        const b =
-                          cMap.get(
-                            row.b,
-                          );
+                    const b = cMap.get(row.b);
 
-                        return (
-                          <Link
-                            key={
-                              index
-                            }
-                            to="/relationships/$pair"
-                            params={{
-                              pair:
-                                `${a?.short_code ?? ""}-vs-${b?.short_code ?? ""}`.toUpperCase(),
-                            }}
-                            className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                          >
-                            <span className="min-w-0 truncate text-sm">
-                              {
-                                a?.name ??
-                                "?"
-                              }{" "}
-                              ·{" "}
-                              {
-                                b?.name ??
-                                "?"
-                              }
-                            </span>
+                    return (
+                      <Link
+                        key={index}
+                        to="/relationships/$pair"
+                        params={{
+                          pair: `${a?.short_code ?? ""}-vs-${b?.short_code ?? ""}`.toUpperCase(),
+                        }}
+                        className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <span className="min-w-0 truncate text-sm">
+                          {a?.name ?? "?"} · {b?.name ?? "?"}
+                        </span>
 
-                            <span className="numeric text-sm font-semibold">
-                              {
-                                row.total
-                              }{" "}
-                              pts
-                            </span>
-                          </Link>
-                        );
-                      },
-                    )}
+                        <span className="numeric text-sm font-semibold">{row.total}%</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               </Panel>
 
-              <Panel
-                title="Chord view"
-                className="lg:col-span-2"
-              >
+              <Panel title="Chord view" className="lg:col-span-2">
                 {filteredJury.length ? (
-                  <ChordDiagram
-                    countries={
-                      cs
-                    }
-                    jury={
-                      filteredJury
-                    }
-                  />
+                  <ChordDiagram countries={cs} jury={filteredJury} />
                 ) : (
                   <Empty />
                 )}
@@ -1384,8 +778,7 @@ function AnalysisPage() {
           HISTORY
          ===================================================== */}
 
-      {tab ===
-        "history" && (
+      {tab === "history" && (
         <>
           <div className="space-y-4 md:hidden">
             <SectionIntro
@@ -1397,127 +790,65 @@ function AnalysisPage() {
             <Panel>
               {historyRows.length ? (
                 <div className="divide-y divide-border/60">
-                  {historyRows
-                    .slice(
-                      0,
-                      12,
-                    )
-                    .map(
-                      (
-                        row,
-                        index,
-                      ) => (
-                        <Link
-                          key={
-                            row.country.id
-                          }
-                          to="/countries/$code"
-                          params={{
-                            code:
-                              row.country.short_code,
-                          }}
-                          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                        >
-                          <span className="numeric w-7 shrink-0 text-center text-xs font-semibold text-muted-foreground">
-                            #
-                            {
-                              index +
-                              1
-                            }
-                          </span>
+                  {historyRows.slice(0, 12).map((row, index) => (
+                    <Link
+                      key={row.country.id}
+                      to="/countries/$code"
+                      params={{
+                        code: row.country.short_code,
+                      }}
+                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <span className="numeric w-7 shrink-0 text-center text-xs font-semibold text-muted-foreground">
+                        #{index + 1}
+                      </span>
 
-                          <FlagChip
-                            code={
-                              row.country.short_code
-                            }
-                            color={
-                              row.country.accent_color
-                            }
-                            image={
-                              row.country.flag_image
-                            }
-                            size="sm"
-                          />
+                      <FlagChip
+                        code={row.country.short_code}
+                        color={row.country.accent_color}
+                        image={row.country.flag_image}
+                        size="sm"
+                      />
 
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold">
-                              {
-                                row.country.name
-                              }
-                            </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{row.country.name}</p>
 
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
-                              {
-                                row.appearances
-                              }{" "}
-                              results
-                              {row.averageRank !=
-                              null
-                                ? ` · avg #${row.averageRank.toFixed(
-                                    1,
-                                  )}`
-                                : ""}
-                            </p>
-                          </div>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                          {row.appearances} results
+                          {row.averageRank != null ? ` · avg #${row.averageRank.toFixed(1)}` : ""}
+                        </p>
+                      </div>
 
-                          <div className="text-right">
-                            <p className="numeric text-sm font-bold">
-                              {
-                                row.totalPoints
-                              }
-                            </p>
+                      <div className="text-right">
+                        <p className="numeric text-sm font-bold">{row.totalPoints}</p>
 
-                            <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                              pts
-                            </p>
-                          </div>
-                        </Link>
-                      ),
-                    )}
+                        <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                          pts
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               ) : (
                 <Empty compact />
               )}
             </Panel>
 
-            {historyRows.length >
-              0 && (
+            {historyRows.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
                 <InsightCard
                   label="Most points"
-                  value={
-                    historyRows[
-                      0
-                    ].country.name
-                  }
-                  detail={`${historyRows[
-                    0
-                  ].totalPoints} pts`}
+                  value={historyRows[0].country.name}
+                  detail={`${historyRows[0].totalPoints} pts`}
                 />
 
                 <InsightCard
                   label="Best average"
                   value={
                     [...historyRows]
-                      .filter(
-                        (row) =>
-                          row.averageRank !=
-                          null,
-                      )
-                      .sort(
-                        (a, b) =>
-                          (
-                            a.averageRank ??
-                            999
-                          ) -
-                          (
-                            b.averageRank ??
-                            999
-                          ),
-                      )[
-                      0
-                    ]?.country.name ??
-                    "—"
+                      .filter((row) => row.averageRank != null)
+                      .sort((a, b) => (a.averageRank ?? 999) - (b.averageRank ?? 999))[0]?.country
+                      .name ?? "—"
                   }
                   detail="Lowest average placing"
                 />
@@ -1528,17 +859,7 @@ function AnalysisPage() {
           <div className="hidden md:block">
             <Panel title="Historical leaderboard">
               {filteredResults.length ? (
-                <HistoricalLeaderboard
-                  countries={
-                    cs
-                  }
-                  editions={
-                    es
-                  }
-                  results={
-                    filteredResults
-                  }
-                />
+                <HistoricalLeaderboard countries={cs} editions={es} results={filteredResults} />
               ) : (
                 <Empty />
               )}
@@ -1559,34 +880,19 @@ function InsightCard({
   value,
   detail,
 }: {
-  label:
-    string;
+  label: string;
 
-  value:
-    string;
+  value: string;
 
-  detail:
-    string;
+  detail: string;
 }) {
   return (
     <div className="glass min-h-[132px] p-4">
-      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-        {
-          label
-        }
-      </p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">{label}</p>
 
-      <p className="mt-3 break-words font-display text-lg font-bold leading-tight">
-        {
-          value
-        }
-      </p>
+      <p className="mt-3 break-words font-display text-lg font-bold leading-tight">{value}</p>
 
-      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-        {
-          detail
-        }
-      </p>
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{detail}</p>
     </div>
   );
 }
@@ -1600,34 +906,19 @@ function SectionIntro({
   title,
   description,
 }: {
-  eyebrow:
-    string;
+  eyebrow: string;
 
-  title:
-    string;
+  title: string;
 
-  description:
-    string;
+  description: string;
 }) {
   return (
     <div>
-      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">
-        {
-          eyebrow
-        }
-      </p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">{eyebrow}</p>
 
-      <h2 className="mt-1 font-display text-2xl font-bold">
-        {
-          title
-        }
-      </h2>
+      <h2 className="mt-1 font-display text-2xl font-bold">{title}</h2>
 
-      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        {
-          description
-        }
-      </p>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{description}</p>
     </div>
   );
 }
@@ -1644,136 +935,62 @@ function RelationshipCard({
   bPoints,
   total,
 }: {
-  rank:
-    number;
+  rank: number;
 
-  a:
-    Country | undefined;
+  a: Country | undefined;
 
-  b:
-    Country | undefined;
+  b: Country | undefined;
 
-  aPoints:
-    number;
+  aPoints: number;
 
-  bPoints:
-    number;
+  bPoints: number;
 
-  total:
-    number;
+  total: number;
 }) {
-  if (
-    !a ||
-    !b
-  ) {
+  if (!a || !b) {
     return null;
   }
 
-  const reciprocity =
-    total
-      ? Math.round(
-          (
-            Math.min(
-              aPoints,
-              bPoints,
-            ) /
-            Math.max(
-              aPoints,
-              bPoints,
-              1,
-            )
-          ) *
-            100,
-        )
-      : 0;
+  const reciprocity = total
+    ? Math.round((Math.min(aPoints, bPoints) / Math.max(aPoints, bPoints, 1)) * 100)
+    : 0;
 
   return (
     <Link
       to="/relationships/$pair"
       params={{
-        pair:
-          `${a.short_code}-vs-${b.short_code}`.toUpperCase(),
+        pair: `${a.short_code}-vs-${b.short_code}`.toUpperCase(),
       }}
       className="glass block p-4"
     >
       <div className="flex items-start gap-3">
         <span className="numeric mt-1 w-6 shrink-0 text-xs font-bold text-muted-foreground">
-          #
-          {
-            rank
-          }
+          #{rank}
         </span>
 
         <div className="flex -space-x-2">
-          <FlagChip
-            code={
-              a.short_code
-            }
-            color={
-              a.accent_color
-            }
-            image={
-              a.flag_image
-            }
-            size="sm"
-          />
+          <FlagChip code={a.short_code} color={a.accent_color} image={a.flag_image} size="sm" />
 
-          <FlagChip
-            code={
-              b.short_code
-            }
-            color={
-              b.accent_color
-            }
-            image={
-              b.flag_image
-            }
-            size="sm"
-          />
+          <FlagChip code={b.short_code} color={b.accent_color} image={b.flag_image} size="sm" />
         </div>
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-base font-bold">
-            {
-              a.name
-            }{" "}
-            ↔{" "}
-            {
-              b.name
-            }
+            {a.name} ↔ {b.name}
           </p>
 
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            Strong two-way connection
-          </p>
+          <p className="mt-1 text-[10px] text-muted-foreground">Strong two-way connection</p>
         </div>
 
-        <span className="numeric text-sm font-bold">
-          {
-            total
-          }
-        </span>
+        <span className="numeric text-sm font-bold">{total}</span>
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-surface/50 p-3 text-center">
-        <MiniStat
-          label={`${a.short_code} → ${b.short_code}`}
-          value={
-            aPoints
-          }
-        />
+        <MiniStat label={`${a.short_code} → ${b.short_code}`} value={aPoints} />
 
-        <MiniStat
-          label={`${b.short_code} → ${a.short_code}`}
-          value={
-            bPoints
-          }
-        />
+        <MiniStat label={`${b.short_code} → ${a.short_code}`} value={bPoints} />
 
-        <MiniStat
-          label="Reciprocity"
-          value={`${reciprocity}%`}
-        />
+        <MiniStat label="Reciprocity" value={`${reciprocity}%`} />
       </div>
     </Link>
   );
@@ -1788,93 +1005,41 @@ function OneSidedCard({
   cMap,
 }: {
   row: {
-    a:
-      string;
-    b:
-      string;
-    ab:
-      number;
-    ba:
-      number;
-    gap:
-      number;
+    a: string;
+    b: string;
+    ab: number;
+    ba: number;
+    gap: number;
   };
 
-  cMap:
-    Map<
-      string,
-      Country
-    >;
+  cMap: Map<string, Country>;
 }) {
-  const a =
-    cMap.get(
-      row.a,
-    );
+  const a = cMap.get(row.a);
 
-  const b =
-    cMap.get(
-      row.b,
-    );
+  const b = cMap.get(row.b);
 
-  if (
-    !a ||
-    !b
-  ) {
-    return (
-      <Empty compact />
-    );
+  if (!a || !b) {
+    return <Empty compact />;
   }
 
   return (
     <div>
       <div className="flex items-center gap-3">
-        <FlagChip
-          code={
-            a.short_code
-          }
-          color={
-            a.accent_color
-          }
-          image={
-            a.flag_image
-          }
-          size="md"
-        />
+        <FlagChip code={a.short_code} color={a.accent_color} image={a.flag_image} size="md" />
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">
-            {
-              a.name
-            }{" "}
-            →{" "}
-            {
-              b.name
-            }
+            {a.name} → {b.name}
           </p>
 
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            {
-              row.gap
-            }{" "}
-            point gap
-          </p>
+          <p className="mt-1 text-[10px] text-muted-foreground">{row.gap} normalized-support gap</p>
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <MiniStat
-          label={`${a.short_code} → ${b.short_code}`}
-          value={
-            row.ab
-          }
-        />
+        <MiniStat label={`${a.short_code} → ${b.short_code}`} value={row.ab} />
 
-        <MiniStat
-          label={`${b.short_code} → ${a.short_code}`}
-          value={
-            row.ba
-          }
-        />
+        <MiniStat label={`${b.short_code} → ${a.short_code}`} value={row.ba} />
       </div>
     </div>
   );
@@ -1889,82 +1054,41 @@ function OneSidedRow({
   row,
   cMap,
 }: {
-  rank:
-    number;
+  rank: number;
 
   row: {
-    a:
-      string;
-    b:
-      string;
-    ab:
-      number;
-    ba:
-      number;
-    gap:
-      number;
+    a: string;
+    b: string;
+    ab: number;
+    ba: number;
+    gap: number;
   };
 
-  cMap:
-    Map<
-      string,
-      Country
-    >;
+  cMap: Map<string, Country>;
 }) {
-  const a =
-    cMap.get(
-      row.a,
-    );
+  const a = cMap.get(row.a);
 
-  const b =
-    cMap.get(
-      row.b,
-    );
+  const b = cMap.get(row.b);
 
-  if (
-    !a ||
-    !b
-  ) {
+  if (!a || !b) {
     return null;
   }
 
   return (
     <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-      <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
-        {
-          rank
-        }
-      </span>
+      <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">{rank}</span>
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">
-          {
-            a.name
-          }{" "}
-          →{" "}
-          {
-            b.name
-          }
+          {a.name} → {b.name}
         </p>
 
         <p className="mt-0.5 text-[10px] text-muted-foreground">
-          {
-            row.ab
-          }{" "}
-          given ·{" "}
-          {
-            row.ba
-          }{" "}
-          returned
+          {row.ab} support · {row.ba} returned
         </p>
       </div>
 
-      <span className="numeric text-sm font-bold text-primary">
-        +
-        {
-          row.gap
-        }
-      </span>
+      <span className="numeric text-sm font-bold text-primary">+{row.gap}</span>
     </div>
   );
 }
@@ -1980,87 +1104,39 @@ function PairRow({
   value,
   sublabel,
 }: {
-  rank:
-    number;
+  rank: number;
 
-  a:
-    Country | undefined;
+  a: Country | undefined;
 
-  b:
-    Country | undefined;
+  b: Country | undefined;
 
-  value:
-    string;
+  value: string;
 
-  sublabel:
-    string;
+  sublabel: string;
 }) {
-  if (
-    !a ||
-    !b
-  ) {
+  if (!a || !b) {
     return null;
   }
 
   return (
     <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-      <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
-        {
-          rank
-        }
-      </span>
+      <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">{rank}</span>
 
       <div className="flex -space-x-2">
-        <FlagChip
-          code={
-            a.short_code
-          }
-          color={
-            a.accent_color
-          }
-          image={
-            a.flag_image
-          }
-          size="sm"
-        />
+        <FlagChip code={a.short_code} color={a.accent_color} image={a.flag_image} size="sm" />
 
-        <FlagChip
-          code={
-            b.short_code
-          }
-          color={
-            b.accent_color
-          }
-          image={
-            b.flag_image
-          }
-          size="sm"
-        />
+        <FlagChip code={b.short_code} color={b.accent_color} image={b.flag_image} size="sm" />
       </div>
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">
-          {
-            a.name
-          }{" "}
-          ·{" "}
-          {
-            b.name
-          }
+          {a.name} · {b.name}
         </p>
 
-        <p className="mt-0.5 text-[10px] text-muted-foreground">
-          {
-            sublabel
-          }
-        </p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">{sublabel}</p>
       </div>
 
-      <span className="numeric text-sm font-bold">
-        {
-          value
-        }
-      </span>
+      <span className="numeric text-sm font-bold">{value}</span>
     </div>
   );
 }
@@ -2075,106 +1151,55 @@ function MobileRankingPanel({
   rows,
   cMap,
 }: {
-  title:
-    string;
+  title: string;
 
-  description?:
-    string;
+  description?: string;
 
-  rows:
-    Array<
-      [
-        string,
-        number,
-      ]
-    >;
+  rows: Array<[string, number]>;
 
-  cMap:
-    Map<
-      string,
-      Country
-    >;
+  cMap: Map<string, Country>;
 }) {
   return (
-    <Panel
-      title={
-        title
-      }
-      description={
-        description
-      }
-    >
+    <Panel title={title} description={description}>
       {rows.length ? (
         <div className="divide-y divide-border/60">
-          {rows.map(
-            (
-              [
-                id,
-                points,
-              ],
-              index,
-            ) => {
-              const country =
-                cMap.get(
-                  id,
-                );
+          {rows.map(([id, points], index) => {
+            const country = cMap.get(id);
 
-              if (
-                !country
-              ) {
-                return null;
-              }
+            if (!country) {
+              return null;
+            }
 
-              return (
-                <Link
-                  key={
-                    id
-                  }
-                  to="/countries/$code"
-                  params={{
-                    code:
-                      country.short_code,
-                  }}
-                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
-                    {
-                      index +
-                      1
-                    }
-                  </span>
+            return (
+              <Link
+                key={id}
+                to="/countries/$code"
+                params={{
+                  code: country.short_code,
+                }}
+                className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+                  {index + 1}
+                </span>
 
-                  <FlagChip
-                    code={
-                      country.short_code
-                    }
-                    color={
-                      country.accent_color
-                    }
-                    image={
-                      country.flag_image
-                    }
-                    size="sm"
-                  />
+                <FlagChip
+                  code={country.short_code}
+                  color={country.accent_color}
+                  image={country.flag_image}
+                  size="sm"
+                />
 
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                    {
-                      country.name
-                    }
-                  </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {country.name}
+                </span>
 
-                  <span className="numeric text-sm font-bold">
-                    {
-                      points
-                    }{" "}
-                    <span className="text-[9px] font-normal text-muted-foreground">
-                      pts
-                    </span>
-                  </span>
-                </Link>
-              );
-            },
-          )}
+                <span className="numeric text-sm font-bold">
+                  {points} <span className="text-[9px] font-normal text-muted-foreground">pts</span>
+                </span>
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <Empty compact />
@@ -2188,17 +1213,13 @@ function MobileRankingPanel({
    ============================================================ */
 
 type JuryTeleRow = {
-  country:
-    Country;
+  country: Country;
 
-  jury:
-    number;
+  jury: number;
 
-  tele:
-    number;
+  tele: number;
 
-  difference:
-    number;
+  difference: number;
 };
 
 function DifferencePanel({
@@ -2206,101 +1227,55 @@ function DifferencePanel({
   description,
   rows,
 }: {
-  title:
-    string;
+  title: string;
 
-  description:
-    string;
+  description: string;
 
-  rows:
-    JuryTeleRow[];
+  rows: JuryTeleRow[];
 }) {
   return (
-    <Panel
-      title={
-        title
-      }
-      description={
-        description
-      }
-    >
+    <Panel title={title} description={description}>
       {rows.length ? (
         <div className="divide-y divide-border/60">
-          {rows.map(
-            (
-              row,
-              index,
-            ) => {
-              const gap =
-                Math.abs(
-                  row.difference,
-                );
+          {rows.map((row, index) => {
+            const gap = Math.abs(row.difference);
 
-              return (
-                <Link
-                  key={
-                    row.country.id
-                  }
-                  to="/countries/$code"
-                  params={{
-                    code:
-                      row.country.short_code,
-                  }}
-                  className="block py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
-                      {
-                        index +
-                        1
-                      }
-                    </span>
+            return (
+              <Link
+                key={row.country.id}
+                to="/countries/$code"
+                params={{
+                  code: row.country.short_code,
+                }}
+                className="block py-3 first:pt-0 last:pb-0"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+                    {index + 1}
+                  </span>
 
-                    <FlagChip
-                      code={
-                        row.country.short_code
-                      }
-                      color={
-                        row.country.accent_color
-                      }
-                      image={
-                        row.country.flag_image
-                      }
-                      size="sm"
-                    />
+                  <FlagChip
+                    code={row.country.short_code}
+                    color={row.country.accent_color}
+                    image={row.country.flag_image}
+                    size="sm"
+                  />
 
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                      {
-                        row.country.name
-                      }
-                    </span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                    {row.country.name}
+                  </span>
 
-                    <span className="numeric text-sm font-bold">
-                      {
-                        gap
-                      }
-                    </span>
-                  </div>
+                  <span className="numeric text-sm font-bold">{gap}</span>
+                </div>
 
-                  <div className="ml-8 mt-2 grid grid-cols-2 gap-2">
-                    <MiniStat
-                      label="Jury"
-                      value={
-                        row.jury
-                      }
-                    />
+                <div className="ml-8 mt-2 grid grid-cols-2 gap-2">
+                  <MiniStat label="Jury" value={row.jury} />
 
-                    <MiniStat
-                      label="Televote"
-                      value={
-                        row.tele
-                      }
-                    />
-                  </div>
-                </Link>
-              );
-            },
-          )}
+                  <MiniStat label="Televote" value={row.tele} />
+                </div>
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <Empty compact />
@@ -2317,24 +1292,16 @@ function MiniStat({
   label,
   value,
 }: {
-  label:
-    string;
+  label: string;
 
-  value:
-    string | number;
+  value: string | number;
 }) {
   return (
     <div className="rounded-lg bg-surface/70 px-2 py-2">
-      <p className="numeric text-sm font-bold">
-        {
-          value
-        }
-      </p>
+      <p className="numeric text-sm font-bold">{value}</p>
 
       <p className="mt-0.5 truncate text-[8px] uppercase tracking-[0.12em] text-muted-foreground">
-        {
-          label
-        }
+        {label}
       </p>
     </div>
   );
@@ -2344,12 +1311,7 @@ function MiniStat({
    EMPTY
    ============================================================ */
 
-function Empty({
-  compact = false,
-}: {
-  compact?:
-    boolean;
-}) {
+function Empty({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={
@@ -2367,235 +1329,111 @@ function Empty({
    DATA HELPERS
    ============================================================ */
 
-function pairName(
-  aId:
-    string,
-  bId:
-    string,
-  cMap:
-    Map<
-      string,
-      Country
-    >,
-) {
-  const a =
-    cMap.get(
-      aId,
-    )?.name ??
-    "?";
+function pairName(aId: string, bId: string, cMap: Map<string, Country>) {
+  const a = cMap.get(aId)?.name ?? "?";
 
-  const b =
-    cMap.get(
-      bId,
-    )?.name ??
-    "?";
+  const b = cMap.get(bId)?.name ?? "?";
 
   return `${a} · ${b}`;
 }
 
-function buildJuryTeleRows(
-  results:
-    ResultRow[],
-  cMap:
-    Map<
-      string,
-      Country
-    >,
-): JuryTeleRow[] {
-  const totals =
-    new Map<
-      string,
-      {
-        jury:
-          number;
-        tele:
-          number;
+function buildJuryTeleRows(results: ResultRow[], cMap: Map<string, Country>): JuryTeleRow[] {
+  const totals = new Map<
+    string,
+    {
+      jury: number;
+      tele: number;
+    }
+  >();
+
+  results.forEach((row) => {
+    const current = totals.get(row.country_id) ?? {
+      jury: 0,
+      tele: 0,
+    };
+
+    current.jury += row.jury_points;
+
+    current.tele += row.televote_points;
+
+    totals.set(row.country_id, current);
+  });
+
+  return [...totals.entries()]
+    .map(([id, values]) => {
+      const country = cMap.get(id);
+
+      if (!country) {
+        return null;
       }
-    >();
 
-  results.forEach(
-    (row) => {
-      const current =
-        totals.get(
-          row.country_id,
-        ) ?? {
-          jury: 0,
-          tele: 0,
-        };
-
-      current.jury +=
-        row.jury_points;
-
-      current.tele +=
-        row.televote_points;
-
-      totals.set(
-        row.country_id,
-        current,
-      );
-    },
-  );
-
-  return [
-    ...totals.entries(),
-  ]
-    .map(
-      ([
-        id,
-        values,
-      ]) => {
-        const country =
-          cMap.get(
-            id,
-          );
-
-        if (
-          !country
-        ) {
-          return null;
-        }
-
-        return {
-          country,
-          jury:
-            values.jury,
-          tele:
-            values.tele,
-          difference:
-            values.jury -
-            values.tele,
-        };
-      },
-    )
-    .filter(
-      (
-        row,
-      ): row is JuryTeleRow =>
-        !!row,
-    );
+      return {
+        country,
+        jury: values.jury,
+        tele: values.tele,
+        difference: values.jury - values.tele,
+      };
+    })
+    .filter((row): row is JuryTeleRow => !!row);
 }
 
 type HistoryRow = {
-  country:
-    Country;
+  country: Country;
 
-  totalPoints:
-    number;
+  totalPoints: number;
 
-  appearances:
-    number;
+  appearances: number;
 
-  averageRank:
-    number | null;
+  averageRank: number | null;
 };
 
-function buildHistoryRows(
-  results:
-    ResultRow[],
-  cMap:
-    Map<
-      string,
-      Country
-    >,
-): HistoryRow[] {
-  const totals =
-    new Map<
-      string,
-      {
-        totalPoints:
-          number;
-        appearances:
-          number;
-        ranks:
-          number[];
-      }
-    >();
+function buildHistoryRows(results: ResultRow[], cMap: Map<string, Country>): HistoryRow[] {
+  const totals = new Map<
+    string,
+    {
+      totalPoints: number;
+      appearances: number;
+      ranks: number[];
+    }
+  >();
 
-  results.forEach(
-    (row) => {
-      const current =
-        totals.get(
-          row.country_id,
-        ) ?? {
-          totalPoints: 0,
-          appearances: 0,
-          ranks: [],
-        };
+  results.forEach((row) => {
+    const current = totals.get(row.country_id) ?? {
+      totalPoints: 0,
+      appearances: 0,
+      ranks: [],
+    };
 
-      current.totalPoints +=
-        row.total_points;
+    current.totalPoints += row.total_points;
 
-      current.appearances +=
-        1;
+    current.appearances += 1;
 
-      if (
-        row.final_rank !=
-        null
-      ) {
-        current.ranks.push(
-          row.final_rank,
-        );
+    if (row.final_rank != null) {
+      current.ranks.push(row.final_rank);
+    }
+
+    totals.set(row.country_id, current);
+  });
+
+  return [...totals.entries()]
+    .map(([id, values]) => {
+      const country = cMap.get(id);
+
+      if (!country) {
+        return null;
       }
 
-      totals.set(
-        row.country_id,
-        current,
-      );
-    },
-  );
+      const averageRank = values.ranks.length
+        ? values.ranks.reduce((sum, rank) => sum + rank, 0) / values.ranks.length
+        : null;
 
-  return [
-    ...totals.entries(),
-  ]
-    .map(
-      ([
-        id,
-        values,
-      ]) => {
-        const country =
-          cMap.get(
-            id,
-          );
-
-        if (
-          !country
-        ) {
-          return null;
-        }
-
-        const averageRank =
-          values.ranks.length
-            ? values.ranks.reduce(
-                (
-                  sum,
-                  rank,
-                ) =>
-                  sum +
-                  rank,
-                0,
-              ) /
-              values.ranks.length
-            : null;
-
-        return {
-          country,
-          totalPoints:
-            values.totalPoints,
-          appearances:
-            values.appearances,
-          averageRank,
-        };
-      },
-    )
-    .filter(
-      (
-        row,
-      ): row is HistoryRow =>
-        !!row,
-    )
-    .sort(
-      (a, b) =>
-        b.totalPoints -
-        a.totalPoints,
-    );
+      return {
+        country,
+        totalPoints: values.totalPoints,
+        appearances: values.appearances,
+        averageRank,
+      };
+    })
+    .filter((row): row is HistoryRow => !!row)
+    .sort((a, b) => b.totalPoints - a.totalPoints);
 }

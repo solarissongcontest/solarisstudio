@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RelationshipsIndexRouteImport } from './routes/relationships/index'
 import { Route as RecordsIndexRouteImport } from './routes/records/index'
+import { Route as PredictionsIndexRouteImport } from './routes/predictions/index'
 import { Route as EditionsIndexRouteImport } from './routes/editions/index'
 import { Route as CountriesIndexRouteImport } from './routes/countries/index'
 import { Route as CompareIndexRouteImport } from './routes/compare/index'
@@ -21,6 +22,7 @@ import { Route as AuthIndexRouteImport } from './routes/auth/index'
 import { Route as AnalysisIndexRouteImport } from './routes/analysis/index'
 import { Route as ShowsShowIdRouteImport } from './routes/shows/$showId'
 import { Route as RelationshipsPairRouteImport } from './routes/relationships/$pair'
+import { Route as PredictionsShowIdRouteImport } from './routes/predictions/$showId'
 import { Route as EditionsSlugRouteImport } from './routes/editions/$slug'
 import { Route as CountriesCodeRouteImport } from './routes/countries/$code'
 import { Route as BroadcastShowIdRouteImport } from './routes/broadcast/$showId'
@@ -50,6 +52,11 @@ const RelationshipsIndexRoute = RelationshipsIndexRouteImport.update({
 const RecordsIndexRoute = RecordsIndexRouteImport.update({
   id: '/records/',
   path: '/records/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PredictionsIndexRoute = PredictionsIndexRouteImport.update({
+  id: '/predictions/',
+  path: '/predictions/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditionsIndexRoute = EditionsIndexRouteImport.update({
@@ -85,6 +92,11 @@ const ShowsShowIdRoute = ShowsShowIdRouteImport.update({
 const RelationshipsPairRoute = RelationshipsPairRouteImport.update({
   id: '/relationships/$pair',
   path: '/relationships/$pair',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PredictionsShowIdRoute = PredictionsShowIdRouteImport.update({
+  id: '/predictions/$showId',
+  path: '/predictions/$showId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditionsSlugRoute = EditionsSlugRouteImport.update({
@@ -125,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/predictions/$showId': typeof PredictionsShowIdRoute
   '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
@@ -132,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/compare/': typeof CompareIndexRoute
   '/countries/': typeof CountriesIndexRoute
   '/editions/': typeof EditionsIndexRoute
+  '/predictions/': typeof PredictionsIndexRoute
   '/records/': typeof RecordsIndexRoute
   '/relationships/': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
@@ -144,6 +158,7 @@ export interface FileRoutesByTo {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/predictions/$showId': typeof PredictionsShowIdRoute
   '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis': typeof AnalysisIndexRoute
@@ -151,6 +166,7 @@ export interface FileRoutesByTo {
   '/compare': typeof CompareIndexRoute
   '/countries': typeof CountriesIndexRoute
   '/editions': typeof EditionsIndexRoute
+  '/predictions': typeof PredictionsIndexRoute
   '/records': typeof RecordsIndexRoute
   '/relationships': typeof RelationshipsIndexRoute
   '/admin/$slug': typeof AuthenticatedAdminSlugRoute
@@ -165,6 +181,7 @@ export interface FileRoutesById {
   '/broadcast/$showId': typeof BroadcastShowIdRoute
   '/countries/$code': typeof CountriesCodeRoute
   '/editions/$slug': typeof EditionsSlugRoute
+  '/predictions/$showId': typeof PredictionsShowIdRoute
   '/relationships/$pair': typeof RelationshipsPairRoute
   '/shows/$showId': typeof ShowsShowIdRoute
   '/analysis/': typeof AnalysisIndexRoute
@@ -172,6 +189,7 @@ export interface FileRoutesById {
   '/compare/': typeof CompareIndexRoute
   '/countries/': typeof CountriesIndexRoute
   '/editions/': typeof EditionsIndexRoute
+  '/predictions/': typeof PredictionsIndexRoute
   '/records/': typeof RecordsIndexRoute
   '/relationships/': typeof RelationshipsIndexRoute
   '/_authenticated/admin/$slug': typeof AuthenticatedAdminSlugRoute
@@ -186,6 +204,7 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/predictions/$showId'
     | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis/'
@@ -193,6 +212,7 @@ export interface FileRouteTypes {
     | '/compare/'
     | '/countries/'
     | '/editions/'
+    | '/predictions/'
     | '/records/'
     | '/relationships/'
     | '/admin/$slug'
@@ -205,6 +225,7 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/predictions/$showId'
     | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis'
@@ -212,6 +233,7 @@ export interface FileRouteTypes {
     | '/compare'
     | '/countries'
     | '/editions'
+    | '/predictions'
     | '/records'
     | '/relationships'
     | '/admin/$slug'
@@ -225,6 +247,7 @@ export interface FileRouteTypes {
     | '/broadcast/$showId'
     | '/countries/$code'
     | '/editions/$slug'
+    | '/predictions/$showId'
     | '/relationships/$pair'
     | '/shows/$showId'
     | '/analysis/'
@@ -232,6 +255,7 @@ export interface FileRouteTypes {
     | '/compare/'
     | '/countries/'
     | '/editions/'
+    | '/predictions/'
     | '/records/'
     | '/relationships/'
     | '/_authenticated/admin/$slug'
@@ -246,6 +270,7 @@ export interface RootRouteChildren {
   BroadcastShowIdRoute: typeof BroadcastShowIdRoute
   CountriesCodeRoute: typeof CountriesCodeRoute
   EditionsSlugRoute: typeof EditionsSlugRoute
+  PredictionsShowIdRoute: typeof PredictionsShowIdRoute
   RelationshipsPairRoute: typeof RelationshipsPairRoute
   ShowsShowIdRoute: typeof ShowsShowIdRoute
   AnalysisIndexRoute: typeof AnalysisIndexRoute
@@ -253,6 +278,7 @@ export interface RootRouteChildren {
   CompareIndexRoute: typeof CompareIndexRoute
   CountriesIndexRoute: typeof CountriesIndexRoute
   EditionsIndexRoute: typeof EditionsIndexRoute
+  PredictionsIndexRoute: typeof PredictionsIndexRoute
   RecordsIndexRoute: typeof RecordsIndexRoute
   RelationshipsIndexRoute: typeof RelationshipsIndexRoute
 }
@@ -292,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/records'
       fullPath: '/records/'
       preLoaderRoute: typeof RecordsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/predictions/': {
+      id: '/predictions/'
+      path: '/predictions'
+      fullPath: '/predictions/'
+      preLoaderRoute: typeof PredictionsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editions/': {
@@ -341,6 +374,13 @@ declare module '@tanstack/react-router' {
       path: '/relationships/$pair'
       fullPath: '/relationships/$pair'
       preLoaderRoute: typeof RelationshipsPairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/predictions/$showId': {
+      id: '/predictions/$showId'
+      path: '/predictions/$showId'
+      fullPath: '/predictions/$showId'
+      preLoaderRoute: typeof PredictionsShowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editions/$slug': {
@@ -410,6 +450,7 @@ const rootRouteChildren: RootRouteChildren = {
   BroadcastShowIdRoute: BroadcastShowIdRoute,
   CountriesCodeRoute: CountriesCodeRoute,
   EditionsSlugRoute: EditionsSlugRoute,
+  PredictionsShowIdRoute: PredictionsShowIdRoute,
   RelationshipsPairRoute: RelationshipsPairRoute,
   ShowsShowIdRoute: ShowsShowIdRoute,
   AnalysisIndexRoute: AnalysisIndexRoute,
@@ -417,6 +458,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompareIndexRoute: CompareIndexRoute,
   CountriesIndexRoute: CountriesIndexRoute,
   EditionsIndexRoute: EditionsIndexRoute,
+  PredictionsIndexRoute: PredictionsIndexRoute,
   RecordsIndexRoute: RecordsIndexRoute,
   RelationshipsIndexRoute: RelationshipsIndexRoute,
 }

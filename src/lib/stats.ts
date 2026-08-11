@@ -5,15 +5,7 @@
  * Calendar years must never be used to order contest history.
  */
 
-import type {
-  Country,
-  Edition,
-  JuryVote,
-  Participant,
-  ResultRow,
-  Show,
-  Televote,
-} from "./data";
+import type { Country, Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
 
 import { isTopScore, makeTopScoreResolver } from "./voting";
 
@@ -34,10 +26,7 @@ export function toEditionMeta(editions: Edition[]): Map<string, EditionMeta> {
     map.set(edition.id, {
       id: edition.id,
       editionNumber: edition.edition_number,
-      label:
-        edition.edition_number != null
-          ? `SSC ${edition.edition_number}`
-          : edition.name,
+      label: edition.edition_number != null ? `SSC ${edition.edition_number}` : edition.name,
     });
   }
 
@@ -49,21 +38,14 @@ function editionOrder(meta: EditionMeta | undefined): number {
 }
 
 const avg = (values: number[]): number | null =>
-  values.length
-    ? values.reduce((sum, value) => sum + value, 0) / values.length
-    : null;
+  values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 
 const finiteRanks = (rows: ResultRow[]): number[] =>
-  rows
-    .map((row) => row.final_rank)
-    .filter((rank): rank is number => rank != null);
+  rows.map((row) => row.final_rank).filter((rank): rank is number => rank != null);
 
-function withVoterCountry(
-  jury: JuryVote[],
-): Array<JuryVote & { voter_country_id: string }> {
+function withVoterCountry(jury: JuryVote[]): Array<JuryVote & { voter_country_id: string }> {
   return jury.filter(
-    (vote): vote is JuryVote & { voter_country_id: string } =>
-      !!vote.voter_country_id,
+    (vote): vote is JuryVote & { voter_country_id: string } => !!vote.voter_country_id,
   );
 }
 
@@ -90,7 +72,6 @@ function currentStreak(values: boolean[]): number {
   return current;
 }
 
-
 type CombinedEditionPlacement = {
   editionId: string;
   countryId: string;
@@ -116,30 +97,21 @@ function buildCombinedEditionPlacements(
   const byEdition = new Map<string, ResultRow[]>();
 
   for (const row of results) {
-    byEdition.set(row.edition_id, [
-      ...(byEdition.get(row.edition_id) ?? []),
-      row,
-    ]);
+    byEdition.set(row.edition_id, [...(byEdition.get(row.edition_id) ?? []), row]);
   }
 
-  const output = new Map<
-    string,
-    Map<string, CombinedEditionPlacement>
-  >();
+  const output = new Map<string, Map<string, CombinedEditionPlacement>>();
 
   for (const [editionId, rows] of byEdition.entries()) {
     const placements = new Map<string, CombinedEditionPlacement>();
 
     const finalRows = rows
       .filter(
-        (row) =>
-          showById.get(row.show_id ?? "")?.kind === "grand-final" &&
-          row.final_rank != null,
+        (row) => showById.get(row.show_id ?? "")?.kind === "grand-final" && row.final_rank != null,
       )
       .sort(
         (a, b) =>
-          (a.final_rank ?? Number.MAX_SAFE_INTEGER) -
-          (b.final_rank ?? Number.MAX_SAFE_INTEGER),
+          (a.final_rank ?? Number.MAX_SAFE_INTEGER) - (b.final_rank ?? Number.MAX_SAFE_INTEGER),
       );
 
     // Completed edition: Grand Final places are authoritative.
@@ -231,8 +203,7 @@ function buildCombinedEditionPlacements(
           (row.final_rank != null &&
             current.final_rank != null &&
             row.final_rank < current.final_rank) ||
-          (row.final_rank === current.final_rank &&
-            row.total_points > current.total_points)
+          (row.final_rank === current.final_rank && row.total_points > current.total_points)
         ) {
           bestByCountry.set(row.country_id, row);
         }
@@ -246,12 +217,7 @@ function buildCombinedEditionPlacements(
           countryId: row.country_id,
           rank: row.final_rank,
           row,
-          source:
-            kind === "grand-final"
-              ? "final"
-              : kind === "semi-final"
-                ? "semi"
-                : "other",
+          source: kind === "grand-final" ? "final" : kind === "semi-final" ? "semi" : "other",
         });
       }
     }
@@ -312,20 +278,16 @@ export type CountryStats = {
     editionNumber: number | null;
     avgPlacement: number | null;
   }>;
-  biggestImprovement:
-    | {
-        fromEdition: number | null;
-        toEdition: number | null;
-        delta: number;
-      }
-    | null;
-  biggestDecline:
-    | {
-        fromEdition: number | null;
-        toEdition: number | null;
-        delta: number;
-      }
-    | null;
+  biggestImprovement: {
+    fromEdition: number | null;
+    toEdition: number | null;
+    delta: number;
+  } | null;
+  biggestDecline: {
+    fromEdition: number | null;
+    toEdition: number | null;
+    delta: number;
+  } | null;
   bestPlacementStreak: number;
   worstPlacementStreak: number;
   consecutiveQualifications: number;
@@ -343,20 +305,16 @@ export type CountryStats = {
   topScoresGiven: number;
   topGiversOfTopScore: Array<{ countryId: string; count: number }>;
   topReceiversOfTopScore: Array<{ countryId: string; count: number }>;
-  firstTopScore:
-    | {
-        editionNumber: number | null;
-        from: string;
-        to: string;
-      }
-    | null;
-  latestTopScore:
-    | {
-        editionNumber: number | null;
-        from: string;
-        to: string;
-      }
-    | null;
+  firstTopScore: {
+    editionNumber: number | null;
+    from: string;
+    to: string;
+  } | null;
+  latestTopScore: {
+    editionNumber: number | null;
+    from: string;
+    to: string;
+  } | null;
   longestDroughtWithoutTopScore: number;
 };
 
@@ -376,17 +334,14 @@ export function computeCountryStats(
   const jury = withVoterCountry(opts.jury);
   const resolveTop = makeTopScoreResolver(opts.shows);
 
-  const myResults = opts.results.filter(
-    (result) => result.country_id === countryId,
-  );
+  const myResults = opts.results.filter((result) => result.country_id === countryId);
 
   const myParticipants = opts.participants.filter(
     (participant) => participant.country_id === countryId,
   );
 
   const finalsResults = myResults.filter(
-    (result) =>
-      showById.get(result.show_id ?? "")?.kind === "grand-final",
+    (result) => showById.get(result.show_id ?? "")?.kind === "grand-final",
   );
 
   const semiResults = myResults.filter(
@@ -394,13 +349,10 @@ export function computeCountryStats(
   );
 
   const semiParticipants = myParticipants.filter(
-    (participant) =>
-      showById.get(participant.show_id ?? "")?.kind === "semi-final",
+    (participant) => showById.get(participant.show_id ?? "")?.kind === "semi-final",
   );
 
-  const qualified = semiParticipants.filter(
-    (participant) => participant.qualified === true,
-  );
+  const qualified = semiParticipants.filter((participant) => participant.qualified === true);
 
   const finalRanks = finiteRanks(finalsResults);
   const wins = finalRanks.filter((rank) => rank === 1).length;
@@ -409,21 +361,14 @@ export function computeCountryStats(
   const top10 = finalRanks.filter((rank) => rank <= 10).length;
 
   const lastPlaces = finalsResults.filter((result) => {
-    const showRows = opts.results.filter(
-      (row) => row.show_id === result.show_id,
-    );
+    const showRows = opts.results.filter((row) => row.show_id === result.show_id);
     const maxRank = Math.max(0, ...finiteRanks(showRows));
     return result.final_rank != null && result.final_rank === maxRank;
   }).length;
 
-  const nilPointers = myResults.filter(
-    (result) => result.total_points === 0,
-  ).length;
+  const nilPointers = myResults.filter((result) => result.total_points === 0).length;
 
-  const combinedPlacements = buildCombinedEditionPlacements(
-    opts.results,
-    opts.shows,
-  );
+  const combinedPlacements = buildCombinedEditionPlacements(opts.results, opts.shows);
 
   const timeline: CountryTimelinePoint[] = opts.editions
     .map((edition) => {
@@ -434,9 +379,7 @@ export function computeCountryStats(
       }
 
       const meta = editionMeta.get(edition.id);
-      const participant = myParticipants.find(
-        (candidate) => candidate.edition_id === edition.id,
-      );
+      const participant = myParticipants.find((candidate) => candidate.edition_id === edition.id);
 
       return {
         editionId: edition.id,
@@ -452,14 +395,13 @@ export function computeCountryStats(
             ? true
             : placement.source === "semi"
               ? false
-              : participant?.qualified ?? null,
+              : (participant?.qualified ?? null),
       } satisfies CountryTimelinePoint;
     })
     .filter((point): point is CountryTimelinePoint => point != null)
     .sort(
       (a, b) =>
-        (a.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
+        (a.editionNumber ?? Number.MAX_SAFE_INTEGER) - (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
     );
 
   // Historical placement statistics use the single combined placement for
@@ -469,9 +411,7 @@ export function computeCountryStats(
 
   const rolling5 = placementTimeline.map((_, index) => {
     const window = placementTimeline.slice(Math.max(0, index - 4), index + 1);
-    const ranks = window
-      .map((point) => point.rank)
-      .filter((rank): rank is number => rank != null);
+    const ranks = window.map((point) => point.rank).filter((rank): rank is number => rank != null);
 
     return {
       editionId: placementTimeline[index].editionId,
@@ -491,10 +431,7 @@ export function computeCountryStats(
 
     const delta = previous.rank - current.rank;
 
-    if (
-      delta > 0 &&
-      (biggestImprovement === null || delta > biggestImprovement.delta)
-    ) {
+    if (delta > 0 && (biggestImprovement === null || delta > biggestImprovement.delta)) {
       biggestImprovement = {
         fromEdition: previous.editionNumber,
         toEdition: current.editionNumber,
@@ -502,10 +439,7 @@ export function computeCountryStats(
       };
     }
 
-    if (
-      delta < 0 &&
-      (biggestDecline === null || delta < biggestDecline.delta)
-    ) {
+    if (delta < 0 && (biggestDecline === null || delta < biggestDecline.delta)) {
       biggestDecline = {
         fromEdition: previous.editionNumber,
         toEdition: current.editionNumber,
@@ -514,20 +448,15 @@ export function computeCountryStats(
     }
   }
 
-  const top10Flags = placementTimeline.map(
-    (point) => point.rank != null && point.rank <= 10,
-  );
+  const top10Flags = placementTimeline.map((point) => point.rank != null && point.rank <= 10);
 
-  const podiumFlags = placementTimeline.map(
-    (point) => point.rank != null && point.rank <= 3,
-  );
+  const podiumFlags = placementTimeline.map((point) => point.rank != null && point.rank <= 3);
 
   const qualFlagsBySemi = semiParticipants
     .slice()
     .sort(
       (a, b) =>
-        editionOrder(editionMeta.get(a.edition_id)) -
-        editionOrder(editionMeta.get(b.edition_id)),
+        editionOrder(editionMeta.get(a.edition_id)) - editionOrder(editionMeta.get(b.edition_id)),
     )
     .map((participant) => participant.qualified === true);
 
@@ -556,9 +485,7 @@ export function computeCountryStats(
   const consecutivePodiums = currentStreak(podiumFlags);
 
   const given = jury.filter((vote) => vote.voter_country_id === countryId);
-  const received = jury.filter(
-    (vote) => vote.receiving_country_id === countryId,
-  );
+  const received = jury.filter((vote) => vote.receiving_country_id === countryId);
 
   const givenTotals = new Map<string, number>();
   for (const vote of given) {
@@ -580,10 +507,7 @@ export function computeCountryStats(
 
   const facedCountries = new Set<string>();
   for (const vote of jury) {
-    if (
-      vote.voter_country_id === countryId ||
-      vote.receiving_country_id === countryId
-    ) {
+    if (vote.voter_country_id === countryId || vote.receiving_country_id === countryId) {
       facedCountries.add(vote.voter_country_id);
       facedCountries.add(vote.receiving_country_id);
     }
@@ -591,16 +515,10 @@ export function computeCountryStats(
   facedCountries.delete(countryId);
 
   const neverAwarded = [...facedCountries].filter((id) => !givenTotals.has(id));
-  const neverVotedForThem = [...facedCountries].filter(
-    (id) => !receivedTotals.has(id),
-  );
+  const neverVotedForThem = [...facedCountries].filter((id) => !receivedTotals.has(id));
 
-  const topScoreGivenVotes = given.filter((vote) =>
-    isTopScore(vote, resolveTop),
-  );
-  const topScoreReceivedVotes = received.filter((vote) =>
-    isTopScore(vote, resolveTop),
-  );
+  const topScoreGivenVotes = given.filter((vote) => isTopScore(vote, resolveTop));
+  const topScoreReceivedVotes = received.filter((vote) => isTopScore(vote, resolveTop));
 
   const topGiveCount = new Map<string, number>();
   for (const vote of topScoreGivenVotes) {
@@ -625,13 +543,11 @@ export function computeCountryStats(
     }))
     .sort(
       (a, b) =>
-        (a.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
+        (a.editionNumber ?? Number.MAX_SAFE_INTEGER) - (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
     );
 
   const firstTopScoreEntry = allTopScoresReceivedSorted[0];
-  const latestTopScoreEntry =
-    allTopScoresReceivedSorted[allTopScoresReceivedSorted.length - 1];
+  const latestTopScoreEntry = allTopScoresReceivedSorted[allTopScoresReceivedSorted.length - 1];
 
   const firstTopScore = firstTopScoreEntry
     ? {
@@ -657,17 +573,13 @@ export function computeCountryStats(
         (b.edition_number ?? Number.MAX_SAFE_INTEGER),
     );
 
-  const topScoreEditionIds = new Set(
-    topScoreReceivedVotes.map((vote) => vote.edition_id),
-  );
+  const topScoreEditionIds = new Set(topScoreReceivedVotes.map((vote) => vote.edition_id));
 
   let longestDrought = 0;
   let droughtRun = 0;
 
   for (const edition of editionsSorted) {
-    const participated = myResults.some(
-      (result) => result.edition_id === edition.id,
-    );
+    const participated = myResults.some((result) => result.edition_id === edition.id);
 
     if (!participated) continue;
 
@@ -679,17 +591,13 @@ export function computeCountryStats(
     }
   }
 
-  const distinctVoters = new Set(
-    received.map((vote) => vote.voter_country_id),
-  ).size;
+  const distinctVoters = new Set(received.map((vote) => vote.voter_country_id)).size;
 
   const scores = myResults.map((result) => result.total_points);
 
   return {
     countryId,
-    participations: new Set(
-      myParticipants.map((participant) => participant.edition_id),
-    ).size,
+    participations: new Set(myParticipants.map((participant) => participant.edition_id)).size,
     finals: finalsResults.length,
     semis: semiResults.length,
     qualifications: qualified.length,
@@ -712,14 +620,11 @@ export function computeCountryStats(
     avgJuryPlacement: null,
     avgTelevotePlacement: null,
     avgCombinedPlacement: avg(
-      placementTimeline
-        .map((point) => point.rank)
-        .filter((rank): rank is number => rank != null),
+      placementTimeline.map((point) => point.rank).filter((rank): rank is number => rank != null),
     ),
     avgPointsPerParticipation: avg(scores),
     avgPointsPerVoter: distinctVoters
-      ? received.reduce((total, vote) => total + vote.points, 0) /
-        distinctVoters
+      ? received.reduce((total, vote) => total + vote.points, 0) / distinctVoters
       : null,
     avgReceivedPerContest: avg(myResults.map((result) => result.total_points)),
     avgGivenPerContest: avg(
@@ -790,7 +695,13 @@ export type RelationshipTimelineEntry = {
   label: string;
   aToB: number;
   bToA: number;
+  expectedAtoB: number;
+  expectedBtoA: number;
+  normalizedAtoB: number;
+  normalizedBtoA: number;
 };
+
+export type RelationshipTrend = "warming" | "cooling" | "stable";
 
 export type CountryRelationship = {
   a: string;
@@ -802,17 +713,36 @@ export type CountryRelationship = {
   avgBtoA: number | null;
   juryAtoB: number;
   juryBtoA: number;
-  televoteA: number;
-  televoteB: number;
+  televoteA: number | null;
+  televoteB: number | null;
+  opportunitiesAtoB: number;
+  opportunitiesBtoA: number;
+  expectedAtoB: number;
+  expectedBtoA: number;
+  supportLiftAtoB: number | null;
+  supportLiftBtoA: number | null;
+  normalizedAtoB: number;
+  normalizedBtoA: number;
+  persistenceAtoB: number | null;
+  persistenceBtoA: number | null;
+  reciprocityScore: number;
+  relationshipTrend: RelationshipTrend;
+  trendSlope: number;
+  sampleConfidence: "low" | "medium" | "high";
+  longestSupportRun: number;
+  firstTopScore: {
+    editionNumber: number | null;
+    from: string;
+    to: string;
+  } | null;
+  hundredPointMilestone: number | null;
   mutualTopScores: number;
   timeline: RelationshipTimelineEntry[];
-  biggestDisagreement:
-    | {
-        editionId: string;
-        editionNumber: number | null;
-        gap: number;
-      }
-    | null;
+  biggestDisagreement: {
+    editionId: string;
+    editionNumber: number | null;
+    gap: number;
+  } | null;
   similarity: number;
   rivalryScore: number;
   friendshipScore: number;
@@ -830,54 +760,109 @@ export function computeRelationship(
 ): CountryRelationship {
   const editionMeta = toEditionMeta(opts.editions);
   const jury = withVoterCountry(opts.jury);
+  const resolveTop = makeTopScoreResolver(opts.shows);
+
+  type Observation = {
+    editionId: string;
+    showId: string | null;
+    observed: number;
+    expected: number;
+    maximum: number;
+    normalized: number;
+  };
+
+  const observations = (giver: string, receiver: string): Observation[] => {
+    const giverVotes = jury.filter((vote) => vote.voter_country_id === giver);
+    const groups = new Map<string, JuryVote[]>();
+
+    giverVotes.forEach((vote) => {
+      const key = vote.show_id ?? `edition:${vote.edition_id}`;
+      groups.set(key, [...(groups.get(key) ?? []), vote]);
+    });
+
+    return [...groups.entries()]
+      .filter(([key, votes]) =>
+        opts.results.some((result) =>
+          key.startsWith("edition:")
+            ? result.edition_id === votes[0]?.edition_id && result.country_id === receiver
+            : result.show_id === key && result.country_id === receiver,
+        ),
+      )
+      .map(([, votes]) => {
+        const first = votes[0];
+        const resultPool = opts.results.filter((result) =>
+          first?.show_id
+            ? result.show_id === first.show_id
+            : result.edition_id === first?.edition_id,
+        );
+        const totalAwarded = votes.reduce((total, vote) => total + vote.points, 0);
+        const eligibleReceivers = new Set(
+          resultPool
+            .map((result) => result.country_id)
+            .filter((countryId) => countryId && countryId !== giver),
+        ).size;
+        const observed = votes
+          .filter((vote) => vote.receiving_country_id === receiver)
+          .reduce((total, vote) => total + vote.points, 0);
+        const maximum = resolveTop(first?.show_id);
+
+        return {
+          editionId: first?.edition_id ?? "",
+          showId: first?.show_id ?? null,
+          observed,
+          expected: eligibleReceivers ? totalAwarded / eligibleReceivers : 0,
+          maximum,
+          normalized: maximum ? Math.min(100, (observed / maximum) * 100) : 0,
+        };
+      })
+      .filter((observation) => observation.editionId);
+  };
+
+  const observationsAtoB = observations(a, b);
+  const observationsBtoA = observations(b, a);
 
   const aToB = jury.filter(
-    (vote) =>
-      vote.voter_country_id === a && vote.receiving_country_id === b,
+    (vote) => vote.voter_country_id === a && vote.receiving_country_id === b,
   );
 
   const bToA = jury.filter(
-    (vote) =>
-      vote.voter_country_id === b && vote.receiving_country_id === a,
+    (vote) => vote.voter_country_id === b && vote.receiving_country_id === a,
   );
 
   const editionIds = new Set<string>([
-    ...aToB.map((vote) => vote.edition_id),
-    ...bToA.map((vote) => vote.edition_id),
+    ...observationsAtoB.map((item) => item.editionId),
+    ...observationsBtoA.map((item) => item.editionId),
   ]);
 
   const timeline: RelationshipTimelineEntry[] = [...editionIds]
     .map((editionId) => {
       const meta = editionMeta.get(editionId);
+      const editionAtoB = observationsAtoB.filter((item) => item.editionId === editionId);
+      const editionBtoA = observationsBtoA.filter((item) => item.editionId === editionId);
+
       return {
         editionId,
         editionNumber: meta?.editionNumber ?? null,
         label: meta?.label ?? "Edition",
-        aToB: aToB
-          .filter((vote) => vote.edition_id === editionId)
-          .reduce((total, vote) => total + vote.points, 0),
-        bToA: bToA
-          .filter((vote) => vote.edition_id === editionId)
-          .reduce((total, vote) => total + vote.points, 0),
+        aToB: editionAtoB.reduce((total, item) => total + item.observed, 0),
+        bToA: editionBtoA.reduce((total, item) => total + item.observed, 0),
+        expectedAtoB: editionAtoB.reduce((total, item) => total + item.expected, 0),
+        expectedBtoA: editionBtoA.reduce((total, item) => total + item.expected, 0),
+        normalizedAtoB: avg(editionAtoB.map((item) => item.normalized)) ?? 0,
+        normalizedBtoA: avg(editionBtoA.map((item) => item.normalized)) ?? 0,
       };
     })
     .sort(
       (x, y) =>
-        (x.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (y.editionNumber ?? Number.MAX_SAFE_INTEGER),
+        (x.editionNumber ?? Number.MAX_SAFE_INTEGER) - (y.editionNumber ?? Number.MAX_SAFE_INTEGER),
     );
 
   const aEditionIds = new Set(
-    opts.results
-      .filter((result) => result.country_id === a)
-      .map((result) => result.edition_id),
+    opts.results.filter((result) => result.country_id === a).map((result) => result.edition_id),
   );
 
   const participationsTogether = [...aEditionIds].filter((editionId) =>
-    opts.results.some(
-      (result) =>
-        result.country_id === b && result.edition_id === editionId,
-    ),
+    opts.results.some((result) => result.country_id === b && result.edition_id === editionId),
   ).length;
 
   let biggestDisagreement: CountryRelationship["biggestDisagreement"] = null;
@@ -893,9 +878,14 @@ export function computeRelationship(
     }
   }
 
-  const totalAtoB = aToB.reduce((total, vote) => total + vote.points, 0);
-  const totalBtoA = bToA.reduce((total, vote) => total + vote.points, 0);
-  const resolveTop = makeTopScoreResolver(opts.shows);
+  const totalAtoB = observationsAtoB.reduce((total, item) => total + item.observed, 0);
+  const totalBtoA = observationsBtoA.reduce((total, item) => total + item.observed, 0);
+  const expectedAtoB = observationsAtoB.reduce((total, item) => total + item.expected, 0);
+  const expectedBtoA = observationsBtoA.reduce((total, item) => total + item.expected, 0);
+  const maximumAtoB = observationsAtoB.reduce((total, item) => total + item.maximum, 0);
+  const maximumBtoA = observationsBtoA.reduce((total, item) => total + item.maximum, 0);
+  const normalizedAtoB = maximumAtoB ? Math.min(100, (totalAtoB / maximumAtoB) * 100) : 0;
+  const normalizedBtoA = maximumBtoA ? Math.min(100, (totalBtoA / maximumBtoA) * 100) : 0;
 
   const mutualTopScores = Math.min(
     aToB.filter((vote) => isTopScore(vote, resolveTop)).length,
@@ -906,17 +896,24 @@ export function computeRelationship(
   const vecB = new Map<string, number>();
 
   for (const vote of jury) {
+    if (vote.receiving_country_id === a || vote.receiving_country_id === b) {
+      continue;
+    }
+
+    const top = resolveTop(vote.show_id);
+    const normalizedVote = top ? vote.points / top : 0;
+
     if (vote.voter_country_id === a) {
       vecA.set(
         vote.receiving_country_id,
-        (vecA.get(vote.receiving_country_id) ?? 0) + vote.points,
+        (vecA.get(vote.receiving_country_id) ?? 0) + normalizedVote,
       );
     }
 
     if (vote.voter_country_id === b) {
       vecB.set(
         vote.receiving_country_id,
-        (vecB.get(vote.receiving_country_id) ?? 0) + vote.points,
+        (vecB.get(vote.receiving_country_id) ?? 0) + normalizedVote,
       );
     }
   }
@@ -935,12 +932,78 @@ export function computeRelationship(
   }
 
   const similarity = normA && normB ? dot / Math.sqrt(normA * normB) : 0;
-  const avgGap =
-    avg(timeline.map((point) => Math.abs(point.aToB - point.bToA))) ?? 0;
-  const rivalryScore = timeline.length ? Math.max(0, 100 - avgGap * 5) : 0;
-  const friendshipScore = timeline.length
-    ? Math.min(100, ((totalAtoB + totalBtoA) / timeline.length / 24) * 100)
+  const sharedRankGaps = [...aEditionIds]
+    .map((editionId) => {
+      const rows = opts.results.filter((result) => result.edition_id === editionId);
+      const rankA = rows
+        .filter((result) => result.country_id === a && result.final_rank != null)
+        .sort((x, y) => (x.final_rank ?? 999) - (y.final_rank ?? 999))[0]?.final_rank;
+      const rankB = rows
+        .filter((result) => result.country_id === b && result.final_rank != null)
+        .sort((x, y) => (x.final_rank ?? 999) - (y.final_rank ?? 999))[0]?.final_rank;
+      const fieldSize = new Set(rows.map((result) => result.country_id)).size;
+      if (rankA == null || rankB == null || fieldSize < 2) return null;
+      return (Math.abs(rankA - rankB) / (fieldSize - 1)) * 100;
+    })
+    .filter((value): value is number => value != null);
+  const rivalryScore = sharedRankGaps.length ? Math.max(0, 100 - (avg(sharedRankGaps) ?? 100)) : 0;
+  const friendshipScore = Math.sqrt(normalizedAtoB * normalizedBtoA);
+  const reciprocityScore = Math.max(normalizedAtoB, normalizedBtoA)
+    ? (Math.min(normalizedAtoB, normalizedBtoA) / Math.max(normalizedAtoB, normalizedBtoA)) * 100
     : 0;
+
+  const trendValues = timeline.map((point) => (point.normalizedAtoB + point.normalizedBtoA) / 2);
+  const trendMean = avg(trendValues) ?? 0;
+  const xMean = (timeline.length - 1) / 2;
+  const trendDenominator = timeline.reduce(
+    (total, _point, index) => total + (index - xMean) ** 2,
+    0,
+  );
+  const trendSlope = trendDenominator
+    ? timeline.reduce(
+        (total, _point, index) => total + (index - xMean) * (trendValues[index] - trendMean),
+        0,
+      ) / trendDenominator
+    : 0;
+  const relationshipTrend: RelationshipTrend =
+    timeline.length < 3 || Math.abs(trendSlope) < 2
+      ? "stable"
+      : trendSlope > 0
+        ? "warming"
+        : "cooling";
+
+  const supportFlags = timeline.map((point) => point.aToB > 0 || point.bToA > 0);
+  const longestSupportRun = longestStreak(supportFlags);
+  const topScoreVotes = [...aToB, ...bToA]
+    .filter((vote) => isTopScore(vote, resolveTop))
+    .sort(
+      (x, y) =>
+        editionOrder(editionMeta.get(x.edition_id)) - editionOrder(editionMeta.get(y.edition_id)),
+    );
+  const firstTopScoreVote = topScoreVotes[0];
+  const firstTopScore = firstTopScoreVote
+    ? {
+        editionNumber: editionMeta.get(firstTopScoreVote.edition_id)?.editionNumber ?? null,
+        from: firstTopScoreVote.voter_country_id,
+        to: firstTopScoreVote.receiving_country_id,
+      }
+    : null;
+
+  let exchanged = 0;
+  let hundredPointMilestone: number | null = null;
+  for (const point of timeline) {
+    exchanged += point.aToB + point.bToA;
+    if (exchanged >= 100) {
+      hundredPointMilestone = point.editionNumber;
+      break;
+    }
+  }
+
+  const opportunitiesAtoB = observationsAtoB.length;
+  const opportunitiesBtoA = observationsBtoA.length;
+  const reciprocalSample = Math.min(opportunitiesAtoB, opportunitiesBtoA);
+  const sampleConfidence =
+    reciprocalSample >= 6 ? "high" : reciprocalSample >= 3 ? "medium" : "low";
 
   return {
     a,
@@ -948,16 +1011,33 @@ export function computeRelationship(
     participationsTogether,
     totalAtoB,
     totalBtoA,
-    avgAtoB: aToB.length
-      ? totalAtoB / new Set(aToB.map((vote) => vote.edition_id)).size
-      : null,
-    avgBtoA: bToA.length
-      ? totalBtoA / new Set(bToA.map((vote) => vote.edition_id)).size
-      : null,
+    avgAtoB: opportunitiesAtoB ? totalAtoB / opportunitiesAtoB : null,
+    avgBtoA: opportunitiesBtoA ? totalBtoA / opportunitiesBtoA : null,
     juryAtoB: totalAtoB,
     juryBtoA: totalBtoA,
-    televoteA: 0,
-    televoteB: 0,
+    televoteA: null,
+    televoteB: null,
+    opportunitiesAtoB,
+    opportunitiesBtoA,
+    expectedAtoB,
+    expectedBtoA,
+    supportLiftAtoB: expectedAtoB ? totalAtoB / expectedAtoB : null,
+    supportLiftBtoA: expectedBtoA ? totalBtoA / expectedBtoA : null,
+    normalizedAtoB,
+    normalizedBtoA,
+    persistenceAtoB: opportunitiesAtoB
+      ? (observationsAtoB.filter((item) => item.observed > 0).length / opportunitiesAtoB) * 100
+      : null,
+    persistenceBtoA: opportunitiesBtoA
+      ? (observationsBtoA.filter((item) => item.observed > 0).length / opportunitiesBtoA) * 100
+      : null,
+    reciprocityScore,
+    relationshipTrend,
+    trendSlope,
+    sampleConfidence,
+    longestSupportRun,
+    firstTopScore,
+    hundredPointMilestone,
     mutualTopScores,
     timeline,
     biggestDisagreement,
@@ -1037,8 +1117,7 @@ export function computeHeadToHead(
     })
     .sort(
       (x, y) =>
-        (x.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (y.editionNumber ?? Number.MAX_SAFE_INTEGER),
+        (x.editionNumber ?? Number.MAX_SAFE_INTEGER) - (y.editionNumber ?? Number.MAX_SAFE_INTEGER),
     );
 
   const aWins = rows.filter((row) => row.diff != null && row.diff < 0).length;
@@ -1081,12 +1160,8 @@ export function computeHeadToHead(
 
 export type ContestStats = {
   showId: string;
-  closestVictory:
-    | { margin: number; winner: string; runnerUp: string }
-    | null;
-  biggestLandslide:
-    | { margin: number; winner: string; runnerUp: string }
-    | null;
+  closestVictory: { margin: number; winner: string; runnerUp: string } | null;
+  biggestLandslide: { margin: number; winner: string; runnerUp: string } | null;
   biggestTelevoteWinner: { countryId: string; points: number } | null;
   biggestJuryWinner: { countryId: string; points: number } | null;
   highestScoringDebut: { countryId: string; points: number } | null;
@@ -1110,13 +1185,9 @@ export function computeContestStats(
 ): ContestStats {
   const rows = opts.results
     .filter((result) => result.show_id === showId)
-    .sort(
-      (a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999),
-    );
+    .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
 
-  const jury = withVoterCountry(opts.jury).filter(
-    (vote) => vote.show_id === showId,
-  );
+  const jury = withVoterCountry(opts.jury).filter((vote) => vote.show_id === showId);
 
   if (!rows.length) {
     return {
@@ -1138,16 +1209,10 @@ export function computeContestStats(
 
   const winner = rows[0];
   const runnerUp = rows[1];
-  const margin = runnerUp
-    ? winner.total_points - runnerUp.total_points
-    : null;
+  const margin = runnerUp ? winner.total_points - runnerUp.total_points : null;
 
-  const byTelevote = [...rows].sort(
-    (a, b) => b.televote_points - a.televote_points,
-  )[0];
-  const byJury = [...rows].sort(
-    (a, b) => b.jury_points - a.jury_points,
-  )[0];
+  const byTelevote = [...rows].sort((a, b) => b.televote_points - a.televote_points)[0];
+  const byJury = [...rows].sort((a, b) => b.jury_points - a.jury_points)[0];
 
   const debutRows = opts.debutCountryIds
     ? rows.filter((result) => opts.debutCountryIds!.has(result.country_id))
@@ -1181,15 +1246,10 @@ export function computeContestStats(
   }
 
   const resolveTop = makeTopScoreResolver(opts.shows);
-  const pairTotals = new Map<
-    string,
-    { a: string; b: string; total: number; topScores: number }
-  >();
+  const pairTotals = new Map<string, { a: string; b: string; total: number; topScores: number }>();
 
   for (const vote of jury) {
-    const key = [vote.voter_country_id, vote.receiving_country_id]
-      .sort()
-      .join("|");
+    const key = [vote.voter_country_id, vote.receiving_country_id].sort().join("|");
 
     const current = pairTotals.get(key) ?? {
       a: vote.voter_country_id,
@@ -1203,20 +1263,13 @@ export function computeContestStats(
     pairTotals.set(key, current);
   }
 
-  const byTopScores = [...pairTotals.values()].sort(
-    (a, b) => b.topScores - a.topScores,
-  )[0];
+  const byTopScores = [...pairTotals.values()].sort((a, b) => b.topScores - a.topScores)[0];
 
-  const byAlliance = [...pairTotals.values()].sort(
-    (a, b) => b.total - a.total,
-  )[0];
+  const byAlliance = [...pairTotals.values()].sort((a, b) => b.total - a.total)[0];
 
   const scores = rows.map((result) => result.total_points);
   const diffs = rows.map((result) =>
-    Math.abs(
-      (juryRank.get(result.country_id) ?? 0) -
-        (teleRank.get(result.country_id) ?? 0),
-    ),
+    Math.abs((juryRank.get(result.country_id) ?? 0) - (teleRank.get(result.country_id) ?? 0)),
   );
 
   return {
@@ -1240,9 +1293,7 @@ export function computeContestStats(
     biggestTelevoteWinner: byTelevote
       ? { countryId: byTelevote.country_id, points: byTelevote.televote_points }
       : null,
-    biggestJuryWinner: byJury
-      ? { countryId: byJury.country_id, points: byJury.jury_points }
-      : null,
+    biggestJuryWinner: byJury ? { countryId: byJury.country_id, points: byJury.jury_points } : null,
     highestScoringDebut: highestDebut
       ? { countryId: highestDebut.country_id, points: highestDebut.total_points }
       : null,
@@ -1278,22 +1329,16 @@ export function computeHistoricalRecords(opts: {
   results: ResultRow[];
   jury: JuryVote[];
 }): HistoricalRecordEntry[] {
-  const countryName = new Map(
-    opts.countries.map((country) => [country.id, country.name]),
-  );
+  const countryName = new Map(opts.countries.map((country) => [country.id, country.name]));
   const editionMeta = toEditionMeta(opts.editions);
   const showById = new Map(opts.shows.map((show) => [show.id, show]));
   const finalResults = opts.results.filter(
-    (result) =>
-      showById.get(result.show_id ?? "")?.kind === "grand-final",
+    (result) => showById.get(result.show_id ?? "")?.kind === "grand-final",
   );
 
   const byCountry = new Map<string, ResultRow[]>();
   for (const result of opts.results) {
-    byCountry.set(result.country_id, [
-      ...(byCountry.get(result.country_id) ?? []),
-      result,
-    ]);
+    byCountry.set(result.country_id, [...(byCountry.get(result.country_id) ?? []), result]);
   }
 
   const output: HistoricalRecordEntry[] = [];
@@ -1313,16 +1358,11 @@ export function computeHistoricalRecords(opts: {
     .sort((a, b) => b[1] - a[1])[0];
 
   if (topParts) {
-    push(
-      "Most participations",
-      String(topParts[1]),
-      countryName.get(topParts[0]) ?? "?",
-    );
+    push("Most participations", String(topParts[1]), countryName.get(topParts[0]) ?? "?");
   }
 
   const semiParts = opts.participants.filter(
-    (participant) =>
-      showById.get(participant.show_id ?? "")?.kind === "semi-final",
+    (participant) => showById.get(participant.show_id ?? "")?.kind === "semi-final",
   );
 
   const byCountrySemis = new Map<string, Participant[]>();
@@ -1337,18 +1377,15 @@ export function computeHistoricalRecords(opts: {
   let bestNonQualStreak = { id: "", n: 0 };
 
   for (const [id, rows] of byCountrySemis.entries()) {
-    const sorted = rows.slice().sort(
-      (a, b) =>
-        editionOrder(editionMeta.get(a.edition_id)) -
-        editionOrder(editionMeta.get(b.edition_id)),
-    );
+    const sorted = rows
+      .slice()
+      .sort(
+        (a, b) =>
+          editionOrder(editionMeta.get(a.edition_id)) - editionOrder(editionMeta.get(b.edition_id)),
+      );
 
-    const qualStreak = longestStreak(
-      sorted.map((row) => row.qualified === true),
-    );
-    const nonQualStreak = longestStreak(
-      sorted.map((row) => row.qualified === false),
-    );
+    const qualStreak = longestStreak(sorted.map((row) => row.qualified === true));
+    const nonQualStreak = longestStreak(sorted.map((row) => row.qualified === false));
 
     if (qualStreak > bestQualStreak.n) {
       bestQualStreak = { id, n: qualStreak };
@@ -1381,20 +1418,14 @@ export function computeHistoricalRecords(opts: {
 
   for (const [id, rows] of byCountry.entries()) {
     const finals = rows
-      .filter(
-        (result) =>
-          showById.get(result.show_id ?? "")?.kind === "grand-final",
-      )
+      .filter((result) => showById.get(result.show_id ?? "")?.kind === "grand-final")
       .sort(
         (a, b) =>
-          editionOrder(editionMeta.get(a.edition_id)) -
-          editionOrder(editionMeta.get(b.edition_id)),
+          editionOrder(editionMeta.get(a.edition_id)) - editionOrder(editionMeta.get(b.edition_id)),
       );
 
     const winFlags = finals.map((result) => result.final_rank === 1);
-    const top10Flags = finals.map(
-      (result) => result.final_rank != null && result.final_rank <= 10,
-    );
+    const top10Flags = finals.map((result) => result.final_rank != null && result.final_rank <= 10);
 
     const winStreak = longestStreak(winFlags);
     const top10Streak = longestStreak(top10Flags);
@@ -1453,9 +1484,7 @@ export function computeHistoricalRecords(opts: {
   }
 
   if (finalResults.length) {
-    const top = [...finalResults].sort(
-      (a, b) => b.total_points - a.total_points,
-    )[0];
+    const top = [...finalResults].sort((a, b) => b.total_points - a.total_points)[0];
 
     push(
       "Most points in one edition",
@@ -1483,10 +1512,7 @@ export function computeHistoricalRecords(opts: {
         const previous = sorted[index - 1];
 
         if (previous && value(previous) === value(result)) {
-          ranks.set(
-            result.country_id,
-            ranks.get(previous.country_id) ?? index + 1,
-          );
+          ranks.set(result.country_id, ranks.get(previous.country_id) ?? index + 1);
         } else {
           ranks.set(result.country_id, index + 1);
         }
@@ -1512,17 +1538,11 @@ export function computeHistoricalRecords(opts: {
 
         const moved = juryPosition - finalPosition;
 
-        if (
-          moved > 0 &&
-          (bestClimb === null || moved > bestClimb.places)
-        ) {
+        if (moved > 0 && (bestClimb === null || moved > bestClimb.places)) {
           bestClimb = { places: moved, row };
         }
 
-        if (
-          moved < 0 &&
-          (worstDrop === null || -moved > worstDrop.places)
-        ) {
+        if (moved < 0 && (worstDrop === null || -moved > worstDrop.places)) {
           worstDrop = { places: -moved, row };
         }
       }
@@ -1610,9 +1630,7 @@ export function computeVotingIntelligence(opts: {
   results: ResultRow[];
 }): VotingIntelligence {
   const jury = withVoterCountry(opts.jury);
-  const region = new Map(
-    opts.countries.map((country) => [country.id, country.region]),
-  );
+  const region = new Map(opts.countries.map((country) => [country.id, country.region]));
 
   const winnersByEdition = new Map<string, string>();
   for (const result of opts.results) {
@@ -1621,10 +1639,7 @@ export function computeVotingIntelligence(opts: {
     }
   }
 
-  const kingmakerScore = new Map<
-    string,
-    { given: number; toWinner: number }
-  >();
+  const kingmakerScore = new Map<string, { given: number; toWinner: number }>();
 
   for (const vote of jury) {
     const current = kingmakerScore.get(vote.voter_country_id) ?? {
@@ -1633,9 +1648,7 @@ export function computeVotingIntelligence(opts: {
     };
 
     current.given += vote.points;
-    if (
-      winnersByEdition.get(vote.edition_id) === vote.receiving_country_id
-    ) {
+    if (winnersByEdition.get(vote.edition_id) === vote.receiving_country_id) {
       current.toWinner += vote.points;
     }
     kingmakerScore.set(vote.voter_country_id, current);
@@ -1644,19 +1657,14 @@ export function computeVotingIntelligence(opts: {
   const kingmakers: Kingmaker[] = [...kingmakerScore.entries()]
     .map(([countryId, values]) => ({
       countryId,
-      influenceScore: values.given
-        ? (values.toWinner / values.given) * 100
-        : 0,
+      influenceScore: values.given ? (values.toWinner / values.given) * 100 : 0,
     }))
     .sort((a, b) => b.influenceScore - a.influenceScore);
 
   const byCountryEdition = new Map<string, Map<string, number>>();
   for (const vote of jury) {
     const map = byCountryEdition.get(vote.voter_country_id) ?? new Map();
-    map.set(
-      vote.edition_id,
-      (map.get(vote.edition_id) ?? 0) + vote.points,
-    );
+    map.set(vote.edition_id, (map.get(vote.edition_id) ?? 0) + vote.points);
     byCountryEdition.set(vote.voter_country_id, map);
   }
 
@@ -1666,8 +1674,7 @@ export function computeVotingIntelligence(opts: {
     const values = [...map.values()];
     const mean = avg(values) ?? 0;
     const variance = values.length
-      ? values.reduce((total, value) => total + (value - mean) ** 2, 0) /
-        values.length
+      ? values.reduce((total, value) => total + (value - mean) ** 2, 0) / values.length
       : 0;
 
     voteVolatility.push({ countryId, stdDev: Math.sqrt(variance) });
@@ -1686,10 +1693,7 @@ export function computeVotingIntelligence(opts: {
   const byCountry = new Map<string, Array<JuryVote & { voter_country_id: string }>>();
 
   for (const vote of jury) {
-    byCountry.set(vote.voter_country_id, [
-      ...(byCountry.get(vote.voter_country_id) ?? []),
-      vote,
-    ]);
+    byCountry.set(vote.voter_country_id, [...(byCountry.get(vote.voter_country_id) ?? []), vote]);
   }
 
   for (const [countryId, votes] of byCountry.entries()) {
@@ -1724,11 +1728,7 @@ export function computeVotingIntelligence(opts: {
   for (const [countryId, votes] of byCountry.entries()) {
     const total = votes.reduce((sum, vote) => sum + vote.points, 0);
     const inRegion = votes
-      .filter(
-        (vote) =>
-          region.get(vote.voter_country_id) ===
-          region.get(vote.receiving_country_id),
-      )
+      .filter((vote) => region.get(vote.voter_country_id) === region.get(vote.receiving_country_id))
       .reduce((sum, vote) => sum + vote.points, 0);
 
     regionalDependence.push({
@@ -1769,10 +1769,7 @@ export function computeVotingIntelligence(opts: {
 
     for (const result of rows) {
       differences.push(
-        Math.abs(
-          (juryRank.get(result.country_id) ?? 0) -
-            (teleRank.get(result.country_id) ?? 0),
-        ),
+        Math.abs((juryRank.get(result.country_id) ?? 0) - (teleRank.get(result.country_id) ?? 0)),
       );
     }
   }
@@ -1780,9 +1777,7 @@ export function computeVotingIntelligence(opts: {
   return {
     kingmakers: kingmakers.slice(0, 15),
     voteVolatility: voteVolatility.slice(0, 15),
-    predictability: predictability
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 15),
+    predictability: predictability.sort((a, b) => b.score - a.score).slice(0, 15),
     loyaltyScore: loyaltyScore.slice(0, 15),
     diversityScore: diversityScore.slice(0, 15),
     strategicVotingIndex: strategicVotingIndex.slice(0, 15),
@@ -1801,10 +1796,7 @@ export type PointFlowLink = {
   value: number;
 };
 
-export function buildPointFlow(
-  jury: JuryVote[],
-  minValue = 1,
-): PointFlowLink[] {
+export function buildPointFlow(jury: JuryVote[], minValue = 1): PointFlowLink[] {
   const votes = withVoterCountry(jury);
   const map = new Map<string, number>();
 
