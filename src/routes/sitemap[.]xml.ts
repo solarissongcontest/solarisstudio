@@ -51,13 +51,18 @@ export const Route = createFileRoute("/sitemap.xml")({
                 priority: "0.8",
               }),
             );
-            (countries ?? []).forEach((country: { short_code: string }) =>
+            (countries ?? []).forEach((country: { short_code: string }) => {
               entries.push({
                 path: `/countries/${country.short_code}`,
                 changefreq: "monthly",
                 priority: "0.6",
-              }),
-            );
+              });
+              entries.push({
+                path: `/wiki/${country.short_code}`,
+                changefreq: "monthly",
+                priority: "0.6",
+              });
+            });
           }
         } catch {
           // Static routes are still returned if public data cannot be loaded.
