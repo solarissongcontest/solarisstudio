@@ -86,8 +86,11 @@ export function displayFromEntity(
     name: c?.name ?? entity.display_name,
     native_name: c?.native_name ?? null,
     short_code: c?.short_code ?? entity.abbreviation,
-    flag_image: entity.flag_image ?? c?.flag_image ?? null,
-    region: entity.region ?? c?.region ?? "Terra Solaris",
+    // Global countries are live identities. Their current flag/region must win over
+    // an edition snapshot so owner edits propagate everywhere. Custom entities still
+    // use their own stored artwork because they have no global country row.
+    flag_image: c?.flag_image ?? entity.flag_image ?? null,
+    region: c?.region ?? entity.region ?? "Terra Solaris",
     accent_color: c?.accent_color ?? DEFAULT_ACCENT,
     description: c?.description ?? null,
     first_participation: c?.first_participation ?? null,
@@ -110,7 +113,6 @@ export function displayFromCountry(c: Country): EntityDisplay {
     first_participation: c.first_participation,
   };
 }
-
 
 /**
  * Lookup used by every show-scoped view. Entities are indexed by their own id and,
