@@ -12,22 +12,28 @@ import {
   useDeleteCountryMedia,
   useDeleteCountrySection,
   useMyCountryAccount,
+  useSaveCountryEntry,
   useSaveCountryProfile,
   useSaveCountrySection,
-  useSaveOwnedCountryEntry,
-  useUpdateOwnedCountryIdentity,
+  useUpdateCountryIdentity,
   type CountryMedia,
   type CountryProfileSection,
 } from "@/lib/country-account";
 import {
   editionLabel,
+  useAllContestEntities,
   useAllParticipants,
   useAllShows,
+  useCountries,
   useEditions,
+  type Country,
   type Participant,
 } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/country-hub/")({
+  validateSearch: (search: Record<string, unknown>): { country?: string } => ({
+    country: typeof search.country === "string" ? search.country : undefined,
+  }),
   head: () => ({ meta: [{ title: "My country — Solaris Studio" }] }),
   component: CountryHubPage,
 });
@@ -47,33 +53,75 @@ const EMPTY_PROFILE = {
 };
 
 function CountryHubPage() {
+  const { country: targetCountryId } = Route.useSearch();
   const { data: accountData, isLoading } = useMyCountryAccount();
+  const { data: countries, isLoading: countriesLoading } = useCountries();
   const access = accountData?.access;
-  const country = accountData?.country;
+  const ownCountry = accountData?.country;
 
-  if (isLoading) {
-    return <AppShell><p className="text-sm text-muted-foreground">Loading your country…</p></AppShell>;
+  const adminTarget =
+    access?.isOrganizer && targetCountryId
+      ? (countries ?? []).find((country) => country.id === targetCountryId)
+      : undefined;
+
+  const country = adminTarget ?? ownCountry;
+  const organizerOverride = Boolean(access?.isOrganizer && targetCountryId && adminTarget);
+
+  if (isLoading || (targetCountryId && access?.isOrganizer && countriesLoading)) {
+    return <AppShell><p className="text-sm text-muted-foreground">Loading country access…</p></AppShell>;
   }
 
-  if (access?.isOrganizer && !country) {
+  if (targetCountryId && access?.isOrganizer && !adminTarget) {
     return (
       <AppShell>
-        <PageHeader eyebrow="Organizer account" title="Country Hub" description="Organizer accounts use Studio. Country ownership is kept separate so country permissions can never spill into organizer permissions." />
-        <Panel title="Open organizer tools">
-          <Link to="/admin" className="inline-flex min-h-11 items-center rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground">Open Studio →</Link>
-        </Panel>
+        <PageHeader eyebrow="Organizer override" title="Country not found" description="That Terra Solaris country could not be loaded." />
+        <Link to="/admin/country-accounts" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold">
+          Back to country accounts
+        </Link>
       </AppShell>
     );
   }
 
-  if (!country) {
-    return <ClaimCountry />;
+  if (!access?.isOrganizer && access?.countryStatus === "suspended" && ownCountry) {
+    return <SuspendedCountry country={ownCountry} reason={access.suspensionReason} />;
   }
 
-  return <OwnedCountryHub country={country} />;
+  if (!country) {
+    return <ClaimCountry isOrganizer={Boolean(access?.isOrganizer)} />;
+  }
+
+  return (
+    <OwnedCountryHub
+      country={country}
+      isOrganizer={Boolean(access?.isOrganizer)}
+      organizerOverride={organizerOverride}
+    />
+  );
 }
 
-function ClaimCountry() {
+function SuspendedCountry({ country, reason }: { country: Country; reason: string | null }) {
+  return (
+    <AppShell>
+      <PageHeader
+        eyebrow="Country account"
+        title={`${country.name} is suspended`}
+        description="You can still sign in and use public Solaris features, but country editing is currently disabled by an organizer."
+        actions={
+          <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+            View public page →
+          </Link>
+        }
+      />
+      <Panel title="Account status">
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {reason || "No suspension reason was provided."}
+        </p>
+      </Panel>
+    </AppShell>
+  );
+}
+
+function ClaimCountry({ isOrganizer }: { isOrganizer: boolean }) {
   const { data } = useAvailableCountryClaims();
   const claim = useClaimCountryAccount();
   const [countryId, setCountryId] = useState("");
@@ -93,7 +141,22 @@ function ClaimCountry() {
 
   return (
     <AppShell>
-      <PageHeader eyebrow="Country account" title="Choose your Terra Solaris country" description="Each country can belong to one account only. Once claimed, the account can maintain that country's profile and entries without organizer approval." />
+      <PageHeader
+        eyebrow={isOrganizer ? "Organizer country" : "Country account"}
+        title="Choose your Terra Solaris country"
+        description={
+          isOrganizer
+            ? "Organizer powers and country ownership are separate. You may own one country while keeping full Studio access to the whole contest."
+            : "Each country can belong to one account only. Once claimed, the account can maintain that country's profile and entries without organizer approval."
+        }
+        actions={
+          isOrganizer ? (
+            <Link to="/admin/country-accounts" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+              Manage all countries →
+            </Link>
+          ) : undefined
+        }
+      />
       <div className="mx-auto max-w-xl">
         <Panel title="Country ownership">
           {data?.schemaReady === false ? (
@@ -104,7 +167,7 @@ function ClaimCountry() {
                 <option value="">Choose an unclaimed country…</option>
                 {(data?.countries ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.short_code})</option>)}
               </select>
-              <p className="text-xs leading-relaxed text-muted-foreground">This choice is exclusive. Country transfers should be handled by an organizer rather than by making a second account.</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">This choice is exclusive: one account per country and one country per account.</p>
               <button disabled={!countryId || claim.isPending} className="min-h-11 w-full rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">{claim.isPending ? "Claiming…" : "Claim country"}</button>
               {message && <p className="text-sm text-destructive">{message}</p>}
             </form>
@@ -115,21 +178,30 @@ function ClaimCountry() {
   );
 }
 
-function OwnedCountryHub({ country }: { country: NonNullable<ReturnType<typeof useMyCountryAccount>["data"]>["country"] }) {
-  const world = useCountryWorldProfile(country!.id);
-  const updateIdentity = useUpdateOwnedCountryIdentity();
-  const saveProfile = useSaveCountryProfile(country!.id);
-  const saveSection = useSaveCountrySection(country!.id);
-  const deleteSection = useDeleteCountrySection(country!.id);
-  const addMedia = useAddCountryMedia(country!.id);
-  const deleteMedia = useDeleteCountryMedia(country!.id);
-  const saveEntry = useSaveOwnedCountryEntry();
+function OwnedCountryHub({
+  country,
+  isOrganizer,
+  organizerOverride,
+}: {
+  country: Country;
+  isOrganizer: boolean;
+  organizerOverride: boolean;
+}) {
+  const world = useCountryWorldProfile(country.id);
+  const updateIdentity = useUpdateCountryIdentity(country.id, organizerOverride);
+  const saveProfile = useSaveCountryProfile(country.id);
+  const saveSection = useSaveCountrySection(country.id);
+  const deleteSection = useDeleteCountrySection(country.id);
+  const addMedia = useAddCountryMedia(country.id);
+  const deleteMedia = useDeleteCountryMedia(country.id);
+  const saveEntry = useSaveCountryEntry(country.id, organizerOverride);
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
   const { data: participants } = useAllParticipants();
+  const { data: contestEntities } = useAllContestEntities();
 
   const [message, setMessage] = useState<string | null>(null);
-  const [identity, setIdentity] = useState({ name: country!.name, nativeName: country!.native_name ?? "", region: country!.region, description: country!.description ?? "", accentColor: country!.accent_color, flagImage: country!.flag_image as string | null });
+  const [identity, setIdentity] = useState({ name: country.name, nativeName: country.native_name ?? "", region: country.region, description: country.description ?? "", accentColor: country.accent_color, flagImage: country.flag_image as string | null });
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [flagBusy, setFlagBusy] = useState(false);
   const [galleryFile, setGalleryFile] = useState<File | null>(null);
@@ -140,7 +212,7 @@ function OwnedCountryHub({ country }: { country: NonNullable<ReturnType<typeof u
   const [addEntry, setAddEntry] = useState({ editionId: "", showId: "", artist: "", song: "", notes: "" });
 
   useEffect(() => {
-    setIdentity({ name: country!.name, nativeName: country!.native_name ?? "", region: country!.region, description: country!.description ?? "", accentColor: country!.accent_color, flagImage: country!.flag_image });
+    setIdentity({ name: country.name, nativeName: country.native_name ?? "", region: country.region, description: country.description ?? "", accentColor: country.accent_color, flagImage: country.flag_image });
   }, [country]);
 
   useEffect(() => {
@@ -150,7 +222,17 @@ function OwnedCountryHub({ country }: { country: NonNullable<ReturnType<typeof u
     } : EMPTY_PROFILE);
   }, [world.data?.profile]);
 
-  const myEntries = useMemo(() => (participants ?? []).filter((entry) => entry.country_id === country!.id).sort((a, b) => (editions?.find((edition) => edition.id === b.edition_id)?.edition_number ?? -1) - (editions?.find((edition) => edition.id === a.edition_id)?.edition_number ?? -1)), [participants, editions, country]);
+  const ownedEntityIds = useMemo(
+    () => new Set((contestEntities ?? []).filter((entity) => entity.country_id === country.id).map((entity) => entity.id)),
+    [contestEntities, country.id],
+  );
+
+  const myEntries = useMemo(
+    () => (participants ?? [])
+      .filter((entry) => entry.country_id === country.id || Boolean(entry.contest_entity_id && ownedEntityIds.has(entry.contest_entity_id)))
+      .sort((a, b) => (editions?.find((edition) => edition.id === b.edition_id)?.edition_number ?? -1) - (editions?.find((edition) => edition.id === a.edition_id)?.edition_number ?? -1)),
+    [participants, editions, country.id, ownedEntityIds],
+  );
   const addShows = (shows ?? []).filter((show) => show.edition_id === addEntry.editionId);
 
   const run = async (task: () => Promise<unknown>, success: string) => {
@@ -162,7 +244,7 @@ function OwnedCountryHub({ country }: { country: NonNullable<ReturnType<typeof u
   const uploadFlag = async (file: File) => {
     setFlagBusy(true); setMessage(null);
     try {
-      const asset = await uploadCountryAsset(country!.id, file, "flags");
+      const asset = await uploadCountryAsset(country.id, file, "flags");
       setIdentity((current) => ({ ...current, flagImage: asset.publicUrl }));
       setMessage("Flag uploaded. Save country identity to publish it everywhere.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Flag upload failed."); }
@@ -173,7 +255,7 @@ function OwnedCountryHub({ country }: { country: NonNullable<ReturnType<typeof u
     if (!galleryFile) return;
     setGalleryBusy(true); setMessage(null);
     try {
-      const asset = await uploadCountryAsset(country!.id, galleryFile, "gallery");
+      const asset = await uploadCountryAsset(country.id, galleryFile, "gallery");
       await addMedia.mutateAsync({ storagePath: asset.storagePath, publicUrl: asset.publicUrl, caption: galleryCaption, altText: galleryAlt });
       setGalleryFile(null); setGalleryCaption(""); setGalleryAlt(""); setMessage("Image added to the country gallery.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Image upload failed."); }
@@ -196,15 +278,29 @@ function OwnedCountryHub({ country }: { country: NonNullable<ReturnType<typeof u
 
   return (
     <AppShell>
-      <PageHeader eyebrow="Country account" title={country!.name} description="Maintain your country's SSC entries and its Terra Solaris profile. Contest administration, voting and results remain organizer-only." actions={<Link to="/countries/$code" params={{ code: country!.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">View public page →</Link>} />
+      <PageHeader
+        eyebrow={organizerOverride ? "Organizer override" : "Country account"}
+        title={country.name}
+        description={
+          organizerOverride
+            ? "You are editing this country with organizer authority. Changes apply to the same public country and SSC data used everywhere else."
+            : "Maintain your country's SSC entries and its Terra Solaris profile. Contest administration, voting and results remain organizer-only."
+        }
+        actions={
+          <>
+            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">View public page →</Link>
+            {isOrganizer && <Link to="/admin/country-accounts" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Manage countries</Link>}
+          </>
+        }
+      />
 
       {message && <p className="mb-5 rounded-xl border border-border bg-surface px-4 py-3 text-sm">{message}</p>}
 
       <div className="space-y-5">
-        <Panel title="Country identity" description="Name and flag changes propagate through country pages and linked contest entities. The stable country code is intentionally organizer-controlled.">
+        <Panel title="Country identity" description="Name and flag changes propagate through country pages and linked contest entities. The stable country code remains organizer-controlled.">
           <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
             <div className="space-y-3">
-              <div className="flex items-center gap-3"><FlagChip code={country!.short_code} color={identity.accentColor} image={identity.flagImage} size="xl" /><div><p className="text-sm font-semibold">{country!.short_code}</p><p className="text-xs text-muted-foreground">Stable code</p></div></div>
+              <div className="flex items-center gap-3"><FlagChip code={country.short_code} color={identity.accentColor} image={identity.flagImage} size="xl" /><div><p className="text-sm font-semibold">{country.short_code}</p><p className="text-xs text-muted-foreground">Stable code</p></div></div>
               <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={flagBusy} onChange={(event) => event.target.files?.[0] && void uploadFlag(event.target.files[0])} className="block w-full text-xs" />
               {identity.flagImage && <button type="button" onClick={() => setIdentity((current) => ({ ...current, flagImage: null }))} className="text-xs text-muted-foreground">Remove flag</button>}
             </div>
@@ -262,7 +358,7 @@ function OwnedCountryHub({ country }: { country: NonNullable<ReturnType<typeof u
           </Panel>
         </div>
 
-        <Panel title="SSC entries" description="Edit the artist, song and your own notes. Running order, qualification, voting and results remain locked to organizers.">
+        <Panel title="SSC entries" description={organizerOverride ? "Organizer override can correct artist, song and notes for this country's historical entries." : "Edit the artist, song and your own notes. Running order, qualification, voting and results remain locked to organizers."}>
           <div className="space-y-3">
             {myEntries.map((entry) => <EntryEditor key={entry.id} entry={entry} edition={editions?.find((item) => item.id === entry.edition_id)} showName={shows?.find((show) => show.id === entry.show_id)?.name ?? "Show"} onSave={(values) => run(() => saveEntry.mutateAsync(values), "Entry updated everywhere." )} />)}
           </div>
