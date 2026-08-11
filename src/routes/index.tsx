@@ -1,28 +1,10 @@
-import {
-  createFileRoute,
-  Link,
-} from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 
-import {
-  useMemo,
-} from "react";
-
-import {
-  AppShell,
-} from "@/components/AppShell";
-
-import {
-  BackgroundFlag,
-} from "@/components/BackgroundFlag";
-
-import {
-  FlagChip,
-} from "@/components/FlagChip";
-
-import {
-  PulseStrip,
-} from "@/components/PulseStrip";
-
+import { AppShell } from "@/components/AppShell";
+import { BackgroundFlag } from "@/components/BackgroundFlag";
+import { FlagChip } from "@/components/FlagChip";
+import { PulseStrip } from "@/components/PulseStrip";
 import {
   editionLabel,
   useAllResults,
@@ -30,976 +12,467 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
-
+import {
+  buildHomeNewsroomStories,
+  namedResults,
+  winnerLeadStory,
+  type HomeNewsStory,
+} from "@/lib/home-newsroom";
 import {
   isShowPublic,
-  resolveShowPublication,
   showPublishesResults,
 } from "@/lib/publication";
 
-export const Route =
-  createFileRoute(
-    "/",
-  )({
-    head: () => ({
-      meta: [
-        {
-          title:
-            "Solaris Song Contest",
-        },
-        {
-          name:
-            "description",
-          content:
-            "Latest results, editions, countries and stories from the Solaris Song Contest.",
-        },
-      ],
-    }),
-    component:
-      HomePage,
-  });
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Solaris Today — Solaris Song Contest" },
+      {
+        name: "description",
+        content:
+          "The Solaris Song Contest newsroom: latest results, voting stories, predictions, records, interactive tools and archive analysis.",
+      },
+    ],
+  }),
+  component: HomePage,
+});
+
+const FEATURE_DESKS = [
+  {
+    to: "/pulse",
+    label: "Live desk",
+    title: "Solaris Pulse",
+    description: "Follow the countries, editions and shows you care about and get the important changes in one feed.",
+  },
+  {
+    to: "/predictions",
+    label: "Prediction desk",
+    title: "Prediction Arena",
+    description: "Call the winner, qualifiers and rankings before the round locks, then see how your prediction survived reality.",
+  },
+  {
+    to: "/result-lab",
+    label: "What-if desk",
+    title: "Result Lab",
+    description: "Change the jury/televote balance, remove juries and recalculate a published result without touching the official score.",
+  },
+  {
+    to: "/taste-dna",
+    label: "Personal desk",
+    title: "Taste DNA",
+    description: "Rank a field and discover whether your taste is jury-coded, televote-coded, mainstream or gloriously difficult.",
+  },
+  {
+    to: "/broadcast-intelligence",
+    label: "Results desk",
+    title: "Broadcast Intelligence",
+    description: "Replay the televote reveal and inspect lead changes, collapses, comebacks and jury-versus-public drama.",
+  },
+  {
+    to: "/archive-games",
+    label: "Games desk",
+    title: "Archive Games",
+    description: "Turn historical results into quick Higher or Lower, Jury vs Televote and Edition Detective rounds.",
+  },
+  {
+    to: "/analysis",
+    label: "Data desk",
+    title: "Analysis",
+    description: "Explore voting patterns, scoring behaviour and the deeper numbers behind the final rankings.",
+  },
+  {
+    to: "/relationships",
+    label: "Network desk",
+    title: "Relationships",
+    description: "See which countries repeatedly support each other, share taste or develop suspiciously persistent rivalries.",
+  },
+  {
+    to: "/compare",
+    label: "Head-to-head",
+    title: "Compare countries",
+    description: "Put two delegations side by side across placements, points and voting history.",
+  },
+  {
+    to: "/records",
+    label: "Archive desk",
+    title: "Records",
+    description: "Track the wins, streaks, points and all-time marks that still define Solaris history.",
+  },
+  {
+    to: "/editions",
+    label: "Contest archive",
+    title: "Editions",
+    description: "Open every published contest chapter, show and result from the Solaris archive.",
+  },
+  {
+    to: "/countries",
+    label: "Delegation desk",
+    title: "Countries",
+    description: "Browse every delegation's placements, voting profile and contest history.",
+  },
+] as const;
 
 function HomePage() {
-  const {
-    data:
-      editions,
-  } =
-    useEditions();
+  const { data: editions } = useEditions();
+  const { data: shows } = useAllShows();
+  const { data: countries } = useCountries();
+  const { data: results } = useAllResults();
 
-  const {
-    data:
-      shows,
-  } =
-    useAllShows();
+  const editionList = useMemo(
+    () => (editions ?? []).filter((edition) => edition.published),
+    [editions],
+  );
+  const showList = shows ?? [];
+  const countryList = countries ?? [];
+  const resultList = results ?? [];
 
-  const {
-    data:
-      countries,
-  } =
-    useCountries();
+  const countryMap = useMemo(
+    () => new Map(countryList.map((country) => [country.id, country])),
+    [countryList],
+  );
 
-  const {
-    data:
-      results,
-  } =
-    useAllResults();
+  const sortedEditions = useMemo(
+    () =>
+      [...editionList].sort(
+        (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
+      ),
+    [editionList],
+  );
 
-  const editionList =
-    (
-      editions ??
-      []
-    ).filter(
-      (
-        edition,
-      ) =>
-        edition.published,
-    );
+  const latestEdition = sortedEditions[0] ?? null;
 
-  const showList =
-    shows ?? [];
+  const latestEditionShows = useMemo(
+    () =>
+      latestEdition
+        ? showList
+            .filter(
+              (show) => show.edition_id === latestEdition.id && isShowPublic(show),
+            )
+            .sort((a, b) => a.sort_order - b.sort_order)
+        : [],
+    [latestEdition, showList],
+  );
 
-  const countryList =
-    countries ?? [];
-
-  const resultList =
-    results ?? [];
-
-  const countryMap =
-    useMemo(
-      () =>
-        new Map(
-          countryList.map(
-            (
-              country,
-            ) => [
-              country.id,
-              country,
-            ],
-          ),
-        ),
-      [
-        countryList,
-      ],
-    );
-
-  const sortedEditions =
-    useMemo(
-      () =>
-        [
-          ...editionList,
-        ].sort(
-          (
-            a,
-            b,
-          ) =>
-            (
-              b.edition_number ??
-              -1
-            ) -
-            (
-              a.edition_number ??
-              -1
-            ),
-        ),
-      [
-        editionList,
-      ],
-    );
-
-  const latestEdition =
-    sortedEditions[
-      0
-    ] ??
-    null;
-
-  const latestEditionShows =
-    latestEdition
-      ? showList
-          .filter(
-            (
-              show,
-            ) =>
-              show.edition_id ===
-                latestEdition.id &&
-              isShowPublic(
-                show,
-              ),
-          )
-          .sort(
-            (
-              a,
-              b,
-            ) =>
-              a.sort_order -
-              b.sort_order,
-          )
-      : [];
-
-  const featuredShow =
-    latestEditionShows.find(
-      (
-        show,
-      ) =>
-        show.kind ===
-        "grand-final",
-    ) ??
-    latestEditionShows[
-      latestEditionShows.length -
-        1
-    ] ??
-    null;
-
-  const featuredPublication =
-    featuredShow
-      ? resolveShowPublication(
-          featuredShow,
-        )
-      : null;
-
-  const featuredResults =
-    featuredShow &&
-    featuredPublication?.results
-      ? resultList
-          .filter(
-            (
-              result,
-            ) =>
-              result.show_id ===
-                featuredShow.id &&
-              result.final_rank !=
-                null,
-          )
-          .sort(
-            (
-              a,
-              b,
-            ) =>
-              (
-                a.final_rank ??
-                999
-              ) -
-              (
-                b.final_rank ??
-                999
-              ),
-          )
-      : [];
-
-  const featuredWinnerResult =
-    featuredResults[
-      0
-    ] ??
-    null;
-
-  const featuredWinner =
-    featuredWinnerResult
-      ? countryMap.get(
-          featuredWinnerResult.country_id,
-        ) ??
-        null
-      : null;
-
-  /* =========================================================
-     LATEST COMPLETED PUBLIC SHOW
-
-     A show counts as a completed public result only if:
-       1. the show itself is public,
-       2. its publication config exposes results,
-       3. an archived ranked result actually exists.
-     ========================================================= */
-
-  const latestCompletedShow =
-    useMemo(
-      () => {
-        const completed =
-          showList.filter(
-            (
-              show,
-            ) =>
-              showPublishesResults(
-                show,
-              ) &&
-              resultList.some(
-                (
-                  result,
-                ) =>
-                  result.show_id ===
-                    show.id &&
-                  result.final_rank !=
-                    null,
-              ),
-          );
-
-        return (
-          [
-            ...completed,
-          ].sort(
-            (
-              a,
-              b,
-            ) => {
-              const editionA =
-                editionList.find(
-                  (
-                    edition,
-                  ) =>
-                    edition.id ===
-                    a.edition_id,
-                );
-
-              const editionB =
-                editionList.find(
-                  (
-                    edition,
-                  ) =>
-                    edition.id ===
-                    b.edition_id,
-                );
-
-              const editionDiff =
-                (
-                  editionB?.edition_number ??
-                  -1
-                ) -
-                (
-                  editionA?.edition_number ??
-                  -1
-                );
-
-              if (
-                editionDiff !==
-                0
-              ) {
-                return editionDiff;
-              }
-
-              return (
-                b.sort_order -
-                a.sort_order
-              );
-            },
-          )[
-            0
-          ] ??
-          null
-        );
-      },
-      [
-        showList,
-        resultList,
-        editionList,
-      ],
-    );
-
-  const latestCompletedResults =
-    latestCompletedShow
-      ? resultList
-          .filter(
-            (
-              result,
-            ) =>
-              result.show_id ===
-                latestCompletedShow.id &&
-              result.final_rank !=
-                null,
-          )
-          .sort(
-            (
-              a,
-              b,
-            ) =>
-              (
-                a.final_rank ??
-                999
-              ) -
-              (
-                b.final_rank ??
-                999
-              ),
-          )
-      : [];
-
-  const latestWinnerResult =
-    latestCompletedResults[
-      0
-    ] ??
-    null;
-
-  const latestWinner =
-    latestWinnerResult
-      ? countryMap.get(
-          latestWinnerResult.country_id,
-        ) ??
-        null
-      : null;
-
-  const latestCompletedEdition =
-    latestCompletedShow
-      ? editionList.find(
-          (
-            edition,
-          ) =>
-            edition.id ===
-            latestCompletedShow.edition_id,
-        ) ??
-        null
-      : null;
-
-  const topFive =
-    latestCompletedResults.slice(
-      0,
-      5,
-    );
-
-  const runnerUpResult =
-    latestCompletedResults[
-      1
-    ] ??
-    null;
-
-  const runnerUp =
-    runnerUpResult
-      ? countryMap.get(
-          runnerUpResult.country_id,
-        ) ??
-        null
-      : null;
-
-  const thirdResult =
-    latestCompletedResults[
-      2
-    ] ??
-    null;
-
-  const third =
-    thirdResult
-      ? countryMap.get(
-          thirdResult.country_id,
-        ) ??
-        null
-      : null;
-
-  const grandFinals =
-    showList.filter(
-      (
-        show,
-      ) =>
-        show.kind ===
-          "grand-final" &&
-        showPublishesResults(
-          show,
+  const latestCompletedShow = useMemo(() => {
+    const completed = showList.filter(
+      (show) =>
+        showPublishesResults(show) &&
+        resultList.some(
+          (result) => result.show_id === show.id && result.final_rank != null,
         ),
     );
 
-  const totalWinners =
-    resultList.filter(
-      (
-        result,
-      ) =>
-        result.final_rank ===
-          1 &&
-        grandFinals.some(
-          (
-            show,
-          ) =>
-            show.id ===
-            result.show_id,
-        ),
-    ).length;
+    return (
+      [...completed].sort((a, b) => {
+        const editionA = editionList.find((edition) => edition.id === a.edition_id);
+        const editionB = editionList.find((edition) => edition.id === b.edition_id);
+        const editionDifference =
+          (editionB?.edition_number ?? -1) - (editionA?.edition_number ?? -1);
+        if (editionDifference !== 0) return editionDifference;
+        return b.sort_order - a.sort_order;
+      })[0] ?? null
+    );
+  }, [showList, resultList, editionList]);
 
-  const leadEdition =
-    latestCompletedEdition ??
-    latestEdition;
+  const latestCompletedEdition = latestCompletedShow
+    ? editionList.find((edition) => edition.id === latestCompletedShow.edition_id) ?? null
+    : null;
 
-  const leadWinner =
-    latestWinner ??
-    featuredWinner;
+  const latestCompletedResults = useMemo(
+    () =>
+      latestCompletedShow
+        ? resultList
+            .filter(
+              (result) =>
+                result.show_id === latestCompletedShow.id && result.final_rank != null,
+            )
+            .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))
+        : [],
+    [latestCompletedShow, resultList],
+  );
 
-  const leadWinnerResult =
-    latestWinnerResult ??
-    featuredWinnerResult;
+  const namedLatestResults = useMemo(
+    () =>
+      namedResults(
+        latestCompletedResults,
+        (id) => countryMap.get(id)?.name ?? "Unknown country",
+      ),
+    [latestCompletedResults, countryMap],
+  );
 
-  const leadShow =
-    latestCompletedShow ??
-    featuredShow;
+  const winner = namedLatestResults.find((entry) => entry.finalRank === 1) ?? namedLatestResults[0] ?? null;
+  const winnerCountry = winner ? countryMap.get(winner.countryId) ?? null : null;
+  const leadStory = latestCompletedShow
+    ? winnerLeadStory(namedLatestResults, latestCompletedShow.name)
+    : null;
+  const newsroomStories = buildHomeNewsroomStories(namedLatestResults);
+  const topFive = latestCompletedResults.slice(0, 5);
 
-  const leadHeadline =
-    leadWinner &&
-    leadShow
-      ? `${leadWinner.name} takes ${leadShow.name} — but the numbers tell a bigger story`
-      : latestEdition
-        ? `${editionLabel(
-            latestEdition,
-          )} is here — see what has changed`
-        : "The Solaris story continues";
+  const grandFinalIds = new Set(
+    showList
+      .filter((show) => show.kind === "grand-final" && showPublishesResults(show))
+      .map((show) => show.id),
+  );
+  const totalWinners = resultList.filter(
+    (result) => result.final_rank === 1 && result.show_id && grandFinalIds.has(result.show_id),
+  ).length;
+  const publicShowCount = showList.filter(isShowPublic).length;
+  const latestEditionIsActive = Boolean(
+    latestEdition && !["complete", "completed"].includes(latestEdition.status.toLowerCase()),
+  );
 
-  const leadDek =
-    leadWinner &&
-    leadWinnerResult &&
-    runnerUp &&
-    runnerUpResult
-      ? `${leadWinner.name} finished on ${leadWinnerResult.total_points} points, ahead of ${runnerUp.name} on ${runnerUpResult.total_points}. Here is the result, the gap and what happened next.`
-      : latestEdition?.description ||
-        "Results, voting patterns, records and the latest developments from across Terra Solaris.";
-
-  const editionIsLive =
-    latestEdition &&
-    latestEdition.status !==
-      "completed";
+  const breakingStory = newsroomStories.find((story) => story.intensity === "breaking") ?? newsroomStories[0] ?? leadStory;
 
   return (
     <AppShell>
-      <div className="space-y-5 sm:space-y-9">
-        <section className="border-b border-border/60 pb-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.26em] text-primary sm:text-[10px]">
+      <div className="min-w-0 space-y-6 sm:space-y-10">
+        <header className="min-w-0 border-b border-border/70 pb-4">
+          <div className="flex min-w-0 items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-primary sm:text-[10px]">
                 TSBC Newsroom
               </p>
-
-              <h1 className="mt-1 font-display text-2xl font-black tracking-[-0.035em] sm:text-4xl">
+              <h1 className="mt-1 break-words font-display text-3xl font-black tracking-[-0.045em] sm:text-5xl">
                 Solaris Today
               </h1>
+              <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                Results, voting drama, predictions and the stories hiding inside the scoreboard.
+              </p>
             </div>
 
-            <div className="text-right">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <div className="hidden shrink-0 text-right sm:block">
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                 Terra Solaris
               </p>
-
-              <p className="mt-1 text-xs font-semibold">
-                Song Contest Desk
-              </p>
+              <p className="mt-1 text-xs font-semibold">Song Contest Desk</p>
             </div>
           </div>
 
-          <div className="mt-4 flex min-w-0 items-center gap-3 overflow-hidden border-y border-border/60 py-2.5">
+          <div className="mt-4 flex min-w-0 items-center gap-3 border-y border-border/60 py-2.5">
             <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-primary-foreground">
-              {editionIsLive
-                ? "Now"
-                : "Latest"}
+              {latestEditionIsActive ? "Live" : breakingStory?.intensity === "breaking" ? "Breaking" : "Latest"}
             </span>
-
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <p className="truncate text-xs font-semibold sm:text-sm">
-                {leadWinner &&
-                leadShow
-                  ? `${leadWinner.name} leads the conversation after ${leadShow.name}`
-                  : latestEdition
-                    ? `${editionLabel(
-                        latestEdition,
-                      )} is the current Solaris edition`
-                    : "Follow the latest Solaris developments"}
-              </p>
-            </div>
-
-            {leadEdition && (
-              <Link
-                to="/editions/$slug"
-                params={{
-                  slug:
-                    leadEdition.slug,
-                }}
-                className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-primary"
-              >
-                Follow →
-              </Link>
-            )}
+            <p className="min-w-0 flex-1 truncate text-xs font-semibold sm:text-sm">
+              {breakingStory?.headline ??
+                (latestEdition
+                  ? `${editionLabel(latestEdition)} is the latest published Solaris edition`
+                  : "The Solaris newsroom is waiting for its next story")}
+            </p>
+            <Link
+              to="/tools"
+              className="shrink-0 text-[9px] font-black uppercase tracking-[0.13em] text-primary sm:text-[10px]"
+            >
+              All desks →
+            </Link>
           </div>
-        </section>
+        </header>
 
         <PulseStrip />
 
-        <section className="grid gap-3 lg:grid-cols-[minmax(0,1.65fr)_minmax(280px,.65fr)]">
-          {leadEdition ? (
+        <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.65fr)]">
+          {latestCompletedEdition && latestCompletedShow && leadStory ? (
             <Link
-              to="/editions/$slug"
-              params={{
-                slug:
-                  leadEdition.slug,
-              }}
-              className="group relative min-h-[380px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[520px]"
+              to="/shows/$showId"
+              params={{ showId: latestCompletedShow.id }}
+              className="group relative min-h-[390px] min-w-0 overflow-hidden rounded-[1.8rem] border border-white/15 bg-[#020817] shadow-2xl sm:min-h-[540px]"
             >
               <BackgroundFlag
-                image={
-                  leadWinner?.flag_image
-                }
-                className="-right-[14%] top-[42%] w-[92%] -translate-y-1/2 sm:w-[62%]"
-                opacity={0.3}
+                image={winnerCountry?.flag_image}
+                className="-right-[18%] top-[45%] w-[105%] -translate-y-1/2 sm:w-[66%]"
+                opacity={0.32}
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-[#041329]/78 to-[#061d39]/24" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/75 via-transparent to-transparent" />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020817]/98 via-[#041329]/70 to-[#061d39]/22" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/74 via-transparent to-transparent" />
-
-              <div className="relative z-10 flex min-h-[380px] flex-col justify-between p-5 sm:min-h-[520px] sm:p-8 lg:p-9">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="relative z-10 flex min-h-[390px] flex-col justify-between p-5 sm:min-h-[540px] sm:p-8 lg:p-9">
+                <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-primary px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-primary-foreground">
-                    Lead story
+                    {leadStory.label}
                   </span>
-
-                  <span className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.16em] text-white/65 backdrop-blur">
-                    {editionLabel(
-                      leadEdition,
-                    )}
+                  <span className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.15em] text-white/70 backdrop-blur">
+                    {editionLabel(latestCompletedEdition)} · {latestCompletedShow.name}
                   </span>
                 </div>
 
-                <div className="max-w-3xl">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-                    {leadWinner
-                      ? "Results desk"
-                      : "Edition desk"}
+                <div className="min-w-0 max-w-4xl">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                    Lead story
                   </p>
-
-                  <h2 className="mt-3 max-w-3xl font-display text-[2rem] font-black leading-[0.98] tracking-[-0.045em] text-white sm:text-5xl lg:text-6xl">
-                    {
-                      leadHeadline
-                    }
+                  <h2 className="mt-3 break-words font-display text-[2rem] font-black leading-[0.96] tracking-[-0.05em] text-white sm:text-5xl lg:text-6xl">
+                    {leadStory.headline}
                   </h2>
-
-                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/65 sm:text-base">
-                    {
-                      leadDek
-                    }
+                  <p className="mt-4 max-w-2xl break-words text-sm leading-relaxed text-white/65 sm:text-base">
+                    {leadStory.detail}
                   </p>
-
                   <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <span className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-bold text-[#061225] transition-transform group-hover:translate-x-1">
-                      Read the full story →
+                    <span className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-black text-[#061225] transition-transform group-hover:translate-x-1">
+                      Open result →
                     </span>
-
-                    {leadWinnerResult && (
+                    {winner && (
                       <span className="numeric text-xs font-semibold text-white/55">
-                        {
-                          leadWinnerResult.total_points
-                        }{" "}
-                        points
+                        {winner.totalPoints} winner points
                       </span>
                     )}
                   </div>
                 </div>
               </div>
             </Link>
-          ) : (
-            <div className="glass flex min-h-[280px] items-end p-6 sm:min-h-[360px]">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-                  Solaris
-                </p>
-                <h2 className="mt-2 font-display text-4xl font-black">
-                  No edition is public yet
+          ) : latestEdition ? (
+            <Link
+              to="/editions/$slug"
+              params={{ slug: latestEdition.slug }}
+              className="glass flex min-h-[300px] min-w-0 items-end p-5 sm:min-h-[420px] sm:p-8"
+            >
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Edition desk</p>
+                <h2 className="mt-2 break-words font-display text-3xl font-black sm:text-5xl">
+                  {editionLabel(latestEdition)} is now in focus
                 </h2>
-                <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-                  Publish information from an edition's Publication tab and it will appear here automatically.
+                <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  Open the edition for every show, entry, publication and result currently available.
                 </p>
+              </div>
+            </Link>
+          ) : (
+            <div className="glass flex min-h-[280px] items-end p-5 sm:min-h-[360px] sm:p-8">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Newsroom</p>
+                <h2 className="mt-2 font-display text-3xl font-black">No public edition yet</h2>
+                <p className="mt-3 text-sm text-muted-foreground">The homepage will build itself around the first published edition.</p>
               </div>
             </div>
           )}
 
-          <aside className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            <NewsBrief
-              label="Result"
-              headline={
-                runnerUp &&
-                runnerUpResult
-                  ? `${runnerUp.name} came closest — the margin was ${
-                      Math.max(
-                        0,
-                        (
-                          latestWinnerResult?.total_points ??
-                          0
-                        ) -
-                          runnerUpResult.total_points,
-                      )
-                    } points`
-                  : "See the latest completed scoreboard"
-              }
-              detail={
-                latestCompletedShow
-                  ? latestCompletedShow.name
-                  : "No public result archive yet"
-              }
-              to={
-                latestCompletedShow
-                  ? `/shows/${latestCompletedShow.id}`
-                  : "/editions"
-              }
-            />
-
-            <NewsBrief
-              label="Analysis"
-              headline="Where did the jury and televote see things completely differently?"
-              detail="Open the voting split and relationship analysis."
-              to="/analysis"
-              accent
-            />
-
-            <NewsBrief
-              label="Records"
-              headline="The results that changed the all-time record book"
-              detail={`${totalWinners} Grand Final winning results are currently public in the archive.`}
-              to="/records"
-            />
+          <aside className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {newsroomStories.slice(0, 3).map((story) => (
+              <HeadlineCard
+                key={story.id}
+                story={story}
+                to={storyRoute(story, latestCompletedShow?.id)}
+              />
+            ))}
+            {!newsroomStories.length && (
+              <HeadlineCard
+                story={{
+                  id: "analysis-fallback",
+                  label: "Data desk",
+                  headline: "The scoreboard is only the beginning",
+                  detail: "Open Solaris analysis to explore voting patterns, records and country relationships.",
+                  intensity: "standard",
+                }}
+                to="/analysis"
+              />
+            )}
           </aside>
         </section>
 
-        {latestCompletedShow &&
-          latestWinner && (
-            <section>
-              <NewsSectionHeader
-                kicker="At a glance"
-                title="The story in 30 seconds"
-                linkLabel="Full results"
-                linkTo={`/shows/${latestCompletedShow.id}`}
-              />
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <QuickTake
-                  number="01"
-                  label="Winner"
-                  title={
-                    latestWinner.name
-                  }
-                  detail={`${latestWinnerResult?.total_points ?? 0} points`}
-                  country={
-                    latestWinner
-                  }
-                />
-
-                <QuickTake
-                  number="02"
-                  label="Runner-up"
-                  title={
-                    runnerUp?.name ??
-                    "—"
-                  }
-                  detail={
-                    runnerUpResult
-                      ? `${runnerUpResult.total_points} points`
-                      : "No result"
-                  }
-                  country={
-                    runnerUp
-                  }
-                />
-
-                <QuickTake
-                  number="03"
-                  label="Third"
-                  title={
-                    third?.name ??
-                    "—"
-                  }
-                  detail={
-                    thirdResult
-                      ? `${thirdResult.total_points} points`
-                      : "No result"
-                  }
-                  country={
-                    third
-                  }
-                />
-              </div>
-            </section>
-          )}
-
-        <section>
-          <NewsSectionHeader
-            kicker="News desk"
-            title="What people will want to open next"
-            linkLabel="All editions"
-            linkTo="/editions"
-          />
-
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.25fr_.75fr_.75fr]">
-            {latestCompletedShow &&
-              latestWinner &&
-              latestWinnerResult && (
-                <NewsStory
-                  label={
-                    latestCompletedEdition
-                      ? editionLabel(
-                          latestCompletedEdition,
-                        )
-                      : "Results"
-                  }
-                  headline={`${latestWinner.name} won. The interesting part is what happened underneath.`}
-                  detail={`The top five, the scoring gap and the countries that came closest in ${latestCompletedShow.name}.`}
-                  to={`/shows/${latestCompletedShow.id}`}
-                  country={
-                    latestWinner
-                  }
-                  feature
-                />
-              )}
-
-            <NewsStory
-              label="Voting"
-              headline="The jury and televote did not always agree. Here are the biggest splits."
-              detail="Compare who benefited from each side of the vote."
-              to="/analysis"
+        {newsroomStories.length > 3 && (
+          <section>
+            <SectionHeader
+              kicker="Newswire"
+              title="The stories behind the result"
+              linkLabel="Replay the result"
+              linkTo="/broadcast-intelligence"
             />
+            <div className="mt-3 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {newsroomStories.slice(3, 8).map((story) => (
+                <HeadlineCard
+                  key={story.id}
+                  story={story}
+                  to={storyRoute(story, latestCompletedShow?.id)}
+                  compact
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
-            <NewsStory
-              label="Relationships"
-              headline="Which countries keep finding each other in the voting?"
-              detail="See the strongest friendships, similarities and one-sided support."
-              to="/relationships"
-            />
-
-            {latestEdition && (
-              <NewsStory
-                label="Edition watch"
-                headline={`${editionLabel(
-                  latestEdition,
-                )}: everything currently public in one place`}
-                detail={
-                  latestEdition.host_city
-                    ? `Hosted in ${latestEdition.host_city}.`
-                    : latestEdition.name
-                }
-                to={`/editions/${latestEdition.slug}`}
-              />
-            )}
-
-            <NewsStory
-              label="Records"
-              headline="Who owns Solaris history right now?"
-              detail="Wins, streaks, points and the records still standing."
-              to="/records"
-            />
-
-            <NewsStory
-              label="Countries"
-              headline="Every delegation has a history. Some are much stranger than others."
-              detail="Browse placements, voting patterns and relationships country by country."
-              to="/countries"
-            />
-          </div>
-        </section>
-
-        <section className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
-          <div>
-            <NewsSectionHeader
+        <section className="grid min-w-0 gap-5 lg:grid-cols-[1.15fr_.85fr]">
+          <div className="min-w-0">
+            <SectionHeader
               kicker="Scoreboard"
               title={
                 latestCompletedShow
-                  ? `${latestCompletedEdition
-                      ? `${editionLabel(
-                          latestCompletedEdition,
-                        )} · `
-                      : ""}${latestCompletedShow.name}`
-                  : "Latest results"
+                  ? `${latestCompletedEdition ? `${editionLabel(latestCompletedEdition)} · ` : ""}${latestCompletedShow.name}`
+                  : "Latest result"
               }
-              linkLabel="Open scoreboard"
-              linkTo={
-                latestCompletedShow
-                  ? `/shows/${latestCompletedShow.id}`
-                  : "/editions"
-              }
+              linkLabel="Full scoreboard"
+              linkTo={latestCompletedShow ? `/shows/${latestCompletedShow.id}` : "/editions"}
             />
 
-            <div className="glass mt-3 overflow-hidden p-2 sm:p-3">
+            <div className="glass mt-3 min-w-0 overflow-hidden p-2 sm:p-3">
               {topFive.length ? (
-                topFive.map(
-                  (
-                    result,
-                    index,
-                  ) => {
-                    const country =
-                      countryMap.get(
-                        result.country_id,
-                      );
+                topFive.map((result, index) => {
+                  const country = countryMap.get(result.country_id);
+                  if (!country) return null;
 
-                    if (
-                      !country
-                    ) {
-                      return null;
-                    }
-
-                    return (
-                      <Link
-                        key={
-                          result.id
-                        }
-                        to="/countries/$code"
-                        params={{
-                          code:
-                            country.short_code,
-                        }}
-                        className={`grid grid-cols-[38px_42px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-surface ${
-                          index ===
-                          0
-                            ? "bg-primary/5"
-                            : ""
-                        }`}
-                      >
-                        <span className={`numeric text-center text-sm font-bold ${
-                          index ===
-                          0
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        }`}>
-                          #
-                          {result.final_rank ??
-                            index +
-                              1}
-                        </span>
-
-                        <FlagChip
-                          code={
-                            country.short_code
-                          }
-                          color={
-                            country.accent_color
-                          }
-                          image={
-                            country.flag_image
-                          }
-                          size="sm"
-                        />
-
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">
-                            {
-                              country.name
-                            }
-                          </p>
-
-                          {index ===
-                            0 && (
-                            <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
-                              Winner
-                            </p>
-                          )}
-                        </div>
-
-                        <span className="numeric text-sm font-bold">
-                          {
-                            result.total_points
-                          }{" "}
-                          <span className="text-[9px] font-normal text-muted-foreground">
-                            pts
-                          </span>
-                        </span>
-                      </Link>
-                    );
-                  },
-                )
+                  return (
+                    <Link
+                      key={result.id}
+                      to="/countries/$code"
+                      params={{ code: country.short_code }}
+                      className={`grid min-w-0 grid-cols-[34px_38px_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2 py-3 transition-colors hover:bg-surface sm:grid-cols-[42px_44px_minmax(0,1fr)_auto] sm:gap-3 ${index === 0 ? "bg-primary/5" : ""}`}
+                    >
+                      <span className={`numeric text-center text-xs font-black sm:text-sm ${index === 0 ? "text-primary" : "text-muted-foreground"}`}>
+                        #{result.final_rank ?? index + 1}
+                      </span>
+                      <FlagChip
+                        code={country.short_code}
+                        color={country.accent_color}
+                        image={country.flag_image}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{country.name}</p>
+                        {index === 0 && (
+                          <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-primary">Winner</p>
+                        )}
+                      </div>
+                      <span className="numeric shrink-0 text-xs font-black sm:text-sm">
+                        {result.total_points} <span className="text-[8px] font-normal text-muted-foreground">pts</span>
+                      </span>
+                    </Link>
+                  );
+                })
               ) : (
-                <p className="p-4 text-sm text-muted-foreground">
-                  No published results yet.
-                </p>
+                <p className="p-4 text-sm text-muted-foreground">No published result yet.</p>
               )}
             </div>
           </div>
 
-          <div>
-            <NewsSectionHeader
+          <div className="min-w-0">
+            <SectionHeader
               kicker="Edition desk"
-              title={
-                latestEdition
-                  ? editionLabel(
-                      latestEdition,
-                    )
-                  : "Current edition"
-              }
+              title={latestEdition ? editionLabel(latestEdition) : "Current edition"}
+              linkLabel="Open edition"
+              linkTo={latestEdition ? `/editions/${latestEdition.slug}` : "/editions"}
             />
-
-            <div className="glass mt-3 p-4">
+            <div className="glass mt-3 min-w-0 p-4">
               {latestEditionShows.length ? (
                 <div className="divide-y divide-border/50">
-                  {latestEditionShows.map(
-                    (
-                      show,
-                      index,
-                    ) => (
-                      <Link
-                        key={
-                          show.id
-                        }
-                        to="/shows/$showId"
-                        params={{
-                          showId:
-                            show.id,
-                        }}
-                        className="group flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                      >
-                        <span className="numeric w-6 shrink-0 text-[10px] font-bold text-muted-foreground">
-                          {String(
-                            index +
-                              1,
-                          ).padStart(
-                            2,
-                            "0",
-                          )}
-                        </span>
-
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold">
-                            {
-                              show.name
-                            }
-                          </p>
-
-                          <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                            {show.kind.replace(
-                              "-",
-                              " ",
-                            )}
-                          </p>
-                        </div>
-
-                        <span className="text-primary transition-transform group-hover:translate-x-1">
-                          →
-                        </span>
-                      </Link>
-                    ),
-                  )}
+                  {latestEditionShows.map((show, index) => (
+                    <Link
+                      key={show.id}
+                      to="/shows/$showId"
+                      params={{ showId: show.id }}
+                      className="group flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <span className="numeric w-6 shrink-0 text-[10px] font-black text-muted-foreground">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{show.name}</p>
+                        <p className="mt-1 truncate text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                          {show.kind.replaceAll("-", " ")}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-primary transition-transform group-hover:translate-x-1">→</span>
+                    </Link>
+                  ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No shows from this edition are public yet.
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  No public shows from this edition yet.
                 </p>
               )}
             </div>
@@ -1007,82 +480,36 @@ function HomePage() {
         </section>
 
         <section>
-          <NewsSectionHeader
-            kicker="Keep exploring"
-            title="Go deeper into Solaris"
+          <SectionHeader
+            kicker="Interactive newsroom"
+            title="Every Solaris desk, from predictions to archive games"
+            linkLabel="Open all tools"
+            linkTo="/tools"
           />
 
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <DeskLink
-              number="01"
-              title="Editions"
-              description="Every contest chapter."
-              to="/editions"
-            />
-
-            <DeskLink
-              number="02"
-              title="Countries"
-              description="Placements and delegation histories."
-              to="/countries"
-            />
-
-            <DeskLink
-              number="03"
-              title="Analysis"
-              description="Voting patterns and relationships."
-              to="/analysis"
-            />
-
-            <DeskLink
-              number="04"
-              title="Records"
-              description="The numbers that still stand."
-              to="/records"
-            />
+          <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {FEATURE_DESKS.map((desk, index) => (
+              <DeskCard key={desk.to} {...desk} number={String(index + 1).padStart(2, "0")} />
+            ))}
           </div>
         </section>
 
         <section className="border-y border-border/60 py-6">
-          <p className="text-[9px] font-black uppercase tracking-[0.24em] text-muted-foreground">
-            The public archive
-          </p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.24em] text-primary">Public archive</p>
+              <h2 className="mt-1 font-display text-xl font-black sm:text-2xl">The size of Solaris right now</h2>
+            </div>
+            <Link to="/archive-games" className="text-[10px] font-black uppercase tracking-[0.12em] text-primary">
+              Play the archive →
+            </Link>
+          </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-4">
-            <NumberStat
-              label="Editions"
-              value={
-                editionList.length
-              }
-            />
-
-            <NumberStat
-              label="Countries"
-              value={
-                countryList.length
-              }
-            />
-
-            <NumberStat
-              label="Shows"
-              value={
-                showList.filter(
-                  (
-                    show,
-                  ) =>
-                    isShowPublic(
-                      show,
-                    ),
-                ).length
-              }
-            />
-
-            <NumberStat
-              label="Winners"
-              value={
-                totalWinners
-              }
-            />
+          <div className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4">
+            <NumberStat label="Editions" value={editionList.length} />
+            <NumberStat label="Countries" value={countryList.length} />
+            <NumberStat label="Public shows" value={publicShowCount} />
+            <NumberStat label="Grand Final winners" value={totalWinners} />
           </div>
         </section>
       </div>
@@ -1090,333 +517,120 @@ function HomePage() {
   );
 }
 
-function NewsSectionHeader({
+function storyRoute(story: HomeNewsStory, showId?: string) {
+  if (story.id.includes("jury") || story.id.includes("tele") || story.id.includes("rise") || story.id.includes("fall")) {
+    return "/broadcast-intelligence";
+  }
+  if (story.id.includes("runner-up") || story.id.includes("podium")) {
+    return showId ? `/shows/${showId}` : "/result-lab";
+  }
+  return "/analysis";
+}
+
+function HeadlineCard({
+  story,
+  to,
+  compact = false,
+}: {
+  story: HomeNewsStory;
+  to: string;
+  compact?: boolean;
+}) {
+  const breaking = story.intensity === "breaking";
+  const strong = story.intensity === "strong";
+
+  return (
+    <Link
+      to={to}
+      className={`group flex min-w-0 flex-col rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 ${
+        breaking
+          ? "border-primary/45 bg-primary/12"
+          : strong
+            ? "border-border/80 bg-surface-strong/55"
+            : "border-border/70 bg-surface/45"
+      } ${compact ? "sm:min-h-[180px]" : "sm:min-h-[165px]"}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[8px] font-black uppercase tracking-[0.19em] text-primary">
+          {breaking ? "● Breaking · " : ""}{story.label}
+        </p>
+        <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          {story.intensity}
+        </span>
+      </div>
+      <h3 className={`mt-2 break-words font-display font-black leading-[1.04] tracking-[-0.025em] ${breaking ? "text-xl sm:text-2xl" : "text-lg"}`}>
+        {story.headline}
+      </h3>
+      <p className="mt-2 break-words text-[10px] leading-relaxed text-muted-foreground sm:text-xs">
+        {story.detail}
+      </p>
+      <span className="mt-auto pt-4 text-xs font-black text-primary transition-transform group-hover:translate-x-1">
+        Read more →
+      </span>
+    </Link>
+  );
+}
+
+function SectionHeader({
   kicker,
   title,
   linkLabel,
   linkTo,
 }: {
-  kicker:
-    string;
-  title:
-    string;
-  linkLabel?:
-    string;
-  linkTo?:
-    string;
+  kicker: string;
+  title: string;
+  linkLabel?: string;
+  linkTo?: string;
 }) {
   return (
-    <div className="flex items-end justify-between gap-4 border-b border-border/60 pb-2.5">
-      <div>
-        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">
-          {
-            kicker
-          }
-        </p>
-
-        <h2 className="mt-1 font-display text-xl font-black tracking-[-0.025em] sm:text-2xl">
-          {
-            title
-          }
-        </h2>
+    <div className="flex min-w-0 items-end justify-between gap-4 border-b border-border/60 pb-2.5">
+      <div className="min-w-0">
+        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">{kicker}</p>
+        <h2 className="mt-1 break-words font-display text-xl font-black tracking-[-0.025em] sm:text-2xl">{title}</h2>
       </div>
-
-      {linkLabel &&
-        linkTo && (
-          <Link
-            to={
-              linkTo
-            }
-            className="shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-primary"
-          >
-            {
-              linkLabel
-            }{" "}
-            →
-          </Link>
-        )}
+      {linkLabel && linkTo && (
+        <Link to={linkTo} className="shrink-0 text-right text-[9px] font-black uppercase tracking-[0.11em] text-primary sm:text-[10px]">
+          {linkLabel} →
+        </Link>
+      )}
     </div>
   );
 }
 
-function NewsBrief({
-  label,
-  headline,
-  detail,
-  to,
-  accent = false,
-}: {
-  label:
-    string;
-  headline:
-    string;
-  detail:
-    string;
-  to:
-    string;
-  accent?:
-    boolean;
-}) {
-  return (
-    <Link
-      to={
-        to
-      }
-      className={`group flex flex-col rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 sm:min-h-[150px] ${
-        accent
-          ? "border-primary/35 bg-primary/10"
-          : "border-border/70 bg-surface/45"
-      }`}
-    >
-      <p className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
-        {
-          label
-        }
-      </p>
-
-      <h3 className="mt-2 font-display text-lg font-bold leading-[1.08] tracking-[-0.02em]">
-        {
-          headline
-        }
-      </h3>
-
-      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
-        {
-          detail
-        }
-      </p>
-
-      <span className="mt-auto pt-4 text-xs font-bold text-primary transition-transform group-hover:translate-x-1">
-        Open →
-      </span>
-    </Link>
-  );
-}
-
-function QuickTake({
+function DeskCard({
   number,
   label,
-  title,
-  detail,
-  country,
-}: {
-  number:
-    string;
-  label:
-    string;
-  title:
-    string;
-  detail:
-    string;
-  country?: {
-    short_code:
-      string;
-    flag_image:
-      string | null;
-    accent_color:
-      string;
-  } | null;
-}) {
-  return (
-    <div className="glass relative overflow-hidden p-4">
-      <BackgroundFlag
-        image={
-          country?.flag_image
-        }
-        className="-bottom-8 -right-8 h-40 w-40"
-        opacity={0.14}
-      />
-
-      <div className="relative z-10 flex min-h-[96px] flex-col sm:min-h-[120px]">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[8px] font-black uppercase tracking-[0.18em] text-primary">
-            {
-              label
-            }
-          </p>
-
-          <span className="numeric text-[10px] font-bold text-muted-foreground">
-            {
-              number
-            }
-          </span>
-        </div>
-
-        <h3 className="mt-auto font-display text-xl font-black">
-          {
-            title
-          }
-        </h3>
-
-        <p className="mt-1 text-xs text-muted-foreground">
-          {
-            detail
-          }
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function NewsStory({
-  label,
-  headline,
-  detail,
-  to,
-  country,
-  feature = false,
-}: {
-  label:
-    string;
-  headline:
-    string;
-  detail:
-    string;
-  to:
-    string;
-  country?: {
-    flag_image?:
-      string | null;
-  } | null;
-  feature?:
-    boolean;
-}) {
-  return (
-    <Link
-      to={
-        to
-      }
-      className={`glass group relative block overflow-hidden p-4 transition-transform hover:-translate-y-0.5 sm:p-5 ${
-        feature
-          ? "min-h-[220px] sm:min-h-[280px] md:row-span-2"
-          : "min-h-[150px] sm:min-h-[190px]"
-      }`}
-    >
-      <BackgroundFlag
-        image={
-          country?.flag_image
-        }
-        className={
-          feature
-            ? "-bottom-16 -right-12 h-64 w-64"
-            : "-bottom-10 -right-10 h-44 w-44"
-        }
-        opacity={
-          feature
-            ? 0.2
-            : 0.12
-        }
-      />
-
-      <div className={`relative z-10 flex ${
-        feature
-          ? "min-h-[180px] sm:min-h-[240px]"
-          : "min-h-[110px] sm:min-h-[150px]"
-      } flex-col`}>
-        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-primary">
-          {
-            label
-          }
-        </p>
-
-        <h3 className={`mt-3 font-display font-black leading-[1.05] tracking-[-0.025em] ${
-          feature
-            ? "text-2xl sm:text-3xl"
-            : "text-lg"
-        }`}>
-          {
-            headline
-          }
-        </h3>
-
-        <p className="mt-3 max-w-xl text-xs leading-relaxed text-muted-foreground">
-          {
-            detail
-          }
-        </p>
-
-        <p className="mt-auto pt-5 text-xs font-bold text-primary transition-transform group-hover:translate-x-1">
-          Read story →
-        </p>
-      </div>
-    </Link>
-  );
-}
-
-function DeskLink({
-  number,
   title,
   description,
   to,
 }: {
-  number:
-    string;
-  title:
-    string;
-  description:
-    string;
-  to:
-    | "/editions"
-    | "/countries"
-    | "/analysis"
-    | "/records";
+  number: string;
+  label: string;
+  title: string;
+  description: string;
+  to: string;
 }) {
   return (
     <Link
-      to={
-        to
-      }
-      className="group flex min-h-[96px] items-end gap-3 rounded-2xl border border-border/70 bg-surface/35 p-4 transition-colors hover:bg-surface sm:min-h-[110px]"
+      to={to}
+      className="group flex min-w-0 flex-col rounded-2xl border border-border/70 bg-surface/45 p-4 transition-colors hover:bg-surface-strong"
     >
-      <span className="numeric text-xs font-bold text-primary">
-        {
-          number
-        }
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <h3 className="font-display text-base font-bold">
-          {
-            title
-          }
-        </h3>
-
-        <p className="mt-1 text-[10px] text-muted-foreground">
-          {
-            description
-          }
-        </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[8px] font-black uppercase tracking-[0.18em] text-primary">{label}</p>
+        <span className="numeric text-[9px] font-black text-muted-foreground">{number}</span>
       </div>
-
-      <span className="text-primary transition-transform group-hover:translate-x-1">
-        →
-      </span>
+      <h3 className="mt-2 break-words font-display text-lg font-black">{title}</h3>
+      <p className="mt-2 break-words text-[10px] leading-relaxed text-muted-foreground sm:text-xs">{description}</p>
+      <span className="mt-auto pt-4 text-xs font-black text-primary transition-transform group-hover:translate-x-1">Open desk →</span>
     </Link>
   );
 }
 
-function NumberStat({
-  label,
-  value,
-}: {
-  label:
-    string;
-  value:
-    number;
-}) {
+function NumberStat({ label, value }: { label: string; value: number }) {
   return (
-    <div>
-      <p className="numeric font-display text-2xl font-black sm:text-3xl">
-        {
-          value
-        }
-      </p>
-
-      <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-        {
-          label
-        }
-      </p>
+    <div className="min-w-0">
+      <p className="numeric font-display text-3xl font-black tracking-[-0.04em] sm:text-4xl">{value}</p>
+      <p className="mt-1 break-words text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
     </div>
   );
 }
