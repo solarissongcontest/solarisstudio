@@ -273,6 +273,14 @@ export type AppDatabase = Omit<Database, "public"> & {
         Args: { _event_id: string };
         Returns: undefined;
       };
+      mark_content_events_read: {
+        Args: { _event_ids: string[] };
+        Returns: number;
+      };
+      prediction_consensus_movement: {
+        Args: { _round_id: string };
+        Returns: Json;
+      };
     };
   };
 };
