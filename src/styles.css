@@ -781,16 +781,53 @@ a.bg-primary:active,
 @media (max-width: 767px) {
   body {
     /*
-     * Mobile gets a vertically fitted version of the landscape image.
-     * This keeps more of the stars visible instead of cropping hard.
+     * Mobile Safari exposes the joins when a viewport-sized image is
+     * repeated down a long page. The artwork lives on one fixed canvas
+     * instead, so content scrolls over a continuous, seamless backdrop.
      */
+    background-color:
+      #020817;
+
+    background-image:
+      none;
+
     background-attachment:
-      scroll,
       scroll;
+  }
+
+  body::before {
+    content:
+      "";
+
+    position:
+      fixed;
+
+    inset:
+      -2px;
+
+    z-index:
+      0;
+
+    pointer-events:
+      none;
+
+    background-color:
+      #020817;
+
+    background-image:
+      linear-gradient(
+        rgba(1, 5, 20, 0.025),
+        rgba(1, 5, 20, 0.025)
+      ),
+      url("/IMG_8815.jpeg");
 
     background-size:
       cover,
       auto 100vh;
+
+    background-size:
+      cover,
+      auto 100svh;
 
     background-position:
       center,
@@ -798,7 +835,18 @@ a.bg-primary:active,
 
     background-repeat:
       no-repeat,
-      repeat-y;
+      no-repeat;
+
+    transform:
+      translateZ(0);
+  }
+
+  body > #root {
+    position:
+      relative;
+
+    z-index:
+      1;
   }
 
   .glass,
