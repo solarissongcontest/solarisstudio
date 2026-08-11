@@ -1,27 +1,33 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 
 export const Route = createFileRoute("/auth/")({
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => {
+    const redirect = typeof search.redirect === "string" ? search.redirect : undefined;
+    return redirect ? { redirect } : {};
+  },
   head: () => ({
     meta: [
-      { title: "Organizer sign in — Solaris Scoreboard Studio" },
+      { title: "Sign in — Solaris Studio" },
       {
         name: "description",
         content:
-          "Sign in to the Solaris Scoreboard Studio organizer area to manage editions, participants and voting results.",
+          "Sign in to make private predictions or access the Solaris Scoreboard Studio organizer area.",
       },
-      { property: "og:title", content: "Organizer sign in — Solaris Scoreboard Studio" },
-      { property: "og:description", content: "Access the SSC organizer studio." },
+      { property: "og:title", content: "Sign in — Solaris Studio" },
+      { property: "og:description", content: "Access your Solaris Studio account." },
     ],
   }),
   component: AuthPage,
 });
 
 function AuthPage() {
-  const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
+  const safeRedirect =
+    redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : "/admin";
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,12 +42,12 @@ function AuthPage() {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/admin" });
+        window.location.assign(safeRedirect);
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: `${window.location.origin}${safeRedirect}` },
         });
         if (error) throw error;
         setMsg("Account created. Check your inbox if confirmation is required, then sign in.");
@@ -56,22 +62,22 @@ function AuthPage() {
   const google = async () => {
     setMsg(null);
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}${safeRedirect}`,
     });
     if (result.error) {
       setMsg("Google sign-in failed. Please try again.");
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/admin" });
+    window.location.assign(safeRedirect);
   };
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Organizer access"
-        title={mode === "signin" ? "Sign in to the Studio" : "Create an organizer account"}
-        description="Voting entry, edition management and broadcast control are restricted to signed-in organizers."
+        eyebrow="Account access"
+        title={mode === "signin" ? "Sign in to Solaris Studio" : "Create an account"}
+        description="Fan predictions are private by default. Organizer tools remain protected by role-based access."
       />
       <div className="mx-auto max-w-md">
         <Panel title="Credentials">
@@ -119,9 +125,7 @@ function AuthPage() {
             onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground"
           >
-            {mode === "signin"
-              ? "No account yet? Create one"
-              : "Already have an account? Sign in"}
+            {mode === "signin" ? "No account yet? Create one" : "Already have an account? Sign in"}
           </button>
         </Panel>
       </div>

@@ -4,11 +4,11 @@ import { useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
-import { relationships } from "@/lib/analysis";
 import {
   useAllJuryVotes,
   useAllParticipants,
   useAllResults,
+  useAllShows,
   useCountries,
   useEditions,
   type Country,
@@ -40,6 +40,7 @@ function RelationshipsPage() {
   const { data: participants } = useAllParticipants();
   const { data: jury } = useAllJuryVotes();
   const { data: results } = useAllResults();
+  const { data: shows } = useAllShows();
   const { data: editions } = useEditions();
 
   const [tab, setTab] = useState<Tab>("all");
@@ -86,21 +87,25 @@ function RelationshipsPage() {
             editions: editions ?? [],
             jury: jury ?? [],
             results: results ?? [],
+            shows: shows ?? [],
           }),
         });
       }
     }
 
     return out;
-  }, [cList, participants, editions, jury, results]);
+  }, [cList, participants, editions, jury, results, shows]);
 
   const oneSidedMap = useMemo(() => {
     const map = new Map<string, number>();
-    relationships(jury ?? []).oneSided.forEach((item: any) => {
-      map.set([item.a, item.b].sort().join("|"), item.gap);
+    pairs.forEach((item) => {
+      const gap = Math.abs(item.rel.normalizedAtoB - item.rel.normalizedBtoA);
+      if (gap >= 15) {
+        map.set([item.a.id, item.b.id].sort().join("|"), gap);
+      }
     });
     return map;
-  }, [jury]);
+  }, [pairs]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -138,7 +143,7 @@ function RelationshipsPage() {
       <PageHeader
         eyebrow="Voting diplomacy"
         title="Relationships"
-        description="Alliances, rivalries and one-sided support in one simple list."
+        description="Alliances, rivalries and one-sided support corrected for shared voting opportunities."
       />
 
       <Panel className="mb-5">
@@ -149,12 +154,7 @@ function RelationshipsPage() {
             placeholder="Search a country…"
             className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none"
           />
-          <ResponsiveTabs
-            value={tab}
-            options={TABS}
-            onChange={setTab}
-            label="Relationship type"
-          />
+          <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Relationship type" />
         </div>
       </Panel>
 
@@ -181,18 +181,20 @@ function RelationshipsPage() {
                 image={row.b.flag_image}
                 size="sm"
               />
-              <span className="min-w-0 flex-1 truncate text-right text-sm font-medium">{row.b.name}</span>
+              <span className="min-w-0 flex-1 truncate text-right text-sm font-medium">
+                {row.b.name}
+              </span>
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-3 border-t border-border/60 pt-3">
               <Mini label="Shared" value={row.shared} />
-              <Mini label="Friendship" value={row.rel.friendshipScore.toFixed(0)} />
+              <Mini label="Support" value={`${row.rel.friendshipScore.toFixed(0)}%`} />
               <Mini
                 label={tab === "one-sided" ? "Gap" : "Rivalry"}
                 value={
                   tab === "one-sided"
-                    ? row.gap ?? "—"
-                    : row.rel.rivalryScore.toFixed(0)
+                    ? `${(row.gap ?? 0).toFixed(0)}%`
+                    : `${row.rel.rivalryScore.toFixed(0)}%`
                 }
               />
             </div>
