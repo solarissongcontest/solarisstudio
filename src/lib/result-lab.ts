@@ -38,14 +38,30 @@ export type ResultLabSimulation = {
   includedVoterCount: number;
   availableVoterCount: number;
   juryRecalculated: boolean;
+  juryPoolTotal: number;
+  televotePoolTotal: number;
+  effectiveJuryWeight: number;
+  effectiveTelevoteWeight: number;
 };
 
 export const RESULT_LAB_BLEND_MODES: ReadonlyArray<
   readonly [ResultLabBlendMode, string, string]
 > = [
-  ["raw", "Weighted points", "Blend the actual jury and televote point totals."],
-  ["normalized", "Normalized share", "Give each voting channel exactly its chosen percentage of the result."],
-  ["rank", "Rank blend", "Blend jury and televote rankings instead of their point margins."],
+  [
+    "raw",
+    "Balanced points",
+    "Rescale jury and televote into the exact selected balance, using whole-number points.",
+  ],
+  [
+    "normalized",
+    "Normalized share",
+    "Compare each entry's share of the jury and televote pools while keeping the selected balance exact.",
+  ],
+  [
+    "rank",
+    "Rank blend",
+    "Convert jury and televote rankings into whole-number point pools with the exact selected balance.",
+  ],
 ];
 
 export const RESULT_LAB_JURY_SCHEMES: ReadonlyArray<
@@ -73,7 +89,11 @@ const JURY_SCHEME_POINTS: Record<Exclude<ResultLabJuryScheme, "original">, numbe
 };
 
 function safeNumber(value: number) {
-  return Number.isFinite(value) ? value : 0;
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
+function wholeNumber(value: number) {
+  return Math.max(0, Math.round(safeNumber(value)));
 }
 
 function normalizedWeights(juryWeight: number, televoteWeight: number) {
@@ -82,13 +102,154 @@ function normalizedWeights(juryWeight: number, televoteWeight: number) {
   const total = jury + televote;
 
   if (total <= 0) {
-    return { jury: 0.5, televote: 0.5 };
+    return { jury: 50, televote: 50 };
   }
 
   return {
-    jury: jury / total,
-    televote: televote / total,
+    jury: (jury / total) * 100,
+    televote: (televote / total) * 100,
   };
+}
+
+function greatestCommonDivisor(a: number, b: number) {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+
+  while (y !== 0) {
+    const remainder = x % y;
+    x = y;
+    y = remainder;
+  }
+
+  return x || 1;
+}
+
+function balancedPoolTargets(
+  rawJuryTotal: number,
+  rawTelevoteTotal: number,
+  juryWeight: number,
+  televoteWeight: number,
+) {
+  const weights = normalizedWeights(juryWeight, televoteWeight);
+  const juryPercent = Math.round(weights.jury);
+  const televotePercent = Math.round(weights.televote);
+
+  if (juryPercent <= 0) {
+    return {
+      jury: 0,
+      televote: wholeNumber(rawTelevoteTotal),
+      juryWeight: 0,
+      televoteWeight: 100,
+    };
+  }
+
+  if (televotePercent <= 0) {
+    return {
+      jury: wholeNumber(rawJuryTotal),
+      televote: 0,
+      juryWeight: 100,
+      televoteWeight: 0,
+    };
+  }
+
+  const divisor = greatestCommonDivisor(juryPercent, televotePercent);
+  const juryUnits = juryPercent / divisor;
+  const televoteUnits = televotePercent / divisor;
+
+  const availableJury = wholeNumber(rawJuryTotal);
+  const availableTelevote = wholeNumber(rawTelevoteTotal);
+
+  if (availableJury <= 0 || availableTelevote <= 0) {
+    return {
+      jury: 0,
+      televote: 0,
+      juryWeight: juryPercent,
+      televoteWeight: televotePercent,
+    };
+  }
+
+  /*
+   * Use the largest whole-number multiplier that does not inflate either
+   * source channel. This means removing juries makes the jury pool smaller,
+   * and the televote pool is scaled down with it to preserve the selected
+   * ratio instead of silently becoming more powerful.
+   */
+  const multiplier = Math.floor(
+    Math.min(
+      availableJury / juryUnits,
+      availableTelevote / televoteUnits,
+    ),
+  );
+
+  if (multiplier <= 0) {
+    return {
+      jury: 0,
+      televote: 0,
+      juryWeight: juryPercent,
+      televoteWeight: televotePercent,
+    };
+  }
+
+  return {
+    jury: juryUnits * multiplier,
+    televote: televoteUnits * multiplier,
+    juryWeight: juryPercent,
+    televoteWeight: televotePercent,
+  };
+}
+
+function allocateWholeNumberPool(
+  values: Map<string, number>,
+  targetTotal: number,
+) {
+  const target = wholeNumber(targetTotal);
+  const ids = [...values.keys()];
+  const result = new Map(ids.map((id) => [id, 0]));
+
+  if (target <= 0 || !ids.length) return result;
+
+  const sourceTotal = ids.reduce(
+    (sum, id) => sum + safeNumber(values.get(id) ?? 0),
+    0,
+  );
+
+  if (sourceTotal <= 0) return result;
+
+  const allocations = ids.map((id) => {
+    const exact = (safeNumber(values.get(id) ?? 0) / sourceTotal) * target;
+    const floor = Math.floor(exact);
+    return {
+      id,
+      exact,
+      floor,
+      remainder: exact - floor,
+    };
+  });
+
+  let assigned = allocations.reduce((sum, item) => sum + item.floor, 0);
+  let remaining = target - assigned;
+
+  allocations.sort(
+    (a, b) =>
+      b.remainder - a.remainder ||
+      b.exact - a.exact ||
+      a.id.localeCompare(b.id),
+  );
+
+  allocations.forEach((item) => {
+    const bonus = remaining > 0 ? 1 : 0;
+    if (bonus) remaining -= 1;
+    result.set(item.id, item.floor + bonus);
+  });
+
+  assigned = [...result.values()].reduce((sum, value) => sum + value, 0);
+
+  if (assigned !== target && allocations[0]) {
+    const firstId = allocations[0].id;
+    result.set(firstId, (result.get(firstId) ?? 0) + (target - assigned));
+  }
+
+  return result;
 }
 
 function channelRanks(values: Map<string, number>) {
@@ -102,6 +263,17 @@ function channelRanks(values: Map<string, number>) {
   });
 
   return ranks;
+}
+
+function rankScores(values: Map<string, number>) {
+  const ranks = channelRanks(values);
+  const count = values.size;
+  return new Map(
+    [...values.keys()].map((id) => [
+      id,
+      Math.max(0, count - (ranks.get(id) ?? count) + 1),
+    ]),
+  );
 }
 
 function aggregateJuryVotes(
@@ -132,7 +304,10 @@ function aggregateJuryVotes(
 
     if (scheme === "original") {
       for (const vote of ordered) {
-        totals.set(vote.recipientId, (totals.get(vote.recipientId) ?? 0) + safeNumber(vote.points));
+        totals.set(
+          vote.recipientId,
+          (totals.get(vote.recipientId) ?? 0) + wholeNumber(vote.points),
+        );
       }
       continue;
     }
@@ -182,7 +357,6 @@ export function simulateResultLab({
   juryVotes: ResultLabJuryVote[];
   config: ResultLabConfig;
 }): ResultLabSimulation {
-  const weights = normalizedWeights(config.juryWeight, config.televoteWeight);
   const availableVoters = new Set(juryVotes.map((vote) => vote.voterKey).filter(Boolean));
   const canRecalculateJury = juryVotes.length > 0 && availableVoters.size > 0;
 
@@ -195,47 +369,42 @@ export function simulateResultLab({
       )
     : null;
 
-  const juryPoints = new Map<string, number>();
-  const televotePoints = new Map<string, number>();
+  const rawJuryPoints = new Map<string, number>();
+  const rawTelevotePoints = new Map<string, number>();
 
   for (const entry of officialEntries) {
-    juryPoints.set(
+    rawJuryPoints.set(
       entry.id,
-      juryAggregation?.totals.get(entry.id) ?? safeNumber(entry.juryPoints),
+      juryAggregation?.totals.get(entry.id) ?? wholeNumber(entry.juryPoints),
     );
-    televotePoints.set(entry.id, safeNumber(entry.televotePoints));
+    rawTelevotePoints.set(entry.id, wholeNumber(entry.televotePoints));
   }
 
-  const juryTotal = [...juryPoints.values()].reduce((sum, value) => sum + value, 0);
-  const televoteTotal = [...televotePoints.values()].reduce((sum, value) => sum + value, 0);
-  const juryRanks = channelRanks(juryPoints);
-  const televoteRanks = channelRanks(televotePoints);
-  const entryCount = officialEntries.length;
+  const rawJuryTotal = [...rawJuryPoints.values()].reduce((sum, value) => sum + value, 0);
+  const rawTelevoteTotal = [...rawTelevotePoints.values()].reduce((sum, value) => sum + value, 0);
+
+  const targets = balancedPoolTargets(
+    rawJuryTotal,
+    rawTelevoteTotal,
+    config.juryWeight,
+    config.televoteWeight,
+  );
+
+  const jurySource = config.blendMode === "rank" ? rankScores(rawJuryPoints) : rawJuryPoints;
+  const televoteSource = config.blendMode === "rank" ? rankScores(rawTelevotePoints) : rawTelevotePoints;
+
+  const juryPoints = allocateWholeNumberPool(jurySource, targets.jury);
+  const televotePoints = allocateWholeNumberPool(televoteSource, targets.televote);
 
   const workingRows: ResultLabRow[] = officialEntries.map((entry) => {
     const jury = juryPoints.get(entry.id) ?? 0;
     const televote = televotePoints.get(entry.id) ?? 0;
-    let score = 0;
-
-    if (config.blendMode === "raw") {
-      score = jury * (weights.jury * 2) + televote * (weights.televote * 2);
-    } else if (config.blendMode === "normalized") {
-      const juryShare = juryTotal > 0 ? jury / juryTotal : 0;
-      const televoteShare = televoteTotal > 0 ? televote / televoteTotal : 0;
-      score = (juryShare * weights.jury + televoteShare * weights.televote) * 100;
-    } else {
-      const juryRank = juryRanks.get(entry.id) ?? entryCount;
-      const televoteRank = televoteRanks.get(entry.id) ?? entryCount;
-      const juryRankScore = Math.max(0, entryCount - juryRank + 1);
-      const televoteRankScore = Math.max(0, entryCount - televoteRank + 1);
-      score = juryRankScore * weights.jury + televoteRankScore * weights.televote;
-    }
 
     return {
       ...entry,
       simulatedJuryPoints: jury,
       simulatedTelevotePoints: televote,
-      simulatedScore: Number(score.toFixed(4)),
+      simulatedScore: jury + televote,
       simulatedRank: 0,
       rankDelta: null,
     };
@@ -243,7 +412,7 @@ export function simulateResultLab({
 
   workingRows.sort((a, b) => {
     const scoreDelta = b.simulatedScore - a.simulatedScore;
-    if (Math.abs(scoreDelta) > 0.000001) return scoreDelta;
+    if (scoreDelta !== 0) return scoreDelta;
     return tieBreakCompare(a, b, config.tieBreak);
   });
 
@@ -262,6 +431,10 @@ export function simulateResultLab({
     includedVoterCount: juryAggregation?.voterCount ?? availableVoters.size,
     availableVoterCount: availableVoters.size,
     juryRecalculated: Boolean(juryAggregation),
+    juryPoolTotal: targets.jury,
+    televotePoolTotal: targets.televote,
+    effectiveJuryWeight: targets.juryWeight,
+    effectiveTelevoteWeight: targets.televoteWeight,
   };
 }
 
