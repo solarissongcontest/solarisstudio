@@ -23,9 +23,7 @@ export const Route = createFileRoute("/archive-games/")({
   component: ArchiveGamesPage,
 });
 
-const MODES: ReadonlyArray<
-  readonly [ArchiveGameMode, string, string]
-> = [
+const MODES: ReadonlyArray<readonly [ArchiveGameMode, string, string]> = [
   ["higher-lower", "Higher or Lower", "Pick which entry finished higher in the same historical show."],
   ["jury-tele", "Jury vs Televote", "Guess which voting side supported an entry more."],
   ["edition-detective", "Edition Detective", "Match an archived entry to the edition where it appeared."],
@@ -63,7 +61,6 @@ function ArchiveGamesPage() {
   );
 
   const stats = useMemo(() => archiveGameStats(gameInput), [gameInput]);
-
   const question = useMemo(
     () => buildArchiveGameQuestion(gameInput, mode, `${mode}:${round}`),
     [gameInput, mode, round],
@@ -74,7 +71,6 @@ function ArchiveGamesPage() {
 
   const chooseAnswer = (optionId: string) => {
     if (!question || answered) return;
-
     setAnswer(optionId);
 
     if (optionId === question.correctOptionId) {
@@ -106,7 +102,7 @@ function ArchiveGamesPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Phase 6 · Archive Games"
+        eyebrow="Archive Games"
         title="Play the SSC archive"
         description="Turn old results into quick games instead of merely staring at another spreadsheet-shaped monument to human voting behaviour. No account is needed and nothing is stored."
         actions={
@@ -139,9 +135,7 @@ function ArchiveGamesPage() {
                     }`}
                   >
                     <span className="block text-sm font-semibold">{label}</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                      {description}
-                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
                   </button>
                 );
               })}
@@ -182,7 +176,7 @@ function ArchiveGamesPage() {
                   {question.prompt}
                 </h2>
 
-                <div className={`mt-5 grid min-w-0 gap-2 ${question.options.length > 2 ? "sm:grid-cols-2" : "sm:grid-cols-2"}`}>
+                <div className="mt-5 grid min-w-0 gap-2 sm:grid-cols-2">
                   {question.options.map((option) => {
                     const selected = answer === option.id;
                     const isCorrect = answered && option.id === question.correctOptionId;
@@ -214,9 +208,7 @@ function ArchiveGamesPage() {
                               size="sm"
                             />
                           ) : null}
-                          <span className="min-w-0 flex-1 break-words text-sm font-semibold">
-                            {option.label}
-                          </span>
+                          <span className="min-w-0 flex-1 break-words text-sm font-semibold">{option.label}</span>
                         </span>
                         {option.detail && (
                           <span className="mt-1 block break-words text-xs leading-relaxed text-muted-foreground">
@@ -231,14 +223,10 @@ function ArchiveGamesPage() {
                 {answered && (
                   <div
                     className={`mt-5 rounded-xl border p-4 ${
-                      correct
-                        ? "border-primary/40 bg-surface-strong"
-                        : "border-border bg-surface"
+                      correct ? "border-primary/40 bg-surface-strong" : "border-border bg-surface"
                     }`}
                   >
-                    <p className="font-display text-lg font-semibold">
-                      {correct ? "Correct" : "Not quite"}
-                    </p>
+                    <p className="font-display text-lg font-semibold">{correct ? "Correct" : "Not quite"}</p>
                     <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">
                       {question.explanation}
                     </p>
@@ -262,7 +250,7 @@ function ArchiveGamesPage() {
             </Panel>
           )}
 
-          <Panel title="How it works" description="No mysterious scoring algorithm hiding under the floorboards">
+          <Panel title="How it works" description="Quick games generated from the public SSC archive">
             <div className="grid gap-3 sm:grid-cols-3">
               <InfoCard
                 number="01"
@@ -272,12 +260,12 @@ function ArchiveGamesPage() {
               <InfoCard
                 number="02"
                 title="Fresh questions"
-                text="Each round uses a deterministic new seed, so the session keeps moving through the archive."
+                text="Each round draws a new question from the archive, so the session keeps moving through SSC history."
               />
               <InfoCard
                 number="03"
                 title="Private by default"
-                text="Scores stay in this browser session. Phase 6 does not create public leaderboards or user profiles."
+                text="Your score stays in this browser session and is not published to other users."
               />
             </div>
           </Panel>
@@ -290,9 +278,7 @@ function ArchiveGamesPage() {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="min-w-0 rounded-xl bg-surface p-3 text-center">
-      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className="mt-1 font-display text-xl font-semibold tabular-nums">{value}</p>
     </div>
   );
