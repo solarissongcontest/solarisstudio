@@ -9,6 +9,8 @@ export type AccountAccess = {
   userId: string | null;
   isOrganizer: boolean;
   countryId: string | null;
+  countryStatus: "active" | "suspended" | null;
+  suspensionReason: string | null;
   schemaReady: boolean;
 };
 
@@ -19,6 +21,19 @@ export type AvailableCountryClaim = {
   flag_image: string | null;
   accent_color: string;
   region: string;
+};
+
+export type AdminCountryAccount = {
+  user_id: string;
+  email: string | null;
+  country_id: string;
+  country_name: string;
+  short_code: string;
+  flag_image: string | null;
+  status: "active" | "suspended";
+  suspension_reason: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CountryProfile = {
@@ -74,9 +89,12 @@ function missingCountrySchema(error: unknown) {
   return (
     candidate.code === "42P01" ||
     candidate.code === "PGRST205" ||
+    candidate.code === "PGRST204" ||
     message.includes("country_accounts") ||
     message.includes("country_profiles") ||
-    message.includes("available_country_claims")
+    message.includes("available_country_claims") ||
+    message.includes("admin_country_accounts") ||
+    message.includes("suspension_reason")
   );
 }
 
@@ -89,7 +107,14 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
   }
 
   if (!resolvedUserId) {
-    return { userId: null, isOrganizer: false, countryId: null, schemaReady: true };
+    return {
+      userId: null,
+      isOrganizer: false,
+      countryId: null,
+      countryStatus: null,
+      suspensionReason: null,
+      schemaReady: true,
+    };
   }
 
   const [roleResult, countryResult] = await Promise.all([
@@ -101,7 +126,7 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
       .maybeSingle(),
     supabase
       .from("country_accounts")
-      .select("country_id")
+      .select("country_id,status,suspension_reason")
       .eq("user_id", resolvedUserId)
       .maybeSingle(),
   ]);
@@ -118,6 +143,8 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
     userId: resolvedUserId,
     isOrganizer: Boolean(roleResult.data),
     countryId: countryResult.data?.country_id ?? null,
+    countryStatus: countryResult.data?.status ?? null,
+    suspensionReason: countryResult.data?.suspension_reason ?? null,
     schemaReady: !missingCountrySchema(countryResult.error),
   };
 }
@@ -159,6 +186,47 @@ export function useMyCountryAccount() {
       return { access, country: (data as Country | null) ?? null };
     },
     staleTime: 30_000,
+  });
+}
+
+export function useAdminCountryAccounts(enabled = true) {
+  return useQuery({
+    enabled,
+    queryKey: ["admin-country-accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("admin_country_accounts");
+      if (missingCountrySchema(error)) {
+        return { schemaReady: false, accounts: [] as AdminCountryAccount[] };
+      }
+      if (error) throw error;
+      return { schemaReady: true, accounts: (data ?? []) as AdminCountryAccount[] };
+    },
+    staleTime: 10_000,
+  });
+}
+
+export function useAdminSetCountryAccountStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      userId: string;
+      status: "active" | "suspended";
+      reason?: string;
+    }) => {
+      const { data, error } = await supabase.rpc("admin_set_country_account_status", {
+        _user_id: input.userId,
+        _status: input.status,
+        _reason: input.reason ?? null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-country-accounts"] }),
+        qc.invalidateQueries({ queryKey: ["my-country-account"] }),
+      ]);
+    },
   });
 }
 
@@ -223,30 +291,47 @@ export function useClaimCountryAccount() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["my-country-account"] }),
         qc.invalidateQueries({ queryKey: ["available-country-claims"] }),
+        qc.invalidateQueries({ queryKey: ["admin-country-accounts"] }),
       ]);
     },
   });
 }
 
-export function useUpdateOwnedCountryIdentity() {
+type IdentityInput = {
+  name: string;
+  nativeName: string;
+  region: string;
+  description: string;
+  accentColor: string;
+  flagImage: string | null;
+};
+
+export function useUpdateCountryIdentity(countryId?: string, organizerOverride = false) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      name: string;
-      nativeName: string;
-      region: string;
-      description: string;
-      accentColor: string;
-      flagImage: string | null;
-    }) => {
-      const { data, error } = await supabase.rpc("update_owned_country_identity", {
-        _name: input.name,
-        _native_name: input.nativeName,
-        _region: input.region,
-        _description: input.description,
-        _accent_color: input.accentColor,
-        _flag_image: input.flagImage,
-      });
+    mutationFn: async (input: IdentityInput) => {
+      const fn = organizerOverride ? "admin_update_country_identity" : "update_owned_country_identity";
+      const args = organizerOverride
+        ? {
+            _country_id: countryId,
+            _name: input.name,
+            _native_name: input.nativeName,
+            _region: input.region,
+            _description: input.description,
+            _accent_color: input.accentColor,
+            _flag_image: input.flagImage,
+          }
+        : {
+            _name: input.name,
+            _native_name: input.nativeName,
+            _region: input.region,
+            _description: input.description,
+            _accent_color: input.accentColor,
+            _flag_image: input.flagImage,
+          };
+
+      if (organizerOverride && !countryId) throw new Error("No country is selected.");
+      const { data, error } = await supabase.rpc(fn, args);
       if (error) throw error;
       return data;
     },
@@ -255,9 +340,14 @@ export function useUpdateOwnedCountryIdentity() {
         qc.invalidateQueries({ queryKey: ["countries"] }),
         qc.invalidateQueries({ queryKey: ["my-country-account"] }),
         qc.invalidateQueries({ queryKey: ["contest_entities"] }),
+        qc.invalidateQueries({ queryKey: ["admin-country-accounts"] }),
       ]);
     },
   });
+}
+
+export function useUpdateOwnedCountryIdentity() {
+  return useUpdateCountryIdentity();
 }
 
 export function useSaveCountryProfile(countryId?: string) {
@@ -436,25 +526,41 @@ export async function uploadCountryAsset(
   return { storagePath, publicUrl: data.publicUrl };
 }
 
-export function useSaveOwnedCountryEntry() {
+type EntryInput = {
+  participantId: string | null;
+  editionId: string;
+  showId: string | null;
+  artist: string;
+  song: string;
+  notes: string;
+};
+
+export function useSaveCountryEntry(countryId?: string, organizerOverride = false) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      participantId: string | null;
-      editionId: string;
-      showId: string | null;
-      artist: string;
-      song: string;
-      notes: string;
-    }) => {
-      const { data, error } = await supabase.rpc("upsert_owned_country_entry", {
-        _participant_id: input.participantId,
-        _edition_id: input.editionId,
-        _show_id: input.showId,
-        _artist: input.artist,
-        _song: input.song,
-        _notes: input.notes,
-      });
+    mutationFn: async (input: EntryInput) => {
+      const fn = organizerOverride ? "admin_upsert_country_entry" : "upsert_owned_country_entry";
+      const args = organizerOverride
+        ? {
+            _country_id: countryId,
+            _participant_id: input.participantId,
+            _edition_id: input.editionId,
+            _show_id: input.showId,
+            _artist: input.artist,
+            _song: input.song,
+            _notes: input.notes,
+          }
+        : {
+            _participant_id: input.participantId,
+            _edition_id: input.editionId,
+            _show_id: input.showId,
+            _artist: input.artist,
+            _song: input.song,
+            _notes: input.notes,
+          };
+
+      if (organizerOverride && !countryId) throw new Error("No country is selected.");
+      const { data, error } = await supabase.rpc(fn, args);
       if (error) throw error;
       return data;
     },
@@ -465,4 +571,8 @@ export function useSaveOwnedCountryEntry() {
       ]);
     },
   });
+}
+
+export function useSaveOwnedCountryEntry() {
+  return useSaveCountryEntry();
 }
