@@ -10,6 +10,7 @@ import type {
 import { supabase as baseSupabase } from "@/integrations/supabase/client";
 
 import { missingEngagementSchema } from "./prediction-data";
+import type { PredictionMovementPayload } from "./pulse";
 
 const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
@@ -59,7 +60,10 @@ export function useSetFanFollow(profileId?: string) {
       return data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fan-follows", profileId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["fan-follows", profileId] }),
+        queryClient.invalidateQueries({ queryKey: ["content-events"] }),
+      ]);
     },
   });
 }
@@ -114,6 +118,24 @@ export function useMarkEventRead(profileId?: string) {
   });
 }
 
+export function useMarkAllEventsRead(profileId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (eventIds: string[]) => {
+      if (!profileId || !eventIds.length) return 0;
+      const { data, error } = await supabase.rpc("mark_content_events_read", {
+        _event_ids: eventIds,
+      });
+      if (missingEngagementSchema(error)) return 0;
+      if (error) throw error;
+      return Number(data ?? 0);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["fan-event-reads", profileId] });
+    },
+  });
+}
+
 export function useNotificationPreferences(profileId?: string) {
   return useQuery({
     enabled: Boolean(profileId),
@@ -161,5 +183,39 @@ export function useSaveNotificationPreferences(profileId?: string) {
         queryKey: ["notification-preferences", profileId],
       });
     },
+  });
+}
+
+export function usePredictionMovement(roundId?: string, enabled = false) {
+  return useQuery({
+    enabled: Boolean(roundId && enabled),
+    queryKey: ["prediction-movement", roundId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("prediction_consensus_movement", {
+        _round_id: roundId!,
+      });
+
+      if (missingEngagementSchema(error)) {
+        return {
+          schemaReady: false,
+          movement: null as PredictionMovementPayload | null,
+        };
+      }
+
+      const message = error?.message?.toLowerCase() ?? "";
+      if (message.includes("submit a prediction") || message.includes("authentication required")) {
+        return {
+          schemaReady: true,
+          movement: null as PredictionMovementPayload | null,
+        };
+      }
+
+      if (error) throw error;
+      return {
+        schemaReady: true,
+        movement: data as unknown as PredictionMovementPayload,
+      };
+    },
+    staleTime: 30_000,
   });
 }
