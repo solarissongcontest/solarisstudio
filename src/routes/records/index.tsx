@@ -69,6 +69,14 @@ function RecordsPage() {
         eyebrow="Hall of records"
         title="Records"
         description="The all-time records, presented like records rather than a warehouse inventory system."
+        actions={
+          <Link
+            to="/archive-games"
+            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+          >
+            Play Archive Games →
+          </Link>
+        }
       />
 
       <ResponsiveTabs
@@ -87,11 +95,11 @@ function RecordsPage() {
                 key={`${record.label}-${index}`}
                 className="grid gap-1 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-5"
               >
-                <div>
-                  <p className="text-sm font-medium">{record.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{record.detail}</p>
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-medium">{record.label}</p>
+                  <p className="mt-1 break-words text-xs text-muted-foreground">{record.detail}</p>
                 </div>
-                <p className="numeric text-xl font-semibold text-primary sm:text-right">
+                <p className="numeric break-words text-xl font-semibold text-primary sm:text-right">
                   {record.value}
                 </p>
               </div>
