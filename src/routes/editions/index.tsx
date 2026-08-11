@@ -306,7 +306,7 @@ function EditionsPage() {
                       slug:
                         edition.slug,
                     }}
-                    className="glass group relative block h-[238px] overflow-hidden p-4 transition-transform hover:-translate-y-1 sm:h-auto sm:min-h-[260px] sm:p-5"
+                    className="glass group relative block min-h-[238px] overflow-hidden p-4 transition-transform hover:-translate-y-1 sm:min-h-[260px] sm:p-5"
                   >
                     <BackgroundFlag
                       image={
@@ -316,7 +316,7 @@ function EditionsPage() {
                       opacity={0.14}
                     />
 
-                    <div className="relative z-10 flex h-full min-h-0 flex-col sm:min-h-[220px]">
+                    <div className="relative z-10 flex min-h-[206px] flex-col sm:min-h-[220px]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
