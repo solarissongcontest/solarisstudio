@@ -1,0 +1,213 @@
+.solaris-birthday {
+  background:
+    radial-gradient(circle at 15% 12%, rgba(251, 113, 133, 0.34), transparent 30%),
+    radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.38), transparent 32%),
+    radial-gradient(circle at 55% 85%, rgba(168, 85, 247, 0.36), transparent 36%),
+    linear-gradient(135deg, #17062f 0%, #051b47 35%, #092d5a 57%, #33105a 78%, #17062f 100%);
+  background-size: 140% 140%;
+  animation: solaris-birthday-gradient 10s ease-in-out infinite alternate;
+}
+
+.solaris-birthday::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 88%);
+}
+
+.solaris-birthday::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 15%, rgba(255,255,255,.08) 42%, transparent 60%);
+  transform: translateX(-120%);
+  animation: solaris-birthday-shine 7s ease-in-out infinite;
+}
+
+.solaris-birthday-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(18px);
+  opacity: .46;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  animation: solaris-birthday-orbit 9s ease-in-out infinite alternate;
+}
+
+.solaris-birthday-orb-a {
+  width: 28rem;
+  height: 28rem;
+  left: -12rem;
+  top: -8rem;
+  background: rgba(251, 113, 133, .34);
+}
+
+.solaris-birthday-orb-b {
+  width: 34rem;
+  height: 34rem;
+  right: -15rem;
+  top: 18%;
+  background: rgba(34, 211, 238, .28);
+  animation-delay: -3s;
+}
+
+.solaris-birthday-orb-c {
+  width: 30rem;
+  height: 30rem;
+  left: 38%;
+  bottom: -18rem;
+  background: rgba(192, 132, 252, .3);
+  animation-delay: -5s;
+}
+
+.solaris-birthday-pill {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  background: rgba(255,255,255,.075);
+  padding: 0 .75rem;
+  color: rgba(255,255,255,.76);
+  font-size: .55rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  backdrop-filter: blur(12px);
+}
+
+.solaris-birthday-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: .9rem;
+  background: rgba(255,255,255,.075);
+  padding: 0 1rem;
+  color: white;
+  font-size: .75rem;
+  font-weight: 900;
+  backdrop-filter: blur(12px);
+  transition: transform .2s ease, background .2s ease;
+}
+
+.solaris-birthday-action:hover {
+  transform: translateY(-2px);
+  background: rgba(255,255,255,.14);
+}
+
+.solaris-birthday-action-primary {
+  background: white;
+  color: #11142a;
+}
+
+.solaris-birthday-action-primary:hover {
+  background: rgba(255,255,255,.92);
+}
+
+.solaris-birthday-story {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 1.6rem;
+  background: rgba(3, 8, 28, .34);
+  padding: 1.25rem;
+  backdrop-filter: blur(14px);
+}
+
+.solaris-birthday-story::after {
+  content: "";
+  position: absolute;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 999px;
+  right: -3rem;
+  bottom: -4rem;
+  opacity: .22;
+  filter: blur(4px);
+}
+
+.solaris-birthday-story-0::after { background: #fb7185; }
+.solaris-birthday-story-1::after { background: #38bdf8; }
+.solaris-birthday-story-2::after { background: #c084fc; }
+
+.solaris-confetti {
+  --confetti-rotate: 0deg;
+  position: absolute;
+  top: -12%;
+  display: block;
+  border-radius: 2px;
+  opacity: .9;
+  transform: rotate(var(--confetti-rotate));
+  animation-name: solaris-confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.solaris-confetti-0 { background: #ffffff; }
+.solaris-confetti-1 { background: #38bdf8; }
+.solaris-confetti-2 { background: #fb7185; }
+.solaris-confetti-3 { background: #facc15; }
+.solaris-confetti-4 { background: #c084fc; }
+
+@keyframes solaris-confetti-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(var(--confetti-rotate));
+    opacity: 0;
+  }
+  8% { opacity: .95; }
+  50% {
+    transform: translate3d(38px, 52vh, 0) rotate(calc(var(--confetti-rotate) + 360deg));
+  }
+  100% {
+    transform: translate3d(-22px, 118vh, 0) rotate(calc(var(--confetti-rotate) + 720deg));
+    opacity: .2;
+  }
+}
+
+@keyframes solaris-birthday-gradient {
+  from { background-position: 0% 35%; }
+  to { background-position: 100% 65%; }
+}
+
+@keyframes solaris-birthday-shine {
+  0%, 64% { transform: translateX(-125%); }
+  82%, 100% { transform: translateX(125%); }
+}
+
+@keyframes solaris-birthday-orbit {
+  from { transform: translate3d(-2%, -2%, 0) scale(.96); }
+  to { transform: translate3d(6%, 4%, 0) scale(1.08); }
+}
+
+@media (max-width: 640px) {
+  .solaris-birthday {
+    animation-duration: 14s;
+  }
+
+  .solaris-confetti:nth-child(2n) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-birthday,
+  .solaris-birthday::after,
+  .solaris-birthday-orb,
+  .solaris-confetti {
+    animation: none !important;
+  }
+
+  .solaris-confetti {
+    display: none;
+  }
+}
