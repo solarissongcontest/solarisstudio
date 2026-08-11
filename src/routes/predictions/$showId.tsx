@@ -167,7 +167,7 @@ function PredictionBuilderPage() {
 
     try {
       await submitPrediction.mutateAsync(items);
-      setMessage("Prediction saved. You can revise it until the database lock time.");
+      setMessage("Prediction saved. You can revise it until the round locks.");
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -228,10 +228,9 @@ function PredictionBuilderPage() {
       />
 
       {roundData?.schemaReady === false ? (
-        <Panel title="Arena setup in progress">
+        <Panel title="Prediction Arena is temporarily unavailable">
           <p className="text-sm text-muted-foreground">
-            Private prediction storage is still being applied. This page will open automatically
-            when the migration is live.
+            Predictions cannot be submitted right now. This page will become available again automatically.
           </p>
         </Panel>
       ) : !round ? (
@@ -263,7 +262,7 @@ function PredictionBuilderPage() {
                 : `Locks ${new Intl.DateTimeFormat(undefined, {
                     dateStyle: "medium",
                     timeStyle: "short",
-                  }).format(new Date(round.locks_at))}. The database clock decides the deadline.`
+                  }).format(new Date(round.locks_at))}. The displayed deadline is authoritative.`
             }
           >
             <form onSubmit={submit} className="space-y-5">
@@ -429,7 +428,7 @@ function PredictionBuilderPage() {
             <Panel title="Privacy and fairness">
               <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
                 <li>• Your individual picks are private.</li>
-                <li>• The deadline uses database time, not your device clock.</li>
+                <li>• The published deadline is enforced consistently for everyone.</li>
                 <li>• Every submitted revision is preserved.</li>
                 <li>• There are no paid entries, streak losses or gambling rewards.</li>
               </ul>
