@@ -65,7 +65,7 @@ export function CountryWorldOverview({
     <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,.65fr)]">
       <Panel
         title={`Inside ${country.name}`}
-        description="Terra Solaris profile and owner-maintained worldbuilding"
+        description="Terra Solaris national profile"
         actions={
           <Link
             to="/wiki/$code"
@@ -128,7 +128,7 @@ export function CountryWorldOverview({
       </Panel>
 
       <div className="min-w-0 space-y-5">
-        <Panel title="Country character" description="Automatically derived from submitted information and SSC history">
+        <Panel title="Country character" description="Automatically derived from national information and SSC history">
           <p className="font-display text-lg font-semibold">{character.title}</p>
           <p className="mt-2 text-xs leading-6 text-muted-foreground">{character.summary}</p>
           {character.tags.length > 0 && (
