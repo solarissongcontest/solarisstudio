@@ -237,7 +237,7 @@ function ResultLabPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Phase 4 · What-if analytics"
+        eyebrow="What-if analytics"
         title="Result Lab"
         description="Rewrite a published result without touching the official scoreboard. Change the jury/televote balance, re-score jury ballots, remove juries and test tie-break rules in real time."
         actions={
