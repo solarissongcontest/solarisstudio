@@ -45,8 +45,16 @@ describe("Pulse personalization", () => {
   });
 
   it("respects important-only follow level", () => {
-    const normal = event({ id: "normal", importance: "normal" });
-    const important = event({ id: "important", importance: "important" });
+    const normal = event({
+      id: "normal",
+      importance: "normal",
+      payload: { countryIds: ["country-1"] },
+    });
+    const important = event({
+      id: "important",
+      importance: "important",
+      payload: { countryIds: ["country-1"] },
+    });
     const inbox = buildPulseInbox({
       events: [normal, important],
       follows: [follow()],
