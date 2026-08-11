@@ -243,7 +243,7 @@ function EditionsPage() {
       )}
 
       {cards[0] && (
-        <section className="mb-8">
+        <section className="mb-5 sm:mb-8">
           <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
             Latest edition
           </p>
@@ -285,7 +285,7 @@ function EditionsPage() {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
             {cards
               .slice(
                 1,
@@ -306,17 +306,17 @@ function EditionsPage() {
                       slug:
                         edition.slug,
                     }}
-                    className="glass group relative block overflow-hidden p-5 transition-transform hover:-translate-y-1 sm:min-h-[260px]"
+                    className="glass group relative block h-[238px] overflow-hidden p-4 transition-transform hover:-translate-y-1 sm:h-auto sm:min-h-[260px] sm:p-5"
                   >
                     <BackgroundFlag
                       image={
                         winner?.flag_image
                       }
-                      className="-bottom-14 -right-14 h-52 w-52"
+                      className="-bottom-10 -right-10 h-40 w-40 sm:-bottom-14 sm:-right-14 sm:h-52 sm:w-52"
                       opacity={0.14}
                     />
 
-                    <div className="relative z-10 flex min-h-[180px] flex-col sm:min-h-[220px]">
+                    <div className="relative z-10 flex h-full min-h-0 flex-col sm:min-h-[220px]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
@@ -325,7 +325,7 @@ function EditionsPage() {
                               "—"}
                           </p>
 
-                          <h2 className="mt-1 font-display text-3xl font-bold tracking-[-0.04em]">
+                          <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.04em] sm:text-3xl">
                             {editionLabel(
                               edition,
                             )}
@@ -345,7 +345,7 @@ function EditionsPage() {
 
                       <div className="mt-auto">
                         {winner ? (
-                          <div className="mb-4 flex items-center gap-3">
+                          <div className="mb-3 flex items-center gap-3 sm:mb-4">
                             <FlagChip
                               code={
                                 winner.short_code
@@ -386,7 +386,7 @@ function EditionsPage() {
                           </p>
                         )}
 
-                        <div className="flex flex-wrap gap-x-4 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
+                        <div className="flex flex-wrap gap-x-4 border-t border-border/60 pt-2.5 text-[11px] text-muted-foreground sm:pt-3">
                           <span>
                             {edition.host_city ??
                               "Host TBC"}
@@ -442,7 +442,7 @@ function EditionHero({
         slug:
           edition.slug,
       }}
-      className="group relative block min-h-[320px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[430px]"
+      className="group relative block min-h-[270px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[430px]"
     >
       <BackgroundFlag
         image={
@@ -454,7 +454,7 @@ function EditionHero({
 
       <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/95 via-[#041328]/82 to-[#041328]/30" />
 
-      <div className="relative z-20 flex min-h-[320px] flex-col justify-between p-5 sm:min-h-[430px] sm:p-8 lg:p-10">
+      <div className="relative z-20 flex min-h-[270px] flex-col justify-between p-4 sm:min-h-[430px] sm:p-8 lg:p-10">
         <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
           Published
         </span>
@@ -482,7 +482,7 @@ function EditionHero({
           </p>
 
           {winner && (
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-4 flex items-center gap-3 sm:mt-6">
               <FlagChip
                 code={
                   winner.short_code
@@ -511,7 +511,7 @@ function EditionHero({
             </div>
           )}
 
-          <div className="mt-7 flex items-center gap-4">
+          <div className="mt-5 flex items-center gap-3 sm:mt-7 sm:gap-4">
             <span className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-[#051223]">
               Explore edition →
             </span>
