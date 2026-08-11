@@ -96,7 +96,9 @@ export function buildCountryCharacter(input: {
           : ", with relatively balanced jury and televote appeal";
 
   return {
-    title: tags[0] ? `${tags[0]} with ${tags[1]?.toLowerCase() ?? "a distinct identity"}` : "A country still defining its character",
+    title: tags[0]
+      ? `${tags[0]} with ${tags[1]?.toLowerCase() ?? "a distinct identity"}`
+      : "A country still defining its character",
     summary: `${government}${place}${contest}${votingIdentity}.`,
     tags: tags.slice(0, 6),
   };
@@ -115,71 +117,98 @@ export function buildCountryFunFacts(input: {
   mediaCount?: number;
 }) {
   const { country, profile, stats, form, sections = [], mediaCount = 0 } = input;
-  const facts: string[] = [];
-
-  if (profile?.capital) {
-    facts.push(`${profile.capital} is the submitted capital of ${country.name}.`);
-  }
-
-  if (profile?.demonym) {
-    facts.push(`People from ${country.name} are described as ${profile.demonym}.`);
-  }
+  const distinctive: string[] = [];
+  const supporting: string[] = [];
 
   if (profile?.government_type && (profile.leader_name || profile.leader_title)) {
     const leader = [profile.leader_title, profile.leader_name].filter(Boolean).join(" ");
-    facts.push(`${country.name} is listed as ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()}, with ${leader} named as its leader.`);
-  }
-
-  if (hasMultipleLanguages(profile?.official_languages)) {
-    facts.push(`${country.name} lists multiple official languages: ${profile?.official_languages}.`);
-  } else if (profile?.official_languages) {
-    facts.push(`${profile.official_languages} is listed as the official language of ${country.name}.`);
-  }
-
-  if (profile?.currency) {
-    facts.push(`${country.name}'s submitted currency is ${profile.currency}.`);
+    distinctive.push(
+      `${country.name} is listed as ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()}, with ${leader} named as its leader.`,
+    );
   }
 
   const theme = mottoTheme(profile?.motto);
   if (profile?.motto && theme) {
-    facts.push(`Its national motto, “${profile.motto}”, gives the country's profile a clear theme of ${theme}.`);
+    distinctive.push(
+      `Its national motto, “${profile.motto}”, gives the country's profile a clear theme of ${theme}.`,
+    );
   } else if (profile?.motto) {
-    facts.push(`The country has its own submitted national motto: “${profile.motto}”.`);
-  }
-
-  if (profile?.established) {
-    facts.push(`${country.name} lists ${profile.established} as its establishment date or era.`);
+    distinctive.push(`The country has its own submitted national motto: “${profile.motto}”.`);
   }
 
   if ((stats?.wins ?? 0) > 0) {
-    facts.push(`${country.name} is an SSC-winning country, with ${stats?.wins} recorded win${stats?.wins === 1 ? "" : "s"}.`);
+    distinctive.push(
+      `${country.name} is an SSC-winning country, with ${stats?.wins} recorded win${stats?.wins === 1 ? "" : "s"}.`,
+    );
   } else if ((stats?.podiums ?? 0) > 0) {
-    facts.push(`${country.name} has reached the SSC podium ${stats?.podiums} time${stats?.podiums === 1 ? "" : "s"}, even without a recorded win.`);
-  }
-
-  if ((stats?.participations ?? 0) >= 5) {
-    facts.push(`With ${stats?.participations} recorded SSC participations, ${country.name} qualifies as one of the archive's more established competitors.`);
-  }
-
-  if (stats?.qualificationPct != null && stats.qualificationPct >= 80) {
-    facts.push(`${country.name} has qualified from ${stats.qualificationPct.toFixed(0)}% of its recorded qualification opportunities.`);
+    distinctive.push(
+      `${country.name} has reached the SSC podium ${stats?.podiums} time${stats?.podiums === 1 ? "" : "s"}, even without a recorded win.`,
+    );
   }
 
   if (form?.juryTelevoteLean != null) {
     if (form.juryTelevoteLean >= 8) {
-      facts.push(`Historically, ${country.name}'s results lean more toward jury support than televote support.`);
+      distinctive.push(
+        `Historically, ${country.name}'s results lean more toward jury support than televote support.`,
+      );
     } else if (form.juryTelevoteLean <= -8) {
-      facts.push(`Historically, ${country.name}'s results lean more toward televote support than jury support.`);
+      distinctive.push(
+        `Historically, ${country.name}'s results lean more toward televote support than jury support.`,
+      );
     }
   }
 
+  if (stats?.qualificationPct != null && stats.qualificationPct >= 80) {
+    distinctive.push(
+      `${country.name} has qualified from ${stats.qualificationPct.toFixed(0)}% of its recorded qualification opportunities.`,
+    );
+  }
+
+  if ((stats?.participations ?? 0) >= 5) {
+    distinctive.push(
+      `With ${stats?.participations} recorded SSC participations, ${country.name} qualifies as one of the archive's more established competitors.`,
+    );
+  }
+
+  if (profile?.capital) {
+    supporting.push(`${profile.capital} is the submitted capital of ${country.name}.`);
+  }
+
+  if (profile?.demonym) {
+    supporting.push(`People from ${country.name} are described as ${profile.demonym}.`);
+  }
+
+  if (hasMultipleLanguages(profile?.official_languages)) {
+    supporting.push(
+      `${country.name} lists multiple official languages: ${profile?.official_languages}.`,
+    );
+  } else if (profile?.official_languages) {
+    supporting.push(
+      `${profile.official_languages} is listed as the official language of ${country.name}.`,
+    );
+  }
+
+  if (profile?.currency) {
+    supporting.push(`${country.name}'s submitted currency is ${profile.currency}.`);
+  }
+
+  if (profile?.established) {
+    supporting.push(
+      `${country.name} lists ${profile.established} as its establishment date or era.`,
+    );
+  }
+
   if (sections.length >= 3) {
-    facts.push(`Its owner-maintained Terra Solaris article currently contains ${sections.length} custom lore sections.`);
+    supporting.push(
+      `Its owner-maintained Terra Solaris article currently contains ${sections.length} custom lore sections.`,
+    );
   }
 
   if (mediaCount >= 3) {
-    facts.push(`${country.name}'s public country archive currently includes ${mediaCount} owner-submitted images.`);
+    supporting.push(
+      `${country.name}'s public country archive currently includes ${mediaCount} owner-submitted images.`,
+    );
   }
 
-  return facts.slice(0, 8);
+  return [...distinctive, ...supporting].slice(0, 8);
 }
