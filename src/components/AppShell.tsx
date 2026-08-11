@@ -13,6 +13,7 @@ const MAIN_NAV = [
 ] as const;
 
 const MORE_NAV = [
+  { to: "/pulse", label: "Pulse" },
   { to: "/predictions", label: "Predictions" },
   { to: "/relationships", label: "Relationships" },
   { to: "/compare", label: "Compare" },
