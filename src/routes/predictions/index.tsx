@@ -25,7 +25,7 @@ function PredictionArenaPage() {
       <PageHeader
         eyebrow="Predict before the show"
         title="Prediction Arena"
-        description="Make your picks before the database-timed lock, then return after the result to see what you got right. Community consensus stays hidden until you submit."
+        description="Make your picks before the round locks, then return after the result to see what you got right. Community consensus stays hidden until you submit."
         actions={
           <Link to="/me" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
             My prediction history
@@ -38,10 +38,9 @@ function PredictionArenaPage() {
           <p className="text-sm text-muted-foreground">Loading prediction rounds…</p>
         </Panel>
       ) : roundData?.schemaReady === false ? (
-        <Panel title="Arena setup in progress">
+        <Panel title="Prediction Arena is temporarily unavailable">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            The Prediction Arena interface is ready. Its private prediction tables are still being
-            applied, so no picks can be submitted yet.
+            Predictions cannot be submitted right now. Other public contest pages remain available.
           </p>
         </Panel>
       ) : rounds.length ? (
