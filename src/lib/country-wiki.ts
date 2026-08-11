@@ -76,13 +76,13 @@ export function buildCountryCharacter(input: {
   ].filter((value): value is string => Boolean(value));
 
   const government = profile?.government_type
-    ? `${country.name} presents itself as ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()}`
-    : `${country.name} has an expanding Terra Solaris profile`;
+    ? `${country.name} is ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()}`
+    : `${country.name} is part of ${country.region || "Terra Solaris"}`;
 
   const place = profile?.capital ? ` centred on ${profile.capital}` : "";
   const contest =
     (stats?.participations ?? 0) > 0
-      ? `. In Solaris Song Contest, it has ${stats?.participations} recorded participation${stats?.participations === 1 ? "" : "s"}${(stats?.wins ?? 0) > 0 ? ` and ${stats?.wins} win${stats?.wins === 1 ? "" : "s"}` : ""}`
+      ? `. In Solaris Song Contest, it has ${stats?.participations} participation${stats?.participations === 1 ? "" : "s"}${(stats?.wins ?? 0) > 0 ? ` and ${stats?.wins} win${stats?.wins === 1 ? "" : "s"}` : ""}`
       : "";
 
   const lean = form?.juryTelevoteLean;
@@ -98,7 +98,7 @@ export function buildCountryCharacter(input: {
   return {
     title: tags[0]
       ? `${tags[0]} with ${tags[1]?.toLowerCase() ?? "a distinct identity"}`
-      : "A country still defining its character",
+      : "A country with a distinct identity",
     summary: `${government}${place}${contest}${votingIdentity}.`,
     tags: tags.slice(0, 6),
   };
@@ -123,26 +123,26 @@ export function buildCountryFunFacts(input: {
   if (profile?.government_type && (profile.leader_name || profile.leader_title)) {
     const leader = [profile.leader_title, profile.leader_name].filter(Boolean).join(" ");
     distinctive.push(
-      `${country.name} is listed as ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()}, with ${leader} named as its leader.`,
+      `${country.name} is ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()} led by ${leader}.`,
     );
   }
 
   const theme = mottoTheme(profile?.motto);
   if (profile?.motto && theme) {
     distinctive.push(
-      `Its national motto, “${profile.motto}”, gives the country's profile a clear theme of ${theme}.`,
+      `Its national motto, “${profile.motto}”, gives the country a clear theme of ${theme}.`,
     );
   } else if (profile?.motto) {
-    distinctive.push(`The country has its own submitted national motto: “${profile.motto}”.`);
+    distinctive.push(`${country.name}'s national motto is “${profile.motto}”.`);
   }
 
   if ((stats?.wins ?? 0) > 0) {
     distinctive.push(
-      `${country.name} is an SSC-winning country, with ${stats?.wins} recorded win${stats?.wins === 1 ? "" : "s"}.`,
+      `${country.name} is an SSC-winning country, with ${stats?.wins} win${stats?.wins === 1 ? "" : "s"}.`,
     );
   } else if ((stats?.podiums ?? 0) > 0) {
     distinctive.push(
-      `${country.name} has reached the SSC podium ${stats?.podiums} time${stats?.podiums === 1 ? "" : "s"}, even without a recorded win.`,
+      `${country.name} has reached the SSC podium ${stats?.podiums} time${stats?.podiums === 1 ? "" : "s"}, even without an overall win.`,
     );
   }
 
@@ -160,53 +160,51 @@ export function buildCountryFunFacts(input: {
 
   if (stats?.qualificationPct != null && stats.qualificationPct >= 80) {
     distinctive.push(
-      `${country.name} has qualified from ${stats.qualificationPct.toFixed(0)}% of its recorded qualification opportunities.`,
+      `${country.name} has qualified from ${stats.qualificationPct.toFixed(0)}% of its qualification opportunities.`,
     );
   }
 
   if ((stats?.participations ?? 0) >= 5) {
     distinctive.push(
-      `With ${stats?.participations} recorded SSC participations, ${country.name} qualifies as one of the archive's more established competitors.`,
+      `With ${stats?.participations} SSC participations, ${country.name} is one of the archive's more established competitors.`,
     );
   }
 
   if (profile?.capital) {
-    supporting.push(`${profile.capital} is the submitted capital of ${country.name}.`);
+    supporting.push(`${profile.capital} is the capital of ${country.name}.`);
   }
 
   if (profile?.demonym) {
-    supporting.push(`People from ${country.name} are described as ${profile.demonym}.`);
+    supporting.push(`People from ${country.name} are known as ${profile.demonym}.`);
   }
 
   if (hasMultipleLanguages(profile?.official_languages)) {
     supporting.push(
-      `${country.name} lists multiple official languages: ${profile?.official_languages}.`,
+      `${country.name}'s official languages are ${profile?.official_languages}.`,
     );
   } else if (profile?.official_languages) {
     supporting.push(
-      `${profile.official_languages} is listed as the official language of ${country.name}.`,
+      `${profile.official_languages} is the official language of ${country.name}.`,
     );
   }
 
   if (profile?.currency) {
-    supporting.push(`${country.name}'s submitted currency is ${profile.currency}.`);
+    supporting.push(`${country.name}'s currency is ${profile.currency}.`);
   }
 
   if (profile?.established) {
-    supporting.push(
-      `${country.name} lists ${profile.established} as its establishment date or era.`,
-    );
+    supporting.push(`${country.name} was established in ${profile.established}.`);
   }
 
   if (sections.length >= 3) {
     supporting.push(
-      `Its owner-maintained Terra Solaris article currently contains ${sections.length} custom lore sections.`,
+      `${country.name}'s Terra Solaris article contains ${sections.length} sections exploring its history, society and identity.`,
     );
   }
 
   if (mediaCount >= 3) {
     supporting.push(
-      `${country.name}'s public country archive currently includes ${mediaCount} owner-submitted images.`,
+      `${country.name}'s public archive includes ${mediaCount} images.`,
     );
   }
 
