@@ -15,12 +15,17 @@ const MAIN_NAV = [
 const MORE_NAV = [
   { to: "/pulse", label: "Pulse" },
   { to: "/predictions", label: "Predictions" },
+  { to: "/result-lab", label: "Labs" },
   { to: "/relationships", label: "Relationships" },
   { to: "/compare", label: "Compare" },
   { to: "/records", label: "Records" },
 ] as const;
 
 function routeActive(pathname: string, to: string) {
+  if (to === "/result-lab" && pathname.startsWith("/taste-dna")) {
+    return true;
+  }
+
   return to === "/"
     ? pathname === "/"
     : pathname.startsWith(to);
