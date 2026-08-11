@@ -15,20 +15,31 @@ const MAIN_NAV = [
 const MORE_NAV = [
   { to: "/pulse", label: "Pulse" },
   { to: "/predictions", label: "Predictions" },
-  { to: "/result-lab", label: "Labs" },
-  { to: "/relationships", label: "Relationships" },
-  { to: "/compare", label: "Compare" },
+  { to: "/tools", label: "Tools" },
   { to: "/records", label: "Records" },
 ] as const;
 
+const TOOL_ROUTES = [
+  "/result-lab",
+  "/taste-dna",
+  "/broadcast-intelligence",
+  "/archive-games",
+  "/relationships",
+  "/compare",
+] as const;
+
 function routeActive(pathname: string, to: string) {
-  if (to === "/result-lab" && pathname.startsWith("/taste-dna")) {
+  if (to === "/tools" && TOOL_ROUTES.some((route) => pathname.startsWith(route))) {
     return true;
   }
 
   return to === "/"
     ? pathname === "/"
     : pathname.startsWith(to);
+}
+
+function productEyebrow(eyebrow?: string) {
+  return eyebrow?.replace(/^Phase\s+\d+\s*[·:—-]\s*/i, "");
 }
 
 export function AppShell({
@@ -114,9 +125,6 @@ export function AppShell({
         aria-hidden="true"
         className="app-background"
       />
-      {/* =====================================================
-          TOP HEADER
-         ===================================================== */}
 
       <header
         className="
@@ -144,8 +152,6 @@ export function AppShell({
         >
           <Brand />
 
-          {/* DESKTOP NAV */}
-
           <nav
             className="
               ml-auto
@@ -154,6 +160,7 @@ export function AppShell({
               gap-1
               lg:flex
             "
+            aria-label="Main navigation"
           >
             {[
               ...MAIN_NAV,
@@ -169,6 +176,7 @@ export function AppShell({
                 <Link
                   key={item.to}
                   to={item.to}
+                  aria-current={active ? "page" : undefined}
                   className={cn(
                     `
                       rounded-xl
@@ -222,8 +230,6 @@ export function AppShell({
             )}
           </nav>
 
-          {/* MOBILE MENU BUTTON */}
-
           <button
             type="button"
             onClick={() =>
@@ -242,15 +248,12 @@ export function AppShell({
               lg:hidden
             "
             aria-label="Open navigation"
+            aria-expanded={menuOpen}
           >
             ☰
           </button>
         </div>
       </header>
-
-      {/* =====================================================
-          MOBILE DRAWER
-         ===================================================== */}
 
       {menuOpen && (
         <div
@@ -289,6 +292,7 @@ export function AppShell({
               bg-background/80
               backdrop-blur-2xl
             "
+            aria-label="Navigation menu"
           >
             <div
               className="
@@ -329,6 +333,7 @@ export function AppShell({
                 overflow-y-auto
                 p-3
               "
+              aria-label="Mobile navigation"
             >
               {[
                 ...MAIN_NAV,
@@ -344,6 +349,7 @@ export function AppShell({
                   <Link
                     key={item.to}
                     to={item.to}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
                       `
                         mb-1
@@ -433,10 +439,6 @@ export function AppShell({
         </div>
       )}
 
-      {/* =====================================================
-          MAIN CONTENT
-         ===================================================== */}
-
       <main
         className="
           app-main
@@ -456,10 +458,6 @@ export function AppShell({
         {children}
       </main>
 
-      {/* =====================================================
-          MOBILE BOTTOM NAV
-         ===================================================== */}
-
       <nav
         className="
           fixed
@@ -478,6 +476,7 @@ export function AppShell({
           paddingBottom:
             "max(.45rem, env(safe-area-inset-bottom))",
         }}
+        aria-label="Quick navigation"
       >
         <div
           className="
@@ -516,6 +515,7 @@ export function AppShell({
               <Link
                 key={item.to}
                 to={item.to}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   `
                     flex
@@ -542,14 +542,6 @@ export function AppShell({
   );
 }
 
-/* =========================================================
-   BRAND
-
-   TSBC logo replaces the old SS circle everywhere.
-   Image file:
-   public/IMG_9177.png
-   ========================================================= */
-
 function Brand({
   compact = false,
 }: {
@@ -564,6 +556,7 @@ function Brand({
         items-center
         gap-3
       "
+      aria-label="Solaris Studio home"
     >
       <div
         className={cn(
@@ -581,7 +574,8 @@ function Brand({
       >
         <img
           src="/IMG_9177.png"
-          alt="TSBC"
+          alt=""
+          aria-hidden="true"
           className="
             h-full
             w-full
@@ -624,10 +618,6 @@ function Brand({
   );
 }
 
-/* =========================================================
-   PAGE HEADER
-   ========================================================= */
-
 export function PageHeader({
   eyebrow,
   title,
@@ -639,6 +629,8 @@ export function PageHeader({
   description?: string;
   actions?: ReactNode;
 }) {
+  const visibleEyebrow = productEyebrow(eyebrow);
+
   return (
     <div
       className="
@@ -659,7 +651,7 @@ export function PageHeader({
         "
       >
         <div className="min-w-0">
-          {eyebrow && (
+          {visibleEyebrow && (
             <p
               className="
                 mb-2
@@ -671,7 +663,7 @@ export function PageHeader({
                 sm:text-xs
               "
             >
-              {eyebrow}
+              {visibleEyebrow}
             </p>
           )}
 
@@ -720,10 +712,6 @@ export function PageHeader({
     </div>
   );
 }
-
-/* =========================================================
-   PANEL
-   ========================================================= */
 
 export function Panel({
   title,
@@ -804,10 +792,6 @@ export function Panel({
     </section>
   );
 }
-
-/* =========================================================
-   STAT TILE
-   ========================================================= */
 
 export function StatTile({
   label,
