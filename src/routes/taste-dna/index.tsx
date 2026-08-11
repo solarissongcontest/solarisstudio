@@ -266,7 +266,7 @@ function TasteDnaPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Phase 4 · Personal analytics"
+        eyebrow="Personal analytics"
         title="Taste DNA"
         description="Rank a published field and Solaris compares your taste with the jury, televote, overall consensus and individual voting juries. Saved ballots are private to your account."
         actions={
@@ -398,7 +398,7 @@ function TasteDnaPage() {
 
             {tasteData?.schemaReady === false && user && (
               <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
-                Saving needs the Phase 4 SQL migration. The live DNA calculation still works without it.
+                Saving is temporarily unavailable. Your live Taste DNA analysis still works normally.
               </p>
             )}
             {message && <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">{message}</p>}
