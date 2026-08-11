@@ -304,7 +304,7 @@ function BroadcastIntelligencePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Phase 5 · Broadcast analytics"
+        eyebrow="Broadcast analytics"
         title="Broadcast Intelligence"
         description="Replay an official result, inspect the biggest jury-to-televote swings and surface the moments that made the scoreboard dramatic. The live show remains on YouTube; Solaris Studio becomes the analytics and replay companion."
         actions={
