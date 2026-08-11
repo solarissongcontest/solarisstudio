@@ -1,26 +1,55 @@
+.solaris-anniversary-day {
+  --anniversary-cyan: #67e8f9;
+  --anniversary-pink: #f9a8d4;
+  --anniversary-purple: #c4b5fd;
+  --anniversary-gold: #fde047;
+}
+
 .solaris-anniversary-day .app-background {
   background:
-    radial-gradient(circle at 12% 18%, rgba(251, 113, 133, .2), transparent 30%),
-    radial-gradient(circle at 84% 14%, rgba(56, 189, 248, .24), transparent 32%),
-    radial-gradient(circle at 65% 76%, rgba(192, 132, 252, .2), transparent 36%),
-    linear-gradient(140deg, #060a1d 0%, #071a39 36%, #17113e 68%, #090d23 100%);
-  background-size: 150% 150%;
-  animation: solaris-page-celebration 13s ease-in-out infinite alternate;
+    radial-gradient(circle at 10% 8%, rgba(236, 72, 153, .3), transparent 24%),
+    radial-gradient(circle at 88% 12%, rgba(34, 211, 238, .34), transparent 27%),
+    radial-gradient(circle at 78% 70%, rgba(139, 92, 246, .28), transparent 35%),
+    radial-gradient(circle at 20% 86%, rgba(14, 165, 233, .24), transparent 34%),
+    linear-gradient(145deg, #020617 0%, #07122e 27%, #170a38 53%, #062649 74%, #08051c 100%);
+  background-size: 160% 160%;
+  animation: solaris-page-celebration 9s ease-in-out infinite alternate;
 }
 
 .solaris-anniversary-day header.sticky {
-  border-bottom-color: rgba(125, 211, 252, .34);
-  box-shadow: 0 10px 40px rgba(80, 100, 255, .13);
+  border-bottom-color: rgba(103, 232, 249, .38);
+  background: linear-gradient(90deg, rgba(42, 10, 84, .82), rgba(3, 28, 67, .82), rgba(69, 13, 91, .82));
+  background-size: 180% 100%;
+  box-shadow: 0 14px 55px rgba(34, 211, 238, .13), 0 0 35px rgba(217, 70, 239, .1);
+  animation: solaris-header-party 7s ease-in-out infinite alternate;
 }
 
+.solaris-anniversary-day .app-main section.glass,
+.solaris-anniversary-day .app-main article.glass {
+  border-color: rgba(125, 211, 252, .28);
+  box-shadow: 0 22px 70px rgba(20, 18, 80, .26), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.solaris-anniversary-day nav.fixed {
+  border-top-color: rgba(103, 232, 249, .3);
+  background: linear-gradient(90deg, rgba(12, 25, 77, .9), rgba(34, 15, 89, .9), rgba(5, 47, 77, .9));
+  box-shadow: 0 -18px 45px rgba(67, 56, 202, .15);
+}
+
+.solaris-anniversary-day .app-main { padding-top: 0; }
+
 .solaris-birthday {
+  min-height: calc(100svh - 4rem);
+  border-bottom: 1px solid rgba(255,255,255,.18);
   background:
-    radial-gradient(circle at 15% 12%, rgba(251, 113, 133, 0.34), transparent 30%),
-    radial-gradient(circle at 82% 18%, rgba(56, 189, 248, 0.38), transparent 32%),
-    radial-gradient(circle at 55% 85%, rgba(168, 85, 247, 0.36), transparent 36%),
-    linear-gradient(135deg, #17062f 0%, #051b47 35%, #092d5a 57%, #33105a 78%, #17062f 100%);
-  background-size: 140% 140%;
-  animation: solaris-birthday-gradient 10s ease-in-out infinite alternate;
+    radial-gradient(circle at 16% 14%, rgba(244, 63, 94, .42), transparent 24%),
+    radial-gradient(circle at 86% 9%, rgba(14, 165, 233, .46), transparent 26%),
+    radial-gradient(circle at 55% 76%, rgba(168, 85, 247, .4), transparent 31%),
+    radial-gradient(circle at 20% 70%, rgba(6, 182, 212, .24), transparent 28%),
+    linear-gradient(128deg, #120029 0%, #07133c 27%, #062d5b 51%, #32106a 74%, #170026 100%);
+  background-size: 165% 165%;
+  animation: solaris-birthday-gradient 7s ease-in-out infinite alternate;
+  box-shadow: 0 35px 110px rgba(59, 7, 100, .4);
 }
 
 .solaris-birthday::before {
@@ -29,10 +58,10 @@
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: linear-gradient(to bottom, rgba(0,0,0,.7), transparent 88%);
+    linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+  background-size: 66px 66px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.85), rgba(0,0,0,.2) 78%, transparent 100%);
 }
 
 .solaris-birthday::after {
@@ -40,195 +69,287 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(115deg, transparent 15%, rgba(255,255,255,.08) 42%, transparent 60%);
-  transform: translateX(-120%);
-  animation: solaris-birthday-shine 7s ease-in-out infinite;
+  background: linear-gradient(116deg, transparent 20%, rgba(255,255,255,.16) 43%, rgba(255,255,255,.03) 51%, transparent 66%);
+  transform: translateX(-145%);
+  animation: solaris-birthday-shine 5.8s ease-in-out infinite;
+}
+
+.solaris-birthday-rays {
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  opacity: .2;
+  background: repeating-conic-gradient(from 10deg at 50% 42%, rgba(255,255,255,.14) 0deg 3deg, transparent 3deg 18deg);
+  animation: solaris-rays-spin 45s linear infinite;
+  mask-image: radial-gradient(circle at 50% 42%, black, transparent 66%);
+}
+
+.solaris-birthday-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .68;
+  background-image:
+    radial-gradient(circle at 9% 24%, white 0 1.5px, transparent 2px),
+    radial-gradient(circle at 22% 12%, #67e8f9 0 1.5px, transparent 2px),
+    radial-gradient(circle at 39% 31%, white 0 1px, transparent 1.8px),
+    radial-gradient(circle at 56% 18%, #fde047 0 1.3px, transparent 2px),
+    radial-gradient(circle at 72% 28%, #f9a8d4 0 1.5px, transparent 2px),
+    radial-gradient(circle at 89% 17%, white 0 1.4px, transparent 2px),
+    radial-gradient(circle at 94% 44%, #67e8f9 0 1.3px, transparent 2px),
+    radial-gradient(circle at 18% 55%, #c4b5fd 0 1.4px, transparent 2px);
+  background-size: 320px 270px;
+  animation: solaris-stars-twinkle 2.8s ease-in-out infinite alternate;
 }
 
 .solaris-birthday-orb {
   position: absolute;
   border-radius: 999px;
-  filter: blur(18px);
-  opacity: .46;
+  filter: blur(26px);
+  opacity: .58;
   pointer-events: none;
   mix-blend-mode: screen;
-  animation: solaris-birthday-orbit 9s ease-in-out infinite alternate;
+  animation: solaris-birthday-orbit 7s ease-in-out infinite alternate;
 }
 
-.solaris-birthday-orb-a {
-  width: 28rem;
-  height: 28rem;
-  left: -12rem;
-  top: -8rem;
-  background: rgba(251, 113, 133, .34);
-}
+.solaris-birthday-orb-a { width: 31rem; height: 31rem; left: -14rem; top: -9rem; background: rgba(244, 63, 94, .45); }
+.solaris-birthday-orb-b { width: 36rem; height: 36rem; right: -16rem; top: 8%; background: rgba(14, 165, 233, .38); animation-delay: -2.4s; }
+.solaris-birthday-orb-c { width: 32rem; height: 32rem; left: 36%; bottom: -19rem; background: rgba(192, 132, 252, .38); animation-delay: -4.2s; }
 
-.solaris-birthday-orb-b {
-  width: 34rem;
-  height: 34rem;
-  right: -15rem;
-  top: 18%;
-  background: rgba(34, 211, 238, .28);
-  animation-delay: -3s;
-}
-
-.solaris-birthday-orb-c {
-  width: 30rem;
-  height: 30rem;
-  left: 38%;
-  bottom: -18rem;
-  background: rgba(192, 132, 252, .3);
-  animation-delay: -5s;
+.solaris-anniversary-ribbon {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  gap: 2.4rem;
+  overflow: hidden;
+  border-block: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.07);
+  padding: .75rem 1rem;
+  color: rgba(255,255,255,.74);
+  font-size: .56rem;
+  font-weight: 950;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  backdrop-filter: blur(14px);
+  animation: solaris-ribbon-pulse 2.6s ease-in-out infinite alternate;
 }
 
 .solaris-birthday-pill {
   display: inline-flex;
-  min-height: 2rem;
+  min-height: 2.25rem;
   align-items: center;
-  border: 1px solid rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.26);
   border-radius: 999px;
-  background: rgba(255,255,255,.075);
-  padding: 0 .75rem;
-  color: rgba(255,255,255,.76);
-  font-size: .55rem;
-  font-weight: 900;
-  letter-spacing: .14em;
+  background: linear-gradient(135deg, rgba(255,255,255,.13), rgba(255,255,255,.055));
+  padding: 0 .85rem;
+  color: rgba(255,255,255,.86);
+  box-shadow: inset 0 1px rgba(255,255,255,.16), 0 7px 25px rgba(0,0,0,.12);
+  font-size: .56rem;
+  font-weight: 950;
+  letter-spacing: .16em;
   text-transform: uppercase;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+}
+
+.solaris-anniversary-number {
+  flex: 0 0 auto;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(7rem, 25vw, 15rem);
+  font-weight: 950;
+  line-height: .72;
+  letter-spacing: -.1em;
+  color: transparent;
+  -webkit-text-stroke: 2px rgba(255,255,255,.95);
+  background: linear-gradient(180deg, #ffffff 2%, #bdf7ff 35%, #b7a8ff 69%, #ffacd7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 26px rgba(103,232,249,.35)) drop-shadow(0 18px 28px rgba(0,0,0,.25));
+  animation: solaris-number-glow 2.5s ease-in-out infinite alternate;
+}
+
+.solaris-anniversary-word {
+  max-width: 100%;
+  font-size: clamp(3rem, 12vw, 8.2rem);
+  line-height: .78;
+  letter-spacing: -.07em;
+  text-shadow: 0 0 28px rgba(255,255,255,.14), 0 12px 42px rgba(0,0,0,.32);
 }
 
 .solaris-birthday-action {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: 3.35rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255,255,255,.2);
-  border-radius: .9rem;
-  background: rgba(255,255,255,.075);
-  padding: 0 1rem;
+  gap: .6rem;
+  border: 1px solid rgba(255,255,255,.26);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(255,255,255,.13), rgba(255,255,255,.06));
+  padding: 0 1.2rem;
   color: white;
-  font-size: .75rem;
-  font-weight: 900;
-  backdrop-filter: blur(12px);
-  transition: transform .2s ease, background .2s ease;
+  box-shadow: inset 0 1px rgba(255,255,255,.18), 0 13px 30px rgba(0,0,0,.18);
+  font-size: .8rem;
+  font-weight: 950;
+  backdrop-filter: blur(15px);
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
 }
 
-.solaris-birthday-action:hover {
-  transform: translateY(-2px);
-  background: rgba(255,255,255,.14);
-}
+.solaris-birthday-action:hover { transform: translateY(-3px) scale(1.02); background: rgba(255,255,255,.17); box-shadow: 0 18px 42px rgba(34,211,238,.16), inset 0 1px rgba(255,255,255,.2); }
+.solaris-birthday-action:active { transform: scale(.97); }
+.solaris-birthday-action-primary { border-color: rgba(255,255,255,.92); background: white; color: #11142a; box-shadow: 0 15px 42px rgba(255,255,255,.18), 0 0 42px rgba(103,232,249,.14); }
+.solaris-birthday-action-primary:hover { background: #f8fdff; box-shadow: 0 18px 50px rgba(255,255,255,.24), 0 0 55px rgba(103,232,249,.22); }
 
-.solaris-birthday-action-primary {
-  background: white;
-  color: #11142a;
-}
-
-.solaris-birthday-action-primary:hover {
-  background: rgba(255,255,255,.92);
-}
-
-.solaris-birthday-story {
+.solaris-anniversary-medallion-wrap { position: relative; display: grid; place-items: center; padding: 1.8rem 0; }
+.solaris-anniversary-medallion {
   position: relative;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 1.6rem;
-  background: rgba(3, 8, 28, .34);
-  padding: 1.25rem;
-  backdrop-filter: blur(14px);
-}
-
-.solaris-birthday-story::after {
-  content: "";
-  position: absolute;
-  width: 8rem;
-  height: 8rem;
+  display: grid;
+  width: min(78vw, 25rem);
+  aspect-ratio: 1;
+  place-items: center;
   border-radius: 999px;
-  right: -3rem;
-  bottom: -4rem;
-  opacity: .22;
-  filter: blur(4px);
+  background: conic-gradient(from 0deg, #67e8f9, #c4b5fd, #f9a8d4, #fde047, #5eead4, #67e8f9);
+  padding: 3px;
+  box-shadow: 0 0 35px rgba(103,232,249,.28), 0 0 90px rgba(192,132,252,.2), 0 28px 70px rgba(0,0,0,.3);
+  animation: solaris-medallion-float 4s ease-in-out infinite;
 }
 
+.solaris-anniversary-medallion::before,
+.solaris-anniversary-medallion::after {
+  content: "✦";
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  width: 3.2rem;
+  height: 3.2rem;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 999px;
+  background: rgba(10,8,38,.72);
+  color: var(--anniversary-gold);
+  font-size: 1.15rem;
+  box-shadow: 0 0 28px rgba(253,224,71,.24);
+}
+.solaris-anniversary-medallion::before { left: -1rem; top: 19%; }
+.solaris-anniversary-medallion::after { right: -1rem; bottom: 19%; }
+.solaris-anniversary-medallion-ring { position: absolute; inset: 1rem; border: 1px dashed rgba(255,255,255,.32); border-radius: 999px; animation: solaris-ring-spin 22s linear infinite; }
+.solaris-anniversary-medallion-inner { display: grid; width: calc(100% - 1.1rem); height: calc(100% - 1.1rem); place-items: center; align-content: center; border: 1px solid rgba(255,255,255,.15); border-radius: 999px; background: radial-gradient(circle at 35% 23%, rgba(255,255,255,.16), transparent 34%), linear-gradient(145deg, rgba(8,21,63,.95), rgba(58,12,83,.9)); box-shadow: inset 0 0 55px rgba(103,232,249,.08); text-align: center; }
+.solaris-anniversary-medallion-caption { margin-top: 1rem; max-width: 18rem; text-align: center; color: rgba(255,255,255,.52); font-size: .68rem; line-height: 1.55; font-weight: 700; }
+
+.solaris-birthday-stat { position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 1.55rem; background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.045)); padding: 1.15rem; box-shadow: inset 0 1px rgba(255,255,255,.13), 0 16px 36px rgba(0,0,0,.14); backdrop-filter: blur(17px); }
+.solaris-birthday-stat::after { content: ""; position: absolute; width: 7rem; height: 7rem; right: -3rem; bottom: -4rem; border-radius: 999px; background: rgba(103,232,249,.15); filter: blur(9px); }
+
+.solaris-birthday-story { position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 1.75rem; background: linear-gradient(145deg, rgba(3, 8, 28, .56), rgba(255,255,255,.065)); padding: 1.3rem; box-shadow: inset 0 1px rgba(255,255,255,.11), 0 18px 42px rgba(0,0,0,.16); backdrop-filter: blur(17px); }
+.solaris-birthday-story::after { content: ""; position: absolute; width: 9rem; height: 9rem; border-radius: 999px; right: -3rem; bottom: -4.5rem; opacity: .28; filter: blur(8px); }
 .solaris-birthday-story-0::after { background: #fb7185; }
 .solaris-birthday-story-1::after { background: #38bdf8; }
 .solaris-birthday-story-2::after { background: #c084fc; }
+.solaris-story-spark { position: absolute; right: 1.1rem; top: 1rem; color: rgba(255,255,255,.18); font-size: 2rem; animation: solaris-story-sparkle 2s ease-in-out infinite alternate; }
+.solaris-story-value { border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(255,255,255,.08); padding: .35rem .6rem; color: white; font-size: .62rem; font-weight: 950; }
 
-.solaris-confetti {
-  --confetti-rotate: 0deg;
-  position: absolute;
-  top: -12%;
-  display: block;
-  border-radius: 2px;
-  opacity: .9;
-  transform: rotate(var(--confetti-rotate));
-  animation-name: solaris-confetti-fall;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-  will-change: transform;
-}
+.solaris-birthday-feature { position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 1.8rem; background: radial-gradient(circle at 90% 10%, rgba(103,232,249,.11), transparent 32%), linear-gradient(145deg, rgba(255,255,255,.1), rgba(255,255,255,.035)); padding: 1.35rem; box-shadow: inset 0 1px rgba(255,255,255,.12), 0 17px 42px rgba(0,0,0,.15); backdrop-filter: blur(16px); transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+.solaris-birthday-feature:hover { transform: translateY(-5px) rotate(-.35deg); border-color: rgba(103,232,249,.44); box-shadow: 0 24px 58px rgba(34,211,238,.13), inset 0 1px rgba(255,255,255,.16); }
+.solaris-birthday-feature-symbol { position: absolute; right: 1rem; top: .65rem; color: rgba(255,255,255,.14); font-size: 3.2rem; line-height: 1; }
 
+.solaris-anniversary-final { position: relative; background: radial-gradient(circle at 50% -20%, rgba(255,255,255,.19), transparent 50%), linear-gradient(110deg, rgba(244,63,94,.14), rgba(14,165,233,.13), rgba(168,85,247,.17)); box-shadow: inset 0 1px rgba(255,255,255,.12), 0 25px 60px rgba(0,0,0,.18); }
+.solaris-anniversary-sky { contain: layout style paint; }
+
+.solaris-firework { --firework-scale: 1; position: absolute; width: 2px; height: 2px; opacity: 0; animation: solaris-firework-burst 7.4s cubic-bezier(.2,.7,.35,1) infinite; }
+.solaris-firework-spark { position: absolute; left: 50%; top: 50%; width: 2px; height: 70px; transform: rotate(var(--spark-angle)); transform-origin: 50% 0; background: linear-gradient(to bottom, var(--spark-color), rgba(255,255,255,.7) 18%, transparent 88%); border-radius: 999px; filter: drop-shadow(0 0 4px var(--spark-color)); }
+
+.solaris-confetti { --confetti-rotate: 0deg; position: absolute; top: -12%; display: block; border-radius: 2px; opacity: .92; transform: rotate(var(--confetti-rotate)); animation-name: solaris-confetti-fall; animation-timing-function: linear; animation-iteration-count: infinite; will-change: transform; }
 .solaris-confetti-0 { background: #ffffff; }
-.solaris-confetti-1 { background: #38bdf8; }
-.solaris-confetti-2 { background: #fb7185; }
-.solaris-confetti-3 { background: #facc15; }
-.solaris-confetti-4 { background: #c084fc; }
+.solaris-confetti-1 { background: #67e8f9; }
+.solaris-confetti-2 { background: #f9a8d4; }
+.solaris-confetti-3 { background: #fde047; }
+.solaris-confetti-4 { background: #c4b5fd; }
+.solaris-confetti-5 { background: #5eead4; }
+
+.solaris-click-glitter { position: fixed; z-index: 9999; width: 1px; height: 1px; pointer-events: none; }
+.solaris-click-glitter-spark { --spark-angle: 0deg; --spark-distance: 60px; --spark-delay: 0ms; position: absolute; left: -3px; top: -3px; width: 7px; height: 7px; border-radius: 2px; opacity: 0; transform: rotate(var(--spark-angle)) translateX(0) scale(.2); animation: solaris-click-spark .72s cubic-bezier(.16,.84,.32,1) var(--spark-delay) forwards; box-shadow: 0 0 10px currentColor; }
+.solaris-click-glitter-0 { color: #fff; background: #fff; }
+.solaris-click-glitter-1 { color: #67e8f9; background: #67e8f9; }
+.solaris-click-glitter-2 { color: #f9a8d4; background: #f9a8d4; }
+.solaris-click-glitter-3 { color: #fde047; background: #fde047; }
+.solaris-click-glitter-4 { color: #c4b5fd; background: #c4b5fd; }
+.solaris-click-glitter-5 { color: #5eead4; background: #5eead4; }
+
+html.solaris-anniversary-impact body { animation: solaris-anniversary-impact .34s cubic-bezier(.36,.07,.19,.97); }
 
 @keyframes solaris-confetti-fall {
-  0% {
-    transform: translate3d(0, -12vh, 0) rotate(var(--confetti-rotate));
-    opacity: 0;
-  }
-  8% { opacity: .95; }
-  50% {
-    transform: translate3d(38px, 52vh, 0) rotate(calc(var(--confetti-rotate) + 360deg));
-  }
-  100% {
-    transform: translate3d(-22px, 118vh, 0) rotate(calc(var(--confetti-rotate) + 720deg));
-    opacity: .2;
-  }
+  0% { transform: translate3d(0, -15vh, 0) rotate(var(--confetti-rotate)); opacity: 0; }
+  5% { opacity: .95; }
+  35% { transform: translate3d(24px, 38vh, 0) rotate(calc(var(--confetti-rotate) + 250deg)); }
+  72% { transform: translate3d(-28px, 82vh, 0) rotate(calc(var(--confetti-rotate) + 560deg)); }
+  100% { transform: translate3d(18px, 118vh, 0) rotate(calc(var(--confetti-rotate) + 830deg)); opacity: .16; }
 }
 
-@keyframes solaris-birthday-gradient {
-  from { background-position: 0% 35%; }
-  to { background-position: 100% 65%; }
+@keyframes solaris-firework-burst {
+  0%, 58% { opacity: 0; transform: scale(.08); }
+  61% { opacity: 1; transform: scale(.22); }
+  68% { opacity: 1; transform: scale(var(--firework-scale)); }
+  78% { opacity: .46; transform: scale(calc(var(--firework-scale) * 1.18)); }
+  87%, 100% { opacity: 0; transform: scale(calc(var(--firework-scale) * 1.3)); }
 }
 
-@keyframes solaris-page-celebration {
-  from { background-position: 0% 30%; filter: saturate(1); }
-  to { background-position: 100% 70%; filter: saturate(1.18); }
+@keyframes solaris-click-spark {
+  0% { opacity: 0; transform: rotate(var(--spark-angle)) translateX(0) scale(.2); }
+  15% { opacity: 1; }
+  72% { opacity: .95; }
+  100% { opacity: 0; transform: rotate(var(--spark-angle)) translateX(var(--spark-distance)) rotate(180deg) scale(.85); }
 }
 
-@keyframes solaris-birthday-shine {
-  0%, 64% { transform: translateX(-125%); }
-  82%, 100% { transform: translateX(125%); }
+@keyframes solaris-anniversary-impact {
+  0%, 100% { transform: translate3d(0,0,0) rotate(0); }
+  18% { transform: translate3d(-4px,2px,0) rotate(-.15deg); }
+  36% { transform: translate3d(5px,-2px,0) rotate(.15deg); }
+  54% { transform: translate3d(-3px,1px,0) rotate(-.1deg); }
+  72% { transform: translate3d(3px,0,0) rotate(.08deg); }
 }
 
-@keyframes solaris-birthday-orbit {
-  from { transform: translate3d(-2%, -2%, 0) scale(.96); }
-  to { transform: translate3d(6%, 4%, 0) scale(1.08); }
-}
+@keyframes solaris-birthday-gradient { from { background-position: 0% 28%; } to { background-position: 100% 72%; } }
+@keyframes solaris-page-celebration { from { background-position: 0% 25%; filter: saturate(1.05); } to { background-position: 100% 76%; filter: saturate(1.28); } }
+@keyframes solaris-header-party { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@keyframes solaris-birthday-shine { 0%, 55% { transform: translateX(-145%); } 78%, 100% { transform: translateX(145%); } }
+@keyframes solaris-birthday-orbit { from { transform: translate3d(-3%, -3%, 0) scale(.94); } to { transform: translate3d(8%, 5%, 0) scale(1.1); } }
+@keyframes solaris-rays-spin { to { transform: rotate(360deg); } }
+@keyframes solaris-stars-twinkle { from { opacity: .32; filter: brightness(.9); } to { opacity: .82; filter: brightness(1.45); } }
+@keyframes solaris-ribbon-pulse { from { border-color: rgba(255,255,255,.15); box-shadow: inset 0 0 0 rgba(103,232,249,0); } to { border-color: rgba(103,232,249,.38); box-shadow: inset 0 0 28px rgba(103,232,249,.06); } }
+@keyframes solaris-number-glow { from { filter: drop-shadow(0 0 18px rgba(103,232,249,.25)) drop-shadow(0 18px 28px rgba(0,0,0,.25)); } to { filter: drop-shadow(0 0 38px rgba(249,168,212,.38)) drop-shadow(0 18px 28px rgba(0,0,0,.25)); } }
+@keyframes solaris-medallion-float { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-12px) rotate(1deg); } }
+@keyframes solaris-ring-spin { to { transform: rotate(360deg); } }
+@keyframes solaris-story-sparkle { from { transform: scale(.8) rotate(0deg); opacity: .12; } to { transform: scale(1.2) rotate(22deg); opacity: .32; } }
 
 @media (max-width: 640px) {
-  .solaris-birthday {
-    animation-duration: 14s;
-  }
-
-  .solaris-confetti:nth-child(2n) {
-    display: none;
-  }
+  .solaris-anniversary-day .app-main { padding-inline: 0; }
+  .solaris-anniversary-day .app-main > :not(.solaris-birthday) { margin-inline: .75rem; }
+  .solaris-anniversary-ribbon { gap: 1.4rem; font-size: .5rem; }
+  .solaris-anniversary-number { font-size: clamp(6.5rem, 35vw, 9rem); }
+  .solaris-anniversary-word { font-size: clamp(2.75rem, 14vw, 4.8rem); }
+  .solaris-birthday-action { width: 100%; }
+  .solaris-anniversary-sky .solaris-confetti:nth-of-type(3n) { display: none; }
+  .solaris-firework:nth-child(3n) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .solaris-anniversary-day .app-background,
+  .solaris-anniversary-day header.sticky,
   .solaris-birthday,
   .solaris-birthday::after,
+  .solaris-birthday-rays,
+  .solaris-birthday-stars,
   .solaris-birthday-orb,
-  .solaris-confetti {
+  .solaris-anniversary-ribbon,
+  .solaris-anniversary-number,
+  .solaris-anniversary-medallion,
+  .solaris-anniversary-medallion-ring,
+  .solaris-story-spark,
+  .solaris-firework,
+  .solaris-confetti,
+  .solaris-click-glitter-spark,
+  html.solaris-anniversary-impact body {
     animation: none !important;
   }
 
-  .solaris-confetti {
-    display: none;
-  }
+  .solaris-firework,
+  .solaris-confetti,
+  .solaris-click-glitter { display: none !important; }
 }
