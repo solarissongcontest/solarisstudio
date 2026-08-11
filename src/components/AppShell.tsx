@@ -1,7 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { CountryProfileExtension } from "@/components/CountryProfileExtension";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { cn } from "@/lib/utils";
 
 const MAIN_NAV = [
@@ -9,7 +11,6 @@ const MAIN_NAV = [
   { to: "/editions", label: "Editions" },
   { to: "/countries", label: "Countries" },
   { to: "/analysis", label: "Analysis" },
-  { to: "/admin", label: "Studio" },
 ] as const;
 
 const MORE_NAV = [
@@ -32,57 +33,57 @@ function routeActive(pathname: string, to: string) {
   if (to === "/tools" && TOOL_ROUTES.some((route) => pathname.startsWith(route))) {
     return true;
   }
-
-  return to === "/"
-    ? pathname === "/"
-    : pathname.startsWith(to);
+  return to === "/" ? pathname === "/" : pathname.startsWith(to);
 }
 
 function productEyebrow(eyebrow?: string) {
   return eyebrow?.replace(/^Phase\s+\d+\s*[·:—-]\s*/i, "");
 }
 
-export function AppShell({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
+const EMPTY_ACCESS: AccountAccess = {
+  userId: null,
+  isOrganizer: false,
+  countryId: null,
+  schemaReady: true,
+};
 
-  const [email, setEmail] =
-    useState<string | null>(null);
-
-  const [menuOpen, setMenuOpen] =
-    useState(false);
+export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [email, setEmail] = useState<string | null>(null);
+  const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        setEmail(
-          data.user?.email ?? null,
-        );
-      });
+    let alive = true;
 
-    const { data: subscription } =
-      supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          setEmail(
-            session?.user?.email ??
-              null,
-          );
-        },
-      );
+    const refresh = async (userId?: string | null, userEmail?: string | null) => {
+      if (!alive) return;
+      setEmail(userEmail ?? null);
+      if (!userId) {
+        setAccess(EMPTY_ACCESS);
+        return;
+      }
+      const next = await getCurrentAccountAccess(userId);
+      if (alive) setAccess(next);
+    };
 
-    return () =>
+    void supabase.auth.getUser().then(({ data }) =>
+      refresh(data.user?.id ?? null, data.user?.email ?? null),
+    );
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => {
+        void refresh(session?.user?.id ?? null, session?.user?.email ?? null);
+      }, 0);
+    });
+
+    return () => {
+      alive = false;
       subscription.subscription.unsubscribe();
+    };
   }, []);
 
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   useEffect(() => {
     if (
@@ -90,101 +91,69 @@ export function AppShell({
       !pathname.startsWith("/pulse") &&
       !pathname.startsWith("/auth") &&
       !pathname.startsWith("/me") &&
-      !pathname.startsWith("/admin")
+      !pathname.startsWith("/admin") &&
+      !pathname.startsWith("/country-hub")
     ) {
       window.localStorage.setItem("solaris:last-meaningful-route", pathname);
     }
   }, [pathname]);
 
   useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    const previous =
-      document.body.style.overflow;
-
-    document.body.style.overflow =
-      "hidden";
-
+    if (!menuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow =
-        previous;
+      document.body.style.overflow = previous;
     };
   }, [menuOpen]);
 
+  const roleItem = useMemo(() => {
+    if (access.isOrganizer) return { to: "/admin", label: "Studio" };
+    if (access.countryId) return { to: "/country-hub", label: "My Country" };
+    if (email) return { to: "/country-hub", label: "Country Setup" };
+    return null;
+  }, [access.isOrganizer, access.countryId, email]);
+
+  const navigation = useMemo(
+    () => (roleItem ? [...MAIN_NAV, roleItem, ...MORE_NAV] : [...MAIN_NAV, ...MORE_NAV]),
+    [roleItem],
+  );
+
+  const quickNavigation = useMemo(
+    () => [
+      { to: "/", label: "Home" },
+      { to: "/editions", label: "Editions" },
+      { to: "/countries", label: "Countries" },
+      roleItem ?? { to: "/tools", label: "Tools" },
+    ],
+    [roleItem],
+  );
+
   const signOut = async () => {
     await supabase.auth.signOut();
-
     window.location.href = "/";
   };
 
+  const isCountryPage = /^\/countries\/[^/]+\/?$/i.test(pathname);
+
   return (
     <div className="relative isolate min-h-screen overflow-x-clip">
-      <div
-        aria-hidden="true"
-        className="app-background"
-      />
+      <div aria-hidden="true" className="app-background" />
 
-      <header
-        className="
-          sticky
-          top-0
-          z-40
-          border-b
-          border-border/60
-          bg-background/55
-          backdrop-blur-xl
-        "
-      >
-        <div
-          className="
-            mx-auto
-            flex
-            h-16
-            max-w-[1280px]
-            items-center
-            gap-4
-            px-3
-            sm:px-5
-            lg:px-6
-          "
-        >
+      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/55 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-[1280px] items-center gap-4 px-3 sm:px-5 lg:px-6">
           <Brand />
 
-          <nav
-            className="
-              ml-auto
-              hidden
-              items-center
-              gap-1
-              lg:flex
-            "
-            aria-label="Main navigation"
-          >
-            {[
-              ...MAIN_NAV,
-              ...MORE_NAV,
-            ].map((item) => {
-              const active =
-                routeActive(
-                  pathname,
-                  item.to,
-                );
-
+          <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
+            {navigation.map((item) => {
+              const active = routeActive(pathname, item.to);
               return (
                 <Link
                   key={item.to}
                   to={item.to}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    `
-                      rounded-xl
-                      px-3
-                      py-2
-                      text-sm
-                      transition-colors
-                    `,
+                    "rounded-xl px-3 py-2 text-sm transition-colors",
                     active
                       ? "bg-surface-strong text-foreground"
                       : "text-muted-foreground hover:bg-surface hover:text-foreground",
@@ -197,34 +166,15 @@ export function AppShell({
 
             {email ? (
               <>
-                <Link
-                  to="/me"
-                  className="ml-2 rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
-                >
+                <Link to="/me" className="ml-2 rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
                   My Solaris
                 </Link>
-                <button
-                  type="button"
-                  onClick={signOut}
-                  className="rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
-                >
+                <button type="button" onClick={signOut} className="rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground">
                   Sign out
                 </button>
               </>
             ) : (
-              <Link
-                to="/auth"
-                className="
-                  bg-aurora
-                  ml-2
-                  rounded-xl
-                  px-3
-                  py-2
-                  text-sm
-                  font-medium
-                  text-primary-foreground
-                "
-              >
+              <Link to="/auth" className="bg-aurora ml-2 rounded-xl px-3 py-2 text-sm font-medium text-primary-foreground">
                 Sign in
               </Link>
             )}
@@ -232,21 +182,8 @@ export function AppShell({
 
           <button
             type="button"
-            onClick={() =>
-              setMenuOpen(true)
-            }
-            className="
-              ml-auto
-              grid
-              h-11
-              w-11
-              place-items-center
-              rounded-xl
-              border
-              border-border
-              bg-surface
-              lg:hidden
-            "
+            onClick={() => setMenuOpen(true)}
+            className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border bg-surface lg:hidden"
             aria-label="Open navigation"
             aria-expanded={menuOpen}
           >
@@ -256,111 +193,24 @@ export function AppShell({
       </header>
 
       {menuOpen && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-[100]
-            lg:hidden
-          "
-        >
-          <button
-            type="button"
-            aria-label="Close navigation"
-            className="
-              absolute
-              inset-0
-              bg-black/60
-              backdrop-blur-sm
-            "
-            onClick={() =>
-              setMenuOpen(false)
-            }
-          />
-
-          <aside
-            className="
-              absolute
-              bottom-0
-              right-0
-              top-0
-              flex
-              w-[min(86vw,340px)]
-              flex-col
-              border-l
-              border-border
-              bg-background/80
-              backdrop-blur-2xl
-            "
-            aria-label="Navigation menu"
-          >
-            <div
-              className="
-                flex
-                items-center
-                justify-between
-                border-b
-                border-border
-                p-4
-              "
-            >
+        <div className="fixed inset-0 z-[100] lg:hidden">
+          <button type="button" aria-label="Close navigation" className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
+          <aside className="absolute bottom-0 right-0 top-0 flex w-[min(86vw,340px)] flex-col border-l border-border bg-background/80 backdrop-blur-2xl" aria-label="Navigation menu">
+            <div className="flex items-center justify-between border-b border-border p-4">
               <Brand compact />
-
-              <button
-                type="button"
-                onClick={() =>
-                  setMenuOpen(false)
-                }
-                className="
-                  grid
-                  h-10
-                  w-10
-                  place-items-center
-                  rounded-xl
-                  border
-                  border-border
-                  bg-surface
-                "
-                aria-label="Close navigation"
-              >
-                ✕
-              </button>
+              <button type="button" onClick={() => setMenuOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface" aria-label="Close navigation">✕</button>
             </div>
 
-            <nav
-              className="
-                flex-1
-                overflow-y-auto
-                p-3
-              "
-              aria-label="Mobile navigation"
-            >
-              {[
-                ...MAIN_NAV,
-                ...MORE_NAV,
-              ].map((item) => {
-                const active =
-                  routeActive(
-                    pathname,
-                    item.to,
-                  );
-
+            <nav className="flex-1 overflow-y-auto p-3" aria-label="Mobile navigation">
+              {navigation.map((item) => {
+                const active = routeActive(pathname, item.to);
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      `
-                        mb-1
-                        flex
-                        min-h-12
-                        items-center
-                        rounded-xl
-                        px-3
-                        text-sm
-                        font-medium
-                      `,
+                      "mb-1 flex min-h-12 items-center rounded-xl px-3 text-sm font-medium",
                       active
                         ? "bg-surface-strong text-foreground"
                         : "text-muted-foreground hover:bg-surface hover:text-foreground",
@@ -372,65 +222,24 @@ export function AppShell({
               })}
             </nav>
 
-            <div
-              className="
-                border-t
-                border-border
-                p-4
-              "
-            >
+            <div className="border-t border-border p-4">
               {email ? (
                 <div className="space-y-3">
-                  <p
-                    className="
-                      truncate
-                      text-xs
-                      text-muted-foreground
-                    "
-                  >
-                    {email}
-                  </p>
-
-                  <Link
-                    to="/me"
-                    className="flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm"
-                  >
+                  <p className="truncate text-xs text-muted-foreground">{email}</p>
+                  {roleItem && (
+                    <Link to={roleItem.to} className="flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm">
+                      {roleItem.label}
+                    </Link>
+                  )}
+                  <Link to="/me" className="flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm">
                     My Solaris
                   </Link>
-
-                  <button
-                    type="button"
-                    onClick={signOut}
-                    className="
-                      min-h-11
-                      w-full
-                      rounded-xl
-                      border
-                      border-border
-                      bg-surface
-                      px-3
-                      text-sm
-                    "
-                  >
+                  <button type="button" onClick={signOut} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm">
                     Sign out
                   </button>
                 </div>
               ) : (
-                <Link
-                  to="/auth"
-                  className="
-                    bg-aurora
-                    flex
-                    min-h-11
-                    items-center
-                    justify-center
-                    rounded-xl
-                    px-3
-                    text-sm
-                    font-semibold
-                    text-primary-foreground
-                  "
-                >
+                <Link to="/auth" className="bg-aurora flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold text-primary-foreground">
                   Sign in
                 </Link>
               )}
@@ -439,97 +248,27 @@ export function AppShell({
         </div>
       )}
 
-      <main
-        className="
-          app-main
-          relative
-          z-10
-          mx-auto
-          min-w-0
-          max-w-[1280px]
-          px-3
-          py-5
-          sm:px-5
-          sm:py-7
-          lg:px-6
-          lg:py-8
-        "
-      >
+      <main className="app-main relative z-10 mx-auto min-w-0 max-w-[1280px] px-3 py-5 sm:px-5 sm:py-7 lg:px-6 lg:py-8">
         {children}
+        {isCountryPage && <CountryProfileExtension pathname={pathname} />}
       </main>
 
       <nav
-        className="
-          fixed
-          inset-x-0
-          bottom-0
-          z-50
-          border-t
-          border-border/70
-          bg-background/75
-          px-2
-          pt-2
-          backdrop-blur-2xl
-          lg:hidden
-        "
-        style={{
-          paddingBottom:
-            "max(.45rem, env(safe-area-inset-bottom))",
-        }}
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/75 px-2 pt-2 backdrop-blur-2xl lg:hidden"
+        style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
         aria-label="Quick navigation"
       >
-        <div
-          className="
-            mx-auto
-            grid
-            max-w-lg
-            grid-cols-4
-            gap-1
-          "
-        >
-          {[
-            {
-              to: "/",
-              label: "Home",
-            },
-            {
-              to: "/editions",
-              label: "Editions",
-            },
-            {
-              to: "/countries",
-              label: "Countries",
-            },
-            {
-              to: "/admin",
-              label: "Studio",
-            },
-          ].map((item) => {
-            const active =
-              routeActive(
-                pathname,
-                item.to,
-              );
-
+        <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
+          {quickNavigation.map((item) => {
+            const active = routeActive(pathname, item.to);
             return (
               <Link
                 key={item.to}
                 to={item.to}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  `
-                    flex
-                    min-h-12
-                    items-center
-                    justify-center
-                    rounded-xl
-                    px-1
-                    text-[11px]
-                    font-medium
-                  `,
-                  active
-                    ? "bg-surface-strong text-foreground"
-                    : "text-muted-foreground",
+                  "flex min-h-12 items-center justify-center rounded-xl px-1 text-[11px] font-medium",
+                  active ? "bg-surface-strong text-foreground" : "text-muted-foreground",
                 )}
               >
                 {item.label}
@@ -542,305 +281,59 @@ export function AppShell({
   );
 }
 
-function Brand({
-  compact = false,
-}: {
-  compact?: boolean;
-}) {
+function Brand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link
-      to="/"
-      className="
-        flex
-        min-w-0
-        items-center
-        gap-3
-      "
-      aria-label="Solaris Studio home"
-    >
-      <div
-        className={cn(
-          `
-            grid
-            shrink-0
-            place-items-center
-            overflow-hidden
-            rounded-full
-          `,
-          compact
-            ? "h-9 w-9"
-            : "h-10 w-10",
-        )}
-      >
-        <img
-          src="/IMG_9177.png"
-          alt=""
-          aria-hidden="true"
-          className="
-            h-full
-            w-full
-            object-contain
-          "
-        />
+    <Link to="/" className="flex min-w-0 items-center gap-3" aria-label="Solaris Studio home">
+      <div className={cn("grid shrink-0 place-items-center overflow-hidden rounded-full", compact ? "h-9 w-9" : "h-10 w-10")}>
+        <img src="/IMG_9177.png" alt="" aria-hidden="true" className="h-full w-full object-contain" />
       </div>
-
-      <span
-        className="
-          min-w-0
-          leading-tight
-        "
-      >
-        <span
-          className="
-            block
-            truncate
-            font-display
-            text-sm
-            font-semibold
-          "
-        >
-          Solaris Studio
-        </span>
-
-        <span
-          className="
-            hidden
-            truncate
-            text-[11px]
-            text-muted-foreground
-            sm:block
-          "
-        >
-          Terra Solaris · SSC
-        </span>
+      <span className="min-w-0 leading-tight">
+        <span className="block truncate font-display text-sm font-semibold">Solaris Studio</span>
+        <span className="hidden truncate text-[11px] text-muted-foreground sm:block">Terra Solaris · SSC</span>
       </span>
     </Link>
   );
 }
 
-export function PageHeader({
-  eyebrow,
-  title,
-  description,
-  actions,
-}: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-}) {
+export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
   const visibleEyebrow = productEyebrow(eyebrow);
-
   return (
-    <div
-      className="
-        mb-6
-        min-w-0
-        sm:mb-8
-      "
-    >
-      <div
-        className="
-          flex
-          min-w-0
-          flex-col
-          gap-4
-          sm:flex-row
-          sm:items-end
-          sm:justify-between
-        "
-      >
+    <div className="mb-6 min-w-0 sm:mb-8">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          {visibleEyebrow && (
-            <p
-              className="
-                mb-2
-                text-[10px]
-                font-semibold
-                uppercase
-                tracking-[0.18em]
-                text-primary
-                sm:text-xs
-              "
-            >
-              {visibleEyebrow}
-            </p>
-          )}
-
-          <h1
-            className="
-              break-words
-              font-display
-              text-2xl
-              font-bold
-              leading-tight
-              sm:text-3xl
-              lg:text-4xl
-            "
-          >
-            {title}
-          </h1>
-
-          {description && (
-            <p
-              className="
-                mt-2
-                max-w-2xl
-                text-sm
-                leading-relaxed
-                text-muted-foreground
-              "
-            >
-              {description}
-            </p>
-          )}
+          {visibleEyebrow && <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary sm:text-xs">{visibleEyebrow}</p>}
+          <h1 className="break-words font-display text-2xl font-bold leading-tight sm:text-3xl lg:text-4xl">{title}</h1>
+          {description && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>}
         </div>
-
-        {actions && (
-          <div
-            className="
-              flex
-              flex-wrap
-              gap-2
-              sm:justify-end
-            "
-          >
-            {actions}
-          </div>
-        )}
+        {actions && <div className="flex flex-wrap gap-2 sm:justify-end">{actions}</div>}
       </div>
     </div>
   );
 }
 
-export function Panel({
-  title,
-  description,
-  children,
-  className,
-  actions,
-}: {
-  title?: string;
-  description?: string;
-  children: ReactNode;
-  className?: string;
-  actions?: ReactNode;
-}) {
+export function Panel({ title, description, children, className, actions }: { title?: string; description?: string; children: ReactNode; className?: string; actions?: ReactNode }) {
   return (
-    <section
-      className={cn(
-        `
-          glass
-          min-w-0
-          p-4
-          sm:p-5
-        `,
-        className,
-      )}
-    >
+    <section className={cn("glass min-w-0 p-4 sm:p-5", className)}>
       {(title || actions) && (
-        <div
-          className="
-            mb-4
-            flex
-            min-w-0
-            items-start
-            justify-between
-            gap-3
-          "
-        >
+        <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
-            {title && (
-              <h2
-                className="
-                  break-words
-                  font-display
-                  text-base
-                  font-semibold
-                  sm:text-lg
-                "
-              >
-                {title}
-              </h2>
-            )}
-
-            {description && (
-              <p
-                className="
-                  mt-1
-                  text-xs
-                  leading-relaxed
-                  text-muted-foreground
-                "
-              >
-                {description}
-              </p>
-            )}
+            {title && <h2 className="break-words font-display text-base font-semibold sm:text-lg">{title}</h2>}
+            {description && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>}
           </div>
-
-          {actions && (
-            <div className="shrink-0">
-              {actions}
-            </div>
-          )}
+          {actions && <div className="shrink-0">{actions}</div>}
         </div>
       )}
-
-      <div className="min-w-0">
-        {children}
-      </div>
+      <div className="min-w-0">{children}</div>
     </section>
   );
 }
 
-export function StatTile({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: ReactNode;
-  hint?: string;
-}) {
+export function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
   return (
     <div className="min-w-0">
-      <p
-        className="
-          text-[10px]
-          uppercase
-          tracking-[0.14em]
-          text-muted-foreground
-        "
-      >
-        {label}
-      </p>
-
-      <p
-        className="
-          numeric
-          mt-1
-          break-words
-          text-xl
-          font-semibold
-          leading-tight
-          sm:text-2xl
-        "
-      >
-        {value}
-      </p>
-
-      {hint && (
-        <p
-          className="
-            mt-1
-            text-[11px]
-            leading-relaxed
-            text-muted-foreground
-          "
-        >
-          {hint}
-        </p>
-      )}
+      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="numeric mt-1 break-words text-xl font-semibold leading-tight sm:text-2xl">{value}</p>
+      {hint && <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
     </div>
   );
 }
