@@ -65,8 +65,7 @@ function SharedPredictionPage() {
         <PageHeader eyebrow="Prediction Arena" title="This shared result is unavailable" />
         <Panel>
           <p className="text-sm text-muted-foreground">
-            The link may be invalid, the result may no longer be public, or database setup may
-            still be in progress.
+            The link may be invalid, the result may no longer be public, or the result may be temporarily unavailable.
           </p>
         </Panel>
       </AppShell>
