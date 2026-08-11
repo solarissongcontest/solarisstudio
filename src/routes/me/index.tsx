@@ -120,9 +120,9 @@ function MySolarisPage() {
       />
 
       {roundData?.schemaReady === false ? (
-        <Panel title="Account features are being connected">
+        <Panel title="Account features are temporarily unavailable">
           <p className="text-sm text-muted-foreground">
-            Your account is signed in, but the Prediction Arena database setup is not live yet.
+            Your account is signed in, but prediction history and profile tools are not available right now.
           </p>
         </Panel>
       ) : (
