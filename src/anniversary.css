@@ -1,3 +1,18 @@
+.solaris-anniversary-day .app-background {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(251, 113, 133, .2), transparent 30%),
+    radial-gradient(circle at 84% 14%, rgba(56, 189, 248, .24), transparent 32%),
+    radial-gradient(circle at 65% 76%, rgba(192, 132, 252, .2), transparent 36%),
+    linear-gradient(140deg, #060a1d 0%, #071a39 36%, #17113e 68%, #090d23 100%);
+  background-size: 150% 150%;
+  animation: solaris-page-celebration 13s ease-in-out infinite alternate;
+}
+
+.solaris-anniversary-day header.sticky {
+  border-bottom-color: rgba(125, 211, 252, .34);
+  box-shadow: 0 10px 40px rgba(80, 100, 255, .13);
+}
+
 .solaris-birthday {
   background:
     radial-gradient(circle at 15% 12%, rgba(251, 113, 133, 0.34), transparent 30%),
@@ -179,6 +194,11 @@
   to { background-position: 100% 65%; }
 }
 
+@keyframes solaris-page-celebration {
+  from { background-position: 0% 30%; filter: saturate(1); }
+  to { background-position: 100% 70%; filter: saturate(1.18); }
+}
+
 @keyframes solaris-birthday-shine {
   0%, 64% { transform: translateX(-125%); }
   82%, 100% { transform: translateX(125%); }
@@ -200,6 +220,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .solaris-anniversary-day .app-background,
   .solaris-birthday,
   .solaris-birthday::after,
   .solaris-birthday-orb,
