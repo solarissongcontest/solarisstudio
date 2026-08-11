@@ -30,7 +30,7 @@ const profile = {
 };
 
 describe("country wiki generation", () => {
-  it("derives character from submitted government and voting history", () => {
+  it("derives character from government and voting history", () => {
     const character = buildCountryCharacter({
       country,
       profile,
@@ -43,9 +43,10 @@ describe("country wiki generation", () => {
     expect(character.tags).toContain("Jury-friendly");
     expect(character.tags).toContain("SSC veteran");
     expect(character.tags).toContain("Champion");
+    expect(character.summary).toContain("Asteria is a kingdom");
   });
 
-  it("creates fun facts only from supplied profile and contest information", () => {
+  it("creates fun facts only from known profile and contest information", () => {
     const facts = buildCountryFunFacts({
       country,
       profile,
@@ -59,6 +60,32 @@ describe("country wiki generation", () => {
     expect(facts.some((fact) => fact.includes("Asterian"))).toBe(true);
     expect(facts.some((fact) => fact.includes("SSC-winning"))).toBe(true);
     expect(facts.some((fact) => fact.includes("jury support"))).toBe(true);
+  });
+
+  it("speaks about established country information as fact", () => {
+    const character = buildCountryCharacter({
+      country,
+      profile,
+      stats: { participations: 3, wins: 0 },
+      form: { juryTelevoteLean: 0 },
+      sections: [],
+    });
+    const facts = buildCountryFunFacts({
+      country,
+      profile,
+      stats: { participations: 3, wins: 0, qualificationPct: 100 },
+      form: { juryTelevoteLean: 0 },
+      sections: [],
+      mediaCount: 0,
+    });
+
+    const copy = [character.summary, ...facts].join(" ").toLowerCase();
+    expect(copy).not.toContain("submitted");
+    expect(copy).not.toContain("listed as");
+    expect(copy).not.toContain("described as");
+    expect(copy).not.toContain("presents itself as");
+    expect(copy).toContain("nova is the capital of asteria");
+    expect(copy).toContain("asteria is a kingdom led by queen mira");
   });
 
   it("does not invent profile facts when fields are empty", () => {
