@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }],
+  }),
   beforeLoad: async () => {
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) throw redirect({ to: "/auth" });
