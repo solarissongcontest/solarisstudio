@@ -18,6 +18,8 @@ import { BackgroundFlag } from "@/components/BackgroundFlag";
 
 import { FlagChip } from "@/components/FlagChip";
 
+import { FollowButton } from "@/components/FollowButton";
+
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 
 import {
@@ -393,6 +395,8 @@ function CountryProfilePage() {
             >
               Compare
             </Link>
+
+            <FollowButton entityType="country" entityId={country.id} label={country.name} />
           </div>
         </div>
       </section>

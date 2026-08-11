@@ -6,6 +6,8 @@ import { BackgroundFlag } from "@/components/BackgroundFlag";
 
 import { FlagChip } from "@/components/FlagChip";
 
+import { FollowButton } from "@/components/FollowButton";
+
 import { StoryCards } from "@/components/StoryCards";
 
 import {
@@ -192,12 +194,15 @@ function EditionPage() {
   return (
     <AppShell>
       <div className="space-y-5 sm:space-y-7">
-        <Link
-          to="/editions"
-          className="text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          ← Editions
-        </Link>
+        <div className="flex items-start justify-between gap-4">
+          <Link
+            to="/editions"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            ← Editions
+          </Link>
+          <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
+        </div>
 
         <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[480px]">
           <BackgroundFlag

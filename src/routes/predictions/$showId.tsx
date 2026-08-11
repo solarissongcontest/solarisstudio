@@ -6,6 +6,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { useContestEntities, useCountries, useShow, useShowParticipants } from "@/lib/data";
 import { entityDisplayMap, entityKeyOf, type EntityDisplay } from "@/lib/entities";
 import {
+  useEnablePredictionShare,
   useFanSession,
   useMyPrediction,
   usePredictionConsensus,
@@ -33,6 +34,7 @@ function PredictionBuilderPage() {
   const round = roundData?.rounds[0] ?? null;
   const { data: savedPrediction } = useMyPrediction(round?.id, user?.id);
   const submitPrediction = useSubmitPrediction(round?.id);
+  const enableShare = useEnablePredictionShare();
 
   const [winner, setWinner] = useState("");
   const [juryWinner, setJuryWinner] = useState("");
@@ -40,6 +42,13 @@ function PredictionBuilderPage() {
   const [topThree, setTopThree] = useState(["", "", ""]);
   const [qualifiers, setQualifiers] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const options = useMemo(
@@ -89,10 +98,10 @@ function PredictionBuilderPage() {
   const locked =
     !round ||
     round.status !== "open" ||
-    Date.now() < new Date(round.opens_at).getTime() ||
-    Date.now() >= new Date(round.locks_at).getTime();
+    now < new Date(round.opens_at).getTime() ||
+    now >= new Date(round.locks_at).getTime();
   const canSeeConsensus = Boolean(
-    user && (savedPrediction || (round && Date.now() >= new Date(round.locks_at).getTime())),
+    user && (savedPrediction || (round && now >= new Date(round.locks_at).getTime())),
   );
   const { data: consensus } = usePredictionConsensus(round?.id, canSeeConsensus);
 
@@ -170,6 +179,30 @@ function PredictionBuilderPage() {
     }
   };
 
+  const sharePrediction = async () => {
+    if (!savedPrediction?.prediction_score) return;
+    setShareMessage(null);
+    try {
+      const token =
+        savedPrediction.share_token ?? (await enableShare.mutateAsync(savedPrediction.id));
+      const url = `${window.location.origin}/predictions/share/${token}`;
+      if (navigator.share) {
+        await navigator.share({
+          title: `My ${show?.name ?? "Solaris"} prediction result`,
+          text: `I scored ${savedPrediction.prediction_score.score.toFixed(1)} in the Solaris Prediction Arena.`,
+          url,
+        });
+        setShareMessage("Share card opened.");
+      } else {
+        await navigator.clipboard.writeText(url);
+        setShareMessage("Share link copied.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setShareMessage(error instanceof Error ? error.message : "Share link could not be created.");
+    }
+  };
+
   if (isLoading) {
     return (
       <AppShell>
@@ -238,7 +271,12 @@ function PredictionBuilderPage() {
                 <PredictionSelect
                   label="Winner"
                   value={winner}
-                  onChange={setWinner}
+                  onChange={(value) => {
+                    setWinner(value);
+                    if (types.has("top_three")) {
+                      setTopThree((current) => [value, current[1], current[2]]);
+                    }
+                  }}
                   options={options}
                   disabled={locked}
                 />
@@ -255,11 +293,12 @@ function PredictionBuilderPage() {
                         key={index}
                         label={`#${index + 1}`}
                         value={countryId}
-                        onChange={(value) =>
+                        onChange={(value) => {
                           setTopThree((current) =>
                             current.map((item, itemIndex) => (itemIndex === index ? value : item)),
-                          )
-                        }
+                          );
+                          if (index === 0 && types.has("winner")) setWinner(value);
+                        }}
                         options={options}
                         disabled={locked}
                         compact
@@ -354,6 +393,39 @@ function PredictionBuilderPage() {
           </Panel>
 
           <div className="space-y-5">
+            {savedPrediction?.prediction_score && (
+              <Panel title="Your result" description="Scored from the archived public result.">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="numeric text-4xl font-black text-primary">
+                      {savedPrediction.prediction_score.score.toFixed(1)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">out of 100</p>
+                  </div>
+                  {savedPrediction.prediction_score.percentile != null && (
+                    <p className="max-w-[12rem] text-right text-xs leading-relaxed text-muted-foreground">
+                      At or above {savedPrediction.prediction_score.percentile.toFixed(0)}% of
+                      scored entries.
+                    </p>
+                  )}
+                </div>
+
+                <ScoreBreakdown breakdown={savedPrediction.prediction_score.breakdown} />
+
+                <button
+                  type="button"
+                  onClick={sharePrediction}
+                  disabled={enableShare.isPending}
+                  className="mt-4 min-h-11 w-full rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {enableShare.isPending ? "Creating link…" : "Share my result"}
+                </button>
+                {shareMessage && (
+                  <p className="mt-2 text-xs text-muted-foreground">{shareMessage}</p>
+                )}
+              </Panel>
+            )}
+
             <Panel title="Privacy and fairness">
               <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
                 <li>• Your individual picks are private.</li>
@@ -382,6 +454,36 @@ function PredictionBuilderPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+function ScoreBreakdown({ breakdown }: { breakdown: unknown }) {
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) return null;
+  const labels: Array<[string, string]> = [
+    ["headlineScore", "Headline picks"],
+    ["qualifierScore", "Qualifiers"],
+    ["rankingScore", "Ordered ranking"],
+    ["confidenceScore", "Confidence"],
+  ];
+  const values = breakdown as Record<string, unknown>;
+  const rows = labels
+    .map(([key, label]) => ({ key, label, value: values[key] }))
+    .filter((row): row is { key: string; label: string; value: number } =>
+      typeof row.value === "number",
+    );
+  if (!rows.length) return null;
+
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-2">
+      {rows.map((row) => (
+        <div key={row.key} className="rounded-xl bg-surface px-3 py-2.5">
+          <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            {row.label}
+          </p>
+          <p className="numeric mt-1 text-lg font-bold">{row.value.toFixed(0)}%</p>
+        </div>
+      ))}
+    </div>
   );
 }
 

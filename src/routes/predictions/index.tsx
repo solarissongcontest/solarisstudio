@@ -26,6 +26,11 @@ function PredictionArenaPage() {
         eyebrow="Predict before the show"
         title="Prediction Arena"
         description="Make your picks before the database-timed lock, then return after the result to see what you got right. Community consensus stays hidden until you submit."
+        actions={
+          <Link to="/me" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+            My prediction history
+          </Link>
+        }
       />
 
       {isLoading ? (

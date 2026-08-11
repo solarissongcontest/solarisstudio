@@ -6,6 +6,8 @@ import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 
 import { FlagChip } from "@/components/FlagChip";
 
+import { FollowButton } from "@/components/FollowButton";
+
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
 
 import { RadialPointsView } from "@/components/RadialPointsView";
@@ -331,9 +333,12 @@ function ShowPage() {
               : "Published show information."
         }
         actions={
-          <Link to="/editions" className="rounded-xl border border-border px-4 py-2.5 text-sm">
-            ← Editions
-          </Link>
+          <div className="flex flex-wrap justify-end gap-2">
+            <FollowButton entityType="show" entityId={show.id} label={show.name} />
+            <Link to="/editions" className="rounded-xl border border-border px-4 py-2.5 text-sm">
+              ← Editions
+            </Link>
+          </div>
         }
       />
 
