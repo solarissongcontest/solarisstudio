@@ -44,6 +44,8 @@ const EMPTY_ACCESS: AccountAccess = {
   userId: null,
   isOrganizer: false,
   countryId: null,
+  countryStatus: null,
+  suspensionReason: null,
   schemaReady: true,
 };
 
@@ -107,16 +109,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [menuOpen]);
 
-  const roleItem = useMemo(() => {
-    if (access.isOrganizer) return { to: "/admin", label: "Studio" };
-    if (access.countryId) return { to: "/country-hub", label: "My Country" };
-    if (email) return { to: "/country-hub", label: "Country Setup" };
-    return null;
+  const roleItems = useMemo(() => {
+    const items: Array<{ to: string; label: string }> = [];
+
+    if (access.isOrganizer) {
+      items.push({ to: "/admin", label: "Studio" });
+    }
+
+    if (access.countryId) {
+      items.push({ to: "/country-hub", label: "My Country" });
+    } else if (email) {
+      items.push({ to: "/country-hub", label: access.isOrganizer ? "Claim Country" : "Country Setup" });
+    }
+
+    return items;
   }, [access.isOrganizer, access.countryId, email]);
 
   const navigation = useMemo(
-    () => (roleItem ? [...MAIN_NAV, roleItem, ...MORE_NAV] : [...MAIN_NAV, ...MORE_NAV]),
-    [roleItem],
+    () => [...MAIN_NAV, ...roleItems, ...MORE_NAV],
+    [roleItems],
   );
 
   const quickNavigation = useMemo(
@@ -124,9 +135,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       { to: "/", label: "Home" },
       { to: "/editions", label: "Editions" },
       { to: "/countries", label: "Countries" },
-      roleItem ?? { to: "/tools", label: "Tools" },
+      roleItems[0] ?? { to: "/tools", label: "Tools" },
     ],
-    [roleItem],
+    [roleItems],
   );
 
   const signOut = async () => {
@@ -226,11 +237,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               {email ? (
                 <div className="space-y-3">
                   <p className="truncate text-xs text-muted-foreground">{email}</p>
-                  {roleItem && (
-                    <Link to={roleItem.to} className="flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm">
-                      {roleItem.label}
+                  {roleItems.map((item) => (
+                    <Link key={item.to} to={item.to} className="flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm">
+                      {item.label}
                     </Link>
-                  )}
+                  ))}
                   <Link to="/me" className="flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm">
                     My Solaris
                   </Link>
