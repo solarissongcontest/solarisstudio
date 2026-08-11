@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "@tanstack/react-router";
+import { useEffect, useMemo } from "react";
 
 import { AnniversaryTakeover } from "@/components/AnniversaryTakeover";
 import {
@@ -16,13 +17,11 @@ import {
 
 export function HomeAnniversaryTakeover() {
   const baseAnniversary = useMemo(() => getSolarisAnniversary(), []);
-  const [preview, setPreview] = useState(false);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setPreview(params.get("anniversary") === "preview");
-  }, []);
-
+  const searchStr = useLocation({ select: (location) => location.searchStr });
+  const preview = useMemo(
+    () => new URLSearchParams(searchStr).get("anniversary") === "preview",
+    [searchStr],
+  );
   const active = baseAnniversary.active || preview;
 
   useEffect(() => {
