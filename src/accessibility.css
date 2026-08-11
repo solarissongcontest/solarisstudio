@@ -1,0 +1,54 @@
+/* =========================================================
+   PHASE 6 — ACCESSIBILITY + MOTION POLISH
+   ========================================================= */
+
+:where(a, button, input, select, textarea, [role="button"], [role="radio"], [tabindex]):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+}
+
+:where(button, [role="button"], [role="radio"]):disabled {
+  cursor: not-allowed;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  :where(button, a, select, input[type="checkbox"], input[type="radio"]) {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .bg-aurora:is(button, a, [role="button"]):hover,
+  button.bg-primary:hover,
+  a.bg-primary:hover,
+  [role="button"].bg-primary:hover,
+  .bg-aurora:is(button, a, [role="button"]):active,
+  button.bg-primary:active,
+  a.bg-primary:active,
+  [role="button"].bg-primary:active {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 420px) {
+  :where(section, article, main, nav, header, footer, form, fieldset) {
+    min-width: 0;
+  }
+
+  :where(h1, h2, h3, p, label, button, a) {
+    overflow-wrap: anywhere;
+  }
+}
