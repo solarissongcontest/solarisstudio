@@ -153,9 +153,9 @@ function CountryWikiPage() {
               <p>
                 {country.name} is part of {country.region || "Terra Solaris"}.
                 {profile?.capital ? ` Its capital is ${profile.capital}.` : ""}
-                {profile?.government_type ? ` The country is described as ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()}.` : ""}
+                {profile?.government_type ? ` It is ${articleFor(profile.government_type)} ${profile.government_type.toLowerCase()}.` : ""}
                 {profile?.leader_name || profile?.leader_title
-                  ? ` Its submitted leader is ${[profile?.leader_title, profile?.leader_name].filter(Boolean).join(" ")}.`
+                  ? ` It is led by ${[profile?.leader_title, profile?.leader_name].filter(Boolean).join(" ")}.`
                   : ""}
               </p>
               {profile?.motto && (
@@ -192,10 +192,10 @@ function CountryWikiPage() {
               {stats && stats.participations > 0 ? (
                 <>
                   <p>
-                    {country.name} has {stats.participations} recorded SSC participation{stats.participations === 1 ? "" : "s"},
-                    {stats.wins > 0 ? ` including ${stats.wins} win${stats.wins === 1 ? "" : "s"}` : " with no recorded overall win yet"}.
+                    {country.name} has {stats.participations} SSC participation{stats.participations === 1 ? "" : "s"},
+                    {stats.wins > 0 ? ` including ${stats.wins} win${stats.wins === 1 ? "" : "s"}` : " with no overall win yet"}.
                     {stats.podiums > 0 ? ` It has reached the podium ${stats.podiums} time${stats.podiums === 1 ? "" : "s"}.` : ""}
-                    {stats.qualificationPct != null ? ` Its recorded qualification rate is ${stats.qualificationPct.toFixed(0)}%.` : ""}
+                    {stats.qualificationPct != null ? ` Its qualification rate is ${stats.qualificationPct.toFixed(0)}%.` : ""}
                   </p>
 
                   <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -230,7 +230,7 @@ function CountryWikiPage() {
                   )}
                 </>
               ) : (
-                <p>No published Solaris Song Contest history is recorded for {country.name} yet.</p>
+                <p>{country.name} has no published Solaris Song Contest history yet.</p>
               )}
             </WikiSection>
 
@@ -274,10 +274,10 @@ function CountryWikiPage() {
             {facts.length > 0 && (
               <section className="glass p-5 sm:p-6">
                 <div className="mb-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Generated from the record</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">From the national record</p>
                   <h2 className="mt-1 font-display text-xl font-semibold">Fun facts</h2>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    These are automatically composed from owner-submitted country information and published SSC data. Country owners do not write this section directly.
+                    Solaris automatically highlights notable facts from the country's national profile and SSC history.
                   </p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
