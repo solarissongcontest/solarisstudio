@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { CountryProfileExtension } from "@/components/CountryProfileExtension";
+import { EditionHostingExtension } from "@/components/EditionHostingExtension";
 import { HomeAnniversaryTakeover } from "@/components/HomeAnniversaryTakeover";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
@@ -104,7 +105,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const roleItems = useMemo(() => {
     const items: Array<{ to: string; label: string }> = [];
-    if (access.isOrganizer) items.push({ to: "/admin", label: "Studio" });
+    if (access.isOrganizer) {
+      items.push({ to: "/admin", label: "Studio" });
+      items.push({ to: "/admin/hosts", label: "Hosting" });
+    }
     if (access.countryId) items.push({ to: "/country-hub", label: "My Country" });
     else if (email) items.push({ to: "/country-hub", label: access.isOrganizer ? "Claim Country" : "Country Setup" });
     return items;
@@ -127,6 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const isCountryPage = /^\/countries\/[^/]+\/?$/i.test(pathname);
+  const isEditionPage = /^\/editions\/[^/]+\/?$/i.test(pathname);
   const isHomePage = pathname === "/";
 
   return (
@@ -234,6 +239,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="app-main relative z-10 mx-auto min-w-0 max-w-[1280px] px-3 py-4 sm:px-5 sm:py-6 lg:px-6 lg:py-7">
         {isHomePage && <HomeAnniversaryTakeover />}
         {children}
+        {isEditionPage && <EditionHostingExtension pathname={pathname} />}
         {isCountryPage && <CountryProfileExtension pathname={pathname} />}
       </main>
 
