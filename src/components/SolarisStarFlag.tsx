@@ -11,6 +11,9 @@ const SIZES: Record<SolarisStarFlagSize, string> = {
   hero: "h-24 w-24 sm:h-28 sm:w-28",
 };
 
+const STAR_CLIP =
+  "polygon(50% 7%, 64% 34%, 94% 39%, 73% 60%, 79% 91%, 50% 75%, 21% 91%, 27% 60%, 6% 39%, 36% 34%)";
+
 export function SolarisStarFlag({
   image,
   name,
@@ -37,23 +40,23 @@ export function SolarisStarFlag({
       aria-label={label}
     >
       <span
-        className="absolute inset-0"
+        className="absolute inset-[4%] overflow-hidden"
         style={{
-          WebkitMaskImage: "url('/branding/solaris-star-mask.png')",
-          maskImage: "url('/branding/solaris-star-mask.png')",
-          WebkitMaskRepeat: "no-repeat",
-          maskRepeat: "no-repeat",
-          WebkitMaskPosition: "center",
-          maskPosition: "center",
-          WebkitMaskSize: "contain",
-          maskSize: "contain",
+          clipPath: STAR_CLIP,
+          WebkitClipPath: STAR_CLIP,
           backgroundColor: color || "#7dd3fc",
-          backgroundImage: image ? `url(${image})` : undefined,
-          backgroundPosition: imagePosition,
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "cover",
         }}
-      />
+      >
+        {image && (
+          <img
+            src={image}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover"
+            style={{ objectPosition: imagePosition }}
+          />
+        )}
+      </span>
 
       {outline && (
         <img
