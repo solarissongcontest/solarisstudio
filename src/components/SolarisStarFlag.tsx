@@ -1,26 +1,40 @@
 import { cn } from "@/lib/utils";
 
 type SolarisStarFlagSize = "xs" | "sm" | "md" | "lg" | "xl" | "hero";
+type SolarisStarFlagFit = "display" | "compact";
 
 const SIZES: Record<SolarisStarFlagSize, string> = {
-  xs: "h-7 w-7",
-  sm: "h-9 w-9",
+  xs: "h-8 w-8",
+  sm: "h-10 w-10",
   md: "h-12 w-12",
-  lg: "h-16 w-16",
-  xl: "h-20 w-20",
+  lg: "h-14 w-14",
+  xl: "h-[4.1rem] w-[4.1rem]",
   hero: "h-24 w-24 sm:h-28 sm:w-28",
 };
 
-// This clip is deliberately tucked inside the real IMG_6171 outline.
-// The visible shape is always the original image, never a recreated star.
+// The visible star is ALWAYS the original IMG_6171.png asset.
+// This inner polygon only protects the flag fill from leaking through the
+// outline and is intentionally smaller than the visible white border.
 const INNER_STAR_CLIP =
-  "polygon(50% 8%, 61% 34%, 90% 39%, 69% 59%, 75% 88%, 50% 74%, 24% 88%, 29% 59%, 8% 39%, 38% 34%)";
+  "polygon(50% 11%, 60% 35%, 86.5% 39%, 67.5% 57.5%, 72.5% 84.5%, 50% 72%, 27.5% 84.5%, 32.5% 57.5%, 13.5% 39%, 40% 35%)";
+
+const FIT = {
+  display: {
+    extension: "absolute -left-[14%] -top-[14%] h-[128%] w-[128%] object-fill",
+    main: "absolute left-[4.5%] top-[13.5%] h-[73%] w-[91%] object-contain",
+  },
+  compact: {
+    extension: "absolute -left-[18%] -top-[18%] h-[136%] w-[136%] object-fill",
+    main: "absolute left-[8%] top-[17%] h-[66%] w-[84%] object-contain",
+  },
+} as const;
 
 export function SolarisStarFlag({
   image,
   name,
   color = "#7dd3fc",
   size = "md",
+  fit = "display",
   className,
   imagePosition = "center",
   outline = true,
@@ -29,11 +43,13 @@ export function SolarisStarFlag({
   name?: string;
   color?: string | null;
   size?: SolarisStarFlagSize;
+  fit?: SolarisStarFlagFit;
   className?: string;
   imagePosition?: string;
   outline?: boolean;
 }) {
   const label = name ? `${name} flag` : undefined;
+  const tuning = FIT[fit];
 
   return (
     <span
@@ -42,7 +58,7 @@ export function SolarisStarFlag({
       aria-label={label}
     >
       <span
-        className="absolute inset-[5%] overflow-hidden"
+        className="absolute inset-[6.5%] overflow-hidden"
         style={{
           clipPath: INNER_STAR_CLIP,
           WebkitClipPath: INNER_STAR_CLIP,
@@ -51,29 +67,23 @@ export function SolarisStarFlag({
       >
         {image && (
           <>
-            {/*
-              Extension layer: the same flag is stretched only underneath the
-              areas outside the intact centre image. There is deliberately no
-              blur, glow or recolouring here.
-            */}
+            {/* Exact same flag, stretched only to continue its colours/patterns into the star points. */}
             <img
               src={image}
               alt=""
               aria-hidden="true"
-              className="absolute inset-0 h-full w-full object-fill"
+              draggable={false}
+              className={tuning.extension}
               style={{ objectPosition: imagePosition }}
             />
 
-            {/*
-              Main layer: preserves the complete original flag and its aspect
-              ratio. This is what the eye reads; the layer behind merely
-              continues the design to the edges of the star.
-            */}
+            {/* Full undistorted flag remains sharp and readable in the centre. */}
             <img
               src={image}
               alt=""
               aria-hidden="true"
-              className="absolute left-[10%] top-[18%] h-[64%] w-[80%] object-contain"
+              draggable={false}
+              className={tuning.main}
               style={{ objectPosition: imagePosition }}
             />
           </>
@@ -85,6 +95,7 @@ export function SolarisStarFlag({
           src="/IMG_6171.png"
           alt=""
           aria-hidden="true"
+          draggable={false}
           className="pointer-events-none absolute inset-0 h-full w-full object-contain opacity-100 drop-shadow-[0_6px_14px_rgba(0,0,0,0.22)]"
         />
       )}
