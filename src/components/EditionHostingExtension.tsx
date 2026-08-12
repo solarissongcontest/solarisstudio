@@ -11,7 +11,7 @@ type HostedShow = Show & {
 export function EditionHostingExtension({ pathname }: { pathname: string }) {
   const match = pathname.match(/^\/editions\/([^/]+)\/?$/i);
   const slug = match?.[1] ? decodeURIComponent(match[1]) : null;
-  const { data: edition } = useEdition(slug ?? undefined);
+  const { data: edition } = useEdition(slug ?? "");
   const { data: shows } = useShows(edition?.id);
   const { data: countries } = useCountries();
 
