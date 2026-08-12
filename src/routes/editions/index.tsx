@@ -171,7 +171,7 @@ function LatestEdition({ card }: { card: EditionCard }) {
         <div className="relative min-h-[285px] overflow-hidden sm:min-h-[390px]">
           <BackgroundFlag
             image={winner?.flag_image ?? hosts[0]?.country?.flag_image}
-            className="-right-[24%] top-1/2 w-[108%] -translate-y-1/2 sm:-right-[8%] sm:w-[58%]"
+            className="-right-[34%] top-1/2 w-[145%] -translate-y-1/2 sm:-right-[14%] sm:w-[78%]"
             opacity={0.22}
           />
 
@@ -240,8 +240,8 @@ function ArchiveEdition({ card }: { card: EditionCard }) {
       <div className="relative min-h-[188px] p-4 sm:min-h-[214px] sm:p-5">
         <BackgroundFlag
           image={backgroundFlag}
-          className="-bottom-10 -right-8 h-40 w-40 sm:h-44 sm:w-44"
-          opacity={0.13}
+          className="-bottom-24 -right-20 h-72 w-72 sm:-bottom-28 sm:-right-24 sm:h-80 sm:w-80"
+          opacity={0.14}
         />
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(5,19,43,.78),rgba(5,19,43,.35)_58%,rgba(5,19,43,.62))]" />
 
