@@ -48,13 +48,23 @@ export function SolarisStarFlag({
         }}
       >
         {image && (
-          <img
-            src={image}
-            alt=""
-            aria-hidden="true"
-            className="h-full w-full object-cover"
-            style={{ objectPosition: imagePosition }}
-          />
+          <>
+            <img
+              src={image}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-[-18%] h-[136%] w-[136%] object-cover blur-[7px] saturate-125"
+              style={{ objectPosition: imagePosition }}
+            />
+            <span className="absolute inset-0 bg-black/5" aria-hidden="true" />
+            <img
+              src={image}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-[8%] h-[84%] w-[84%] object-contain"
+              style={{ objectPosition: imagePosition }}
+            />
+          </>
         )}
       </span>
 
