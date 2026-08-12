@@ -81,7 +81,7 @@ function EditionsPage() {
           if (!countryId && !city) return;
 
           const key = `${countryId ?? "none"}:${city ?? "none"}`;
-          const current = hostMap.get(key) ?? {
+          const current: HostLocation = hostMap.get(key) ?? {
             key,
             city,
             country: countryId ? countryMap.get(countryId) ?? null : null,
