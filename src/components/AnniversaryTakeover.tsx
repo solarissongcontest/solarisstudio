@@ -60,22 +60,33 @@ export function AnniversaryTakeover({
           </span>
         ))}
 
-        {CONFETTI.map((piece, index) => (
-          <span
-            key={index}
-            className={`solaris-confetti solaris-confetti-${index % 6}`}
-            style={
-              {
-                left: piece.left,
-                animationDelay: piece.delay,
-                animationDuration: piece.duration,
-                width: piece.size,
-                height: `calc(${piece.size} * 1.8)`,
-                "--confetti-rotate": piece.rotate,
-              } as CSSProperties
-            }
-          />
-        ))}
+        {CONFETTI.map((piece, index) => {
+          const isSolarisStar = index % 7 === 0;
+          const commonStyle = {
+            left: piece.left,
+            animationDelay: piece.delay,
+            animationDuration: piece.duration,
+            width: isSolarisStar ? `calc(${piece.size} * 2.25)` : piece.size,
+            height: isSolarisStar ? `calc(${piece.size} * 2.1)` : `calc(${piece.size} * 1.8)`,
+            "--confetti-rotate": piece.rotate,
+          } as CSSProperties;
+
+          return isSolarisStar ? (
+            <img
+              key={index}
+              src="/IMG_6171.png"
+              alt=""
+              className="solaris-confetti object-contain"
+              style={commonStyle}
+            />
+          ) : (
+            <span
+              key={index}
+              className={`solaris-confetti solaris-confetti-${index % 6}`}
+              style={commonStyle}
+            />
+          );
+        })}
       </div>
 
       <div className="solaris-birthday-orb solaris-birthday-orb-a" aria-hidden="true" />
