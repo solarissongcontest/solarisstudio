@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { cn } from "@/lib/utils";
 
 type SolarisStarFlagSize = "xs" | "sm" | "md" | "lg" | "xl" | "hero";
@@ -5,27 +7,29 @@ type SolarisStarFlagFit = "display" | "compact";
 
 const SIZES: Record<SolarisStarFlagSize, string> = {
   xs: "h-8 w-8",
-  sm: "h-10 w-10",
+  sm: "h-11 w-11",
   md: "h-12 w-12",
-  lg: "h-14 w-14",
-  xl: "h-[4.1rem] w-[4.1rem]",
+  lg: "h-16 w-16",
+  xl: "h-[4.75rem] w-[4.75rem]",
   hero: "h-24 w-24 sm:h-28 sm:w-28",
 };
 
-// The visible star is ALWAYS the original IMG_6171.png asset.
-// This inner polygon only protects the flag fill from leaking through the
-// outline and is intentionally smaller than the visible white border.
-const INNER_STAR_CLIP =
-  "polygon(50% 11%, 60% 35%, 86.5% 39%, 67.5% 57.5%, 72.5% 84.5%, 50% 72%, 27.5% 84.5%, 32.5% 57.5%, 13.5% 39%, 40% 35%)";
+/*
+ * This path was extracted from the ACTUAL inner opening of IMG_6171.png.
+ * The source image is 1259 × 1179, so both the flag clipping and the visible
+ * PNG outline now use exactly the same coordinate system.
+ */
+const ORIGINAL_STAR_INNER_PATH =
+  "M 637 294 L 661 294 L 685 312 L 744 428 L 759 445 L 784 455 L 970 483 L 984 489 L 995 502 L 998 523 L 991 540 L 867 663 L 852 684 L 848 700 L 849 714 L 875 848 L 866 872 L 848 887 L 826 889 L 808 883 L 664 813 L 643 815 L 506 883 L 484 883 L 472 879 L 463 873 L 451 858 L 447 845 L 447 825 L 473 678 L 472 664 L 463 649 L 368 554 L 359 535 L 359 510 L 365 497 L 383 482 L 525 458 L 553 445 L 569 419 L 619 311 Z";
 
 const FIT = {
   display: {
-    extension: "absolute -left-[14%] -top-[14%] h-[128%] w-[128%] object-fill",
-    main: "absolute left-[4.5%] top-[13.5%] h-[73%] w-[91%] object-contain",
+    extension: { x: 300, y: 245, width: 760, height: 700 },
+    main: { x: 330, y: 325, width: 700, height: 520 },
   },
   compact: {
-    extension: "absolute -left-[22%] -top-[22%] h-[144%] w-[144%] object-fill",
-    main: "absolute left-[7%] top-[16%] h-[68%] w-[86%] object-contain",
+    extension: { x: 275, y: 220, width: 810, height: 745 },
+    main: { x: 355, y: 345, width: 650, height: 485 },
   },
 } as const;
 
@@ -36,7 +40,6 @@ export function SolarisStarFlag({
   size = "md",
   fit,
   className,
-  imagePosition = "center",
   outline = true,
 }: {
   image?: string | null;
@@ -45,12 +48,13 @@ export function SolarisStarFlag({
   size?: SolarisStarFlagSize;
   fit?: SolarisStarFlagFit;
   className?: string;
-  imagePosition?: string;
   outline?: boolean;
 }) {
-  const label = name ? `${name} flag` : undefined;
+  const rawId = useId().replace(/:/g, "");
+  const clipId = `solaris-original-star-${rawId}`;
   const resolvedFit: SolarisStarFlagFit = fit ?? (size === "xs" || size === "sm" ? "compact" : "display");
   const tuning = FIT[resolvedFit];
+  const label = name ? `${name} flag` : undefined;
 
   return (
     <span
@@ -58,48 +62,60 @@ export function SolarisStarFlag({
       role={label ? "img" : undefined}
       aria-label={label}
     >
-      <span
-        className="absolute inset-[6.5%] overflow-hidden"
-        style={{
-          clipPath: INNER_STAR_CLIP,
-          WebkitClipPath: INNER_STAR_CLIP,
-          backgroundColor: color || "#7dd3fc",
-        }}
+      <svg
+        viewBox="0 0 1259 1179"
+        preserveAspectRatio="xMidYMid meet"
+        className="h-full w-full overflow-visible"
+        aria-hidden="true"
       >
-        {image && (
-          <>
-            {/* Exact same flag, stretched only to continue its colours/patterns into the star points. */}
-            <img
-              src={image}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className={tuning.extension}
-              style={{ objectPosition: imagePosition }}
-            />
+        <defs>
+          <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
+            <path d={ORIGINAL_STAR_INNER_PATH} />
+          </clipPath>
+        </defs>
 
-            {/* Full undistorted flag remains sharp and readable in the centre. */}
-            <img
-              src={image}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className={tuning.main}
-              style={{ objectPosition: imagePosition }}
-            />
-          </>
+        <g clipPath={`url(#${clipId})`}>
+          <rect x="0" y="0" width="1259" height="1179" fill={color || "#7dd3fc"} />
+
+          {image && (
+            <>
+              {/*
+               * Unblurred extension of the SAME flag. This layer fills the
+               * star points while the complete undistorted flag sits on top.
+               */}
+              <image
+                href={image}
+                x={tuning.extension.x}
+                y={tuning.extension.y}
+                width={tuning.extension.width}
+                height={tuning.extension.height}
+                preserveAspectRatio="xMidYMid slice"
+              />
+
+              {/* Full original flag, centred and never cropped. */}
+              <image
+                href={image}
+                x={tuning.main.x}
+                y={tuning.main.y}
+                width={tuning.main.width}
+                height={tuning.main.height}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            </>
+          )}
+        </g>
+
+        {outline && (
+          <image
+            href="/IMG_6171.png"
+            x="0"
+            y="0"
+            width="1259"
+            height="1179"
+            preserveAspectRatio="xMidYMid meet"
+          />
         )}
-      </span>
-
-      {outline && (
-        <img
-          src="/IMG_6171.png"
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          className="pointer-events-none absolute inset-0 h-full w-full object-contain opacity-100 drop-shadow-[0_6px_14px_rgba(0,0,0,0.22)]"
-        />
-      )}
+      </svg>
     </span>
   );
 }
