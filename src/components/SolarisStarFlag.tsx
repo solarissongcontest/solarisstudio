@@ -9,28 +9,27 @@ const SIZES: Record<SolarisStarFlagSize, string> = {
   sm: "h-11 w-11",
   md: "h-12 w-12",
   lg: "h-16 w-16",
-  xl: "h-[4.75rem] w-[4.75rem]",
+  xl: "h-[5.25rem] w-[5.25rem]",
   hero: "h-24 w-24 sm:h-28 sm:w-28",
 };
 
 /*
  * Exact inner opening extracted from IMG_6171.png.
- * The original PNG remains the visible outline.
+ * The original PNG remains the visible Solaris star outline.
  */
 const ORIGINAL_STAR_INNER_PATH =
   "M 637 294 L 661 294 L 685 312 L 744 428 L 759 445 L 784 455 L 970 483 L 984 489 L 995 502 L 998 523 L 991 540 L 867 663 L 852 684 L 848 700 L 849 714 L 875 848 L 866 872 L 848 887 L 826 889 L 808 883 L 664 813 L 643 815 L 506 883 L 484 883 L 472 879 L 463 873 L 451 858 L 447 845 L 447 825 L 473 678 L 472 664 L 463 649 L 368 554 L 359 535 L 359 510 L 365 497 L 383 482 L 525 458 L 553 445 L 569 419 L 619 311 Z";
 
 /*
- * One single flag layer only.
- * It is deliberately mapped to the full inner-star bounding box with
- * preserveAspectRatio="none" so the complete flag remains present while
- * adapting cleanly to the Solaris star shape. This removes the seams,
- * duplicate emblems and white wedges caused by the old two-layer system.
+ * Exact bounding box of that inner opening.
+ * A single flag image is stretched continuously across this box and then
+ * clipped by the real inner contour. No second layer means no seams,
+ * duplicate symbols, white wedges or mismatched extensions.
  */
 const FLAG_BOX = {
-  x: 350,
+  x: 359,
   y: 294,
-  width: 648,
+  width: 639,
   height: 595,
 };
 
