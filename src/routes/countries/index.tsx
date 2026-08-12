@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
-import { SolarisStarFlag } from "@/components/SolarisStarFlag";
+import { FlagChip } from "@/components/FlagChip";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -148,12 +148,11 @@ function CountriesPage() {
             className="glass group block p-4 transition-transform hover:-translate-y-0.5"
           >
             <div className="flex items-center gap-3">
-              <SolarisStarFlag
-                name={country.name}
+              <FlagChip
+                code={country.short_code}
                 color={country.accent_color}
                 image={country.flag_image}
-                size="xl"
-                fit="display"
+                size="lg"
               />
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-base font-semibold">{country.name}</h2>
