@@ -18,11 +18,19 @@ export const Route = createFileRoute("/editions/")({
   component: EditionsPage,
 });
 
+type HostLocation = {
+  key: string;
+  city: string | null;
+  country: any | null;
+  showNames: string[];
+};
+
 type EditionCard = {
   edition: any;
   editionShows: any[];
   winner: any;
   winnerResult: any;
+  hosts: HostLocation[];
 };
 
 function EditionsPage() {
@@ -64,7 +72,44 @@ function EditionsPage() {
           finalResults.find((result) => result.final_rank === 1) ?? finalResults[0] ?? null;
         const winner = winnerResult ? countryMap.get(winnerResult.country_id) ?? null : null;
 
-        return { edition, editionShows, winner, winnerResult };
+        const hostMap = new Map<string, HostLocation>();
+
+        editionShows.forEach((show: any) => {
+          const countryId = show.host_country_id ?? edition.host_country_id ?? null;
+          const city = show.host_city ?? edition.host_city ?? null;
+
+          if (!countryId && !city) return;
+
+          const key = `${countryId ?? "none"}:${city ?? "none"}`;
+          const current = hostMap.get(key) ?? {
+            key,
+            city,
+            country: countryId ? countryMap.get(countryId) ?? null : null,
+            showNames: [],
+          };
+
+          current.showNames.push(show.name);
+          hostMap.set(key, current);
+        });
+
+        if (hostMap.size === 0 && (edition.host_country_id || edition.host_city)) {
+          const country = edition.host_country_id ? countryMap.get(edition.host_country_id) ?? null : null;
+          const key = `${edition.host_country_id ?? "none"}:${edition.host_city ?? "none"}`;
+          hostMap.set(key, {
+            key,
+            city: edition.host_city ?? null,
+            country,
+            showNames: editionShows.map((show) => show.name),
+          });
+        }
+
+        return {
+          edition,
+          editionShows,
+          winner,
+          winnerResult,
+          hosts: [...hostMap.values()],
+        };
       }),
     [editionList, shows, results, countryMap],
   );
@@ -110,7 +155,7 @@ function EditionsPage() {
 }
 
 function LatestEdition({ card }: { card: EditionCard }) {
-  const { edition, editionShows, winner, winnerResult } = card;
+  const { edition, editionShows, winner, winnerResult, hosts } = card;
 
   return (
     <section>
@@ -123,16 +168,16 @@ function LatestEdition({ card }: { card: EditionCard }) {
         params={{ slug: edition.slug }}
         className="glass-strong group relative block overflow-hidden p-0"
       >
-        <div className="relative min-h-[310px] overflow-hidden sm:min-h-[390px]">
+        <div className="relative min-h-[285px] overflow-hidden sm:min-h-[390px]">
           <BackgroundFlag
-            image={winner?.flag_image}
-            className="-right-[20%] top-1/2 w-[105%] -translate-y-1/2 sm:-right-[8%] sm:w-[58%]"
-            opacity={0.24}
+            image={winner?.flag_image ?? hosts[0]?.country?.flag_image}
+            className="-right-[24%] top-1/2 w-[108%] -translate-y-1/2 sm:-right-[8%] sm:w-[58%]"
+            opacity={0.22}
           />
 
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_38%,rgba(91,159,210,0.18),transparent_35%),linear-gradient(90deg,rgba(2,8,23,0.96)_0%,rgba(3,17,39,0.88)_45%,rgba(3,17,39,0.38)_100%)]" />
 
-          <div className="relative z-10 flex min-h-[310px] flex-col justify-between p-5 sm:min-h-[390px] sm:p-7 lg:p-9">
+          <div className="relative z-10 flex min-h-[285px] flex-col justify-between p-5 sm:min-h-[390px] sm:p-7 lg:p-9">
             <div className="flex items-start justify-between gap-4">
               <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-primary backdrop-blur-md">
                 {edition.status === "completed" ? "Completed edition" : "Current edition"}
@@ -142,14 +187,16 @@ function LatestEdition({ card }: { card: EditionCard }) {
               </span>
             </div>
 
-            <div className="max-w-[700px]">
+            <div className="max-w-[760px]">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
-                Edition {edition.edition_number ?? "—"}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                Edition {edition.edition_number ?? "—"}
               </p>
               <h2 className="mt-2 font-display text-4xl font-black leading-[0.92] tracking-[-0.055em] text-white sm:text-6xl">
                 {editionLabel(edition)}
               </h2>
               <p className="mt-3 max-w-xl text-base font-medium text-white/68 sm:text-lg">{edition.name}</p>
+
+              <HostSummary hosts={hosts} prominent />
 
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <span className="bg-aurora rounded-lg px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg">
@@ -181,66 +228,128 @@ function LatestEdition({ card }: { card: EditionCard }) {
 }
 
 function ArchiveEdition({ card }: { card: EditionCard }) {
-  const { edition, editionShows, winner, winnerResult } = card;
+  const { edition, editionShows, winner, winnerResult, hosts } = card;
+  const backgroundFlag = winner?.flag_image ?? hosts[0]?.country?.flag_image;
 
   return (
     <Link
       to="/editions/$slug"
       params={{ slug: edition.slug }}
-      className="glass group relative min-h-[178px] overflow-hidden p-4 transition duration-200 hover:-translate-y-0.5 hover:border-primary/35 sm:min-h-[196px] sm:p-5"
+      className="glass group relative min-w-0 overflow-hidden p-0 transition duration-200 hover:-translate-y-0.5 hover:border-primary/35"
     >
-      <BackgroundFlag
-        image={winner?.flag_image}
-        className="-bottom-12 -right-10 h-44 w-44 opacity-80 sm:h-48 sm:w-48"
-        opacity={0.18}
-      />
-      <div className="absolute inset-0 bg-gradient-to-br from-[#06142b]/38 via-transparent to-[#06142b]/48" />
+      <div className="relative min-h-[188px] p-4 sm:min-h-[214px] sm:p-5">
+        <BackgroundFlag
+          image={backgroundFlag}
+          className="-bottom-10 -right-8 h-40 w-40 sm:h-44 sm:w-44"
+          opacity={0.13}
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(5,19,43,.78),rgba(5,19,43,.35)_58%,rgba(5,19,43,.62))]" />
 
-      <div className="relative z-10 flex h-full min-h-[146px] flex-col sm:min-h-[156px]">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.19em] text-primary">
-              Edition {edition.edition_number ?? "—"}
-            </p>
-            <h3 className="mt-1 truncate font-display text-2xl font-black tracking-[-0.045em] sm:text-[1.7rem]">
-              {editionLabel(edition)}
-            </h3>
-            <p className="mt-1 truncate text-xs text-muted-foreground">{edition.name}</p>
+        <div className="relative z-10 flex min-h-[156px] min-w-0 flex-col sm:min-h-[174px]">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-black uppercase tracking-[0.19em] text-primary">
+                Edition {edition.edition_number ?? "—"}
+              </p>
+              <h3 className="mt-1 break-words font-display text-[1.65rem] font-black leading-none tracking-[-0.05em] sm:text-[1.8rem]">
+                {editionLabel(edition)}
+              </h3>
+              <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground sm:text-xs">{edition.name}</p>
+            </div>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/12 bg-white/[0.04] text-primary backdrop-blur-md transition-transform group-hover:translate-x-0.5">
+              →
+            </span>
           </div>
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/12 bg-white/[0.04] text-primary backdrop-blur-md transition-transform group-hover:translate-x-0.5">
-            →
-          </span>
-        </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-border/55 pt-3">
-          <div className="min-w-0">
-            {winner ? (
-              <div className="flex min-w-0 items-center gap-2.5">
-                <FlagChip
-                  code={winner.short_code}
-                  color={winner.accent_color}
-                  image={winner.flag_image}
-                  size="sm"
-                />
-                <div className="min-w-0">
-                  <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Winner</p>
-                  <p className="truncate text-xs font-semibold">{winner.name}</p>
-                  {winnerResult && (
-                    <p className="numeric text-[9px] text-muted-foreground">{winnerResult.total_points} pts</p>
-                  )}
+          <div className="mt-4">
+            <HostSummary hosts={hosts} />
+          </div>
+
+          <div className="mt-auto flex min-w-0 items-end justify-between gap-3 border-t border-border/55 pt-3">
+            <div className="min-w-0 flex-1">
+              {winner ? (
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <FlagChip
+                    code={winner.short_code}
+                    color={winner.accent_color}
+                    image={winner.flag_image}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Winner</p>
+                    <p className="truncate text-xs font-semibold">{winner.name}</p>
+                    {winnerResult && (
+                      <p className="numeric text-[9px] text-muted-foreground">{winnerResult.total_points} pts</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <p className="text-[11px] text-muted-foreground">Results not public yet</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">Results not public yet</p>
+              )}
+            </div>
 
-          <div className="shrink-0 text-right text-[9px] text-muted-foreground">
-            <p>{edition.host_city ?? "Host TBC"}</p>
-            <p className="mt-0.5">{editionShows.length} shows</p>
+            <p className="shrink-0 text-[9px] font-medium text-muted-foreground">
+              {editionShows.length} show{editionShows.length === 1 ? "" : "s"}
+            </p>
           </div>
         </div>
       </div>
     </Link>
+  );
+}
+
+function HostSummary({ hosts, prominent = false }: { hosts: HostLocation[]; prominent?: boolean }) {
+  if (!hosts.length) {
+    return (
+      <div className={prominent ? "mt-5" : ""}>
+        <p className={prominent ? "text-xs font-semibold text-white/50" : "text-[10px] text-muted-foreground"}>
+          Host location TBC
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={prominent ? "mt-5 flex flex-wrap gap-2" : "space-y-1.5"}>
+      {hosts.map((host, index) => (
+        <div
+          key={host.key}
+          className={
+            prominent
+              ? "flex min-w-0 items-center gap-2 rounded-xl border border-white/12 bg-black/20 px-3 py-2 backdrop-blur-md"
+              : "flex min-w-0 items-center gap-2"
+          }
+        >
+          {host.country && (
+            <FlagChip
+              code={host.country.short_code}
+              color={host.country.accent_color}
+              image={host.country.flag_image}
+              size="sm"
+            />
+          )}
+          <div className="min-w-0">
+            <p
+              className={
+                prominent
+                  ? "text-[8px] font-bold uppercase tracking-[0.14em] text-white/45"
+                  : "text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+              }
+            >
+              {hosts.length > 1 ? `Host ${index + 1}` : "Host"}
+            </p>
+            <p
+              className={
+                prominent
+                  ? "break-words text-xs font-semibold text-white"
+                  : "break-words text-[11px] font-semibold leading-tight"
+              }
+            >
+              {[host.city, host.country?.name].filter(Boolean).join(", ") || "Host location TBC"}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
