@@ -37,7 +37,7 @@ export function SolarisStarFlag({
       aria-label={label}
     >
       <span
-        className="absolute inset-[7%]"
+        className="absolute inset-0"
         style={{
           WebkitMaskImage: "url('/branding/solaris-star-mask.png')",
           maskImage: "url('/branding/solaris-star-mask.png')",
