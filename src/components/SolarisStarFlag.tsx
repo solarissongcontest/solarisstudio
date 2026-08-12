@@ -24,8 +24,8 @@ const FIT = {
     main: "absolute left-[4.5%] top-[13.5%] h-[73%] w-[91%] object-contain",
   },
   compact: {
-    extension: "absolute -left-[18%] -top-[18%] h-[136%] w-[136%] object-fill",
-    main: "absolute left-[8%] top-[17%] h-[66%] w-[84%] object-contain",
+    extension: "absolute -left-[22%] -top-[22%] h-[144%] w-[144%] object-fill",
+    main: "absolute left-[7%] top-[16%] h-[68%] w-[86%] object-contain",
   },
 } as const;
 
@@ -34,7 +34,7 @@ export function SolarisStarFlag({
   name,
   color = "#7dd3fc",
   size = "md",
-  fit = "display",
+  fit,
   className,
   imagePosition = "center",
   outline = true,
@@ -49,7 +49,8 @@ export function SolarisStarFlag({
   outline?: boolean;
 }) {
   const label = name ? `${name} flag` : undefined;
-  const tuning = FIT[fit];
+  const resolvedFit: SolarisStarFlagFit = fit ?? (size === "xs" || size === "sm" ? "compact" : "display");
+  const tuning = FIT[resolvedFit];
 
   return (
     <span
