@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
-import { FlagChip } from "@/components/FlagChip";
+import { SolarisStarFlag } from "@/components/SolarisStarFlag";
 import {
   editionLabel,
   useAllResults,
@@ -204,8 +204,8 @@ function LatestEdition({ card }: { card: EditionCard }) {
                 </span>
                 {winner && (
                   <div className="flex items-center gap-2 rounded-lg border border-white/12 bg-black/20 px-3 py-2 backdrop-blur-md">
-                    <FlagChip
-                      code={winner.short_code}
+                    <SolarisStarFlag
+                      name={winner.name}
                       color={winner.accent_color}
                       image={winner.flag_image}
                       size="sm"
@@ -269,8 +269,8 @@ function ArchiveEdition({ card }: { card: EditionCard }) {
             <div className="min-w-0 flex-1">
               {winner ? (
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <FlagChip
-                    code={winner.short_code}
+                  <SolarisStarFlag
+                    name={winner.name}
                     color={winner.accent_color}
                     image={winner.flag_image}
                     size="sm"
@@ -321,8 +321,8 @@ function HostSummary({ hosts, prominent = false }: { hosts: HostLocation[]; prom
           }
         >
           {host.country && (
-            <FlagChip
-              code={host.country.short_code}
+            <SolarisStarFlag
+              name={host.country.name}
               color={host.country.accent_color}
               image={host.country.flag_image}
               size="sm"
