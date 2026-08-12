@@ -152,7 +152,8 @@ function CountriesPage() {
                 name={country.name}
                 color={country.accent_color}
                 image={country.flag_image}
-                size="lg"
+                size="xl"
+                fit="display"
               />
               <div className="min-w-0 flex-1">
                 <h2 className="truncate text-base font-semibold">{country.name}</h2>
