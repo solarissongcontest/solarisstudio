@@ -1,5 +1,5 @@
-import { FlagChip } from "@/components/FlagChip";
 import { Panel } from "@/components/AppShell";
+import { SolarisStarFlag } from "@/components/SolarisStarFlag";
 import { useCountries, useEdition, useShows, type Show } from "@/lib/data";
 import { isShowPublic } from "@/lib/publication";
 
@@ -60,11 +60,11 @@ export function EditionHostingExtension({ pathname }: { pathname: string }) {
               <div key={`${host.countryId ?? "none"}-${host.city ?? "none"}`} className="min-w-0 rounded-xl border border-border/70 bg-surface p-4">
                 <div className="flex min-w-0 items-center gap-3">
                   {country && (
-                    <FlagChip
-                      code={country.short_code}
+                    <SolarisStarFlag
+                      name={country.name}
                       color={country.accent_color}
                       image={country.flag_image}
-                      size="md"
+                      size="lg"
                     />
                   )}
                   <div className="min-w-0 flex-1">
