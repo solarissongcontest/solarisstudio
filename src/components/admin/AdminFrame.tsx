@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AdminNav } from "./AdminNav";
-export const AdminFrame = ({ children }: { children: ReactNode }) => <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)]"><aside className="hidden border-r border-border lg:block"><AdminNav /></aside><main className="min-w-0 p-3 sm:p-5">{children}</main></div>;
+export const AdminFrame = ({ children }: { children: ReactNode }) => <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)]"><aside className="hidden border-r border-border lg:block"><AdminNav /></aside><main className="min-w-0 p-3 pb-20 sm:p-5 lg:pb-5">{children}</main><nav className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-3 border-t border-border bg-background/95 p-2 backdrop-blur lg:hidden"><Link to="/admin" className="rounded-lg px-2 py-2 text-center text-xs">Dashboard</Link><Link to="/admin/hosts" className="rounded-lg px-2 py-2 text-center text-xs">Hosting</Link><Link to="/admin/predictions" className="rounded-lg px-2 py-2 text-center text-xs">Predictions</Link></nav></div>;
