@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { editionLabel, useAllShows, useEditions, useIsOrganizer } from "@/lib/data";
 import {
   type PredictionRound,
@@ -53,6 +54,7 @@ function defaultForm(): FormState {
 }
 
 function PredictionRoundAdmin() {
+  const { editionId } = useAdminContext();
   const { data: isOrganizer } = useIsOrganizer();
   const { data: shows } = useAllShows();
   const { data: editions } = useEditions();
@@ -67,24 +69,36 @@ function PredictionRoundAdmin() {
     () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
     [editions],
   );
+
+  const activeEdition = useMemo(() => {
+    const ordered = [...(editions ?? [])].sort(
+      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
+    );
+    return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
+  }, [editions, editionId]);
+
   const sortedShows = useMemo(
     () =>
-      [...(shows ?? [])].sort((a, b) => {
-        const editionA = editionMap.get(a.edition_id)?.edition_number ?? -1;
-        const editionB = editionMap.get(b.edition_id)?.edition_number ?? -1;
-        return editionB - editionA || a.sort_order - b.sort_order;
-      }),
-    [editionMap, shows],
+      [...(shows ?? [])]
+        .filter((show) => show.edition_id === activeEdition?.id)
+        .sort((a, b) => a.sort_order - b.sort_order),
+    [shows, activeEdition?.id],
   );
+
   const roundByShow = useMemo(
     () => new Map((roundData?.rounds ?? []).map((round) => [round.show_id, round])),
     [roundData],
   );
+
   const selectedShow = sortedShows.find((show) => show.id === form.showId) ?? null;
   const selectedRound = form.showId ? roundByShow.get(form.showId) ?? null : null;
 
   useEffect(() => {
-    if (!form.showId && sortedShows.length) {
+    if (!sortedShows.length) {
+      if (form.showId) setForm((current) => ({ ...current, showId: "" }));
+      return;
+    }
+    if (!sortedShows.some((show) => show.id === form.showId)) {
       setForm((current) => ({ ...current, showId: sortedShows[0].id }));
     }
   }, [form.showId, sortedShows]);
@@ -117,6 +131,7 @@ function PredictionRoundAdmin() {
       let predictionTypes = enabled
         ? current.predictionTypes.filter((item) => item !== type)
         : [...current.predictionTypes, type];
+
       if (type === "top_three" && !enabled && !predictionTypes.includes("winner")) {
         predictionTypes = ["winner", ...predictionTypes];
       }
@@ -142,6 +157,7 @@ function PredictionRoundAdmin() {
       setMessage("This show has no qualifier count, so qualifier predictions cannot be enabled.");
       return;
     }
+
     try {
       await saveRound.mutateAsync({
         show_id: form.showId,
@@ -164,11 +180,7 @@ function PredictionRoundAdmin() {
       await deleteRound.mutateAsync(selectedRound.id);
       setMessage("Draft prediction round deleted.");
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "A round with saved entries cannot be deleted; cancel it instead.",
-      );
+      setMessage(error instanceof Error ? error.message : "A round with saved entries cannot be deleted; cancel it instead.");
     }
   };
 
@@ -188,33 +200,31 @@ function PredictionRoundAdmin() {
       <PageHeader
         eyebrow="Organizer studio"
         title="Prediction rounds"
-        description="Open, lock and score Prediction Arena rounds. Database time—not the viewer's device—enforces every deadline."
+        description={
+          activeEdition
+            ? `Open, lock and score Prediction Arena rounds for ${editionLabel(activeEdition)}. Change edition from the Control Room header.`
+            : "Open, lock and score Prediction Arena rounds."
+        }
         actions={
-          <Link to="/admin" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-            ← Studio
+          <Link to="/admin/control-room" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+            ← Control Room
           </Link>
         }
       />
 
       {isOrganizer === false ? (
         <Panel title="Organizer access required">
-          <p className="text-sm text-muted-foreground">
-            Your account can use fan features, but it cannot configure contest prediction rounds.
-          </p>
+          <p className="text-sm text-muted-foreground">Your account can use fan features, but it cannot configure contest prediction rounds.</p>
         </Panel>
       ) : isLoading ? (
-        <Panel>
-          <p className="text-sm text-muted-foreground">Loading prediction rounds…</p>
-        </Panel>
+        <Panel><p className="text-sm text-muted-foreground">Loading prediction rounds…</p></Panel>
       ) : roundData?.schemaReady === false ? (
         <Panel title="Prediction database setup is required">
-          <p className="text-sm text-muted-foreground">
-            Apply the supplied Solaris SQL in Lovable's Supabase project before creating a round.
-          </p>
+          <p className="text-sm text-muted-foreground">Apply the supplied Solaris SQL in Lovable's Supabase project before creating a round.</p>
         </Panel>
       ) : (
         <div className="grid gap-5 lg:grid-cols-[.7fr_1.3fr]">
-          <Panel title="Shows">
+          <Panel title={activeEdition ? `${editionLabel(activeEdition)} shows` : "Shows"}>
             <div className="space-y-2">
               {sortedShows.map((show) => {
                 const edition = editionMap.get(show.edition_id);
@@ -225,9 +235,7 @@ function PredictionRoundAdmin() {
                     type="button"
                     onClick={() => chooseShow(show.id)}
                     className={`w-full rounded-xl border px-3 py-3 text-left ${
-                      form.showId === show.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-surface"
+                      form.showId === show.id ? "border-primary bg-primary/10" : "border-border bg-surface"
                     }`}
                   >
                     <p className="truncate text-sm font-semibold">{show.name}</p>
@@ -237,57 +245,27 @@ function PredictionRoundAdmin() {
                   </button>
                 );
               })}
+              {!sortedShows.length && <p className="text-sm text-muted-foreground">No shows exist for this edition yet.</p>}
             </div>
           </Panel>
 
-          <Panel
-            title={selectedRound ? "Edit prediction round" : "Create prediction round"}
-            description={selectedShow?.name}
-          >
+          <Panel title={selectedRound ? "Edit prediction round" : "Create prediction round"} description={selectedShow?.name}>
             <form onSubmit={save} className="space-y-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    Opens
-                  </span>
-                  <input
-                    type="datetime-local"
-                    value={form.opensAt}
-                    onChange={(event) => setForm((current) => ({ ...current, opensAt: event.target.value }))}
-                    className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"
-                    required
-                  />
+                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Opens</span>
+                  <input type="datetime-local" value={form.opensAt} onChange={(event) => setForm((current) => ({ ...current, opensAt: event.target.value }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm" required />
                 </label>
                 <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    Locks
-                  </span>
-                  <input
-                    type="datetime-local"
-                    value={form.locksAt}
-                    onChange={(event) => setForm((current) => ({ ...current, locksAt: event.target.value }))}
-                    className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"
-                    required
-                  />
+                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Locks</span>
+                  <input type="datetime-local" value={form.locksAt} onChange={(event) => setForm((current) => ({ ...current, locksAt: event.target.value }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm" required />
                 </label>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    Status
-                  </span>
-                  <select
-                    value={form.status}
-                    disabled={selectedRound?.status === "scoring" || selectedRound?.status === "scored"}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        status: event.target.value as PredictionRound["status"],
-                      }))
-                    }
-                    className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"
-                  >
+                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Status</span>
+                  <select value={form.status} disabled={selectedRound?.status === "scoring" || selectedRound?.status === "scored"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as PredictionRound["status"] }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm">
                     <option value="draft">Draft</option>
                     <option value="open">Open</option>
                     <option value="locked">Locked</option>
@@ -297,40 +275,19 @@ function PredictionRoundAdmin() {
                   </select>
                 </label>
                 <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    Consensus minimum
-                  </span>
-                  <input
-                    type="number"
-                    min={3}
-                    max={100}
-                    value={form.consensusMinimum}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        consensusMinimum: Number(event.target.value),
-                      }))
-                    }
-                    className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"
-                  />
+                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Consensus minimum</span>
+                  <input type="number" min={3} max={100} value={form.consensusMinimum} onChange={(event) => setForm((current) => ({ ...current, consensusMinimum: Number(event.target.value) }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm" />
                 </label>
               </div>
 
               <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Prediction types
-                </p>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Prediction types</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {AVAILABLE_TYPES.map((type) => {
                     const unavailable = type.value === "qualifier" && !selectedShow?.qualifier_count;
                     return (
                       <label key={type.value} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-3">
-                        <input
-                          type="checkbox"
-                          checked={form.predictionTypes.includes(type.value)}
-                          disabled={unavailable}
-                          onChange={() => toggleType(type.value)}
-                        />
+                        <input type="checkbox" checked={form.predictionTypes.includes(type.value)} disabled={unavailable} onChange={() => toggleType(type.value)} />
                         <span className="text-sm font-medium">{type.label}</span>
                       </label>
                     );
@@ -338,43 +295,23 @@ function PredictionRoundAdmin() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={saveRound.isPending}
-                className="min-h-12 w-full rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-              >
+              <button type="submit" disabled={saveRound.isPending || !selectedShow} className="min-h-12 w-full rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
                 {saveRound.isPending ? "Saving…" : "Save prediction round"}
               </button>
             </form>
 
             {selectedRound && (
               <div className="mt-4 flex flex-wrap gap-2 border-t border-border/60 pt-4">
-                <button
-                  type="button"
-                  onClick={score}
-                  disabled={scoreRound.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()}
-                  className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold disabled:opacity-50"
-                >
+                <button type="button" onClick={score} disabled={scoreRound.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()} className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold disabled:opacity-50">
                   {scoreRound.isPending ? "Scoring…" : "Score from public result"}
                 </button>
                 {selectedRound.status === "draft" && (
-                  <button
-                    type="button"
-                    onClick={remove}
-                    disabled={deleteRound.isPending}
-                    className="rounded-xl border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive"
-                  >
-                    Delete draft
-                  </button>
+                  <button type="button" onClick={remove} disabled={deleteRound.isPending} className="rounded-xl border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive">Delete draft</button>
                 )}
               </div>
             )}
 
-            {message && (
-              <p className="mt-4 rounded-xl bg-surface px-3 py-2 text-sm text-muted-foreground">
-                {message}
-              </p>
-            )}
+            {message && <p className="mt-4 rounded-xl bg-surface px-3 py-2 text-sm text-muted-foreground">{message}</p>}
           </Panel>
         </div>
       )}
