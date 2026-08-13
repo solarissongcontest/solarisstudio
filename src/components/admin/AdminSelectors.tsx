@@ -6,7 +6,7 @@ import { useAdminContext } from "./AdminContext";
 
 export function AdminSelectors() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { editionId, setEditionId, setShowId } = useAdminContext();
+  const { editionId, setEditionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
 
   const orderedEditions = useMemo(
@@ -27,9 +27,10 @@ export function AdminSelectors() {
     if (!nextEdition) return;
 
     setEditionId(nextEdition.id);
-    setShowId("");
 
-    if (routeEdition) window.location.href = `/admin/${nextEdition.slug}`;
+    if (routeEdition) {
+      window.location.href = `/admin/${nextEdition.slug}`;
+    }
   };
 
   return (
