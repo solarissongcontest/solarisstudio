@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink, ShieldCheck } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -10,11 +10,15 @@ import { AdminHealthStrip } from "./AdminHealthStrip";
 import { AdminSelectors } from "./AdminSelectors";
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
   }, []);
+
+  const pageAlreadyShowsHealth =
+    pathname === "/admin/control-room" || pathname === "/admin/action-centre";
 
   return (
     <AdminContextProvider>
@@ -37,13 +41,22 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
             <AdminCommandPalette />
 
-            <Link to="/" target="_blank" className="hidden min-h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs text-muted-foreground hover:text-foreground lg:flex">
+            <Link
+              to="/"
+              target="_blank"
+              className="hidden min-h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs text-muted-foreground hover:text-foreground lg:flex"
+            >
               <ExternalLink className="h-3.5 w-3.5" /> Public site
             </Link>
 
-            {email && <p className="hidden max-w-44 truncate text-[10px] text-muted-foreground xl:block">{email}</p>}
+            {email && (
+              <p className="hidden max-w-44 truncate text-[10px] text-muted-foreground xl:block">
+                {email}
+              </p>
+            )}
           </div>
-          <AdminHealthStrip />
+
+          {!pageAlreadyShowsHealth && <AdminHealthStrip />}
         </header>
 
         <AdminFrame>{children}</AdminFrame>
