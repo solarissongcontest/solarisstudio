@@ -1,16 +1,44 @@
-import { useEffect } from "react";
-import { useAllShows, useEditions } from "@/lib/data";
+import { useEffect, useMemo } from "react";
+
+import { editionLabel, useEditions } from "@/lib/data";
 import { useAdminContext } from "./AdminContext";
 
 export function AdminSelectors() {
-  const { editionId, showId, setEditionId, setShowId } = useAdminContext();
+  const { editionId, setEditionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
-  const { data: shows = [] } = useAllShows();
-  const editionShows = shows.filter((show) => show.edition_id === editionId).sort((a, b) => a.sort_order - b.sort_order);
 
-  useEffect(() => { if (!editionId && editions[0]) setEditionId(editions[0].id); }, [editionId, editions, setEditionId]);
-  useEffect(() => { if (editionId && !editionShows.some((show) => show.id === showId)) setShowId(editionShows[0]?.id ?? ""); }, [editionId, showId, editionShows, setShowId]);
+  const orderedEditions = useMemo(
+    () =>
+      [...editions].sort(
+        (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
+      ),
+    [editions],
+  );
 
-  const cls = "min-h-9 rounded-lg border border-border bg-surface px-2 text-xs";
-  return <div className="flex min-w-0 gap-2"><select className={cls} value={editionId} onChange={(e) => setEditionId(e.target.value)}>{editions.map((e) => <option key={e.id} value={e.id}>{e.edition_number ? `SSC ${e.edition_number}` : e.name}</option>)}</select><select className={cls} value={showId} onChange={(e) => setShowId(e.target.value)}><option value="">Edition overview</option>{editionShows.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>;
+  useEffect(() => {
+    if (!orderedEditions.length) return;
+
+    const stillExists = orderedEditions.some((edition) => edition.id === editionId);
+    if (!stillExists) setEditionId(orderedEditions[0].id);
+  }, [editionId, orderedEditions, setEditionId]);
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="hidden text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground sm:inline">
+        Edition
+      </span>
+      <select
+        className="min-h-9 max-w-[13rem] rounded-lg border border-border bg-surface px-2 text-xs font-semibold sm:max-w-[18rem]"
+        value={editionId}
+        onChange={(event) => setEditionId(event.target.value)}
+        aria-label="Active admin edition"
+      >
+        {orderedEditions.map((edition) => (
+          <option key={edition.id} value={edition.id}>
+            {editionLabel(edition)} · {edition.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }
