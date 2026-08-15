@@ -11,22 +11,17 @@ import type {
 
 const PAGE_SIZE = 500;
 
-async function pagedRows<T>(table: string, editionId?: string | null): Promise<T[]> {
+async function pagedRows<T>(table: string, editionId: string): Promise<T[]> {
   const rows: T[] = [];
   let from = 0;
 
   while (true) {
-    let query: any = (supabase as any)
+    const { data, error } = await (supabase as any)
       .from(table)
       .select("*")
+      .eq("edition_id", editionId)
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
-
-    if (editionId) {
-      query = query.eq("edition_id", editionId);
-    }
-
-    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -49,17 +44,26 @@ export type AdminReadinessData = {
 };
 
 /**
- * Readiness pages can span hundreds or thousands of vote rows. Supabase/PostgREST
- * limits a single response, so these datasets must be paginated rather than fetched
- * with the normal one-shot "all" hooks.
+ * Load only the currently selected edition.
  *
- * Pass an edition ID for the Control Room. Omit it for cross-edition views such as
- * Action Centre.
+ * A missing edition ID means the admin context has not resolved yet, so the query
+ * stays disabled. It must never be interpreted as "load all historical contests".
  */
 export function useAdminReadinessData(editionId?: string | null) {
   return useQuery({
-    queryKey: ["admin-readiness-data", editionId ?? "all"],
+    enabled: !!editionId,
+    queryKey: ["admin-readiness-data", editionId ?? "pending"],
     queryFn: async (): Promise<AdminReadinessData> => {
+      if (!editionId) {
+        return {
+          participants: [],
+          voters: [],
+          juryVotes: [],
+          televotes: [],
+          results: [],
+        };
+      }
+
       const [participants, voters, juryVotes, televotes, results] = await Promise.all([
         pagedRows<Participant>("participants", editionId),
         pagedRows<Voter>("voters", editionId),
@@ -76,6 +80,7 @@ export function useAdminReadinessData(editionId?: string | null) {
         results,
       };
     },
-    staleTime: 15_000,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
   });
 }
