@@ -23,18 +23,17 @@ import {
 
 import {
   editionLabel,
-  useAllJuryVotes,
-  useAllParticipants,
-  useAllResults,
   useAllShows,
-  useAllTelevotes,
-  useAllVoters,
   useEditions,
 } from "@/lib/data";
 
 import {
   buildEditionReadiness,
 } from "@/lib/admin-readiness";
+
+import {
+  useAdminReadinessData,
+} from "@/lib/admin-readiness-data";
 
 import {
   useAdminNotifications,
@@ -74,32 +73,9 @@ function ActionCentrePage() {
     useAllShows();
 
   const {
-    data:
-      participants,
+    data: readinessData,
   } =
-    useAllParticipants();
-
-  const {
-    data: voters,
-  } =
-    useAllVoters();
-
-  const {
-    data:
-      juryVotes,
-  } =
-    useAllJuryVotes();
-
-  const {
-    data:
-      televotes,
-  } =
-    useAllTelevotes();
-
-  const {
-    data: results,
-  } =
-    useAllResults();
+    useAdminReadinessData();
 
   const {
     data:
@@ -139,23 +115,23 @@ function ActionCentrePage() {
                     [],
 
                   participants:
-                    participants ??
+                    readinessData?.participants ??
                     [],
 
                   voters:
-                    voters ??
+                    readinessData?.voters ??
                     [],
 
                   juryVotes:
-                    juryVotes ??
+                    readinessData?.juryVotes ??
                     [],
 
                   televotes:
-                    televotes ??
+                    readinessData?.televotes ??
                     [],
 
                   results:
-                    results ??
+                    readinessData?.results ??
                     [],
                 }),
             }),
@@ -163,11 +139,7 @@ function ActionCentrePage() {
       [
         editions,
         shows,
-        participants,
-        voters,
-        juryVotes,
-        televotes,
-        results,
+        readinessData,
       ],
     );
 
@@ -196,7 +168,7 @@ function ActionCentrePage() {
       <div className="grid min-w-0 gap-4 xl:grid-cols-[1.35fr_.8fr]">
         <Panel
           title={`${issues.length} live issues`}
-          description="These are recalculated from the contest data whenever the page loads."
+          description="These are recalculated from the complete contest dataset whenever the page loads."
         >
           <div className="space-y-2">
             {issues.map(
