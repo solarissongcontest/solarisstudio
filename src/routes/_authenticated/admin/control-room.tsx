@@ -12,21 +12,13 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { useAdminContext } from "@/components/admin/AdminContext";
-import {
-  editionLabel,
-  useAllJuryVotes,
-  useAllParticipants,
-  useAllResults,
-  useAllShows,
-  useAllTelevotes,
-  useAllVoters,
-  useEditions,
-} from "@/lib/data";
+import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import {
   buildEditionReadiness,
   type AdminIssue,
   type AdminSeverity,
 } from "@/lib/admin-readiness";
+import { useAdminReadinessData } from "@/lib/admin-readiness-data";
 import {
   useAdminAudit,
   useAdminDeadlines,
@@ -50,11 +42,6 @@ function ControlRoomPage() {
   const { editionId } = useAdminContext();
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
-  const { data: participants } = useAllParticipants();
-  const { data: voters } = useAllVoters();
-  const { data: juryVotes } = useAllJuryVotes();
-  const { data: televotes } = useAllTelevotes();
-  const { data: results } = useAllResults();
 
   const edition = useMemo(() => {
     const ordered = [...(editions ?? [])].sort(
@@ -63,20 +50,22 @@ function ControlRoomPage() {
     return ordered.find((item) => item.id === editionId) ?? ordered[0] ?? null;
   }, [editions, editionId]);
 
+  const { data: readinessData } = useAdminReadinessData(edition?.id);
+
   const readiness = useMemo(
     () =>
       edition
         ? buildEditionReadiness({
             edition,
             shows: shows ?? [],
-            participants: participants ?? [],
-            voters: voters ?? [],
-            juryVotes: juryVotes ?? [],
-            televotes: televotes ?? [],
-            results: results ?? [],
+            participants: readinessData?.participants ?? [],
+            voters: readinessData?.voters ?? [],
+            juryVotes: readinessData?.juryVotes ?? [],
+            televotes: readinessData?.televotes ?? [],
+            results: readinessData?.results ?? [],
           })
         : null,
-    [edition, shows, participants, voters, juryVotes, televotes, results],
+    [edition, shows, readinessData],
   );
 
   const { data: deadlines } = useAdminDeadlines(edition?.id);
