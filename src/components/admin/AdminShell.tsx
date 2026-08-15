@@ -17,8 +17,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
     void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
   }, []);
 
+  // Control Room / Action Centre already render their own readiness information.
+  // Edition studio pages are deliberately kept free of the global health strip so
+  // opening a heavy editor does not trigger a second copy of readiness queries.
+  const editionStudio = /^\/admin\/ssc-[^/]+\/?$/i.test(pathname);
   const pageAlreadyShowsHealth =
-    pathname === "/admin/control-room" || pathname === "/admin/action-centre";
+    pathname === "/admin/control-room" ||
+    pathname === "/admin/action-centre" ||
+    editionStudio;
 
   return (
     <AdminContextProvider>
