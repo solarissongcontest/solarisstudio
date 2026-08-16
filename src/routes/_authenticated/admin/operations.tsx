@@ -3,6 +3,8 @@ import {
   Activity,
   BarChart3,
   Bell,
+  Blend,
+  BrainCircuit,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -16,6 +18,7 @@ import {
   ShieldAlert,
   Sparkles,
   Trophy,
+  UserCog,
   Users,
   Vote,
 } from "lucide-react";
@@ -50,12 +53,15 @@ const confirmationTools: Tool[] = [
 ];
 
 const televotingTools: Tool[] = [
-  { label: "Rounds & entries", description: "Create voting rounds, configure entries, ordering and self-voting rules.", to: "/televoting/admin/rounds", icon: Vote },
+  { label: "Rounds & entries", description: "Create voting rounds, configure country/custom entries, ordering and self-voting rules.", to: "/televoting/admin/rounds", icon: Vote },
   { label: "Editions", description: "Manage Televoting editions and their active round structure.", to: "/televoting/admin/editions", icon: Trophy },
   { label: "Results", description: "Calculate, validate, lock and publish the official converted televote.", to: "/televoting/admin/results", icon: ListChecks },
+  { label: "Combined Results", description: "Merge website rounds, Instagram, external televotes, activity and corrections into one exact point pool.", to: "/televoting/admin/combined", icon: Blend },
   { label: "Analytics", description: "Turnout, delegation behaviour, scoring patterns and performance analysis.", to: "/televoting/admin/analytics", icon: BarChart3 },
-  { label: "Integrity", description: "Review suspicious ballots, technical evidence and moderation status.", to: "/televoting/admin/integrity", icon: ShieldAlert },
-  { label: "Audit log", description: "Trace organizer moderation and Televoting administrative history.", to: "/televoting/admin/audit-log", icon: History },
+  { label: "Intelligence", description: "Anti-abuse detection, technical evidence and friend-voting relationship analysis in one workspace.", to: "/televoting/admin/intelligence", icon: BrainCircuit },
+  { label: "Integrity", description: "Inspect individual ballots, moderate risk states, edit ballots and restore/delete submissions.", to: "/televoting/admin/integrity", icon: ShieldAlert },
+  { label: "Admin accounts", description: "Super Admin management of Televoting organizer identities, passwords and access.", to: "/televoting/admin/accounts", icon: UserCog },
+  { label: "Audit log", description: "Trace organizer moderation, account changes and Televoting administrative history.", to: "/televoting/admin/audit-log", icon: History },
 ];
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
@@ -68,13 +74,7 @@ export const Route = createFileRoute("/_authenticated/admin/operations")({
   component: UnifiedOperations,
 });
 
-function Workspace({
-  eyebrow,
-  title,
-  description,
-  accent,
-  tools,
-}: {
+function Workspace({ eyebrow, title, description, accent, tools }: {
   eyebrow: string;
   title: string;
   description: string;
@@ -132,6 +132,7 @@ function UnifiedOperations() {
     <div className="mx-auto max-w-[1500px] space-y-5">
       <header className="glass-strong relative overflow-hidden p-5 sm:p-8">
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-300/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-60 w-60 rounded-full bg-fuchsia-300/[0.07] blur-3xl" />
         <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-200/15 bg-sky-200/[0.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-100/75">
@@ -139,7 +140,7 @@ function UnifiedOperations() {
             </div>
             <h1 className="font-display text-5xl uppercase leading-[0.9] sm:text-6xl lg:text-7xl">Solaris Operations</h1>
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              One control room for the contest database, delegation confirmations and live Televoting. The separate systems keep their proven data and security layers behind the scenes, but organizers work from one Solaris interface.
+              One control room for the contest database, delegation confirmations and live Televoting. Complex tools remain focused workspaces underneath this page, but the organizer experience, navigation and visual system are now one Solaris product.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -182,7 +183,7 @@ function UnifiedOperations() {
         <Workspace
           eyebrow="Audience voting"
           title="Televoting"
-          description="Round configuration, entries, results, analytics and integrity moderation are now surfaced as one Solaris organizer workspace."
+          description="Voting, conversion, combined sources, analytics, integrity intelligence and organizer security now sit in the same Solaris Control Room."
           accent="text-sky-100/70"
           tools={televotingTools}
         />
@@ -192,7 +193,7 @@ function UnifiedOperations() {
         <div className="flex items-start gap-3">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200/70" />
           <p className="max-w-4xl leading-relaxed">
-            This page is the canonical admin front door. Detailed tools remain separate routes so complex editors stay fast and focused, but they now belong to one Control Room rather than three unrelated admin sites.
+            Solaris Operations is the canonical admin front door. Detailed editors remain separate routes only because giant configuration tools are easier to use when they have room to breathe, not because they are separate admin systems.
           </p>
         </div>
         <Link to="/admin/control-room" className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-semibold text-foreground">Studio readiness →</Link>
