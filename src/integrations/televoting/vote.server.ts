@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { getRequestHeader, getRequestIP } from "@tanstack/react-start/server";
 
-import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { televotingPublicServer } from "@/integrations/televoting/public.server";
 import { enforceTelevotingRateLimit } from "@/integrations/televoting/rate-limit.server";
 
 function sha256(value: string) {
@@ -52,7 +52,7 @@ export async function submitMergedTelevotingVoteServer(data: {
     getRequestHeader("x-vercel-ip-country") ??
     null;
 
-  const { data: result, error } = await televotingAdmin.rpc("submit_vote", {
+  const { data: result, error } = await televotingPublicServer.rpc("submit_vote", {
     p_round_id: data.roundId,
     p_username: data.username,
     p_country_code: data.countryCode,
