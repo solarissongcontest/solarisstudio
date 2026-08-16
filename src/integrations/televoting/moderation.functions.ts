@@ -1,12 +1,44 @@
 import { createServerFn } from "@tanstack/react-start";
 
+export type MergedModerationSubmission = {
+  id: string;
+  round_id: string;
+  round_name: string;
+  username: string;
+  username_normalized: string;
+  country_code: string;
+  country_name: string;
+  country_flag: string | null;
+  country_flag_url: string | null;
+  ip_country: string | null;
+  is_vpn: boolean;
+  risk_score: number;
+  status: "active" | "suspicious" | "verified" | "deleted";
+  moderator_note: string | null;
+  verified_at: string | null;
+  verified_by: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
+  edited_at: string | null;
+  edited_by: string | null;
+  created_at: string;
+  entries: Array<{
+    target_country_code: string;
+    points: number;
+    target_name: string;
+    target_code: string;
+    target_image: string | null;
+    target_flag: string | null;
+  }>;
+};
+
 export const listMergedModerationSubmissions = createServerFn({ method: "POST" })
   .inputValidator((data: { roundId?: string | null } = {}) => ({ roundId: data?.roundId ?? null }))
   .handler(async ({ data }) => {
     const { listMergedModerationSubmissionsServer } = await import(
       "@/integrations/televoting/moderation.server"
     );
-    return listMergedModerationSubmissionsServer(data.roundId);
+    return listMergedModerationSubmissionsServer(data.roundId) as Promise<MergedModerationSubmission[]>;
   });
 
 export const setMergedSubmissionStatus = createServerFn({ method: "POST" })
