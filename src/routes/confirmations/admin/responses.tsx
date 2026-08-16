@@ -296,6 +296,14 @@ function ConfirmationResponsesPage() {
                       <span>Needs review</span>
                     )}
                   </div>
+
+                  <Link
+                    to="/confirmations/admin/responses/$id"
+                    params={{ id: row.id }}
+                    className="mt-4 flex min-h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white/65 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+                  >
+                    Open response →
+                  </Link>
                 </article>
               );
             })}
