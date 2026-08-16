@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BookOpen, Clock3, ShieldCheck, Sparkles, Vote } from "lucide-react";
+import { ArrowLeft, BookOpen, Clock3, ShieldCheck, Vote } from "lucide-react";
 
 import { TelevotingBooth, type MergedTelevotingEntry } from "@/components/televoting/TelevotingBooth";
 import { Button } from "@/components/ui/button";
@@ -139,15 +139,22 @@ function TelevotingPage() {
 
   return (
     <div className="mx-auto max-w-5xl py-4 sm:py-8">
-      <div className="mb-5 flex justify-center gap-2">
-        <Link to="/televoting" className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3.5 py-2 text-xs text-sky-100">Voting</Link>
-        <Link to="/televoting/how-to-vote" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs text-muted-foreground transition hover:text-foreground"><BookOpen className="size-3.5" /> How to vote</Link>
+      <div className="relative mb-7 flex min-h-10 items-center justify-center px-12 sm:mb-8">
+        <Link
+          to="/"
+          aria-label="Back to Solaris Studio"
+          className="absolute left-0 inline-flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.045] text-foreground/75 backdrop-blur-xl transition hover:border-white/20 hover:bg-white/[0.07] hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+        </Link>
+
+        <div className="flex items-center justify-center gap-2">
+          <Link to="/televoting" className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3.5 py-2 text-xs text-sky-100">Voting</Link>
+          <Link to="/televoting/how-to-vote" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs text-muted-foreground transition hover:text-foreground"><BookOpen className="size-3.5" /> How to vote</Link>
+        </div>
       </div>
 
       <header className="mb-8 text-center sm:mb-10">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-sky-100/70">
-          <Sparkles className="size-3" /> Solaris Song Contest
-        </div>
         <h1 className="font-display text-5xl uppercase leading-[0.9] sm:text-7xl">Televoting</h1>
         <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
           Cast your Solaris Song Contest ballot when voting is open. Duplicate prevention and integrity checks are applied automatically.
