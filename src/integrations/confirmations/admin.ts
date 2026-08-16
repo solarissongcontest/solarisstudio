@@ -25,6 +25,41 @@ export type ConfirmationEdition = {
   rounds: ConfirmationRound[];
 };
 
+export type ConfirmationCalendarRow = {
+  id: string;
+  country: string;
+  participating: boolean;
+  selection_method: string | null;
+  reveal_date_type: string | null;
+  reveal_exact_date: string | null;
+  reveal_approximate_text: string | null;
+  nf_date_type: string | null;
+  nf_exact_date: string | null;
+  nf_approximate_text: string | null;
+  nf_result_date_type: string | null;
+  nf_result_exact_date: string | null;
+  nf_result_approximate_text: string | null;
+  edition_id: string;
+  round_id: string;
+  edition_name: string | null;
+  edition_number: number | null;
+  round_name: string | null;
+  nf_name: string | null;
+};
+
+export type ConfirmationRecoveryCode = {
+  id: string;
+  country: string;
+  instagram_username: string;
+  recovery_code: string | null;
+  submitted_at: string;
+  round_id: string;
+  round_name: string;
+  edition_id: string;
+  edition_name: string;
+  edition_number: number;
+};
+
 export async function requireConfirmationsAdmin() {
   const { data: sessionData, error: sessionError } =
     await confirmationsSupabase.auth.getSession();
@@ -125,4 +160,22 @@ export async function setConfirmationRoundEditing(id: string, enabled: boolean) 
   });
   if (error) throw error;
   return data === true;
+}
+
+export async function loadConfirmationCalendar(
+  editionId?: string,
+  roundId?: string,
+): Promise<ConfirmationCalendarRow[]> {
+  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_calendar", {
+    _edition_id: editionId || null,
+    _round_id: roundId || null,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? (data as unknown as ConfirmationCalendarRow[]) : [];
+}
+
+export async function loadConfirmationRecoveryCodes(): Promise<ConfirmationRecoveryCode[]> {
+  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_recovery_codes");
+  if (error) throw error;
+  return Array.isArray(data) ? (data as unknown as ConfirmationRecoveryCode[]) : [];
 }
