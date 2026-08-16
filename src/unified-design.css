@@ -1,0 +1,205 @@
+@font-face {
+  font-family: "Classica Crastao";
+  src: url("https://raw.githubusercontent.com/solarissongcontest/ssc-confirmations/main/public/classicacrastao-m2pj5.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("https://raw.githubusercontent.com/solarissongcontest/ssc-confirmations/main/public/Gotham%20Book.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("https://raw.githubusercontent.com/solarissongcontest/ssc-confirmations/main/public/Gotham%20Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gotham";
+  src: url("https://raw.githubusercontent.com/solarissongcontest/ssc-confirmations/main/public/Gotham%20Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --radius: 1.45rem;
+  --background: oklch(0.135 0.03 258);
+  --foreground: oklch(0.975 0.006 250);
+  --card: rgba(255, 255, 255, 0.045);
+  --card-foreground: oklch(0.975 0.006 250);
+  --popover: rgba(10, 14, 40, 0.82);
+  --popover-foreground: oklch(0.975 0.006 250);
+  --primary: oklch(0.83 0.095 215);
+  --primary-foreground: oklch(0.17 0.025 245);
+  --secondary: rgba(255, 255, 255, 0.055);
+  --secondary-foreground: oklch(0.975 0.006 250);
+  --muted: rgba(255, 255, 255, 0.045);
+  --muted-foreground: oklch(0.79 0.014 250);
+  --accent: oklch(0.85 0.075 205);
+  --accent-foreground: oklch(0.17 0.025 245);
+  --border: rgba(255, 255, 255, 0.16);
+  --input: rgba(255, 255, 255, 0.055);
+  --ring: oklch(0.83 0.095 215);
+  --surface: rgba(255, 255, 255, 0.045);
+  --surface-strong: rgba(160, 210, 255, 0.11);
+}
+
+body {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.012em;
+  background-color: #071023;
+  background-image:
+    linear-gradient(rgba(2, 7, 20, 0.05), rgba(2, 7, 20, 0.15)),
+    url("/IMG_8815.jpeg");
+}
+
+.font-display,
+.page-header h1,
+h1.font-display {
+  font-family: "Classica Crastao", Georgia, serif !important;
+  font-weight: 400 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.025em !important;
+}
+
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+label,
+button,
+input,
+textarea,
+select,
+a {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
+}
+
+.site-nav {
+  background:
+    linear-gradient(180deg, rgba(13, 13, 51, 0.74), rgba(5, 10, 35, 0.58)) !important;
+  border-color: rgba(255, 255, 255, 0.13) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(190%) !important;
+  backdrop-filter: blur(22px) saturate(190%) !important;
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.065),
+    0 14px 36px rgba(0, 0, 20, 0.18) !important;
+}
+
+.site-nav a[aria-current="page"] {
+  border: 1px solid rgba(175, 220, 255, 0.16);
+  border-radius: 999px !important;
+  background: rgba(135, 180, 255, 0.13) !important;
+}
+
+.site-nav a,
+.site-nav button {
+  font-weight: 400 !important;
+}
+
+.page-header {
+  padding-top: 0.4rem;
+  padding-bottom: 1.5rem !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.page-header::after {
+  width: min(12rem, 42vw) !important;
+  background: linear-gradient(90deg, rgba(120, 225, 255, 0.9), transparent) !important;
+}
+
+.page-header h1 {
+  line-height: 0.92 !important;
+}
+
+.page-header p:first-child {
+  color: rgba(155, 225, 255, 0.74) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.24em !important;
+}
+
+.data-panel,
+.glass,
+.glass-strong,
+.surface {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 2rem !important;
+  border: 1px solid rgba(255, 255, 255, 0.26) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.115) 0%, rgba(255, 255, 255, 0.045) 30%, rgba(110, 175, 255, 0.032) 62%, rgba(255, 255, 255, 0.065) 100%) !important;
+  -webkit-backdrop-filter: blur(9px) saturate(185%) brightness(1.06) !important;
+  backdrop-filter: blur(9px) saturate(185%) brightness(1.06) !important;
+  box-shadow:
+    0 18px 50px rgba(1, 5, 24, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 1px 0 0 rgba(255, 255, 255, 0.10),
+    inset -1px 0 0 rgba(110, 220, 255, 0.09),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.data-panel::before,
+.glass::before,
+.glass-strong::before,
+.surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 85% 48% at 18% -8%, rgba(255, 255, 255, 0.20), transparent 68%),
+    radial-gradient(ellipse 42% 70% at 105% 34%, rgba(98, 220, 255, 0.13), transparent 72%),
+    radial-gradient(ellipse 38% 60% at -5% 82%, rgba(125, 215, 255, 0.10), transparent 70%);
+  mix-blend-mode: screen;
+}
+
+.data-panel > *,
+.glass > *,
+.glass-strong > *,
+.surface > * {
+  position: relative;
+  z-index: 1;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+textarea,
+select,
+[role="combobox"] {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow:
+    inset 0 2px 8px rgba(255, 255, 255, 0.055),
+    0 5px 15px rgba(0, 0, 0, 0.05) !important;
+}
+
+button[class*="rounded-lg"],
+a[class*="rounded-lg"] {
+  border-radius: 1rem;
+}
+
+.mobile-quick-nav {
+  background: linear-gradient(180deg, rgba(10, 15, 47, 0.74), rgba(5, 9, 30, 0.78)) !important;
+  border-color: rgba(255, 255, 255, 0.13) !important;
+}
+
+@media (min-width: 1024px) {
+  .app-main {
+    padding-top: 2rem !important;
+  }
+}
