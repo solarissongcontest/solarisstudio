@@ -12,6 +12,7 @@ const MAIN_NAV = [
   { to: "/", label: "Home" },
   { to: "/editions", label: "Editions" },
   { to: "/countries", label: "Countries" },
+  { to: "/participate", label: "Participate" },
   { to: "/analysis", label: "Analysis" },
   { to: "/tools", label: "Tools" },
 ] as const;
@@ -33,6 +34,7 @@ const TOOL_ROUTES = [
 
 function routeActive(pathname: string, to: string) {
   if (to === "/tools" && TOOL_ROUTES.some((route) => pathname.startsWith(route))) return true;
+  if (to === "/participate" && (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"))) return true;
   return to === "/" ? pathname === "/" : pathname.startsWith(to);
 }
 
@@ -150,7 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     () => [
       { to: "/", label: "Home" },
       { to: "/editions", label: "Editions" },
-      { to: "/countries", label: "Countries" },
+      { to: "/participate", label: "Participate" },
       roleItems[0] ?? { to: "/tools", label: "Tools" },
     ],
     [roleItems],
