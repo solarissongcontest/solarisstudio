@@ -23,7 +23,7 @@ function TelevotingAdminOverview() {
   });
 
   useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
+    if (!adminLoading && !admin) void navigate({ to: "/auth", search: { redirect: "/televoting/admin" } });
   }, [admin, adminLoading, navigate]);
 
   const { data, isLoading, error } = useQuery({
@@ -61,19 +61,25 @@ function TelevotingAdminOverview() {
       description: "Inspect turnout, delegation behaviour, score distribution and entry performance.",
       icon: BarChart3,
     },
+    {
+      to: "/televoting/admin/integrity" as const,
+      label: "Integrity",
+      description: "Review ballot-level risk evidence, moderation actions and integrity decisions.",
+      icon: ShieldAlert,
+    },
   ];
 
   return (
     <div className="mx-auto max-w-6xl py-4 sm:py-8">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <Link to="/televoting" className="text-xs text-muted-foreground hover:text-foreground">← Televoting portal</Link>
-        {admin ? <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground">Signed in as {admin.username}</span> : null}
+        {admin ? <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground">Solaris organizer · {admin.username}</span> : null}
       </div>
 
       <header className="mb-8">
-        <p className="text-[10px] uppercase tracking-[0.22em] text-sky-100/65">Televoting organiser</p>
+        <p className="text-[10px] uppercase tracking-[0.22em] text-sky-100/65">Televoting workspace</p>
         <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">Control centre</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">The merged organiser shell uses the existing Televoting administrator accounts and database. Core round, result and analytics workflows now run directly inside Solaris Studio.</p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Run voting rounds, results, analytics and integrity from the same Solaris Operations workspace and organizer identity used everywhere else in Studio.</p>
       </header>
 
       {adminLoading || isLoading ? (
@@ -100,13 +106,6 @@ function TelevotingAdminOverview() {
                 <p className="mt-3 text-[10px] uppercase tracking-[0.15em] text-sky-100/55">Open workspace →</p>
               </Link>
             ))}
-
-            <article className="glass p-5 opacity-80">
-              <div className="grid size-10 place-items-center rounded-xl border border-amber-200/15 bg-amber-200/8 text-amber-100"><ShieldAlert className="size-4" /></div>
-              <h2 className="mt-4 text-lg font-medium">Integrity</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Anti-abuse events, detection, moderation and friend-voting analysis.</p>
-              <p className="mt-3 text-[10px] uppercase tracking-[0.15em] text-amber-100/55">Next integration block</p>
-            </article>
           </section>
         </>
       )}
