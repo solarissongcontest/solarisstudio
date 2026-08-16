@@ -15,7 +15,7 @@ import {
 
 import { ConfirmationForm } from "@/components/ConfirmationForm";
 import { Button } from "@/components/ui/button";
-import { getPublicRounds, type PublicRound } from "@/lib/public.functions";
+import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { availabilityBadge, computeAvailability, type AvailabilityReason } from "@/lib/ssc";
 import { cn } from "@/lib/utils";
 
