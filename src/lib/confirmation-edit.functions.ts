@@ -4,6 +4,16 @@ import { z } from "zod";
 
 import type { PublicRound } from "@/lib/public.functions";
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+type ConfirmationSubmission = { [key: string]: JsonValue };
+
 function getConfirmationsSupabase() {
   const url =
     import.meta.env.VITE_CONFIRMATIONS_SUPABASE_URL ||
@@ -43,7 +53,7 @@ export const resolveEditToken = createServerFn({ method: "POST" })
     const result = await rpc<{
       valid: boolean;
       reason: string;
-      submission?: Record<string, unknown>;
+      submission?: ConfirmationSubmission;
       round?: {
         id: string;
         name: string;
