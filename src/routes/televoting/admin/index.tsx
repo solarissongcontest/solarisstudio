@@ -42,6 +42,27 @@ function TelevotingAdminOverview() {
     { label: "Active edition", value: data?.activeEdition ?? "—", icon: Trophy },
   ] as const;
 
+  const liveTools = [
+    {
+      to: "/televoting/admin/rounds" as const,
+      label: "Rounds & entries",
+      description: "Configure voting rounds, participant entries, ordering and self-voting rules.",
+      icon: PlayCircle,
+    },
+    {
+      to: "/televoting/admin/results" as const,
+      label: "Results",
+      description: "Calculate, validate, lock and publish the official converted televote.",
+      icon: Trophy,
+    },
+    {
+      to: "/televoting/admin/analytics" as const,
+      label: "Analytics",
+      description: "Inspect turnout, delegation behaviour, score distribution and entry performance.",
+      icon: BarChart3,
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-6xl py-4 sm:py-8">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -52,7 +73,7 @@ function TelevotingAdminOverview() {
       <header className="mb-8">
         <p className="text-[10px] uppercase tracking-[0.22em] text-sky-100/65">Televoting organiser</p>
         <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">Control centre</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">The merged organiser shell uses the existing Televoting administrator accounts and database. Its deeper admin tools are being absorbed behind this same workspace.</p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">The merged organiser shell uses the existing Televoting administrator accounts and database. Core round, result and analytics workflows now run directly inside Solaris Studio.</p>
       </header>
 
       {adminLoading || isLoading ? (
@@ -71,19 +92,21 @@ function TelevotingAdminOverview() {
           </section>
 
           <section className="mt-5 grid gap-3 sm:grid-cols-2">
-            {[
-              { label: "Rounds & entries", description: "Configure voting rounds and participant entries.", icon: PlayCircle },
-              { label: "Results", description: "Review original and converted televote results.", icon: Trophy },
-              { label: "Analytics", description: "Inspect participation and voting behaviour.", icon: BarChart3 },
-              { label: "Integrity", description: "Anti-abuse, detection and friend-voting analysis.", icon: ShieldAlert },
-            ].map(({ label, description, icon: Icon }) => (
-              <article key={label} className="glass p-5 opacity-75">
+            {liveTools.map(({ to, label, description, icon: Icon }) => (
+              <Link key={to} to={to} className="glass group p-5 transition hover:border-sky-200/25">
                 <div className="grid size-10 place-items-center rounded-xl border border-sky-200/15 bg-sky-200/10 text-sky-100"><Icon className="size-4" /></div>
                 <h2 className="mt-4 text-lg font-medium">{label}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-                <p className="mt-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground">Integration in progress</p>
-              </article>
+                <p className="mt-3 text-[10px] uppercase tracking-[0.15em] text-sky-100/55">Open workspace →</p>
+              </Link>
             ))}
+
+            <article className="glass p-5 opacity-80">
+              <div className="grid size-10 place-items-center rounded-xl border border-amber-200/15 bg-amber-200/8 text-amber-100"><ShieldAlert className="size-4" /></div>
+              <h2 className="mt-4 text-lg font-medium">Integrity</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Anti-abuse events, detection, moderation and friend-voting analysis.</p>
+              <p className="mt-3 text-[10px] uppercase tracking-[0.15em] text-amber-100/55">Next integration block</p>
+            </article>
           </section>
         </>
       )}
