@@ -1,6 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  Blend,
+  BrainCircuit,
   ClipboardCheck,
   ExternalLink,
   Flag,
@@ -12,6 +14,7 @@ import {
   Settings,
   ShieldAlert,
   Trophy,
+  UserCog,
   Vote,
   X,
 } from "lucide-react";
@@ -20,7 +23,6 @@ import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type Item = { label: string; to: string; icon: typeof Gauge };
-
 type Section = { label: string; items: Item[] };
 
 const sections: Section[] = [
@@ -50,8 +52,11 @@ const sections: Section[] = [
       { label: "Rounds & entries", to: "/televoting/admin/rounds", icon: Vote },
       { label: "Editions", to: "/televoting/admin/editions", icon: Trophy },
       { label: "Results", to: "/televoting/admin/results", icon: ListChecks },
+      { label: "Combined results", to: "/televoting/admin/combined", icon: Blend },
       { label: "Analytics", to: "/televoting/admin/analytics", icon: BarChart3 },
+      { label: "Intelligence", to: "/televoting/admin/intelligence", icon: BrainCircuit },
       { label: "Integrity", to: "/televoting/admin/integrity", icon: ShieldAlert },
+      { label: "Admin accounts", to: "/televoting/admin/accounts", icon: UserCog },
       { label: "Audit log", to: "/televoting/admin/audit-log", icon: History },
     ],
   },
@@ -102,9 +107,18 @@ export function ServiceAdminShell({ children }: { children: ReactNode }) {
   const product = pathname.startsWith("/confirmations/admin") ? "Confirmations" : "Televoting";
 
   return (
-    <div className="admin-control-room min-h-screen bg-background">
+    <div className="admin-control-room relative min-h-screen overflow-x-clip bg-background">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 opacity-70"
+        style={{
+          background:
+            "radial-gradient(circle at 8% 8%, rgba(84,160,255,.13), transparent 31%), radial-gradient(circle at 92% 28%, rgba(255,120,210,.08), transparent 30%), linear-gradient(rgba(4,9,29,.36), rgba(4,9,29,.68))",
+        }}
+      />
+
       <header className="sticky top-0 z-[80] border-b border-white/10 bg-[#071023]/75 backdrop-blur-2xl">
-        <div className="flex min-h-16 items-center gap-3 px-3 sm:px-5">
+        <div className="relative flex min-h-16 items-center gap-3 px-3 sm:px-5">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
@@ -142,7 +156,7 @@ export function ServiceAdminShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <div className="lg:grid lg:grid-cols-[238px_minmax(0,1fr)]">
+      <div className="relative z-10 lg:grid lg:grid-cols-[238px_minmax(0,1fr)]">
         <aside className="hidden min-h-[calc(100vh-4rem)] border-r border-white/10 bg-black/[0.08] lg:block">
           <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto">
             <Navigation />
