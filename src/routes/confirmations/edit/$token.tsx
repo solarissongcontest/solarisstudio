@@ -7,7 +7,7 @@ import { ArrowLeft, LockKeyhole } from "lucide-react";
 
 import { ConfirmationForm } from "@/components/ConfirmationForm";
 import { Button } from "@/components/ui/button";
-import { resolveEditToken } from "@/lib/public.functions";
+import { resolveEditToken } from "@/lib/confirmation-edit.functions";
 
 export const Route = createFileRoute("/confirmations/edit/$token")({
   head: () => ({
