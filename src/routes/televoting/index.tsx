@@ -150,7 +150,7 @@ function TelevotingPage() {
         </div>
         <h1 className="font-display text-5xl uppercase leading-[0.9] sm:text-7xl">Televoting</h1>
         <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          The live voting portal now reads the existing Televoting database directly while preserving its integrity controls.
+          Cast your Solaris Song Contest ballot when voting is open. Duplicate prevention and integrity checks are applied automatically.
         </p>
       </header>
 
@@ -165,7 +165,7 @@ function TelevotingPage() {
         <section className="glass-strong p-8 text-center sm:p-10">
           <Clock3 className="mx-auto size-8 text-sky-100/70" />
           <h2 className="mt-4 text-2xl font-medium">Voting is currently closed</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">There is no open Televoting round right now. This page updates automatically when the existing voting backend opens one.</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">There is no open Televoting round right now. This page updates automatically when a voting round opens.</p>
         </section>
       ) : (
         <div className="space-y-5">
@@ -174,7 +174,7 @@ function TelevotingPage() {
               <div>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-sky-100/60">{data.round.editions?.name ?? "Solaris Song Contest"}</p>
                 <h2 className="mt-2 text-2xl font-medium">{data.round.name}</h2>
-                <p className="mt-2 text-sm text-muted-foreground">{data.entries.length} voting entries · live from the existing Televoting database</p>
+                <p className="mt-2 text-sm text-muted-foreground">{data.entries.length} voting entries</p>
               </div>
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs text-emerald-100">
                 <span className="size-2 rounded-full bg-emerald-300" /> Open
@@ -210,9 +210,9 @@ function TelevotingPage() {
 
               <section className="glass-strong p-6 text-center">
                 <ShieldCheck className="mx-auto size-7 text-sky-100/75" />
-                <h2 className="mt-3 text-xl font-medium">Secure voting server prepared</h2>
+                <h2 className="mt-3 text-xl font-medium">Voting is temporarily unavailable</h2>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                  The booth and server-side validation are now integrated. Ballot submission remains disabled on this preview until the existing Televoting service-role credential is added to the Solaris Studio Worker as an encrypted Cloudflare secret.
+                  The voting round is visible, but this deployment is missing the public Televoting connection required to submit a ballot.
                 </p>
                 <Button className="mt-5" disabled><Vote className="size-4" /> Enter voting booth</Button>
               </section>
