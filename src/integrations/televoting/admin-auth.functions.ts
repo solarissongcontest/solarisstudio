@@ -17,24 +17,3 @@ export const getMergedTelevotingAdmin = createServerFn({ method: "GET" }).handle
     return null;
   }
 });
-
-export const loginMergedTelevotingAdmin = createServerFn({ method: "POST" })
-  .inputValidator((data: { username: string; password: string }) => {
-    const username = String(data?.username ?? "").trim();
-    const password = String(data?.password ?? "");
-    if (!username || !password) throw new Error("Missing credentials");
-    return { username, password };
-  })
-  .handler(async ({ data }) => {
-    const { loginMergedTelevotingAdminServer } = await import(
-      "@/integrations/televoting/admin-session.server"
-    );
-    return loginMergedTelevotingAdminServer(data);
-  });
-
-export const logoutMergedTelevotingAdmin = createServerFn({ method: "POST" }).handler(async () => {
-  const { logoutMergedTelevotingAdminServer } = await import(
-    "@/integrations/televoting/admin-session.server"
-  );
-  return logoutMergedTelevotingAdminServer();
-});
