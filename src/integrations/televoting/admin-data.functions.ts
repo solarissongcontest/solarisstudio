@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { requireMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
-import { televotingAdmin } from "@/integrations/televoting/client.server";
-
 export const getMergedTelevotingOverview = createServerFn({ method: "GET" }).handler(async () => {
-  await requireMergedTelevotingAdmin();
+  const [{ requireMergedTelevotingAdminServer }, { televotingAdmin }] = await Promise.all([
+    import("@/integrations/televoting/admin-session.server"),
+    import("@/integrations/televoting/client.server"),
+  ]);
+
+  await requireMergedTelevotingAdminServer();
 
   const [editions, rounds, openRounds, submissions, blocked, activeEdition] = await Promise.all([
     televotingAdmin.from("editions").select("id", { count: "exact", head: true }),
