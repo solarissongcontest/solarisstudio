@@ -14,7 +14,7 @@ import appCss from "../styles.css?url";
 import unifiedCss from "../unified-design.css?url";
 import accessibilityCss from "../accessibility.css?url";
 import anniversaryCss from "../anniversary.css?url";
-import { ServiceAdminShell } from "../components/admin/ServiceAdminShell";
+import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
@@ -134,9 +134,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {serviceAdmin ? (
-        <ServiceAdminShell>
+        <UnifiedServiceAdminGate>
           <Outlet />
-        </ServiceAdminShell>
+        </UnifiedServiceAdminGate>
       ) : (
         <Outlet />
       )}
