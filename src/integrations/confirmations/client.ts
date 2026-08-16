@@ -2,6 +2,20 @@ import { createClient } from "@supabase/supabase-js";
 
 import { supabase as solarisSupabase } from "@/integrations/supabase/client";
 
+function normalizeOpaqueSupabaseKey(headers: Headers) {
+  const authorization = headers.get("Authorization");
+  if (!authorization?.startsWith("Bearer ")) return;
+
+  const key = authorization.slice("Bearer ".length);
+  if (!key.startsWith("sb_publishable_") && !key.startsWith("sb_secret_")) return;
+
+  // Modern Supabase API keys are opaque API keys, not bearer JWTs. Supabase-js
+  // may use the project key as a fallback Authorization value when there is no
+  // user session, which the gateway rejects with 401. Keep it only as apikey.
+  headers.delete("Authorization");
+  headers.set("apikey", key);
+}
+
 async function confirmationsFetch(input: RequestInfo | URL, init?: RequestInit) {
   const headers = new Headers(
     typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
@@ -10,6 +24,8 @@ async function confirmationsFetch(input: RequestInfo | URL, init?: RequestInit) 
   if (init?.headers) {
     new Headers(init.headers).forEach((value, key) => headers.set(key, value));
   }
+
+  normalizeOpaqueSupabaseKey(headers);
 
   if (typeof window !== "undefined") {
     const { data } = await solarisSupabase.auth.getSession();
