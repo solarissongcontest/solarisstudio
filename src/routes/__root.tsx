@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -13,6 +14,7 @@ import appCss from "../styles.css?url";
 import unifiedCss from "../unified-design.css?url";
 import accessibilityCss from "../accessibility.css?url";
 import anniversaryCss from "../anniversary.css?url";
+import { ServiceAdminShell } from "../components/admin/ServiceAdminShell";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
@@ -96,22 +98,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: SITE_DESCRIPTION },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      {
-        rel: "stylesheet",
-        href: unifiedCss,
-      },
-      {
-        rel: "stylesheet",
-        href: accessibilityCss,
-      },
-      {
-        rel: "stylesheet",
-        href: anniversaryCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: unifiedCss },
+      { rel: "stylesheet", href: accessibilityCss },
+      { rel: "stylesheet", href: anniversaryCss },
     ],
   }),
   shellComponent: RootShell,
@@ -136,10 +126,20 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const serviceAdmin =
+    pathname.startsWith("/confirmations/admin") ||
+    pathname.startsWith("/televoting/admin");
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      {serviceAdmin ? (
+        <ServiceAdminShell>
+          <Outlet />
+        </ServiceAdminShell>
+      ) : (
+        <Outlet />
+      )}
     </QueryClientProvider>
   );
 }
