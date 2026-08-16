@@ -1,10 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clock3, ShieldCheck, Sparkles, Vote } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { BookOpen, Clock3, ShieldCheck, Sparkles, Vote } from "lucide-react";
 
+import { TelevotingBooth, type MergedTelevotingEntry } from "@/components/televoting/TelevotingBooth";
 import { Button } from "@/components/ui/button";
 import { televotingSupabase } from "@/integrations/televoting/client";
+import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
 
 export const Route = createFileRoute("/televoting/")({
   head: () => ({
@@ -48,7 +51,7 @@ type CountryRow = {
 
 type OpenRound = {
   round: RoundRow;
-  entries: Array<RoundEntry & { display_name: string; display_code: string; image: string | null; flag: string | null }>;
+  entries: MergedTelevotingEntry[];
 };
 
 async function loadOpenRound(): Promise<OpenRound | null> {
@@ -89,11 +92,16 @@ async function loadOpenRound(): Promise<OpenRound | null> {
     entries: entries.map((entry) => {
       const country = entry.country_code ? countryMap.get(entry.country_code) : undefined;
       return {
-        ...entry,
+        id: entry.id,
+        entry_key: entry.entry_key,
+        entry_type: entry.entry_type,
+        country_code: entry.country_code,
         display_name: entry.custom_name || entry.short_name || country?.name || entry.entry_key,
         display_code: entry.entry_code || entry.country_code || entry.entry_key,
+        subtitle: entry.subtitle,
         image: entry.image_url || country?.flag_url || null,
         flag: country?.flag || null,
+        display_order: entry.display_order,
       };
     }),
   };
@@ -101,11 +109,19 @@ async function loadOpenRound(): Promise<OpenRound | null> {
 
 function TelevotingPage() {
   const queryClient = useQueryClient();
+  const getServerStatus = useServerFn(getMergedTelevotingServerStatus);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["merged-televoting-open-round"],
     queryFn: loadOpenRound,
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
+  });
+
+  const { data: serverStatus } = useQuery({
+    queryKey: ["merged-televoting-server-status"],
+    queryFn: () => getServerStatus(),
+    staleTime: 30_000,
   });
 
   useEffect(() => {
@@ -123,13 +139,18 @@ function TelevotingPage() {
 
   return (
     <div className="mx-auto max-w-5xl py-4 sm:py-8">
+      <div className="mb-5 flex justify-center gap-2">
+        <Link to="/televoting" className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3.5 py-2 text-xs text-sky-100">Voting</Link>
+        <Link to="/televoting/how-to-vote" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs text-muted-foreground transition hover:text-foreground"><BookOpen className="size-3.5" /> How to vote</Link>
+      </div>
+
       <header className="mb-8 text-center sm:mb-10">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.045] px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-sky-100/70">
           <Sparkles className="size-3" /> Solaris Song Contest
         </div>
         <h1 className="font-display text-5xl uppercase leading-[0.9] sm:text-7xl">Televoting</h1>
         <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          The live voting portal is being absorbed into Solaris Studio while keeping the existing Televoting database and integrity controls intact.
+          The live voting portal now reads the existing Televoting database directly while preserving its integrity controls.
         </p>
       </header>
 
@@ -161,30 +182,42 @@ function TelevotingPage() {
             </div>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {data.entries.map((entry) => (
-              <article key={entry.id} className="glass min-h-32 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
-                    {entry.image ? <img src={entry.image} alt="" className="h-full w-full object-cover" /> : <span className="text-xl">{entry.flag || "✦"}</span>}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{entry.display_name}</p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{entry.display_code}{entry.subtitle ? ` · ${entry.subtitle}` : ""}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
+          {serverStatus?.votingReady ? (
+            <TelevotingBooth
+              roundId={data.round.id}
+              roundName={data.round.name}
+              editionName={data.round.editions?.name ?? null}
+              entries={data.entries}
+              selfVotingMode={data.round.self_voting_mode}
+            />
+          ) : (
+            <>
+              <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {data.entries.map((entry) => (
+                  <article key={entry.id} className="glass min-h-32 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.045]">
+                        {entry.image ? <img src={entry.image} alt="" className="h-full w-full object-cover" /> : <span className="text-xl">{entry.flag || "✦"}</span>}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{entry.display_name}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{entry.display_code}{entry.subtitle ? ` · ${entry.subtitle}` : ""}</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </section>
 
-          <section className="glass-strong p-6 text-center">
-            <ShieldCheck className="mx-auto size-7 text-sky-100/75" />
-            <h2 className="mt-3 text-xl font-medium">Secure voting submission is being connected</h2>
-            <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              The live round and entries are already integrated here. Actual ballot submission still runs through the existing hardened Televoting Worker until its server-only Supabase credentials are moved safely into Solaris Studio.
-            </p>
-            <Button className="mt-5" disabled><Vote className="size-4" /> Enter voting booth</Button>
-          </section>
+              <section className="glass-strong p-6 text-center">
+                <ShieldCheck className="mx-auto size-7 text-sky-100/75" />
+                <h2 className="mt-3 text-xl font-medium">Secure voting server prepared</h2>
+                <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                  The booth and server-side validation are now integrated. Ballot submission remains disabled on this preview until the existing Televoting service-role credential is added to the Solaris Studio Worker as an encrypted Cloudflare secret.
+                </p>
+                <Button className="mt-5" disabled><Vote className="size-4" /> Enter voting booth</Button>
+              </section>
+            </>
+          )}
         </div>
       )}
     </div>
