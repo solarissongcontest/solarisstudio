@@ -2,7 +2,7 @@ import "@/confirmations.css";
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, ExternalLink, LogOut, Search, ShieldAlert } from "lucide-react";
+import { ArrowLeft, CheckCircle2, LogOut, Search, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,10 @@ type Entry = {
   song_title: string | null;
   song_url: string | null;
   review_status: string | null;
+  review_reason?: string | null;
+  reviewed_at?: string | null;
   removed?: boolean | null;
+  position?: number;
 };
 
 type ResponseRow = {
@@ -124,12 +127,7 @@ function ConfirmationResponsesPage() {
         return;
       }
 
-      const { data, error: loadError } = await confirmationsSupabase
-        .from("submissions")
-        .select(
-          "id,country,instagram_username,participating,selection_method,entry_unknown,nf_entries_unknown,reviewed,locked,editing_allowed,submitted_at,updated_at,internal_entries(id,artist,song_title,song_url,review_status),national_finals(id,nf_name,winning_entry_id,national_final_entries(id,artist,song_title,song_url,review_status,removed)),submission_rounds(id,name,edition_id),editions(id,name,edition_number)",
-        )
-        .order("submitted_at", { ascending: false });
+      const { data, error: loadError } = await confirmationsSupabase.rpc("admin_confirmation_responses");
 
       if (!alive) return;
 
@@ -137,7 +135,7 @@ function ConfirmationResponsesPage() {
         setError(loadError.message);
         setRows([]);
       } else {
-        setRows((data ?? []) as unknown as ResponseRow[]);
+        setRows(Array.isArray(data) ? (data as unknown as ResponseRow[]) : []);
       }
       setLoading(false);
     })();
@@ -197,7 +195,7 @@ function ConfirmationResponsesPage() {
             <div>
               <h1 className="confirmations-display text-5xl font-normal uppercase leading-none sm:text-6xl">Responses</h1>
               <p className="mt-3 text-sm text-white/55">
-                Live data from the existing Confirmations database. Old and new submissions appear here together.
+                The same live submissions used by the original Confirmations site, including existing internal and National Final entry details.
               </p>
             </div>
             <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/65">
@@ -272,6 +270,22 @@ function ConfirmationResponsesPage() {
                     )}
                   </div>
 
+                  {row.selection_method === "national_final" && activeNfEntries.length ? (
+                    <div className="mt-3 space-y-1.5">
+                      {activeNfEntries.slice(0, 3).map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between gap-3 text-xs">
+                          <span className="min-w-0 truncate text-white/55">
+                            {entry.artist ?? "Unknown artist"} — {entry.song_title ?? "Unknown song"}
+                          </span>
+                          <StateBadge state={entry.review_status ?? "pending"} />
+                        </div>
+                      ))}
+                      {activeNfEntries.length > 3 ? (
+                        <p className="text-[10px] text-white/30">+{activeNfEntries.length - 3} more entries</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div className="mt-4 flex items-center justify-between gap-3 text-[10px] text-white/35">
                     <span>{new Date(row.submitted_at).toLocaleString()}</span>
                     {row.reviewed ? (
@@ -295,7 +309,7 @@ function ConfirmationResponsesPage() {
         )}
 
         <p className="mt-6 text-center text-[10px] text-white/30">
-          This view reads the same live response records as the old Confirmations admin.
+          This view reads the same live response records as the original Confirmations admin.
         </p>
       </main>
     </div>
