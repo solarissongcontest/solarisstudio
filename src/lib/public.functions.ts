@@ -7,6 +7,9 @@ import type {
   RoundAvailability,
 } from "@/lib/ssc";
 
+const CONFIRMATIONS_LEGACY_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3dm5ycHVxZWhxY2F0b3d4ZnB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMDcwOTQsImV4cCI6MjEwMTg4MzA5NH0.TsV-Osg8YAqR6jqVLGkDTya97THNAkDtD0S3Ddd6Eu0";
+
 type JsonValue =
   | string
   | number
@@ -20,11 +23,16 @@ function getConfirmationsSupabase() {
     import.meta.env.VITE_CONFIRMATIONS_SUPABASE_URL ||
     process.env["CONFIRMATIONS_SUPABASE_URL"];
 
-  const key =
+  const configuredKey =
     import.meta.env.VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY ||
     process.env["CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY"];
 
-  if (!url || !key) {
+  const key =
+    !configuredKey || configuredKey.startsWith("sb_publishable_")
+      ? CONFIRMATIONS_LEGACY_ANON_KEY
+      : configuredKey;
+
+  if (!url) {
     throw new Error("Missing Confirmations Supabase configuration.");
   }
 
@@ -101,51 +109,8 @@ export interface PublicRound {
 
 export const getPublicRounds = createServerFn({ method: "GET" }).handler(
   async (): Promise<PublicRound[]> => {
-    const db = getConfirmationsSupabase();
-
-    const { data: editions, error: editionError } = await db
-      .from("editions")
-      .select("id, name, edition_number, status")
-      .eq("status", "active")
-      .order("edition_number", { ascending: false });
-
-    if (editionError) throw new Error(editionError.message);
-    if (!editions?.length) return [];
-
-    const editionIds = editions.map((edition) => edition.id);
-    const { data: rounds, error: roundError } = await db
-      .from("submission_rounds")
-      .select("id, edition_id, name, status, opens_at, closes_at, response_limit, created_at")
-      .in("edition_id", editionIds)
-      .neq("status", "draft")
-      .order("created_at", { ascending: true });
-
-    if (roundError) throw new Error(roundError.message);
-
-    const { data: stats, error: statsError } = await db
-      .from("round_stats")
-      .select("round_id, submitted_count");
-    if (statsError) throw new Error(statsError.message);
-
-    const countMap = new Map<string, number>();
-    for (const stat of stats ?? []) countMap.set(stat.round_id, stat.submitted_count);
-
-    return (rounds ?? []).map((round) => {
-      const edition = editions.find((item) => item.id === round.edition_id);
-      if (!edition) throw new Error("Round edition not found.");
-      return {
-        id: round.id,
-        name: round.name,
-        status: round.status,
-        opens_at: round.opens_at,
-        closes_at: round.closes_at,
-        response_limit: round.response_limit,
-        response_count: countMap.get(round.id) ?? 0,
-        edition_id: round.edition_id,
-        edition_name: edition.name,
-        edition_number: edition.edition_number,
-      };
-    });
+    const data = await rpc<PublicRound[]>("public_confirmation_rounds", {});
+    return Array.isArray(data) ? data : [];
   },
 );
 
