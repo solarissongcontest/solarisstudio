@@ -1,10 +1,30 @@
 import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { televotingPublicServer } from "@/integrations/televoting/public.server";
 
-export async function getMergedPublishedTelevotingResultsServer(roundId?: string) {
+type TelevotingClient = typeof televotingPublicServer;
+
+type PublishedResultsPayload = {
+  round: {
+    id: string;
+    name: string;
+    edition: string | null;
+    total_points: number;
+    calculated_at: string | null;
+    version: number;
+    advanced: boolean;
+    broadcast_mode: "original" | "converted" | "combined";
+  } | null;
+  rows: Array<Record<string, unknown>>;
+};
+
+async function readPublishedResults(
+  client: TelevotingClient,
+  roundId?: string,
+): Promise<PublishedResultsPayload> {
   const selection =
     "id,name,results_status,total_points_to_distribute,rank_exponent,calculated_at,calculation_version,public_advanced_transparency,broadcast_display_mode,editions(name)";
 
-  let query = televotingAdmin
+  let query = client
     .from("rounds")
     .select(selection)
     .eq("results_status", "published")
@@ -12,7 +32,7 @@ export async function getMergedPublishedTelevotingResultsServer(roundId?: string
     .limit(1);
 
   if (roundId) {
-    query = televotingAdmin
+    query = client
       .from("rounds")
       .select(selection)
       .eq("results_status", "published")
@@ -41,7 +61,7 @@ export async function getMergedPublishedTelevotingResultsServer(roundId?: string
     ? editionRelation[0]?.name ?? null
     : editionRelation?.name ?? null;
 
-  const { data: results, error: resultError } = await televotingAdmin
+  const { data: results, error: resultError } = await client
     .from("round_results")
     .select("*")
     .eq("round_id", round.id)
@@ -80,4 +100,32 @@ export async function getMergedPublishedTelevotingResultsServer(roundId?: string
     },
     rows,
   };
+}
+
+function hasAdminBackend() {
+  return Boolean(
+    process.env.TELEVOTING_SUPABASE_URL &&
+      process.env.TELEVOTING_SUPABASE_SERVICE_ROLE_KEY,
+  );
+}
+
+export async function getMergedPublishedTelevotingResultsServer(roundId?: string) {
+  try {
+    const publicResult = await readPublishedResults(televotingPublicServer, roundId);
+
+    // If public RLS exposes published result data, no privileged credential is
+    // needed. If it silently filters the published round, retry with the admin
+    // client only when the deployment actually has that server-only credential.
+    if (publicResult.round || !hasAdminBackend()) return publicResult;
+  } catch (publicError) {
+    if (!hasAdminBackend()) {
+      throw new Error(
+        publicError instanceof Error
+          ? `Published Televoting results are not publicly readable: ${publicError.message}`
+          : "Published Televoting results are not publicly readable.",
+      );
+    }
+  }
+
+  return readPublishedResults(televotingAdmin, roundId);
 }
