@@ -2,6 +2,9 @@ import { createClient } from "@supabase/supabase-js";
 
 import { supabase as solarisSupabase } from "@/integrations/supabase/client";
 
+const CONFIRMATIONS_LEGACY_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3dm5ycHVxZWhxY2F0b3d4ZnB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMDcwOTQsImV4cCI6MjEwMTg4MzA5NH0.TsV-Osg8YAqR6jqVLGkDTya97THNAkDtD0S3Ddd6Eu0";
+
 function normalizeOpaqueSupabaseKey(headers: Headers) {
   const authorization = headers.get("Authorization");
   if (!authorization?.startsWith("Bearer ")) return;
@@ -9,9 +12,6 @@ function normalizeOpaqueSupabaseKey(headers: Headers) {
   const key = authorization.slice("Bearer ".length);
   if (!key.startsWith("sb_publishable_") && !key.startsWith("sb_secret_")) return;
 
-  // Modern Supabase API keys are opaque API keys, not bearer JWTs. Supabase-js
-  // may use the project key as a fallback Authorization value when there is no
-  // user session, which the gateway rejects with 401. Keep it only as apikey.
   headers.delete("Authorization");
   headers.set("apikey", key);
 }
@@ -38,9 +38,13 @@ async function confirmationsFetch(input: RequestInfo | URL, init?: RequestInit) 
 
 function createConfirmationsClient() {
   const url = import.meta.env.VITE_CONFIRMATIONS_SUPABASE_URL;
-  const key = import.meta.env.VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY;
+  const configuredKey = import.meta.env.VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY;
+  const key =
+    !configuredKey || configuredKey.startsWith("sb_publishable_")
+      ? CONFIRMATIONS_LEGACY_ANON_KEY
+      : configuredKey;
 
-  if (!url || !key) {
+  if (!url) {
     throw new Error("Missing Confirmations Supabase configuration.");
   }
 
@@ -62,8 +66,8 @@ type ConfirmationsClient = ReturnType<typeof createConfirmationsClient>;
 export const confirmationsSupabase = new Proxy({} as ConfirmationsClient, {
   get(_target, prop, receiver) {
     // Legacy Confirmations admin pages still call `.auth.getSession()` and
-    // `.auth.signOut()`. Those calls now intentionally operate on the one
-    // Solaris Studio identity instead of creating a second auth universe.
+    // `.auth.signOut()`. Those calls intentionally use the single Solaris
+    // Studio identity rather than creating a second auth universe.
     if (prop === "auth") return Reflect.get(solarisSupabase, prop, solarisSupabase);
 
     if (!client) client = createConfirmationsClient();
