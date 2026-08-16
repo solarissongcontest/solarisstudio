@@ -1,6 +1,14 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
+export type AuditJson =
+  | string
+  | number
+  | boolean
+  | null
+  | AuditJson[]
+  | { [key: string]: AuditJson };
+
 export type MergedAuditRow = {
   id: string;
   actor_admin_id: string | null;
@@ -8,8 +16,8 @@ export type MergedAuditRow = {
   action: string;
   target_type: string | null;
   target_id: string | null;
-  old_values: unknown;
-  new_values: unknown;
+  old_values: AuditJson | null;
+  new_values: AuditJson | null;
   reason: string | null;
   created_at: string;
 };
@@ -19,7 +27,7 @@ export async function listMergedAuditLogServer(filters: {
   actor?: string | null;
   targetType?: string | null;
   limit?: number;
-}) {
+}): Promise<MergedAuditRow[]> {
   await requireMergedTelevotingAdminServer();
 
   let query = televotingAdmin
@@ -34,5 +42,17 @@ export async function listMergedAuditLogServer(filters: {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as MergedAuditRow[];
+
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    actor_admin_id: row.actor_admin_id == null ? null : String(row.actor_admin_id),
+    actor_username: row.actor_username == null ? null : String(row.actor_username),
+    action: String(row.action ?? "unknown"),
+    target_type: row.target_type == null ? null : String(row.target_type),
+    target_id: row.target_id == null ? null : String(row.target_id),
+    old_values: (row.old_values ?? null) as AuditJson | null,
+    new_values: (row.new_values ?? null) as AuditJson | null,
+    reason: row.reason == null ? null : String(row.reason),
+    created_at: String(row.created_at),
+  }));
 }
