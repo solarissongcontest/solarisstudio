@@ -18,7 +18,6 @@ import {
   ShieldAlert,
   Sparkles,
   Trophy,
-  UserCog,
   Users,
   Vote,
 } from "lucide-react";
@@ -43,16 +42,18 @@ const studioTools: Tool[] = [
 ];
 
 const confirmationTools: Tool[] = [
-  { label: "Responses", description: "Review every old and new confirmation response from the shared live database.", to: "/confirmations/admin/responses", icon: ClipboardCheck },
+  { label: "Overview", description: "Confirmation activity, active edition and submission-wave status at a glance.", to: "/confirmations/admin", icon: ClipboardCheck },
+  { label: "Responses", description: "Review every delegation response in the live Confirmations records.", to: "/confirmations/admin/responses", icon: ClipboardCheck },
   { label: "Rounds", description: "Open and close confirmation waves and control response editing.", to: "/confirmations/admin/rounds", icon: PlayCircle },
   { label: "Editions", description: "Manage confirmation editions and their public submission windows.", to: "/confirmations/admin/editions", icon: Trophy },
   { label: "Countries", description: "See delegation status, methods and submitted entry information.", to: "/confirmations/admin/countries", icon: Flag },
-  { label: "Calendar", description: "Operational confirmation timeline and round scheduling overview.", to: "/confirmations/admin/calendar", icon: CalendarDays },
-  { label: "Recovery codes", description: "Admin-only recovery access for existing delegation responses.", to: "/confirmations/admin/recovery-codes", icon: History },
-  { label: "Settings", description: "Confirmation system controls and organizer configuration.", to: "/confirmations/admin/settings", icon: Settings },
+  { label: "Calendar", description: "Reveal dates, National Finals and round scheduling in one operational timeline.", to: "/confirmations/admin/calendar", icon: CalendarDays },
+  { label: "Recovery codes", description: "Admin-only recovery access for delegation responses.", to: "/confirmations/admin/recovery-codes", icon: History },
+  { label: "Settings", description: "Confirmations configuration and public-form information.", to: "/confirmations/admin/settings", icon: Settings },
 ];
 
 const televotingTools: Tool[] = [
+  { label: "Overview", description: "Live round, turnout and integrity status for the Televoting system.", to: "/televoting/admin", icon: Vote },
   { label: "Rounds & entries", description: "Create voting rounds, configure country/custom entries, ordering and self-voting rules.", to: "/televoting/admin/rounds", icon: Vote },
   { label: "Editions", description: "Manage Televoting editions and their active round structure.", to: "/televoting/admin/editions", icon: Trophy },
   { label: "Results", description: "Calculate, validate, lock and publish the official converted televote.", to: "/televoting/admin/results", icon: ListChecks },
@@ -60,15 +61,14 @@ const televotingTools: Tool[] = [
   { label: "Analytics", description: "Turnout, delegation behaviour, scoring patterns and performance analysis.", to: "/televoting/admin/analytics", icon: BarChart3 },
   { label: "Intelligence", description: "Anti-abuse detection, technical evidence and friend-voting relationship analysis in one workspace.", to: "/televoting/admin/intelligence", icon: BrainCircuit },
   { label: "Integrity", description: "Inspect individual ballots, moderate risk states, edit ballots and restore/delete submissions.", to: "/televoting/admin/integrity", icon: ShieldAlert },
-  { label: "Admin accounts", description: "Super Admin management of Televoting organizer identities, passwords and access.", to: "/televoting/admin/accounts", icon: UserCog },
-  { label: "Audit log", description: "Trace organizer moderation, account changes and Televoting administrative history.", to: "/televoting/admin/audit-log", icon: History },
+  { label: "Audit log", description: "Trace organizer moderation and Televoting administrative history.", to: "/televoting/admin/audit-log", icon: History },
 ];
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
     meta: [
       { title: "Solaris Operations — Control Room" },
-      { name: "description", content: "The unified organizer workspace for Solaris Studio, Confirmations and Televoting." },
+      { name: "description", content: "The organizer workspace for Solaris Studio, Confirmations and Televoting." },
     ],
   }),
   component: UnifiedOperations,
@@ -136,11 +136,11 @@ function UnifiedOperations() {
         <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-sky-200/15 bg-sky-200/[0.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-100/75">
-              <LayoutDashboard className="h-3.5 w-3.5" /> Unified organizer workspace
+              <LayoutDashboard className="h-3.5 w-3.5" /> Organizer workspace
             </div>
             <h1 className="font-display text-5xl uppercase leading-[0.9] sm:text-6xl lg:text-7xl">Solaris Operations</h1>
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              One control room for the contest database, delegation confirmations and live Televoting. Complex tools remain focused workspaces underneath this page, but the organizer experience, navigation and visual system are now one Solaris product.
+              One control room for contest operations, delegation confirmations and live Televoting. Every workspace uses the same Solaris organizer identity, navigation and visual system.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -169,21 +169,21 @@ function UnifiedOperations() {
         <Workspace
           eyebrow="Core contest"
           title="Studio"
-          description="Edition structure, publication, broadcast, countries, predictions and organizer readiness remain the canonical Solaris Studio workspace."
+          description="Edition structure, publication, broadcast, countries, predictions and organizer readiness."
           accent="text-violet-100/70"
           tools={studioTools}
         />
         <Workspace
           eyebrow="Delegations"
           title="Confirmations"
-          description="The old and merged confirmation pages share the same live records. Review and manage every delegation response from here."
+          description="Review and manage every delegation response, submission wave, release date and recovery path from the Control Room."
           accent="text-pink-100/70"
           tools={confirmationTools}
         />
         <Workspace
           eyebrow="Audience voting"
           title="Televoting"
-          description="Voting, conversion, combined sources, analytics, integrity intelligence and organizer security now sit in the same Solaris Control Room."
+          description="Voting, conversion, combined sources, analytics and integrity intelligence in the same Solaris Control Room."
           accent="text-sky-100/70"
           tools={televotingTools}
         />
@@ -193,7 +193,7 @@ function UnifiedOperations() {
         <div className="flex items-start gap-3">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200/70" />
           <p className="max-w-4xl leading-relaxed">
-            Solaris Operations is the canonical admin front door. Detailed editors remain separate routes only because giant configuration tools are easier to use when they have room to breathe, not because they are separate admin systems.
+            Solaris Operations is the admin front door. Detailed editors stay on focused routes so dense contest tools have enough room, while authentication, navigation and design remain one continuous workspace.
           </p>
         </div>
         <Link to="/admin/control-room" className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 font-semibold text-foreground">Studio readiness →</Link>
