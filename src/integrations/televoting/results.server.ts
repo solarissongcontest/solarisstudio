@@ -23,7 +23,7 @@ export async function getMergedPublishedTelevotingResultsServer(roundId?: string
   const { data: rounds, error } = await query;
   if (error) throw new Error(error.message);
 
-  const round = (rounds ?? [])[0] as {
+  const round = (rounds ?? [])[0] as unknown as {
     id: string;
     name: string;
     total_points_to_distribute: number;
@@ -31,10 +31,15 @@ export async function getMergedPublishedTelevotingResultsServer(roundId?: string
     calculation_version: number;
     public_advanced_transparency: boolean | null;
     broadcast_display_mode: "original" | "converted" | "combined" | null;
-    editions: { name: string } | null;
+    editions: { name: string } | Array<{ name: string }> | null;
   } | undefined;
 
   if (!round) return { round: null, rows: [] };
+
+  const editionRelation = round.editions;
+  const editionName = Array.isArray(editionRelation)
+    ? editionRelation[0]?.name ?? null
+    : editionRelation?.name ?? null;
 
   const { data: results, error: resultError } = await televotingAdmin
     .from("round_results")
@@ -66,7 +71,7 @@ export async function getMergedPublishedTelevotingResultsServer(roundId?: string
     round: {
       id: round.id,
       name: round.name,
-      edition: round.editions?.name ?? null,
+      edition: editionName,
       total_points: round.total_points_to_distribute,
       calculated_at: round.calculated_at,
       version: round.calculation_version,
