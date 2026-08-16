@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import unifiedCss from "../unified-design.css?url";
 import accessibilityCss from "../accessibility.css?url";
 import anniversaryCss from "../anniversary.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -98,6 +99,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "stylesheet",
+        href: unifiedCss,
       },
       {
         rel: "stylesheet",
