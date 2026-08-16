@@ -36,7 +36,7 @@ const cards = [
   {
     to: "/confirmations/admin/responses",
     title: "Responses",
-    description: "Review every existing confirmation, entry and National Final.",
+    description: "Review every confirmation, entry and National Final.",
     icon: FileText,
   },
   {
@@ -54,7 +54,7 @@ const cards = [
   {
     to: "/confirmations/admin/countries",
     title: "Countries",
-    description: "Manage country eligibility and delegation options.",
+    description: "Review delegation status, selection methods and entry information.",
     icon: Flag,
   },
   {
@@ -66,13 +66,13 @@ const cards = [
   {
     to: "/confirmations/admin/recovery-codes",
     title: "Recovery codes",
-    description: "Help delegations regain access to existing responses.",
+    description: "Help delegations regain access to their responses.",
     icon: KeyRound,
   },
   {
     to: "/confirmations/admin/settings",
     title: "Settings",
-    description: "Global editing controls and Confirmations configuration.",
+    description: "Editing controls, edition workflow and public-form information.",
     icon: Settings2,
   },
 ] as const;
@@ -89,7 +89,7 @@ function ConfirmationsAdminOverview() {
       try {
         const admin = await requireConfirmationsAdmin();
         if (!admin) {
-          await navigate({ to: "/confirmations/admin/sign-in" });
+          await navigate({ to: "/auth", search: { redirect: "/confirmations/admin" } });
           return;
         }
         const rows = await loadConfirmationEditions();
@@ -122,7 +122,7 @@ function ConfirmationsAdminOverview() {
 
   async function signOut() {
     await confirmationsSupabase.auth.signOut();
-    await navigate({ to: "/confirmations/admin/sign-in" });
+    await navigate({ to: "/auth" });
   }
 
   return (
@@ -134,19 +134,19 @@ function ConfirmationsAdminOverview() {
             ← Confirmations portal
           </Link>
           <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="size-3.5" /> Sign out
+            <LogOut className="size-3.5" /> Sign out of Solaris
           </Button>
         </div>
 
         <ConfirmationsAdminNav current="/confirmations/admin" />
 
         <header className="mb-8">
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-sky-200/65">Organiser workspace</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-sky-200/65">Delegation operations</p>
           <h1 className="confirmations-display mt-2 text-5xl font-normal uppercase leading-none sm:text-6xl">
-            Control centre
+            Confirmations
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/55">
-            Manage the same live Confirmations database used by the original site. Changes here affect the existing portal immediately.
+            Manage delegation responses, submission waves, reviews, reveal dates and recovery access from Solaris Operations.
           </p>
         </header>
 
