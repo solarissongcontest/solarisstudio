@@ -55,7 +55,7 @@ function RoundsPage() {
     const rows = await loadConfirmationEditions();
     setEditions(rows);
     setEditionId((current) =>
-      preferredEditionId ?? current || rows.find((item) => item.status === "active")?.id || rows[0]?.id || "",
+      preferredEditionId ?? (current || rows.find((item) => item.status === "active")?.id || rows[0]?.id || ""),
     );
   }
 
