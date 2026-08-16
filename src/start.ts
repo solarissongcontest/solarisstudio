@@ -3,11 +3,27 @@ import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/r
 import { renderErrorPage } from "./lib/error-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
-// Supabase's modern sb_publishable_/sb_secret_ project keys are opaque API
-// keys, not bearer JWTs. Some Supabase clients use the project key as a
-// fallback Authorization value when no user session exists. The Supabase
-// gateway rejects that with 401, so normalize those requests once at the
-// server boundary while leaving real user bearer tokens untouched.
+const CONFIRMATIONS_HOST = "xwvnrpuqehqcatowxfpx.supabase.co";
+const CONFIRMATIONS_LEGACY_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3dm5ycHVxZWhxY2F0b3d4ZnB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMDcwOTQsImV4cCI6MjEwMTg4MzA5NH0.TsV-Osg8YAqR6jqVLGkDTya97THNAkDtD0S3Ddd6Eu0";
+
+function isOpaqueSupabaseKey(value: string | null) {
+  return Boolean(value?.startsWith("sb_publishable_") || value?.startsWith("sb_secret_"));
+}
+
+function requestUrl(input: RequestInfo | URL) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  if (typeof Request !== "undefined" && input instanceof Request) return input.url;
+  return "";
+}
+
+// Modern opaque Supabase keys work as `apikey` values but are not bearer JWTs.
+// The Confirmations project currently rejects the merged Cloudflare runtime's
+// fallback bearer handling with 401. Its legacy anon JWT remains active and is
+// intentionally public, so force that compatible public credential only for
+// requests to the Confirmations project. Real user bearer tokens for Solaris
+// Studio and every other backend remain untouched.
 const runtime = globalThis as typeof globalThis & {
   __solarisSupabaseOpaqueKeyFetchPatched?: boolean;
 };
@@ -24,13 +40,22 @@ if (!runtime.__solarisSupabaseOpaqueKeyFetchPatched && typeof runtime.fetch === 
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
 
+    const url = requestUrl(input);
     const authorization = headers.get("Authorization");
-    if (authorization?.startsWith("Bearer ")) {
-      const key = authorization.slice("Bearer ".length);
-      if (key.startsWith("sb_publishable_") || key.startsWith("sb_secret_")) {
-        headers.delete("Authorization");
-        headers.set("apikey", key);
-      }
+    const bearer = authorization?.startsWith("Bearer ")
+      ? authorization.slice("Bearer ".length)
+      : null;
+    const apiKey = headers.get("apikey");
+
+    if (
+      url.includes(CONFIRMATIONS_HOST) &&
+      (isOpaqueSupabaseKey(bearer) || isOpaqueSupabaseKey(apiKey))
+    ) {
+      headers.set("apikey", CONFIRMATIONS_LEGACY_ANON_KEY);
+      headers.set("Authorization", `Bearer ${CONFIRMATIONS_LEGACY_ANON_KEY}`);
+    } else if (isOpaqueSupabaseKey(bearer)) {
+      headers.delete("Authorization");
+      if (bearer) headers.set("apikey", bearer);
     }
 
     return baseFetch(input, { ...init, headers });
