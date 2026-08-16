@@ -31,7 +31,9 @@ function AuditLogPage() {
   });
 
   useEffect(() => {
-    if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
+    if (!adminLoading && !admin) {
+      void navigate({ to: "/auth", search: { redirect: "/televoting/admin/audit-log" } });
+    }
   }, [admin, adminLoading, navigate]);
 
   const { data: rows = [], isLoading, error } = useQuery<MergedAuditRow[]>({
@@ -76,7 +78,7 @@ function AuditLogPage() {
       <header className="mb-8">
         <div className="flex items-center gap-2 text-sky-100/65"><FileClock className="size-4" /><p className="text-[10px] uppercase tracking-[0.22em]">Administrator history</p></div>
         <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">Audit log</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Every merged result, round, moderation and account action continues writing to the existing Televoting audit table. This view makes that history inspectable inside Solaris Operations.</p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Trace Televoting result, round, moderation and integrity actions from Solaris organizers in one chronological history.</p>
       </header>
 
       <section className="glass mb-4 grid gap-3 p-4 lg:grid-cols-[1fr_220px_220px]">
