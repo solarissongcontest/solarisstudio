@@ -1,12 +1,20 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  BarChart3,
   Bell,
+  ClipboardCheck,
   Flag,
   Gauge,
+  History,
+  LayoutDashboard,
+  ListChecks,
+  PlayCircle,
   Settings,
+  ShieldAlert,
   Sparkles,
   Trophy,
   Users,
+  Vote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,21 +36,20 @@ export function AdminNav() {
 
   const activeEdition =
     editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort(
-      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-    )[0] ??
+    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
 
   const sections: Array<{ label: string; items: NavItem[] }> = [
     {
-      label: "Overview",
+      label: "Operations",
       items: [
-        { label: "Control Room", to: "/admin/control-room", icon: Gauge },
+        { label: "All systems", to: "/admin/operations", icon: LayoutDashboard },
+        { label: "Studio readiness", to: "/admin/control-room", icon: Gauge },
         { label: "Action Centre", to: "/admin/action-centre", icon: Bell },
       ],
     },
     {
-      label: "Contest",
+      label: "Solaris Studio",
       items: [
         { label: "Manage editions", to: "/admin", icon: Trophy, exact: true },
         ...(activeEdition
@@ -55,25 +62,32 @@ export function AdminNav() {
             ]
           : []),
         { label: "Hosting", to: "/admin/hosts", icon: Flag },
-      ],
-    },
-    {
-      label: "Engagement",
-      items: [
         { label: "Predictions", to: "/admin/predictions", icon: Sparkles },
-      ],
-    },
-    {
-      label: "Terra Solaris",
-      items: [
         { label: "Country accounts", to: "/admin/country-accounts", icon: Users },
       ],
     },
     {
-      label: "System",
+      label: "Confirmations",
       items: [
-        { label: "Deadlines & audit", to: "/admin/system", icon: Settings },
+        { label: "Responses", to: "/confirmations/admin/responses", icon: ClipboardCheck },
+        { label: "Rounds", to: "/confirmations/admin/rounds", icon: PlayCircle },
+        { label: "Editions", to: "/confirmations/admin/editions", icon: Trophy },
+        { label: "Countries", to: "/confirmations/admin/countries", icon: Flag },
       ],
+    },
+    {
+      label: "Televoting",
+      items: [
+        { label: "Rounds & entries", to: "/televoting/admin/rounds", icon: Vote },
+        { label: "Results", to: "/televoting/admin/results", icon: ListChecks },
+        { label: "Analytics", to: "/televoting/admin/analytics", icon: BarChart3 },
+        { label: "Integrity", to: "/televoting/admin/integrity", icon: ShieldAlert },
+        { label: "Audit log", to: "/televoting/admin/audit-log", icon: History },
+      ],
+    },
+    {
+      label: "System",
+      items: [{ label: "Deadlines & audit", to: "/admin/system", icon: Settings }],
     },
   ];
 
@@ -98,10 +112,10 @@ export function AdminNav() {
                   to={item.to as any}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-10 items-center gap-3 rounded-lg px-2.5 text-xs font-semibold transition-colors",
+                    "flex min-h-10 items-center gap-3 rounded-xl px-2.5 text-xs font-semibold transition-all",
                     active
-                      ? "bg-primary/12 text-primary"
-                      : "text-muted-foreground hover:bg-surface hover:text-foreground",
+                      ? "border border-sky-200/10 bg-sky-200/[0.09] text-sky-100 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]"
+                      : "border border-transparent text-muted-foreground hover:border-white/10 hover:bg-white/[0.045] hover:text-foreground",
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
