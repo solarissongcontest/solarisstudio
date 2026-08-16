@@ -54,7 +54,9 @@ function RoundsPage() {
   async function refresh(preferredEditionId?: string) {
     const rows = await loadConfirmationEditions();
     setEditions(rows);
-    setEditionId((current) => preferredEditionId ?? current || rows.find((item) => item.status === "active")?.id ?? rows[0]?.id ?? "");
+    setEditionId((current) =>
+      preferredEditionId ?? current || rows.find((item) => item.status === "active")?.id || rows[0]?.id || "",
+    );
   }
 
   useEffect(() => {
