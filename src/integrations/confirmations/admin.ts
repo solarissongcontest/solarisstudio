@@ -1,4 +1,5 @@
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { supabase as solarisSupabase } from "@/integrations/supabase/client";
 
 export type ConfirmationRound = {
   id: string;
@@ -61,21 +62,21 @@ export type ConfirmationRecoveryCode = {
 };
 
 export async function requireConfirmationsAdmin() {
-  const { data: sessionData, error: sessionError } =
-    await confirmationsSupabase.auth.getSession();
+  const { data: userData, error: userError } = await solarisSupabase.auth.getUser();
+  if (userError) throw userError;
 
-  if (sessionError) throw sessionError;
-
-  const user = sessionData.session?.user;
+  const user = userData.user;
   if (!user) return null;
 
-  const { data: isAdmin, error: roleError } = await confirmationsSupabase.rpc("has_role", {
-    _user_id: user.id,
-    _role: "admin",
-  });
+  const { data: role, error: roleError } = await solarisSupabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .eq("role", "organizer")
+    .maybeSingle();
 
   if (roleError) throw roleError;
-  return isAdmin === true ? user : null;
+  return role ? user : null;
 }
 
 export async function loadConfirmationEditions(): Promise<ConfirmationEdition[]> {
