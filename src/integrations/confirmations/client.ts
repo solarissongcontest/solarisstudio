@@ -41,8 +41,15 @@ function createConfirmationsClient() {
 
 let client: ReturnType<typeof createConfirmationsClient> | undefined;
 
-export const confirmationsSupabase = new Proxy({} as ReturnType<typeof createConfirmationsClient>, {
+type ConfirmationsClient = ReturnType<typeof createConfirmationsClient>;
+
+export const confirmationsSupabase = new Proxy({} as ConfirmationsClient, {
   get(_target, prop, receiver) {
+    // Legacy Confirmations admin pages still call `.auth.getSession()` and
+    // `.auth.signOut()`. Those calls now intentionally operate on the one
+    // Solaris Studio identity instead of creating a second auth universe.
+    if (prop === "auth") return Reflect.get(solarisSupabase, prop, solarisSupabase);
+
     if (!client) client = createConfirmationsClient();
     return Reflect.get(client, prop, receiver);
   },
