@@ -29,7 +29,7 @@ function ConfirmationsAdminSignIn() {
   useEffect(() => {
     void confirmationsSupabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        void navigate({ to: "/confirmations/admin/responses" });
+        void navigate({ to: "/confirmations/admin" });
       }
     });
   }, [navigate]);
@@ -67,7 +67,7 @@ function ConfirmationsAdminSignIn() {
         return;
       }
 
-      await navigate({ to: "/confirmations/admin/responses" });
+      await navigate({ to: "/confirmations/admin" });
     } finally {
       setBusy(false);
     }
@@ -89,7 +89,7 @@ function ConfirmationsAdminSignIn() {
             Organiser access
           </p>
           <h1 className="confirmations-display mt-3 text-4xl font-normal uppercase leading-none sm:text-5xl">
-            Responses
+            Control centre
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/55">
             Sign in with the same organiser account used on the existing Confirmations site.
