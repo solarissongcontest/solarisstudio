@@ -2,7 +2,7 @@ import "@/confirmations.css";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import { ConfirmationForm } from "@/components/ConfirmationForm";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,12 @@ function ConfirmationsPage() {
           <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3.5 py-2 text-xs text-white/70 backdrop-blur-xl transition hover:border-white/20 hover:text-white">
             <ArrowLeft className="size-3.5" /> Solaris Studio
           </Link>
-          <span className="text-[10px] font-medium uppercase tracking-[0.22em] text-white/40">Participation Portal</span>
+          <Link
+            to="/confirmations/admin/responses"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3.5 py-2 text-xs text-white/55 backdrop-blur-xl transition hover:border-white/20 hover:text-white"
+          >
+            <ShieldCheck className="size-3.5" /> Organiser
+          </Link>
         </div>
 
         <header className="mb-10 text-center sm:mb-12">
