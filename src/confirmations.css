@@ -177,6 +177,26 @@
   opacity: .78;
 }
 
+/* Inside Solaris Operations the Control Room owns the canvas, spacing and
+   navigation. Confirmations contributes the liquid-glass surfaces, not a
+   second full-screen app shell. */
+.admin-control-room .confirmations-theme {
+  min-height: 0 !important;
+  isolation: auto;
+  background: transparent !important;
+}
+
+.admin-control-room .confirmations-backdrop {
+  display: none !important;
+}
+
+.admin-control-room .confirmations-theme > main {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 @keyframes confirmations-rise {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
