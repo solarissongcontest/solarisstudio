@@ -2,7 +2,16 @@ import "@/confirmations.css";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock3, LockKeyhole, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  KeyRound,
+  ListPlus,
+  LockKeyhole,
+  ShieldCheck,
+} from "lucide-react";
 
 import { ConfirmationForm } from "@/components/ConfirmationForm";
 import { Button } from "@/components/ui/button";
@@ -80,13 +89,37 @@ function ConfirmationsPage() {
           </Link>
         </div>
 
-        <header className="mb-10 text-center sm:mb-12">
+        <header className="mb-8 text-center sm:mb-10">
           <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.28em] text-sky-200/70">Solaris Song Contest</p>
           <h1 className="confirmations-display text-5xl font-normal uppercase leading-[0.88] sm:text-7xl">Confirmations</h1>
           <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-white/58 sm:text-base">
             Confirm your participation, selection method and entry details. Your progress is saved while you work.
           </p>
         </header>
+
+        {!selected ? (
+          <div className="mb-8 grid gap-3 sm:grid-cols-2">
+            <Link to="/confirmations/recover" className="confirmations-surface flex items-center gap-4 p-4 transition hover:border-white/45">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-sky-200/15 bg-sky-200/10 text-sky-100">
+                <KeyRound className="size-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">Recover a response</p>
+                <p className="mt-1 text-xs text-white/42">Use your existing recovery code on this browser.</p>
+              </div>
+            </Link>
+
+            <Link to="/confirmations/next-in-line" className="confirmations-surface flex items-center gap-4 p-4 transition hover:border-white/45">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-sky-200/15 bg-sky-200/10 text-sky-100">
+                <ListPlus className="size-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">Next in Line</p>
+                <p className="mt-1 text-xs text-white/42">Respond if your country is offered a remaining place.</p>
+              </div>
+            </Link>
+          </div>
+        ) : null}
 
         {selected ? (
           <section>
