@@ -15,7 +15,6 @@ type RoundRow = {
   status: string;
   created_at: string;
 };
-
 type SubmissionRow = {
   id: string;
   round_id: string;
@@ -28,7 +27,6 @@ type SubmissionRow = {
   ip_country: string | null;
   is_vpn: boolean;
 };
-
 type VoteEntryRow = {
   submission_id: string;
   target_country_code: string;
@@ -51,13 +49,17 @@ function validateScope(scope: MergedAnalysisScope): MergedAnalysisScope {
       return { mode: "all_editions" };
     case "edition":
       if (!scope.editionId) throw new Error("Missing edition");
-      return { mode: "edition", editionId: scope.editionId };
+      return { mode: "edition", editionId: String(scope.editionId) };
     case "edition_range":
       if (!scope.fromEditionId || !scope.toEditionId) throw new Error("Missing edition range");
-      return { mode: "edition_range", fromEditionId: scope.fromEditionId, toEditionId: scope.toEditionId };
+      return {
+        mode: "edition_range",
+        fromEditionId: String(scope.fromEditionId),
+        toEditionId: String(scope.toEditionId),
+      };
     case "round":
       if (!scope.roundId) throw new Error("Missing round");
-      return { mode: "round", roundId: scope.roundId };
+      return { mode: "round", roundId: String(scope.roundId) };
   }
 }
 
@@ -67,6 +69,7 @@ async function resolveScope(scopeInput: MergedAnalysisScope) {
     televotingAdmin.from("editions").select("id,name,created_at").order("created_at", { ascending: true }),
     televotingAdmin.from("rounds").select("id,name,edition_id,status,created_at").order("created_at", { ascending: true }),
   ]);
+
   if (editionResult.error) throw new Error(editionResult.error.message);
   if (roundResult.error) throw new Error(roundResult.error.message);
 
@@ -104,19 +107,60 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
   const resolved = await resolveScope(scopeInput);
   const roundIds = resolved.rounds.map((round) => round.id);
   const roundMap = new Map(resolved.rounds.map((round) => [round.id, round]));
-  const editionMap = new Map(resolved.allEditions.map((edition) => [edition.id, edition]));
 
-  if (!roundIds.length) {
-    return {
-      scope: resolved,
-      overview: { ballots: 0, voterCountries: 0, editions: 0, rounds: 0, avgBallotPoints: 0, avgSupported: 0, avgRisk: 0, highRisk: 0, vpnBallots: 0 },
-      editionRows: [],
-      delegationRows: [],
-      targetRows: [],
-      scoreDistribution: new Array(10).fill(0),
-      dailyActivity: [],
-    };
-  }
+  const empty = {
+    scope: resolved,
+    overview: {
+      ballots: 0,
+      voterCountries: 0,
+      editions: resolved.editions.length,
+      rounds: resolved.rounds.length,
+      avgBallotPoints: 0,
+      avgSupported: 0,
+      avgRisk: 0,
+      highRisk: 0,
+      vpnBallots: 0,
+    },
+    editionRows: [] as Array<{
+      id: string;
+      name: string;
+      ballots: number;
+      voterCountries: number;
+      rounds: number;
+      points: number;
+      avgBallot: number;
+    }>,
+    delegationRows: [] as Array<{
+      identity: string;
+      name: string;
+      code: string;
+      flag: string | null;
+      flag_url: string | null;
+      ballots: number;
+      editions: number;
+      rounds: number;
+      avgBallot: number;
+      avgSupported: number;
+      avgRisk: number;
+      latest: string;
+    }>,
+    targetRows: [] as Array<{
+      entryKey: string;
+      name: string;
+      code: string;
+      image: string | null;
+      flag: string | null;
+      points: number;
+      scores: number;
+      maxScores: number;
+      rounds: number;
+      average: number;
+    }>,
+    scoreDistribution: new Array<number>(10).fill(0),
+    dailyActivity: [] as Array<{ date: string; ballots: number; voterCountries: number }>,
+  };
+
+  if (!roundIds.length) return empty;
 
   const { data: submissionsRaw, error: submissionError } = await televotingAdmin
     .from("vote_submissions")
@@ -128,14 +172,15 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
 
   const submissions = (submissionsRaw ?? []) as SubmissionRow[];
   const eligibleSubmissions = submissions.filter((submission) => submission.status !== "deleted");
-  const eligibleIds = new Set(eligibleSubmissions.map((submission) => submission.id));
+  const eligibleSubmissionMap = new Map(eligibleSubmissions.map((submission) => [submission.id, submission]));
+  const eligibleIds = [...eligibleSubmissionMap.keys()];
 
   let entries: VoteEntryRow[] = [];
-  if (eligibleIds.size) {
+  if (eligibleIds.length) {
     const { data: entryRows, error: entryError } = await televotingAdmin
       .from("vote_entries")
       .select("submission_id,target_country_code,points")
-      .in("submission_id", [...eligibleIds])
+      .in("submission_id", eligibleIds)
       .limit(250000);
     if (entryError) throw new Error(entryError.message);
     entries = (entryRows ?? []) as VoteEntryRow[];
@@ -160,6 +205,7 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
 
   const countries = countryResult.data ?? [];
   const countryLookup = new Map<string, (typeof countries)[number]>();
+  const countryByCode = new Map(countries.map((country) => [country.code, country]));
   for (const country of countries) {
     countryLookup.set(normalizeIdentity(country.code), country);
     countryLookup.set(normalizeIdentity(country.name), country);
@@ -171,7 +217,6 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
     image: string | null;
     flag: string | null;
   }>();
-  const countryByCode = new Map(countries.map((country) => [country.code, country]));
   for (const entry of roundEntryResult.data ?? []) {
     const country = entry.country_code ? countryByCode.get(entry.country_code) : undefined;
     entryCatalog.set(entry.entry_key, {
@@ -213,7 +258,9 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
   };
 
   const editionAgg = new Map<string, { ballots: number; voters: Set<string>; rounds: Set<string>; points: number }>();
-  for (const edition of resolved.editions) editionAgg.set(edition.id, { ballots: 0, voters: new Set(), rounds: new Set(), points: 0 });
+  for (const edition of resolved.editions) {
+    editionAgg.set(edition.id, { ballots: 0, voters: new Set<string>(), rounds: new Set<string>(), points: 0 });
+  }
   for (const submission of eligibleSubmissions) {
     const round = roundMap.get(submission.round_id);
     if (!round) continue;
@@ -222,20 +269,25 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
     bucket.ballots += 1;
     bucket.voters.add(normalizeIdentity(submission.country_code));
     bucket.rounds.add(submission.round_id);
-    bucket.points += (entriesBySubmission.get(submission.id) ?? []).reduce((sum, entry) => sum + Number(entry.points ?? 0), 0);
+    bucket.points += (entriesBySubmission.get(submission.id) ?? []).reduce(
+      (sum, entry) => sum + Number(entry.points ?? 0),
+      0,
+    );
   }
-  const editionRows = resolved.editions.map((edition) => {
-    const bucket = editionAgg.get(edition.id)!;
-    return {
-      id: edition.id,
-      name: edition.name,
-      ballots: bucket.ballots,
-      voterCountries: bucket.voters.size,
-      rounds: bucket.rounds.size,
-      points: bucket.points,
-      avgBallot: bucket.ballots ? bucket.points / bucket.ballots : 0,
-    };
-  }).filter((row) => row.ballots > 0);
+  const editionRows = resolved.editions
+    .map((edition) => {
+      const bucket = editionAgg.get(edition.id)!;
+      return {
+        id: edition.id,
+        name: edition.name,
+        ballots: bucket.ballots,
+        voterCountries: bucket.voters.size,
+        rounds: bucket.rounds.size,
+        points: bucket.points,
+        avgBallot: bucket.ballots ? bucket.points / bucket.ballots : 0,
+      };
+    })
+    .filter((row) => row.ballots > 0);
 
   const delegationAgg = new Map<string, {
     rawIdentity: string;
@@ -268,48 +320,61 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
     current.totalPoints += ballotEntries.reduce((sum, entry) => sum + Number(entry.points ?? 0), 0);
     current.supportedEntries += ballotEntries.filter((entry) => Number(entry.points ?? 0) > 0).length;
     current.totalRisk += Number(submission.risk_score ?? 0);
-    if (new Date(submission.created_at).getTime() > new Date(current.latest).getTime()) current.latest = submission.created_at;
+    if (new Date(submission.created_at).getTime() > new Date(current.latest).getTime()) {
+      current.latest = submission.created_at;
+    }
     delegationAgg.set(key, current);
   }
-  const delegationRows = [...delegationAgg.values()].map((row) => {
-    const country = countryLookup.get(normalizeIdentity(row.rawIdentity));
-    return {
-      identity: row.rawIdentity,
-      name: country?.name ?? row.rawIdentity || "Unresolved voter",
-      code: country?.code ?? row.rawIdentity,
-      flag: country?.flag ?? null,
-      flag_url: country?.flag_url ?? null,
-      ballots: row.ballots,
-      editions: row.editions.size,
-      rounds: row.rounds.size,
-      avgBallot: row.ballots ? row.totalPoints / row.ballots : 0,
-      avgSupported: row.ballots ? row.supportedEntries / row.ballots : 0,
-      avgRisk: row.ballots ? row.totalRisk / row.ballots : 0,
-      latest: row.latest,
-    };
-  }).sort((a, b) => b.ballots - a.ballots || a.name.localeCompare(b.name));
+
+  const delegationRows = [...delegationAgg.values()]
+    .map((row) => {
+      const country = countryLookup.get(normalizeIdentity(row.rawIdentity));
+      return {
+        identity: row.rawIdentity,
+        name: country?.name ?? (row.rawIdentity || "Unresolved voter"),
+        code: country?.code ?? row.rawIdentity,
+        flag: country?.flag ?? null,
+        flag_url: country?.flag_url ?? null,
+        ballots: row.ballots,
+        editions: row.editions.size,
+        rounds: row.rounds.size,
+        avgBallot: row.ballots ? row.totalPoints / row.ballots : 0,
+        avgSupported: row.ballots ? row.supportedEntries / row.ballots : 0,
+        avgRisk: row.ballots ? row.totalRisk / row.ballots : 0,
+        latest: row.latest,
+      };
+    })
+    .sort((a, b) => b.ballots - a.ballots || a.name.localeCompare(b.name));
 
   const targetAgg = new Map<string, { points: number; scores: number; maxScores: number; rounds: Set<string> }>();
   for (const entry of entries) {
-    const submission = eligibleSubmissions.find((row) => row.id === entry.submission_id);
-    const current = targetAgg.get(entry.target_country_code) ?? { points: 0, scores: 0, maxScores: 0, rounds: new Set<string>() };
+    const submission = eligibleSubmissionMap.get(entry.submission_id);
+    const current = targetAgg.get(entry.target_country_code) ?? {
+      points: 0,
+      scores: 0,
+      maxScores: 0,
+      rounds: new Set<string>(),
+    };
     current.points += Number(entry.points ?? 0);
     current.scores += 1;
     if (Number(entry.points ?? 0) >= 10) current.maxScores += 1;
     if (submission) current.rounds.add(submission.round_id);
     targetAgg.set(entry.target_country_code, current);
   }
-  const targetRows = [...targetAgg.entries()].map(([entryKey, value]) => ({
-    entryKey,
-    ...(entryCatalog.get(entryKey) ?? { name: entryKey, code: entryKey, image: null, flag: null }),
-    points: value.points,
-    scores: value.scores,
-    maxScores: value.maxScores,
-    rounds: value.rounds.size,
-    average: value.scores ? value.points / value.scores : 0,
-  })).sort((a, b) => b.points - a.points || b.average - a.average);
 
-  const scoreDistribution = new Array(10).fill(0) as number[];
+  const targetRows = [...targetAgg.entries()]
+    .map(([entryKey, value]) => ({
+      entryKey,
+      ...(entryCatalog.get(entryKey) ?? { name: entryKey, code: entryKey, image: null, flag: null }),
+      points: value.points,
+      scores: value.scores,
+      maxScores: value.maxScores,
+      rounds: value.rounds.size,
+      average: value.scores ? value.points / value.scores : 0,
+    }))
+    .sort((a, b) => b.points - a.points || b.average - a.average);
+
+  const scoreDistribution = new Array<number>(10).fill(0);
   for (const entry of entries) {
     const points = Number(entry.points ?? 0);
     if (points >= 1 && points <= 10) scoreDistribution[points - 1] += 1;
@@ -324,11 +389,14 @@ export async function getMergedScopedAnalyticsServer(scopeInput: MergedAnalysisS
     current.voterCountries.add(normalizeIdentity(submission.country_code));
     dailyMap.set(key, current);
   }
-  const dailyActivity = [...dailyMap.entries()].map(([date, value]) => ({
-    date,
-    ballots: value.ballots,
-    voterCountries: value.voterCountries.size,
-  })).sort((a, b) => a.date.localeCompare(b.date));
+
+  const dailyActivity = [...dailyMap.entries()]
+    .map(([date, value]) => ({
+      date,
+      ballots: value.ballots,
+      voterCountries: value.voterCountries.size,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     scope: resolved,
