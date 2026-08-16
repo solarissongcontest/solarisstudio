@@ -22,7 +22,7 @@ function ParticipatePage() {
       <PageHeader
         eyebrow="Participation"
         title="Take part in Solaris"
-        description="Confirm your delegation, manage an existing response, or enter the live televote. The operational tools that used to live on separate sites now have one front door."
+        description="Confirm your delegation, manage an existing response, or enter the live televote from one Solaris participation portal."
       />
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -44,7 +44,7 @@ function ParticipatePage() {
             Confirmations
           </h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            Confirm participation, selection method and entry information. Existing responses, recovery codes, edits and Next in Line all remain connected to the same live Confirmations system.
+            Confirm participation, selection method and entry information. Recover or edit an existing response and join Next in Line from the same module.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-white/45">
@@ -72,7 +72,7 @@ function ParticipatePage() {
             Televoting
           </h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            See the live voting round, review the rules and cast a ballot when voting is open. The merged booth preserves the existing duplicate and integrity checks instead of replacing them with a decorative submit button.
+            See the live voting round, review the rules and cast a ballot when voting is open, with duplicate and integrity checks applied automatically.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-white/45">
@@ -83,9 +83,9 @@ function ParticipatePage() {
       </section>
 
       <section className="mt-5 glass p-5 sm:p-6">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">One Solaris Studio</p>
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">One Solaris front door</p>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          Confirmations and Televoting currently keep their proven databases behind the merged interface while the final backend consolidation is completed. That means the old operational data remains live and synchronized during the transition rather than being copied into a second temporary universe.
+          Delegation confirmations and audience voting use the same Solaris navigation and design language, so participants can move between contest information and participation without leaving Studio.
         </p>
       </section>
     </AppShell>
