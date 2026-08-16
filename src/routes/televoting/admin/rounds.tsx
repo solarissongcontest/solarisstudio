@@ -162,8 +162,8 @@ function TelevotingRoundsPage() {
 
                 <div className="mt-4 rounded-xl border border-white/8 bg-black/10 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div><p className="text-sm font-medium">Participant entries</p><p className="mt-1 text-xs text-muted-foreground">Country, custom and mixed entry editing is the next Televoting admin module being transplanted.</p></div>
-                    <Button size="sm" variant="outline" disabled><Layers3 className="size-3.5" /> Manage {round.entry_count} entries</Button>
+                    <div><p className="text-sm font-medium">Participant entries</p><p className="mt-1 text-xs text-muted-foreground">Manage country, custom and mixed entries, ordering and self-voting rules.</p></div>
+                    <Button asChild size="sm" variant="outline"><Link to="/televoting/admin/rounds/$id/entries" params={{ id: round.id }}><Layers3 className="size-3.5" /> Manage {round.entry_count} entries</Link></Button>
                   </div>
                 </div>
               </article>
