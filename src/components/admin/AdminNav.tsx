@@ -2,6 +2,8 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   Bell,
+  Blend,
+  BrainCircuit,
   ClipboardCheck,
   Flag,
   Gauge,
@@ -13,6 +15,7 @@ import {
   ShieldAlert,
   Sparkles,
   Trophy,
+  UserCog,
   Users,
   Vote,
   type LucideIcon,
@@ -80,8 +83,11 @@ export function AdminNav() {
       items: [
         { label: "Rounds & entries", to: "/televoting/admin/rounds", icon: Vote },
         { label: "Results", to: "/televoting/admin/results", icon: ListChecks },
+        { label: "Combined results", to: "/televoting/admin/combined", icon: Blend },
         { label: "Analytics", to: "/televoting/admin/analytics", icon: BarChart3 },
+        { label: "Intelligence", to: "/televoting/admin/intelligence", icon: BrainCircuit },
         { label: "Integrity", to: "/televoting/admin/integrity", icon: ShieldAlert },
+        { label: "Admin accounts", to: "/televoting/admin/accounts", icon: UserCog },
         { label: "Audit log", to: "/televoting/admin/audit-log", icon: History },
       ],
     },
