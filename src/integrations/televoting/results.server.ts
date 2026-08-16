@@ -3,7 +3,21 @@ import { televotingPublicServer } from "@/integrations/televoting/public.server"
 
 type TelevotingClient = typeof televotingPublicServer;
 
-type PublishedResultsPayload = {
+export type PublishedResultRow = {
+  entry_key: string;
+  country_code: string | null;
+  original_votes: number;
+  final_points: number;
+  original_rank: number;
+  rank_factor?: number;
+  weighted_score?: number;
+  exact_points?: number;
+  floored_points?: number;
+  decimal_remainder?: number;
+  remainder_bonus?: number;
+};
+
+export type PublishedResultsPayload = {
   round: {
     id: string;
     name: string;
@@ -14,7 +28,21 @@ type PublishedResultsPayload = {
     advanced: boolean;
     broadcast_mode: "original" | "converted" | "combined";
   } | null;
-  rows: Array<Record<string, unknown>>;
+  rows: PublishedResultRow[];
+};
+
+type RawPublishedResultRow = {
+  entry_key?: string | null;
+  country_code?: string | null;
+  original_votes?: number | string | null;
+  final_points?: number | string | null;
+  original_rank?: number | string | null;
+  rank_factor?: number | string | null;
+  weighted_score?: number | string | null;
+  exact_points?: number | string | null;
+  floored_points?: number | string | null;
+  decimal_remainder?: number | string | null;
+  remainder_bonus?: number | string | null;
 };
 
 async function readPublishedResults(
@@ -69,23 +97,25 @@ async function readPublishedResults(
   if (resultError) throw new Error(resultError.message);
 
   const advanced = Boolean(round.public_advanced_transparency);
-  const rows = ((results ?? []) as Array<Record<string, unknown>>).map((result) => ({
-    entry_key: String(result.entry_key ?? result.country_code ?? ""),
-    country_code: result.country_code ? String(result.country_code) : null,
-    original_votes: Number(result.original_votes ?? 0),
-    final_points: Number(result.final_points ?? 0),
-    original_rank: Number(result.original_rank ?? 0),
-    ...(advanced
-      ? {
-          rank_factor: Number(result.rank_factor ?? 0),
-          weighted_score: Number(result.weighted_score ?? 0),
-          exact_points: Number(result.exact_points ?? 0),
-          floored_points: Number(result.floored_points ?? 0),
-          decimal_remainder: Number(result.decimal_remainder ?? 0),
-          remainder_bonus: Number(result.remainder_bonus ?? 0),
-        }
-      : {}),
-  }));
+  const rows: PublishedResultRow[] = ((results ?? []) as RawPublishedResultRow[]).map(
+    (result) => ({
+      entry_key: String(result.entry_key ?? result.country_code ?? ""),
+      country_code: result.country_code ? String(result.country_code) : null,
+      original_votes: Number(result.original_votes ?? 0),
+      final_points: Number(result.final_points ?? 0),
+      original_rank: Number(result.original_rank ?? 0),
+      ...(advanced
+        ? {
+            rank_factor: Number(result.rank_factor ?? 0),
+            weighted_score: Number(result.weighted_score ?? 0),
+            exact_points: Number(result.exact_points ?? 0),
+            floored_points: Number(result.floored_points ?? 0),
+            decimal_remainder: Number(result.decimal_remainder ?? 0),
+            remainder_bonus: Number(result.remainder_bonus ?? 0),
+          }
+        : {}),
+    }),
+  );
 
   return {
     round: {
@@ -109,7 +139,9 @@ function hasAdminBackend() {
   );
 }
 
-export async function getMergedPublishedTelevotingResultsServer(roundId?: string) {
+export async function getMergedPublishedTelevotingResultsServer(
+  roundId?: string,
+): Promise<PublishedResultsPayload> {
   try {
     const publicResult = await readPublishedResults(televotingPublicServer, roundId);
 
