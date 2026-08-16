@@ -73,22 +73,3 @@ export async function requireMergedTelevotingAdminServer() {
   const organizer = await requireSolarisOrganizerServer();
   return asOperationalAdmin(organizer);
 }
-
-// Compatibility exports remain only because a few old imports still exist.
-// They no longer validate Televoting credentials or create a Televoting
-// session: the current Solaris organizer session is the entire login flow.
-export async function loginMergedTelevotingAdminServer(_data: {
-  username: string;
-  password: string;
-}) {
-  const admin = await requireMergedTelevotingAdminServer();
-  return {
-    id: admin.id,
-    username: admin.username,
-    is_super_admin: admin.is_super_admin,
-  };
-}
-
-export async function logoutMergedTelevotingAdminServer() {
-  return { ok: true };
-}
