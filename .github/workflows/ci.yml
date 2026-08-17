@@ -92,17 +92,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          URL="https://merge-confirmations-solarisstudio.solaris-song-contest.workers.dev/api/televoting-health"
-          for attempt in $(seq 1 15); do
-            if body=$(curl --fail --silent --show-error --max-time 15 "$URL"); then
-              echo "Televoting health: $body"
-              exit 0
-            fi
-            echo "Deployment not ready yet (attempt $attempt/15); retrying..."
-            sleep 8
-          done
-          echo "::error::Could not reach the temporary Televoting health endpoint."
-          exit 1
+          URL="https://e492621d-solarisstudio.solaris-song-contest.workers.dev/api/televoting-health"
+          body=$(curl --fail --silent --show-error --max-time 20 "$URL")
+          echo "Televoting health: $body"
 
       - name: Quality summary
         if: always()
