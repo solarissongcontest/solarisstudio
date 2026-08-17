@@ -1,51 +1,59 @@
-# Solaris Studio unified merge status
+# Solaris Studio unified production status
 
-The unified product is implemented on `merge/confirmations` and remains isolated from `main` until the final Cloudflare runtime smoke checks are complete.
+Solaris Studio, Confirmations and Televoting are now unified on the canonical `main` branch. PR #12 was merged after the unified branch passed the full quality pipeline. `main` is the production source of truth and must not be replaced with an older pre-integration branch.
 
-## Completed
+## Production baseline
 
 - Solaris Studio remains the canonical contest application and database.
-- Confirmations is integrated under `/confirmations` with canonical edition/country/entry projections.
-- Televoting is integrated under `/televoting` with unified Solaris organizer authentication.
+- Confirmations is integrated under `/confirmations` with its existing backend and recovery flows preserved.
+- Televoting is integrated under `/televoting` with the merged voting booth, results tooling and unified Solaris organizer authentication.
+- `/participate` is the shared public participation entry point.
 - Results, Combined Results, analytics, Integrity and Friend Voting are inside the unified Control Room.
-- Jury + Televoting analytics use canonical Solaris history.
-- Historical HOD identity/tenure modelling is implemented, including delegation defaults and jury/televote overrides.
-- HOD-aware Friend Voting uses distinct controller editions as the independent historical sample.
-- Configurable relationship thresholds, weights, risk bands and HOD coordination-group analysis are implemented.
-- Friend-voting model changes are atomically recorded in `admin_audit_log` with before/after values.
-- Sync Health separates technical synchronization from historical HOD-coverage debt.
-- Generated TanStack route trees are no longer committed in Solaris Studio; production builds regenerate and verify them.
-- Solaris Studio production build, TypeScript, unit tests, lint and route-tree checks pass on the unified implementation.
-- The unified implementation builds successfully for Cloudflare Workers.
-- The integration branch has been reconciled with the current `main` history and PR #12 is merge-clean.
-- Privileged Televoting access is now Cloudflare-native. Solaris Studio connects directly to the Televoting Supabase backend from server-only code instead of proxying admin requests through a Lovable/Vote Hub runtime.
-- The Televoting service-role credential is read only from the Cloudflare Worker secret `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY`; it is not stored in `wrangler.jsonc`, `.env`, browser code or any committed source.
-- `wrangler.jsonc` declares `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY` as a required Cloudflare secret, so a Wrangler deployment cannot silently proceed without the privileged backend credential.
-- Televoting admin readiness is checked directly from the Cloudflare server runtime after Solaris organizer authentication.
-- Public Televoting views remain on the browser-safe publishable key and are kept separate from the privileged server client.
+- Historical HOD identity/tenure modelling and HOD-aware Friend Voting remain part of the unified build.
+- Generated TanStack route trees are not committed; production builds regenerate and verify them.
+- The canonical `main` build passes production build, route generation, TypeScript, unit tests and lint.
+- The application builds for Cloudflare Workers.
+
+## Public beta readiness
+
+The public beta polish is included in `main`:
+
+- Public empty states no longer expose organizer instructions or migration/backend jargon.
+- Stale `Solaris Labs`, implementation-phase and TODO copy has been removed from the checked public surfaces.
+- Result Lab, Taste DNA, Broadcast Intelligence and Solaris Pulse use visitor-facing unavailable/empty states.
+- The sitemap derives its absolute origin from the incoming Cloudflare request instead of a blank production placeholder.
+- The beta form numbering and tool naming have been cleaned up.
+- Regression tests guard selected public surfaces against implementation-language leaks.
+- The beta feedback table accepts anonymous write-only submissions while keeping responses unreadable to anonymous visitors.
+- Beta screenshots use the private `beta-feedback` bucket with an 8 MB limit and image-only MIME restrictions.
+
+## Database runtime repaired for beta
+
+Production migration drift affecting public engagement tools was repaired and recorded back into Git migration history.
+
+- Publication-layer RLS now respects participant, result and detailed-voting publication switches.
+- Prediction Arena policies and submission/consensus/share RPCs are restored.
+- Solaris Pulse follows, read state, notification preferences, event automation and prediction movement are restored.
+- Taste DNA private ballot validation and RLS are restored.
+- Trigger-only security-definer functions restored for these features are not exposed as direct anonymous/authenticated RPCs.
+
+## Televoting Cloudflare runtime
+
+Privileged Televoting access is Cloudflare-native. Solaris Studio connects directly to the Televoting Supabase backend from server-only code instead of proxying admin requests through a Lovable/Vote Hub runtime.
+
+- The privileged credential is read only from the Cloudflare Worker secret `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY`.
+- `wrangler.jsonc` declares that secret as required.
+- Public Televoting remains on its browser-safe publishable client.
+- The service-role credential must never be committed to GitHub, placed in Wrangler `vars`, exposed through a `VITE_` variable or returned to browser code.
+
+The GitHub and Supabase sides are ready. The Cloudflare account is not exposed through the connected project tools, so the presence of the live Worker secret and the resulting deployed runtime health cannot be verified from this repository alone. If the secret is present in the `solarisstudio` Worker, the current `main` tree is the intended deployment target.
 
 ## Legacy standalone Vote Hub
 
-The standalone `solarissongcontest/ssc-tele` application is no longer part of the Solaris Studio production request path. Its previous `/api/solaris-admin-proxy` bridge may be retained temporarily as rollback/reference code, but Solaris Studio does not require Lovable or a published Vote Hub runtime to operate.
+The standalone `solarissongcontest/ssc-tele` application is not part of the Solaris Studio production request path. Its old proxy code may remain as rollback/reference material, but it is not a deployment dependency for unified Solaris Studio.
 
-Any standalone Vote Hub TypeScript/package-lock debt can therefore be maintained separately and does not block the Solaris Studio unification.
+## Data intentionally retained
 
-## Data still requiring organizer input
+Historical HOD identities and assignments are not inferred as fact; they remain organizer-managed through `/admin/hod-history`.
 
-Historical HOD identities and assignments are intentionally not inferred as fact. The registry can be populated through `/admin/hod-history`; username evidence only produces reviewable suggestions.
-
-## Final Cloudflare cutover checks
-
-Before PR #12 leaves draft status and is merged to `main`:
-
-1. Confirm the Cloudflare Worker `solarisstudio` has a Secret variable named `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY` containing the Televoting Supabase service-role/secret key.
-2. Deploy or preview the current `merge/confirmations` build on Cloudflare.
-3. Sign in with a real Solaris organizer account and confirm Televoting admin readiness reports healthy.
-4. Exercise at least one privileged Televoting admin read and one safe write path, including a write that may legitimately return an empty successful PostgREST response.
-5. Re-run the unified public/admin smoke checks, then mark PR #12 ready for merge.
-
-The service-role key must remain a Cloudflare Secret. It must never be committed to GitHub, added to Wrangler `vars`, exposed through a `VITE_` variable, or returned to browser code.
-
-## Deliberately retained rollback data
-
-Unused legacy/copied tables are not being destructively dropped during the merge. They are inert rollback insurance until the unified deployment has been exercised in production and can be removed later through a separately reviewed data-retirement migration.
+Unused legacy/copied tables are not being destructively dropped during the beta. They remain inert rollback insurance until the unified deployment has been exercised and can be retired through a separately reviewed migration.
