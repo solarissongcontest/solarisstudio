@@ -28,7 +28,7 @@ export const betaSectionsExtra: BetaSection[] = [
   {
     id: "tools",
     title: "Interactive tools",
-    task: { body: "Explore any Solaris Labs tools that interest you. You will only get follow-up questions for the tools you actually tried.", href: "/tools", linkLabel: "Open Solaris Labs" },
+    task: { body: "Explore any Solaris Studio tools that interest you. You will only get follow-up questions for the tools you actually tried.", href: "/tools", linkLabel: "Open Tools" },
     questions: [
       { id: "toolsTried", label: "52. Which of these did you try?", type: "multi", options: ["Result Lab", "Prediction Arena", "Taste DNA", "Broadcast Intelligence", "Archive Games", "None of these"] },
       { id: "resultLabClear", label: "53A. Was it clear what Result Lab allowed you to do?", type: "rating", lowLabel: "Not at all", highLabel: "Completely", showWhen: { id: "toolsTried", includes: "Result Lab" } },
@@ -94,8 +94,8 @@ export const betaSectionsExtra: BetaSection[] = [
     questions: [
       { id: "priorityOne", label: "67. Imagine Solaris Studio launches TOMORROW. What is the ONE thing you would most want fixed first?", type: "textarea", required: true, placeholder: "The most important thing to improve is ___ because ___.", helper: "A few words is enough. Pick the thing that would matter most, not merely the easiest thing to fix." },
       { id: "priorityTwo", label: "68. Priority #2", type: "text", helper: "Optional." },
-      { id: "priorityThree", label: "68. Priority #3", type: "text", helper: "Optional." },
-      { id: "priorityFour", label: "68. Priority #4", type: "text", helper: "Optional." },
+      { id: "priorityThree", label: "68A. Priority #3", type: "text", helper: "Optional." },
+      { id: "priorityFour", label: "68B. Priority #4", type: "text", helper: "Optional." },
       { id: "mostFinished", label: "69. Which part currently feels MOST finished?", type: "single", options: productAreas },
       { id: "leastFinished", label: "70. Which part currently feels LEAST finished?", type: "single", options: productAreas },
       { id: "missMost", label: "71. If one part disappeared completely, which would you MISS the most?", type: "single", options: productAreas, helper: "This helps distinguish features that are merely nice from features that actually give Solaris Studio value." },
