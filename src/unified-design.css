@@ -75,9 +75,11 @@ body {
     url("/IMG_8815.jpeg");
 }
 
-.font-display,
+/* Classica Crastao is a display face, not a card/UI face. Keep it for major
+   page and section headlines only; smaller headings inherit Gotham below. */
 .page-header h1,
-h1.font-display {
+h1.font-display,
+h2.font-display {
   font-family: "Classica Crastao", Georgia, serif !important;
   font-weight: 400 !important;
   text-transform: uppercase;
