@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - merge/confirmations
   pull_request:
     branches:
       - main
