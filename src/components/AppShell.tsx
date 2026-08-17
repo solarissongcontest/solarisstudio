@@ -241,7 +241,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               label="Insights"
               active={insightsActive}
               items={INSIGHTS_NAV}
-              footer={{ to: "/tools", label: "Open Solaris Labs", description: "Result Lab, Taste DNA, comparisons and archive games" }}
+              footer={{ to: "/tools", label: "Open tools", description: "Result Lab, Taste DNA, comparisons and archive games" }}
             />
 
             <Link
@@ -358,7 +358,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   Predictions
                 </Link>
                 <Link to="/tools" className={mobileDrawerLink(anyPathMatches(pathname, TOOL_ROUTES))}>
-                  Solaris Labs
+                  Tools
                 </Link>
                 <Link to="/participate" className={mobileDrawerLink(participateActive)}>
                   Participate
