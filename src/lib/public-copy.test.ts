@@ -3,15 +3,19 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const PUBLIC_ROUTES = [
+  "src/components/AppShell.tsx",
   "src/routes/archive-games/index.tsx",
   "src/routes/broadcast-intelligence/index.tsx",
+  "src/routes/confirmations/index.tsx",
   "src/routes/me/index.tsx",
+  "src/routes/participate/index.tsx",
   "src/routes/predictions/index.tsx",
   "src/routes/predictions/$showId.tsx",
   "src/routes/predictions/share/$token.tsx",
   "src/routes/pulse/index.tsx",
   "src/routes/result-lab/index.tsx",
   "src/routes/taste-dna/index.tsx",
+  "src/routes/televoting/index.tsx",
   "src/routes/sitemap[.]xml.ts",
   "src/features/beta-test/sections-extra.ts",
 ];
@@ -29,6 +33,8 @@ const FORBIDDEN_PUBLIC_COPY = [
   /TODO:/i,
   /Solaris Labs/i,
   /Lovable/i,
+  /missing the public Televoting connection/i,
+  /deployment is missing/i,
 ];
 
 describe("public product copy", () => {
