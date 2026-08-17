@@ -19,3 +19,5 @@ Changed/added source files:
 - src/routes/relationships/index.tsx
 - src/routes/shows/$showId.tsx
 - src/styles.css
+
+Final finishing pass in progress: remaining public detail/intelligence/admin surfaces are being normalized to the same responsive editorial system before final CI validation.
