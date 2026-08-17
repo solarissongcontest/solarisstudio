@@ -26,7 +26,7 @@ export type CountryCharacter = {
 
 function hasMultipleLanguages(value?: string | null) {
   if (!value) return false;
-  return /,|;|\band\b|\&/i.test(value);
+  return /,|;|\band\b|&/i.test(value);
 }
 
 function governmentTag(value?: string | null) {
