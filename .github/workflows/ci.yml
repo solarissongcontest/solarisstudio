@@ -78,19 +78,7 @@ jobs:
           fi
 
       - name: TypeScript
-        shell: bash
-        run: |
-          set -o pipefail
-          bun run typecheck 2>&1 | tee typecheck.log
-
-      - name: Upload TypeScript diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: typecheck-log
-          path: typecheck.log
-          if-no-files-found: ignore
-          retention-days: 1
+        run: bun run typecheck
 
       - name: Unit tests
         run: bun test
