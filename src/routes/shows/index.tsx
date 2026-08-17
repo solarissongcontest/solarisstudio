@@ -54,9 +54,9 @@ function ShowsPage() {
   const cards = useMemo<ShowCard[]>(() => {
     return (shows ?? [])
       .filter(isShowPublic)
-      .map((show) => {
+      .flatMap<ShowCard>((show) => {
         const edition = editionMap.get(show.edition_id);
-        if (!edition?.published) return null;
+        if (!edition?.published) return [];
 
         const showResults = (results ?? [])
           .filter((result) => result.show_id === show.id && result.final_rank != null)
@@ -64,16 +64,17 @@ function ShowsPage() {
         const winnerResult =
           showResults.find((result) => result.final_rank === 1) ?? showResults[0] ?? null;
 
-        return {
+        const card: ShowCard = {
           show,
           edition,
           winner: winnerResult ? countryMap.get(winnerResult.country_id) ?? null : null,
-          winnerPoints: winnerResult?.total_points ?? null,
+          winnerPoints: winnerResult ? winnerResult.total_points : null,
           entryCount: showResults.length,
           hasResults: showPublishesResults(show) && showResults.length > 0,
         };
+
+        return [card];
       })
-      .filter((card): card is ShowCard => Boolean(card))
       .sort((a, b) => {
         const editionDiff =
           (b.edition.edition_number ?? -1) - (a.edition.edition_number ?? -1);
