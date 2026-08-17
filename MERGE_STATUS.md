@@ -1,6 +1,6 @@
 # Solaris Studio unified merge status
 
-The unified product is implemented on `merge/confirmations` and remains isolated from `main` until the final Televoting runtime cutover checks are complete.
+The unified product is implemented on `merge/confirmations` and remains isolated from `main` until the final Cloudflare runtime smoke checks are complete.
 
 ## Completed
 
@@ -15,37 +15,36 @@ The unified product is implemented on `merge/confirmations` and remains isolated
 - Friend-voting model changes are atomically recorded in `admin_audit_log` with before/after values.
 - Sync Health separates technical synchronization from historical HOD-coverage debt.
 - Generated TanStack route trees are no longer committed in Solaris Studio; production builds regenerate and verify them.
-- Solaris Studio production build, TypeScript, unit tests, lint and route-tree checks all pass on the current merge implementation.
-- The current merge implementation also builds successfully in Cloudflare Workers preview.
-- The Solaris Televoting bridge client now preserves legitimate empty successful PostgREST responses such as `204 No Content`, HEAD and count-style requests instead of incorrectly requiring JSON for every success.
-- The guarded Vote Hub bridge source is implemented in `solarissongcontest/ssc-tele` as `/api/solaris-admin-proxy`.
-- Vote Hub CI now verifies a production build, verifies that TanStack generates `/api/solaris-admin-proxy`, and performs bridge-specific TypeScript validation. Those bridge checks pass.
-- Solaris Studio is already prewired to the intended bridge endpoint `https://ssc-tele.lovable.app/api/solaris-admin-proxy` in `wrangler.jsonc`; no privileged Vote Hub secret is stored in Solaris Studio.
+- Solaris Studio production build, TypeScript, unit tests, lint and route-tree checks pass on the unified implementation.
+- The unified implementation builds successfully for Cloudflare Workers.
+- The integration branch has been reconciled with the current `main` history and PR #12 is merge-clean.
+- Privileged Televoting access is now Cloudflare-native. Solaris Studio connects directly to the Televoting Supabase backend from server-only code instead of proxying admin requests through a Lovable/Vote Hub runtime.
+- The Televoting service-role credential is read only from the Cloudflare Worker secret `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY`; it is not stored in `wrangler.jsonc`, `.env`, browser code or any committed source.
+- `wrangler.jsonc` declares `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY` as a required Cloudflare secret, so a Wrangler deployment cannot silently proceed without the privileged backend credential.
+- Televoting admin readiness is checked directly from the Cloudflare server runtime after Solaris organizer authentication.
+- Public Televoting views remain on the browser-safe publishable key and are kept separate from the privileged server client.
 
-## Known standalone Vote Hub debt that does not block the bridge
+## Legacy standalone Vote Hub
 
-The legacy standalone Vote Hub currently has two unrelated full-repository TypeScript errors: one historical Friend Voting group type mismatch and one `round_entries` query inference cast in the rounds admin screen. They pre-date the Solaris bridge and do not prevent the production build or bridge route validation. They should be cleaned separately rather than mixed into the unification cutover.
+The standalone `solarissongcontest/ssc-tele` application is no longer part of the Solaris Studio production request path. Its previous `/api/solaris-admin-proxy` bridge may be retained temporarily as rollback/reference code, but Solaris Studio does not require Lovable or a published Vote Hub runtime to operate.
 
-The standalone repository's checked-in package lockfiles are also stale relative to its current `package.json`; bridge CI resolves the current dependency graph so it can validate the deployable source instead of failing before compilation.
+Any standalone Vote Hub TypeScript/package-lock debt can therefore be maintained separately and does not block the Solaris Studio unification.
 
 ## Data still requiring organizer input
 
 Historical HOD identities and assignments are intentionally not inferred as fact. The registry can be populated through `/admin/hod-history`; username evidence only produces reviewable suggestions.
 
-## Remaining external cutover blocker
+## Final Cloudflare cutover checks
 
-The bridge source is implemented and validated in GitHub, but it is not yet present in the actual Lovable Solaris Vote Hub runtime. The Lovable project is still on its older internal project state and is currently unpublished. Publishing that stale state as-is would therefore deploy a build without `/api/solaris-admin-proxy`.
+Before PR #12 leaves draft status and is merged to `main`:
 
-Before this PR can leave draft status:
+1. Confirm the Cloudflare Worker `solarisstudio` has a Secret variable named `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY` containing the Televoting Supabase service-role/secret key.
+2. Deploy or preview the current `merge/confirmations` build on Cloudflare.
+3. Sign in with a real Solaris organizer account and confirm Televoting admin readiness reports healthy.
+4. Exercise at least one privileged Televoting admin read and one safe write path, including a write that may legitimately return an empty successful PostgREST response.
+5. Re-run the unified public/admin smoke checks, then mark PR #12 ready for merge.
 
-1. Sync the guarded `/api/solaris-admin-proxy` route from the current `ssc-tele` source into the real Lovable Solaris Vote Hub project.
-2. Publish the Vote Hub runtime with its existing server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` configuration.
-3. Confirm the published route is reachable at the endpoint already configured in Solaris Studio. Only change `TELEVOTING_ADMIN_BRIDGE_URL` if Lovable publishes under a different slug/domain.
-4. Validate the bridge health request with a real Solaris organizer session.
-5. Exercise at least one privileged Televoting admin read and one safe write path through Solaris Studio, including a write that may legitimately return an empty success response.
-6. Re-run the unified smoke checks, then mark PR #12 ready for merge.
-
-No Vote Hub service-role key may be moved into Solaris Studio, committed to GitHub, exposed to browser code, or copied into a public configuration value.
+The service-role key must remain a Cloudflare Secret. It must never be committed to GitHub, added to Wrangler `vars`, exposed through a `VITE_` variable, or returned to browser code.
 
 ## Deliberately retained rollback data
 
