@@ -10,7 +10,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { CountryProfileExtension } from "@/components/CountryProfileExtension";
 import { EditionHostingExtension } from "@/components/EditionHostingExtension";
@@ -150,24 +150,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  const roleItems = useMemo(() => {
-    const items: Array<{ to: string; label: string }> = [];
+  const roleItems: Array<{ to: string; label: string }> = [];
 
-    if (access.isOrganizer) {
-      items.push({ to: "/admin/operations", label: "Organizer workspace" });
-    }
+  if (access.isOrganizer) {
+    roleItems.push({ to: "/admin/operations", label: "Organizer workspace" });
+  }
 
-    if (access.countryId) {
-      items.push({ to: "/country-hub", label: "My country" });
-    } else if (email) {
-      items.push({
-        to: "/country-hub",
-        label: access.isOrganizer ? "Claim country" : "Country setup",
-      });
-    }
-
-    return items;
-  }, [access.isOrganizer, access.countryId, email]);
+  if (access.countryId) {
+    roleItems.push({ to: "/country-hub", label: "My country" });
+  } else if (email) {
+    roleItems.push({
+      to: "/country-hub",
+      label: access.isOrganizer ? "Claim country" : "Country setup",
+    });
+  }
 
   const signOut = async () => {
     await supabase.auth.signOut();
