@@ -42,13 +42,13 @@ function getTelevotingAdminConfig() {
 
   const serviceRoleKey = process.env.TELEVOTING_SUPABASE_SERVICE_ROLE_KEY;
 
-  const missing = [
-    ...(!url ? ["TELEVOTING_SUPABASE_URL"] : []),
-    ...(!projectId ? ["TELEVOTING_SUPABASE_PROJECT_ID"] : []),
-    ...(!serviceRoleKey ? ["TELEVOTING_SUPABASE_SERVICE_ROLE_KEY"] : []),
-  ];
+  if (!url || !projectId || !serviceRoleKey) {
+    const missing = [
+      ...(!url ? ["TELEVOTING_SUPABASE_URL"] : []),
+      ...(!projectId ? ["TELEVOTING_SUPABASE_PROJECT_ID"] : []),
+      ...(!serviceRoleKey ? ["TELEVOTING_SUPABASE_SERVICE_ROLE_KEY"] : []),
+    ];
 
-  if (missing.length) {
     throw new Error(
       `Missing server-side Televoting configuration: ${missing.join(", ")}. Configure the service-role key as a Cloudflare Worker secret.`,
     );
