@@ -75,12 +75,56 @@ body {
     url("/IMG_8815.jpeg");
 }
 
-.font-display,
+/*
+ * Typography system
+ * -----------------
+ * Classica Crastao is a headline face. `font-display` used to turn every card,
+ * stat and utility heading into Classica; keep that legacy utility harmless by
+ * default and explicitly opt major headings back into the display face below.
+ */
+.font-display {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  text-transform: none !important;
+  letter-spacing: inherit !important;
+}
+
 .page-header h1,
-h1.font-display {
+h1.font-display,
+h2.display-headline,
+h2.font-display[class*="text-xl"],
+h2.font-display[class*="text-2xl"],
+h2.font-display[class*="text-3xl"],
+h2.font-display[class*="text-4xl"],
+h2.font-display[class*="text-5xl"],
+h2.font-display[class*="text-6xl"],
+.site-nav .font-display {
   font-family: "Classica Crastao", Georgia, serif !important;
   font-weight: 400 !important;
-  text-transform: uppercase;
+  text-transform: uppercase !important;
+  letter-spacing: 0.025em !important;
+}
+
+/* Never let display typography leak back into cards, stats or utility modules. */
+.glass h2.font-display,
+.glass-strong h2.font-display,
+.data-panel h2.font-display,
+.surface h2.font-display,
+h3.font-display,
+h4.font-display,
+h5.font-display,
+h6.font-display,
+.numeric.font-display {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  font-weight: inherit !important;
+  text-transform: none !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Editorial section headings are intentionally the one reusable H2 exception. */
+.editorial-section h2.font-display {
+  font-family: "Classica Crastao", Georgia, serif !important;
+  font-weight: 400 !important;
+  text-transform: uppercase !important;
   letter-spacing: 0.025em !important;
 }
 
@@ -143,6 +187,27 @@ a {
 
 .public-drawer {
   box-shadow: -24px 0 70px rgba(0, 3, 18, 0.36);
+}
+
+/* Shared page geometry. */
+.app-main {
+  width: 100%;
+  min-width: 0;
+  padding-bottom: calc(6.6rem + env(safe-area-inset-bottom)) !important;
+}
+
+.app-main > *,
+.app-main section,
+.app-main article,
+.app-main .grid > * {
+  min-width: 0;
+}
+
+.app-main .glass,
+.app-main .glass-strong,
+.app-main .data-panel,
+.app-main .surface {
+  overflow-wrap: anywhere;
 }
 
 .page-header {
@@ -296,10 +361,20 @@ a[class*="rounded-lg"] {
 @media (min-width: 1024px) {
   .app-main {
     padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
   }
 }
 
 @media (max-width: 767px) {
+  .page-header {
+    margin-bottom: 1.15rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .page-header h1 {
+    font-size: clamp(1.9rem, 9vw, 2.65rem) !important;
+  }
+
   .data-panel,
   .surface {
     border-radius: 0.875rem !important;
