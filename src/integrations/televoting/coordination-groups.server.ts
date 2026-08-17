@@ -70,7 +70,6 @@ export async function getCoordinationGroupsServer(
     televotingAdmin
       .from("vote_submissions")
       .select("id,round_id,country_code,status")
-      .neq("status", "deleted")
       .limit(50000),
   ]);
   if (roundResult.error) throw new Error(roundResult.error.message);
@@ -94,6 +93,9 @@ export async function getCoordinationGroupsServer(
   }
 
   const submissions = (submissionResult.data ?? []).filter((submission) => {
+    // Legacy ballots may have NULL status. Only an explicit deleted state is
+    // excluded so historical group analysis matches the main Intelligence engine.
+    if (submission.status === "deleted") return false;
     const editionId = canonicalEditionByRound.get(String(submission.round_id));
     if (!editionId) return false;
     if (options.editionId && editionId !== options.editionId) return false;
