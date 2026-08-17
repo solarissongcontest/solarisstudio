@@ -47,8 +47,9 @@ async function recordAutoSyncEvent(
 
 /**
  * Refresh every already-bound Televoting round for an edition that is still a
- * mutable draft. Open, closed and frozen rounds are deliberately never changed
- * automatically, so submitted ballots and historical results remain immutable.
+ * mutable draft and behind the canonical Solaris data revision. Open, closed
+ * and frozen rounds are deliberately never changed automatically, so submitted
+ * ballots and historical results remain immutable.
  */
 export async function autoSyncDraftTelevotingRoundsForEditionServer(
   editionId: string,
@@ -64,14 +65,33 @@ export async function autoSyncDraftTelevotingRoundsForEditionServer(
     failed: [],
   };
 
-  const { data: bindings, error: bindingError } = await db
-    .from("televoting_round_bindings")
-    .select("remote_round_id,source_mode,show_id,frozen_at")
-    .eq("edition_id", editionId);
+  const [{ data: edition, error: editionError }, { data: bindings, error: bindingError }] = await Promise.all([
+    db.from("editions").select("data_revision").eq("id", editionId).maybeSingle(),
+    db
+      .from("televoting_round_bindings")
+      .select("remote_round_id,source_mode,show_id,frozen_at,last_synced_at,last_synced_revision")
+      .eq("edition_id", editionId),
+  ]);
+  if (editionError) throw new Error(editionError.message);
+  if (!edition) throw new Error("Canonical Solaris edition not found");
   if (bindingError) throw new Error(bindingError.message);
   if (!bindings?.length) return summary;
 
-  const roundIds = bindings.map((binding: any) => String(binding.remote_round_id));
+  const currentRevision = Number(edition.data_revision ?? 0);
+  const staleBindings = bindings.filter((binding: any) => {
+    const syncedRevision = Number(binding.last_synced_revision ?? 0);
+    const stale = !binding.last_synced_at || syncedRevision < currentRevision;
+    if (!stale) {
+      summary.skipped.push({
+        roundId: String(binding.remote_round_id),
+        reason: "up_to_date",
+      });
+    }
+    return stale;
+  });
+  if (!staleBindings.length) return summary;
+
+  const roundIds = staleBindings.map((binding: any) => String(binding.remote_round_id));
   const { data: rounds, error: roundError } = await televotingAdmin
     .from("rounds")
     .select("id,status")
@@ -82,7 +102,7 @@ export async function autoSyncDraftTelevotingRoundsForEditionServer(
     (rounds ?? []).map((round) => [String(round.id), String(round.status)]),
   );
 
-  for (const binding of bindings) {
+  for (const binding of staleBindings) {
     const roundId = String(binding.remote_round_id);
     const status = statusByRound.get(roundId);
 
