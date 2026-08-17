@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { IntelligenceChannel, IntelligenceLens } from "@/integrations/televoting/intelligence.server";
 
+type IntelligenceEditionFilter = {
+  id: string;
+  name: string;
+  editionNumber: number | null;
+};
+
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator((data?: {
     lens?: IntelligenceLens;
@@ -15,5 +21,12 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
   }))
   .handler(async ({ data }) => {
     const { getMergedIntelligenceServer } = await import("@/integrations/televoting/intelligence.server");
-    return getMergedIntelligenceServer(data);
+    const result = await getMergedIntelligenceServer(data);
+    return {
+      ...result,
+      filters: {
+        ...result.filters,
+        editions: result.filters.editions as IntelligenceEditionFilter[],
+      },
+    };
   });
