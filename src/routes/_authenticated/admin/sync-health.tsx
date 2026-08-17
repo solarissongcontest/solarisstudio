@@ -9,7 +9,6 @@ import {
   Link2,
   RefreshCw,
   Snowflake,
-  Vote,
 } from "lucide-react";
 
 import { getUnifiedSyncHealth } from "@/integrations/unified/sync-health.functions";
