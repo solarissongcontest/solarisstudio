@@ -6,6 +6,11 @@ export const getHodHistory = createServerFn({ method: "GET" }).handler(async () 
   return getHodHistoryServer();
 });
 
+export const getHodIdentitySuggestions = createServerFn({ method: "GET" }).handler(async () => {
+  const { getHodIdentitySuggestionsServer } = await import("@/integrations/unified/hod-suggestions.server");
+  return getHodIdentitySuggestionsServer();
+});
+
 export const saveHodPerson = createServerFn({ method: "POST" })
   .inputValidator((data: { id?: string; displayName: string; identityKey?: string; notes?: string | null }) => {
     const displayName = String(data?.displayName ?? "").trim();
