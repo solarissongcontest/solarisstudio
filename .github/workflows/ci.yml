@@ -44,8 +44,8 @@ jobs:
         run: |
           set -euo pipefail
           rm -f src/routeTree.gen.ts
-          echo "Removed cached/generated route tree."
-          echo "The production build will regenerate it from src/routes."
+          echo "Removed any local generated route tree."
+          echo "The production build must regenerate it from src/routes."
 
       - name: Production build
         run: bun run build
@@ -60,22 +60,19 @@ jobs:
           fi
           echo "routeTree.gen.ts generated successfully."
 
-      - name: Report generated route-tree drift
+      - name: Verify generated route tree is untracked
         shell: bash
         run: |
           set -euo pipefail
-          if ! git diff --quiet -- src/routeTree.gen.ts; then
-            echo "::warning::src/routeTree.gen.ts differs from the generated route tree."
-            echo "Generated route-tree diff:"
-            git --no-pager diff -- src/routeTree.gen.ts || true
-            {
-              echo "### ⚠️ Generated route tree changed"
-              echo
-              echo "TanStack Router successfully regenerated \`src/routeTree.gen.ts\`."
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Committed route tree matches a fresh generation."
+          if git ls-files --error-unmatch src/routeTree.gen.ts >/dev/null 2>&1; then
+            echo "::error::src/routeTree.gen.ts must not be committed; it is generated during build."
+            exit 1
           fi
+          if ! git check-ignore -q src/routeTree.gen.ts; then
+            echo "::error::src/routeTree.gen.ts must be ignored."
+            exit 1
+          fi
+          echo "Generated route tree is correctly untracked and ignored."
 
       - name: TypeScript
         run: bun run typecheck
@@ -84,7 +81,6 @@ jobs:
         run: bun test
 
       - name: Lint
-        continue-on-error: true
         run: bun run lint
 
       - name: Quality summary
@@ -96,9 +92,10 @@ jobs:
             echo "### Solaris Studio quality run"
             echo
             echo "- Fresh dependency install: completed"
-            echo "- Fresh TanStack route generation: completed during build"
-            echo "- Production build: completed before static checks"
+            echo "- Fresh TanStack route generation: verified"
+            echo "- Generated route tree: untracked and ignored"
+            echo "- Production build: executed"
             echo "- TypeScript: executed"
             echo "- Unit tests: executed"
-            echo "- Lint: executed as non-blocking"
+            echo "- Lint: executed as a blocking quality gate"
           } >> "$GITHUB_STEP_SUMMARY"
