@@ -1,6 +1,7 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { loadCanonicalVotingContextServer, canonicalEditionForRound } from "@/integrations/televoting/canonical-context.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { calculateFriendVotingRisk } from "@/integrations/televoting/friend-voting-math";
 
 export type IntelligenceLens = "hod" | "country";
 export type IntelligenceChannel = "combined" | "televote" | "jury";
@@ -137,7 +138,6 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
     if (code && !countryName.has(code)) countryName.set(code, String((country as any).name));
   }
 
-  const roundById = new Map(rounds.map((round) => [round.id, round]));
   const canonicalEditionByRound = new Map<string, string>();
   for (const round of rounds) {
     const canonicalId = canonicalEditionForRound(canonical, round);
@@ -193,11 +193,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       const editionLabel = displayEdition(canonical.hod.editionsById.get(editionId));
       if (hod) hodEditionCoverage.add(`${editionId}:${voterCode}`);
       else unknownHodEditionCoverage.add(`${editionId}:${voterCode}`);
-      const identity = lens === "country"
-        ? `country:${voterCode}`
-        : hod
-          ? `hod:${hod.personId}`
-          : `unknown:${editionId}:${voterCode}`;
+      const identity = lens === "country" ? `country:${voterCode}` : hod ? `hod:${hod.personId}` : `unknown:${editionId}:${voterCode}`;
       const ballotEntries = entriesBySubmission.get(submission.id) ?? [];
       const points = new Map(ballotEntries.map((entry) => [String(entry.target_country_code).toUpperCase(), Number(entry.points || 0)]));
       const maxScore = Math.max(0, ...points.values());
@@ -251,11 +247,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       const editionLabel = displayEdition(canonical.hod.editionsById.get(first.edition_id));
       if (hod) hodEditionCoverage.add(`${first.edition_id}:${voterCode}`);
       else unknownHodEditionCoverage.add(`${first.edition_id}:${voterCode}`);
-      const identity = lens === "country"
-        ? `country:${voterCode}`
-        : hod
-          ? `hod:${hod.personId}`
-          : `unknown:${first.edition_id}:${voterCode}`;
+      const identity = lens === "country" ? `country:${voterCode}` : hod ? `hod:${hod.personId}` : `unknown:${first.edition_id}:${voterCode}`;
       const scoreByTarget = new Map<string, number>();
       for (const vote of ballotVotes) {
         if (!vote.receiving_country_id) continue;
@@ -356,43 +348,20 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
     const normalizedAverage = value.opportunities ? value.normalizedTotal / value.opportunities : 0;
     const uniqueEditions = value.editions.size;
     const crossChannelEditions = [...value.supportChannelsByEdition.values()].filter((channels) => channels.has("jury") && channels.has("televote")).length;
-    const sampleConfidence = Math.min(1, uniqueEditions / 4) * Math.min(1, value.opportunities / 8);
-    let risk = sampleConfidence * 20;
-    const reasons: string[] = [];
-
-    if (uniqueEditions >= 3 && supportFrequency >= 0.75) {
-      risk += 22;
-      reasons.push(`Repeated support in ${pct(supportFrequency)}% of observed opportunities across ${uniqueEditions} editions`);
-    }
-    if (uniqueEditions >= 3 && maximumFrequency >= 0.45) {
-      risk += 16;
-      reasons.push(`Maximum-score concentration ${pct(maximumFrequency)}%`);
-    }
-    if (uniqueEditions >= 2 && reciprocalSupport >= 0.6) {
-      risk += 16;
-      reasons.push(`Reciprocal support in ${pct(reciprocalSupport)}% of comparable observations`);
-    }
-    if (uniqueEditions >= 2 && normalizedAverage >= 0.5) {
-      risk += 10;
-      reasons.push(`High score intensity (${pct(normalizedAverage)}% of available maximum on average)`);
-    }
-    if (crossChannelEditions >= 2) {
-      risk += Math.min(10, crossChannelEditions * 3);
-      reasons.push(`Same controller supported the target in both jury and televote in ${crossChannelEditions} editions`);
-    }
-
-    // Jury + televote made by one HOD in one edition are correlated evidence,
-    // not two independent people. Confidence therefore comes from distinct
-    // editions first, while cross-channel repetition adds only a modest bonus.
-    if (uniqueEditions < 2) risk = Math.min(risk, 29);
-    else if (uniqueEditions < 3) risk = Math.min(risk, 49);
+    const risk = calculateFriendVotingRisk({
+      uniqueEditions,
+      opportunities: value.opportunities,
+      supportFrequency,
+      maximumFrequency,
+      reciprocalSupport,
+      normalizedAverage,
+      crossChannelEditions,
+    });
 
     const votingCodes = [...value.votingCountries].sort();
     const votingNames = votingCodes.map((code) => countryName.get(code) ?? code);
     const targetName = countryName.get(value.targetCode) ?? value.targetCode;
-    const identityLabel = lens === "hod"
-      ? value.controllerName ?? votingNames.join(" / ")
-      : votingNames.join(" / ");
+    const identityLabel = lens === "hod" ? value.controllerName ?? votingNames.join(" / ") : votingNames.join(" / ");
     const televoteFrequency = value.televote.opportunities ? value.televote.supported / value.televote.opportunities : 0;
     const juryFrequency = value.jury.opportunities ? value.jury.supported / value.jury.opportunities : 0;
 
@@ -421,9 +390,9 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       juryOpportunities: value.jury.opportunities,
       jurySupportFrequency: pct(juryFrequency),
       juryPoints: value.jury.points,
-      riskScore: Math.min(100, Math.round(risk)),
-      confidence: Math.round(sampleConfidence * 100),
-      reasons,
+      riskScore: risk.riskScore,
+      confidence: risk.confidence,
+      reasons: risk.reasons,
     });
   }
   relationships.sort((a, b) => b.riskScore - a.riskScore || b.uniqueEditions - a.uniqueEditions || b.opportunities - a.opportunities);
