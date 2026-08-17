@@ -34,6 +34,7 @@ type Tool = {
 const studioTools: Tool[] = [
   { label: "Studio readiness", description: "Contest-wide warnings, missing setup and operational health.", to: "/admin/control-room", icon: Gauge },
   { label: "Action Centre", description: "Deadlines, warnings and the next organizer actions that need attention.", to: "/admin/action-centre", icon: Bell },
+  { label: "Sync Health", description: "Canonical editions, Confirmations links, Televoting projections and unresolved sync drift.", to: "/admin/sync-health", icon: Activity },
   { label: "Manage editions", description: "Create editions and control the core Solaris contest structure.", to: "/admin", icon: Trophy },
   { label: "Hosting", description: "Manage host countries, cities and multi-host edition details.", to: "/admin/hosts", icon: Flag },
   { label: "Country accounts", description: "Delegation access, country ownership and organizer intervention controls.", to: "/admin/country-accounts", icon: Users },
