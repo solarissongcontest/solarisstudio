@@ -33,10 +33,18 @@ export type SyncHealthEvent = {
   updatedAt: string;
 };
 
+export type TelevotingRuntimeHealth = {
+  status: "healthy" | "unavailable";
+  reachable: boolean;
+  organizerCompatibilityReady: boolean;
+  message: string;
+};
+
 export type SyncHealthSummary = {
   generatedAt: string;
   editions: SyncHealthEdition[];
   recentProblems: SyncHealthEvent[];
+  televotingRuntime: TelevotingRuntimeHealth;
   totals: {
     confirmationLinks: number;
     televotingBindings: number;
@@ -56,6 +64,28 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
     await requireSolarisOrganizerServer();
     const db = supabaseAdmin as any;
 
+    const runtimeProbe = (async (): Promise<TelevotingRuntimeHealth> => {
+      try {
+        const { requireMergedTelevotingAdminServer } = await import("@/integrations/televoting/admin-session.server");
+        await requireMergedTelevotingAdminServer();
+        return {
+          status: "healthy",
+          reachable: true,
+          organizerCompatibilityReady: true,
+          message: "Televoting admin bridge is reachable and the compatibility admin identity is ready.",
+        };
+      } catch (caught) {
+        const raw = caught instanceof Error ? caught.message : "Televoting runtime check failed.";
+        const message = raw.length > 260 ? `${raw.slice(0, 257)}…` : raw;
+        return {
+          status: "unavailable",
+          reachable: false,
+          organizerCompatibilityReady: false,
+          message,
+        };
+      }
+    })();
+
     const [
       editionsResult,
       participantsResult,
@@ -65,6 +95,7 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
       eventsResult,
       hodPeopleResult,
       hodAssignmentsResult,
+      televotingRuntime,
     ] = await Promise.all([
       db.from("editions").select("id,edition_number,name,status,data_revision").order("edition_number", { ascending: false, nullsFirst: false }),
       db.from("participants").select("edition_id,country_id,participation_status"),
@@ -74,6 +105,7 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
       db.from("integration_events").select("id,service,event_type,status,remote_id,last_error,updated_at").in("status", ["failed", "pending", "retrying"]).order("updated_at", { ascending: false }).limit(30),
       db.from("delegation_people").select("id"),
       db.from("delegation_hod_assignments").select("edition_id,country_id,channel"),
+      runtimeProbe,
     ]);
 
     for (const result of [editionsResult, participantsResult, entriesResult, linksResult, bindingsResult, eventsResult, hodPeopleResult, hodAssignmentsResult]) {
@@ -151,6 +183,7 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
       generatedAt: new Date().toISOString(),
       editions,
       recentProblems,
+      televotingRuntime,
       totals: {
         confirmationLinks: links.filter((row: any) => row.service === "confirmations").length,
         televotingBindings: bindings.length,
