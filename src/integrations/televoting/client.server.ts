@@ -1,122 +1,85 @@
 import { createClient } from "@supabase/supabase-js";
-import { getRequestHeader } from "@tanstack/react-start/server";
 
-function getBridgeConfig() {
+function isNewSupabaseApiKey(value: string): boolean {
+  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
+}
+
+function createSupabaseFetch(supabaseKey: string): typeof fetch {
+  return (input, init) => {
+    const headers = new Headers(
+      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
+    );
+
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    }
+
+    // New Supabase API keys are opaque strings rather than bearer JWTs.
+    // Keep the privileged key in the apikey header only when Supabase's client
+    // attempts to mirror it into Authorization.
+    if (
+      isNewSupabaseApiKey(supabaseKey) &&
+      headers.get("Authorization") === `Bearer ${supabaseKey}`
+    ) {
+      headers.delete("Authorization");
+    }
+
+    headers.set("apikey", supabaseKey);
+    return fetch(input, { ...init, headers });
+  };
+}
+
+function getTelevotingAdminConfig() {
   const url =
     process.env.TELEVOTING_SUPABASE_URL ||
     process.env.VITE_TELEVOTING_SUPABASE_URL ||
     import.meta.env.VITE_TELEVOTING_SUPABASE_URL;
 
-  const publishableKey =
-    process.env.TELEVOTING_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_TELEVOTING_SUPABASE_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_TELEVOTING_SUPABASE_PUBLISHABLE_KEY;
+  const projectId =
+    process.env.TELEVOTING_SUPABASE_PROJECT_ID ||
+    process.env.VITE_TELEVOTING_SUPABASE_PROJECT_ID ||
+    import.meta.env.VITE_TELEVOTING_SUPABASE_PROJECT_ID;
 
-  const bridgeUrl = process.env.TELEVOTING_ADMIN_BRIDGE_URL;
+  const serviceRoleKey = process.env.TELEVOTING_SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !publishableKey || !bridgeUrl) {
-    throw new Error("Televoting admin bridge is not configured on this deployment yet.");
+  if (!url || !projectId || !serviceRoleKey) {
+    const missing = [
+      ...(!url ? ["TELEVOTING_SUPABASE_URL"] : []),
+      ...(!projectId ? ["TELEVOTING_SUPABASE_PROJECT_ID"] : []),
+      ...(!serviceRoleKey ? ["TELEVOTING_SUPABASE_SERVICE_ROLE_KEY"] : []),
+    ];
+
+    throw new Error(
+      `Missing server-side Televoting configuration: ${missing.join(", ")}. Configure the service-role key as a Cloudflare Worker secret.`,
+    );
   }
 
-  return { url, publishableKey, bridgeUrl };
-}
-
-function serializeHeaders(source: Headers) {
-  const result: Record<string, string> = {};
-  source.forEach((value, key) => {
-    const lower = key.toLowerCase();
-    if (lower === "apikey" || lower === "authorization" || lower === "host") return;
-    result[key] = value;
-  });
-  return result;
-}
-
-async function requestBody(input: RequestInfo | URL, init?: RequestInit) {
-  if (init?.body == null) {
-    if (typeof Request !== "undefined" && input instanceof Request) {
-      const method = input.method.toUpperCase();
-      if (method !== "GET" && method !== "HEAD") return input.clone().text();
-    }
-    return null;
+  const parsed = new URL(url);
+  const expectedHost = `${projectId}.supabase.co`;
+  if (parsed.protocol !== "https:" || parsed.hostname !== expectedHost) {
+    throw new Error(
+      `Televoting backend mismatch: expected https://${expectedHost}, received ${parsed.origin}.`,
+    );
   }
 
-  if (typeof init.body === "string") return init.body;
-  if (init.body instanceof URLSearchParams) return init.body.toString();
-
-  throw new Error("Unsupported Televoting admin request body.");
-}
-
-function createBridgeFetch(bridgeUrl: string): typeof fetch {
-  return async (input, init) => {
-    const authorization = getRequestHeader("authorization");
-    if (!authorization?.startsWith("Bearer ")) {
-      throw new Error("Solaris organizer authentication is missing.");
-    }
-
-    const accessToken = authorization.slice("Bearer ".length).trim();
-    if (!accessToken) throw new Error("Solaris organizer authentication is missing.");
-
-    const request = typeof Request !== "undefined" && input instanceof Request ? input : null;
-    const headers = new Headers(request?.headers);
-    if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-    }
-
-    const method = (init?.method || request?.method || "GET").toUpperCase();
-    const url =
-      typeof input === "string"
-        ? input
-        : input instanceof URL
-          ? input.toString()
-          : request?.url ?? String(input);
-
-    const response = await fetch(bridgeUrl, {
-      method: "POST",
-      redirect: "manual",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "x-solaris-access-token": accessToken,
-      },
-      body: JSON.stringify({
-        url,
-        method,
-        headers: serializeHeaders(headers),
-        body: await requestBody(input, init),
-      }),
-    });
-
-    const contentType = response.headers.get("content-type") ?? "";
-    if (
-      response.type === "opaqueredirect" ||
-      (response.status >= 300 && response.status < 400) ||
-      contentType.includes("text/html")
-    ) {
-      throw new Error(
-        "The Televoting admin bridge is not publicly reachable. Publish the Lovable ssc-tele app and point Solaris Studio at its public URL.",
-      );
-    }
-
-    // Successful PostgREST operations are not guaranteed to return JSON.
-    // PATCH/DELETE with `return=minimal`, HEAD requests and count-only calls
-    // can legitimately return an empty body. Preserve the bridge response and
-    // let supabase-js interpret the upstream status/body itself.
-    return response;
-  };
+  return { url, serviceRoleKey };
 }
 
 function createTelevotingAdminClient() {
-  const { url, publishableKey, bridgeUrl } = getBridgeConfig();
+  const { url, serviceRoleKey } = getTelevotingAdminConfig();
 
-  // The Lovable-hosted ssc-tele runtime keeps the privileged Supabase key.
-  // Solaris Studio uses the public project key only to construct Supabase REST
-  // requests, then forwards those requests through the guarded Lovable bridge.
-  return createClient(url, publishableKey, {
-    global: { fetch: createBridgeFetch(bridgeUrl) },
+  // This module is server-only. Cloudflare supplies the privileged key at
+  // runtime through TELEVOTING_SUPABASE_SERVICE_ROLE_KEY, so no service-role
+  // credential is shipped to the browser or committed to the repository.
+  return createClient(url, serviceRoleKey, {
+    global: {
+      fetch: createSupabaseFetch(serviceRoleKey),
+    },
     auth: {
       storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
   });
 }

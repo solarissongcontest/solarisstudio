@@ -1,0 +1,19 @@
+/*
+ * Solaris display-type boundary.
+ *
+ * Display typography belongs to major editorial/page headlines. Card titles,
+ * utility headings and numeric stats stay in the surrounding UI typeface even
+ * when older components still carry Tailwind's `font-display` utility.
+ */
+h3.font-display,
+h4.font-display,
+h5.font-display,
+h6.font-display,
+.numeric.font-display,
+.glass h2.font-display,
+.data-panel h2.font-display,
+.surface h2.font-display {
+  font-family: inherit !important;
+  text-transform: none !important;
+  letter-spacing: -0.02em !important;
+}

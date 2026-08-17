@@ -9,8 +9,10 @@
   },
   "vars": {
     "TELEVOTING_SUPABASE_PROJECT_ID": "nyzmftjbuaegmrjyypqv",
-    "TELEVOTING_SUPABASE_URL": "https://nyzmftjbuaegmrjyypqv.supabase.co",
-    "TELEVOTING_ADMIN_BRIDGE_URL": "https://ssc-tele.lovable.app/api/solaris-admin-proxy"
+    "TELEVOTING_SUPABASE_URL": "https://nyzmftjbuaegmrjyypqv.supabase.co"
+  },
+  "secrets": {
+    "required": ["TELEVOTING_SUPABASE_SERVICE_ROLE_KEY"]
   },
   "observability": {
     "enabled": true

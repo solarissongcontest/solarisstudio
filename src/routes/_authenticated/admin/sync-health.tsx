@@ -42,7 +42,7 @@ function SyncHealthPage() {
             <Link to="/admin/operations" className="text-xs text-muted-foreground hover:text-foreground">← Solaris Operations</Link>
             <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-sky-200/15 bg-sky-200/[0.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-100/75"><GitMerge className="h-3.5 w-3.5" /> Canonical data</div>
             <h1 className="font-display mt-3 text-5xl uppercase leading-none sm:text-6xl">Sync Health</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">One place to see whether Confirmations and Televoting still agree with Solaris Studio, whether the Televoting compatibility runtime is actually reachable, and how much historical voting data can be attributed to known HOD tenures.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">One place to see whether Confirmations and Televoting still agree with Solaris Studio, whether the privileged Televoting backend is reachable from Cloudflare, and how much historical voting data can be attributed to known HOD tenures.</p>
           </div>
           <button type="button" onClick={() => void refetch()} disabled={isFetching} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.05] px-4 text-xs font-semibold disabled:opacity-60"><RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} /> Refresh health</button>
         </div>
@@ -80,12 +80,12 @@ function SyncHealthPage() {
                   </div>
                   <p className="mt-2 max-w-4xl break-words text-xs leading-relaxed text-muted-foreground">{data.televotingRuntime.message}</p>
                   {data.televotingRuntime.status !== "healthy" ? (
-                    <p className="mt-2 text-[11px] leading-relaxed text-amber-100/70">Canonical Solaris data can remain healthy while this compatibility runtime is unavailable. Televoting organizer pages that depend on the legacy backend should not be considered deployment-ready until this card turns healthy.</p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-amber-100/70">Canonical Solaris data can remain healthy while the privileged Televoting connection is unavailable. Confirm the Cloudflare Worker secret and Televoting Supabase configuration before treating organizer voting tools as deployment-ready.</p>
                   ) : null}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:w-[230px]">
-                <RuntimeStat label="Bridge" ready={data.televotingRuntime.reachable} />
+                <RuntimeStat label="Backend" ready={data.televotingRuntime.reachable} />
                 <RuntimeStat label="Admin identity" ready={data.televotingRuntime.organizerCompatibilityReady} />
               </div>
             </div>

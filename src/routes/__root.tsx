@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import unifiedCss from "../unified-design.css?url";
 import accessibilityCss from "../accessibility.css?url";
 import anniversaryCss from "../anniversary.css?url";
+import cardTypographyCss from "../card-typography.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -102,6 +103,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: unifiedCss },
       { rel: "stylesheet", href: accessibilityCss },
       { rel: "stylesheet", href: anniversaryCss },
+      { rel: "stylesheet", href: cardTypographyCss },
     ],
   }),
   shellComponent: RootShell,

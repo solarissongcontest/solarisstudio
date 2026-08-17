@@ -1,9 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-// TODO: replace with the production origin once a permanent custom domain is set.
-const BASE_URL = "";
-
 interface SitemapEntry {
   path: string;
   changefreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
@@ -13,7 +10,8 @@ interface SitemapEntry {
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
+        const baseUrl = new URL(request.url).origin;
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/editions", changefreq: "weekly", priority: "0.9" },
@@ -71,7 +69,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         const urls = entries.map((entry) =>
           [
             `  <url>`,
-            `    <loc>${BASE_URL}${entry.path}</loc>`,
+            `    <loc>${baseUrl}${entry.path}</loc>`,
             entry.changefreq ? `    <changefreq>${entry.changefreq}</changefreq>` : null,
             entry.priority ? `    <priority>${entry.priority}</priority>` : null,
             `  </url>`,

@@ -12,6 +12,8 @@ const PUBLIC_ROUTES = [
   "src/routes/pulse/index.tsx",
   "src/routes/result-lab/index.tsx",
   "src/routes/taste-dna/index.tsx",
+  "src/routes/sitemap[.]xml.ts",
+  "src/features/beta-test/sections-extra.ts",
 ];
 
 const FORBIDDEN_PUBLIC_COPY = [
@@ -23,6 +25,9 @@ const FORBIDDEN_PUBLIC_COPY = [
   /database clock/i,
   /migration is live/i,
   /private prediction tables/i,
+  /Publish\s+(?:the\s+)?overall/i,
+  /TODO:/i,
+  /Solaris Labs/i,
   /Lovable/i,
 ];
 
