@@ -33,6 +33,12 @@ type NavItem = {
   exact?: boolean;
 };
 
+type NavSection = {
+  label: string;
+  description: string;
+  items: NavItem[];
+};
+
 export function AdminNav() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { editionId } = useAdminContext();
@@ -43,17 +49,19 @@ export function AdminNav() {
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
 
-  const sections: Array<{ label: string; items: NavItem[] }> = [
+  const sections: NavSection[] = [
     {
       label: "Operations",
+      description: "What needs attention now",
       items: [
-        { label: "All systems", to: "/admin/operations", icon: LayoutDashboard },
+        { label: "Operations", to: "/admin/operations", icon: LayoutDashboard },
         { label: "Studio readiness", to: "/admin/control-room", icon: Gauge },
         { label: "Action Centre", to: "/admin/action-centre", icon: Bell },
       ],
     },
     {
-      label: "Solaris Studio",
+      label: "Contest data",
+      description: "Editions, countries and hosting",
       items: [
         { label: "Manage editions", to: "/admin", icon: Trophy, exact: true },
         ...(activeEdition
@@ -66,17 +74,17 @@ export function AdminNav() {
             ]
           : []),
         { label: "Hosting", to: "/admin/hosts", icon: Flag },
-        { label: "Predictions", to: "/admin/predictions", icon: Sparkles },
         { label: "Country accounts", to: "/admin/country-accounts", icon: Users },
+        { label: "Predictions", to: "/admin/predictions", icon: Sparkles },
       ],
     },
     {
       label: "Confirmations",
+      description: "Delegation intake and eligibility",
       items: [
         { label: "Overview", to: "/confirmations/admin", icon: ClipboardCheck, exact: true },
         { label: "Responses", to: "/confirmations/admin/responses", icon: ClipboardCheck },
         { label: "Rounds", to: "/confirmations/admin/rounds", icon: PlayCircle },
-        { label: "Editions", to: "/confirmations/admin/editions", icon: Trophy },
         { label: "Countries", to: "/confirmations/admin/countries", icon: Flag },
         { label: "Calendar", to: "/confirmations/admin/calendar", icon: CalendarDays },
         { label: "Recovery codes", to: "/confirmations/admin/recovery-codes", icon: KeyRound },
@@ -84,21 +92,30 @@ export function AdminNav() {
       ],
     },
     {
-      label: "Televoting",
+      label: "Voting",
+      description: "Rounds, results and audience data",
       items: [
-        { label: "Overview", to: "/televoting/admin", icon: Vote, exact: true },
+        { label: "Voting overview", to: "/televoting/admin", icon: Vote, exact: true },
         { label: "Rounds & entries", to: "/televoting/admin/rounds", icon: Vote },
-        { label: "Editions", to: "/televoting/admin/editions", icon: Trophy },
         { label: "Results", to: "/televoting/admin/results", icon: ListChecks },
         { label: "Combined results", to: "/televoting/admin/combined", icon: Blend },
         { label: "Analytics", to: "/televoting/admin/analytics", icon: BarChart3 },
+      ],
+    },
+    {
+      label: "Integrity",
+      description: "Identity, risk and traceability",
+      items: [
         { label: "Intelligence", to: "/televoting/admin/intelligence", icon: BrainCircuit },
-        { label: "Integrity", to: "/televoting/admin/integrity", icon: ShieldAlert },
+        { label: "Integrity review", to: "/televoting/admin/integrity", icon: ShieldAlert },
+        { label: "HOD history", to: "/admin/hod-history", icon: Users },
+        { label: "Sync health", to: "/admin/sync-health", icon: Gauge },
         { label: "Audit log", to: "/televoting/admin/audit-log", icon: History },
       ],
     },
     {
       label: "System",
+      description: "Platform-wide configuration",
       items: [{ label: "Deadlines & audit", to: "/admin/system", icon: Settings }],
     },
   ];
@@ -106,10 +123,18 @@ export function AdminNav() {
   return (
     <nav className="p-3" aria-label="Organizer navigation">
       {sections.map((section) => (
-        <div key={section.label} className="mb-5 last:mb-0">
-          <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.17em] text-muted-foreground/65">
-            {section.label}
-          </p>
+        <section key={section.label} className="mb-6 last:mb-0" aria-labelledby={`admin-nav-${section.label.toLowerCase().replaceAll(" ", "-")}`}>
+          <div className="mb-2 px-2">
+            <p
+              id={`admin-nav-${section.label.toLowerCase().replaceAll(" ", "-")}`}
+              className="text-[9px] font-black uppercase tracking-[0.18em] text-foreground/72"
+            >
+              {section.label}
+            </p>
+            <p className="mt-0.5 text-[9px] leading-relaxed text-muted-foreground/60">
+              {section.description}
+            </p>
+          </div>
 
           <div className="space-y-1">
             {section.items.map((item) => {
@@ -124,19 +149,28 @@ export function AdminNav() {
                   to={item.to as any}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-10 items-center gap-3 rounded-xl px-2.5 text-xs font-semibold transition-all",
+                    "group flex min-h-11 items-center gap-3 rounded-xl border px-2.5 text-xs font-semibold transition-colors",
                     active
-                      ? "border border-sky-200/10 bg-sky-200/[0.09] text-sky-100 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]"
-                      : "border border-transparent text-muted-foreground hover:border-white/10 hover:bg-white/[0.045] hover:text-foreground",
+                      ? "border-sky-200/12 bg-sky-200/[0.09] text-sky-100"
+                      : "border-transparent text-muted-foreground hover:border-white/8 hover:bg-white/[0.035] hover:text-foreground",
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <span
+                    className={cn(
+                      "grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition-colors",
+                      active
+                        ? "border-sky-200/10 bg-sky-200/[0.08] text-sky-100"
+                        : "border-white/[0.06] bg-white/[0.025] text-muted-foreground group-hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
                   <span className="truncate">{item.label}</span>
                 </Link>
               );
             })}
           </div>
-        </div>
+        </section>
       ))}
     </nav>
   );
