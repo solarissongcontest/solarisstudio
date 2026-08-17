@@ -75,8 +75,6 @@ type SignedScreenshot = {
   url: string;
 };
 
-const TESTER_TARGET = 5;
-
 const ratingMetrics = [
   { key: "overallNow", label: "Overall" },
   { key: "usefulness", label: "Usefulness" },
@@ -143,7 +141,9 @@ function BetaFeedbackDashboard() {
       );
 
       setScreenshots(
-        Object.fromEntries(signedEntries.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))),
+        Object.fromEntries(
+          signedEntries.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
+        ),
       );
     } catch (loadError) {
       console.error("Failed to load beta feedback", loadError);
@@ -196,6 +196,14 @@ function BetaFeedbackDashboard() {
     }));
   }, [submissions]);
 
+  const deviceData = useMemo(() => {
+    const devices = ["Phone", "Tablet", "Laptop", "Desktop"];
+    return devices.map((device) => ({
+      device,
+      count: submissions.filter((submission) => submission.device === device).length,
+    }));
+  }, [submissions]);
+
   const bugSeverityData = useMemo(() => {
     const severities = [
       "Tiny visual problem",
@@ -207,14 +215,18 @@ function BetaFeedbackDashboard() {
 
     return severities.map((severity) => ({
       severity: shortenSeverity(severity),
-      count: submissions.flatMap((submission) => submission.bug_reports ?? []).filter(
-        (bug) => bug.severity === severity,
-      ).length,
+      count: submissions
+        .flatMap((submission) => submission.bug_reports ?? [])
+        .filter((bug) => bug.severity === severity).length,
     }));
   }, [submissions]);
 
   const bugCount = useMemo(
-    () => submissions.reduce((total, submission) => total + (submission.bug_reports?.length ?? 0), 0),
+    () =>
+      submissions.reduce(
+        (total, submission) => total + (submission.bug_reports?.length ?? 0),
+        0,
+      ),
     [submissions],
   );
 
@@ -272,7 +284,7 @@ function BetaFeedbackDashboard() {
               Beta Feedback
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              One view for every tester response, launch-readiness signal, recurring weak spot and bug found before the public release.
+              Live overview of every beta response, recurring weak spot, launch-readiness signal and reported bug. There is no tester limit.
             </p>
           </div>
 
@@ -319,8 +331,8 @@ function BetaFeedbackDashboard() {
       <section className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <StatCard
           label="Responses"
-          value={`${submissions.length}/${TESTER_TARGET}`}
-          helper={submissions.length >= TESTER_TARGET ? "Target reached" : `${TESTER_TARGET - submissions.length} remaining`}
+          value={String(submissions.length)}
+          helper="Total beta responses"
           icon={Users}
         />
         <StatCard
@@ -335,7 +347,12 @@ function BetaFeedbackDashboard() {
           helper="Ready or only small fixes"
           icon={CheckCircle2}
         />
-        <StatCard label="Bugs reported" value={String(bugCount)} helper="Structured bug reports" icon={Bug} />
+        <StatCard
+          label="Bugs reported"
+          value={String(bugCount)}
+          helper="Structured bug reports"
+          icon={Bug}
+        />
       </section>
 
       {loading && !submissions.length ? (
@@ -349,7 +366,7 @@ function BetaFeedbackDashboard() {
           <ClipboardList className="mx-auto h-8 w-8 text-muted-foreground/60" />
           <h2 className="font-display mt-4 text-3xl uppercase">No responses yet</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            The dashboard is ready. Once the first tester submits, averages, charts, priorities and their full response will appear here automatically.
+            Once the first tester submits, averages, charts, priorities and their full response will appear here automatically.
           </p>
         </div>
       ) : null}
@@ -357,35 +374,54 @@ function BetaFeedbackDashboard() {
       {submissions.length ? (
         <>
           <section className="grid gap-5 xl:grid-cols-2">
-            <ChartPanel title="Experience averages" description="Average final 1–10 ratings across all submitted beta tests.">
+            <ChartPanel
+              title="Experience averages"
+              description="Average final 1–10 ratings across every submitted beta test."
+            >
               <ResponsiveContainer width="100%" height={330}>
                 <BarChart data={ratingData} layout="vertical" margin={{ left: 10, right: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.12} horizontal={false} />
                   <XAxis type="number" domain={[0, 10]} allowDecimals={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="metric" width={110} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${Number(value).toFixed(1)}/10`, "Average"]} />
+                  <Tooltip
+                    contentStyle={tooltipStyle}
+                    formatter={(value) => [`${Number(value).toFixed(1)}/10`, "Average"]}
+                  />
                   <Bar dataKey="value" fill="var(--primary)" radius={[0, 8, 8, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartPanel>
 
-            <ChartPanel title="Launch readiness" description="How testers judge the site’s readiness for a public release.">
+            <ChartPanel
+              title="Launch readiness"
+              description="How testers judge the site’s readiness for public release."
+            >
               <ResponsiveContainer width="100%" height={330}>
                 <BarChart data={launchData} margin={{ left: 4, right: 8, bottom: 36 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.12} vertical={false} />
-                  <XAxis dataKey="status" interval={0} angle={-18} textAnchor="end" height={72} tick={{ fontSize: 10 }} />
-                  <YAxis allowDecimals={false} domain={[0, TESTER_TARGET]} tick={{ fontSize: 11 }} />
+                  <XAxis
+                    dataKey="status"
+                    interval={0}
+                    angle={-18}
+                    textAnchor="end"
+                    height={72}
+                    tick={{ fontSize: 10 }}
+                  />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="count" fill="var(--primary)" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </ChartPanel>
 
-            <ChartPanel title="Most vs least finished" description="Which public areas feel strongest and which still look unfinished.">
+            <ChartPanel
+              title="Most vs least finished"
+              description="Which public areas feel strongest and which still look unfinished."
+            >
               <ResponsiveContainer width="100%" height={360}>
                 <BarChart data={areaData} layout="vertical" margin={{ left: 14, right: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.12} horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} domain={[0, TESTER_TARGET]} tick={{ fontSize: 11 }} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="area" width={125} tick={{ fontSize: 10 }} />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -395,7 +431,25 @@ function BetaFeedbackDashboard() {
               </ResponsiveContainer>
             </ChartPanel>
 
-            <ChartPanel title="Bug severity" description="How serious the reported issues are, not merely how many exist.">
+            <ChartPanel
+              title="Tester devices"
+              description="Useful for spotting whether feedback is skewed toward one device type."
+            >
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart data={deviceData} margin={{ left: 4, right: 8, bottom: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.12} vertical={false} />
+                  <XAxis dataKey="device" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="count" fill="var(--primary)" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartPanel>
+
+            <ChartPanel
+              title="Bug severity"
+              description="How serious the reported issues are, not merely how many exist."
+            >
               <ResponsiveContainer width="100%" height={360}>
                 <BarChart data={bugSeverityData} layout="vertical" margin={{ left: 14, right: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.12} horizontal={false} />
@@ -411,17 +465,32 @@ function BetaFeedbackDashboard() {
           <section className="grid gap-5 xl:grid-cols-3">
             <InsightPanel title="Fix first" description="Each tester’s #1 launch priority.">
               {submissions.map((submission) => (
-                <Insight key={submission.id} name={submission.tester_name} text={stringAnswer(submission.answers.priorityOne)} />
+                <Insight
+                  key={submission.id}
+                  name={submission.tester_name}
+                  text={stringAnswer(submission.answers.priorityOne)}
+                />
               ))}
             </InsightPanel>
-            <InsightPanel title="Would be better if…" description="Direct improvement ideas in testers’ own words.">
+            <InsightPanel
+              title="Would be better if…"
+              description="Direct improvement ideas in testers’ own words."
+            >
               {submissions.map((submission) => (
-                <Insight key={submission.id} name={submission.tester_name} text={stringAnswer(submission.answers.betterIf)} />
+                <Insight
+                  key={submission.id}
+                  name={submission.tester_name}
+                  text={stringAnswer(submission.answers.betterIf)}
+                />
               ))}
             </InsightPanel>
             <InsightPanel title="Do not remove" description="What testers think Solaris Studio must preserve.">
               {submissions.map((submission) => (
-                <Insight key={submission.id} name={submission.tester_name} text={stringAnswer(submission.answers.mustKeep)} />
+                <Insight
+                  key={submission.id}
+                  name={submission.tester_name}
+                  text={stringAnswer(submission.answers.mustKeep)}
+                />
               ))}
             </InsightPanel>
           </section>
@@ -429,13 +498,17 @@ function BetaFeedbackDashboard() {
           <section className="glass-strong p-4 sm:p-6">
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">Individual responses</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">
+                  Individual responses
+                </p>
                 <h2 className="font-display mt-2 text-3xl uppercase sm:text-4xl">Tester feedback</h2>
                 <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">
                   Open a tester to read every answer exactly as submitted, plus their structured bug reports and screenshots.
                 </p>
               </div>
-              <p className="text-xs font-semibold text-muted-foreground">{submissions.length} submitted</p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {submissions.length} submitted
+              </p>
             </div>
 
             <div className="space-y-3">
@@ -468,7 +541,9 @@ function StatCard({
   return (
     <div className="glass p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">{label}</p>
+        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+          {label}
+        </p>
         <Icon className="h-4 w-4 text-primary/65" />
       </div>
       <p className="mt-3 text-2xl font-semibold text-foreground sm:text-3xl">{value}</p>
@@ -575,13 +650,19 @@ function SubmissionDetails({
             );
 
             return (
-              <section key={section.id} className="rounded-2xl border border-white/[0.07] bg-black/10 p-4">
+              <section
+                key={section.id}
+                className="rounded-2xl border border-white/[0.07] bg-black/10 p-4"
+              >
                 <h4 className="text-xs font-black uppercase tracking-[0.15em] text-primary/80">
                   {section.title}
                 </h4>
                 <div className="mt-3 divide-y divide-white/[0.06]">
                   {questions.map((question) => (
-                    <div key={question.id} className="grid gap-1 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-5">
+                    <div
+                      key={question.id}
+                      className="grid gap-1 py-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-5"
+                    >
                       <p className="text-[11px] font-semibold leading-relaxed text-muted-foreground">
                         {question.label}
                       </p>
@@ -597,10 +678,15 @@ function SubmissionDetails({
 
           {bugReports.length ? (
             <section className="rounded-2xl border border-red-200/10 bg-red-200/[0.025] p-4">
-              <h4 className="text-xs font-black uppercase tracking-[0.15em] text-red-100/80">Bug reports</h4>
+              <h4 className="text-xs font-black uppercase tracking-[0.15em] text-red-100/80">
+                Bug reports
+              </h4>
               <div className="mt-3 space-y-3">
                 {bugReports.map((bug, index) => (
-                  <div key={bug.id ?? `${submission.id}-${index}`} className="rounded-xl border border-white/[0.07] bg-black/10 p-4">
+                  <div
+                    key={bug.id ?? `${submission.id}-${index}`}
+                    className="rounded-xl border border-white/[0.07] bg-black/10 p-4"
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-bold">Bug {index + 1}</p>
                       <div className="flex flex-wrap gap-1.5">
@@ -639,10 +725,25 @@ function SubmissionDetails({
   );
 }
 
-function MiniStat({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+function MiniStat({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  wide?: boolean;
+}) {
   return (
-    <div className={cn("rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-2", wide && "sm:min-w-32")}>
-      <p className="text-[8px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{label}</p>
+    <div
+      className={cn(
+        "rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-2",
+        wide && "sm:min-w-32",
+      )}
+    >
+      <p className="text-[8px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
+        {label}
+      </p>
       <p className="mt-1 truncate text-xs font-semibold text-foreground">{value}</p>
     </div>
   );
@@ -651,8 +752,12 @@ function MiniStat({ label, value, wide = false }: { label: string; value: string
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
-      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">{value}</p>
+      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-foreground/90">
+        {value}
+      </p>
     </div>
   );
 }
