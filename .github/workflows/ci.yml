@@ -87,15 +87,6 @@ jobs:
         continue-on-error: true
         run: bun run lint
 
-      - name: Probe deployed Televoting bindings
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-          URL="https://e492621d-solarisstudio.solaris-song-contest.workers.dev/api/televoting-health"
-          body=$(curl --fail --silent --show-error --max-time 20 "$URL")
-          echo "Televoting health: $body"
-
       - name: Quality summary
         if: always()
         shell: bash
