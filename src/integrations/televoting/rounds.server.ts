@@ -1,5 +1,6 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { ensureCanonicalTelevotingEditionsServer } from "@/integrations/televoting/solaris-sync.server";
 
 export type MergedAdminRoundServer = {
   id: string;
@@ -31,14 +32,13 @@ async function audit(
 
 export async function getMergedTelevotingRoundsServer() {
   await requireMergedTelevotingAdminServer();
+  const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
 
-  const [editionsResult, roundsResult, entriesResult] = await Promise.all([
-    televotingAdmin.from("editions").select("id,name,is_active,is_archived").order("created_at", { ascending: false }),
+  const [roundsResult, entriesResult] = await Promise.all([
     televotingAdmin.from("rounds").select("id,edition_id,name,status,opened_at,closed_at,participant_mode,self_voting_mode").order("created_at", { ascending: true }),
     televotingAdmin.from("round_entries").select("round_id"),
   ]);
 
-  if (editionsResult.error) throw new Error(editionsResult.error.message);
   if (roundsResult.error) throw new Error(roundsResult.error.message);
   if (entriesResult.error) throw new Error(entriesResult.error.message);
 
@@ -55,7 +55,7 @@ export async function getMergedTelevotingRoundsServer() {
     entry_count: counts.get(round.id) ?? 0,
   }));
 
-  return (editionsResult.data ?? []).map((edition) => ({
+  return canonicalEditions.map((edition) => ({
     ...edition,
     rounds: roundRows.filter((round) => round.edition_id === edition.id),
   }));
@@ -63,16 +63,25 @@ export async function getMergedTelevotingRoundsServer() {
 
 export async function createMergedTelevotingRoundServer(data: { editionId: string; name: string }) {
   const actor = await requireMergedTelevotingAdminServer();
+  const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
+  const edition = canonicalEditions.find((candidate) => candidate.id === data.editionId);
+  if (!edition) throw new Error("Choose a canonical Solaris edition");
+
   const { data: row, error } = await televotingAdmin
     .from("rounds")
-    .insert({ edition_id: data.editionId, name: data.name, status: "draft" })
+    .insert({ edition_id: edition.id, name: data.name, status: "draft" })
     .select("id,name")
     .single();
   if (error) throw new Error(error.message);
   await audit(actor, "create_round", {
     targetType: "round",
     targetId: row.id,
-    newValues: { name: data.name, edition_id: data.editionId },
+    newValues: {
+      name: data.name,
+      edition_id: edition.id,
+      solaris_edition_id: edition.solaris_id,
+      edition_number: edition.edition_number,
+    },
   });
   return row;
 }
@@ -119,6 +128,20 @@ export async function setMergedTelevotingRoundStatusServer(data: { id: string; s
     throw new Error(error.message);
   }
 
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const solaris = supabaseAdmin as any;
+  if (data.status === "open") {
+    await solaris
+      .from("televoting_round_bindings")
+      .update({ frozen_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("remote_round_id", data.id);
+  } else if (data.status === "draft") {
+    await solaris
+      .from("televoting_round_bindings")
+      .update({ frozen_at: null, updated_at: new Date().toISOString() })
+      .eq("remote_round_id", data.id);
+  }
+
   await audit(actor, `round_${data.status}`, {
     targetType: "round",
     targetId: data.id,
@@ -141,6 +164,13 @@ export async function deleteMergedTelevotingRoundServer(data: { id: string }) {
 
   const { error } = await televotingAdmin.from("rounds").delete().eq("id", data.id);
   if (error) throw new Error(error.message);
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await (supabaseAdmin as any)
+    .from("televoting_round_bindings")
+    .delete()
+    .eq("remote_round_id", data.id);
+
   await audit(actor, "delete_round", { targetType: "round", targetId: data.id, oldValues: before });
   return { ok: true };
 }
