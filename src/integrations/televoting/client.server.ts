@@ -90,13 +90,17 @@ function createBridgeFetch(bridgeUrl: string): typeof fetch {
     if (
       response.type === "opaqueredirect" ||
       (response.status >= 300 && response.status < 400) ||
-      !contentType.includes("application/json")
+      contentType.includes("text/html")
     ) {
       throw new Error(
         "The Televoting admin bridge is not publicly reachable. Publish the Lovable ssc-tele app and point Solaris Studio at its public URL.",
       );
     }
 
+    // Successful PostgREST operations are not guaranteed to return JSON.
+    // PATCH/DELETE with `return=minimal`, HEAD requests and count-only calls
+    // can legitimately return an empty body. Preserve the bridge response and
+    // let supabase-js interpret the upstream status/body itself.
     return response;
   };
 }
