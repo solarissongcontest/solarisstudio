@@ -62,6 +62,18 @@ export const updateFriendVotingSettings = createServerFn({ method: "POST" })
     return parsed;
   })
   .handler(async ({ data }) => {
-    const { updateFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
-    return updateFriendVotingSettingsServer(data);
+    const [{ loadFriendVotingSettingsServer, updateFriendVotingSettingsServer }, { writeAdminAuditServer }] = await Promise.all([
+      import("@/integrations/televoting/friend-voting-settings.server"),
+      import("@/integrations/supabase/admin-audit.server"),
+    ]);
+    const before = await loadFriendVotingSettingsServer();
+    const result = await updateFriendVotingSettingsServer(data);
+    await writeAdminAuditServer({
+      action: "friend_voting_settings.update",
+      tableName: "friend_voting_settings",
+      recordId: "default",
+      beforeData: before,
+      afterData: result,
+    });
+    return result;
   });
