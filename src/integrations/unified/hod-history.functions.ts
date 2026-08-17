@@ -23,8 +23,22 @@ export const saveHodPerson = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    const { saveHodPersonServer } = await import("@/integrations/unified/hod-history.server");
-    return saveHodPersonServer(data);
+    const [{ saveHodPersonServer }, { writeAdminAuditServer }] = await Promise.all([
+      import("@/integrations/unified/hod-history.server"),
+      import("@/integrations/supabase/admin-audit.server"),
+    ]);
+    const result = await saveHodPersonServer(data);
+    await writeAdminAuditServer({
+      action: data.id ? "hod_person.update" : "hod_person.create",
+      tableName: "delegation_people",
+      recordId: result.id,
+      afterData: {
+        displayName: data.displayName,
+        identityKey: data.identityKey ?? null,
+        notes: data.notes ?? null,
+      },
+    });
+    return result;
   });
 
 export const saveHodAssignments = createServerFn({ method: "POST" })
@@ -53,8 +67,25 @@ export const saveHodAssignments = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    const { saveHodAssignmentsServer } = await import("@/integrations/unified/hod-history.server");
-    return saveHodAssignmentsServer(data);
+    const [{ saveHodAssignmentsServer }, { writeAdminAuditServer }] = await Promise.all([
+      import("@/integrations/unified/hod-history.server"),
+      import("@/integrations/supabase/admin-audit.server"),
+    ]);
+    const result = await saveHodAssignmentsServer(data);
+    await writeAdminAuditServer({
+      action: "hod_assignment.range_save",
+      tableName: "delegation_hod_assignments",
+      countryId: data.countryId,
+      afterData: {
+        personId: data.personId,
+        editionIds: data.editionIds,
+        channel: data.channel,
+        source: data.source,
+        confidence: data.confidence,
+        notes: data.notes,
+      },
+    });
+    return result;
   });
 
 export const deleteHodAssignment = createServerFn({ method: "POST" })
@@ -63,6 +94,15 @@ export const deleteHodAssignment = createServerFn({ method: "POST" })
     return { id: String(data.id) };
   })
   .handler(async ({ data }) => {
-    const { deleteHodAssignmentServer } = await import("@/integrations/unified/hod-history.server");
-    return deleteHodAssignmentServer(data.id);
+    const [{ deleteHodAssignmentServer }, { writeAdminAuditServer }] = await Promise.all([
+      import("@/integrations/unified/hod-history.server"),
+      import("@/integrations/supabase/admin-audit.server"),
+    ]);
+    const result = await deleteHodAssignmentServer(data.id);
+    await writeAdminAuditServer({
+      action: "hod_assignment.delete",
+      tableName: "delegation_hod_assignments",
+      recordId: data.id,
+    });
+    return result;
   });
