@@ -123,6 +123,11 @@ export const setMergedCombinedStatus = createServerFn({ method: "POST" })
       "@/integrations/televoting/results-sync.server"
     );
     const solarisSync = await trySyncPublishedCombinedResultsToSolarisServer(data.id);
+    if (!solarisSync.ok) {
+      throw new Error(
+        `Combined Televote published, but Solaris Studio was not updated: ${solarisSync.message ?? solarisSync.status}`,
+      );
+    }
     return { ...remote, solarisSync };
   });
 
