@@ -75,7 +75,14 @@ export function AdminNav() {
           : []),
         { label: "Hosting", to: "/admin/hosts", icon: Flag },
         { label: "Country accounts", to: "/admin/country-accounts", icon: Users },
+      ],
+    },
+    {
+      label: "Engagement",
+      description: "Audience tools and public testing",
+      items: [
         { label: "Predictions", to: "/admin/predictions", icon: Sparkles },
+        { label: "Beta feedback", to: "/admin/beta-feedback", icon: BarChart3 },
       ],
     },
     {
@@ -123,7 +130,11 @@ export function AdminNav() {
   return (
     <nav className="p-3" aria-label="Organizer navigation">
       {sections.map((section) => (
-        <section key={section.label} className="mb-6 last:mb-0" aria-labelledby={`admin-nav-${section.label.toLowerCase().replaceAll(" ", "-")}`}>
+        <section
+          key={section.label}
+          className="mb-6 last:mb-0"
+          aria-labelledby={`admin-nav-${section.label.toLowerCase().replaceAll(" ", "-")}`}
+        >
           <div className="mb-2 px-2">
             <p
               id={`admin-nav-${section.label.toLowerCase().replaceAll(" ", "-")}`}
