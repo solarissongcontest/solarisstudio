@@ -166,7 +166,7 @@ function TelevotingPage() {
       ) : error ? (
         <section className="glass-strong border-destructive/30 p-8 text-center">
           <h2 className="text-xl font-medium">Voting data could not be loaded</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{error instanceof Error ? error.message : "Unknown error"}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{error instanceof Error ? error.message : "Please try again shortly."}</p>
         </section>
       ) : !data ? (
         <section className="glass-strong p-8 text-center sm:p-10">
@@ -219,7 +219,7 @@ function TelevotingPage() {
                 <ShieldCheck className="mx-auto size-7 text-sky-100/75" />
                 <h2 className="mt-3 text-xl font-medium">Voting is temporarily unavailable</h2>
                 <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                  The voting round is visible, but this deployment is missing the public Televoting connection required to submit a ballot.
+                  This voting round is visible, but ballots cannot be submitted right now. Please try again shortly.
                 </p>
                 <Button className="mt-5" disabled><Vote className="size-4" /> Enter voting booth</Button>
               </section>
