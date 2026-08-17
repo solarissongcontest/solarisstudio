@@ -9,7 +9,8 @@
   },
   "vars": {
     "TELEVOTING_SUPABASE_PROJECT_ID": "nyzmftjbuaegmrjyypqv",
-    "TELEVOTING_SUPABASE_URL": "https://nyzmftjbuaegmrjyypqv.supabase.co"
+    "TELEVOTING_SUPABASE_URL": "https://nyzmftjbuaegmrjyypqv.supabase.co",
+    "TELEVOTING_ADMIN_BRIDGE_URL": "https://id-preview--e1848c61-349c-4c53-8d0f-bca7891c1ae9.lovable.app/api/solaris-admin-proxy"
   },
   "observability": {
     "enabled": true
