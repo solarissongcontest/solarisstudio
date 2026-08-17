@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   Sparkles,
   Trophy,
+  UserRoundCog,
   Users,
   Vote,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const studioTools: Tool[] = [
   { label: "Studio readiness", description: "Contest-wide warnings, missing setup and operational health.", to: "/admin/control-room", icon: Gauge },
   { label: "Action Centre", description: "Deadlines, warnings and the next organizer actions that need attention.", to: "/admin/action-centre", icon: Bell },
   { label: "Sync Health", description: "Canonical editions, Confirmations links, Televoting projections and unresolved sync drift.", to: "/admin/sync-health", icon: Activity },
+  { label: "HOD History", description: "Assign historical delegation controllers so jury, Televoting and relationship analytics follow real people across editions.", to: "/admin/hod-history", icon: UserRoundCog },
   { label: "Manage editions", description: "Create editions and control the canonical Solaris contest structure.", to: "/admin", icon: Trophy },
   { label: "Hosting", description: "Manage host countries, cities and multi-host edition details.", to: "/admin/hosts", icon: Flag },
   { label: "Country accounts", description: "Delegation access, country ownership and organizer intervention controls.", to: "/admin/country-accounts", icon: Users },
@@ -59,8 +61,8 @@ const televotingTools: Tool[] = [
   { label: "Edition projection", description: "View the Solaris-owned edition catalog as synchronized Televoting projections.", to: "/televoting/admin/editions", icon: Trophy },
   { label: "Results", description: "Calculate, validate, lock and publish the official converted televote back into Solaris results.", to: "/televoting/admin/results", icon: ListChecks },
   { label: "Combined Results", description: "Merge website rounds, Instagram, external televotes, activity and corrections into one exact point pool.", to: "/televoting/admin/combined", icon: Blend },
-  { label: "Analytics", description: "Turnout, delegation behaviour, scoring patterns and performance analysis.", to: "/televoting/admin/analytics", icon: BarChart3 },
-  { label: "Intelligence", description: "Anti-abuse detection, technical evidence and friend-voting relationship analysis in one workspace.", to: "/televoting/admin/intelligence", icon: BrainCircuit },
+  { label: "Analytics", description: "Compare jury and Televoting history, controller tenures, scoring patterns and channel preference shifts.", to: "/televoting/admin/analytics", icon: BarChart3 },
+  { label: "Intelligence", description: "HOD-aware friend-voting relationships, technical anti-abuse evidence and cross-channel pattern detection.", to: "/televoting/admin/intelligence", icon: BrainCircuit },
   { label: "Integrity", description: "Inspect individual ballots, moderate risk states, edit ballots and restore/delete submissions.", to: "/televoting/admin/integrity", icon: ShieldAlert },
   { label: "Audit log", description: "Trace organizer moderation and Televoting administrative history.", to: "/televoting/admin/audit-log", icon: History },
 ];
@@ -170,7 +172,7 @@ function UnifiedOperations() {
         <Workspace
           eyebrow="Core contest"
           title="Studio"
-          description="Edition structure, publication, broadcast, countries, predictions and organizer readiness."
+          description="Edition structure, publication, broadcast, countries, predictions, controller history and organizer readiness."
           accent="text-violet-100/70"
           tools={studioTools}
         />
@@ -184,7 +186,7 @@ function UnifiedOperations() {
         <Workspace
           eyebrow="Audience voting"
           title="Televoting"
-          description="Voting, conversion, combined sources, analytics and integrity intelligence in the same Solaris Control Room."
+          description="Voting, conversion, combined sources, jury-aware analytics and integrity intelligence in the same Solaris Control Room."
           accent="text-sky-100/70"
           tools={televotingTools}
         />
