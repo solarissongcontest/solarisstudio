@@ -37,6 +37,24 @@ export async function getMergedTelevotingRoundsServer() {
   await requireMergedTelevotingAdminServer();
   const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
 
+  // Bound drafts are projections, not independent participant lists. Refresh
+  // them whenever the organizer enters the Televoting rounds workspace so
+  // direct Solaris Studio edits are picked up even when Confirmations was not
+  // the writer that changed the canonical data.
+  const { autoSyncDraftTelevotingRoundsForEditionServer } = await import(
+    "@/integrations/televoting/auto-sync.server"
+  );
+  for (const edition of canonicalEditions) {
+    try {
+      await autoSyncDraftTelevotingRoundsForEditionServer(edition.solaris_id);
+    } catch (caught) {
+      console.error(
+        `[Televoting] Could not refresh draft projections for SSC${edition.edition_number}`,
+        caught,
+      );
+    }
+  }
+
   const [roundsResult, entriesResult] = await Promise.all([
     televotingAdmin.from("rounds").select("id,edition_id,name,status,opened_at,closed_at,participant_mode,self_voting_mode").order("created_at", { ascending: true }),
     televotingAdmin.from("round_entries").select("round_id"),
