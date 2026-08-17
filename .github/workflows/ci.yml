@@ -87,6 +87,26 @@ jobs:
         continue-on-error: true
         run: bun run lint
 
+      - name: Verify published Lovable Televoting bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://ssc-tele.lovable.app/api/solaris-admin-proxy"
+          status=$(curl --silent --show-error --output /tmp/bridge-body --write-out "%{http_code}" --max-time 20 \
+            -H "Accept: application/json" \
+            "$URL")
+          cat /tmp/bridge-body
+          echo
+          echo "Bridge HTTP status: $status"
+          if [ "$status" != "403" ]; then
+            echo "::error::Expected unauthenticated published bridge probe to return 403."
+            exit 1
+          fi
+          if ! grep -q 'Forbidden' /tmp/bridge-body; then
+            echo "::error::Published bridge did not return the expected guarded JSON response."
+            exit 1
+          fi
+
       - name: Quality summary
         if: always()
         shell: bash
@@ -101,4 +121,5 @@ jobs:
             echo "- TypeScript: executed"
             echo "- Unit tests: executed"
             echo "- Lint: executed as non-blocking"
+            echo "- Published Lovable Televoting bridge: verified"
           } >> "$GITHUB_STEP_SUMMARY"
