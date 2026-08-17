@@ -15,6 +15,12 @@ export type CombinedCanonicalSyncOutcome = {
   message?: string;
 };
 
+type RoundBinding = {
+  remote_round_id: string;
+  edition_id: string;
+  show_id: string | null;
+};
+
 function sameList(a: string[], b: string[]) {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
@@ -87,7 +93,7 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
   if (sourceError) throw new Error(sourceError.message);
 
   const enabledSources = sources ?? [];
-  const sourceRoundIds = [...new Set(
+  const sourceRoundIds: string[] = [...new Set(
     enabledSources
       .map((source) => source.source_round_id)
       .filter((id): id is string => Boolean(id))
@@ -110,8 +116,15 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
     .in("remote_round_id", sourceRoundIds);
   if (bindingError) throw new Error(bindingError.message);
 
-  const bindingByRound = new Map(
-    (bindings ?? []).map((binding: any) => [String(binding.remote_round_id), binding]),
+  const bindingByRound = new Map<string, RoundBinding>(
+    (bindings ?? []).map((binding: any) => [
+      String(binding.remote_round_id),
+      {
+        remote_round_id: String(binding.remote_round_id),
+        edition_id: String(binding.edition_id),
+        show_id: binding.show_id == null ? null : String(binding.show_id),
+      },
+    ]),
   );
   if (sourceRoundIds.some((roundId) => !bindingByRound.get(roundId)?.show_id)) {
     return {
@@ -134,8 +147,8 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
   }
 
   const target = bindingByRound.get(sourceRoundIds[0])!;
-  const editionId = String(target.edition_id);
-  const showId = String(target.show_id);
+  const editionId = target.edition_id;
+  const showId = target.show_id!;
 
   const { data: participants, error: participantError } = await db
     .from("participants")
@@ -154,12 +167,15 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
     ? await db.from("countries").select("id,short_code").in("id", countryIds)
     : { data: [], error: null };
   if (countryError) throw new Error(countryError.message);
-  const codeByCountry = new Map(
-    (countries ?? []).map((country: any) => [country.id, String(country.short_code ?? "").trim().toUpperCase()]),
+  const codeByCountry = new Map<string, string>(
+    (countries ?? []).map((country: any) => [
+      String(country.id),
+      String(country.short_code ?? "").trim().toUpperCase(),
+    ]),
   );
-  const canonicalCodes = active
-    .map((participant: any) => codeByCountry.get(participant.country_id) ?? "")
-    .filter(Boolean);
+  const canonicalCodes: string[] = active
+    .map((participant: any) => codeByCountry.get(String(participant.country_id)) ?? "")
+    .filter((code: string) => Boolean(code));
 
   if (canonicalCodes.length !== active.length) {
     return {
@@ -177,7 +193,7 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
     .eq("aggregation_id", aggregationId)
     .order("display_order");
   if (currentError) throw new Error(currentError.message);
-  const currentCodes = (currentRows ?? []).map((row) => String(row.country_code));
+  const currentCodes: string[] = (currentRows ?? []).map((row) => String(row.country_code));
 
   if (sameList(currentCodes, canonicalCodes)) {
     return {
@@ -199,7 +215,7 @@ export async function syncEditableCombinedParticipantsFromSolarisServer(
     const { error: insertError } = await televotingAdmin
       .from("televote_aggregation_participants")
       .insert(
-        canonicalCodes.map((countryCode, displayOrder) => ({
+        canonicalCodes.map((countryCode: string, displayOrder: number) => ({
           aggregation_id: aggregationId,
           country_code: countryCode,
           display_order: displayOrder,
