@@ -391,5 +391,23 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
       officialEntryKnown: Boolean(officialEntry),
     };
     await recordSyncEvent(db, snapshot, result);
+
+    // Televoting is a projection of canonical Solaris data. Once a round has
+    // been explicitly bound to an edition/show, keep only mutable drafts fresh.
+    // Never make Televoting availability a prerequisite for saving canonical
+    // confirmation data: a bridge outage is recorded/logged, not promoted into
+    // a failed participant review.
+    try {
+      const { autoSyncDraftTelevotingRoundsForEditionServer } = await import(
+        "@/integrations/televoting/auto-sync.server"
+      );
+      const autoSync = await autoSyncDraftTelevotingRoundsForEditionServer(edition.id);
+      if (autoSync.failed.length) {
+        console.error("[Confirmations sync] Some Televoting draft rounds could not refresh", autoSync.failed);
+      }
+    } catch (caught) {
+      console.error("[Confirmations sync] Televoting auto-sync unavailable", caught);
+    }
+
     return result;
   });
