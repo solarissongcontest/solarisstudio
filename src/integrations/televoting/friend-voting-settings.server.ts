@@ -90,10 +90,9 @@ export async function getFriendVotingSettingsServer() {
 }
 
 export async function updateFriendVotingSettingsServer(input: FriendVotingSettings) {
-  await requireSolarisOrganizerServer();
+  const organizer = await requireSolarisOrganizerServer();
   const db = supabaseAdmin as any;
   const values = {
-    id: "default",
     min_independent_editions: Math.max(1, Math.trunc(input.minIndependentEditions)),
     full_confidence_editions: Math.max(1, Math.trunc(input.fullConfidenceEditions)),
     support_edition_threshold: input.supportEditionThreshold,
@@ -120,9 +119,13 @@ export async function updateFriendVotingSettingsServer(input: FriendVotingSettin
     risk_high: Math.round(input.riskHigh),
     risk_critical: Math.round(input.riskCritical),
   };
-  const { error } = await db.from("friend_voting_settings").upsert(values, { onConflict: "id" });
+
+  const { data, error } = await db.rpc("update_friend_voting_settings_with_audit", {
+    p_actor_id: organizer.id,
+    p_values: values,
+  });
   if (error) throw new Error(error.message);
-  return loadFriendVotingSettingsServer();
+  return rowToSettings(data);
 }
 
 export { DEFAULTS as DEFAULT_FRIEND_VOTING_SETTINGS };
