@@ -1,0 +1,123 @@
+import type { BetaSection } from "./types";
+
+const productAreas = [
+  "Homepage",
+  "Countries",
+  "Editions",
+  "Results",
+  "Analysis",
+  "Compare",
+  "Records",
+  "News / Solaris Pulse",
+  "Interactive tools",
+];
+
+export const betaSectionsExtra: BetaSection[] = [
+  {
+    id: "pulse",
+    title: "Solaris Pulse & newsroom",
+    task: { body: "Explore some stories, headlines or Solaris Pulse content.", href: "/pulse", linkLabel: "Open Solaris Pulse" },
+    questions: [
+      { id: "pulseAlive", label: "47. Did this make Solaris Studio feel more alive than a normal results database?", type: "rating", lowLabel: "No difference", highLabel: "Definitely" },
+      { id: "pulseExplore", label: "48. Did the newsroom-style headlines make you more interested in exploring results or statistics?", type: "single", options: ["Yes, a lot", "A little", "Not really", "No"] },
+      { id: "headlineFeel", label: "49. How did the headlines feel?", type: "multi", options: ["Exciting", "Informative", "Fun", "Like actual SSC coverage", "Repetitive", "Too dramatic", "Too vague", "Robotic", "Confusing", "Other"] },
+      { id: "headlineMismatch", label: "50. Did you encounter a headline / story where the wording didn't match what actually happened?", type: "single", options: ["Yes", "No"] },
+      { id: "headlineMismatchDetail", label: "51. Tell me which one.", type: "textarea", placeholder: "The headline said ___, but the result / data made it feel more like ___.", showWhen: { id: "headlineMismatch", equals: "Yes" } },
+    ],
+  },
+  {
+    id: "tools",
+    title: "Interactive tools",
+    task: { body: "Explore any Solaris Labs tools that interest you. You will only get follow-up questions for the tools you actually tried.", href: "/tools", linkLabel: "Open Solaris Labs" },
+    questions: [
+      { id: "toolsTried", label: "52. Which of these did you try?", type: "multi", options: ["Result Lab", "Prediction Arena", "Taste DNA", "Broadcast Intelligence", "Archive Games", "None of these"] },
+      { id: "resultLabClear", label: "53A. Was it clear what Result Lab allowed you to do?", type: "rating", lowLabel: "Not at all", highLabel: "Completely", showWhen: { id: "toolsTried", includes: "Result Lab" } },
+      { id: "resultLabBehavior", label: "54A. Change something in a result. Did the new result behave the way you expected?", type: "single", options: ["Yes", "Mostly", "No", "I couldn't figure out how to use it"], showWhen: { id: "toolsTried", includes: "Result Lab" } },
+      { id: "resultLabUse", label: "55A. Would you personally use Result Lab?", type: "single", options: ["Definitely", "Probably", "Maybe", "Probably not", "No"], showWhen: { id: "toolsTried", includes: "Result Lab" } },
+      { id: "resultLabImprove", label: "56A. What would make Result Lab more useful or fun?", type: "textarea", placeholder: "I wish I could ___.", showWhen: { id: "toolsTried", includes: "Result Lab" } },
+      { id: "predictionClear", label: "53B. Was it immediately clear what you were supposed to do in Prediction Arena?", type: "rating", lowLabel: "Not at all", highLabel: "Completely", showWhen: { id: "toolsTried", includes: "Prediction Arena" } },
+      { id: "predictionReturn", label: "54B. Did making / viewing predictions feel interesting enough that you'd return later?", type: "rating", lowLabel: "No", highLabel: "Definitely", showWhen: { id: "toolsTried", includes: "Prediction Arena" } },
+      { id: "predictionImprove", label: "55B. What would make predictions more engaging?", type: "textarea", helper: "A few words is enough.", showWhen: { id: "toolsTried", includes: "Prediction Arena" } },
+      { id: "tasteClear", label: "53C. Did you understand what your Taste DNA represented?", type: "rating", lowLabel: "Not at all", highLabel: "Completely", showWhen: { id: "toolsTried", includes: "Taste DNA" } },
+      { id: "tasteAccurate", label: "54C. Did the result feel accurate or meaningful?", type: "single", options: ["Very", "Mostly", "Somewhat", "Not really", "Not at all"], showWhen: { id: "toolsTried", includes: "Taste DNA" } },
+      { id: "tasteImprove", label: "55C. What information would you want Taste DNA to tell you that it currently doesn't?", type: "textarea", placeholder: "It would be interesting if it also showed ___.", showWhen: { id: "toolsTried", includes: "Taste DNA" } },
+      { id: "broadcastClear", label: "53D. How clearly did you understand the information in Broadcast Intelligence?", type: "rating", lowLabel: "Not at all", highLabel: "Completely", showWhen: { id: "toolsTried", includes: "Broadcast Intelligence" } },
+      { id: "broadcastUseful", label: "54D. Did it feel useful or just like extra statistics?", type: "single", options: ["Very useful", "Somewhat useful", "Interesting but not particularly useful", "Mostly unnecessary", "I didn't understand it"], showWhen: { id: "toolsTried", includes: "Broadcast Intelligence" } },
+      { id: "broadcastImprove", label: "55D. What would improve it?", type: "textarea", showWhen: { id: "toolsTried", includes: "Broadcast Intelligence" } },
+      { id: "archiveStart", label: "53E. Was Archive Games easy to start playing?", type: "rating", lowLabel: "Very difficult", highLabel: "Very easy", showWhen: { id: "toolsTried", includes: "Archive Games" } },
+      { id: "archiveFun", label: "54E. Did it make exploring SSC history more fun?", type: "rating", lowLabel: "Not really", highLabel: "Definitely", showWhen: { id: "toolsTried", includes: "Archive Games" } },
+      { id: "archiveReturn", label: "55E. Would you play it again?", type: "single", options: ["Definitely", "Probably", "Maybe", "Probably not", "No"], showWhen: { id: "toolsTried", includes: "Archive Games" } },
+      { id: "archiveImprove", label: "56E. What would make Archive Games better?", type: "textarea", placeholder: "It would be more fun if ___.", showWhen: { id: "toolsTried", includes: "Archive Games" } },
+    ],
+  },
+  {
+    id: "search",
+    title: "Search & discovery",
+    task: { body: "Think of something specific you want to find and try finding it: a country, edition, result, entry or statistic.", href: "/", linkLabel: "Open Solaris Studio" },
+    questions: [
+      { id: "searchTarget", label: "57. What were you trying to find?", type: "text" },
+      { id: "searchSuccess", label: "58. Did you find it?", type: "single", options: ["Immediately", "Eventually", "Only after trying several things", "No"] },
+      { id: "searchExpected", label: "59. If finding it was difficult, what did you EXPECT to work?", type: "textarea", placeholder: "I tried ___ because I expected ___.", showWhen: { id: "searchSuccess", notEquals: "Immediately" } },
+    ],
+  },
+  {
+    id: "visual",
+    title: "Mobile / visual quality",
+    questions: [
+      { id: "visualProblems", label: "60. Did you notice ANY of these?", type: "multi", options: ["Text cut off", "Cards too far apart", "Too much empty space", "Elements too cramped", "Elements overlapping", "Horizontal scrolling", "Images cropped badly", "Background images ending abruptly", "Buttons difficult to tap", "Text too small", "Text too large", "Pages unusually long", "Inconsistent spacing", "Something disappearing", "None of these", "Other"] },
+      { id: "visualWhere", label: "61. Where did you notice it?", type: "textarea", helper: "Example: “Country page → the statistics cards had huge gaps between them.” List as many page/problem pairs as you need.", showWhen: { id: "visualProblems", notEquals: "None of these" } },
+    ],
+  },
+  {
+    id: "speed",
+    title: "Speed & reliability",
+    questions: [
+      { id: "slow", label: "62. Did anything feel noticeably slow?", type: "single", options: ["No", "Occasionally", "Yes"] },
+      { id: "slowAreas", label: "63. Which parts?", type: "multi", options: ["Homepage", "Countries", "Editions", "Results", "Rankings", "Analysis", "Compare", "Records", "Solaris Pulse / News", "Interactive tools", "Images", "Other"], showWhen: { id: "slow", oneOf: ["Occasionally", "Yes"] } },
+      { id: "failedLoad", label: "64. Did anything fail to load entirely?", type: "single", options: ["Yes", "No"] },
+      { id: "failedLoadWhere", label: "64A. What failed to load?", type: "textarea", showWhen: { id: "failedLoad", equals: "Yes" } },
+      { id: "backRefresh", label: "65. Did anything change, disappear or behave strangely after refreshing or going back?", type: "single", options: ["Yes", "No"] },
+      { id: "backRefreshDetail", label: "65A. What happened?", type: "textarea", placeholder: "I was on ___, I did ___, and then ___ happened.", showWhen: { id: "backRefresh", equals: "Yes" } },
+    ],
+  },
+  {
+    id: "bugs",
+    title: "Bug reports",
+    description: "Keep separate bugs separate. It makes fixing them dramatically less miserable.",
+    questions: [
+      { id: "bugsFound", label: "66. Did you find any actual bugs?", type: "single", required: true, options: ["No", "Yes, one", "Yes, several"] },
+    ],
+  },
+  {
+    id: "change",
+    title: "What should change?",
+    questions: [
+      { id: "priorityOne", label: "67. Imagine Solaris Studio launches TOMORROW. What is the ONE thing you would most want fixed first?", type: "textarea", required: true, placeholder: "The most important thing to improve is ___ because ___.", helper: "A few words is enough. Pick the thing that would matter most, not merely the easiest thing to fix." },
+      { id: "priorityTwo", label: "68. Priority #2", type: "text", helper: "Optional." },
+      { id: "priorityThree", label: "68. Priority #3", type: "text", helper: "Optional." },
+      { id: "priorityFour", label: "68. Priority #4", type: "text", helper: "Optional." },
+      { id: "mostFinished", label: "69. Which part currently feels MOST finished?", type: "single", options: productAreas },
+      { id: "leastFinished", label: "70. Which part currently feels LEAST finished?", type: "single", options: productAreas },
+      { id: "missMost", label: "71. If one part disappeared completely, which would you MISS the most?", type: "single", options: productAreas, helper: "This helps distinguish features that are merely nice from features that actually give Solaris Studio value." },
+      { id: "careLeast", label: "72. If one part disappeared and you barely cared, which would it be?", type: "single", options: [...productAreas, "None"], helper: "No guilt required. This is exactly the kind of answer beta testing needs." },
+    ],
+  },
+  {
+    id: "final",
+    title: "Final experience",
+    questions: [
+      { id: "overallNow", label: "73. Overall, how good is Solaris Studio RIGHT NOW?", type: "rating", lowLabel: "Very poor", highLabel: "Excellent" },
+      { id: "usefulness", label: "74. How useful is Solaris Studio for following SSC?", type: "rating", lowLabel: "Not useful", highLabel: "Extremely useful" },
+      { id: "fun", label: "75. How fun is it to explore?", type: "rating", lowLabel: "Not fun", highLabel: "Very fun" },
+      { id: "professional", label: "76. How professional does it feel?", type: "rating", lowLabel: "Unfinished", highLabel: "Very professional" },
+      { id: "ease", label: "77. How easy is it to use?", type: "rating", lowLabel: "Very difficult", highLabel: "Very easy" },
+      { id: "return", label: "78. How likely are you to return after launch?", type: "rating", lowLabel: "Never", highLabel: "Very likely" },
+      { id: "recommend", label: "79. How likely would you be to recommend Solaris Studio to another SSC participant?", type: "rating", lowLabel: "Not likely", highLabel: "Very likely" },
+      { id: "launchReady", label: "80. Is Solaris Studio ready for public release?", type: "single", options: ["Yes, definitely", "Yes, with a few small fixes", "Almost, but some important things should be improved first", "No, significant work is still needed"] },
+      { id: "launchWhy", label: "81. What's the main reason you chose that answer?", type: "textarea", placeholder: "I chose this because ___.", helper: "You only need one reason." },
+      { id: "betterIf", label: "82. Solaris Studio would be much better if…", type: "textarea" },
+      { id: "mustKeep", label: "83. The thing Solaris Studio absolutely SHOULD NOT lose or remove is…", type: "textarea", helper: "Positive feedback matters too. We don't want beta changes to sand away the parts that already work." },
+      { id: "finalComplaint", label: "84. Last chance to complain about something I didn't ask about.", type: "textarea", helper: "Tiny annoyance, feature idea, something you loved, something other users might struggle with, or one strangely specific observation. All fair game." },
+    ],
+  },
+];
