@@ -115,7 +115,15 @@ export const setMergedCombinedStatus = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { setMergedCombinedStatusServer } = await import("@/integrations/televoting/combined.server");
-    return setMergedCombinedStatusServer(data);
+    const remote = await setMergedCombinedStatusServer(data);
+
+    if (data.status !== "published") return remote;
+
+    const { trySyncPublishedCombinedResultsToSolarisServer } = await import(
+      "@/integrations/televoting/results-sync.server"
+    );
+    const solarisSync = await trySyncPublishedCombinedResultsToSolarisServer(data.id);
+    return { ...remote, solarisSync };
   });
 
 export const deleteMergedCombinedAggregation = createServerFn({ method: "POST" })
