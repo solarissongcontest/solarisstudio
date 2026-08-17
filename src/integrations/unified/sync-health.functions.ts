@@ -72,7 +72,7 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
           status: "healthy",
           reachable: true,
           organizerCompatibilityReady: true,
-          message: "Televoting admin bridge is reachable and the compatibility admin identity is ready.",
+          message: "Cloudflare can reach the privileged Televoting backend and the compatibility admin identity is ready.",
         };
       } catch (caught) {
         const raw = caught instanceof Error ? caught.message : "Televoting runtime check failed.";
