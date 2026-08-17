@@ -15,7 +15,9 @@ The unified product is implemented on `merge/confirmations` and remains isolated
 - Friend-voting model changes are atomically recorded in `admin_audit_log` with before/after values.
 - Sync Health separates technical synchronization from historical HOD-coverage debt.
 - Generated TanStack route trees are no longer committed; production builds regenerate and verify them.
-- Production build, TypeScript, tests and lint are blocking CI gates.
+- Production build, TypeScript, unit tests and lint all pass on the current merge head.
+- The current merge head also builds successfully in Cloudflare Workers preview.
+- The guarded Vote Hub bridge source is implemented in `solarissongcontest/ssc-tele` at commit `e6760d4c2ddc31190dae679b7e4834c418957e3a` as `/api/solaris-admin-proxy`.
 
 ## Data still requiring organizer input
 
@@ -23,9 +25,18 @@ Historical HOD identities and assignments are intentionally not inferred as fact
 
 ## Remaining external cutover blocker
 
-The legacy Solaris Vote Hub runtime is currently unpublished. Solaris Studio's privileged Televoting service client requires a public, organizer-authenticated server-to-server PostgREST bridge before the draft PR can be considered production-ready.
+The bridge source exists, but it is not yet present in the actual Lovable Solaris Vote Hub runtime. That Lovable project is still on its older internal project commit and is currently unpublished, so publishing it as-is would deploy a build without `/api/solaris-admin-proxy`.
 
-Required bridge behavior is tracked in GitHub and must be verified against the published runtime before this PR leaves draft status. No service-role key may be moved into Solaris Studio or client-side code.
+Before this PR can leave draft status:
+
+1. Sync the guarded bridge route from the current `ssc-tele` source into the real Vote Hub runtime.
+2. Publish the Vote Hub runtime with its existing server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` configuration.
+3. Set Solaris Studio's server-only `TELEVOTING_ADMIN_BRIDGE_URL` to the published bridge endpoint.
+4. Validate the bridge health request with a real Solaris organizer session.
+5. Exercise at least one privileged Televoting admin read and one safe write path through Solaris Studio.
+6. Re-run the unified smoke checks, then mark PR #12 ready for merge.
+
+No Vote Hub service-role key may be moved into Solaris Studio, committed to GitHub, exposed to browser code, or copied into a public configuration value.
 
 ## Deliberately retained rollback data
 
