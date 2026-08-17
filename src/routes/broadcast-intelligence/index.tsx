@@ -409,12 +409,7 @@ function BroadcastIntelligencePage() {
             {!eligibleShows.length &&
               selectedEdition && (
                 <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
-                  Publish the
-                  overall, jury
-                  and televote
-                  result for a
-                  show before it
-                  appears here.
+                  This edition does not have a fully public jury and televote result available for replay yet.
                 </p>
               )}
           </Panel>
