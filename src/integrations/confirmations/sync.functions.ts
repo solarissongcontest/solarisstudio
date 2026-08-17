@@ -333,8 +333,9 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
         edition_id: edition.id,
         country_id: country.id,
         contest_entity_id: entity.id,
-        artist: existingEntry?.source === "confirmations" ? existingEntry.artist : null,
-        song_title: existingEntry?.source === "confirmations" ? existingEntry.song_title : null,
+        artist: null,
+        song_title: null,
+        song_url: null,
         status: snapshot.participating ? "pending" : "withdrawn",
         selection_method: cleanText(snapshot.selection_method),
         source: "confirmations",
@@ -353,6 +354,15 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
         .single();
       if (upserted.error) throw new Error(upserted.error.message);
       canonicalEntry = upserted.data;
+
+      if (existingEntry?.source === "confirmations") {
+        const { error: compatibilityError } = await db
+          .from("participants")
+          .update({ artist: null, song: null })
+          .eq("edition_id", edition.id)
+          .eq("country_id", country.id);
+        if (compatibilityError) throw new Error(compatibilityError.message);
+      }
     }
 
     if (!canonicalEntry) throw new Error("Could not resolve canonical entry");
