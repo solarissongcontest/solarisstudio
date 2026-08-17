@@ -1,5 +1,40 @@
 import { createServerFn } from "@tanstack/react-start";
 
+export type MergedRoundSolarisSource = {
+  round: {
+    id: string;
+    name: string;
+    status: string;
+    edition_id: string;
+  };
+  edition: {
+    id: string;
+    solaris_id: string;
+    name: string;
+    edition_number: number;
+    is_active: boolean;
+    is_archived: boolean;
+  };
+  binding: {
+    remote_round_id: string;
+    remote_edition_id: string;
+    edition_id: string;
+    show_id: string | null;
+    source_mode: "edition" | "show";
+    last_synced_at: string | null;
+    frozen_at: string | null;
+  } | null;
+  edition_participant_count: number;
+  shows: Array<{
+    id: string;
+    name: string;
+    kind: string;
+    status: string;
+    sort_order: number;
+    participant_count: number;
+  }>;
+};
+
 export const syncMergedTelevotingEditionCatalog = createServerFn({ method: "POST" }).handler(async () => {
   const { ensureCanonicalTelevotingEditionsServer } = await import(
     "@/integrations/televoting/solaris-sync.server"
@@ -16,7 +51,7 @@ export const getMergedRoundSolarisSource = createServerFn({ method: "POST" })
     const { getMergedRoundSolarisSourceServer } = await import(
       "@/integrations/televoting/solaris-sync.server"
     );
-    return getMergedRoundSolarisSourceServer(data.roundId);
+    return (await getMergedRoundSolarisSourceServer(data.roundId)) as MergedRoundSolarisSource;
   });
 
 export const syncMergedRoundFromSolaris = createServerFn({ method: "POST" })
