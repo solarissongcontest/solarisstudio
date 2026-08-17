@@ -1,6 +1,7 @@
 import "@/confirmations.css";
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
@@ -17,6 +18,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import {
+  syncConfirmationSnapshotToSolaris,
+  type ConfirmationSolarisSyncResult,
+} from "@/integrations/confirmations/sync.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/confirmations/admin/responses/$id")({
@@ -221,6 +226,7 @@ function EntryReviewCard({
 function ResponseDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
   const [data, setData] = useState<ResponseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -228,6 +234,24 @@ function ResponseDetailPage() {
   const [locked, setLocked] = useState(false);
   const [notes, setNotes] = useState("");
   const [savingControls, setSavingControls] = useState(false);
+  const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
+  const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
+  const [syncingSolaris, setSyncingSolaris] = useState(false);
+
+  const syncSnapshot = useCallback(async (detail: ResponseDetail) => {
+    setSyncingSolaris(true);
+    setSolarisSyncError(null);
+    try {
+      const result = await syncToSolaris({ data: { snapshot: detail } });
+      setSolarisSync(result);
+      if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
+    } catch (caught) {
+      setSolarisSync(null);
+      setSolarisSyncError(caught instanceof Error ? caught.message : "Could not sync this response to Solaris.");
+    } finally {
+      setSyncingSolaris(false);
+    }
+  }, [syncToSolaris]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -253,7 +277,8 @@ function ResponseDetailPage() {
     setLocked(detail.locked);
     setNotes(detail.admin_notes ?? "");
     setLoading(false);
-  }, [id, navigate]);
+    await syncSnapshot(detail);
+  }, [id, navigate, syncSnapshot]);
 
   useEffect(() => {
     void load();
@@ -405,6 +430,40 @@ function ResponseDetailPage() {
           </div>
 
           <aside className="space-y-4">
+            <section className="confirmations-surface p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Solaris canonical data</p>
+                  <p className="mt-2 text-sm font-medium text-white">
+                    {syncingSolaris
+                      ? "Syncing…"
+                      : solarisSync?.ok
+                        ? solarisSync.officialEntryKnown
+                          ? "Participation + official entry linked"
+                          : "Participation linked · entry pending"
+                        : "Needs sync"}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[9px] uppercase tracking-[0.15em]",
+                    syncingSolaris && "border-sky-200/20 bg-sky-200/10 text-sky-100",
+                    !syncingSolaris && solarisSync?.ok && "border-emerald-300/25 bg-emerald-300/10 text-emerald-100",
+                    !syncingSolaris && !solarisSync?.ok && "border-amber-200/25 bg-amber-200/10 text-amber-100",
+                  )}
+                >
+                  {syncingSolaris ? "Syncing" : solarisSync?.ok ? "Linked" : "Check"}
+                </span>
+              </div>
+              {solarisSyncError ? <p className="mt-3 text-xs leading-relaxed text-red-100">{solarisSyncError}</p> : null}
+              {solarisSync?.ok && !solarisSync.officialEntryKnown ? (
+                <p className="mt-3 text-xs leading-relaxed text-white/45">The country is in the canonical SSC participant list. Its official song will populate automatically after an accepted internal entry or accepted NF winner exists.</p>
+              ) : null}
+              <Button className="mt-4 w-full" size="sm" variant="outline" disabled={syncingSolaris} onClick={() => void syncSnapshot(data)}>
+                {syncingSolaris ? "Syncing…" : "Sync now"}
+              </Button>
+            </section>
+
             <section className="confirmations-surface p-5 lg:sticky lg:top-6">
               <div className="flex items-center gap-2">
                 <LockKeyhole className="size-4 text-sky-100/70" />
