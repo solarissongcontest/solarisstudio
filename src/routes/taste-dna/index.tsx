@@ -311,7 +311,7 @@ function TasteDnaPage() {
 
             {!eligibleShows.length && selectedEdition && (
               <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
-                Publish overall, jury and televote results for a show before Taste DNA can compare the three rankings.
+                This edition does not have a fully public jury and televote result available for Taste DNA yet.
               </p>
             )}
           </Panel>
