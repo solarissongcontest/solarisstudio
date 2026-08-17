@@ -10,12 +10,20 @@ async function checkAdminBridge() {
   try {
     const response = await fetch(bridgeUrl, {
       method: "GET",
+      redirect: "manual",
       headers: {
         "x-solaris-access-token": authorization.slice("Bearer ".length).trim(),
+        Accept: "application/json",
       },
     });
 
-    return response.ok;
+    if (!response.ok || response.type === "opaqueredirect") return false;
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) return false;
+
+    const payload = (await response.json()) as { ok?: boolean };
+    return payload.ok === true;
   } catch {
     return false;
   }
