@@ -8,6 +8,7 @@ import {
   Inbox,
   Link2,
   RefreshCw,
+  Server,
   Snowflake,
   UserRoundCog,
 } from "lucide-react";
@@ -41,16 +42,55 @@ function SyncHealthPage() {
             <Link to="/admin/operations" className="text-xs text-muted-foreground hover:text-foreground">← Solaris Operations</Link>
             <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-sky-200/15 bg-sky-200/[0.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-100/75"><GitMerge className="h-3.5 w-3.5" /> Canonical data</div>
             <h1 className="font-display mt-3 text-5xl uppercase leading-none sm:text-6xl">Sync Health</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">One place to see whether Confirmations and Televoting still agree with Solaris Studio, plus how much historical voting data can be attributed to known HOD tenures.</p>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">One place to see whether Confirmations and Televoting still agree with Solaris Studio, whether the Televoting compatibility runtime is actually reachable, and how much historical voting data can be attributed to known HOD tenures.</p>
           </div>
           <button type="button" onClick={() => void refetch()} disabled={isFetching} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.05] px-4 text-xs font-semibold disabled:opacity-60"><RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} /> Refresh health</button>
         </div>
       </header>
 
-      {isLoading ? <section className="glass-strong p-10 text-center text-sm text-muted-foreground">Checking canonical links…</section> : error || !data ? (
+      {isLoading ? <section className="glass-strong p-10 text-center text-sm text-muted-foreground">Checking canonical links and service runtimes…</section> : error || !data ? (
         <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Sync health could not be loaded."}</section>
       ) : (
         <>
+          <section className={cn(
+            "glass-strong border p-5",
+            data.televotingRuntime.status === "healthy"
+              ? "border-emerald-200/15 bg-emerald-200/[0.04]"
+              : "border-amber-200/25 bg-amber-200/[0.06]",
+          )}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex min-w-0 gap-3">
+                <div className={cn(
+                  "grid h-10 w-10 shrink-0 place-items-center rounded-xl border",
+                  data.televotingRuntime.status === "healthy"
+                    ? "border-emerald-200/20 bg-emerald-200/10 text-emerald-100"
+                    : "border-amber-200/25 bg-amber-200/10 text-amber-100",
+                )}>
+                  {data.televotingRuntime.status === "healthy" ? <CheckCircle2 className="h-4 w-4" /> : <Server className="h-4 w-4" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-sm font-semibold">Televoting admin runtime</h2>
+                    <span className={cn(
+                      "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]",
+                      data.televotingRuntime.status === "healthy"
+                        ? "border-emerald-200/20 bg-emerald-200/[0.08] text-emerald-100"
+                        : "border-amber-200/25 bg-amber-200/[0.09] text-amber-100",
+                    )}>{data.televotingRuntime.status}</span>
+                  </div>
+                  <p className="mt-2 max-w-4xl break-words text-xs leading-relaxed text-muted-foreground">{data.televotingRuntime.message}</p>
+                  {data.televotingRuntime.status !== "healthy" ? (
+                    <p className="mt-2 text-[11px] leading-relaxed text-amber-100/70">Canonical Solaris data can remain healthy while this compatibility runtime is unavailable. Televoting organizer pages that depend on the legacy backend should not be considered deployment-ready until this card turns healthy.</p>
+                  ) : null}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:w-[230px]">
+                <RuntimeStat label="Bridge" ready={data.televotingRuntime.reachable} />
+                <RuntimeStat label="Admin identity" ready={data.televotingRuntime.organizerCompatibilityReady} />
+              </div>
+            </div>
+          </section>
+
           <section className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
             <Metric label="Confirmation links" value={data.totals.confirmationLinks} icon={Inbox} />
             <Metric label="Voting bindings" value={data.totals.televotingBindings} icon={Link2} />
@@ -125,4 +165,8 @@ function Metric({ label, value, icon: Icon, attention = false }: { label: string
 
 function SmallStat({ label, value, attention = false }: { label: string; value: string | number; attention?: boolean }) {
   return <div className={cn("min-w-[92px] rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2", attention && "border-amber-200/20 bg-amber-200/[0.06]")}><p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className={cn("mt-1 text-lg font-semibold", attention && "text-amber-100")}>{value}</p></div>;
+}
+
+function RuntimeStat({ label, ready }: { label: string; ready: boolean }) {
+  return <div className={cn("rounded-xl border px-3 py-2", ready ? "border-emerald-200/15 bg-emerald-200/[0.05]" : "border-amber-200/20 bg-amber-200/[0.06]")}><p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className={cn("mt-1 text-xs font-semibold", ready ? "text-emerald-100" : "text-amber-100")}>{ready ? "Ready" : "Unavailable"}</p></div>;
 }
