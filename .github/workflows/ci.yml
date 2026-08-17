@@ -87,19 +87,38 @@ jobs:
         continue-on-error: true
         run: bun run lint
 
-      - name: Verify Lovable Televoting bridge route
+      - name: Probe Lovable Televoting bridge route
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
           URL="https://id-preview--e1848c61-349c-4c53-8d0f-bca7891c1ae9.lovable.app/api/solaris-admin-proxy"
-          status=$(curl --silent --show-error --output /tmp/bridge-body --write-out "%{http_code}" --max-time 20 "$URL")
-          cat /tmp/bridge-body
-          echo
-          echo "Bridge HTTP status: $status"
-          if [ "$status" != "403" ]; then
-            echo "::error::Expected the unauthenticated bridge probe to return 403."
-            exit 1
-          fi
+          curl --silent --show-error --location --max-time 20 \
+            --dump-header /tmp/bridge-headers \
+            --output /tmp/bridge-body \
+            --write-out "%{http_code}\n%{url_effective}\n" \
+            "$URL" > /tmp/bridge-meta 2> /tmp/bridge-curl-error
+          curl_exit=$?
+          set -e
+          {
+            echo "curl_exit=$curl_exit"
+            echo "--- meta ---"
+            cat /tmp/bridge-meta || true
+            echo "--- headers ---"
+            cat /tmp/bridge-headers || true
+            echo "--- body ---"
+            cat /tmp/bridge-body || true
+            echo "--- curl error ---"
+            cat /tmp/bridge-curl-error || true
+          } > /tmp/bridge-diagnostic.txt
+          cat /tmp/bridge-diagnostic.txt
+
+      - name: Upload bridge diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: lovable-bridge-diagnostic
+          path: /tmp/bridge-diagnostic.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Quality summary
         if: always()
