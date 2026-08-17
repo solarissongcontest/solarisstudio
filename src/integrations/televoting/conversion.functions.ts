@@ -107,11 +107,16 @@ export const setMergedResultsStatus = createServerFn({ method: "POST" })
     if (data.status !== "published") return remote;
 
     // Publishing is the canonical hand-off point. The Televoting result remains
-    // published even if Solaris is temporarily unavailable; the sync outcome is
-    // returned to the Control Room and recorded by the integration layer.
+    // published even if Solaris is temporarily unavailable; a failed canonical
+    // import is surfaced explicitly instead of being hidden behind a green toast.
     const { trySyncPublishedRoundResultsToSolarisServer } = await import(
       "@/integrations/televoting/results-sync.server"
     );
     const solarisSync = await trySyncPublishedRoundResultsToSolarisServer(data.roundId);
+    if (!solarisSync.ok && solarisSync.status !== "waiting_for_combined") {
+      throw new Error(
+        `Televote published, but Solaris Studio was not updated: ${solarisSync.message ?? solarisSync.status}`,
+      );
+    }
     return { ...remote, solarisSync };
   });
