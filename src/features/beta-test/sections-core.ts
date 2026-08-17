@@ -1,0 +1,141 @@
+import type { BetaSection } from "./types";
+
+export const betaSectionsCore: BetaSection[] = [
+  {
+    id: "your-test",
+    title: "Your test",
+    description: "A little context so the feedback can be interpreted properly.",
+    questions: [
+      { id: "testerName", label: "1. Name / SSC username", type: "text", required: true, placeholder: "Your name or SSC username" },
+      { id: "device", label: "2. What are you testing on?", type: "single", required: true, options: ["Phone", "Tablet", "Laptop", "Desktop"] },
+      { id: "browser", label: "3. Browser", type: "single", options: ["Chrome", "Safari", "Firefox", "Edge", "Other / Not sure"] },
+      {
+        id: "familiarity",
+        label: "4. Before today, how familiar were you with what Solaris Studio is supposed to do?",
+        type: "single",
+        options: [
+          "I knew almost everything about it",
+          "I had a general idea",
+          "I had heard about it but didn't really know what it did",
+          "I knew basically nothing",
+        ],
+        helper: "This helps separate genuine discoverability problems from things that only feel obvious because someone already knows the site.",
+      },
+    ],
+  },
+  {
+    id: "homepage",
+    title: "Homepage & first impression",
+    task: {
+      body: "Open the Solaris Studio homepage. Don't deliberately hunt for anything yet. Spend around 30 seconds looking at it normally.",
+      href: "/",
+      linkLabel: "Open homepage",
+    },
+    questions: [
+      { id: "homeClarity", label: "5. After those first 30 seconds, how clearly did you understand what Solaris Studio was?", type: "rating", lowLabel: "I had no idea", highLabel: "Completely clear" },
+      { id: "homeFirstAttention", label: "6. What did your attention go to FIRST?", type: "single", options: ["Main story / headline", "Latest stories", "Results / scoreboard", "Solaris Pulse", "Edition information", "Country-related content", "Statistics / records", "Interactive tools", "Navigation / menu", "Something else"] },
+      { id: "homeShouldAttention", label: "7. Was that also the thing you think SHOULD attract attention first?", type: "single", options: ["Yes", "Probably", "No"] },
+      { id: "homeAttentionInstead", label: "8. What should have caught your attention instead?", type: "text", placeholder: "I think ___ should be more prominent than ___.", showWhen: { id: "homeShouldAttention", equals: "No" } },
+      { id: "homeFeel", label: "9. How did the homepage feel?", type: "multi", options: ["Professional", "Exciting", "Informative", "Easy to understand", "Modern", "Like a real contest/news website", "Too busy", "Overwhelming", "Too empty", "Repetitive", "Confusing", "Unfinished"] },
+      { id: "homeExplore", label: "10. Did the homepage make you WANT to click and explore?", type: "rating", lowLabel: "Not at all", highLabel: "Very strongly" },
+      { id: "homeClickReason", label: "11. What made you want to click something?", type: "textarea", helper: "A few words is enough. For example: “The country headline”, “I wanted to see the full results”, or “The statistics looked interesting.”" },
+      { id: "homeUnclear", label: "12. Was there anything on the homepage that you didn't understand?", type: "textarea", placeholder: "I wasn't sure what ___ meant / would do.", helper: "Write “No” if everything was clear." },
+    ],
+  },
+  {
+    id: "find-country",
+    title: "Find something without help",
+    task: { body: "Without using this form for directions, find the page for a country you know well.", href: "/", linkLabel: "Open Solaris Studio" },
+    questions: [
+      { id: "countryFindEase", label: "13. How easy was it?", type: "rating", lowLabel: "Couldn't find it", highLabel: "Immediately obvious" },
+      { id: "countryFindMethod", label: "14. How did you find it?", type: "single", options: ["Main navigation", "Search", "Clicked the country somewhere else", "Through an edition / results page", "Another way", "I couldn't find it"] },
+      { id: "countryWrongFirst", label: "15. Did you look somewhere FIRST where the country page wasn't available?", type: "single", options: ["Yes", "No"] },
+      { id: "countryExpectedLocation", label: "16. Where did you expect to find it?", type: "text", helper: "Your expectation is useful even if the website currently does something else.", showWhen: { id: "countryWrongFirst", equals: "Yes" } },
+    ],
+  },
+  {
+    id: "country-pages",
+    title: "Country pages",
+    task: {
+      body: "Choose one country you know reasonably well and explore its page. Look at its history, entries, placements, points, achievements and voting-related information.",
+      href: "/countries",
+      linkLabel: "Open countries",
+    },
+    questions: [
+      { id: "countryUseful", label: "17. How useful did the country page feel?", type: "rating", lowLabel: "Not useful", highLabel: "Extremely useful" },
+      { id: "countryUnderstand", label: "18. How easy was the page to understand?", type: "rating", lowLabel: "Very confusing", highLabel: "Immediately clear" },
+      {
+        id: "countryTasks",
+        label: "19. Could you quickly answer these using the country page?",
+        type: "matrix",
+        rows: [
+          "How well has this country historically performed?",
+          "What are some of its best results?",
+          "What entries has it sent?",
+          "How has its performance changed over time?",
+          "Which countries does it have interesting voting relationships with?",
+        ],
+        options: ["Yes, easily", "Yes, but took some searching", "No"],
+      },
+      { id: "countryMostInteresting", label: "20. What information was MOST interesting?", type: "single", options: ["Entries", "Placements / results", "Points", "Historical performance", "Achievements", "Voting statistics", "Voting relationships", "Other"] },
+      { id: "countryMissing", label: "21. Was anything important missing from the country page?", type: "textarea", placeholder: "When looking at a country, I would also want to know ___.", helper: "“Nothing missing” is a perfectly useful answer." },
+      { id: "countryUnclear", label: "22. Was there information you saw but didn't understand?", type: "textarea", placeholder: "I saw ___ but wasn't sure what it meant.", helper: "Write “No” if everything made sense." },
+      { id: "countryUnnecessary", label: "23. Did anything feel unnecessary?", type: "textarea", placeholder: "I probably wouldn't need ___ because ___.", helper: "Write “No” if nothing felt unnecessary." },
+    ],
+  },
+  {
+    id: "editions-results",
+    title: "Editions, shows & results",
+    task: { body: "Find a past Solaris Song Contest edition, explore its page, then find its results.", href: "/editions", linkLabel: "Open editions" },
+    questions: [
+      { id: "editionFindEase", label: "24. How easy was it to find an edition?", type: "rating", lowLabel: "Very difficult", highLabel: "Immediate" },
+      { id: "editionUnderstand", label: "25. How easy was the edition page to understand?", type: "rating", lowLabel: "Very confusing", highLabel: "Very clear" },
+      { id: "editionTasks", label: "26. Were these easy to find?", type: "matrix", rows: ["Entries", "Running order / show information", "Final placement", "Jury results", "Televote results", "Combined / overall results"], options: ["Easy", "Took some searching", "Couldn't find"] },
+      { id: "resultsClarity", label: "27. Were the results presented clearly?", type: "rating", lowLabel: "Very unclear", highLabel: "Extremely clear" },
+      { id: "resultsSplitUnderstand", label: "28. Did you understand the difference between jury, televote and overall results immediately?", type: "single", options: ["Yes", "Mostly", "Not immediately", "No"] },
+      { id: "resultsImprove", label: "29. What would make the results pages better?", type: "multi", options: ["Easier switching between Jury / Televote / Overall", "More visual charts", "More country information", "More explanations", "Easier comparison", "More highlighted records / facts", "More context about close results", "Less information on screen", "Nothing", "Other"] },
+      { id: "resultsWrong", label: "30. Did you notice any result, placement, points total or other data that looked WRONG?", type: "single", options: ["Yes", "No", "I'm not sure"] },
+      { id: "resultsWrongDetail", label: "31. What looked wrong?", type: "textarea", placeholder: "PAGE / EDITION: ___\nWHAT I SAW: ___\nWHAT I THINK IT SHOULD BE: ___", helper: "You do not need to be certain.", showWhen: { id: "resultsWrong", oneOf: ["Yes", "I'm not sure"] } },
+    ],
+  },
+  {
+    id: "analysis",
+    title: "Analysis",
+    task: {
+      body: "Open Analysis and explore at least TWO analysis views, such as Network, Heat Map, Jury vs Tele, Relationships or History.",
+      href: "/analysis",
+      linkLabel: "Open Analysis",
+    },
+    questions: [
+      { id: "analysisTried", label: "32. Which did you try?", type: "multi", options: ["Network", "Heat Map", "Jury vs Tele", "Relationships", "History", "Other"] },
+      { id: "analysisPurpose", label: "33. Before interacting with them, was it clear what each analysis was supposed to show?", type: "single", options: ["Completely clear", "Mostly clear", "Some were unclear", "I had no idea what some of them did"] },
+      { id: "analysisBest", label: "34. Which analysis was MOST useful or interesting?", type: "single", optionsFrom: "analysisTried" },
+      { id: "analysisBestWhy", label: "35. Why?", type: "text", placeholder: "It showed me ___ that I couldn't easily see from normal results." },
+      { id: "analysisWorst", label: "36. Which analysis was LEAST useful or hardest to understand?", type: "single", optionsFrom: "analysisTried" },
+      { id: "analysisProblem", label: "37. What was the problem?", type: "multi", options: ["I didn't understand what it showed", "Too much information", "Hard to read visually", "Controls were confusing", "Didn't feel useful", "Needed more explanation", "Worked badly on my device", "Other"] },
+      { id: "analysisDiscovery", label: "38. Did an analysis show you something genuinely interesting or unexpected about SSC?", type: "textarea", helper: "For example: “I didn't realise Country A and Country B voted for each other so often.” Write “No” if nothing stood out." },
+    ],
+  },
+  {
+    id: "compare",
+    title: "Compare Countries",
+    task: { body: "Use Compare Countries and choose two countries. Preferably choose countries you think are quite different.", href: "/compare", linkLabel: "Open Compare Countries" },
+    questions: [
+      { id: "compareEase", label: "39. How easy was it to understand how the comparison worked?", type: "rating", lowLabel: "Very confusing", highLabel: "Immediately clear" },
+      { id: "compareUseful", label: "40. Did the comparison tell you something useful that would have been difficult to find manually?", type: "single", options: ["Definitely", "A little", "Not really", "No"] },
+      { id: "compareAdd", label: "41. What information would you ADD to country comparisons?", type: "textarea", placeholder: "When comparing two countries, I also want to compare ___." },
+      { id: "compareReturn", label: "42. Would you actually use this feature again?", type: "single", options: ["Definitely", "Probably", "Maybe", "Probably not", "No"] },
+    ],
+  },
+  {
+    id: "records",
+    title: "Records & historical data",
+    task: { body: "Explore the Records area.", href: "/records", linkLabel: "Open Records" },
+    questions: [
+      { id: "recordsInteresting", label: "43. How interesting was it?", type: "rating", lowLabel: "Not interesting", highLabel: "Extremely interesting" },
+      { id: "recordsBrowse", label: "44. Were the records easy to browse?", type: "rating", lowLabel: "Very difficult", highLabel: "Very easy" },
+      { id: "recordTypes", label: "45. What types of records would make you want to keep exploring?", type: "multi", options: ["Biggest wins", "Closest results", "Highest scores", "Lowest scores", "Jury records", "Televote records", "Country streaks", "Qualification records", "Placement records", "Voting records", "Historical changes", "Unusual / funny statistics", "Other"] },
+      { id: "recordsMissing", label: "46. What record / statistic did you EXPECT to exist but couldn't find?", type: "text", placeholder: "I wanted to see ___.", helper: "Write “Nothing” if nothing came to mind." },
+    ],
+  },
+];

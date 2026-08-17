@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  BarChart3,
   Bell,
   Flag,
   Gauge,
@@ -61,6 +62,7 @@ export function AdminNav() {
       label: "Engagement",
       items: [
         { label: "Predictions", to: "/admin/predictions", icon: Sparkles },
+        { label: "Beta feedback", to: "/admin/beta-feedback", icon: BarChart3 },
       ],
     },
     {
