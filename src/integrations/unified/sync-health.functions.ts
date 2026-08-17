@@ -16,6 +16,10 @@ export type SyncHealthEdition = {
   televotingRounds: number;
   staleTelevotingRounds: number;
   frozenTelevotingRounds: number;
+  hodMappedDelegations: number;
+  hodUnmappedDelegations: number;
+  hodCoveragePercent: number;
+  hodChannelOverrides: number;
   health: "healthy" | "attention" | "idle";
 };
 
@@ -39,14 +43,15 @@ export type SyncHealthSummary = {
     staleTelevotingBindings: number;
     failedEvents: number;
     pendingEvents: number;
+    hodPeople: number;
+    hodAssignments: number;
+    hodChannelOverrides: number;
   };
 };
 
 export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
   async (): Promise<SyncHealthSummary> => {
-    const { requireSolarisOrganizerServer } = await import(
-      "@/integrations/supabase/organizer.server"
-    );
+    const { requireSolarisOrganizerServer } = await import("@/integrations/supabase/organizer.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await requireSolarisOrganizerServer();
     const db = supabaseAdmin as any;
@@ -58,35 +63,20 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
       linksResult,
       bindingsResult,
       eventsResult,
+      hodPeopleResult,
+      hodAssignmentsResult,
     ] = await Promise.all([
-      db
-        .from("editions")
-        .select("id,edition_number,name,status,data_revision")
-        .order("edition_number", { ascending: false, nullsFirst: false }),
-      db.from("participants").select("edition_id,participation_status"),
+      db.from("editions").select("id,edition_number,name,status,data_revision").order("edition_number", { ascending: false, nullsFirst: false }),
+      db.from("participants").select("edition_id,country_id,participation_status"),
       db.from("entries").select("edition_id,status"),
-      db
-        .from("integration_links")
-        .select("id,service,entity_type,edition_id,sync_status,last_synced_at"),
-      db
-        .from("televoting_round_bindings")
-        .select("remote_round_id,edition_id,show_id,last_synced_at,last_synced_revision,frozen_at"),
-      db
-        .from("integration_events")
-        .select("id,service,event_type,status,remote_id,last_error,updated_at")
-        .in("status", ["failed", "pending", "retrying"])
-        .order("updated_at", { ascending: false })
-        .limit(30),
+      db.from("integration_links").select("id,service,entity_type,edition_id,sync_status,last_synced_at"),
+      db.from("televoting_round_bindings").select("remote_round_id,edition_id,show_id,last_synced_at,last_synced_revision,frozen_at"),
+      db.from("integration_events").select("id,service,event_type,status,remote_id,last_error,updated_at").in("status", ["failed", "pending", "retrying"]).order("updated_at", { ascending: false }).limit(30),
+      db.from("delegation_people").select("id"),
+      db.from("delegation_hod_assignments").select("edition_id,country_id,channel"),
     ]);
 
-    for (const result of [
-      editionsResult,
-      participantsResult,
-      entriesResult,
-      linksResult,
-      bindingsResult,
-      eventsResult,
-    ]) {
+    for (const result of [editionsResult, participantsResult, entriesResult, linksResult, bindingsResult, eventsResult, hodPeopleResult, hodAssignmentsResult]) {
       if (result.error) throw new Error(result.error.message);
     }
 
@@ -95,29 +85,31 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
     const links = linksResult.data ?? [];
     const bindings = bindingsResult.data ?? [];
     const problemEvents = eventsResult.data ?? [];
+    const hodPeople = hodPeopleResult.data ?? [];
+    const hodAssignments = hodAssignmentsResult.data ?? [];
 
     const editions: SyncHealthEdition[] = (editionsResult.data ?? []).map((edition: any) => {
       const editionParticipants = participants.filter((row: any) => row.edition_id === edition.id);
       const editionEntries = entries.filter((row: any) => row.edition_id === edition.id);
-      const confirmationLinks = links.filter(
-        (row: any) => row.service === "confirmations" && row.edition_id === edition.id,
-      );
+      const confirmationLinks = links.filter((row: any) => row.service === "confirmations" && row.edition_id === edition.id);
       const editionBindings = bindings.filter((row: any) => row.edition_id === edition.id);
+      const editionHodAssignments = hodAssignments.filter((row: any) => row.edition_id === edition.id);
       const dataRevision = Number(edition.data_revision ?? 0);
-      const staleBindings = editionBindings.filter(
-        (binding: any) =>
-          !binding.frozen_at &&
-          (!binding.last_synced_at || Number(binding.last_synced_revision ?? 0) < dataRevision),
+      const staleBindings = editionBindings.filter((binding: any) => !binding.frozen_at && (!binding.last_synced_at || Number(binding.last_synced_revision ?? 0) < dataRevision));
+      const confirmedRows = editionParticipants.filter((row: any) => !row.participation_status || row.participation_status === "confirmed");
+      const confirmedParticipants = confirmedRows.length;
+      const confirmedCountryIds = new Set(confirmedRows.map((row: any) => String(row.country_id)).filter(Boolean));
+      const defaultHodCountries = new Set(
+        editionHodAssignments
+          .filter((row: any) => row.channel === "delegation" && confirmedCountryIds.has(String(row.country_id)))
+          .map((row: any) => String(row.country_id)),
       );
-      const confirmedParticipants = editionParticipants.filter(
-        (row: any) => !row.participation_status || row.participation_status === "confirmed",
-      ).length;
-      const selectedEntries = editionEntries.filter(
-        (row: any) => ["selected", "confirmed", "official"].includes(String(row.status).toLowerCase()),
-      ).length;
-      const pendingEntries = editionEntries.filter(
-        (row: any) => ["pending", "awaiting", "draft"].includes(String(row.status).toLowerCase()),
-      ).length;
+      const hodMappedDelegations = defaultHodCountries.size;
+      const hodUnmappedDelegations = Math.max(0, confirmedCountryIds.size - hodMappedDelegations);
+      const hodCoveragePercent = confirmedCountryIds.size ? Math.round((hodMappedDelegations / confirmedCountryIds.size) * 100) : 0;
+      const hodChannelOverrides = editionHodAssignments.filter((row: any) => row.channel === "jury" || row.channel === "televote").length;
+      const selectedEntries = editionEntries.filter((row: any) => ["selected", "confirmed", "official"].includes(String(row.status).toLowerCase())).length;
+      const pendingEntries = editionEntries.filter((row: any) => ["pending", "awaiting", "draft"].includes(String(row.status).toLowerCase())).length;
       const hasActivity = editionParticipants.length > 0 || confirmationLinks.length > 0 || editionBindings.length > 0;
       const attention = staleBindings.length > 0;
 
@@ -128,21 +120,19 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
         status: String(edition.status),
         dataRevision,
         confirmedParticipants,
-        withdrawnParticipants: editionParticipants.filter(
-          (row: any) => row.participation_status === "withdrawn",
-        ).length,
+        withdrawnParticipants: editionParticipants.filter((row: any) => row.participation_status === "withdrawn").length,
         entries: editionEntries.length,
         selectedEntries,
         pendingEntries,
-        confirmationSubmissions: confirmationLinks.filter(
-          (row: any) => row.entity_type === "submission",
-        ).length,
-        confirmationEntries: confirmationLinks.filter(
-          (row: any) => row.entity_type === "entry",
-        ).length,
+        confirmationSubmissions: confirmationLinks.filter((row: any) => row.entity_type === "submission").length,
+        confirmationEntries: confirmationLinks.filter((row: any) => row.entity_type === "entry").length,
         televotingRounds: editionBindings.length,
         staleTelevotingRounds: staleBindings.length,
         frozenTelevotingRounds: editionBindings.filter((row: any) => Boolean(row.frozen_at)).length,
+        hodMappedDelegations,
+        hodUnmappedDelegations,
+        hodCoveragePercent,
+        hodChannelOverrides,
         health: attention ? "attention" : hasActivity ? "healthy" : "idle",
       };
     });
@@ -167,6 +157,9 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
         staleTelevotingBindings: editions.reduce((sum, edition) => sum + edition.staleTelevotingRounds, 0),
         failedEvents: recentProblems.filter((event) => event.status === "failed").length,
         pendingEvents: recentProblems.filter((event) => event.status !== "failed").length,
+        hodPeople: hodPeople.length,
+        hodAssignments: hodAssignments.length,
+        hodChannelOverrides: hodAssignments.filter((row: any) => row.channel === "jury" || row.channel === "televote").length,
       },
     };
   },
