@@ -1,6 +1,9 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
-import { ensureCanonicalTelevotingEditionsServer } from "@/integrations/televoting/solaris-sync.server";
+import {
+  ensureCanonicalTelevotingEditionsServer,
+  syncMergedRoundFromSolarisServer,
+} from "@/integrations/televoting/solaris-sync.server";
 
 export type MergedAdminRoundServer = {
   id: string;
@@ -73,6 +76,39 @@ export async function createMergedTelevotingRoundServer(data: { editionId: strin
     .select("id,name")
     .single();
   if (error) throw new Error(error.message);
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const solaris = supabaseAdmin as any;
+  const now = new Date().toISOString();
+  const { error: bindingError } = await solaris.from("televoting_round_bindings").upsert(
+    {
+      remote_round_id: row.id,
+      remote_edition_id: edition.id,
+      edition_id: edition.solaris_id,
+      show_id: null,
+      source_mode: "edition",
+      last_synced_at: null,
+      frozen_at: null,
+      updated_at: now,
+    },
+    { onConflict: "remote_round_id" },
+  );
+  if (bindingError) throw new Error(bindingError.message);
+
+  let syncWarning: string | null = null;
+  try {
+    await syncMergedRoundFromSolarisServer({
+      roundId: row.id,
+      sourceMode: "edition",
+      showId: null,
+    });
+  } catch (caught) {
+    // Keep the newly-created draft bound even when an edition does not yet have
+    // enough confirmed participants to form a valid voting round. Future
+    // confirmation changes will retry it automatically.
+    syncWarning = caught instanceof Error ? caught.message : "Canonical line-up could not be populated yet";
+  }
+
   await audit(actor, "create_round", {
     targetType: "round",
     targetId: row.id,
@@ -81,9 +117,11 @@ export async function createMergedTelevotingRoundServer(data: { editionId: strin
       edition_id: edition.id,
       solaris_edition_id: edition.solaris_id,
       edition_number: edition.edition_number,
+      canonical_source: "edition",
+      canonical_sync_warning: syncWarning,
     },
   });
-  return row;
+  return { ...row, sync_warning: syncWarning };
 }
 
 export async function renameMergedTelevotingRoundServer(data: { id: string; name: string }) {
