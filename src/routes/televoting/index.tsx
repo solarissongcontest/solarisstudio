@@ -166,7 +166,7 @@ function TelevotingPage() {
       ) : error ? (
         <section className="glass-strong border-destructive/30 p-8 text-center">
           <h2 className="text-xl font-medium">Voting data could not be loaded</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{error instanceof Error ? error.message : "Please try again shortly."}</p>
+          <p className="mt-2 text-sm text-muted-foreground">Please try again shortly.</p>
         </section>
       ) : !data ? (
         <section className="glass-strong p-8 text-center sm:p-10">
