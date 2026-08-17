@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { CorrectionScope, SourceInputMode } from "@/integrations/televoting/combined-math";
 
+async function refreshCombinedCanonicalParticipants(aggregationId: string) {
+  const { syncEditableCombinedParticipantsFromSolarisServer } = await import(
+    "@/integrations/televoting/combined-sync.server"
+  );
+  return syncEditableCombinedParticipantsFromSolarisServer(aggregationId);
+}
+
 export const listMergedCombinedAggregations = createServerFn({ method: "GET" }).handler(async () => {
   const { listMergedCombinedAggregationsServer } = await import("@/integrations/televoting/combined.server");
   return listMergedCombinedAggregationsServer();
@@ -12,6 +19,14 @@ export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    // Reading an editable Combined workspace also refreshes its canonical
+    // participant projection. Failure here must not hide the specialist result
+    // engine; publication will still enforce the canonical guard strictly.
+    try {
+      await refreshCombinedCanonicalParticipants(data.id);
+    } catch (caught) {
+      console.error("[Combined canonical sync] Refresh on load failed", caught);
+    }
     const { getMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
     return getMergedCombinedAggregationServer(data.id);
   });
@@ -49,6 +64,15 @@ export const setMergedCombinedParticipants = createServerFn({ method: "POST" })
     return { id: data.id, participants };
   })
   .handler(async ({ data }) => {
+    const canonicalSync = await refreshCombinedCanonicalParticipants(data.id);
+    if (canonicalSync.status === "synced" || canonicalSync.status === "up_to_date") {
+      throw new Error(
+        "Participants are managed by the linked Solaris show. Edit the show lineup in Solaris Studio instead.",
+      );
+    }
+    if (canonicalSync.status === "immutable") {
+      throw new Error("Locked or published Combined participant snapshots cannot be edited.");
+    }
     const { setMergedCombinedParticipantsServer } = await import("@/integrations/televoting/combined.server");
     return setMergedCombinedParticipantsServer(data);
   });
@@ -73,7 +97,9 @@ export const upsertMergedCombinedSource = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { upsertMergedCombinedSourceServer } = await import("@/integrations/televoting/combined.server");
-    return upsertMergedCombinedSourceServer(data);
+    const remote = await upsertMergedCombinedSourceServer(data);
+    const canonicalSync = await refreshCombinedCanonicalParticipants(data.aggregationId);
+    return { ...remote, canonicalSync };
   });
 
 export const deleteMergedCombinedSource = createServerFn({ method: "POST" })
@@ -83,7 +109,9 @@ export const deleteMergedCombinedSource = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { deleteMergedCombinedSourceServer } = await import("@/integrations/televoting/combined.server");
-    return deleteMergedCombinedSourceServer(data);
+    const remote = await deleteMergedCombinedSourceServer(data);
+    const canonicalSync = await refreshCombinedCanonicalParticipants(data.aggregationId);
+    return { ...remote, canonicalSync };
   });
 
 export const saveMergedCombinedSourceValues = createServerFn({ method: "POST" })
@@ -103,6 +131,9 @@ export const recalculateMergedCombined = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    // Ensure the calculator always sees the current canonical show lineup before
+    // it creates a new official calculation version.
+    await refreshCombinedCanonicalParticipants(data.id);
     const { recalculateMergedCombinedServer } = await import("@/integrations/televoting/combined.server");
     return recalculateMergedCombinedServer(data.id);
   });
@@ -114,6 +145,13 @@ export const setMergedCombinedStatus = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
+    if (data.status === "locked" || data.status === "published") {
+      // Refresh before the immutable transition. If the canonical lineup changed,
+      // this marks the existing calculation outdated and the normal lock/publish
+      // gate forces a recalculation instead of freezing stale countries.
+      await refreshCombinedCanonicalParticipants(data.id);
+    }
+
     const { setMergedCombinedStatusServer } = await import("@/integrations/televoting/combined.server");
     const remote = await setMergedCombinedStatusServer(data);
 
