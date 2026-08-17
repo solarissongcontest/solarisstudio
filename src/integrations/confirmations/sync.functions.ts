@@ -185,13 +185,14 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
       return result;
     }
 
-    let { data: entity, error: entityError } = await db
+    const entityLookup = await db
       .from("contest_entities")
       .select("id")
       .eq("edition_id", edition.id)
       .eq("country_id", country.id)
       .maybeSingle();
-    if (entityError) throw new Error(entityError.message);
+    if (entityLookup.error) throw new Error(entityLookup.error.message);
+    let entity = entityLookup.data;
 
     if (!entity) {
       const inserted = await db
@@ -213,14 +214,15 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
 
     const participationStatus = snapshot.participating ? "confirmed" : "withdrawn";
 
-    let { data: participant, error: participantError } = await db
+    const participantLookup = await db
       .from("participants")
       .select("id")
       .eq("edition_id", edition.id)
       .eq("country_id", country.id)
       .is("show_id", null)
       .maybeSingle();
-    if (participantError) throw new Error(participantError.message);
+    if (participantLookup.error) throw new Error(participantLookup.error.message);
+    let participant = participantLookup.data;
 
     if (!participant) {
       const inserted = await db
