@@ -286,7 +286,7 @@ function ResultLabPage() {
 
             {!eligibleShows.length && selectedEdition && (
               <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
-                Publish overall, jury and televote results for one of this edition's shows before using Result Lab.
+                This edition does not have a fully public jury and televote result available for simulation yet.
               </p>
             )}
           </Panel>
