@@ -351,7 +351,7 @@ function SolarisPulsePage() {
                     ? "Your in-app Pulse is paused in preferences."
                     : user && follows.length
                       ? "Nothing matching your current follow levels has changed yet. Set a follow to All updates if you want the quieter changes too."
-                      : "No automatic updates have been generated yet. Publishing an edition, entries, a running order, results or a prediction round will create them."}
+                      : "There are no public updates to show yet. Check back when something changes in Solaris."}
                 </p>
               </div>
             )}
