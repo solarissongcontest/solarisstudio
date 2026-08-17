@@ -59,9 +59,9 @@
   --radius: 1.1rem;
   --background: oklch(0.115 0.045 250);
   --foreground: oklch(0.965 0.012 230);
-  --card: rgba(14, 30, 58, 0.42);
+  --card: rgba(8, 24, 49, 0.86);
   --card-foreground: oklch(0.965 0.012 230);
-  --popover: rgba(4, 18, 42, 0.82);
+  --popover: rgba(4, 18, 42, 0.94);
   --popover-foreground: oklch(0.965 0.012 230);
   --primary: oklch(0.79 0.095 215);
   --primary-foreground: oklch(0.13 0.04 250);
@@ -79,14 +79,14 @@
   --gold: oklch(0.83 0.13 88);
   --jury: oklch(0.76 0.085 215);
   --televote: oklch(0.69 0.10 195);
-  --surface: rgba(170, 208, 228, 0.065);
-  --surface-strong: rgba(170, 208, 228, 0.12);
+  --surface: rgba(135, 183, 207, 0.075);
+  --surface-strong: rgba(150, 198, 220, 0.13);
   --chart-1: oklch(0.76 0.085 215);
   --chart-2: oklch(0.68 0.10 195);
   --chart-3: oklch(0.79 0.065 230);
   --chart-4: oklch(0.62 0.085 205);
   --chart-5: oklch(0.56 0.07 235);
-  --sidebar: rgba(3, 15, 38, 0.74);
+  --sidebar: rgba(3, 15, 38, 0.92);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -129,24 +129,22 @@
   button, input, select, textarea { min-width: 0; }
   button, a, select { touch-action: manipulation; }
   input, select, textarea { max-width: 100%; }
+  :where(a, button, input, select, textarea, [role="button"], [role="tab"]):focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--primary) 78%, white 22%);
+    outline-offset: 3px;
+  }
   ::selection { color: #06121f; background: rgba(177, 220, 236, 0.9); }
 }
 
+/* Default content cards are deliberately solid. Glass is reserved for shells and premium moments. */
 @utility glass {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 1.35rem;
-  background:
-    linear-gradient(145deg, rgba(220, 239, 248, 0.12) 0%, rgba(161, 207, 228, 0.065) 28%, rgba(74, 137, 181, 0.035) 62%, rgba(180, 220, 238, 0.07) 100%);
-  border: 1px solid rgba(200, 230, 244, 0.30);
-  -webkit-backdrop-filter: blur(15px) saturate(185%) brightness(1.05);
-  backdrop-filter: blur(15px) saturate(185%) brightness(1.05);
-  box-shadow:
-    0 18px 48px rgba(0, 3, 20, 0.22),
-    inset 0 1px 0 rgba(240, 249, 253, 0.42),
-    inset 1px 0 0 rgba(205, 232, 245, 0.10),
-    inset 0 -1px 0 rgba(95, 170, 205, 0.11);
+  border-radius: 1.15rem;
+  background: linear-gradient(155deg, rgba(18, 42, 71, 0.88), rgba(5, 18, 39, 0.94));
+  border: 1px solid rgba(185, 220, 238, 0.20);
+  box-shadow: 0 14px 36px rgba(0, 3, 20, 0.18), inset 0 1px 0 rgba(220, 240, 248, 0.08);
 }
 
 @utility glass-strong {
@@ -167,7 +165,6 @@
     inset 0 -1px 0 rgba(95, 170, 205, 0.12);
 }
 
-.glass::before,
 .glass-strong::before {
   content: "";
   position: absolute;
@@ -181,14 +178,13 @@
   mix-blend-mode: screen;
 }
 
-.glass::after,
 .glass-strong::after {
   content: "";
   position: absolute;
   inset: 1px;
   z-index: 0;
   pointer-events: none;
-  border-radius: calc(1.35rem - 1px);
+  border-radius: calc(1.5rem - 1px);
   box-shadow:
     inset 0 1px 1px rgba(240, 250, 254, 0.14),
     inset -8px -7px 16px -13px rgba(100, 195, 225, 0.52),
@@ -199,12 +195,10 @@
 .glass > *, .glass-strong > * { position: relative; z-index: 1; }
 
 .data-panel {
-  border: 1px solid rgba(190, 224, 240, 0.20);
+  border: 1px solid rgba(190, 224, 240, 0.18);
   border-radius: 1rem;
-  background: linear-gradient(155deg, rgba(30, 58, 88, 0.34), rgba(5, 19, 40, 0.50));
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-  backdrop-filter: blur(12px) saturate(150%);
-  box-shadow: 0 14px 38px rgba(0, 4, 24, 0.16), inset 0 1px 0 rgba(220, 240, 248, 0.12);
+  background: linear-gradient(155deg, rgba(19, 43, 72, 0.90), rgba(4, 17, 38, 0.95));
+  box-shadow: 0 12px 32px rgba(0, 4, 24, 0.15), inset 0 1px 0 rgba(220, 240, 248, 0.07);
 }
 
 .editorial-section { background: transparent; }
@@ -220,7 +214,7 @@
 }
 
 .site-nav {
-  background: linear-gradient(180deg, rgba(7, 25, 55, 0.58), rgba(3, 15, 38, 0.42));
+  background: linear-gradient(180deg, rgba(7, 25, 55, 0.72), rgba(3, 15, 38, 0.62));
   -webkit-backdrop-filter: blur(22px) saturate(185%);
   backdrop-filter: blur(22px) saturate(185%);
   border-color: rgba(195, 228, 243, 0.18) !important;
@@ -228,7 +222,7 @@
 }
 
 .mobile-quick-nav {
-  background: linear-gradient(180deg, rgba(8, 27, 58, 0.60), rgba(2, 13, 34, 0.62));
+  background: linear-gradient(180deg, rgba(8, 27, 58, 0.80), rgba(2, 13, 34, 0.86));
   -webkit-backdrop-filter: blur(22px) saturate(190%);
   backdrop-filter: blur(22px) saturate(190%);
   border-color: rgba(195, 228, 243, 0.18) !important;
@@ -236,19 +230,15 @@
 }
 
 aside[class*="bg-background"], [data-sidebar] {
-  background: linear-gradient(160deg, rgba(26, 56, 88, 0.58), rgba(3, 15, 38, 0.72)) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
+  background: linear-gradient(160deg, rgba(18, 43, 72, 0.90), rgba(3, 15, 38, 0.96)) !important;
   border-color: rgba(190, 225, 240, 0.18) !important;
 }
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select, [role="combobox"] {
   color: var(--foreground);
-  background: linear-gradient(180deg, rgba(208, 232, 243, 0.08), rgba(80, 145, 185, 0.035)) !important;
+  background: linear-gradient(180deg, rgba(26, 51, 80, 0.92), rgba(8, 25, 49, 0.94)) !important;
   border-color: rgba(185, 220, 238, 0.22) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(160%);
-  backdrop-filter: blur(10px) saturate(160%);
-  box-shadow: inset 0 1px 0 rgba(225, 242, 250, 0.14);
+  box-shadow: inset 0 1px 0 rgba(225, 242, 250, 0.08);
 }
 
 input:focus-visible, textarea:focus-visible, select:focus-visible, [role="combobox"]:focus-visible {
@@ -258,19 +248,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, [role="combob
 }
 
 [data-radix-popper-content-wrapper] > *, [role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"] {
-  background: linear-gradient(145deg, rgba(35, 68, 100, 0.52), rgba(5, 20, 44, 0.72)) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(185%);
-  backdrop-filter: blur(24px) saturate(185%);
+  background: linear-gradient(145deg, rgba(26, 55, 86, 0.96), rgba(5, 20, 44, 0.98)) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid rgba(200, 230, 244, 0.26) !important;
-  box-shadow: inset 0 1px 0 rgba(230, 246, 252, 0.18), 0 24px 64px rgba(0, 4, 24, 0.34) !important;
+  box-shadow: inset 0 1px 0 rgba(230, 246, 252, 0.12), 0 24px 64px rgba(0, 4, 24, 0.34) !important;
 }
 
 button.bg-secondary, button[class*="bg-background"], button.border.border-input, a[class*="bg-background"] {
-  background: linear-gradient(180deg, rgba(208, 232, 243, 0.10), rgba(75, 140, 180, 0.04)) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
-  backdrop-filter: blur(12px) saturate(160%);
+  background: linear-gradient(180deg, rgba(27, 53, 82, 0.94), rgba(8, 25, 49, 0.96)) !important;
   border-color: rgba(190, 225, 240, 0.22) !important;
-  box-shadow: inset 0 1px 0 rgba(225, 242, 250, 0.18) !important;
+  box-shadow: inset 0 1px 0 rgba(225, 242, 250, 0.10) !important;
 }
 
 .bg-aurora:is(button, a, [role="button"]), button.bg-primary, a.bg-primary, [role="button"].bg-primary {
@@ -322,6 +310,13 @@ button.bg-secondary, button[class*="bg-background"], button.border.border-input,
   filter: saturate(1.02);
 }
 
+/* Keep very wide data inside its own scroll context instead of leaking to the viewport. */
+:where(.app-main, .admin-page) .overflow-x-auto {
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 @supports (padding: max(0px)) {
   body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 }
@@ -331,19 +326,40 @@ button.bg-secondary, button[class*="bg-background"], button.border.border-input,
 @media (max-width: 767px) {
   body { background-color: #020817; background-image: none; background-attachment: scroll; }
   .app-background { background-size: cover, cover, auto 100svh; background-position: center, center, center top; }
-  .glass, .glass-strong { border-radius: 1.15rem; -webkit-backdrop-filter: blur(11px) saturate(185%); backdrop-filter: blur(11px) saturate(185%); }
-  .glass::after, .glass-strong::after { border-radius: calc(1.15rem - 1px); }
+  .glass { border-radius: 1rem; }
+  .glass-strong { border-radius: 1.15rem; -webkit-backdrop-filter: blur(11px) saturate(175%); backdrop-filter: blur(11px) saturate(175%); }
+  .glass-strong::after { border-radius: calc(1.15rem - 1px); }
   .recharts-responsive-container { max-width: 100% !important; }
   table { font-size: 0.8125rem; }
+
+  [role="dialog"][data-state="open"],
+  [role="alertdialog"][data-state="open"] {
+    width: calc(100vw - 1rem) !important;
+    max-width: none !important;
+    max-height: calc(100svh - 1rem) !important;
+    overflow-y: auto;
+    border-radius: 1.15rem !important;
+  }
+
+  .page-header :where(a, button, [role="button"]) {
+    min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .app-main { padding-inline: 0.75rem; }
+  .admin-page { padding-inline: 0.75rem; }
+  .data-panel { border-radius: 0.9rem; }
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .glass-strong { background: rgba(11, 29, 52, 0.86) !important; }
-  input, textarea, select { background: rgba(15, 35, 60, 0.88) !important; }
+  .glass-strong { background: rgba(11, 29, 52, 0.94) !important; }
+  input, textarea, select { background: rgba(15, 35, 60, 0.96) !important; }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .glass, .glass-strong { background: rgba(13, 31, 56, 0.88) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .glass-strong { background: rgba(13, 31, 56, 0.94) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .site-nav, .mobile-quick-nav { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
