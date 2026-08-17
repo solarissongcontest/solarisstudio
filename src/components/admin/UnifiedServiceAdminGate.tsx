@@ -89,12 +89,12 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/70">
                 Televoting backend
               </p>
-              <h1 className="mt-2 text-xl font-medium">Admin data connection is not configured</h1>
+              <h1 className="mt-2 text-xl font-medium">Admin bridge is not reachable yet</h1>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Solaris organizer authentication is working. This deployment is missing the server-only Televoting credential required for privileged rounds, results, analytics, integrity and moderation operations.
+                Solaris organizer authentication is working and the Televoting database remains inside the Lovable-managed ssc-tele backend. The secure admin bridge has not yet been published at a public Lovable URL, so Solaris Studio cannot reach the privileged controls from this deployment.
               </p>
               <p className="mt-3 text-xs text-amber-100/70">
-                The public voting connection remains separate and can continue to operate. No login retry is required.
+                Public voting remains separate and can continue to operate. No second Supabase project, copied service-role key or login retry is required.
               </p>
             </div>
           </div>
