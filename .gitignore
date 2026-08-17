@@ -16,6 +16,9 @@ dist-ssr
 .nitro
 *.local
 
+# Generated routing
+src/routeTree.gen.ts
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
