@@ -72,8 +72,10 @@ function createBridgeFetch(bridgeUrl: string): typeof fetch {
 
     const response = await fetch(bridgeUrl, {
       method: "POST",
+      redirect: "manual",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
         "x-solaris-access-token": accessToken,
       },
       body: JSON.stringify({
@@ -83,6 +85,17 @@ function createBridgeFetch(bridgeUrl: string): typeof fetch {
         body: await requestBody(input, init),
       }),
     });
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (
+      response.type === "opaqueredirect" ||
+      (response.status >= 300 && response.status < 400) ||
+      !contentType.includes("application/json")
+    ) {
+      throw new Error(
+        "The Televoting admin bridge is not publicly reachable. Publish the Lovable ssc-tele app and point Solaris Studio at its public URL.",
+      );
+    }
 
     return response;
   };
