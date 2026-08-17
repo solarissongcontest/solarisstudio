@@ -87,6 +87,20 @@ jobs:
         continue-on-error: true
         run: bun run lint
 
+      - name: Verify Lovable Televoting bridge route
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://id-preview--e1848c61-349c-4c53-8d0f-bca7891c1ae9.lovable.app/api/solaris-admin-proxy"
+          status=$(curl --silent --show-error --output /tmp/bridge-body --write-out "%{http_code}" --max-time 20 "$URL")
+          cat /tmp/bridge-body
+          echo
+          echo "Bridge HTTP status: $status"
+          if [ "$status" != "403" ]; then
+            echo "::error::Expected the unauthenticated bridge probe to return 403."
+            exit 1
+          fi
+
       - name: Quality summary
         if: always()
         shell: bash
