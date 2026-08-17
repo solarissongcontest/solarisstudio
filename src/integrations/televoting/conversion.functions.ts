@@ -102,5 +102,16 @@ export const setMergedResultsStatus = createServerFn({ method: "POST" })
     const { setMergedResultsStatusServer } = await import(
       "@/integrations/televoting/conversion.server"
     );
-    return setMergedResultsStatusServer(data);
+    const remote = await setMergedResultsStatusServer(data);
+
+    if (data.status !== "published") return remote;
+
+    // Publishing is the canonical hand-off point. The Televoting result remains
+    // published even if Solaris is temporarily unavailable; the sync outcome is
+    // returned to the Control Room and recorded by the integration layer.
+    const { trySyncPublishedRoundResultsToSolarisServer } = await import(
+      "@/integrations/televoting/results-sync.server"
+    );
+    const solarisSync = await trySyncPublishedRoundResultsToSolarisServer(data.roundId);
+    return { ...remote, solarisSync };
   });
