@@ -1,40 +1,31 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  createFileRoute,
-  Link,
-} from "@tanstack/react-router";
+  ArrowRight,
+  CalendarDays,
+  EyeOff,
+  MapPin,
+  Plus,
+  RadioTower,
+  Settings2,
+  Trash2,
+  Trophy,
+} from "lucide-react";
 
 import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react";
-
-import {
-  useQueryClient,
-} from "@tanstack/react-query";
-
-import {
-  AppShell,
-  PageHeader,
-  Panel,
-  StatTile,
-} from "@/components/AppShell";
-
-import {
-  Field,
-  Select,
-  TextInput,
-} from "@/components/studio/Controls";
-
-import {
-  supabase,
-} from "@/integrations/supabase/client";
-
-import {
-  reportSupabaseError,
-} from "@/lib/errors";
-
+  AdminActionItem,
+  AdminCard,
+  AdminConfirmSheet,
+  AdminEmptyState,
+  AdminMoreMenu,
+  AdminPageHeader,
+  AdminSheet,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
+import { Field, Select, TextInput } from "@/components/studio/Controls";
+import { supabase } from "@/integrations/supabase/client";
+import { reportSupabaseError } from "@/lib/errors";
 import {
   editionLabel,
   useAllParticipants,
@@ -45,1042 +36,546 @@ import {
   type Edition,
   type Show,
 } from "@/lib/data";
-
 import {
   hasAnyPublicInformation,
   resolveAutomaticEditionStatus,
   resolveShowPublication,
 } from "@/lib/publication";
 
-export const Route =
-  createFileRoute(
-    "/_authenticated/admin/",
-  )({
-    head: () => ({
-      meta: [
-        {
-          title:
-            "Organizer studio — Solaris Spectacle Suite",
-        },
-        {
-          name:
-            "description",
-          content:
-            "Create and manage Solaris Song Contest editions, shows, voting systems, edition design and broadcast production.",
-        },
-      ],
-    }),
-    component:
-      AdminHome,
-  });
+export const Route = createFileRoute("/_authenticated/admin/")({
+  head: () => ({
+    meta: [
+      { title: "Editions — Solaris Organizer" },
+      {
+        name: "description",
+        content: "Create and manage Solaris Song Contest editions from the organizer workspace.",
+      },
+    ],
+  }),
+  component: AdminHome,
+});
 
-function derivedEditionStatus(
-  edition: Edition,
-  editionShows: Show[],
-) {
+function derivedEditionStatus(edition: Edition, editionShows: Show[]) {
   if (!editionShows.length) {
-    return {
-      label: "Draft",
-      published: false,
-      status: "draft",
-    };
+    return { label: "Draft", published: false, status: "draft" };
   }
 
-  const status =
-    resolveAutomaticEditionStatus(
-      editionShows.map(
-        (show) => ({
-          kind:
-            show.kind,
-          published:
-            show.published,
-          publication_config:
-            show.publication_config,
-        }),
-      ),
-    );
+  const status = resolveAutomaticEditionStatus(
+    editionShows.map((show) => ({
+      kind: show.kind,
+      published: show.published,
+      publication_config: show.publication_config,
+    })),
+  );
 
   return {
-    label:
-      status === "completed"
-        ? "Completed"
-        : status === "published"
-          ? "Published"
-          : "Draft",
-    published:
-      status !== "draft",
+    label: status === "completed" ? "Completed" : status === "published" ? "Published" : "Draft",
+    published: status !== "draft",
     status,
   };
 }
 
 function AdminHome() {
-  const {
-    data: editions,
-    isLoading:
-      editionsLoading,
-  } =
-    useEditions();
+  const { data: editions = [], isLoading: editionsLoading } = useEditions();
+  const { data: countries = [] } = useCountries();
+  const { data: shows = [] } = useAllShows();
+  const { data: participants = [] } = useAllParticipants();
+  const { data: isOrganizer } = useIsOrganizer();
+  const qc = useQueryClient();
 
-  const {
-    data: countries,
-  } =
-    useCountries();
+  const nextNumber = editionsLoading
+    ? null
+    : Math.max(0, ...editions.map((edition) => edition.edition_number ?? 0)) + 1;
 
-  const {
-    data: shows,
-  } =
-    useAllShows();
+  const [form, setForm] = useState({
+    edition_number: "" as number | "",
+    name: "",
+    year: "",
+    host_city: "",
+    host_country_id: "",
+  });
+  const [numberTouched, setNumberTouched] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [privateEdition, setPrivateEdition] = useState<Edition | null>(null);
+  const [deleteEdition, setDeleteEdition] = useState<Edition | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const {
-    data: participants,
-  } =
-    useAllParticipants();
-
-  const {
-    data: isOrganizer,
-  } =
-    useIsOrganizer();
-
-  const qc =
-    useQueryClient();
-
-  const nextNumber =
-    editionsLoading
-      ? null
-      : Math.max(
-          0,
-          ...(
-            editions ??
-            []
-          ).map(
-            (
-              edition,
-            ) =>
-              edition.edition_number ??
-              0,
-          ),
-        ) + 1;
-
-  const [
-    form,
-    setForm,
-  ] =
-    useState({
-      edition_number:
-        "" as
-          | number
-          | "",
-
-      name: "",
-      year: "",
-      host_city: "",
-      host_country_id:
-        "",
+  const participantCountByShow = useMemo(() => {
+    const counts = new Map<string, number>();
+    participants.forEach((participant) => {
+      if (!participant.show_id) return;
+      counts.set(participant.show_id, (counts.get(participant.show_id) ?? 0) + 1);
     });
+    return counts;
+  }, [participants]);
 
-  const [
-    numberTouched,
-    setNumberTouched,
-  ] =
-    useState(false);
+  const editionParticipantCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    participants.forEach((participant) => {
+      counts.set(participant.edition_id, (counts.get(participant.edition_id) ?? 0) + 1);
+    });
+    return counts;
+  }, [participants]);
 
-  const [
-    msg,
-    setMsg,
-  ] =
-    useState<
-      string | null
-    >(null);
+  useEffect(() => {
+    if (nextNumber !== null && !numberTouched && form.edition_number === "") {
+      setForm((current) => ({ ...current, edition_number: nextNumber }));
+    }
+  }, [nextNumber, numberTouched, form.edition_number]);
 
-  const [
-    error,
-    setError,
-  ] =
-    useState<
-      string | null
-    >(null);
-
-  const [
-    saving,
-    setSaving,
-  ] =
-    useState(false);
-
-  const participantCountByShow =
-    useMemo(
-      () => {
-        const counts =
-          new Map<
-            string,
-            number
-          >();
-
-        (
-          participants ??
-          []
-        ).forEach(
-          (
-            participant,
-          ) => {
-            if (
-              !participant.show_id
-            ) {
-              return;
-            }
-
-            counts.set(
-              participant.show_id,
-              (
-                counts.get(
-                  participant.show_id,
-                ) ??
-                0
-              ) + 1,
-            );
-          },
-        );
-
-        return counts;
-      },
-      [
-        participants,
-      ],
+  const refresh = () => {
+    ["editions", "edition", "shows", "show", "participants", "results"].forEach((key) =>
+      qc.invalidateQueries({ queryKey: [key] }),
     );
+  };
 
-  useEffect(
-    () => {
-      if (
-        nextNumber !==
-          null &&
-        !numberTouched &&
-        form.edition_number ===
-          ""
-      ) {
-        setForm(
-          (
-            current,
-          ) => ({
-            ...current,
-            edition_number:
-              nextNumber,
-          }),
-        );
-      }
-    },
-    [
-      nextNumber,
-      numberTouched,
-      form.edition_number,
-    ],
-  );
+  const createEdition = async (event: FormEvent) => {
+    event.preventDefault();
+    if (saving) return;
 
-  const refresh =
-    () => {
-      [
-        "editions",
-        "edition",
-        "shows",
-        "show",
-        "participants",
-        "results",
-      ].forEach(
-        (
-          key,
-        ) =>
-          qc.invalidateQueries({
-            queryKey:
-              [
-                key,
-              ],
-          }),
-      );
-    };
+    setMsg(null);
+    setError(null);
 
-  const createEdition =
-    async (
-      event:
-        FormEvent,
-    ) => {
-      event.preventDefault();
+    const num = Number(form.edition_number);
+    if (!Number.isInteger(num) || num < 1) {
+      setError("Enter a whole edition number of 1 or higher.");
+      return;
+    }
 
-      if (saving) {
+    const slug = `ssc-${num}`;
+    const clash = editions.find(
+      (edition) => edition.edition_number === num || edition.slug === slug,
+    );
+    if (clash) {
+      setError(`Edition ${num} already exists (“${clash.name}”). Pick a different number.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error: insertError } = await supabase.from("editions").insert({
+        edition_number: num,
+        name: form.name || `Solaris Song Contest ${num}`,
+        year: form.year ? Number(form.year) : null,
+        slug,
+        host_city: form.host_city || null,
+        host_country_id: form.host_country_id || null,
+        status: "draft",
+        published: false,
+      });
+
+      if (insertError) {
+        setError(reportSupabaseError(insertError, "Could not create the edition. Nothing was saved."));
         return;
       }
 
-      setMsg(null);
-      setError(null);
+      setNumberTouched(false);
+      setForm({
+        edition_number: num + 1,
+        name: "",
+        year: "",
+        host_city: "",
+        host_country_id: "",
+      });
+      setCreateOpen(false);
+      setMsg(`SSC ${num} created as a private draft.`);
+      refresh();
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      const num =
-        Number(
-          form.edition_number,
-        );
+  const makeEditionPrivate = async (edition: Edition) => {
+    const actionKey = `private:${edition.id}`;
+    setBusyAction(actionKey);
+    setError(null);
+    setMsg(null);
 
-      if (
-        !Number.isInteger(
-          num,
-        ) ||
-        num < 1
-      ) {
-        setError(
-          "Enter a whole edition number of 1 or higher.",
-        );
-        return;
-      }
-
-      const slug =
-        `ssc-${num}`;
-
-      const clash =
-        (
-          editions ??
-          []
-        ).find(
-          (
-            edition,
-          ) =>
-            edition.edition_number ===
-              num ||
-            edition.slug ===
-              slug,
-        );
-
-      if (clash) {
-        setError(
-          `Edition ${num} already exists (“${clash.name}”). Pick a different number.`,
-        );
-        return;
-      }
-
-      setSaving(true);
-
-      try {
-        const {
-          error:
-            insertError,
-        } =
-          await supabase
-            .from(
-              "editions",
-            )
-            .insert({
-              edition_number:
-                num,
-              name:
-                form.name ||
-                `Solaris Song Contest ${num}`,
-              year:
-                form.year
-                  ? Number(
-                      form.year,
-                    )
-                  : null,
-              slug,
-              host_city:
-                form.host_city ||
-                null,
-              host_country_id:
-                form.host_country_id ||
-                null,
-              status:
-                "draft",
-              published:
-                false,
-            });
-
-        if (
-          insertError
-        ) {
-          setError(
-            reportSupabaseError(
-              insertError,
-              "Could not create the edition. Nothing was saved.",
-            ),
-          );
-          return;
-        }
-
-        setNumberTouched(
-          false,
-        );
-
-        setForm({
-          edition_number:
-            num + 1,
-          name: "",
-          year: "",
-          host_city: "",
-          host_country_id:
-            "",
-        });
-
-        setMsg(
-          `SSC ${num} created as a draft.`,
-        );
-
-        refresh();
-      } finally {
-        setSaving(
-          false,
-        );
-      }
-    };
-
-  const makeEditionPrivate =
-    async (
-      edition:
-        Edition,
-      editionShows:
-        Show[],
-    ) => {
-      if (
-        !window.confirm(
-          `Make ${editionLabel(
-            edition,
-          )} and all of its shows private? No contest data will be deleted.`,
-        )
-      ) {
-        return;
-      }
-
-      setError(null);
-      setMsg(null);
-
-      const {
-        error:
-          showError,
-      } =
-        await supabase
-          .from(
-            "shows",
-          )
-          .update({
-            published:
-              false,
-          })
-          .eq(
-            "edition_id",
-            edition.id,
-          );
+    try {
+      const { error: showError } = await supabase
+        .from("shows")
+        .update({ published: false })
+        .eq("edition_id", edition.id);
 
       if (showError) {
-        setError(
-          reportSupabaseError(
-            showError,
-            "Could not make the edition private.",
-          ),
-        );
-        return;
+        setError(reportSupabaseError(showError, "Could not make the edition private."));
+        return false;
       }
 
-      const {
-        error:
-          editionError,
-      } =
-        await supabase
-          .from(
-            "editions",
-          )
-          .update({
-            published:
-              false,
-            status:
-              "draft",
-          })
-          .eq(
-            "id",
-            edition.id,
-          );
+      const { error: editionError } = await supabase
+        .from("editions")
+        .update({ published: false, status: "draft" })
+        .eq("id", edition.id);
 
-      if (
-        editionError
-      ) {
+      if (editionError) {
         setError(
           reportSupabaseError(
             editionError,
-            "Shows were made private, but the edition status could not be updated.",
+            "The shows were made private, but the edition status could not be updated.",
           ),
         );
-        return;
+        return false;
       }
 
-      setMsg(
-        `${editionLabel(
-          edition,
-        )} is private. Publication settings are still saved, so you can release the shows again from Manage shows → Publication.`,
-      );
-
+      setMsg(`${editionLabel(edition)} is private. Its saved publication choices are still available.`);
       refresh();
-    };
+      return true;
+    } finally {
+      setBusyAction(null);
+    }
+  };
 
-  const removeEdition =
-    async (
-      edition:
-        Edition,
-    ) => {
-      if (
-        !window.confirm(
-          `Delete “${edition.name}” and all of its shows, votes and results?`,
-        )
-      ) {
-        return;
+  const removeEdition = async (edition: Edition) => {
+    const actionKey = `delete:${edition.id}`;
+    setBusyAction(actionKey);
+    setError(null);
+    setMsg(null);
+
+    try {
+      const { error: deleteError } = await supabase.from("editions").delete().eq("id", edition.id);
+      if (deleteError) {
+        setError(reportSupabaseError(deleteError, "Could not delete this edition."));
+        return false;
       }
 
-      setError(null);
-      setMsg(null);
-
-      const {
-        error:
-          deleteError,
-      } =
-        await supabase
-          .from(
-            "editions",
-          )
-          .delete()
-          .eq(
-            "id",
-            edition.id,
-          );
-
-      if (
-        deleteError
-      ) {
-        setError(
-          reportSupabaseError(
-            deleteError,
-            "Could not delete this edition.",
-          ),
-        );
-        return;
-      }
-
-      setMsg(
-        `Deleted ${editionLabel(
-          edition,
-        )}.`,
-      );
-
+      setMsg(`Deleted ${editionLabel(edition)}.`);
       refresh();
-    };
+      return true;
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const publicEditionCount = editions.filter((edition) => {
+    const editionShows = shows.filter((show) => show.edition_id === edition.id);
+    return derivedEditionStatus(edition, editionShows).published;
+  }).length;
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Organizer studio"
-        title="Manage editions"
-        description="Create editions here. What becomes public is controlled by each edition's show Publication settings, so the homepage, edition pages and result pages all use one source of truth."
+    <div className="mx-auto max-w-5xl">
+      <AdminPageHeader
+        eyebrow="Contest archive"
+        title="Editions"
+        description="Open an edition to work on it. Creation and destructive actions stay out of the way until you actually need them."
         actions={
-          <Link
-            to="/admin/predictions"
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
-          >
-            Prediction rounds
-          </Link>
+          <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
+            <Plus className="size-4" /> New edition
+          </button>
         }
       />
 
-      {isOrganizer ===
-        false && (
-        <div className="glass mb-4 border border-destructive/40 p-3 text-xs leading-relaxed sm:mb-6 sm:p-4 sm:text-sm">
-          Your account does
-          not have the{" "}
-          <strong>
-            organizer
-          </strong>{" "}
-          role yet, so saving
-          changes will be
-          rejected. Ask an
-          existing organizer to
-          grant it.
+      {isOrganizer === false ? (
+        <div className="mb-4 rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm leading-relaxed text-rose-100">
+          This account does not have organizer access, so changes will be rejected.
         </div>
-      )}
+      ) : null}
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:gap-4 lg:grid-cols-4">
-        <StatTile
-          label="Editions"
-          value={
-            editions?.length ??
-            0
-          }
-        />
-
-        <StatTile
-          label="Shows"
-          value={
-            shows?.length ??
-            0
-          }
-        />
-
-        <StatTile
-          label="Countries"
-          value={
-            countries?.length ??
-            0
-          }
-        />
-
-        <StatTile
-          label="Public editions"
-          value={
-            (
-              editions ??
-              []
-            ).filter(
-              (
-                edition,
-              ) => {
-                const editionShows =
-                  (
-                    shows ??
-                    []
-                  ).filter(
-                    (
-                      show,
-                    ) =>
-                      show.edition_id ===
-                      edition.id,
-                  );
-
-                return (
-                  derivedEditionStatus(
-                    edition,
-                    editionShows,
-                  ).published
-                );
-              },
-            ).length
-          }
-        />
-      </div>
-
-      {error && (
-        <div className="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+      {error ? (
+        <div className="mb-4 rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm text-rose-100">
           {error}
         </div>
+      ) : null}
+
+      {!error && msg ? (
+        <div className="mb-4 rounded-xl border border-emerald-200/15 bg-emerald-200/[0.05] p-3 text-sm text-emerald-100">
+          {msg}
+        </div>
+      ) : null}
+
+      <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
+        <MiniMetric label="Editions" value={editions.length} />
+        <MiniMetric label="Public" value={publicEditionCount} />
+        <MiniMetric label="Shows" value={shows.length} />
+      </div>
+
+      {editions.length ? (
+        <div className="space-y-3">
+          {[...editions]
+            .sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))
+            .map((edition) => {
+              const editionShows = shows.filter((show) => show.edition_id === edition.id);
+              const derived = derivedEditionStatus(edition, editionShows);
+              const publicShows = editionShows.filter(
+                (show) => show.published && hasAnyPublicInformation(resolveShowPublication(show)),
+              );
+              const entryCount = editionParticipantCount.get(edition.id) ?? 0;
+
+              return (
+                <AdminCard key={edition.id} className="!p-0 overflow-hidden">
+                  <div className="p-4 sm:p-5">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="admin-section-label">{editionLabel(edition)}</p>
+                        <h2 className="mt-1 break-words text-lg font-bold tracking-[-.025em] sm:text-xl">
+                          {edition.name}
+                        </h2>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center gap-1.5">
+                            <MapPin className="size-3.5" /> {edition.host_city ?? "Host TBC"}
+                          </span>
+                          {edition.year ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <CalendarDays className="size-3.5" /> {edition.year}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <AdminStatus tone={derived.status === "completed" ? "ready" : derived.published ? "info" : "neutral"}>
+                        {derived.label}
+                      </AdminStatus>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-white/[0.06] bg-white/[0.018] p-3 text-center">
+                      <EditionMetric label="Shows" value={editionShows.length} />
+                      <EditionMetric label="Entries" value={entryCount} />
+                      <EditionMetric label="Public" value={publicShows.length} />
+                    </div>
+
+                    {editionShows.length ? (
+                      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scroll-slim">
+                        {editionShows.slice(0, 5).map((show) => (
+                          <span
+                            key={show.id}
+                            className="shrink-0 rounded-lg border border-white/[0.06] bg-white/[0.025] px-2 py-1 text-[11px] text-muted-foreground"
+                          >
+                            {show.name} · {participantCountByShow.get(show.id) ?? 0}
+                          </span>
+                        ))}
+                        {editionShows.length > 5 ? (
+                          <span className="shrink-0 rounded-lg px-2 py-1 text-[11px] text-muted-foreground">
+                            +{editionShows.length - 5} more
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                      <Link
+                        to="/admin/$slug"
+                        params={{ slug: edition.slug }}
+                        className="admin-action-primary w-full"
+                      >
+                        Open edition <ArrowRight className="size-4" />
+                      </Link>
+
+                      <AdminMoreMenu
+                        label={`${editionLabel(edition)} actions`}
+                        title={edition.name}
+                        description={`${editionLabel(edition)} · edition actions`}
+                      >
+                        <div className="divide-y divide-white/[0.07]">
+                          <Link
+                            to="/admin/$slug"
+                            params={{ slug: edition.slug }}
+                            className="admin-action-row"
+                          >
+                            <span className="admin-action-row-icon"><Settings2 className="size-4" /></span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold">Manage edition</span>
+                              <span className="mt-1 block text-xs text-muted-foreground">Shows, entries, results and publication.</span>
+                            </span>
+                            <ArrowRight className="size-4 text-muted-foreground" />
+                          </Link>
+                          <Link
+                            to="/admin/design/$slug"
+                            params={{ slug: edition.slug }}
+                            className="admin-action-row"
+                          >
+                            <span className="admin-action-row-icon"><RadioTower className="size-4" /></span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold">Design & broadcast</span>
+                              <span className="mt-1 block text-xs text-muted-foreground">Artwork, theme and broadcast presentation.</span>
+                            </span>
+                            <ArrowRight className="size-4 text-muted-foreground" />
+                          </Link>
+                          {derived.published ? (
+                            <AdminActionItem
+                              icon={EyeOff}
+                              title="Make edition private"
+                              description="Hide all public shows without deleting their saved publication settings."
+                              onClick={() => setPrivateEdition(edition)}
+                            />
+                          ) : null}
+                          <AdminActionItem
+                            icon={Trash2}
+                            title="Delete edition"
+                            description="Permanently remove the edition and related contest data."
+                            tone="danger"
+                            onClick={() => setDeleteEdition(edition)}
+                          />
+                        </div>
+                      </AdminMoreMenu>
+                    </div>
+                  </div>
+                </AdminCard>
+              );
+            })}
+        </div>
+      ) : (
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title="No editions yet"
+            description="Create the first Solaris Song Contest edition. It starts private and can be configured before anything is published."
+            action={
+              <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
+                <Plus className="size-4" /> Create edition
+              </button>
+            }
+          />
+        </AdminCard>
       )}
 
-      {!error &&
-        msg && (
-          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm text-primary">
-            {msg}
-          </div>
-        )}
-
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[1.4fr_1fr] lg:gap-6">
-        <Panel
-          title="Editions"
-          description="An edition becomes public automatically when at least one of its shows has public information. A Grand Final with public results marks the edition completed."
-        >
-          <ul className="space-y-2">
-            {(
-              editions ??
-              []
-            ).map(
-              (
-                edition,
-              ) => {
-                const editionShows =
-                  (
-                    shows ??
-                    []
-                  ).filter(
-                    (
-                      show,
-                    ) =>
-                      show.edition_id ===
-                      edition.id,
-                  );
-
-                const derived =
-                  derivedEditionStatus(
-                    edition,
-                    editionShows,
-                  );
-
-                const publicShows =
-                  editionShows.filter(
-                    (
-                      show,
-                    ) =>
-                      show.published &&
-                      hasAnyPublicInformation(
-                        resolveShowPublication(
-                          show,
-                        ),
-                      ),
-                  );
-
-                return (
-                  <li
-                    key={
-                      edition.id
-                    }
-                    className="rounded-xl border border-border/60 bg-surface p-3 sm:px-4"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="break-words text-sm font-semibold sm:text-base">
-                            {editionLabel(
-                              edition,
-                            )}
-
-                            <span className="font-normal text-muted-foreground">
-                              {" "}
-                              ·{" "}
-                              {
-                                edition.name
-                              }
-                            </span>
-                          </p>
-
-                          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                            {edition.host_city ??
-                              "Host TBC"}{" "}
-                            ·{" "}
-                            {
-                              editionShows.length
-                            }{" "}
-                            show
-                            {editionShows.length ===
-                            1
-                              ? ""
-                              : "s"}{" "}
-                            ·{" "}
-                            {
-                              publicShows.length
-                            }{" "}
-                            public
-                          </p>
-                        </div>
-
-                        <span
-                          className={
-                            derived.published
-                              ? "shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold uppercase text-primary"
-                              : "shrink-0 rounded-full bg-background/60 px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground"
-                          }
-                        >
-                          {
-                            derived.label
-                          }
-                        </span>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                        <Link
-                          to="/admin/$slug"
-                          params={{
-                            slug:
-                              edition.slug,
-                          }}
-                          className="flex min-h-10 items-center justify-center rounded-lg border border-border px-3 text-sm font-medium"
-                        >
-                          Manage shows
-                        </Link>
-
-                        <Link
-                          to="/admin/design/$slug"
-                          params={{
-                            slug:
-                              edition.slug,
-                          }}
-                          className="flex min-h-10 items-center justify-center rounded-lg border border-primary/40 bg-primary/10 px-3 text-center text-sm font-semibold text-primary"
-                        >
-                          Design &amp; Broadcast
-                        </Link>
-
-                        <Link
-                          to="/admin/$slug"
-                          params={{
-                            slug:
-                              edition.slug,
-                          }}
-                          className="flex min-h-10 items-center justify-center rounded-lg border border-primary/30 px-3 text-center text-sm font-semibold text-primary"
-                          title="Open the edition, then choose the Publication tab."
-                        >
-                          Publication settings
-                        </Link>
-
-                        {derived.published && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              makeEditionPrivate(
-                                edition,
-                                editionShows,
-                              )
-                            }
-                            className="min-h-10 rounded-lg border border-border px-3 text-sm"
-                          >
-                            Make private
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeEdition(
-                              edition,
-                            )
-                          }
-                          className="min-h-10 rounded-lg border border-destructive/50 px-3 text-sm text-destructive hover:bg-destructive/10"
-                        >
-                          Delete
-                        </button>
-                      </div>
-
-                      {!!editionShows.length && (
-                        <div className="scroll-slim mt-3 flex gap-1.5 overflow-x-auto pb-1">
-                          {editionShows.map(
-                            (
-                              show,
-                            ) => {
-                              const count =
-                                participantCountByShow.get(
-                                  show.id,
-                                ) ??
-                                0;
-
-                              const publication =
-                                resolveShowPublication(
-                                  show,
-                                );
-
-                              const isPublic =
-                                show.published &&
-                                hasAnyPublicInformation(
-                                  publication,
-                                );
-
-                              return (
-                                <Link
-                                  key={
-                                    show.id
-                                  }
-                                  to="/broadcast/$showId"
-                                  params={{
-                                    showId:
-                                      show.id,
-                                  }}
-                                  className="shrink-0 rounded-lg bg-background/60 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
-                                >
-                                  {
-                                    show.name
-                                  }
-                                  {" · "}
-                                  {
-                                    count
-                                  }{" "}
-                                  entries
-                                  {" · "}
-                                  {isPublic
-                                    ? "public"
-                                    : "private"}
-                                </Link>
-                              );
-                            },
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              },
-            )}
-
-            {!(
-              editions ??
-              []
-            ).length && (
-              <p className="text-sm text-muted-foreground">
-                No editions yet.
-                Create SSC 1.
-              </p>
-            )}
-          </ul>
-        </Panel>
-
-        <Panel
-          title="New edition"
-          description="Editions start private. Release information later from Manage shows → Publication."
-        >
-          <form
-            onSubmit={
-              createEdition
-            }
-            className="space-y-3"
+      <AdminSheet
+        open={createOpen}
+        onClose={() => !saving && setCreateOpen(false)}
+        title="Create edition"
+        description="Only the essentials first. The new edition starts as a private draft."
+      >
+        <form onSubmit={createEdition} className="space-y-4">
+          <Field
+            label="Edition number"
+            hint={editionsLoading ? "Loading existing editions…" : "Suggested from the latest edition"}
           >
-            <Field
-              label="Edition number"
-              hint={
-                editionsLoading
-                  ? "Loading existing editions…"
-                  : "Suggested from the highest existing edition"
-              }
-            >
-              <TextInput
-                type="number"
-                min={1}
-                required
-                disabled={
-                  editionsLoading
-                }
-                className="numeric"
-                value={
-                  form.edition_number
-                }
-                onChange={(
-                  event,
-                ) => {
-                  setNumberTouched(
-                    true,
-                  );
+            <TextInput
+              type="number"
+              min={1}
+              required
+              disabled={editionsLoading}
+              className="numeric"
+              value={form.edition_number}
+              onChange={(event) => {
+                setNumberTouched(true);
+                setForm({
+                  ...form,
+                  edition_number: event.target.value === "" ? "" : Number(event.target.value),
+                });
+              }}
+            />
+          </Field>
 
-                  setForm({
-                    ...form,
-                    edition_number:
-                      event.target.value ===
-                      ""
-                        ? ""
-                        : Number(
-                            event.target.value,
-                          ),
-                  });
-                }}
-              />
-            </Field>
+          <Field label="Name" hint={`Defaults to “Solaris Song Contest ${form.edition_number || "…"}”`}>
+            <TextInput
+              value={form.name}
+              placeholder={`Solaris Song Contest ${form.edition_number || ""}`}
+              onChange={(event) => setForm({ ...form, name: event.target.value })}
+            />
+          </Field>
 
-            <Field
-              label="Name"
-              hint={`Defaults to “Solaris Song Contest ${
-                form.edition_number ||
-                "…"
-              }”`}
-            >
-              <TextInput
-                value={
-                  form.name
-                }
-                placeholder={`Solaris Song Contest ${
-                  form.edition_number ||
-                  ""
-                }`}
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-                    name:
-                      event.target.value,
-                  })
-                }
-              />
-            </Field>
-
-            <Field
-              label="Year (optional)"
-              hint="Calendar year is metadata only. SSC edition number controls contest chronology."
-            >
-              <TextInput
-                type="number"
-                className="numeric"
-                value={
-                  form.year
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-                    year:
-                      event.target.value,
-                  })
-                }
-              />
-            </Field>
-
+          <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Host country">
               <Select
-                value={
-                  form.host_country_id
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-                    host_country_id:
-                      event.target.value,
-                  })
-                }
+                value={form.host_country_id}
+                onChange={(event) => setForm({ ...form, host_country_id: event.target.value })}
               >
-                <option
-                  value=""
-                  className="bg-background"
-                >
-                  Undecided
-                </option>
-
-                {(
-                  countries ??
-                  []
-                ).map(
-                  (
-                    country,
-                  ) => (
-                    <option
-                      key={
-                        country.id
-                      }
-                      value={
-                        country.id
-                      }
-                      className="bg-background"
-                    >
-                      {
-                        country.name
-                      }
-                    </option>
-                  ),
-                )}
+                <option value="" className="bg-background">Undecided</option>
+                {countries.map((country) => (
+                  <option key={country.id} value={country.id} className="bg-background">
+                    {country.name}
+                  </option>
+                ))}
               </Select>
             </Field>
 
             <Field label="Host city">
               <TextInput
-                value={
-                  form.host_city
-                }
-                placeholder="Solvarra"
-                onChange={(
-                  event,
-                ) =>
-                  setForm({
-                    ...form,
-                    host_city:
-                      event.target.value,
-                  })
-                }
+                value={form.host_city}
+                placeholder="Beïmoth"
+                onChange={(event) => setForm({ ...form, host_city: event.target.value })}
               />
             </Field>
+          </div>
 
-            <button
-              type="submit"
-              disabled={
-                saving ||
-                editionsLoading
-              }
-              className="bg-aurora min-h-11 w-full rounded-xl px-4 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving
-                ? "Creating edition…"
-                : "Create edition"}
+          <details className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+            <summary className="cursor-pointer text-sm font-semibold">More details</summary>
+            <div className="mt-3">
+              <Field label="Year" hint="Optional calendar metadata">
+                <TextInput
+                  type="number"
+                  className="numeric"
+                  value={form.year}
+                  onChange={(event) => setForm({ ...form, year: event.target.value })}
+                />
+              </Field>
+            </div>
+          </details>
+
+          {error ? (
+            <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-3 text-sm text-rose-100">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+            <button type="button" disabled={saving} onClick={() => setCreateOpen(false)} className="admin-action-secondary">
+              Cancel
             </button>
-          </form>
-        </Panel>
-      </div>
-    </AppShell>
+            <button type="submit" disabled={saving || editionsLoading} className="admin-action-primary w-full">
+              {saving ? "Creating…" : "Create private edition"}
+            </button>
+          </div>
+        </form>
+      </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(privateEdition)}
+        onClose={() => setPrivateEdition(null)}
+        title={privateEdition ? `Make ${editionLabel(privateEdition)} private?` : "Make edition private?"}
+        description={
+          <>
+            All shows in this edition will disappear from the public site. Nothing is deleted, and the saved publication choices remain available.
+          </>
+        }
+        confirmLabel="Make private"
+        busy={Boolean(privateEdition && busyAction === `private:${privateEdition.id}`)}
+        onConfirm={async () => {
+          if (!privateEdition) return;
+          const success = await makeEditionPrivate(privateEdition);
+          if (success) setPrivateEdition(null);
+        }}
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(deleteEdition)}
+        onClose={() => setDeleteEdition(null)}
+        title={deleteEdition ? `Delete ${editionLabel(deleteEdition)}?` : "Delete edition?"}
+        description={
+          <>
+            This permanently deletes the edition and data linked to it. This is intentionally harder to do than ordinary organizer actions.
+          </>
+        }
+        confirmLabel="Delete edition"
+        confirmationText={deleteEdition ? editionLabel(deleteEdition) : undefined}
+        confirmationHint={deleteEdition ? `Type ${editionLabel(deleteEdition)} to confirm` : undefined}
+        danger
+        busy={Boolean(deleteEdition && busyAction === `delete:${deleteEdition.id}`)}
+        onConfirm={async () => {
+          if (!deleteEdition) return;
+          const success = await removeEdition(deleteEdition);
+          if (success) setDeleteEdition(null);
+        }}
+      />
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="admin-card px-3 py-3 text-center">
+      <p className="numeric text-xl font-bold">{value}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function EditionMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-0">
+      <p className="numeric text-base font-bold text-foreground">{value}</p>
+      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{label}</p>
+    </div>
   );
 }
