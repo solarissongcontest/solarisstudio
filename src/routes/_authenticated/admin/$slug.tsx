@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  Calculator,
   ClipboardCheck,
   Globe2,
   ListChecks,
@@ -58,6 +59,7 @@ function AdminEditionWorkspace() {
             <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListChecks className="size-4" /> Shows</Link>
             <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListOrdered className="size-4" /> Entries</Link>
             <Link to="/admin/jury/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Scale className="size-4" /> Jury</Link>
+            <Link to="/admin/voting-system/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Calculator className="size-4" /> Voting system</Link>
             <Link to="/admin/publication/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Globe2 className="size-4" /> Publication</Link>
             <Link to="/admin/design/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><RadioTower className="size-4" /> Design & broadcast</Link>
           </div>
@@ -95,7 +97,7 @@ function EditionHome({ slug }: { slug: string }) {
       ? { title: "Add entries", description: "The shows exist, but no entries have been assigned to this edition yet.", destination: "entries" as const }
       : publicShows.length === 0
         ? { title: "Review publication", description: "The edition has content, but nothing from its shows is public yet.", destination: "publication" as const }
-        : { title: "Continue edition setup", description: "Core edition data exists. Review the remaining voting-system and broadcast details.", destination: "advanced" as const };
+        : { title: "Review voting rules", description: "Core edition data is public. Check each show's calculation rules and qualification setup.", destination: "voting" as const };
 
   const nextActionLink = nextAction.destination === "shows"
     ? <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
@@ -103,7 +105,7 @@ function EditionHome({ slug }: { slug: string }) {
       ? <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
       : nextAction.destination === "publication"
         ? <Link to="/admin/publication/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
-        : <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>;
+        : <Link to="/admin/voting-system/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -111,7 +113,7 @@ function EditionHome({ slug }: { slug: string }) {
         eyebrow="Current edition"
         title={editionLabel(edition)}
         description={`${edition.name}${edition.host_city ? ` · ${edition.host_city}` : ""}`}
-        actions={<Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-secondary"><Settings2 className="size-4" /> Advanced setup</Link>}
+        actions={<Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-secondary"><Settings2 className="size-4" /> Advanced technical studio</Link>}
       />
 
       <AdminCard strong className="mb-4">
@@ -144,11 +146,12 @@ function EditionHome({ slug }: { slug: string }) {
           <WorkspaceLink icon={ListChecks} title="Shows" description="Create stages and manage each show's basic setup." to={`/admin/shows/${slug}`} />
           <WorkspaceLink icon={ListOrdered} title="Entries & running order" description="Build line-ups, edit songs and reorder entries." to={`/admin/entries/${slug}`} />
           <WorkspaceLink icon={Scale} title="Jury voting" description="Manage juries and enter complete jury ballots." to={`/admin/jury/${slug}`} />
+          <WorkspaceLink icon={Calculator} title="Voting system" description="Configure point scales, weighting, qualifiers and tie-breaks." to={`/admin/voting-system/${slug}`} />
           <WorkspaceLink icon={ClipboardCheck} title="Delegations" description="Confirmation responses, countries and submission rounds." to="/confirmations/admin" />
           <WorkspaceLink icon={Vote} title="Televoting" description="Public vote rounds, calculated results and integrity review." to="/televoting/admin" />
           <WorkspaceLink icon={RadioTower} title="Design & broadcast" description="Official artwork, theme and broadcast presentation." to={`/admin/design/${slug}`} />
           <WorkspaceLink icon={Globe2} title="Publication" description="Stage what the public can see without editing the underlying contest data." to={`/admin/publication/${slug}`} />
-          <WorkspaceLink icon={Settings2} title="Advanced setup" description="The remaining voting-system and detailed broadcast controls while migration continues." to={`/admin/${slug}?advanced=true`} />
+          <WorkspaceLink icon={Settings2} title="Advanced technical studio" description="Legacy specialist controls kept only for details that have not yet moved." to={`/admin/${slug}?advanced=true`} />
         </div>
       </section>
 
