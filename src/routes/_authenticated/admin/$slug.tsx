@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Globe2,
   ListChecks,
+  ListOrdered,
   RadioTower,
   Settings2,
   Trophy,
@@ -52,8 +53,9 @@ function AdminEditionWorkspace() {
       <div className="min-w-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] p-2.5">
           <Link to="/admin/$slug" params={{ slug }} search={{}} className="admin-action-secondary !min-h-10">← Edition home</Link>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListChecks className="size-4" /> Shows</Link>
+            <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListOrdered className="size-4" /> Entries</Link>
             <Link to="/admin/design/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><RadioTower className="size-4" /> Design & broadcast</Link>
           </div>
         </div>
@@ -87,14 +89,16 @@ function EditionHome({ slug }: { slug: string }) {
   const nextAction = !shows.length
     ? { title: "Create the first show", description: "Start with the semi-finals or Grand Final, then add the participating entries.", destination: "shows" as const }
     : !participants.length
-      ? { title: "Add entries", description: "The shows exist, but no entries have been assigned to this edition yet.", destination: "advanced" as const }
+      ? { title: "Add entries", description: "The shows exist, but no entries have been assigned to this edition yet.", destination: "entries" as const }
       : publicShows.length === 0
         ? { title: "Review publication", description: "The edition has content, but nothing from its shows is public yet.", destination: "advanced" as const }
         : { title: "Continue edition setup", description: "Core edition data exists. Review the remaining voting, publication and broadcast details.", destination: "advanced" as const };
 
   const nextActionLink = nextAction.destination === "shows"
     ? <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
-    : <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>;
+    : nextAction.destination === "entries"
+      ? <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
+      : <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -133,16 +137,17 @@ function EditionHome({ slug }: { slug: string }) {
         <p className="admin-section-label mb-2">Edition workspace</p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <WorkspaceLink icon={ListChecks} title="Shows" description="Create stages and manage each show's basic setup." to={`/admin/shows/${slug}`} />
+          <WorkspaceLink icon={ListOrdered} title="Entries & running order" description="Build line-ups, edit songs and reorder entries." to={`/admin/entries/${slug}`} />
           <WorkspaceLink icon={ClipboardCheck} title="Delegations" description="Confirmation responses, countries and submission rounds." to="/confirmations/admin" />
           <WorkspaceLink icon={Vote} title="Voting" description="Jury, televote, rounds, results and integrity." to="/televoting/admin" />
           <WorkspaceLink icon={RadioTower} title="Design & broadcast" description="Official artwork, theme and broadcast presentation." to={`/admin/design/${slug}`} />
           <WorkspaceLink icon={Globe2} title="Publication" description="Control what information from the edition becomes public." to={`/admin/${slug}?advanced=true`} />
-          <WorkspaceLink icon={Settings2} title="Advanced setup" description="Detailed entry, voting, theme and broadcast controls still being migrated." to={`/admin/${slug}?advanced=true`} />
+          <WorkspaceLink icon={Settings2} title="Advanced setup" description="The remaining jury, publication and detailed show controls while migration continues." to={`/admin/${slug}?advanced=true`} />
         </div>
       </section>
 
       <AdminCard>
-        <AdminCardHeader eyebrow="Shows" title={shows.length ? `${shows.length} configured` : "No shows yet"} description={shows.length ? "Open Shows to create, rename, reorder, publish or remove stages." : "Create the first stage without entering the legacy studio."} />
+        <AdminCardHeader eyebrow="Shows" title={shows.length ? `${shows.length} configured` : "No shows yet"} description={shows.length ? "Open a show's line-up directly, or use Shows to change the stage itself." : "Create the first stage without entering the legacy studio."} />
         {shows.length ? (
           <div className="divide-y divide-white/[0.07]">
             {[...shows].sort((a, b) => a.sort_order - b.sort_order).map((show) => {
@@ -150,8 +155,8 @@ function EditionHome({ slug }: { slug: string }) {
               const isPublic = show.published && hasAnyPublicInformation(publication);
               const count = participants.filter((participant) => participant.show_id === show.id).length;
               return (
-                <Link key={show.id} to="/admin/shows/$slug" params={{ slug }} className="admin-list-row group">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-muted-foreground group-hover:text-foreground"><ListChecks className="size-4" /></span>
+                <Link key={show.id} to="/admin/entries/$slug" params={{ slug }} search={{ show: show.id }} className="admin-list-row group">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-muted-foreground group-hover:text-foreground"><ListOrdered className="size-4" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">{show.name}</span>
                     <span className="mt-1 block text-xs text-muted-foreground">{count} {count === 1 ? "entry" : "entries"} · {show.kind.replaceAll("-", " ")}</span>
