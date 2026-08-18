@@ -1,87 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
-
-function isNewSupabaseApiKey(value: string): boolean {
-  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
-}
-
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
-  return (input, init) => {
-    const headers = new Headers(
-      typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
-    );
-
-    if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-    }
-
-    // New Supabase API keys are opaque strings rather than bearer JWTs.
-    // Keep the privileged key in the apikey header only when Supabase's client
-    // attempts to mirror it into Authorization.
-    if (
-      isNewSupabaseApiKey(supabaseKey) &&
-      headers.get("Authorization") === `Bearer ${supabaseKey}`
-    ) {
-      headers.delete("Authorization");
-    }
-
-    headers.set("apikey", supabaseKey);
-    return fetch(input, { ...init, headers });
-  };
-}
-
-function getTelevotingAdminConfig() {
-  const url =
-    process.env.TELEVOTING_SUPABASE_URL ||
-    process.env.VITE_TELEVOTING_SUPABASE_URL ||
-    import.meta.env.VITE_TELEVOTING_SUPABASE_URL;
-
-  const projectId =
-    process.env.TELEVOTING_SUPABASE_PROJECT_ID ||
-    process.env.VITE_TELEVOTING_SUPABASE_PROJECT_ID ||
-    import.meta.env.VITE_TELEVOTING_SUPABASE_PROJECT_ID;
-
-  const serviceRoleKey = process.env.TELEVOTING_SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !projectId || !serviceRoleKey) {
-    const missing = [
-      ...(!url ? ["TELEVOTING_SUPABASE_URL"] : []),
-      ...(!projectId ? ["TELEVOTING_SUPABASE_PROJECT_ID"] : []),
-      ...(!serviceRoleKey ? ["TELEVOTING_SUPABASE_SERVICE_ROLE_KEY"] : []),
-    ];
-
-    throw new Error(
-      `Missing server-side Televoting configuration: ${missing.join(", ")}. Configure the service-role key as a Cloudflare Worker secret.`,
-    );
-  }
-
-  const parsed = new URL(url);
-  const expectedHost = `${projectId}.supabase.co`;
-  if (parsed.protocol !== "https:" || parsed.hostname !== expectedHost) {
-    throw new Error(
-      `Televoting backend mismatch: expected https://${expectedHost}, received ${parsed.origin}.`,
-    );
-  }
-
-  return { url, serviceRoleKey };
-}
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 function createTelevotingAdminClient() {
-  const { url, serviceRoleKey } = getTelevotingAdminConfig();
-
-  // This module is server-only. Cloudflare supplies the privileged key at
-  // runtime through TELEVOTING_SUPABASE_SERVICE_ROLE_KEY, so no service-role
-  // credential is shipped to the browser or committed to the repository.
-  return createClient(url, serviceRoleKey, {
-    global: {
-      fetch: createSupabaseFetch(serviceRoleKey),
-    },
-    auth: {
-      storage: undefined,
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  });
+  return (supabaseAdmin as any).schema("televoting");
 }
 
 let client: ReturnType<typeof createTelevotingAdminClient> | undefined;
@@ -89,9 +9,10 @@ let client: ReturnType<typeof createTelevotingAdminClient> | undefined;
 export const televotingAdmin = new Proxy(
   {} as ReturnType<typeof createTelevotingAdminClient>,
   {
-    get(_target, prop, receiver) {
+    get(_target, prop) {
       if (!client) client = createTelevotingAdminClient();
-      return Reflect.get(client, prop, receiver);
+      const value = Reflect.get(client, prop, client);
+      return typeof value === "function" ? value.bind(client) : value;
     },
   },
 );
