@@ -28,6 +28,7 @@ const MODES: ReadonlyArray<readonly [ArchiveGameMode, string, string]> = [
   ["jury-tele", "Jury vs Televote", "Guess which voting side supported an entry more."],
   ["edition-detective", "Edition Detective", "Match an archived entry to the edition where it appeared."],
   ["winner-detective", "Winner Detective", "Choose the winner from four real entries in the same historical show."],
+  ["archive-trivia", "Archive Trivia", "Questions about songs, artists, host cities and other archived facts, not just placements."],
 ];
 
 function ArchiveGamesPage() {
@@ -105,7 +106,7 @@ function ArchiveGamesPage() {
       <PageHeader
         eyebrow="Archive Games"
         title="Play the SSC archive"
-        description="Turn old results into quick games instead of merely staring at another spreadsheet-shaped monument to human voting behaviour. No account is needed and nothing is stored."
+        description="Turn published SSC history into quick games about results, entries, songs, artists and host facts. No account is needed and nothing is stored."
         actions={
           <Link
             to="/records"
@@ -246,7 +247,7 @@ function ArchiveGamesPage() {
           ) : (
             <Panel title="Archive Games">
               <p className="text-sm leading-relaxed text-muted-foreground">
-                There is not enough published historical data for this game mode yet. Archive Games automatically grows as more SSC results are published.
+                There is not enough published historical data for this game mode yet. Archive Games automatically grows as more SSC results and entry information are published.
               </p>
             </Panel>
           )}
@@ -256,12 +257,12 @@ function ArchiveGamesPage() {
               <InfoCard
                 number="01"
                 title="Real archive data"
-                text="Questions are generated from published Solaris results, editions and entries."
+                text="Questions are generated from published Solaris results, editions, songs, artists and host information."
               />
               <InfoCard
                 number="02"
-                title="Fresh questions"
-                text="Each round draws a new question from the archive, so the session keeps moving through SSC history."
+                title="More than results"
+                text="Archive Trivia mixes host-city and entry questions into the games so the archive is not just placement comparisons."
               />
               <InfoCard
                 number="03"
