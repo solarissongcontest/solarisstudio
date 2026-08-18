@@ -10,8 +10,9 @@ import {
   useAllShows,
   useCountries,
   useEditions,
+  type ResultRow,
 } from "@/lib/data";
-import { computeHistoricalRecords } from "@/lib/stats";
+import { computeHistoricalRecords, type HistoricalRecordEntry } from "@/lib/stats";
 
 export const Route = createFileRoute("/records/")({
   head: () => ({
@@ -51,7 +52,26 @@ function RecordsPage() {
     [countries, editions, shows, participants, results, jury],
   );
 
-  const filtered = records.filter((record) => {
+  const requestedRecords = useMemo(
+    () =>
+      computeBetaRequestedRecords({
+        countries: countries ?? [],
+        editions: editions ?? [],
+        shows: shows ?? [],
+        results: results ?? [],
+      }),
+    [countries, editions, shows, results],
+  );
+
+  const allRecords = useMemo(() => {
+    const existing = new Set(records.map((record) => record.label.toLowerCase()));
+    return [
+      ...records,
+      ...requestedRecords.filter((record) => !existing.has(record.label.toLowerCase())),
+    ];
+  }, [records, requestedRecords]);
+
+  const filtered = allRecords.filter((record) => {
     if (tab === "all") return true;
     const label = record.label.toLowerCase();
     if (tab === "career") {
@@ -62,6 +82,20 @@ function RecordsPage() {
     }
     return /jury|televote|vote|12|point/i.test(label);
   });
+
+  const showById = useMemo(
+    () => new Map((shows ?? []).map((show) => [show.id, show])),
+    [shows],
+  );
+  const archivedFinalEditions = useMemo(
+    () =>
+      new Set(
+        (results ?? [])
+          .filter((result) => showById.get(result.show_id ?? "")?.kind === "grand-final")
+          .map((result) => result.edition_id),
+      ).size,
+    [results, showById],
+  );
 
   return (
     <AppShell>
@@ -78,6 +112,14 @@ function RecordsPage() {
           </Link>
         }
       />
+
+      <Panel className="mb-5" title="Archive coverage">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          These records currently use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"}
+          {" "}with archived Grand Final results. Missing editions are excluded rather than treated as zeroes,
+          so records will update automatically as the historical archive is completed.
+        </p>
+      </Panel>
 
       <ResponsiveTabs
         value={tab}
@@ -111,4 +153,126 @@ function RecordsPage() {
       </Panel>
     </AppShell>
   );
+}
+
+function computeBetaRequestedRecords({
+  countries,
+  editions,
+  shows,
+  results,
+}: {
+  countries: Array<{ id: string; name: string }>;
+  editions: Array<{ id: string; edition_number: number | null }>;
+  shows: Array<{ id: string; kind: string }>;
+  results: ResultRow[];
+}): HistoricalRecordEntry[] {
+  const countryName = new Map(countries.map((country) => [country.id, country.name]));
+  const editionNumber = new Map(editions.map((edition) => [edition.id, edition.edition_number]));
+  const showById = new Map(shows.map((show) => [show.id, show]));
+  const finalRows = results.filter(
+    (result) =>
+      showById.get(result.show_id ?? "")?.kind === "grand-final" &&
+      result.final_rank != null &&
+      editionNumber.get(result.edition_id) != null,
+  );
+
+  if (!finalRows.length) return [];
+
+  const rowsByCountry = new Map<string, ResultRow[]>();
+  for (const row of finalRows) {
+    rowsByCountry.set(row.country_id, [...(rowsByCountry.get(row.country_id) ?? []), row]);
+  }
+
+  const records: HistoricalRecordEntry[] = [];
+
+  const top5 = strongestRankStreak(rowsByCountry, editionNumber, 5);
+  if (top5) {
+    records.push({
+      label: "Longest top-5 streak",
+      value: `${top5.length} edition${top5.length === 1 ? "" : "s"}`,
+      detail: `${countryName.get(top5.countryId) ?? "?"}${formatRange(top5.from, top5.to)}`,
+    });
+  }
+
+  const podium = strongestRankStreak(rowsByCountry, editionNumber, 3);
+  if (podium) {
+    records.push({
+      label: "Longest podium streak",
+      value: `${podium.length} edition${podium.length === 1 ? "" : "s"}`,
+      detail: `${countryName.get(podium.countryId) ?? "?"}${formatRange(podium.from, podium.to)}`,
+    });
+  }
+
+  const careerPoints = [...rowsByCountry.entries()]
+    .map(([countryId, rows]) => ({
+      countryId,
+      points: rows.reduce((sum, row) => sum + row.total_points, 0),
+      finals: rows.length,
+    }))
+    .sort((a, b) => b.points - a.points || b.finals - a.finals)[0];
+
+  if (careerPoints) {
+    records.push({
+      label: "Most career final points",
+      value: String(careerPoints.points),
+      detail: `${countryName.get(careerPoints.countryId) ?? "?"} · ${careerPoints.finals} archived final${careerPoints.finals === 1 ? "" : "s"}`,
+    });
+  }
+
+  return records;
+}
+
+function strongestRankStreak(
+  rowsByCountry: Map<string, ResultRow[]>,
+  editionNumber: Map<string, number | null>,
+  maximumRank: number,
+) {
+  let best: { countryId: string; length: number; from: number; to: number } | null = null;
+
+  for (const [countryId, rows] of rowsByCountry.entries()) {
+    const byEdition = new Map<string, ResultRow>();
+    for (const row of rows) {
+      const current = byEdition.get(row.edition_id);
+      if (!current || (row.final_rank ?? 999) < (current.final_rank ?? 999)) {
+        byEdition.set(row.edition_id, row);
+      }
+    }
+
+    const ordered = [...byEdition.values()]
+      .map((row) => ({ row, number: editionNumber.get(row.edition_id) }))
+      .filter((item): item is { row: ResultRow; number: number } => item.number != null)
+      .sort((a, b) => a.number - b.number);
+
+    let length = 0;
+    let start = 0;
+    let previousEdition: number | null = null;
+
+    for (const item of ordered) {
+      const qualifies = item.row.final_rank != null && item.row.final_rank <= maximumRank;
+      const consecutive = previousEdition != null && item.number === previousEdition + 1;
+
+      if (qualifies) {
+        if (!consecutive || length === 0) {
+          length = 1;
+          start = item.number;
+        } else {
+          length += 1;
+        }
+
+        if (!best || length > best.length) {
+          best = { countryId, length, from: start, to: item.number };
+        }
+      } else {
+        length = 0;
+      }
+
+      previousEdition = item.number;
+    }
+  }
+
+  return best;
+}
+
+function formatRange(from: number, to: number) {
+  return from === to ? ` · SSC ${from}` : ` · SSC ${from}–${to}`;
 }
