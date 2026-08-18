@@ -1,14 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, ListChecks, ListOrdered, MoreHorizontal, Plus, RadioTower, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ListChecks, MoreHorizontal, Plus, RadioTower, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminActionItem,
   AdminCard,
-  AdminCardHeader,
   AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
@@ -24,13 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin/shows/$slug")({
   component: ShowsWorkspace,
 });
 
-type ShowDraft = {
-  id?: string;
-  name: string;
-  kind: (typeof SHOW_KINDS)[number];
-  sort_order: number;
-};
-
+type ShowDraft = { id?: string; name: string; kind: (typeof SHOW_KINDS)[number]; sort_order: number };
 const emptyDraft: ShowDraft = { name: "", kind: "semi-final", sort_order: 1 };
 
 function ShowsWorkspace() {
@@ -70,20 +63,11 @@ function ShowsWorkspace() {
     setBusy(true);
     try {
       if (draft.id) {
-        const { error } = await (supabase.from("shows") as any)
-          .update({ name: draft.name.trim(), kind: draft.kind, sort_order: draft.sort_order })
-          .eq("id", draft.id);
+        const { error } = await (supabase.from("shows") as any).update({ name: draft.name.trim(), kind: draft.kind, sort_order: draft.sort_order }).eq("id", draft.id);
         if (error) throw error;
         toast.success("Show updated");
       } else {
-        const { error } = await supabase.from("shows").insert({
-          edition_id: edition.id,
-          name: draft.name.trim(),
-          kind: draft.kind,
-          sort_order: draft.sort_order,
-          published: false,
-          publication_config: DEFAULT_PUBLICATION_CONFIG,
-        });
+        const { error } = await supabase.from("shows").insert({ edition_id: edition.id, name: draft.name.trim(), kind: draft.kind, sort_order: draft.sort_order, published: false, publication_config: DEFAULT_PUBLICATION_CONFIG });
         if (error) throw error;
         toast.success("Show created");
       }
@@ -127,23 +111,12 @@ function ShowsWorkspace() {
     }
   }
 
-  if (loadingEdition || loadingShows) {
-    return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading shows…</p></AdminCard>;
-  }
-
-  if (!edition) {
-    return <AdminCard><AdminEmptyState icon={ListChecks} title="Edition not found" description="Return to the edition workspace and choose another edition." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
-  }
+  if (loadingEdition || loadingShows) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading shows…</p></AdminCard>;
+  if (!edition) return <AdminCard><AdminEmptyState icon={ListChecks} title="Edition not found" description="Return to the edition workspace and choose another edition." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
 
   return (
     <AdminPage>
-      <AdminPageHeader
-        eyebrow={editionLabel(edition)}
-        title="Shows"
-        description="Create the contest stages, keep their order clear, and open the detailed studio only when a show needs deeper configuration."
-        actions={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> New show</button>}
-      />
-
+      <AdminPageHeader eyebrow={editionLabel(edition)} title="Shows" description="Create contest stages, manage their line-ups, and keep detailed broadcast configuration separate from everyday show work." actions={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> New show</button>} />
       <Link to="/admin/$slug" params={{ slug }} className="admin-action-quiet mb-4 inline-flex"><ArrowLeft className="size-4" /> Edition home</Link>
 
       <div className="mb-4 grid grid-cols-3 gap-2">
@@ -153,32 +126,27 @@ function ShowsWorkspace() {
       </div>
 
       {!orderedShows.length ? (
-        <AdminCard>
-          <AdminEmptyState icon={ListChecks} title="Create the first show" description="Start with a semi-final, Grand Final or another stage. You can add entries and voting details after the show exists." action={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> Create show</button>} />
-        </AdminCard>
+        <AdminCard><AdminEmptyState icon={ListChecks} title="Create the first show" description="Start with a semi-final, Grand Final or another stage. Then add its entries and running order." action={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> Create show</button>} /></AdminCard>
       ) : (
         <div className="space-y-3">
           {orderedShows.map((show) => {
             const count = participants.filter((participant) => participant.show_id === show.id).length;
-            const publication = resolveShowPublication(show);
-            const isPublic = show.published && hasAnyPublicInformation(publication);
+            const isPublic = show.published && hasAnyPublicInformation(resolveShowPublication(show));
             return (
               <AdminCard key={show.id} className="!p-4">
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-muted-foreground"><ListChecks className="size-4" /></span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <h2 className="truncate text-base font-bold text-foreground">{show.name}</h2>
-                      <AdminStatus tone={isPublic ? "ready" : "neutral"}>{isPublic ? "Public" : "Private"}</AdminStatus>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{show.kind.replaceAll("-", " ")} · {count} {count === 1 ? "entry" : "entries"} · order {show.sort_order}</p>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2"><h2 className="truncate text-base font-bold text-foreground">{show.name}</h2><AdminStatus tone={isPublic ? "ready" : "neutral"}>{isPublic ? "Public" : "Private"}</AdminStatus></div>
+                    <p className="mt-1 text-xs text-muted-foreground">{show.kind.replaceAll("-", " ")} · {count} {count === 1 ? "entry" : "entries"} · show order {show.sort_order}</p>
                   </div>
                   <button type="button" className="admin-action-secondary !min-h-10 !px-3" aria-label={`More actions for ${show.name}`} onClick={() => setActionsTarget(show)}><MoreHorizontal className="size-4" /></button>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2">
+                <Link to="/admin/entries/$slug" params={{ slug }} search={{ show: show.id }} className="admin-action-primary mt-4 w-full"><ListOrdered className="size-4" /> Entries & running order</Link>
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   <button type="button" className="admin-action-secondary w-full" onClick={() => openEdit(show)}>Edit show</button>
-                  <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-secondary w-full"><RadioTower className="size-4" /> Detailed studio</Link>
+                  <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-secondary w-full"><RadioTower className="size-4" /> Detailed setup</Link>
                 </div>
               </AdminCard>
             );
@@ -186,7 +154,7 @@ function ShowsWorkspace() {
         </div>
       )}
 
-      <AdminSheet open={sheetOpen} onClose={() => !busy && setSheetOpen(false)} title={draft.id ? "Edit show" : "Create show"} description="Keep the basic show identity simple here. Detailed voting, scoreboard and broadcast controls stay separate.">
+      <AdminSheet open={sheetOpen} onClose={() => !busy && setSheetOpen(false)} title={draft.id ? "Edit show" : "Create show"} description="Basic show identity lives here. Voting, scoreboard and broadcast configuration remain separate.">
         <div className="space-y-4">
           <label className="block"><span className="admin-section-label">Show name</span><input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Grand Final" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
           <label className="block"><span className="admin-section-label">Type</span><select value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as ShowDraft["kind"] }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">{SHOW_KINDS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll("-", " ")}</option>)}</select></label>
@@ -197,26 +165,20 @@ function ShowsWorkspace() {
 
       <AdminSheet open={!!actionsTarget} onClose={() => setActionsTarget(null)} title={actionsTarget?.name ?? "Show actions"} description="Secondary actions for this show.">
         {actionsTarget ? <div className="space-y-2">
-          <AdminActionItem title="Edit show" description="Change the name, type or order." onClick={() => { const show = actionsTarget; setActionsTarget(null); openEdit(show); }} />
+          <AdminActionItem title="Entries & running order" description="Manage the show line-up, songs, qualification and running order." onClick={() => void navigateToEntries(slug, actionsTarget.id)} />
+          <AdminActionItem title="Edit show" description="Change the name, type or show order." onClick={() => { const show = actionsTarget; setActionsTarget(null); openEdit(show); }} />
           <AdminActionItem title={actionsTarget.published ? "Make show private" : "Publish show route"} description={actionsTarget.published ? "Hide the public show route while keeping all data intact." : "Make the show route available. Individual publication layers still follow their publication settings."} onClick={() => void togglePublished(actionsTarget)} />
           <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Permanently remove this show and dependent show data." onClick={() => { setDeleteTarget(actionsTarget); setActionsTarget(null); }} />
         </div> : null}
       </AdminSheet>
 
-      <AdminConfirmSheet
-        open={!!deleteTarget}
-        onClose={() => !busy && setDeleteTarget(null)}
-        onConfirm={deleteShow}
-        title={`Delete ${deleteTarget?.name ?? "show"}?`}
-        description={<>This permanently removes the show and dependent participant/voting data. Official archived results should only be deleted when you are certain this show is disposable.</>}
-        confirmLabel="Delete show"
-        confirmationText={deleteTarget?.name}
-        confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined}
-        busy={busy}
-        danger
-      />
+      <AdminConfirmSheet open={!!deleteTarget} onClose={() => !busy && setDeleteTarget(null)} onConfirm={deleteShow} title={`Delete ${deleteTarget?.name ?? "show"}?`} description={<>This permanently removes the show and dependent participant/voting data. Official archived results should only be deleted when you are certain this show is disposable.</>} confirmLabel="Delete show" confirmationText={deleteTarget?.name} confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined} busy={busy} danger />
     </AdminPage>
   );
+}
+
+function navigateToEntries(slug: string, show: string) {
+  window.location.assign(`/admin/entries/${encodeURIComponent(slug)}?show=${encodeURIComponent(show)}`);
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
