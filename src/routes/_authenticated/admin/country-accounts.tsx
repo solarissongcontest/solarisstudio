@@ -1,7 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { ArrowLeft, ShieldCheck, UserRoundCog } from "lucide-react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AdminPage } from "@/components/admin/AdminShell";
+import {
+  AdminCard,
+  AdminCardHeader,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminSheet,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import { FlagChip } from "@/components/FlagChip";
 import {
   useAdminCountryAccounts,
@@ -13,7 +22,7 @@ import { useCountries } from "@/lib/data";
 export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
   head: () => ({
     meta: [
-      { title: "Country accounts — Solaris Studio" },
+      { title: "Country accounts — Solaris Organizer" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
@@ -21,11 +30,12 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
 });
 
 function CountryAccountsAdminPage() {
-  const { data: countries } = useCountries();
+  const { data: countries = [] } = useCountries();
   const { data } = useAdminCountryAccounts();
   const setStatus = useAdminSetCountryAccountStatus();
   const [query, setQuery] = useState("");
-  const [reasonByUser, setReasonByUser] = useState<Record<string, string>>({});
+  const [target, setTarget] = useState<AdminCountryAccount | null>(null);
+  const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   const accountByCountry = useMemo(
@@ -35,153 +45,123 @@ function CountryAccountsAdminPage() {
 
   const rows = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return (countries ?? [])
+    return countries
       .map((country) => ({ country, account: accountByCountry.get(country.id) ?? null }))
       .filter(({ country, account }) => {
         if (!needle) return true;
-        return [country.name, country.short_code, account?.email ?? ""]
-          .join(" ")
-          .toLowerCase()
-          .includes(needle);
+        return [country.name, country.short_code, account?.email ?? ""].join(" ").toLowerCase().includes(needle);
       })
       .sort((a, b) => a.country.name.localeCompare(b.country.name));
   }, [countries, accountByCountry, query]);
 
-  const suspend = async (account: AdminCountryAccount) => {
-    const reason = (reasonByUser[account.user_id] ?? "").trim();
+  function openAccount(account: AdminCountryAccount) {
+    setTarget(account);
+    setReason(account.suspension_reason ?? "");
+    setMessage(null);
+  }
+
+  async function suspend() {
+    if (!target) return;
     setMessage(null);
     try {
-      await setStatus.mutateAsync({
-        userId: account.user_id,
-        status: "suspended",
-        reason,
-      });
-      setMessage(`${account.country_name} account suspended.`);
+      await setStatus.mutateAsync({ userId: target.user_id, status: "suspended", reason: reason.trim() });
+      setMessage(`${target.country_name} account suspended.`);
+      setTarget(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Account could not be suspended.");
     }
-  };
+  }
 
-  const restore = async (account: AdminCountryAccount) => {
+  async function restore() {
+    if (!target) return;
     setMessage(null);
     try {
-      await setStatus.mutateAsync({
-        userId: account.user_id,
-        status: "active",
-      });
-      setMessage(`${account.country_name} account restored.`);
+      await setStatus.mutateAsync({ userId: target.user_id, status: "active" });
+      setMessage(`${target.country_name} account restored.`);
+      setTarget(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Account could not be restored.");
     }
-  };
+  }
+
+  const claimed = data?.accounts.length ?? 0;
+  const suspended = (data?.accounts ?? []).filter((account) => account.status === "suspended").length;
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Organizer moderation"
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Moderation"
         title="Country accounts"
-        description="Manage country ownership, suspend country-account editing and open any country's profile with organizer override. Suspension blocks country editing at the database level while leaving public Solaris access intact."
-        actions={
-          <>
-            <Link to="/admin" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">← Studio</Link>
-            <Link to="/country-hub" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">My country</Link>
-          </>
-        }
+        description="Review country ownership and temporarily suspend editing when necessary. Public Solaris access remains available while an account is suspended."
+        actions={<Link to="/admin/more" className="admin-action-secondary"><ArrowLeft className="size-4" /> More</Link>}
       />
 
-      {message && (
-        <p className="mb-5 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
-          {message}
-        </p>
-      )}
+      {message ? <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3 text-sm text-foreground">{message}</div> : null}
 
-      <Panel
-        title="Terra Solaris ownership"
-        description={`${data?.accounts.length ?? 0} claimed · ${(countries?.length ?? 0) - (data?.accounts.length ?? 0)} unclaimed`}
-      >
+      <div className="grid grid-cols-3 gap-2">
+        <Metric label="Claimed" value={claimed} />
+        <Metric label="Unclaimed" value={Math.max(0, countries.length - claimed)} />
+        <Metric label="Suspended" value={suspended} attention={suspended > 0} />
+      </div>
+
+      <AdminCard>
+        <AdminCardHeader eyebrow="Terra Solaris" title="Ownership" description="Search by country, code or owner email. Moderation actions stay inside each claimed account instead of cluttering the list." />
+
         {data?.schemaReady === false ? (
-          <p className="text-sm text-muted-foreground">Country account moderation is temporarily unavailable.</p>
+          <AdminEmptyState icon={ShieldCheck} title="Moderation unavailable" description="Country account moderation is temporarily unavailable." />
         ) : (
           <>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search country, code or account email…"
-              className="mb-4 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-            />
-
-            <div className="space-y-2">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search country, code or account email…" className="mb-4 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" />
+            <div className="divide-y divide-white/[0.07]">
               {rows.map(({ country, account }) => (
-                <div key={country.id} className="min-w-0 rounded-xl border border-border/70 bg-surface p-3 sm:p-4">
-                  <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{country.name}</p>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                          {account?.email ?? "Unclaimed country"}
-                        </p>
+                <div key={country.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-foreground">{country.name}</p>
+                        <AdminStatus tone={!account ? "neutral" : account.status === "suspended" ? "blocked" : "ready"}>{!account ? "Unclaimed" : account.status === "suspended" ? "Suspended" : "Active"}</AdminStatus>
                       </div>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{account?.email ?? country.short_code}</p>
                     </div>
-
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      {account && (
-                        <span className={`rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${account.status === "suspended" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}`}>
-                          {account.status}
-                        </span>
-                      )}
-                      <Link
-                        to="/country-hub"
-                        search={{ country: country.id }}
-                        className="rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold"
-                      >
-                        Manage country
-                      </Link>
+                    <div className="flex shrink-0 gap-1.5">
+                      <Link to="/country-hub" search={{ country: country.id }} className="admin-action-secondary !min-h-10 !px-3">Open</Link>
+                      {account ? <button type="button" onClick={() => openAccount(account)} className="admin-action-secondary !min-h-10 !px-3" aria-label={`Manage ${country.name} account`}><UserRoundCog className="size-4" /></button> : null}
                     </div>
                   </div>
-
-                  {account && (
-                    <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                      {account.status === "active" ? (
-                        <>
-                          <input
-                            value={reasonByUser[account.user_id] ?? ""}
-                            onChange={(event) => setReasonByUser((current) => ({ ...current, [account.user_id]: event.target.value }))}
-                            placeholder="Optional suspension reason shown to the owner"
-                            className="min-h-10 min-w-0 rounded-xl border border-border bg-background px-3 text-xs"
-                          />
-                          <button
-                            type="button"
-                            disabled={setStatus.isPending}
-                            onClick={() => void suspend(account)}
-                            className="min-h-10 rounded-xl border border-destructive/40 px-3 text-xs font-semibold text-destructive disabled:opacity-50"
-                          >
-                            Suspend account
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="min-w-0 rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground">
-                            {account.suspension_reason || "No suspension reason provided."}
-                          </div>
-                          <button
-                            type="button"
-                            disabled={setStatus.isPending}
-                            onClick={() => void restore(account)}
-                            className="min-h-10 rounded-xl border border-border px-3 text-xs font-semibold disabled:opacity-50"
-                          >
-                            Restore account
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
           </>
         )}
-      </Panel>
-    </AppShell>
+      </AdminCard>
+
+      <AdminSheet open={!!target} onClose={() => !setStatus.isPending && setTarget(null)} title={target ? `${target.country_name} account` : "Country account"} description={target?.email ?? "Account moderation"}>
+        {target ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+              <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-foreground">Editing access</p><AdminStatus tone={target.status === "suspended" ? "blocked" : "ready"}>{target.status === "suspended" ? "Suspended" : "Active"}</AdminStatus></div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Suspending an account blocks country-profile editing at the database level. It does not remove the public country or affect contest results.</p>
+            </div>
+
+            {target.status === "active" ? (
+              <>
+                <label className="block"><span className="admin-section-label">Reason shown to owner</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Optional" className="mt-2 min-h-24 w-full resize-y rounded-xl border border-white/[0.1] bg-white/[0.035] p-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
+                <button type="button" disabled={setStatus.isPending} onClick={() => void suspend()} className="admin-action-danger w-full">{setStatus.isPending ? "Suspending…" : "Suspend editing access"}</button>
+              </>
+            ) : (
+              <>
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3 text-sm text-muted-foreground">{target.suspension_reason || "No suspension reason was provided."}</div>
+                <button type="button" disabled={setStatus.isPending} onClick={() => void restore()} className="admin-action-primary w-full">{setStatus.isPending ? "Restoring…" : "Restore editing access"}</button>
+              </>
+            )}
+          </div>
+        ) : null}
+      </AdminSheet>
+    </AdminPage>
   );
+}
+
+function Metric({ label, value, attention = false }: { label: string; value: number; attention?: boolean }) {
+  return <div className={`admin-card px-3 py-3 text-center ${attention ? "!border-rose-200/15 !bg-rose-200/[0.045]" : ""}`}><p className={`numeric text-xl font-bold ${attention ? "text-rose-100" : ""}`}>{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{label}</p></div>;
 }

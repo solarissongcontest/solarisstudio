@@ -1,7 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Sparkles, Trash2, Trophy } from "lucide-react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AdminPage } from "@/components/admin/AdminShell";
+import {
+  AdminCard,
+  AdminCardHeader,
+  AdminConfirmSheet,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { editionLabel, useAllShows, useEditions, useIsOrganizer } from "@/lib/data";
 import {
@@ -14,7 +23,7 @@ import {
 import type { PredictionType } from "@/lib/predictions";
 
 export const Route = createFileRoute("/_authenticated/admin/predictions")({
-  head: () => ({ meta: [{ title: "Prediction rounds — Solaris Studio" }] }),
+  head: () => ({ meta: [{ title: "Prediction rounds — Solaris Organizer" }, { name: "robots", content: "noindex" }] }),
   component: PredictionRoundAdmin,
 });
 
@@ -56,40 +65,27 @@ function defaultForm(): FormState {
 function PredictionRoundAdmin() {
   const { editionId } = useAdminContext();
   const { data: isOrganizer } = useIsOrganizer();
-  const { data: shows } = useAllShows();
-  const { data: editions } = useEditions();
+  const { data: shows = [] } = useAllShows();
+  const { data: editions = [] } = useEditions();
   const { data: roundData, isLoading } = usePredictionRounds(undefined, true);
   const saveRound = useSavePredictionRound();
   const deleteRound = useDeletePredictionRound();
   const scoreRound = useScorePredictionRound();
   const [form, setForm] = useState<FormState>(() => defaultForm());
   const [message, setMessage] = useState<string | null>(null);
-
-  const editionMap = useMemo(
-    () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
-    [editions],
-  );
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const activeEdition = useMemo(() => {
-    const ordered = [...(editions ?? [])].sort(
-      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-    );
+    const ordered = [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1));
     return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
   }, [editions, editionId]);
 
   const sortedShows = useMemo(
-    () =>
-      [...(shows ?? [])]
-        .filter((show) => show.edition_id === activeEdition?.id)
-        .sort((a, b) => a.sort_order - b.sort_order),
+    () => shows.filter((show) => show.edition_id === activeEdition?.id).sort((a, b) => a.sort_order - b.sort_order),
     [shows, activeEdition?.id],
   );
 
-  const roundByShow = useMemo(
-    () => new Map((roundData?.rounds ?? []).map((round) => [round.show_id, round])),
-    [roundData],
-  );
-
+  const roundByShow = useMemo(() => new Map((roundData?.rounds ?? []).map((round) => [round.show_id, round])), [roundData]);
   const selectedShow = sortedShows.find((show) => show.id === form.showId) ?? null;
   const selectedRound = form.showId ? roundByShow.get(form.showId) ?? null : null;
 
@@ -98,9 +94,7 @@ function PredictionRoundAdmin() {
       if (form.showId) setForm((current) => ({ ...current, showId: "" }));
       return;
     }
-    if (!sortedShows.some((show) => show.id === form.showId)) {
-      setForm((current) => ({ ...current, showId: sortedShows[0].id }));
-    }
+    if (!sortedShows.some((show) => show.id === form.showId)) setForm((current) => ({ ...current, showId: sortedShows[0].id }));
   }, [form.showId, sortedShows]);
 
   useEffect(() => {
@@ -120,24 +114,12 @@ function PredictionRoundAdmin() {
     });
   }, [form.showId, roundByShow]);
 
-  const chooseShow = (showId: string) => {
-    setMessage(null);
-    setForm((current) => ({ ...current, showId }));
-  };
-
   const toggleType = (type: PredictionType) => {
     setForm((current) => {
       const enabled = current.predictionTypes.includes(type);
-      let predictionTypes = enabled
-        ? current.predictionTypes.filter((item) => item !== type)
-        : [...current.predictionTypes, type];
-
-      if (type === "top_three" && !enabled && !predictionTypes.includes("winner")) {
-        predictionTypes = ["winner", ...predictionTypes];
-      }
-      if (type === "winner" && enabled && predictionTypes.includes("top_three")) {
-        predictionTypes = predictionTypes.filter((item) => item !== "top_three");
-      }
+      let predictionTypes = enabled ? current.predictionTypes.filter((item) => item !== type) : [...current.predictionTypes, type];
+      if (type === "top_three" && !enabled && !predictionTypes.includes("winner")) predictionTypes = ["winner", ...predictionTypes];
+      if (type === "winner" && enabled && predictionTypes.includes("top_three")) predictionTypes = predictionTypes.filter((item) => item !== "top_three");
       return { ...current, predictionTypes };
     });
   };
@@ -157,7 +139,6 @@ function PredictionRoundAdmin() {
       setMessage("This show has no qualifier count, so qualifier predictions cannot be enabled.");
       return;
     }
-
     try {
       await saveRound.mutateAsync({
         show_id: form.showId,
@@ -179,6 +160,7 @@ function PredictionRoundAdmin() {
     try {
       await deleteRound.mutateAsync(selectedRound.id);
       setMessage("Draft prediction round deleted.");
+      setDeleteOpen(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "A round with saved entries cannot be deleted; cancel it instead.");
     }
@@ -195,126 +177,79 @@ function PredictionRoundAdmin() {
     }
   };
 
+  const configured = sortedShows.filter((show) => roundByShow.has(show.id)).length;
+  const open = sortedShows.filter((show) => roundByShow.get(show.id)?.status === "open").length;
+
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Organizer studio"
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Engagement"
         title="Prediction rounds"
-        description={
-          activeEdition
-            ? `Open, lock and score Prediction Arena rounds for ${editionLabel(activeEdition)}. Change edition from the Control Room header.`
-            : "Open, lock and score Prediction Arena rounds."
-        }
-        actions={
-          <Link to="/admin/control-room" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-            ← Control Room
-          </Link>
-        }
+        description={activeEdition ? `Configure Prediction Arena for ${editionLabel(activeEdition)}. Pick a show, set the window and choose what people can predict.` : "Choose an edition before configuring Prediction Arena."}
+        actions={<Link to="/admin/more" className="admin-action-secondary"><ArrowLeft className="size-4" /> More</Link>}
       />
 
+      {message ? <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3 text-sm text-foreground">{message}</div> : null}
+
       {isOrganizer === false ? (
-        <Panel title="Organizer access required">
-          <p className="text-sm text-muted-foreground">Your account can use fan features, but it cannot configure contest prediction rounds.</p>
-        </Panel>
+        <AdminCard><AdminEmptyState icon={Sparkles} title="Organizer access required" description="This account can use fan features but cannot configure contest prediction rounds." /></AdminCard>
       ) : isLoading ? (
-        <Panel><p className="text-sm text-muted-foreground">Loading prediction rounds…</p></Panel>
+        <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading prediction rounds…</p></AdminCard>
       ) : roundData?.schemaReady === false ? (
-        <Panel title="Prediction database setup is required">
-          <p className="text-sm text-muted-foreground">Apply the supplied Solaris SQL in Lovable's Supabase project before creating a round.</p>
-        </Panel>
+        <AdminCard><AdminEmptyState icon={Sparkles} title="Prediction storage unavailable" description="Prediction rounds are temporarily unavailable. Existing contest data is unaffected." /></AdminCard>
+      ) : !activeEdition ? (
+        <AdminCard><AdminEmptyState icon={Trophy} title="No edition selected" description="Choose an edition before configuring prediction rounds." action={<Link to="/admin" className="admin-action-primary">Manage editions</Link>} /></AdminCard>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[.7fr_1.3fr]">
-          <Panel title={activeEdition ? `${editionLabel(activeEdition)} shows` : "Shows"}>
-            <div className="space-y-2">
-              {sortedShows.map((show) => {
-                const edition = editionMap.get(show.edition_id);
-                const round = roundByShow.get(show.id);
-                return (
-                  <button
-                    key={show.id}
-                    type="button"
-                    onClick={() => chooseShow(show.id)}
-                    className={`w-full rounded-xl border px-3 py-3 text-left ${
-                      form.showId === show.id ? "border-primary bg-primary/10" : "border-border bg-surface"
-                    }`}
-                  >
-                    <p className="truncate text-sm font-semibold">{show.name}</p>
-                    <p className="mt-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                      {edition ? editionLabel(edition) : "Edition"} · {round?.status ?? "No round"}
-                    </p>
-                  </button>
-                );
-              })}
-              {!sortedShows.length && <p className="text-sm text-muted-foreground">No shows exist for this edition yet.</p>}
-            </div>
-          </Panel>
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <Metric label="Shows" value={sortedShows.length} />
+            <Metric label="Configured" value={configured} />
+            <Metric label="Open" value={open} />
+          </div>
 
-          <Panel title={selectedRound ? "Edit prediction round" : "Create prediction round"} description={selectedShow?.name}>
-            <form onSubmit={save} className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Opens</span>
-                  <input type="datetime-local" value={form.opensAt} onChange={(event) => setForm((current) => ({ ...current, opensAt: event.target.value }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm" required />
-                </label>
-                <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Locks</span>
-                  <input type="datetime-local" value={form.locksAt} onChange={(event) => setForm((current) => ({ ...current, locksAt: event.target.value }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm" required />
-                </label>
-              </div>
+          <AdminCard>
+            <AdminCardHeader eyebrow="Show" title={selectedShow?.name ?? "Choose a show"} description={selectedRound ? `Prediction round · ${humanize(selectedRound.status)}` : "No prediction round exists for this show yet."} action={selectedRound ? <AdminStatus tone={selectedRound.status === "open" ? "ready" : selectedRound.status === "cancelled" ? "blocked" : selectedRound.status === "scored" ? "info" : "neutral"}>{humanize(selectedRound.status)}</AdminStatus> : <AdminStatus tone="neutral">Not configured</AdminStatus>} />
+            <select value={form.showId} onChange={(event) => { setMessage(null); setForm((current) => ({ ...current, showId: event.target.value })); }} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+              {sortedShows.map((show) => <option key={show.id} value={show.id}>{show.name}{roundByShow.get(show.id) ? ` · ${humanize(roundByShow.get(show.id)!.status)}` : " · no round"}</option>)}
+            </select>
+          </AdminCard>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Status</span>
-                  <select value={form.status} disabled={selectedRound?.status === "scoring" || selectedRound?.status === "scored"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as PredictionRound["status"] }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm">
-                    <option value="draft">Draft</option>
-                    <option value="open">Open</option>
-                    <option value="locked">Locked</option>
-                    <option value="scoring">Scoring</option>
-                    <option value="scored">Scored</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </label>
-                <label>
-                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Consensus minimum</span>
-                  <input type="number" min={3} max={100} value={form.consensusMinimum} onChange={(event) => setForm((current) => ({ ...current, consensusMinimum: Number(event.target.value) }))} className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm" />
-                </label>
-              </div>
-
-              <div>
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Prediction types</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {AVAILABLE_TYPES.map((type) => {
-                    const unavailable = type.value === "qualifier" && !selectedShow?.qualifier_count;
-                    return (
-                      <label key={type.value} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-3">
-                        <input type="checkbox" checked={form.predictionTypes.includes(type.value)} disabled={unavailable} onChange={() => toggleType(type.value)} />
-                        <span className="text-sm font-medium">{type.label}</span>
-                      </label>
-                    );
-                  })}
+          {!sortedShows.length ? (
+            <AdminCard><AdminEmptyState icon={Sparkles} title="No shows yet" description="Create a contest show before opening Prediction Arena." action={<Link to="/admin/shows/$slug" params={{ slug: activeEdition.slug }} className="admin-action-primary">Create shows</Link>} /></AdminCard>
+          ) : (
+            <AdminCard>
+              <AdminCardHeader eyebrow={selectedRound ? "Edit" : "Create"} title="Prediction setup" description="The round stays attached to the selected contest show." />
+              <form onSubmit={save} className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block"><span className="admin-section-label">Opens</span><input type="datetime-local" value={form.opensAt} onChange={(event) => setForm((current) => ({ ...current, opensAt: event.target.value }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" required /></label>
+                  <label className="block"><span className="admin-section-label">Locks</span><input type="datetime-local" value={form.locksAt} onChange={(event) => setForm((current) => ({ ...current, locksAt: event.target.value }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" required /></label>
                 </div>
-              </div>
 
-              <button type="submit" disabled={saveRound.isPending || !selectedShow} className="min-h-12 w-full rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-                {saveRound.isPending ? "Saving…" : "Save prediction round"}
-              </button>
-            </form>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block"><span className="admin-section-label">Status</span><select value={form.status} disabled={selectedRound?.status === "scoring" || selectedRound?.status === "scored"} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as PredictionRound["status"] }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"><option value="draft">Draft</option><option value="open">Open</option><option value="locked">Locked</option><option value="scoring">Scoring</option><option value="scored">Scored</option><option value="cancelled">Cancelled</option></select></label>
+                  <label className="block"><span className="admin-section-label">Consensus minimum</span><input type="number" min={3} max={100} value={form.consensusMinimum} onChange={(event) => setForm((current) => ({ ...current, consensusMinimum: Number(event.target.value) }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
+                </div>
 
-            {selectedRound && (
-              <div className="mt-4 flex flex-wrap gap-2 border-t border-border/60 pt-4">
-                <button type="button" onClick={score} disabled={scoreRound.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()} className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold disabled:opacity-50">
-                  {scoreRound.isPending ? "Scoring…" : "Score from public result"}
-                </button>
-                {selectedRound.status === "draft" && (
-                  <button type="button" onClick={remove} disabled={deleteRound.isPending} className="rounded-xl border border-destructive/40 px-3 py-2 text-xs font-semibold text-destructive">Delete draft</button>
-                )}
-              </div>
-            )}
+                <div><p className="admin-section-label mb-2">Prediction types</p><div className="grid gap-2 sm:grid-cols-2">{AVAILABLE_TYPES.map((type) => { const unavailable = type.value === "qualifier" && !selectedShow?.qualifier_count; return <label key={type.value} className="flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-3"><input type="checkbox" checked={form.predictionTypes.includes(type.value)} disabled={unavailable} onChange={() => toggleType(type.value)} /><span className="text-sm font-medium text-foreground">{type.label}</span></label>; })}</div></div>
 
-            {message && <p className="mt-4 rounded-xl bg-surface px-3 py-2 text-sm text-muted-foreground">{message}</p>}
-          </Panel>
-        </div>
+                <div className="admin-sticky-actions"><button type="submit" disabled={saveRound.isPending || !selectedShow} className="admin-action-primary w-full">{saveRound.isPending ? "Saving…" : "Save prediction round"}</button></div>
+              </form>
+
+              {selectedRound ? <div className="mt-4 flex flex-col gap-2 border-t border-white/[0.07] pt-4 sm:flex-row"><button type="button" onClick={() => void score()} disabled={scoreRound.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()} className="admin-action-secondary flex-1">{scoreRound.isPending ? "Scoring…" : "Score from public result"}</button>{selectedRound.status === "draft" ? <button type="button" onClick={() => setDeleteOpen(true)} disabled={deleteRound.isPending} className="admin-action-danger"><Trash2 className="size-4" /> Delete draft</button> : null}</div> : null}
+            </AdminCard>
+          )}
+        </>
       )}
-    </AppShell>
+
+      <AdminConfirmSheet open={deleteOpen} onClose={() => !deleteRound.isPending && setDeleteOpen(false)} onConfirm={remove} title={`Delete ${selectedShow?.name ?? "prediction"} draft?`} description="This removes the draft prediction round. A round with saved player entries cannot be deleted and must be cancelled instead." confirmLabel="Delete draft" busy={deleteRound.isPending} danger />
+    </AdminPage>
   );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return <div className="admin-card px-3 py-3 text-center"><p className="numeric text-xl font-bold">{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{label}</p></div>;
+}
+
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
