@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { ClipboardCheck, LayoutGrid, Vote } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { PageHeader } from "@/components/AppShell";
+import { AppShell, PageHeader } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
 
 type ParticipationService = "confirmations" | "televoting";
@@ -10,6 +11,47 @@ type ServiceAction = {
   to: string;
   label: string;
 };
+
+export function ParticipationRouteChrome({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  return (
+    <AppShell>
+      <div className="mx-auto mb-5 max-w-5xl min-w-0 sm:mb-6">
+        <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-border/65 bg-surface/70 p-2 sm:flex-row sm:items-center sm:justify-between sm:p-2.5">
+          <Link
+            to="/participate"
+            className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-foreground transition hover:bg-surface-strong"
+          >
+            <span className="grid size-8 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.07] text-primary">
+              <LayoutGrid className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-xs font-semibold">Solaris Studio · Participate</span>
+              <span className="block truncate text-[10px] text-muted-foreground">Official participation services</span>
+            </span>
+          </Link>
+
+          <nav aria-label="Participation services" className="grid grid-cols-2 gap-1 sm:w-[25rem]">
+            <ServiceTab
+              to="/confirmations"
+              label="Confirmations"
+              icon={ClipboardCheck}
+              active={pathname.startsWith("/confirmations")}
+            />
+            <ServiceTab
+              to="/televoting"
+              label="Televoting"
+              icon={Vote}
+              active={pathname.startsWith("/televoting")}
+            />
+          </nav>
+        </div>
+      </div>
+      {children}
+    </AppShell>
+  );
+}
 
 export function ParticipationServiceShell({
   service,
@@ -58,6 +100,34 @@ export function ParticipationServiceShell({
       />
       {children}
     </div>
+  );
+}
+
+function ServiceTab({
+  to,
+  label,
+  icon: Icon,
+  active,
+}: {
+  to: string;
+  label: string;
+  icon: typeof ClipboardCheck;
+  active: boolean;
+}) {
+  return (
+    <Link
+      to={to as any}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition",
+        active
+          ? "border-primary/20 bg-surface-strong text-foreground"
+          : "border-transparent text-muted-foreground hover:bg-surface hover:text-foreground",
+      )}
+    >
+      <Icon className="size-3.5 shrink-0" />
+      <span className="truncate">{label}</span>
+    </Link>
   );
 }
 
