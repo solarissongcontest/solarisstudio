@@ -1,19 +1,61 @@
 /*
- * Solaris display-type boundary.
+ * Final public UI guard.
  *
- * Display typography belongs to major editorial/page headlines. Card titles,
- * utility headings and numeric stats stay in the surrounding UI typeface even
- * when older components still carry Tailwind's `font-display` utility.
+ * Classica Crastao is reserved for genuinely large editorial/page headlines.
+ * Card titles, panel titles, utility headings and numeric stats stay in Gotham,
+ * even when older components still carry Tailwind's `font-display` utility.
  */
+
 h3.font-display,
 h4.font-display,
 h5.font-display,
 h6.font-display,
 .numeric.font-display,
-.glass h2.font-display,
-.data-panel h2.font-display,
-.surface h2.font-display {
-  font-family: inherit !important;
+.glass h2.font-display:not(.display-headline),
+.glass-strong h2.font-display:not(.display-headline),
+.data-panel h2.font-display:not(.display-headline),
+.surface h2.font-display:not(.display-headline) {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
   text-transform: none !important;
   letter-spacing: -0.02em !important;
+}
+
+/* Explicit opt-in for the few headlines that should actually look editorial. */
+.display-headline,
+.page-header h1,
+h1.font-display,
+.site-nav .font-display {
+  font-family: "Classica Crastao", Georgia, serif !important;
+  font-weight: 400 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.025em !important;
+}
+
+/* Keep fixed mobile navigation from covering the final rows/cards on pages. */
+.app-main {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)) !important;
+}
+
+@media (min-width: 1024px) {
+  .app-main {
+    padding-bottom: 2rem !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .page-header {
+    margin-bottom: 1.1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .page-header h1 {
+    font-size: clamp(1.95rem, 9vw, 2.7rem) !important;
+  }
+
+  .app-main > *,
+  .app-main section,
+  .app-main article,
+  .app-main .grid > * {
+    min-width: 0;
+  }
 }
