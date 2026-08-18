@@ -134,9 +134,7 @@ function EditionsPage() {
           <div className="mb-4 flex items-end justify-between gap-4 border-b border-border/60 pb-3">
             <div className="min-w-0">
               <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Archive desk</p>
-              <h2 className="mt-1 font-display text-xl font-bold tracking-[-0.03em] sm:text-2xl">
-                Past editions
-              </h2>
+              <h2 className="display-headline mt-1 text-xl sm:text-2xl">Past editions</h2>
             </div>
             <p className="numeric shrink-0 text-xs text-muted-foreground">{cards.length} editions</p>
           </div>
@@ -158,70 +156,109 @@ function EditionsPage() {
 
 function LatestEdition({ card }: { card: EditionCard }) {
   const { edition, editionShows, winner, winnerResult, hosts } = card;
+  const backgroundFlag = winner?.flag_image ?? hosts[0]?.country?.flag_image;
 
   return (
     <section>
-      <p className="mb-3 text-[9px] font-black uppercase tracking-[0.22em] text-muted-foreground">
-        Latest edition
-      </p>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-muted-foreground">
+          Latest edition
+        </p>
+        <p className="text-[9px] font-medium text-muted-foreground">
+          {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
+        </p>
+      </div>
 
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className="glass-strong group relative block overflow-hidden p-0"
+        className="group relative block min-w-0 overflow-hidden rounded-[1.6rem] border border-border/80 bg-[linear-gradient(145deg,rgba(10,30,58,.97),rgba(3,15,34,.985))] p-4 shadow-[0_18px_48px_rgba(0,3,20,.2),inset_0_1px_0_rgba(255,255,255,.07)] sm:p-6"
       >
-        <div className="relative min-h-[285px] overflow-hidden sm:min-h-[390px]">
-          <BackgroundFlag
-            image={winner?.flag_image ?? hosts[0]?.country?.flag_image}
-            className="-right-[34%] top-1/2 w-[145%] -translate-y-1/2 sm:-right-[14%] sm:w-[78%]"
-            opacity={0.18}
-          />
+        <BackgroundFlag
+          image={backgroundFlag}
+          className="-bottom-24 -right-20 h-72 w-72 sm:-bottom-28 sm:-right-14 sm:h-80 sm:w-80"
+          opacity={0.09}
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_95%_12%,rgba(105,205,235,.1),transparent_34%)]" />
 
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_38%,rgba(91,159,210,0.16),transparent_35%),linear-gradient(90deg,rgba(2,8,23,0.96)_0%,rgba(3,17,39,0.88)_45%,rgba(3,17,39,0.38)_100%)]" />
-
-          <div className="relative z-10 flex min-h-[285px] flex-col justify-between p-5 sm:min-h-[390px] sm:p-7 lg:p-9">
-            <div className="flex items-start justify-between gap-4">
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-primary backdrop-blur-md">
+        <div className="relative z-10 min-w-0">
+          <div className="flex min-w-0 items-start justify-between gap-4">
+            <div className="min-w-0">
+              <span className="inline-flex rounded-full border border-primary/25 bg-primary/[0.075] px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-primary">
                 {edition.status === "completed" ? "Completed edition" : "Current edition"}
               </span>
-              <span className="rounded-full border border-white/15 bg-black/20 px-3 py-1.5 text-[9px] font-semibold text-white/65 backdrop-blur-md">
-                {editionShows.length} public shows
-              </span>
-            </div>
-
-            <div className="max-w-[760px]">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary">
+              <p className="mt-4 text-[9px] font-black uppercase tracking-[0.2em] text-primary">
                 Edition {edition.edition_number ?? "—"}
               </p>
-              <h2 className="mt-2 font-display text-4xl font-black leading-[0.92] tracking-[-0.055em] text-white sm:text-6xl">
+              <h2 className="display-headline mt-1 text-3xl leading-[0.95] text-white sm:text-4xl">
                 {editionLabel(edition)}
               </h2>
-              <p className="mt-3 max-w-xl text-base font-medium text-white/68 sm:text-lg">{edition.name}</p>
+              {edition.name && edition.name !== editionLabel(edition) && (
+                <p className="mt-2 text-sm font-medium text-white/62 sm:text-base">{edition.name}</p>
+              )}
+            </div>
 
-              <HostSummary hosts={hosts} prominent />
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-lg text-primary transition-transform group-hover:translate-x-0.5">
+              →
+            </span>
+          </div>
 
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <span className="bg-aurora rounded-lg px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-lg">
-                  Open edition →
-                </span>
-                {winner && (
-                  <div className="flex items-center gap-2 rounded-lg border border-white/12 bg-black/20 px-3 py-2 backdrop-blur-md">
-                    <FlagChip
-                      code={winner.short_code}
-                      color={winner.accent_color}
-                      image={winner.flag_image}
-                      size="sm"
-                    />
-                    <div>
-                      <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-white/45">Winner</p>
-                      <p className="text-xs font-semibold text-white">
-                        {winner.name}{winnerResult ? ` · ${winnerResult.total_points} pts` : ""}
+          <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-border/55 pt-4">
+            <LatestInfoBlock label={hosts.length > 1 ? "Hosts" : "Host"}>
+              {hosts.length ? (
+                <div className="space-y-2">
+                  {hosts.map((host) => (
+                    <div key={host.key} className="flex min-w-0 items-center gap-2">
+                      {host.country && (
+                        <FlagChip
+                          code={host.country.short_code}
+                          color={host.country.accent_color}
+                          image={host.country.flag_image}
+                          size="sm"
+                        />
+                      )}
+                      <p className="min-w-0 break-words text-[11px] font-semibold leading-tight text-foreground sm:text-xs">
+                        {[host.city, host.country?.name].filter(Boolean).join(", ") || "TBC"}
                       </p>
                     </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">TBC</p>
+              )}
+            </LatestInfoBlock>
+
+            <LatestInfoBlock label="Winner">
+              {winner ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <FlagChip
+                    code={winner.short_code}
+                    color={winner.accent_color}
+                    image={winner.flag_image}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-semibold leading-tight text-foreground sm:text-xs">
+                      {winner.name}
+                    </p>
+                    {winnerResult && (
+                      <p className="numeric mt-0.5 text-[9px] text-muted-foreground">
+                        {winnerResult.total_points} pts
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              ) : (
+                <p className="text-[10px] leading-snug text-muted-foreground">Not public yet</p>
+              )}
+            </LatestInfoBlock>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/45 pt-3">
+            <p className="text-[10px] text-muted-foreground">Solaris Song Contest archive</p>
+            <span className="text-xs font-bold text-primary transition-transform group-hover:translate-x-0.5">
+              Open edition →
+            </span>
           </div>
         </div>
       </Link>
@@ -322,6 +359,17 @@ function ArchiveEdition({ card }: { card: EditionCard }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+function LatestInfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-xl bg-white/[0.028] p-2.5 sm:p-3">
+      <p className="mb-2 text-[8px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+        {label}
+      </p>
+      {children}
+    </div>
   );
 }
 
