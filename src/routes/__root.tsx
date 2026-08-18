@@ -19,6 +19,7 @@ import solarisBackgroundCss from "../solaris-background.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
+import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -238,6 +239,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <RouteVisualTheme />
       {!fullAdmin ? <SolarisAmbientBackground /> : null}
       {content}
       <ToolQuickGuide pathname={pathname} />

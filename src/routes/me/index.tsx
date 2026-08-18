@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useMyCountryAccount } from "@/lib/country-account";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import {
   useEnablePredictionShare,
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/me/")({
 function MySolarisPage() {
   const { data: user, isLoading: sessionLoading } = useFanSession();
   const { data: profile } = useFanProfile(user?.id);
+  const { data: countryAccount } = useMyCountryAccount();
   const { data: history } = useMyPredictionHistory(user?.id);
   const { data: roundData } = usePredictionRounds();
   const { data: shows } = useAllShows();
@@ -111,13 +113,37 @@ function MySolarisPage() {
       <PageHeader
         eyebrow="Your private archive"
         title="My Solaris"
-        description="Your predictions stay private by default. You choose whether a display name or individual result link becomes visible."
+        description="Your predictions stay private by default. Country accounts can also manage their public Solaris identity here."
         actions={
           <Link to="/pulse" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
             Open Pulse
           </Link>
         }
       />
+
+      {countryAccount?.country && (
+        <Panel
+          className="mb-5"
+          title={`${countryAccount.country.name} country account`}
+          description="Manage the same public identity used by the country profile and Terra Solaris Wiki."
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <Link to="/country-hub" className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold">
+                Edit country
+              </Link>
+              <Link to="/country-hub/theme" className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">
+                Theme & colours
+              </Link>
+            </div>
+          }
+        >
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Link to="/countries/$code" params={{ code: countryAccount.country.short_code }} className="rounded-xl bg-surface p-3 text-sm font-semibold">Public profile →</Link>
+            <Link to="/wiki/$code" params={{ code: countryAccount.country.short_code }} className="rounded-xl bg-surface p-3 text-sm font-semibold">Wiki →</Link>
+            <div className="rounded-xl bg-surface p-3 text-sm text-muted-foreground">Profile + Wiki colours stay synced automatically.</div>
+          </div>
+        </Panel>
+      )}
 
       {roundData?.schemaReady === false ? (
         <Panel title="Account features are temporarily unavailable">
