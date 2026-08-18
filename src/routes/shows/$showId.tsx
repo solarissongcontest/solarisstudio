@@ -146,9 +146,6 @@ function ShowPage() {
   const tabOptions = useMemo<ResponsiveTabOption<Tab>[]>(() => {
     const options: ResponsiveTabOption<Tab>[] = [];
 
-    // Beta feedback repeatedly asked for Jury / Televote / Overall to be
-    // immediately understandable. Keep result views first and label the
-    // combined scoreboard by what it actually represents.
     if (publication.results) {
       options.push({ value: "scoreboard", label: "Overall results" });
     }
@@ -186,6 +183,12 @@ function ShowPage() {
       setTab(search.tab);
     }
   }, [search.story, search.tab]);
+
+  useEffect(() => {
+    if (!search.story && !search.tab && publication.results) {
+      setTab("scoreboard");
+    }
+  }, [publication.results, search.story, search.tab]);
 
   useEffect(() => {
     if (!search.story || tab !== "stories") return;
@@ -321,7 +324,11 @@ function ShowPage() {
             className="mb-4"
             title="Overall results"
             description="Final combined ranking. Use Jury / Televote above to compare the two voting components."
-          />
+          >
+            <p className="text-xs text-muted-foreground">
+              Overall combines the published jury and televote result into the final ranking.
+            </p>
+          </Panel>
           {standings.length ? (
             <ScoreboardStage
               theme={publicTheme}
