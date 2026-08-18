@@ -201,11 +201,11 @@ function prepareCardForPublicSurface(
         ? {
             ...override,
             opacity:
-              override.opacity == null ? override.opacity : Math.max(0.9, override.opacity),
+              override.opacity == null ? override.opacity : Math.max(0.97, override.opacity),
             background: override.background
               ? {
                   ...override.background,
-                  opacity: Math.max(0.78, override.background.opacity),
+                  opacity: Math.max(0.9, override.background.opacity),
                 }
               : override.background,
           }
@@ -218,10 +218,10 @@ function prepareCardForPublicSurface(
     width: null,
     minWidth: null,
     maxWidth: null,
-    opacity: Math.max(0.92, card.opacity),
+    opacity: Math.max(0.98, card.opacity),
     background: {
       ...card.background,
-      opacity: Math.max(0.82, card.background.opacity),
+      opacity: Math.max(0.92, card.background.opacity),
     },
     stateOverrides,
     height: compact ? Math.max(28, card.height * 0.82) : card.height,
