@@ -56,6 +56,7 @@ export function BackgroundFlag({
       `}
       style={{
         opacity,
+        position: "absolute",
       }}
     >
       <svg
@@ -112,65 +113,19 @@ export function BackgroundFlag({
             cy="50%"
             r="50%"
           >
-            <stop
-              offset="0%"
-              stopColor="white"
-              stopOpacity="1"
-            />
-
-            <stop
-              offset="50%"
-              stopColor="white"
-              stopOpacity="1"
-            />
-
-            <stop
-              offset="60%"
-              stopColor="white"
-              stopOpacity="0.96"
-            />
-
-            <stop
-              offset="69%"
-              stopColor="white"
-              stopOpacity="0.78"
-            />
-
-            <stop
-              offset="77%"
-              stopColor="white"
-              stopOpacity="0.5"
-            />
-
-            <stop
-              offset="84%"
-              stopColor="white"
-              stopOpacity="0.22"
-            />
-
-            <stop
-              offset="90%"
-              stopColor="white"
-              stopOpacity="0.05"
-            />
-
-            <stop
-              offset="95%"
-              stopColor="white"
-              stopOpacity="0"
-            />
-
-            <stop
-              offset="100%"
-              stopColor="white"
-              stopOpacity="0"
-            />
+            <stop offset="0%" stopColor="white" stopOpacity="1" />
+            <stop offset="50%" stopColor="white" stopOpacity="1" />
+            <stop offset="60%" stopColor="white" stopOpacity="0.96" />
+            <stop offset="69%" stopColor="white" stopOpacity="0.78" />
+            <stop offset="77%" stopColor="white" stopOpacity="0.5" />
+            <stop offset="84%" stopColor="white" stopOpacity="0.22" />
+            <stop offset="90%" stopColor="white" stopOpacity="0.05" />
+            <stop offset="95%" stopColor="white" stopOpacity="0" />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
           </radialGradient>
 
           <mask
-            id={
-              sharpMaskId
-            }
+            id={sharpMaskId}
             maskUnits="userSpaceOnUse"
             x="0"
             y="0"
@@ -187,60 +142,22 @@ export function BackgroundFlag({
 
           {/* Long blurred fade */}
           <radialGradient
-            id={
-              softGradientId
-            }
+            id={softGradientId}
             cx="50%"
             cy="50%"
             r="50%"
           >
-            <stop
-              offset="0%"
-              stopColor="white"
-              stopOpacity="1"
-            />
-
-            <stop
-              offset="54%"
-              stopColor="white"
-              stopOpacity="1"
-            />
-
-            <stop
-              offset="66%"
-              stopColor="white"
-              stopOpacity="0.96"
-            />
-
-            <stop
-              offset="78%"
-              stopColor="white"
-              stopOpacity="0.72"
-            />
-
-            <stop
-              offset="88%"
-              stopColor="white"
-              stopOpacity="0.4"
-            />
-
-            <stop
-              offset="95%"
-              stopColor="white"
-              stopOpacity="0.14"
-            />
-
-            <stop
-              offset="100%"
-              stopColor="white"
-              stopOpacity="0"
-            />
+            <stop offset="0%" stopColor="white" stopOpacity="1" />
+            <stop offset="54%" stopColor="white" stopOpacity="1" />
+            <stop offset="66%" stopColor="white" stopOpacity="0.96" />
+            <stop offset="78%" stopColor="white" stopOpacity="0.72" />
+            <stop offset="88%" stopColor="white" stopOpacity="0.4" />
+            <stop offset="95%" stopColor="white" stopOpacity="0.14" />
+            <stop offset="100%" stopColor="white" stopOpacity="0" />
           </radialGradient>
 
           <mask
-            id={
-              softMaskId
-            }
+            id={softMaskId}
             maskUnits="userSpaceOnUse"
             x="-20"
             y="-20"

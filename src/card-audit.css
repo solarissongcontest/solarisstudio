@@ -1,0 +1,317 @@
+/* Solaris Studio card audit -------------------------------------------------
+   Shared layout corrections + a calmer route palette. These rules are late in
+   the cascade on purpose: they repair older one-off cards without rewriting
+   every route just to teach it basic spatial awareness. */
+
+/* Muted jewel-tone route identities. Keep the pages distinct, but stop the
+   gradients from drifting into neon green / hot pink / sports-drink territory. */
+body[data-solaris-family="home"] {
+  --solaris-bg-primary: 83 160 201;
+  --solaris-bg-secondary: 66 91 164;
+  --solaris-bg-tertiary: 64 164 157;
+  --solaris-bg-deep: 3 10 28;
+  --solaris-bg-deep-2: 8 27 48;
+}
+
+body[data-solaris-family="editions"] {
+  --solaris-bg-primary: 70 163 184;
+  --solaris-bg-secondary: 43 102 142;
+  --solaris-bg-tertiary: 61 168 145;
+  --solaris-bg-deep: 3 17 29;
+  --solaris-bg-deep-2: 6 39 49;
+}
+
+body[data-solaris-family="countries"] {
+  --solaris-bg-primary: 73 157 139;
+  --solaris-bg-secondary: 45 108 116;
+  --solaris-bg-tertiary: 73 128 166;
+  --solaris-bg-deep: 3 17 24;
+  --solaris-bg-deep-2: 7 39 41;
+}
+
+body[data-solaris-family="shows"] {
+  --solaris-bg-primary: 177 91 123;
+  --solaris-bg-secondary: 106 68 137;
+  --solaris-bg-tertiary: 79 103 167;
+  --solaris-bg-deep: 20 7 25;
+  --solaris-bg-deep-2: 43 14 39;
+}
+
+body[data-solaris-family="wiki"] {
+  --solaris-bg-primary: 184 145 78;
+  --solaris-bg-secondary: 122 86 55;
+  --solaris-bg-tertiary: 63 137 126;
+  --solaris-bg-deep: 18 12 7;
+  --solaris-bg-deep-2: 42 29 13;
+}
+
+body[data-solaris-family="analysis"] {
+  --solaris-bg-primary: 125 108 195;
+  --solaris-bg-secondary: 69 74 157;
+  --solaris-bg-tertiary: 65 139 176;
+  --solaris-bg-deep: 10 8 30;
+  --solaris-bg-deep-2: 27 19 54;
+}
+
+body[data-solaris-family="relationships"] {
+  --solaris-bg-primary: 171 84 137;
+  --solaris-bg-secondary: 108 68 143;
+  --solaris-bg-tertiary: 66 119 163;
+  --solaris-bg-deep: 19 7 27;
+  --solaris-bg-deep-2: 43 16 45;
+}
+
+body[data-solaris-family="compare"] {
+  --solaris-bg-primary: 184 92 91;
+  --solaris-bg-secondary: 151 101 67;
+  --solaris-bg-tertiary: 77 93 155;
+  --solaris-bg-deep: 22 8 13;
+  --solaris-bg-deep-2: 45 22 18;
+}
+
+body[data-solaris-family="records"] {
+  --solaris-bg-primary: 190 151 73;
+  --solaris-bg-secondary: 132 95 52;
+  --solaris-bg-tertiary: 62 130 154;
+  --solaris-bg-deep: 19 14 7;
+  --solaris-bg-deep-2: 43 31 12;
+}
+
+body[data-solaris-family="pulse"] {
+  --solaris-bg-primary: 67 167 184;
+  --solaris-bg-secondary: 49 105 164;
+  --solaris-bg-tertiary: 65 157 122;
+  --solaris-bg-deep: 2 15 28;
+  --solaris-bg-deep-2: 6 37 48;
+}
+
+body[data-solaris-family="predictions"] {
+  --solaris-bg-primary: 177 91 162;
+  --solaris-bg-secondary: 105 77 173;
+  --solaris-bg-tertiary: 189 126 78;
+  --solaris-bg-deep: 20 7 30;
+  --solaris-bg-deep-2: 44 17 55;
+}
+
+body[data-solaris-family="participate"] {
+  --solaris-bg-primary: 65 164 150;
+  --solaris-bg-secondary: 48 107 153;
+  --solaris-bg-tertiary: 79 157 105;
+  --solaris-bg-deep: 3 18 25;
+  --solaris-bg-deep-2: 7 41 43;
+}
+
+body[data-solaris-family="confirmations"] {
+  --solaris-bg-primary: 66 165 127;
+  --solaris-bg-secondary: 45 112 105;
+  --solaris-bg-tertiary: 67 135 165;
+  --solaris-bg-deep: 3 20 22;
+  --solaris-bg-deep-2: 7 43 37;
+}
+
+body[data-solaris-family="televoting"] {
+  --solaris-bg-primary: 74 123 192;
+  --solaris-bg-secondary: 71 77 165;
+  --solaris-bg-tertiary: 57 151 175;
+  --solaris-bg-deep: 4 8 30;
+  --solaris-bg-deep-2: 12 23 58;
+}
+
+body[data-solaris-family="result-lab"] {
+  --solaris-bg-primary: 61 165 158;
+  --solaris-bg-secondary: 50 105 145;
+  --solaris-bg-tertiary: 93 157 83;
+  --solaris-bg-deep: 3 19 25;
+  --solaris-bg-deep-2: 7 41 44;
+}
+
+body[data-solaris-family="taste-dna"] {
+  --solaris-bg-primary: 147 91 191;
+  --solaris-bg-secondary: 86 70 158;
+  --solaris-bg-tertiary: 172 82 132;
+  --solaris-bg-deep: 17 7 29;
+  --solaris-bg-deep-2: 38 18 55;
+}
+
+body[data-solaris-family="broadcast"] {
+  --solaris-bg-primary: 190 111 73;
+  --solaris-bg-secondary: 145 68 79;
+  --solaris-bg-tertiary: 183 145 69;
+  --solaris-bg-deep: 25 9 10;
+  --solaris-bg-deep-2: 48 22 17;
+}
+
+body[data-solaris-family="archive-games"] {
+  --solaris-bg-primary: 104 158 91;
+  --solaris-bg-secondary: 62 111 79;
+  --solaris-bg-tertiary: 174 143 71;
+  --solaris-bg-deep: 7 19 13;
+  --solaris-bg-deep-2: 18 39 25;
+}
+
+body[data-solaris-family="scorecharts"] {
+  --solaris-bg-primary: 75 128 190;
+  --solaris-bg-secondary: 54 81 151;
+  --solaris-bg-tertiary: 60 151 143;
+  --solaris-bg-deep: 3 10 29;
+  --solaris-bg-deep-2: 9 27 54;
+}
+
+body[data-solaris-family="tools"] {
+  --solaris-bg-primary: 107 96 181;
+  --solaris-bg-secondary: 55 125 157;
+  --solaris-bg-tertiary: 157 80 139;
+  --solaris-bg-deep: 9 8 29;
+  --solaris-bg-deep-2: 27 21 52;
+}
+
+/* General card ergonomics. */
+.app-main :is(.data-panel, .surface, .glass, .glass-strong),
+.admin-page :is(.data-panel, .surface, .glass, .glass-strong) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-main :is(.data-panel, .surface, .glass, .glass-strong) h2,
+.app-main :is(.data-panel, .surface, .glass, .glass-strong) h3,
+.admin-page :is(.data-panel, .surface, .glass, .glass-strong) h2,
+.admin-page :is(.data-panel, .surface, .glass, .glass-strong) h3 {
+  line-height: 1.08;
+}
+
+.app-main :is(.data-panel, .surface, .glass, .glass-strong) :is(button, a),
+.admin-page :is(.data-panel, .surface, .glass, .glass-strong) :is(button, a) {
+  max-width: 100%;
+}
+
+/* Homepage lead story: mobile was using a near-poster-sized card while also
+   stacking two metadata pills plus another kicker immediately below. */
+body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] {
+  min-height: 310px !important;
+}
+
+body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] > div.relative {
+  min-height: 310px !important;
+  padding: 1.25rem !important;
+  gap: 1.2rem;
+}
+
+body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] > div.relative > div:first-child {
+  gap: .45rem !important;
+}
+
+body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] > div.relative > div:first-child > span {
+  padding: .42rem .68rem !important;
+  font-size: .46rem !important;
+  letter-spacing: .12em !important;
+}
+
+body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] h2 {
+  margin-top: .5rem !important;
+  font-size: clamp(1.9rem, 8.8vw, 2.65rem) !important;
+  line-height: .96 !important;
+}
+
+body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] h2 + p {
+  margin-top: .8rem !important;
+  line-height: 1.5 !important;
+}
+
+body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] span[class*="mt-6"] {
+  margin-top: 1rem !important;
+}
+
+/* The country header should be a compact identity card, not a full-screen
+   billboard. BackgroundFlag is fixed at component level as well, but these
+   limits protect the layout from old cached utility collisions. */
+body[data-solaris-family="countries"] .app-main > section.glass:first-child {
+  min-height: 0 !important;
+  padding: 1.1rem !important;
+}
+
+body[data-solaris-family="countries"] .app-main > section.glass:first-child > div.relative {
+  gap: 1rem !important;
+}
+
+body[data-solaris-family="countries"] .app-main > section.glass:first-child .h-24.w-36 {
+  height: 4.8rem !important;
+  width: 7.2rem !important;
+}
+
+/* Admin audit: preserve dense information, but stop action clusters and long
+   strings from crushing neighbouring content on phones. */
+.admin-page {
+  --admin-card-gap: .75rem;
+}
+
+.admin-page .grid {
+  min-width: 0;
+}
+
+.admin-page .data-panel,
+.admin-page .surface,
+.admin-page .glass,
+.admin-page .glass-strong {
+  min-width: 0;
+}
+
+.admin-page :is(.data-panel, .surface, .glass, .glass-strong) > :is(header, div):first-child:has(button) {
+  flex-wrap: wrap;
+  row-gap: .65rem;
+}
+
+.admin-page :is(button, a)[class*="px-"] {
+  white-space: normal;
+  text-align: center;
+}
+
+.admin-page table {
+  min-width: max-content;
+}
+
+.admin-page :is(.overflow-x-auto, [class*="overflow-x-auto"]) {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+  .app-main :is(.data-panel, .surface, .glass, .glass-strong) {
+    max-width: 100%;
+  }
+
+  .app-main :is(.data-panel, .surface, .glass, .glass-strong) > div[class*="flex"] {
+    min-width: 0;
+  }
+
+  .app-main :is(.data-panel, .surface, .glass, .glass-strong) p {
+    line-height: 1.48;
+  }
+
+  .admin-page {
+    padding-inline: .75rem !important;
+  }
+
+  .admin-page :is(.data-panel, .surface, .glass, .glass-strong) {
+    border-radius: .8rem !important;
+  }
+
+  .admin-page :is(.data-panel, .surface, .glass, .glass-strong) h2 {
+    font-size: clamp(1rem, 5vw, 1.35rem) !important;
+  }
+
+  .admin-page :is(.data-panel, .surface, .glass, .glass-strong) .grid[class*="grid-cols-4"],
+  .admin-page :is(.data-panel, .surface, .glass, .glass-strong) .grid[class*="grid-cols-5"],
+  .admin-page :is(.data-panel, .surface, .glass, .glass-strong) .grid[class*="grid-cols-6"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 640px) {
+  body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"],
+  body[data-solaris-family="home"] .app-main a[class*="min-h-[350px]"] > div.relative {
+    min-height: 410px !important;
+  }
+
+  body[data-solaris-family="countries"] .app-main > section.glass:first-child {
+    padding: 1.5rem !important;
+  }
+}
