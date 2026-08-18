@@ -101,15 +101,14 @@
   filter: blur(var(--star-blur)) saturate(.72) brightness(1.58);
   mix-blend-mode: screen;
   transform-origin: 50% 50%;
-  animation:
-    solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate;
+  animation: solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate;
   will-change: transform, opacity;
 }
 
 .solaris-star-twinkle {
   animation:
     solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate,
-    solaris-star-twinkle calc(var(--star-duration) * .47) ease-in-out calc(var(--star-delay) * .7) infinite alternate;
+    solaris-star-twinkle var(--star-twinkle-duration) ease-in-out var(--star-twinkle-delay) infinite alternate;
 }
 
 /* Only a small subset changes blur, because continuously filtering every star
@@ -117,19 +116,20 @@
 .solaris-star-focus {
   animation:
     solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate,
-    solaris-star-focus calc(var(--star-duration) * .78) ease-in-out calc(var(--star-delay) * .4) infinite alternate;
+    solaris-star-focus var(--star-focus-duration) ease-in-out var(--star-focus-delay) infinite alternate;
+  will-change: transform, opacity, filter;
 }
 
 @keyframes solaris-star-drift {
   0% {
-    transform: translate3d(calc(var(--star-drift-x) * -.35), calc(var(--star-drift-y) * -.30), 0)
+    transform: translate3d(var(--star-drift-start-x), var(--star-drift-start-y), 0)
       rotate(calc(var(--star-rotate) - 3deg))
       scale(var(--star-scale-from));
   }
   48% {
-    transform: translate3d(calc(var(--star-drift-x) * .22), calc(var(--star-drift-y) * -.12), 0)
+    transform: translate3d(var(--star-drift-mid-x), var(--star-drift-mid-y), 0)
       rotate(var(--star-rotate))
-      scale(calc((var(--star-scale-from) + var(--star-scale-to)) / 2));
+      scale(var(--star-scale-mid));
   }
   100% {
     transform: translate3d(var(--star-drift-x), var(--star-drift-y), 0)
@@ -139,18 +139,18 @@
 }
 
 @keyframes solaris-star-twinkle {
-  0%, 100% { opacity: calc(var(--star-opacity) * .78); }
-  52% { opacity: calc(var(--star-opacity) * 1.18); }
+  0%, 100% { opacity: var(--star-opacity-low); }
+  52% { opacity: var(--star-opacity-high); }
 }
 
 @keyframes solaris-star-focus {
   0%, 100% {
     filter: blur(var(--star-blur)) saturate(.72) brightness(1.55);
-    opacity: calc(var(--star-opacity) * .86);
+    opacity: var(--star-opacity-low);
   }
   52% {
     filter: blur(calc(var(--star-blur) + 2.2px)) saturate(.70) brightness(1.68);
-    opacity: calc(var(--star-opacity) * 1.08);
+    opacity: var(--star-focus-opacity);
   }
 }
 
@@ -193,19 +193,16 @@
     transition: none;
   }
 
+  /* Cursor/scroll parallax is intentionally removed on phones. Ambient drift
+     and gradient movement remain, but focus-filter animation is disabled. */
   .solaris-star-layer-far,
   .solaris-star-layer-mid,
   .solaris-star-layer-near {
     transform: none;
   }
 
-  .solaris-star {
-    animation-duration: calc(var(--star-duration) * 1.15);
-  }
-
   .solaris-star-focus {
-    animation:
-      solaris-star-drift calc(var(--star-duration) * 1.15) ease-in-out var(--star-delay) infinite alternate;
+    animation: solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate;
   }
 }
 
@@ -221,6 +218,7 @@
   }
 
   .solaris-star {
-    opacity: calc(var(--star-opacity) * .82);
+    opacity: var(--star-opacity-low);
+    filter: blur(var(--star-blur)) saturate(.7) brightness(1.5);
   }
 }
