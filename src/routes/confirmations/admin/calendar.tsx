@@ -1,11 +1,9 @@
-import "@/confirmations.css";
-
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Clock3 } from "lucide-react";
 
-import { ConfirmationsAdminNav } from "@/components/confirmations/ConfirmationsAdminNav";
-import { Label } from "@/components/ui/label";
+import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminPage } from "@/components/admin/AdminShell";
 import {
   loadConfirmationCalendar,
   loadConfirmationEditions,
@@ -15,7 +13,7 @@ import {
 } from "@/integrations/confirmations/admin";
 
 export const Route = createFileRoute("/confirmations/admin/calendar")({
-  head: () => ({ meta: [{ title: "Confirmation Calendar — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Delegation Calendar — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
   component: CalendarPage,
 });
 
@@ -30,52 +28,25 @@ type CalendarItem = {
 
 function buildItems(rows: ConfirmationCalendarRow[]) {
   const items: CalendarItem[] = [];
-
   for (const row of rows) {
     if (!row.participating) continue;
-
     if (row.reveal_date_type) {
-      items.push({
-        id: `${row.id}-reveal`,
-        country: row.country,
-        label: row.selection_method === "national_final" ? "Entries reveal" : "Song reveal / release",
-        date: row.reveal_date_type === "exact" ? row.reveal_exact_date : null,
-        approx:
-          row.reveal_date_type === "immediately"
-            ? "Immediately"
-            : row.reveal_date_type === "approximate"
-              ? row.reveal_approximate_text
-              : row.reveal_date_type === "unknown"
-                ? "Not known yet"
-                : null,
-        kind: "reveal",
-      });
+      items.push({ id: `${row.id}-reveal`, country: row.country, label: row.selection_method === "national_final" ? "Entries reveal" : "Song reveal / release", date: row.reveal_date_type === "exact" ? row.reveal_exact_date : null, approx: row.reveal_date_type === "immediately" ? "Immediately" : row.reveal_date_type === "approximate" ? row.reveal_approximate_text : row.reveal_date_type === "unknown" ? "Not known yet" : null, kind: "reveal" });
     }
-
     if (row.nf_date_type) {
-      items.push({
-        id: `${row.id}-nf`,
-        country: row.country,
-        label: `National Final${row.nf_name ? ` — ${row.nf_name}` : ""}`,
-        date: row.nf_date_type === "exact" ? row.nf_exact_date : null,
-        approx: row.nf_date_type === "approximate" ? row.nf_approximate_text : "Not known yet",
-        kind: "nf",
-      });
+      items.push({ id: `${row.id}-nf`, country: row.country, label: `National Final${row.nf_name ? ` · ${row.nf_name}` : ""}`, date: row.nf_date_type === "exact" ? row.nf_exact_date : null, approx: row.nf_date_type === "approximate" ? row.nf_approximate_text : "Not known yet", kind: "nf" });
     }
-
     if (row.nf_result_date_type) {
-      items.push({
-        id: `${row.id}-nfr`,
-        country: row.country,
-        label: "National Final result",
-        date: row.nf_result_date_type === "exact" ? row.nf_result_exact_date : null,
-        approx: row.nf_result_date_type === "approximate" ? row.nf_result_approximate_text : "Not known yet",
-        kind: "nf_result",
-      });
+      items.push({ id: `${row.id}-nfr`, country: row.country, label: "National Final result", date: row.nf_result_date_type === "exact" ? row.nf_result_exact_date : null, approx: row.nf_result_date_type === "approximate" ? row.nf_result_approximate_text : "Not known yet", kind: "nf_result" });
     }
   }
-
   return items;
+}
+
+function kindLabel(kind: CalendarItem["kind"]) {
+  if (kind === "nf") return "National final";
+  if (kind === "nf_result") return "Result";
+  return "Reveal";
 }
 
 function CalendarPage() {
@@ -103,14 +74,12 @@ function CalendarPage() {
         setEditionId(selected);
         setRows(await loadConfirmationCalendar(selected || undefined));
       } catch (caught) {
-        if (alive) setError(caught instanceof Error ? caught.message : "Could not load release calendar.");
+        if (alive) setError(caught instanceof Error ? caught.message : "Could not load delegation calendar.");
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [navigate]);
 
   const selectedEdition = editions.find((edition) => edition.id === editionId) ?? null;
@@ -129,94 +98,89 @@ function CalendarPage() {
 
   const { dated, undated } = useMemo(() => {
     const items = buildItems(rows);
-    return {
-      dated: items.filter((item) => item.date).sort((a, b) => a.date!.localeCompare(b.date!)),
-      undated: items.filter((item) => !item.date),
-    };
+    return { dated: items.filter((item) => item.date).sort((a, b) => a.date!.localeCompare(b.date!)), undated: items.filter((item) => !item.date) };
   }, [rows]);
 
-  const groups = useMemo(() => {
-    return dated.reduce<Record<string, CalendarItem[]>>((acc, item) => {
-      const key = new Date(`${item.date!}T12:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
-      (acc[key] ??= []).push(item);
-      return acc;
-    }, {});
-  }, [dated]);
+  const groups = useMemo(() => dated.reduce<Record<string, CalendarItem[]>>((acc, item) => {
+    const key = new Date(`${item.date!}T12:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    (acc[key] ??= []).push(item);
+    return acc;
+  }, {}), [dated]);
+
+  const upcoming = dated.filter((item) => new Date(`${item.date!}T23:59:59`).getTime() >= Date.now()).length;
 
   return (
-    <div className="confirmations-theme min-h-screen">
-      <div className="confirmations-backdrop" aria-hidden="true" />
-      <main className="relative z-10 mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-        <div className="mb-6"><Link to="/confirmations/admin" className="text-xs text-white/55 hover:text-white">← Organiser overview</Link></div>
-        <ConfirmationsAdminNav current="/confirmations/admin/calendar" />
+    <AdminPage>
+      <AdminPageHeader eyebrow="Delegations" title="Calendar" description="Reveal dates, National Finals and result dates collected from delegation submissions." />
 
-        <header className="mb-7">
-          <div className="flex items-center gap-2 text-sky-100/70"><CalendarDays className="size-4" /><p className="text-[10px] uppercase tracking-[0.22em]">Organiser workspace</p></div>
-          <h1 className="confirmations-display mt-2 text-5xl font-normal uppercase leading-none sm:text-6xl">Release calendar</h1>
-          <p className="mt-3 max-w-2xl text-sm text-white/55">Reveal dates, National Finals and result dates pulled directly from submitted confirmations.</p>
-        </header>
-
-        <section className="confirmations-surface mb-5 grid gap-4 p-4 sm:grid-cols-2">
-          <div>
-            <Label>Edition</Label>
-            <select value={editionId} onChange={(event) => {
-              const next = event.target.value;
-              setEditionId(next);
-              setRoundId("");
-              void changeScope(next, "");
-            }} className="mt-2 h-10 w-full rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white outline-none">
-              {editions.map((edition) => <option key={edition.id} value={edition.id}>{`SSC ${edition.edition_number} — ${edition.name}`}</option>)}
+      <AdminCard className="mb-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="admin-section-label">Edition</span>
+            <select value={editionId} onChange={(event) => { const next = event.target.value; setEditionId(next); setRoundId(""); void changeScope(next, ""); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+              {editions.map((edition) => <option key={edition.id} value={edition.id}>{`SSC ${edition.edition_number} · ${edition.name}`}</option>)}
             </select>
-          </div>
-          <div>
-            <Label>Round</Label>
-            <select value={roundId} onChange={(event) => {
-              const next = event.target.value;
-              setRoundId(next);
-              void changeScope(editionId, next);
-            }} className="mt-2 h-10 w-full rounded-md border border-white/10 bg-black/20 px-3 text-sm text-white outline-none">
+          </label>
+          <label className="block">
+            <span className="admin-section-label">Submission round</span>
+            <select value={roundId} onChange={(event) => { const next = event.target.value; setRoundId(next); void changeScope(editionId, next); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
               <option value="">All rounds</option>
               {(selectedEdition?.rounds ?? []).map((round) => <option key={round.id} value={round.id}>{round.name}</option>)}
             </select>
-          </div>
-        </section>
+          </label>
+        </div>
+      </AdminCard>
 
-        {loading ? <div className="confirmations-surface p-8 text-center text-sm text-white/55">Loading calendar…</div> : error ? <div className="confirmations-surface border-red-300/20 p-6 text-sm text-red-100">{error}</div> : (
-          <div className="space-y-5">
-            {Object.entries(groups).map(([month, items]) => (
-              <section key={month} className="confirmations-surface p-5">
-                <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-white/38">{month}</h2>
-                <div className="mt-3 space-y-2">
-                  {items.map((item) => (
-                    <div key={item.id} className="grid gap-2 rounded-xl border border-white/8 bg-black/10 px-4 py-3 sm:grid-cols-[160px_1fr_auto] sm:items-center">
-                      <span className="font-medium text-white">{item.country}</span>
-                      <span className="text-sm text-white/52">{item.label}</span>
-                      <span className="text-xs text-sky-100/75">{new Date(`${item.date!}T12:00:00`).toLocaleDateString()}</span>
+      {!loading && !error ? (
+        <div className="mb-4 grid grid-cols-3 gap-2">
+          <AdminCard className="!p-3"><p className="admin-section-label">Exact dates</p><p className="mt-2 text-2xl font-bold tracking-tight">{dated.length}</p></AdminCard>
+          <AdminCard className="!p-3"><p className="admin-section-label">Upcoming</p><p className="mt-2 text-2xl font-bold tracking-tight">{upcoming}</p></AdminCard>
+          <AdminCard className="!p-3"><p className="admin-section-label">Unscheduled</p><p className="mt-2 text-2xl font-bold tracking-tight">{undated.length}</p></AdminCard>
+        </div>
+      ) : null}
+
+      {loading ? (
+        <AdminCard><p className="py-6 text-center text-sm text-muted-foreground">Loading calendar…</p></AdminCard>
+      ) : error ? (
+        <AdminCard><p className="text-sm text-rose-200">{error}</p></AdminCard>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(groups).map(([month, items]) => (
+            <AdminCard key={month}>
+              <AdminCardHeader eyebrow="Scheduled" title={month} description={`${items.length} delegation event${items.length === 1 ? "" : "s"}`} />
+              <div className="divide-y divide-white/[0.07]">
+                {items.map((item) => (
+                  <div key={item.id} className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-muted-foreground"><CalendarDays className="size-4" /></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-2"><p className="truncate text-sm font-semibold text-foreground">{item.country}</p><AdminStatus tone="info">{kindLabel(item.kind)}</AdminStatus></div>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{item.label}</p>
                     </div>
-                  ))}
-                </div>
-              </section>
-            ))}
+                    <div className="shrink-0 text-right"><p className="text-sm font-semibold text-foreground">{new Date(`${item.date!}T12:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</p><p className="mt-1 text-[10px] text-muted-foreground">{new Date(`${item.date!}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" })}</p></div>
+                  </div>
+                ))}
+              </div>
+            </AdminCard>
+          ))}
 
-            {!dated.length ? <div className="confirmations-surface p-6 text-sm text-white/45">No exact dates submitted in this scope.</div> : null}
+          {!dated.length ? <AdminEmptyState icon={CalendarDays} title="No exact dates yet" description="Exact reveal and National Final dates will appear here as delegations submit them." /> : null}
 
-            {undated.length ? (
-              <section className="confirmations-surface p-5">
-                <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-white/38">Approximate & unknown</h2>
-                <div className="mt-3 space-y-2">
-                  {undated.map((item) => (
-                    <div key={item.id} className="grid gap-2 rounded-xl border border-white/8 bg-black/10 px-4 py-3 sm:grid-cols-[160px_1fr_auto] sm:items-center">
-                      <span className="font-medium text-white">{item.country}</span>
-                      <span className="text-sm text-white/52">{item.label}</span>
-                      <span className="text-xs text-white/38">{item.approx ?? "—"}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </div>
-        )}
-      </main>
-    </div>
+          {undated.length ? (
+            <AdminCard>
+              <AdminCardHeader eyebrow="Needs scheduling" title="Approximate & unknown" description="Dates that still need to become concrete before show planning." />
+              <div className="divide-y divide-white/[0.07]">
+                {undated.map((item) => (
+                  <div key={item.id} className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-muted-foreground"><Clock3 className="size-4" /></div>
+                    <div className="min-w-0 flex-1"><div className="flex min-w-0 items-center gap-2"><p className="truncate text-sm font-semibold text-foreground">{item.country}</p><AdminStatus tone="attention">{kindLabel(item.kind)}</AdminStatus></div><p className="mt-1 truncate text-xs text-muted-foreground">{item.label}</p></div>
+                    <p className="max-w-[8.5rem] shrink-0 text-right text-xs text-muted-foreground">{item.approx ?? "Not known yet"}</p>
+                  </div>
+                ))}
+              </div>
+            </AdminCard>
+          ) : null}
+        </div>
+      )}
+    </AdminPage>
   );
 }

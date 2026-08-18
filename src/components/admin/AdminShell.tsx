@@ -61,3 +61,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     </AdminContextProvider>
   );
 }
+
+export function AdminPage({ children }: { children: ReactNode }) {
+  return <div className="space-y-4 sm:space-y-5">{children}</div>;
+}
