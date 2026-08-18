@@ -128,8 +128,8 @@ function TelevotingPage() {
     const refresh = () => void queryClient.invalidateQueries({ queryKey: ["merged-televoting-open-round"] });
     const channel = televotingSupabase
       .channel("merged-televoting-open-round")
-      .on("postgres_changes", { event: "*", schema: "public", table: "rounds" }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "round_entries" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "televoting", table: "rounds" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "televoting", table: "round_entries" }, refresh)
       .subscribe();
 
     return () => {
