@@ -2,8 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 
-import { BackgroundFlag } from "@/components/BackgroundFlag";
-
 import { FlagChip } from "@/components/FlagChip";
 
 import { FollowButton } from "@/components/FollowButton";
@@ -204,16 +202,10 @@ function EditionPage() {
           <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
         </div>
 
-        <section className="relative min-h-[340px] overflow-hidden rounded-[2rem] border border-white/20 bg-black/25 shadow-2xl sm:min-h-[480px]">
-          <BackgroundFlag
-            image={winner?.flag_image}
-            className="-right-[18%] top-1/2 w-[95%] -translate-y-1/2 sm:w-[62%]"
-            opacity={0.26}
-          />
+        <section className="relative overflow-hidden rounded-[2rem] border border-primary/20 bg-surface/80 shadow-2xl">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgb(var(--solaris-bg-primary)/0.18),transparent_42%),linear-gradient(145deg,rgb(var(--solaris-bg-deep-2)/0.94),rgb(var(--solaris-bg-deep)/0.88))]" />
 
-          <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/96 via-[#041429]/84 to-[#041429]/30" />
-
-          <div className="relative z-20 flex min-h-[340px] flex-col justify-between p-5 sm:min-h-[480px] sm:p-8 lg:p-10">
+          <div className="relative z-20 flex flex-col gap-10 p-5 sm:p-8 lg:p-10">
             <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
               {edition.status === "completed" ? "Completed edition" : "Current edition"}
             </span>
@@ -262,6 +254,30 @@ function EditionPage() {
             </div>
           </div>
         </section>
+
+        {edition.logo && (
+          <section className="overflow-hidden rounded-[1.75rem] border border-primary/20 bg-surface/72 shadow-xl">
+            <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+                  Official artwork
+                </p>
+                <h2 className="mt-1 text-sm font-semibold text-foreground">{editionLabel(edition)}</h2>
+              </div>
+              <span className="text-[10px] text-muted-foreground">Shown uncropped</span>
+            </div>
+
+            <div className="grid place-items-center bg-black/10 p-3 sm:p-5 lg:p-6">
+              <img
+                src={edition.logo}
+                alt={`${editionLabel(edition)} official artwork`}
+                className="block h-auto max-h-[78vh] w-auto max-w-full rounded-xl object-contain"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
+          </section>
+        )}
 
         <Panel>
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
