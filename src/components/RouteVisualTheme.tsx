@@ -7,8 +7,14 @@ import {
   editionThemeToVisual,
   themeStyleProperties,
   useCountryThemes,
-  type VisualTheme,
 } from "@/lib/visual-theme";
+
+type EditionVisual = {
+  id: string;
+  slug: string;
+  theme_colors?: unknown;
+  artwork_url?: string | null;
+};
 
 function segmentAfter(pathname: string, prefix: string) {
   if (!pathname.startsWith(prefix)) return null;
@@ -37,33 +43,20 @@ export function RouteVisualTheme() {
       if (theme) return { theme, kind: "country" as const, artwork: null as string | null };
     }
 
+    const visualEditions = (editions ?? []) as EditionVisual[];
     const editionSlug = segmentAfter(pathname, "/editions/");
     if (editionSlug) {
-      const edition = (editions ?? []).find((item) => item.slug === editionSlug) as
-        | ((typeof editions extends Array<infer E> ? E : never) & {
-            theme_colors?: unknown;
-            artwork_url?: string | null;
-          })
-        | undefined;
+      const edition = visualEditions.find((item) => item.slug === editionSlug);
       const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) {
-        return { theme, kind: "edition" as const, artwork: edition?.artwork_url ?? null };
-      }
+      if (theme) return { theme, kind: "edition" as const, artwork: edition?.artwork_url ?? null };
     }
 
     const showId = segmentAfter(pathname, "/shows/");
     if (showId) {
       const show = (shows ?? []).find((item) => item.id === showId);
-      const edition = (editions ?? []).find((item) => item.id === show?.edition_id) as
-        | ((typeof editions extends Array<infer E> ? E : never) & {
-            theme_colors?: unknown;
-            artwork_url?: string | null;
-          })
-        | undefined;
+      const edition = visualEditions.find((item) => item.id === show?.edition_id);
       const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) {
-        return { theme, kind: "edition" as const, artwork: edition?.artwork_url ?? null };
-      }
+      if (theme) return { theme, kind: "edition" as const, artwork: edition?.artwork_url ?? null };
     }
 
     return null;
@@ -81,6 +74,7 @@ export function RouteVisualTheme() {
       "--foreground",
       "--muted-foreground",
       "--surface",
+      "--edition-artwork-image",
     ];
 
     if (!resolved) {
@@ -91,11 +85,16 @@ export function RouteVisualTheme() {
     }
 
     body.dataset.entityTheme = resolved.kind;
-    if (resolved.artwork) body.dataset.editionArtwork = "true";
-    else delete body.dataset.editionArtwork;
-
-    const properties = themeStyleProperties(resolved.theme as VisualTheme);
+    const properties = themeStyleProperties(resolved.theme);
     Object.entries(properties).forEach(([key, value]) => body.style.setProperty(key, value));
+
+    if (resolved.artwork) {
+      body.dataset.editionArtwork = "true";
+      body.style.setProperty("--edition-artwork-image", `url(${JSON.stringify(resolved.artwork)})`);
+    } else {
+      delete body.dataset.editionArtwork;
+      body.style.removeProperty("--edition-artwork-image");
+    }
 
     return () => {
       delete body.dataset.entityTheme;
