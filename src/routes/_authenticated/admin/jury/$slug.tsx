@@ -6,13 +6,11 @@ import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
-  AdminActionItem,
   AdminCard,
   AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminSheet,
-  AdminStatus,
 } from "@/components/admin/AdminUI";
 import { FastJuryEntry } from "@/components/studio/FastEntry";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,7 +123,7 @@ function JuryWorkspace() {
     if (!edition || !selectedShow) return;
     const country = countries.find((item) => item.id === draft.countryId);
     const isCountryKind = draft.kind === "country" || draft.kind === "external-country";
-    const name = (isCountryKind ? country?.name : draft.name).trim?.() ?? "";
+    const name = (isCountryKind ? (country?.name ?? "") : draft.name).trim();
     if (!name) return;
     setBusy(true);
     try {
