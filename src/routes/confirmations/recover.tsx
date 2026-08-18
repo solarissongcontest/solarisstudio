@@ -1,10 +1,14 @@
 import "@/confirmations.css";
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 
+import {
+  ParticipationRouteChrome,
+  ParticipationServiceShell,
+} from "@/components/ParticipationServiceShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,80 +75,82 @@ function RecoverConfirmationPage() {
   }
 
   return (
-    <div className="confirmations-theme min-h-screen">
-      <div className="confirmations-backdrop" aria-hidden="true" />
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-lg items-center px-4 py-12">
-        <section className="confirmations-surface w-full p-6 sm:p-8">
-          <Link
-            to="/confirmations"
-            className="inline-flex items-center gap-2 text-xs text-white/55 transition hover:text-white"
-          >
-            <ArrowLeft className="size-3.5" /> Back to confirmations
-          </Link>
-
-          <div className="mt-6 flex size-11 items-center justify-center rounded-full border border-sky-200/15 bg-sky-200/10 text-sky-100">
-            <KeyRound className="size-5" />
-          </div>
-          <p className="mt-5 text-[10px] font-medium uppercase tracking-[0.22em] text-sky-200/65">Response access</p>
-          <h1 className="confirmations-display mt-3 text-4xl font-normal uppercase leading-none sm:text-5xl">Recover response</h1>
-          <p className="mt-4 text-sm leading-relaxed text-white/55">
-            Use the same recovery code from the original Confirmations site. This browser will then be linked to that existing response too.
-          </p>
-
-          <div className="mt-7 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="recovery-round">Confirmation round</Label>
-              <select
-                id="recovery-round"
-                value={roundId}
-                onChange={(event) => setRoundId(event.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Select round</option>
-                {rounds.map((round) => (
-                  <option key={round.id} value={round.id}>
-                    {round.edition_name} — {round.name}
-                  </option>
-                ))}
-              </select>
+    <ParticipationRouteChrome>
+      <ParticipationServiceShell
+        service="confirmations"
+        title="Recover response"
+        description="Use your recovery code to reopen an existing confirmation response on this browser."
+        actions={[
+          { to: "/confirmations", label: "Confirmations" },
+          { to: "/confirmations/next-in-line", label: "Next in Line" },
+        ]}
+        maxWidth="max-w-xl"
+      >
+        <div className="confirmations-theme">
+          <section className="data-panel p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <KeyRound className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-bold">Response access</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Recovery links this browser to the same live response record. Nothing is copied or duplicated.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="recovery-country">Country</Label>
-              <Input
-                id="recovery-country"
-                value={country}
-                onChange={(event) => setCountry(event.target.value)}
-                placeholder="Oland"
-              />
+            <div className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="recovery-round">Confirmation round</Label>
+                <select
+                  id="recovery-round"
+                  value={roundId}
+                  onChange={(event) => setRoundId(event.target.value)}
+                  className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select round</option>
+                  {rounds.map((round) => (
+                    <option key={round.id} value={round.id}>
+                      {round.edition_name} — {round.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="recovery-country">Country</Label>
+                <Input
+                  id="recovery-country"
+                  value={country}
+                  onChange={(event) => setCountry(event.target.value)}
+                  placeholder="Oland"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="recovery-code">Recovery code</Label>
+                <Input
+                  id="recovery-code"
+                  value={code}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  onChange={(event) => setCode(event.target.value.toUpperCase())}
+                  placeholder="AB12-CD34-EF56"
+                />
+              </div>
+
+              {error ? (
+                <div className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div>
+              ) : null}
+
+              <Button className="w-full" disabled={busy} onClick={() => void submit()}>
+                <KeyRound className="size-4" /> {busy ? "Recovering…" : "Recover response"}
+              </Button>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="recovery-code">Recovery code</Label>
-              <Input
-                id="recovery-code"
-                value={code}
-                autoCapitalize="characters"
-                autoCorrect="off"
-                onChange={(event) => setCode(event.target.value.toUpperCase())}
-                placeholder="AB12-CD34-EF56"
-              />
-            </div>
-
-            {error ? (
-              <div className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div>
-            ) : null}
-
-            <Button className="w-full" disabled={busy} onClick={() => void submit()}>
-              <KeyRound className="size-4" /> {busy ? "Recovering…" : "Recover response"}
-            </Button>
-          </div>
-
-          <p className="mt-5 text-center text-[10px] leading-relaxed text-white/32">
-            Recovery uses the same live response record as the old Confirmations page. Nothing is copied or duplicated.
-          </p>
-        </section>
-      </main>
-    </div>
+          </section>
+        </div>
+      </ParticipationServiceShell>
+    </ParticipationRouteChrome>
   );
 }
