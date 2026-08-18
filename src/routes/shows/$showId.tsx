@@ -147,20 +147,20 @@ function ShowPage() {
     const options: ResponsiveTabOption<Tab>[] = [];
 
     if (publication.results) {
-      options.push({ value: "scoreboard", label: "Overall results" });
+      options.push({ value: "scoreboard", label: "Overall" });
     }
 
     if (publication.jury_results || publication.televote_results) {
-      options.push({ value: "split", label: "Jury / Televote" });
+      options.push({ value: "split", label: "Jury vs televote" });
+    }
+
+    if (publication.detailed_voting) {
+      options.push({ value: "matrix", label: "Full scorechart" });
+      options.push({ value: "points", label: "Points explorer" });
     }
 
     if (publication.results && stories.length) {
       options.push({ value: "stories", label: "Result stories" });
-    }
-
-    if (publication.detailed_voting) {
-      options.push({ value: "points", label: "Detailed points" });
-      options.push({ value: "matrix", label: "Voting matrix" });
     }
 
     if (publication.participants) {
@@ -231,7 +231,7 @@ function ShowPage() {
               Solaris Song Contest
             </p>
             <h1 className="mt-2 font-display text-3xl font-bold">{show.name}</h1>
-            <p className="mt-3 text-sm text-muted-foreground">This show has not been published yet.</p>
+            <p className="mt-3 text-sm text-muted-foreground">This show is not available publicly yet.</p>
             <Link to="/editions" className="mt-5 inline-flex text-sm font-semibold text-primary">
               ← Back to editions
             </Link>
@@ -286,18 +286,22 @@ function ShowPage() {
       {publication.results && !standings.length && (
         <Panel className="mb-5">
           <p className="text-sm text-muted-foreground">
-            Results are public, but no saved result archive exists for this show yet. Save the show
-            results once in Studio and they will appear here.
+            Results for this show are not available in the public archive yet.
           </p>
         </Panel>
       )}
 
       {!!tabOptions.length && (
-        <div className="mb-5 space-y-2">
+        <div className="mb-5 space-y-3">
           {(publication.results || publication.jury_results || publication.televote_results) && (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Switch result view
-            </p>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Result views
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Overall is the final ranking. Jury vs televote compares the two halves. Full scorechart shows who gave points to whom.
+              </p>
+            </div>
           )}
           <ResponsiveTabs value={tab} options={tabOptions} onChange={setTab} label="Show view" />
         </div>
@@ -306,13 +310,13 @@ function ShowPage() {
       {tab === "stories" && publication.results && (
         <Panel
           title="Story of the result"
-          description="Every statement below is generated from the archived scoreboard and links to an exact, reproducible metric."
+          description="Highlights and unusual patterns found in the published scoreboard."
         >
           {stories.length ? (
             <StoryCards stories={stories} selectedStory={search.story} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              There is not enough archived result data to build stories for this show yet.
+              There is not enough published result data to build stories for this show yet.
             </p>
           )}
         </Panel>
@@ -323,10 +327,10 @@ function ShowPage() {
           <Panel
             className="mb-4"
             title="Overall results"
-            description="Final combined ranking. Use Jury / Televote above to compare the two voting components."
+            description="The final combined ranking after jury and televote points."
           >
             <p className="text-xs text-muted-foreground">
-              Overall combines the published jury and televote result into the final ranking.
+              Use Jury vs televote to compare the two voting components, or Full scorechart to inspect individual jury voting where it is available.
             </p>
           </Panel>
           {standings.length ? (
@@ -388,7 +392,10 @@ function ShowPage() {
       )}
 
       {tab === "matrix" && publication.detailed_voting && (
-        <Panel title="Voting matrix" description="Rows receive points, columns give them.">
+        <Panel
+          title="Full scorechart"
+          description="Each row is an entry receiving points. Each column is a jury giving points. Tap or hover cells to inspect the vote."
+        >
           <VotingMatrix
             votes={jury ?? []}
             countries={displayMap}
