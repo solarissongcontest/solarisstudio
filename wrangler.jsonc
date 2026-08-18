@@ -8,8 +8,8 @@
     "directory": ".output/public"
   },
   "vars": {
-    "TELEVOTING_SUPABASE_PROJECT_ID": "nyzmftjbuaegmrjyypqv",
-    "TELEVOTING_SUPABASE_URL": "https://nyzmftjbuaegmrjyypqv.supabase.co"
+    "TELEVOTING_SUPABASE_PROJECT_ID": "fslpvepdespgfnkaucpm",
+    "TELEVOTING_SUPABASE_URL": "https://fslpvepdespgfnkaucpm.supabase.co"
   },
   "observability": {
     "enabled": true
