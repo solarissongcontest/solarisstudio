@@ -1,0 +1,70 @@
+/* Entity-owned theming -------------------------------------------------------
+   Country owners and edition artwork can override the route family tokens.
+   Layout remains Solaris-owned; identity colours belong to the entity. */
+
+body[data-entity-theme] {
+  --primary: rgb(var(--solaris-accent));
+  --ring: color-mix(in srgb, rgb(var(--solaris-accent)) 78%, white 22%);
+  --accent: color-mix(in srgb, rgb(var(--solaris-accent)) 86%, rgb(var(--solaris-bg-secondary)) 14%);
+  --border: rgb(var(--solaris-accent) / .19);
+  --card: color-mix(in srgb, var(--surface) 74%, rgb(var(--solaris-bg-deep)) 26%);
+  --popover: color-mix(in srgb, var(--surface) 78%, rgb(var(--solaris-bg-deep)) 22%);
+  --surface-strong: color-mix(in srgb, var(--surface) 78%, rgb(var(--solaris-accent)) 22%);
+  --secondary: color-mix(in srgb, var(--surface) 82%, rgb(var(--solaris-bg-secondary)) 18%);
+  --muted: color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%);
+  --input: color-mix(in srgb, var(--surface) 86%, rgb(var(--solaris-bg-deep)) 14%);
+}
+
+body[data-entity-theme] .data-panel,
+body[data-entity-theme] .surface,
+body[data-entity-theme] .glass,
+body[data-entity-theme] .glass-strong {
+  border-color: rgb(var(--solaris-accent) / .20) !important;
+}
+
+body[data-entity-theme] .data-panel,
+body[data-entity-theme] .surface {
+  background:
+    linear-gradient(150deg, rgb(var(--solaris-bg-primary) / .11), rgb(var(--solaris-bg-secondary) / .06) 50%, transparent),
+    color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%) !important;
+}
+
+body[data-entity-theme] .glass,
+body[data-entity-theme] .glass-strong {
+  background:
+    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .10), rgb(var(--solaris-bg-secondary) / .055)),
+    color-mix(in srgb, var(--surface) 86%, rgb(var(--solaris-bg-deep)) 14%) !important;
+}
+
+/* Edition artwork is not merely an upload sitting in a database. The main
+   edition hero visibly uses it while the generated palette controls the rest
+   of the route. */
+body[data-entity-theme="edition"][data-edition-artwork="true"] .app-main section[class*="min-h-[340px]"] {
+  background-image:
+    linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .94) 0%, rgb(var(--solaris-bg-deep-2) / .80) 47%, rgb(var(--solaris-bg-primary) / .32) 100%),
+    var(--edition-artwork-image) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  border-color: rgb(var(--solaris-accent) / .28) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-artwork="true"] .app-main section[class*="min-h-[340px]"] > div.absolute.inset-0 {
+  background: linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .90), rgb(var(--solaris-bg-deep-2) / .66) 56%, transparent) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-artwork="true"] .app-main section[class*="min-h-[340px]"] > div.pointer-events-none.absolute.aspect-square {
+  opacity: .08 !important;
+}
+
+/* User-selected font colours are intentionally respected on country/Wiki and
+   edition/show routes. Utility muted/foreground classes continue to work
+   because these are the underlying design tokens they already consume. */
+body[data-entity-theme] .text-foreground { color: var(--foreground) !important; }
+body[data-entity-theme] .text-muted-foreground { color: var(--muted-foreground) !important; }
+body[data-entity-theme] .text-primary { color: var(--primary) !important; }
+
+@media (max-width: 767px) {
+  body[data-entity-theme="edition"][data-edition-artwork="true"] .app-main section[class*="min-h-[340px]"] {
+    background-position: 58% center !important;
+  }
+}
