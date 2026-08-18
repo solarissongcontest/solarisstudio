@@ -15,45 +15,54 @@ import unifiedCss from "../unified-design.css?url";
 import accessibilityCss from "../accessibility.css?url";
 import anniversaryCss from "../anniversary.css?url";
 import cardTypographyCss from "../card-typography.css?url";
+import solarisBackgroundCss from "../solaris-background.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
+import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
 
-const TOOL_BACKGROUNDS: Array<[string, string]> = [
-  [
-    "/result-lab",
-    "radial-gradient(circle at 82% 12%, rgba(66, 210, 214, .16), transparent 35%), linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')",
-  ],
-  [
-    "/taste-dna",
-    "radial-gradient(circle at 82% 12%, rgba(165, 105, 255, .18), transparent 36%), linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')",
-  ],
-  [
-    "/broadcast-intelligence",
-    "radial-gradient(circle at 82% 12%, rgba(255, 164, 74, .17), transparent 36%), linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')",
-  ],
-  [
-    "/archive-games",
-    "radial-gradient(circle at 82% 12%, rgba(102, 214, 143, .16), transparent 36%), linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')",
-  ],
-  [
-    "/scorecharts",
-    "radial-gradient(circle at 82% 12%, rgba(90, 158, 255, .16), transparent 36%), linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')",
-  ],
-  [
-    "/compare",
-    "radial-gradient(circle at 82% 12%, rgba(242, 113, 180, .14), transparent 36%), linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')",
-  ],
-  [
-    "/pulse",
-    "radial-gradient(circle at 82% 12%, rgba(83, 191, 238, .16), transparent 36%), linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')",
-  ],
-];
+type BackgroundFamily =
+  | "core"
+  | "analysis"
+  | "archive"
+  | "pulse"
+  | "predictions"
+  | "confirmations"
+  | "televoting"
+  | "studio-tools";
 
-const BASE_BACKGROUND =
-  "linear-gradient(180deg, rgba(1, 5, 20, .09), rgba(1, 5, 20, .25)), url('/IMG_8815.jpeg')";
+function backgroundFamilyFor(pathname: string): BackgroundFamily {
+  if (pathname.startsWith("/confirmations")) return "confirmations";
+  if (pathname.startsWith("/televoting")) return "televoting";
+  if (pathname.startsWith("/pulse")) return "pulse";
+  if (pathname.startsWith("/predictions")) return "predictions";
+  if (
+    pathname.startsWith("/analysis") ||
+    pathname.startsWith("/relationships") ||
+    pathname.startsWith("/compare")
+  ) {
+    return "analysis";
+  }
+  if (
+    pathname.startsWith("/archive-games") ||
+    pathname.startsWith("/records") ||
+    pathname.startsWith("/wiki")
+  ) {
+    return "archive";
+  }
+  if (
+    pathname.startsWith("/result-lab") ||
+    pathname.startsWith("/taste-dna") ||
+    pathname.startsWith("/broadcast-intelligence") ||
+    pathname.startsWith("/scorecharts") ||
+    pathname.startsWith("/tools")
+  ) {
+    return "studio-tools";
+  }
+  return "core";
+}
 
 function NotFoundComponent() {
   return (
@@ -144,6 +153,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: accessibilityCss },
       { rel: "stylesheet", href: anniversaryCss },
       { rel: "stylesheet", href: cardTypographyCss },
+      { rel: "stylesheet", href: solarisBackgroundCss },
     ],
   }),
   shellComponent: RootShell,
@@ -190,27 +200,30 @@ function RootComponent() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const serviceAdmin =
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
+  const publicParticipation =
+    !serviceAdmin &&
+    (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
 
   useEffect(() => {
     const route = pathname.startsWith("/pulse") ? "pulse" : "";
     if (route) document.body.dataset.solarisRoute = route;
     else delete document.body.dataset.solarisRoute;
 
-    const themed = TOOL_BACKGROUNDS.find(([prefix]) => pathname.startsWith(prefix));
-    document.body.style.backgroundImage = themed?.[1] ?? BASE_BACKGROUND;
+    document.body.dataset.solarisFamily = backgroundFamilyFor(pathname);
 
     return () => {
       delete document.body.dataset.solarisRoute;
-      document.body.style.backgroundImage = BASE_BACKGROUND;
+      delete document.body.dataset.solarisFamily;
     };
   }, [pathname]);
 
+  const outlet = <Outlet />;
   const content = serviceAdmin ? (
-    <UnifiedServiceAdminGate>
-      <Outlet />
-    </UnifiedServiceAdminGate>
+    <UnifiedServiceAdminGate>{outlet}</UnifiedServiceAdminGate>
+  ) : publicParticipation ? (
+    <ParticipationRouteChrome>{outlet}</ParticipationRouteChrome>
   ) : (
-    <Outlet />
+    outlet
   );
 
   return (
