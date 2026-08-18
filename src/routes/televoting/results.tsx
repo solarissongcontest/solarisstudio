@@ -1,9 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BookOpen, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 
+import {
+  ParticipationRouteChrome,
+  ParticipationServiceShell,
+} from "@/components/ParticipationServiceShell";
 import { getMergedPublishedTelevotingResults } from "@/integrations/televoting/results.functions";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
@@ -114,84 +118,84 @@ function TelevotingResultsPage() {
   const entryMap = useMemo(() => new Map(entries.map((entry) => [entry.entry_key, entry])), [entries]);
   const totalOriginal = rows.reduce((sum, row) => sum + Number(row.original_votes ?? 0), 0);
   const totalConverted = rows.reduce((sum, row) => sum + Number(row.final_points ?? 0), 0);
+  const title = round ? `${round.edition ? `${round.edition} · ` : ""}${round.name}` : "Televote results";
 
   return (
-    <div className="mx-auto max-w-4xl py-4 sm:py-8">
-      <div className="mb-5 flex justify-center gap-2">
-        <Link to="/televoting" className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs text-muted-foreground transition hover:text-foreground">Voting</Link>
-        <Link to="/televoting/how-to-vote" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs text-muted-foreground transition hover:text-foreground"><BookOpen className="size-3.5" /> How to vote</Link>
-        <Link to="/televoting/results" className="rounded-full border border-sky-200/20 bg-sky-200/10 px-3.5 py-2 text-xs text-sky-100">Results</Link>
-      </div>
-
-      <header className="mb-8 text-center">
-        <p className="text-[10px] uppercase tracking-[0.28em] text-sky-100/70">Official televote result</p>
-        <h1 className="font-display mt-3 text-5xl uppercase leading-[0.9] sm:text-6xl">{round ? `${round.edition ? `${round.edition} · ` : ""}${round.name}` : "Televote results"}</h1>
-        {round ? <p className="mt-4 text-sm text-muted-foreground">{round.total_points} converted televote points · calculation v{round.version}</p> : null}
-      </header>
-
-      {statusLoading || resultsLoading ? (
-        <section className="glass-strong p-8 text-center text-sm text-muted-foreground">Loading published results…</section>
-      ) : serverStatus && !serverStatus.votingReady ? (
-        <section className="glass-strong p-8 text-center">
-          <Trophy className="mx-auto size-8 text-sky-100/70" />
-          <h2 className="mt-4 text-xl font-medium">Results server prepared</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">Published-result code is integrated, but this preview does not yet have the existing Televoting service-role credential needed to read the protected published result payload.</p>
-        </section>
-      ) : error ? (
-        <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Results could not be loaded."}</section>
-      ) : !round ? (
-        <section className="glass-strong p-8 text-center">
-          <Trophy className="mx-auto size-8 text-sky-100/70" />
-          <h2 className="mt-4 text-xl font-medium">No results published yet</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Published televote scoreboards appear here after the organizer publishes a calculated round.</p>
-        </section>
-      ) : (
-        <div className="space-y-4">
-          <section className="grid grid-cols-3 gap-2">
-            <Stat label="Entries" value={rows.length} />
-            <Stat label="Original" value={totalOriginal} />
-            <Stat label="Converted" value={totalConverted} />
+    <ParticipationRouteChrome>
+      <ParticipationServiceShell
+        service="televoting"
+        title={title}
+        description={round ? `${round.total_points} converted televote points · calculation v${round.version}` : "Official published Solaris Song Contest televote results."}
+        actions={[
+          { to: "/televoting", label: "Voting" },
+          { to: "/televoting/how-to-vote", label: "How to vote" },
+        ]}
+        maxWidth="max-w-4xl"
+      >
+        {statusLoading || resultsLoading ? (
+          <section className="data-panel p-8 text-center text-sm text-muted-foreground">Loading published results…</section>
+        ) : serverStatus && !serverStatus.votingReady ? (
+          <section className="data-panel p-8 text-center">
+            <Trophy className="mx-auto size-8 text-primary/70" />
+            <h2 className="mt-4 font-display text-xl font-bold">Results server prepared</h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">Published-result code is integrated, but this preview cannot currently read the protected published result payload.</p>
           </section>
+        ) : error ? (
+          <section className="data-panel border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Results could not be loaded."}</section>
+        ) : !round ? (
+          <section className="data-panel p-8 text-center">
+            <Trophy className="mx-auto size-8 text-primary/70" />
+            <h2 className="mt-4 font-display text-xl font-bold">No results published yet</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Published televote scoreboards appear here after the organizer publishes a calculated round.</p>
+          </section>
+        ) : (
+          <div className="space-y-4">
+            <section className="grid grid-cols-3 gap-2">
+              <Stat label="Entries" value={rows.length} />
+              <Stat label="Original" value={totalOriginal} />
+              <Stat label="Converted" value={totalConverted} />
+            </section>
 
-          <div className="glass flex gap-1 rounded-2xl p-1.5">
-            {(["converted", "original", "compare"] as ResultMode[]).map((item) => (
-              <button key={item} type="button" onClick={() => setMode(item)} className={cn("flex-1 rounded-xl px-3 py-2 text-xs capitalize transition", mode === item ? "bg-sky-200/12 text-sky-100" : "text-muted-foreground hover:text-foreground")}>{item}</button>
-            ))}
+            <div className="data-panel flex gap-1 p-1.5">
+              {(["converted", "original", "compare"] as ResultMode[]).map((item) => (
+                <button key={item} type="button" onClick={() => setMode(item)} className={cn("flex-1 rounded-xl px-3 py-2 text-xs font-semibold capitalize transition", mode === item ? "bg-primary/12 text-foreground" : "text-muted-foreground hover:bg-surface hover:text-foreground")}>{item}</button>
+              ))}
+            </div>
+
+            <section className="space-y-2">
+              {rows.map((row, index) => {
+                const entryKey = row.entry_key || row.country_code || "";
+                const entry = entryMap.get(entryKey);
+                const originalRank = Number(row.original_rank || index + 1);
+                const convertedRank = index + 1;
+                const movement = originalRank - convertedRank;
+                return (
+                  <article key={`${entryKey}-${index}`} className={cn("data-panel grid items-center gap-3 px-3 py-3 sm:px-4", index === 0 && "ring-1 ring-primary/30", mode === "compare" ? "grid-cols-[34px_minmax(0,1fr)_80px_80px]" : "grid-cols-[34px_minmax(0,1fr)_96px]") }>
+                    <div className={cn("grid size-8 place-items-center rounded-full text-sm font-semibold tabular-nums", index === 0 ? "bg-primary/20 text-primary" : "bg-surface text-muted-foreground")}>{convertedRank}</div>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-surface">{entry?.image ? <img src={entry.image} alt="" className="h-full w-full object-cover" /> : <span>{entry?.flag || "✦"}</span>}</div>
+                      <div className="min-w-0"><p className="truncate font-semibold">{entry?.displayName || entryKey}</p>{mode === "compare" ? <p className="mt-0.5 text-[10px] text-muted-foreground">original #{originalRank}{movement ? ` · ${movement > 0 ? "▲" : "▼"}${Math.abs(movement)}` : " · unchanged"}</p> : null}</div>
+                    </div>
+                    {mode === "converted" ? <Score value={row.final_points} label="points" strong /> : null}
+                    {mode === "original" ? <Score value={row.original_votes} label="raw" /> : null}
+                    {mode === "compare" ? <><Score value={row.original_votes} label="raw" /><Score value={row.final_points} label="points" strong /></> : null}
+                  </article>
+                );
+              })}
+            </section>
+
+            {round.advanced ? <section className="data-panel p-5 text-sm text-muted-foreground">Advanced transparency is enabled for this published result. Rank factor, weighted score, exact points, floor, decimal remainder and remainder bonus remain available for deeper result views.</section> : null}
           </div>
-
-          <section className="space-y-2">
-            {rows.map((row, index) => {
-              const entryKey = row.entry_key || row.country_code || "";
-              const entry = entryMap.get(entryKey);
-              const originalRank = Number(row.original_rank || index + 1);
-              const convertedRank = index + 1;
-              const movement = originalRank - convertedRank;
-              return (
-                <article key={`${entryKey}-${index}`} className={cn("glass-strong grid items-center gap-3 px-3 py-3 sm:px-4", index === 0 && "ring-1 ring-primary/30", mode === "compare" ? "grid-cols-[34px_minmax(0,1fr)_80px_80px]" : "grid-cols-[34px_minmax(0,1fr)_96px]") }>
-                  <div className={cn("grid size-8 place-items-center rounded-full text-sm font-medium tabular-nums", index === 0 ? "bg-primary/20 text-primary" : "bg-white/[0.05] text-muted-foreground")}>{convertedRank}</div>
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04]">{entry?.image ? <img src={entry.image} alt="" className="h-full w-full object-cover" /> : <span>{entry?.flag || "✦"}</span>}</div>
-                    <div className="min-w-0"><p className="truncate font-medium">{entry?.displayName || entryKey}</p>{mode === "compare" ? <p className="mt-0.5 text-[10px] text-muted-foreground">original #{originalRank}{movement ? ` · ${movement > 0 ? "▲" : "▼"}${Math.abs(movement)}` : " · unchanged"}</p> : null}</div>
-                  </div>
-                  {mode === "converted" ? <Score value={row.final_points} label="points" strong /> : null}
-                  {mode === "original" ? <Score value={row.original_votes} label="raw" /> : null}
-                  {mode === "compare" ? <><Score value={row.original_votes} label="raw" /><Score value={row.final_points} label="points" strong /></> : null}
-                </article>
-              );
-            })}
-          </section>
-
-          {round.advanced ? <section className="glass p-5 text-sm text-muted-foreground">Advanced transparency is enabled for this published result. The server payload also preserves rank factor, weighted score, exact points, floor, decimal remainder and remainder bonus for downstream detail views.</section> : null}
-        </div>
-      )}
-    </div>
+        )}
+      </ParticipationServiceShell>
+    </ParticipationRouteChrome>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
-  return <div className="glass p-4 text-center"><p className="text-[9px] uppercase tracking-[0.15em] text-muted-foreground">{label}</p><p className="mt-2 text-2xl font-medium tabular-nums">{value}</p></div>;
+  return <div className="data-panel p-4 text-center"><p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground">{label}</p><p className="numeric mt-2 text-2xl font-semibold">{value}</p></div>;
 }
 
 function Score({ value, label, strong = false }: { value: number; label: string; strong?: boolean }) {
-  return <div className="text-right"><p className={cn("text-xl tabular-nums", strong ? "font-semibold text-primary" : "font-medium")}>{value}</p><p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p></div>;
+  return <div className="text-right"><p className={cn("numeric text-xl", strong ? "font-semibold text-primary" : "font-medium")}>{value}</p><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p></div>;
 }
