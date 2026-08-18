@@ -24,8 +24,8 @@ export const Route = createFileRoute("/relationships/")({
 
 const TABS = [
   { value: "all", label: "All" },
-  { value: "alliances", label: "Alliances" },
-  { value: "rivalries", label: "Rivalries" },
+  { value: "alliances", label: "Strong support" },
+  { value: "rivalries", label: "Close rivals" },
   { value: "one-sided", label: "One-sided" },
 ] as const;
 
@@ -47,7 +47,6 @@ function RelationshipsPage() {
   const [query, setQuery] = useState("");
 
   const cList = countries ?? [];
-  const cMap = new Map(cList.map((country) => [country.id, country]));
 
   const pairs = useMemo(() => {
     const editionsByCountry = new Map<string, Set<string>>();
@@ -141,10 +140,27 @@ function RelationshipsPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Voting diplomacy"
+        eyebrow="Voting patterns"
         title="Relationships"
-        description="Alliances, rivalries and one-sided support corrected for shared voting opportunities."
+        description="Compare repeated support and competitive history between countries that have appeared together. These scores describe patterns in the archive, not motives or coordinated voting."
       />
+
+      <Panel className="mb-5" title="What the scores mean">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <MetricGuide
+            title="Support"
+            text="How strongly the two countries have supported each other, adjusted for how often they could vote for one another."
+          />
+          <MetricGuide
+            title="Rivalry"
+            text="How often their results and competitive positions have been closely matched. A high score does not mean personal hostility."
+          />
+          <MetricGuide
+            title="One-sided gap"
+            text="The difference between support flowing in each direction. Larger gaps mean one country has historically supported the other more strongly."
+          />
+        </div>
+      </Panel>
 
       <Panel className="mb-5">
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -208,6 +224,15 @@ function RelationshipsPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function MetricGuide({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-xl bg-surface p-3">
+      <p className="text-xs font-semibold">{title}</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{text}</p>
+    </div>
   );
 }
 
