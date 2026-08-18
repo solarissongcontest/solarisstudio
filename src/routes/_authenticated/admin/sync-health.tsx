@@ -13,13 +13,22 @@ import {
   UserRoundCog,
 } from "lucide-react";
 
+import { AdminPage } from "@/components/admin/AdminShell";
+import {
+  AdminCard,
+  AdminCardHeader,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import { getUnifiedSyncHealth } from "@/integrations/unified/sync-health.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/sync-health")({
   head: () => ({
     meta: [
-      { title: "Sync Health — Solaris Operations" },
+      { title: "Sync health — Solaris Organizer" },
+      { name: "robots", content: "noindex" },
       { name: "description", content: "Canonical data and cross-service synchronization health for Solaris Studio, Confirmations and Televoting." },
     ],
   }),
@@ -34,139 +43,250 @@ function SyncHealthPage() {
     refetchOnWindowFocus: false,
   });
 
-  return (
-    <div className="mx-auto max-w-[1350px] space-y-5">
-      <header className="glass-strong p-5 sm:p-7">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <Link to="/admin/operations" className="text-xs text-muted-foreground hover:text-foreground">← Solaris Operations</Link>
-            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-sky-200/15 bg-sky-200/[0.07] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-100/75"><GitMerge className="h-3.5 w-3.5" /> Canonical data</div>
-            <h1 className="font-display mt-3 text-5xl uppercase leading-none sm:text-6xl">Sync Health</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">One place to see whether Confirmations and Televoting still agree with Solaris Studio, whether the privileged Televoting backend is reachable from Cloudflare, and how much historical voting data can be attributed to known HOD tenures.</p>
-          </div>
-          <button type="button" onClick={() => void refetch()} disabled={isFetching} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.05] px-4 text-xs font-semibold disabled:opacity-60"><RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} /> Refresh health</button>
-        </div>
-      </header>
+  const hasAttention = !!data && (
+    data.televotingRuntime.status !== "healthy" ||
+    data.totals.staleTelevotingBindings > 0 ||
+    data.totals.failedEvents > 0 ||
+    data.totals.pendingEvents > 0 ||
+    data.editions.some((edition) => edition.health === "attention")
+  );
 
-      {isLoading ? <section className="glass-strong p-10 text-center text-sm text-muted-foreground">Checking canonical links and service runtimes…</section> : error || !data ? (
-        <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Sync health could not be loaded."}</section>
+  return (
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="System"
+        title="Sync health"
+        description="Check whether Solaris Studio, Confirmations and Televoting still agree. Start with anything that needs attention; technical details stay secondary."
+        actions={
+          <button type="button" onClick={() => void refetch()} disabled={isFetching} className="admin-action-secondary">
+            <RefreshCw className={cn("size-4", isFetching && "animate-spin")} /> {isFetching ? "Checking…" : "Refresh"}
+          </button>
+        }
+      />
+
+      {isLoading ? (
+        <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Checking canonical links and service runtimes…</p></AdminCard>
+      ) : error || !data ? (
+        <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]">
+          <AdminEmptyState icon={AlertTriangle} title="Sync health could not be loaded" description={error instanceof Error ? error.message : "Try refreshing the health check."} />
+        </AdminCard>
       ) : (
         <>
-          <section className={cn(
-            "glass-strong border p-5",
-            data.televotingRuntime.status === "healthy"
-              ? "border-emerald-200/15 bg-emerald-200/[0.04]"
-              : "border-amber-200/25 bg-amber-200/[0.06]",
-          )}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex min-w-0 gap-3">
-                <div className={cn(
-                  "grid h-10 w-10 shrink-0 place-items-center rounded-xl border",
-                  data.televotingRuntime.status === "healthy"
-                    ? "border-emerald-200/20 bg-emerald-200/10 text-emerald-100"
-                    : "border-amber-200/25 bg-amber-200/10 text-amber-100",
-                )}>
-                  {data.televotingRuntime.status === "healthy" ? <CheckCircle2 className="h-4 w-4" /> : <Server className="h-4 w-4" />}
+          <AdminCard strong className={hasAttention ? "!border-amber-200/15" : "!border-emerald-200/15"}>
+            <div className="flex min-w-0 items-start gap-3">
+              <span className={cn(
+                "grid size-11 shrink-0 place-items-center rounded-xl border",
+                hasAttention
+                  ? "border-amber-200/15 bg-amber-200/[0.06] text-amber-100"
+                  : "border-emerald-200/15 bg-emerald-200/[0.06] text-emerald-100",
+              )}>
+                {hasAttention ? <AlertTriangle className="size-5" /> : <CheckCircle2 className="size-5" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-bold text-foreground">{hasAttention ? "Some systems need attention" : "Systems agree"}</h2>
+                  <AdminStatus tone={hasAttention ? "attention" : "ready"}>{hasAttention ? "Review" : "Healthy"}</AdminStatus>
                 </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-sm font-semibold">Televoting admin runtime</h2>
-                    <span className={cn(
-                      "rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]",
-                      data.televotingRuntime.status === "healthy"
-                        ? "border-emerald-200/20 bg-emerald-200/[0.08] text-emerald-100"
-                        : "border-amber-200/25 bg-amber-200/[0.09] text-amber-100",
-                    )}>{data.televotingRuntime.status}</span>
-                  </div>
-                  <p className="mt-2 max-w-4xl break-words text-xs leading-relaxed text-muted-foreground">{data.televotingRuntime.message}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {hasAttention
+                    ? "Review the highlighted service or synchronization items below before relying on affected organizer tools."
+                    : "Canonical links, service projections and the Televoting organizer runtime currently report healthy state."}
+                </p>
+              </div>
+            </div>
+          </AdminCard>
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <Metric label="Failed" value={data.totals.failedEvents} icon={AlertTriangle} attention={data.totals.failedEvents > 0} />
+            <Metric label="Retries" value={data.totals.pendingEvents} icon={GitMerge} attention={data.totals.pendingEvents > 0} />
+            <Metric label="Stale rounds" value={data.totals.staleTelevotingBindings} icon={RefreshCw} attention={data.totals.staleTelevotingBindings > 0} />
+          </div>
+
+          <AdminCard>
+            <AdminCardHeader eyebrow="Service status" title="Televoting runtime" description="Whether the privileged organizer connection required by Televoting is available." />
+            <div className="flex min-w-0 items-start gap-3">
+              <span className={cn(
+                "grid size-10 shrink-0 place-items-center rounded-xl border",
+                data.televotingRuntime.status === "healthy"
+                  ? "border-emerald-200/15 bg-emerald-200/[0.06] text-emerald-100"
+                  : "border-amber-200/15 bg-amber-200/[0.06] text-amber-100",
+              )}>
+                {data.televotingRuntime.status === "healthy" ? <CheckCircle2 className="size-4" /> : <Server className="size-4" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">Organizer connection</p>
+                  <AdminStatus tone={data.televotingRuntime.status === "healthy" ? "ready" : "attention"}>{data.televotingRuntime.status}</AdminStatus>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <RuntimeStat label="Backend" ready={data.televotingRuntime.reachable} />
+                  <RuntimeStat label="Admin identity" ready={data.televotingRuntime.organizerCompatibilityReady} />
+                </div>
+                <details className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">Technical details</summary>
+                  <p className="mt-2 break-words text-xs leading-relaxed text-muted-foreground">{data.televotingRuntime.message}</p>
                   {data.televotingRuntime.status !== "healthy" ? (
-                    <p className="mt-2 text-[11px] leading-relaxed text-amber-100/70">Canonical Solaris data can remain healthy while the privileged Televoting connection is unavailable. Confirm the Cloudflare Worker secret and Televoting Supabase configuration before treating organizer voting tools as deployment-ready.</p>
+                    <p className="mt-2 text-xs leading-relaxed text-amber-100/75">The canonical Solaris records can still be healthy while this organizer connection is unavailable. Check the Televoting runtime configuration before live voting work.</p>
                   ) : null}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 sm:w-[230px]">
-                <RuntimeStat label="Backend" ready={data.televotingRuntime.reachable} />
-                <RuntimeStat label="Admin identity" ready={data.televotingRuntime.organizerCompatibilityReady} />
+                </details>
               </div>
             </div>
-          </section>
+          </AdminCard>
 
-          <section className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
-            <Metric label="Confirmation links" value={data.totals.confirmationLinks} icon={Inbox} />
-            <Metric label="Voting bindings" value={data.totals.televotingBindings} icon={Link2} />
-            <Metric label="Stale voting rounds" value={data.totals.staleTelevotingBindings} icon={RefreshCw} attention={data.totals.staleTelevotingBindings > 0} />
-            <Metric label="Failed sync events" value={data.totals.failedEvents} icon={AlertTriangle} attention={data.totals.failedEvents > 0} />
-            <Metric label="Pending retries" value={data.totals.pendingEvents} icon={GitMerge} attention={data.totals.pendingEvents > 0} />
-            <Metric label="Known HODs" value={data.totals.hodPeople} icon={UserRoundCog} />
-          </section>
-
-          <section className="glass-strong overflow-hidden">
-            <div className="border-b border-white/10 p-4 sm:p-5">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div><h2 className="font-display text-3xl uppercase">Edition continuity</h2><p className="mt-1 text-xs text-muted-foreground">Canonical participation and entry counts alongside service projections and HOD-history coverage.</p></div>
-                <Link to="/admin/hod-history" className="inline-flex items-center gap-2 text-xs text-violet-100/75 hover:text-violet-100"><UserRoundCog className="h-3.5 w-3.5" /> Manage HOD History</Link>
-              </div>
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Canonical links"
+              title="Cross-service bindings"
+              description="Useful totals for Confirmations, Televoting and historical controller attribution."
+            />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <CompactMetric label="Confirmation links" value={data.totals.confirmationLinks} icon={Inbox} />
+              <CompactMetric label="Voting bindings" value={data.totals.televotingBindings} icon={Link2} />
+              <CompactMetric label="Known HODs" value={data.totals.hodPeople} icon={UserRoundCog} />
+              <CompactMetric label="Editions" value={data.editions.length} icon={GitMerge} />
             </div>
-            <div className="divide-y divide-white/8">
+          </AdminCard>
+
+          <AdminCard className="!p-0 overflow-hidden">
+            <div className="p-4 sm:p-5">
+              <AdminCardHeader
+                eyebrow="Continuity"
+                title="Edition health"
+                description="Participation, service projection and HOD-history coverage by edition."
+                action={<Link to="/admin/hod-history" className="admin-action-secondary !min-h-10"><UserRoundCog className="size-4" /> HOD history</Link>}
+              />
+            </div>
+            <div className="divide-y divide-white/[0.07]">
               {data.editions.map((edition) => (
                 <div key={edition.id} className="p-4 sm:p-5">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]", edition.health === "healthy" && "border-emerald-200/15 bg-emerald-200/[0.07] text-emerald-100", edition.health === "attention" && "border-amber-200/20 bg-amber-200/[0.08] text-amber-100", edition.health === "idle" && "border-white/10 bg-white/[0.04] text-muted-foreground")}>
-                          {edition.health === "healthy" ? <CheckCircle2 className="h-3 w-3" /> : edition.health === "attention" ? <AlertTriangle className="h-3 w-3" /> : <Snowflake className="h-3 w-3" />}{edition.health}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">revision {edition.dataRevision}</span>
+                        <AdminStatus tone={edition.health === "healthy" ? "ready" : edition.health === "attention" ? "attention" : "neutral"}>
+                          {edition.health === "healthy" ? "Healthy" : edition.health === "attention" ? "Attention" : "Idle"}
+                        </AdminStatus>
+                        <span className="text-xs text-muted-foreground">Revision {edition.dataRevision}</span>
                       </div>
-                      <h3 className="mt-2 text-lg font-semibold">{edition.editionNumber ? `SSC${edition.editionNumber}` : edition.name}{edition.editionNumber && edition.name !== `SSC${edition.editionNumber}` ? <span className="ml-2 text-sm font-normal text-muted-foreground">{edition.name}</span> : null}</h3>
+                      <h3 className="mt-2 text-base font-bold text-foreground">
+                        {edition.editionNumber ? `SSC ${edition.editionNumber}` : edition.name}
+                      </h3>
+                      {edition.editionNumber && edition.name !== `SSC${edition.editionNumber}` && edition.name !== `SSC ${edition.editionNumber}` ? <p className="mt-1 text-xs text-muted-foreground">{edition.name}</p> : null}
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
-                      <SmallStat label="Confirmed" value={edition.confirmedParticipants} />
-                      <SmallStat label="Entries" value={edition.entries} />
-                      <SmallStat label="Confirmations" value={edition.confirmationSubmissions} />
-                      <SmallStat label="Voting rounds" value={edition.televotingRounds} />
-                      <SmallStat label="Stale" value={edition.staleTelevotingRounds} attention={edition.staleTelevotingRounds > 0} />
-                      <SmallStat label="Frozen" value={edition.frozenTelevotingRounds} />
-                      <SmallStat label="HOD mapped" value={edition.hodMappedDelegations} />
-                      <SmallStat label="HOD coverage" value={`${edition.hodCoveragePercent}%`} />
-                    </div>
+                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl border", edition.health === "healthy" ? "border-emerald-200/15 bg-emerald-200/[0.05] text-emerald-100" : edition.health === "attention" ? "border-amber-200/15 bg-amber-200/[0.05] text-amber-100" : "border-white/[0.07] bg-white/[0.03] text-muted-foreground")}>
+                      {edition.health === "healthy" ? <CheckCircle2 className="size-4" /> : edition.health === "attention" ? <AlertTriangle className="size-4" /> : <Snowflake className="size-4" />}
+                    </span>
                   </div>
 
-                  {(edition.withdrawnParticipants > 0 || edition.pendingEntries > 0 || edition.confirmationEntries > 0 || edition.hodUnmappedDelegations > 0 || edition.hodChannelOverrides > 0) && (
-                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-white/8 pt-3 text-xs text-muted-foreground">
-                      {edition.withdrawnParticipants > 0 && <span>{edition.withdrawnParticipants} withdrawn</span>}
-                      {edition.pendingEntries > 0 && <span>{edition.pendingEntries} entries awaiting selection</span>}
-                      {edition.selectedEntries > 0 && <span>{edition.selectedEntries} selected entries</span>}
-                      {edition.confirmationEntries > 0 && <span>{edition.confirmationEntries} entry links from Confirmations</span>}
-                      {edition.hodUnmappedDelegations > 0 && <span className="text-violet-100/65">{edition.hodUnmappedDelegations} delegation{edition.hodUnmappedDelegations === 1 ? "" : "s"} without historical HOD attribution</span>}
-                      {edition.hodChannelOverrides > 0 && <span>{edition.hodChannelOverrides} jury/televote HOD override{edition.hodChannelOverrides === 1 ? "" : "s"}</span>}
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <SmallStat label="Confirmed" value={edition.confirmedParticipants} />
+                    <SmallStat label="Entries" value={edition.entries} />
+                    <SmallStat label="Voting rounds" value={edition.televotingRounds} />
+                    <SmallStat label="HOD coverage" value={`${edition.hodCoveragePercent}%`} />
+                  </div>
+
+                  <details className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.018] p-3">
+                    <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">More continuity details</summary>
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <SmallStat label="Confirmations" value={edition.confirmationSubmissions} />
+                      <SmallStat label="Stale rounds" value={edition.staleTelevotingRounds} attention={edition.staleTelevotingRounds > 0} />
+                      <SmallStat label="Frozen rounds" value={edition.frozenTelevotingRounds} />
+                      <SmallStat label="HOD mapped" value={edition.hodMappedDelegations} />
                     </div>
-                  )}
+                    {(edition.withdrawnParticipants > 0 || edition.pendingEntries > 0 || edition.confirmationEntries > 0 || edition.hodUnmappedDelegations > 0 || edition.hodChannelOverrides > 0) ? (
+                      <div className="mt-3 space-y-1 text-xs leading-relaxed text-muted-foreground">
+                        {edition.withdrawnParticipants > 0 ? <p>{edition.withdrawnParticipants} withdrawn participant{edition.withdrawnParticipants === 1 ? "" : "s"}</p> : null}
+                        {edition.pendingEntries > 0 ? <p>{edition.pendingEntries} entr{edition.pendingEntries === 1 ? "y" : "ies"} awaiting selection</p> : null}
+                        {edition.selectedEntries > 0 ? <p>{edition.selectedEntries} selected entr{edition.selectedEntries === 1 ? "y" : "ies"}</p> : null}
+                        {edition.confirmationEntries > 0 ? <p>{edition.confirmationEntries} entry link{edition.confirmationEntries === 1 ? "" : "s"} from Confirmations</p> : null}
+                        {edition.hodUnmappedDelegations > 0 ? <p>{edition.hodUnmappedDelegations} delegation{edition.hodUnmappedDelegations === 1 ? "" : "s"} without historical HOD attribution</p> : null}
+                        {edition.hodChannelOverrides > 0 ? <p>{edition.hodChannelOverrides} jury/televote HOD override{edition.hodChannelOverrides === 1 ? "" : "s"}</p> : null}
+                      </div>
+                    ) : null}
+                  </details>
                 </div>
               ))}
             </div>
-            <div className="border-t border-white/8 bg-violet-200/[0.025] p-4 text-xs leading-relaxed text-muted-foreground"><strong className="text-violet-100/75">HOD coverage is informational.</strong> Missing old controller history does not mark the edition sync as broken; it only limits how confidently Analytics and Friend Voting can attribute historical behaviour to a specific person.</div>
-          </section>
+            <div className="border-t border-white/[0.07] bg-violet-200/[0.025] p-4 text-xs leading-relaxed text-muted-foreground">
+              <strong className="text-violet-100/80">HOD coverage is informational.</strong> Missing historical controller data limits attribution in Analytics and Friend Voting, but does not by itself mean synchronization is broken.
+            </div>
+          </AdminCard>
 
-          <section className="glass-strong overflow-hidden">
-            <div className="flex flex-col gap-2 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"><div><h2 className="font-display text-3xl uppercase">Problems & retries</h2><p className="mt-1 text-xs text-muted-foreground">Only failed, pending or retrying integration events appear here.</p></div>{!data.recentProblems.length && <span className="inline-flex items-center gap-2 text-xs text-emerald-100/80"><CheckCircle2 className="h-4 w-4" /> No unresolved integration events</span>}</div>
-            {data.recentProblems.length ? <div className="divide-y divide-white/8">{data.recentProblems.map((event) => <div key={event.id} className="grid gap-2 p-4 text-sm sm:grid-cols-[120px_180px_minmax(0,1fr)_160px] sm:items-center"><span className={cn("text-xs font-semibold uppercase tracking-[0.1em]", event.status === "failed" ? "text-rose-200" : "text-amber-100")}>{event.status}</span><span className="truncate text-xs text-muted-foreground">{event.service} · {event.eventType}</span><span className="min-w-0 break-words text-xs">{event.lastError ?? "Waiting for retry"}</span><span className="text-xs text-muted-foreground sm:text-right">{new Date(event.updatedAt).toLocaleString()}</span></div>)}</div> : <div className="p-8 text-center text-sm text-muted-foreground">Everything currently resolves to the canonical Solaris record.</div>}
-          </section>
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Integration queue"
+              title="Problems & retries"
+              description="Only failed, pending or retrying integration events appear here."
+              action={!data.recentProblems.length ? <AdminStatus tone="ready">Clear</AdminStatus> : <AdminStatus tone="attention">{data.recentProblems.length} open</AdminStatus>}
+            />
+            {!data.recentProblems.length ? (
+              <AdminEmptyState icon={CheckCircle2} title="No unresolved integration events" description="Everything currently resolves to the canonical Solaris record." />
+            ) : (
+              <div className="divide-y divide-white/[0.07]">
+                {data.recentProblems.map((event) => (
+                  <div key={event.id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl border", event.status === "failed" ? "border-rose-200/15 bg-rose-200/[0.055] text-rose-100" : "border-amber-200/15 bg-amber-200/[0.05] text-amber-100")}>
+                        <AlertTriangle className="size-3.5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground">{event.service} · {humanize(event.eventType)}</p>
+                          <AdminStatus tone={event.status === "failed" ? "blocked" : "attention"}>{humanize(event.status)}</AdminStatus>
+                        </div>
+                        <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">{event.lastError ?? "Waiting for retry"}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Updated {new Date(event.updatedAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AdminCard>
         </>
       )}
-    </div>
+    </AdminPage>
   );
 }
 
 function Metric({ label, value, icon: Icon, attention = false }: { label: string; value: number; icon: typeof Link2; attention?: boolean }) {
-  return <div className={cn("glass p-4", attention && "border-amber-200/20 bg-amber-200/[0.05]")}><div className="flex items-center justify-between gap-2"><p className="text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{label}</p><Icon className={cn("h-3.5 w-3.5", attention ? "text-amber-100" : "text-sky-100/55")} /></div><p className="mt-3 text-2xl font-semibold">{value}</p></div>;
+  return (
+    <div className={cn("admin-card px-3 py-3", attention && "!border-amber-200/15 !bg-amber-200/[0.045]")}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+        <Icon className={cn("size-3.5", attention ? "text-amber-100" : "text-sky-100/60")} />
+      </div>
+      <p className={cn("numeric mt-2 text-xl font-bold", attention && "text-amber-100")}>{value}</p>
+    </div>
+  );
+}
+
+function CompactMetric({ label, value, icon: Icon }: { label: string; value: number; icon: typeof Link2 }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+      <div className="flex items-center gap-2 text-muted-foreground"><Icon className="size-3.5" /><p className="text-[11px] font-semibold">{label}</p></div>
+      <p className="numeric mt-2 text-xl font-bold text-foreground">{value}</p>
+    </div>
+  );
 }
 
 function SmallStat({ label, value, attention = false }: { label: string; value: string | number; attention?: boolean }) {
-  return <div className={cn("min-w-[92px] rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2", attention && "border-amber-200/20 bg-amber-200/[0.06]")}><p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className={cn("mt-1 text-lg font-semibold", attention && "text-amber-100")}>{value}</p></div>;
+  return (
+    <div className={cn("rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-2.5", attention && "border-amber-200/15 bg-amber-200/[0.05]")}>
+      <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+      <p className={cn("numeric mt-1 text-lg font-bold text-foreground", attention && "text-amber-100")}>{value}</p>
+    </div>
+  );
 }
 
 function RuntimeStat({ label, ready }: { label: string; ready: boolean }) {
-  return <div className={cn("rounded-xl border px-3 py-2", ready ? "border-emerald-200/15 bg-emerald-200/[0.05]" : "border-amber-200/20 bg-amber-200/[0.06]")}><p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className={cn("mt-1 text-xs font-semibold", ready ? "text-emerald-100" : "text-amber-100")}>{ready ? "Ready" : "Unavailable"}</p></div>;
+  return (
+    <div className={cn("rounded-xl border px-3 py-2.5", ready ? "border-emerald-200/15 bg-emerald-200/[0.05]" : "border-amber-200/15 bg-amber-200/[0.05]")}>
+      <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 text-sm font-semibold", ready ? "text-emerald-100" : "text-amber-100")}>{ready ? "Ready" : "Unavailable"}</p>
+    </div>
+  );
+}
+
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
