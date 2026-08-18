@@ -3,9 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  AlertTriangle,
-  CheckCircle2,
-  Layers3,
   LockKeyhole,
   Plus,
   RefreshCw,
@@ -15,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AdminConfirmSheet } from "@/components/admin/AdminUI";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -217,11 +215,7 @@ function CombinedResultsPage() {
                 key={aggregation.id}
                 type="button"
                 onClick={() => setSelectedId(aggregation.id)}
-                className={`w-full rounded-xl border p-3 text-left transition ${
-                  selectedId === aggregation.id
-                    ? "border-sky-200/15 bg-sky-200/[0.08]"
-                    : "border-transparent hover:border-white/10 hover:bg-white/[0.035]"
-                }`}
+                className={`w-full rounded-xl border p-3 text-left transition ${selectedId === aggregation.id ? "border-sky-200/15 bg-sky-200/[0.08]" : "border-transparent hover:border-white/10 hover:bg-white/[0.035]"}`}
               >
                 <p className="truncate text-sm font-semibold">{aggregation.name}</p>
                 <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -281,11 +275,16 @@ function CombinedWorkspace({
   const [pool, setPool] = useState(String(aggregation.total_points_to_distribute));
   const [exponent, setExponent] = useState(String(aggregation.rank_exponent));
   const [sourceDraft, setSourceDraft] = useState<SourceDraft>(emptySource());
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     setName(aggregation.name);
     setPool(String(aggregation.total_points_to_distribute));
     setExponent(String(aggregation.rank_exponent));
+    setPublishOpen(false);
+    setDeleteOpen(false);
   }, [aggregation.id, aggregation.name, aggregation.total_points_to_distribute, aggregation.rank_exponent]);
 
   const catalogMap = useMemo(() => new Map(detail.catalog.map((entry: any) => [entry.key, entry])), [detail.catalog]);
@@ -355,13 +354,31 @@ function CombinedWorkspace({
   }
 
   async function changeStatus(status: "draft" | "calculated" | "locked" | "published") {
-    if (status === "published" && !window.confirm("Publish this combined result?")) return;
+    setActionBusy(true);
     try {
       await statusFn({ data: { id: aggregation.id, status } });
       toast.success(`Combined result ${status}`);
+      if (status === "published") setPublishOpen(false);
       await onRefresh();
     } catch (error) {
       toast.error((error as Error).message);
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function deleteCombined() {
+    setActionBusy(true);
+    try {
+      await deleteFn({ data: { id: aggregation.id } });
+      toast.success("Combined result deleted");
+      setDeleteOpen(false);
+      onDeleted();
+      await onRefresh();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setActionBusy(false);
     }
   }
 
@@ -440,14 +457,14 @@ function CombinedWorkspace({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={recalc}><RefreshCw className="mr-2 h-4 w-4" /> Recalculate</Button>
-            <Button variant="outline" onClick={() => changeStatus("locked")} disabled={aggregation.results_outdated || !aggregation.calculation_version}><LockKeyhole className="mr-2 h-4 w-4" /> Lock</Button>
-            <Button variant="outline" onClick={() => changeStatus("published")} disabled={aggregation.results_outdated || !aggregation.calculation_version}><Send className="mr-2 h-4 w-4" /> Publish</Button>
+            <Button variant="outline" onClick={() => void changeStatus("locked")} disabled={actionBusy || aggregation.results_outdated || !aggregation.calculation_version}><LockKeyhole className="mr-2 h-4 w-4" /> Lock</Button>
+            <Button variant="outline" onClick={() => setPublishOpen(true)} disabled={actionBusy || aggregation.results_outdated || !aggregation.calculation_version}><Send className="mr-2 h-4 w-4" /> Publish</Button>
           </div>
         </div>
 
         {detail.preview.errors.length ? (
           <div className="mb-4 rounded-2xl border border-red-300/20 bg-red-300/[0.06] p-4 text-xs text-red-100">
-            {detail.preview.errors.map((error: string) => <p key={error}>• {error}</p>)}
+            {detail.preview.errors.map((previewError: string) => <p key={previewError}>• {previewError}</p>)}
           </div>
         ) : null}
         {detail.preview.warnings.length ? (
@@ -489,22 +506,31 @@ function CombinedWorkspace({
           <p className="text-sm font-semibold">Delete combined result</p>
           <p className="mt-1 text-xs text-muted-foreground">Published combined results are protected from deletion.</p>
         </div>
-        <Button
-          variant="destructive"
-          disabled={aggregation.status === "published"}
-          onClick={async () => {
-            if (!window.confirm(`Delete “${aggregation.name}” and its component data?`)) return;
-            try {
-              await deleteFn({ data: { id: aggregation.id } });
-              toast.success("Combined result deleted");
-              onDeleted();
-              await onRefresh();
-            } catch (error) {
-              toast.error((error as Error).message);
-            }
-          }}
-        ><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
+        <Button variant="destructive" disabled={aggregation.status === "published" || actionBusy} onClick={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
       </section>
+
+      <AdminConfirmSheet
+        open={publishOpen}
+        onClose={() => !actionBusy && setPublishOpen(false)}
+        onConfirm={() => void changeStatus("published")}
+        title={`Publish ${aggregation.name}?`}
+        description="This exposes the currently stored combined result publicly. It does not recalculate, edit or redistribute any points."
+        confirmLabel="Publish combined result"
+        busy={actionBusy}
+      />
+
+      <AdminConfirmSheet
+        open={deleteOpen}
+        onClose={() => !actionBusy && setDeleteOpen(false)}
+        onConfirm={() => void deleteCombined()}
+        title={`Delete ${aggregation.name}?`}
+        description="This permanently removes the combined result and its component data. Published combined results remain protected from deletion."
+        confirmLabel="Delete combined result"
+        confirmationText={aggregation.name}
+        confirmationHint={`Type ${aggregation.name} to confirm`}
+        busy={actionBusy}
+        danger
+      />
     </>
   );
 }
@@ -524,6 +550,8 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(participants.map((key: string) => [key, String(resolved?.values?.[key] ?? 0)])),
   );
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setValues(Object.fromEntries(participants.map((key: string) => [key, String(resolved?.values?.[key] ?? 0)])));
@@ -561,38 +589,61 @@ function SourceCard({ source, resolved, participants, catalogMap, allRounds, all
     } catch (error) { toast.error((error as Error).message); }
   }
 
-  return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <SourceEditor draft={draft} setDraft={setDraft} allRounds={allRounds} allSources={allSources} />
-      <div className="mt-3 flex flex-wrap justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={saveSource}><Save className="mr-1.5 h-3.5 w-3.5" /> Save source</Button>
-        <Button variant="destructive" size="sm" onClick={async () => {
-          if (!window.confirm(`Delete source “${source.source_name}”?`)) return;
-          try { await deleteSourceFn({ data: { aggregationId, sourceId: source.id } }); toast.success("Source deleted"); await onRefresh(); }
-          catch (error) { toast.error((error as Error).message); }
-        }}><Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete</Button>
-      </div>
+  async function removeSource() {
+    setDeleting(true);
+    try {
+      await deleteSourceFn({ data: { aggregationId, sourceId: source.id } });
+      toast.success("Source deleted");
+      setDeleteOpen(false);
+      await onRefresh();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  }
 
-      {!source.source_round_id && participants.length ? (
-        <div className="mt-4 border-t border-white/10 pt-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold">Manual source values</p>
-              <p className="mt-1 text-[10px] text-muted-foreground">Values use stable entry keys and can be raw, activity, converted or correction inputs.</p>
-            </div>
-            <Button size="sm" onClick={saveValues}>Save values</Button>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {participants.map((key: string) => (
-              <label key={key} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/10 p-2.5">
-                <span className="min-w-0 flex-1 truncate text-xs">{catalogMap.get(key)?.name ?? key}</span>
-                <Input className="h-8 w-24 text-right" type="number" value={values[key] ?? "0"} onChange={(e) => setValues((current) => ({ ...current, [key]: e.target.value }))} />
-              </label>
-            ))}
-          </div>
+  return (
+    <>
+      <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <SourceEditor draft={draft} setDraft={setDraft} allRounds={allRounds} allSources={allSources} />
+        <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={saveSource}><Save className="mr-1.5 h-3.5 w-3.5" /> Save source</Button>
+          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}><Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete</Button>
         </div>
-      ) : null}
-    </article>
+
+        {!source.source_round_id && participants.length ? (
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold">Manual source values</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Values use stable entry keys and can be raw, activity, converted or correction inputs.</p>
+              </div>
+              <Button size="sm" onClick={saveValues}>Save values</Button>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {participants.map((key: string) => (
+                <label key={key} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/10 p-2.5">
+                  <span className="min-w-0 flex-1 truncate text-xs">{catalogMap.get(key)?.name ?? key}</span>
+                  <Input className="h-8 w-24 text-right" type="number" value={values[key] ?? "0"} onChange={(e) => setValues((current) => ({ ...current, [key]: e.target.value }))} />
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </article>
+
+      <AdminConfirmSheet
+        open={deleteOpen}
+        onClose={() => !deleting && setDeleteOpen(false)}
+        onConfirm={() => void removeSource()}
+        title={`Delete ${source.source_name}?`}
+        description="This permanently removes this component source and its saved source values from the combined result. It does not delete the linked public voting round or its ballots."
+        confirmLabel="Delete source"
+        busy={deleting}
+        danger
+      />
+    </>
   );
 }
 
