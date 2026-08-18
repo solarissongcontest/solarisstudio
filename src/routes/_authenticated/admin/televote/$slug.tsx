@@ -221,7 +221,7 @@ function TelevoteTotalsWorkspace() {
               return (
                 <label key={participant.id} className="flex min-w-0 items-center gap-3 px-3 py-3 sm:px-4">
                   <span className="numeric w-7 shrink-0 text-center text-xs text-muted-foreground">{participant.running_order ?? index + 1}</span>
-                  <FlagChip code={display?.short_code ?? "??"} color={display?.accent_color} image={display?.flag_image} size="sm" />
+                  <FlagChip code={display?.short_code ?? "??"} color={display?.accent_color ?? "#8888aa"} image={display?.flag_image} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">{display?.name ?? participant.country_id}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{participant.artist || participant.song ? [participant.artist, participant.song].filter(Boolean).join(" · ") : "Entry"}</span>
