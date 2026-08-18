@@ -3,21 +3,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
-
 import { FlagChip } from "@/components/FlagChip";
-
 import { FollowButton } from "@/components/FollowButton";
-
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
-
 import { RadialPointsView } from "@/components/RadialPointsView";
-
 import { ResponsiveTabs, type ResponsiveTabOption } from "@/components/ResponsiveTabs";
-
 import { ScoreboardStage } from "@/components/ScoreboardStage";
-
 import { StoryCards } from "@/components/StoryCards";
-
 import { VotingMatrix } from "@/components/VotingMatrix";
 
 import {
@@ -33,17 +25,11 @@ import {
   useTelevotes,
   useThemes,
 } from "@/lib/data";
-
 import { entityDisplayMap } from "@/lib/entities";
-
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-
 import { resolveTheme } from "@/lib/theme";
-
 import { resolveVoting } from "@/lib/voting";
-
 import type { Standing } from "@/lib/analysis";
-
 import { buildShowStories } from "@/lib/stories";
 
 type Tab = "stories" | "scoreboard" | "points" | "split" | "matrix" | "lineup";
@@ -57,11 +43,7 @@ type ShowSearch = {
 
 export const Route = createFileRoute("/shows/$showId")({
   head: () => ({
-    meta: [
-      {
-        title: "Show — Solaris Song Contest",
-      },
-    ],
+    meta: [{ title: "Show — Solaris Song Contest" }],
   }),
   validateSearch: (search: Record<string, unknown>): ShowSearch => {
     const validated: ShowSearch = {};
@@ -81,29 +63,17 @@ export const Route = createFileRoute("/shows/$showId")({
 
 function ShowPage() {
   const { showId } = Route.useParams();
-
   const search = Route.useSearch();
-
   const { data: show, isLoading } = useShow(showId);
-
   const { data: participants } = useShowParticipants(showId);
-
   const { data: archivedResults } = useResults(showId);
-
   const { data: jury } = useJuryVotes(showId);
-
   const { data: tele } = useTelevotes(showId);
-
   const { data: voters } = useShowVoters(showId);
-
   const { data: countries } = useCountries();
-
   const { data: allResults } = useAllResults();
-
   const { data: allShows } = useAllShows();
-
   const { data: themes } = useThemes();
-
   const { data: entities } = useContestEntities(show?.edition_id);
 
   const publication = useMemo(
@@ -112,14 +82,11 @@ function ShowPage() {
   );
 
   const showIsPublic = isShowPublic(show);
-
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
-
   const participantMap = useMemo(
     () => new Map((participants ?? []).map((participant) => [participant.country_id, participant])),
     [participants],
   );
-
   const theme = useMemo(
     () => resolveTheme((themes ?? []).find((item) => item.id === show?.theme_id)?.config),
     [themes, show?.theme_id],
@@ -131,8 +98,7 @@ function ShowPage() {
       layout: {
         ...theme.layout,
         showArtist: theme.layout.showArtist && (publication.artists || publication.songs),
-        showSplit:
-          theme.layout.showSplit && publication.jury_results && publication.televote_results,
+        showSplit: theme.layout.showSplit && publication.jury_results && publication.televote_results,
       },
     }),
     [
@@ -161,11 +127,6 @@ function ShowPage() {
     [show, archivedResults, jury, displayMap, allResults, allShows],
   );
 
-  /*
-   * Public results always come from the archived results table.
-   * We never calculate a public scoreboard directly from mutable
-   * live vote-entry rows.
-   */
   const standings = useMemo<Standing[]>(
     () =>
       (archivedResults ?? [])
@@ -185,39 +146,21 @@ function ShowPage() {
   const tabOptions = useMemo<ResponsiveTabOption<Tab>[]>(() => {
     const options: ResponsiveTabOption<Tab>[] = [];
 
-    if (publication.results && stories.length) {
-      options.push({
-        value: "stories",
-        label: "Stories",
-      });
-    }
-
     if (publication.results) {
-      options.push({
-        value: "scoreboard",
-        label: "Scoreboard",
-      });
-    }
-
-    if (publication.detailed_voting) {
-      options.push({
-        value: "points",
-        label: "Points",
-      });
+      options.push({ value: "scoreboard", label: "Overall results" });
     }
 
     if (publication.jury_results || publication.televote_results) {
-      options.push({
-        value: "split",
-        label: "Jury / Tele",
-      });
+      options.push({ value: "split", label: "Jury / Televote" });
+    }
+
+    if (publication.results && stories.length) {
+      options.push({ value: "stories", label: "Result stories" });
     }
 
     if (publication.detailed_voting) {
-      options.push({
-        value: "matrix",
-        label: "Matrix",
-      });
+      options.push({ value: "points", label: "Detailed points" });
+      options.push({ value: "matrix", label: "Voting matrix" });
     }
 
     if (publication.participants) {
@@ -230,7 +173,8 @@ function ShowPage() {
     return options;
   }, [publication, stories.length]);
 
-  const [tab, setTab] = useState<Tab>(search.story ? "stories" : (search.tab ?? "lineup"));
+  const defaultTab: Tab = publication.results ? "scoreboard" : "lineup";
+  const [tab, setTab] = useState<Tab>(search.story ? "stories" : (search.tab ?? defaultTab));
 
   useEffect(() => {
     if (search.story) {
@@ -241,9 +185,13 @@ function ShowPage() {
   }, [search.story, search.tab]);
 
   useEffect(() => {
-    if (!search.story || tab !== "stories") {
-      return;
+    if (!search.story && !search.tab && publication.results) {
+      setTab("scoreboard");
     }
+  }, [publication.results, search.story, search.tab]);
+
+  useEffect(() => {
+    if (!search.story || tab !== "stories") return;
 
     window.requestAnimationFrame(() => {
       document.getElementById(`story-${search.story}`)?.scrollIntoView({ block: "center" });
@@ -251,15 +199,10 @@ function ShowPage() {
   }, [search.story, tab, stories.length]);
 
   useEffect(() => {
-    if (!tabOptions.length) {
-      return;
-    }
+    if (!tabOptions.length) return;
 
     const valid = tabOptions.some((option) => option.value === tab);
-
-    if (!valid) {
-      setTab(tabOptions[0].value);
-    }
+    if (!valid) setTab(tabOptions[0].value);
   }, [tab, tabOptions]);
 
   if (isLoading) {
@@ -274,10 +217,7 @@ function ShowPage() {
     return (
       <AppShell>
         <PageHeader title="Show unavailable" />
-
-        <Link to="/editions" className="text-sm text-primary">
-          ← Editions
-        </Link>
+        <Link to="/editions" className="text-sm text-primary">← Editions</Link>
       </AppShell>
     );
   }
@@ -290,13 +230,8 @@ function ShowPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
               Solaris Song Contest
             </p>
-
             <h1 className="mt-2 font-display text-3xl font-bold">{show.name}</h1>
-
-            <p className="mt-3 text-sm text-muted-foreground">
-              This show has not been published yet.
-            </p>
-
+            <p className="mt-3 text-sm text-muted-foreground">This show has not been published yet.</p>
             <Link to="/editions" className="mt-5 inline-flex text-sm font-semibold text-primary">
               ← Back to editions
             </Link>
@@ -309,13 +244,10 @@ function ShowPage() {
   const winnerStanding = publication.results
     ? (standings.find((standing) => standing.rank === 1) ?? standings[0] ?? null)
     : null;
-
   const winner = winnerStanding ? (displayMap.get(winnerStanding.countryId) ?? null) : null;
-
   const juryTotal = publication.jury_results
     ? standings.reduce((total, row) => total + row.jury, 0)
     : null;
-
   const televoteTotal = publication.televote_results
     ? standings.reduce((total, row) => total + row.televote, 0)
     : null;
@@ -344,17 +276,10 @@ function ShowPage() {
 
       <Panel className="mb-5">
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-          {publication.participants && (
-            <StatTile label="Entries" value={participants?.length ?? 0} />
-          )}
-
+          {publication.participants && <StatTile label="Entries" value={participants?.length ?? 0} />}
           {publication.results && <StatTile label="Results" value={standings.length} />}
-
           {publication.jury_results && <StatTile label="Jury points" value={juryTotal ?? 0} />}
-
-          {publication.televote_results && (
-            <StatTile label="Televote points" value={televoteTotal ?? 0} />
-          )}
+          {publication.televote_results && <StatTile label="Televote points" value={televoteTotal ?? 0} />}
         </div>
       </Panel>
 
@@ -368,13 +293,14 @@ function ShowPage() {
       )}
 
       {!!tabOptions.length && (
-        <ResponsiveTabs
-          value={tab}
-          options={tabOptions}
-          onChange={setTab}
-          label="Show view"
-          className="mb-5"
-        />
+        <div className="mb-5 space-y-2">
+          {(publication.results || publication.jury_results || publication.televote_results) && (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Switch result view
+            </p>
+          )}
+          <ResponsiveTabs value={tab} options={tabOptions} onChange={setTab} label="Show view" />
+        </div>
       )}
 
       {tab === "stories" && publication.results && (
@@ -394,6 +320,15 @@ function ShowPage() {
 
       {tab === "scoreboard" && publication.results && (
         <>
+          <Panel
+            className="mb-4"
+            title="Overall results"
+            description="Final combined ranking. Use Jury / Televote above to compare the two voting components."
+          >
+            <p className="text-xs text-muted-foreground">
+              Overall combines the published jury and televote result into the final ranking.
+            </p>
+          </Panel>
           {standings.length ? (
             <ScoreboardStage
               theme={publicTheme}
@@ -403,9 +338,7 @@ function ShowPage() {
               qualifiers={publication.qualifiers ? show.qualifier_count : null}
             />
           ) : (
-            <Panel>
-              <p className="text-sm text-muted-foreground">Results are not available yet.</p>
-            </Panel>
+            <Panel><p className="text-sm text-muted-foreground">Results are not available yet.</p></Panel>
           )}
         </>
       )}
@@ -429,13 +362,9 @@ function ShowPage() {
               <div className="divide-y divide-border/60">
                 {standings.map((standing) => {
                   const country = displayMap.get(standing.countryId);
-
-                  if (!country) {
-                    return null;
-                  }
+                  if (!country) return null;
 
                   const points = publication.jury_results ? standing.jury : standing.televote;
-
                   return (
                     <div
                       key={standing.countryId}
@@ -447,9 +376,7 @@ function ShowPage() {
                         image={country.flag_image}
                         size="sm"
                       />
-
                       <span className="truncate text-sm font-semibold">{country.name}</span>
-
                       <span className="numeric text-sm font-bold">{points}</span>
                     </div>
                   );
@@ -477,10 +404,7 @@ function ShowPage() {
           <div className="divide-y divide-border/60">
             {(participants ?? []).map((participant, index) => {
               const country = displayMap.get(participant.country_id);
-
-              if (!country) {
-                return null;
-              }
+              if (!country) return null;
 
               return (
                 <div
@@ -490,17 +414,14 @@ function ShowPage() {
                   <span className="numeric text-sm text-muted-foreground">
                     {publication.running_order ? (participant.running_order ?? "—") : index + 1}
                   </span>
-
                   <FlagChip
                     code={country.short_code}
                     color={country.accent_color}
                     image={country.flag_image}
                     size="sm"
                   />
-
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{country.name}</p>
-
                     {(publication.artists || publication.songs) && (
                       <p className="mt-1 truncate text-[11px] text-muted-foreground">
                         {[
@@ -511,7 +432,6 @@ function ShowPage() {
                           .join(" · ") || "Entry details not announced"}
                       </p>
                     )}
-
                     {publication.semi_split && participant.semi_final && (
                       <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                         {participant.semi_final}

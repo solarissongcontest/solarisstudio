@@ -403,6 +403,11 @@ export function resolveShowColumns(
  * Public pages are responsive. The custom design itself is preserved,
  * but a fixed broadcast-only width is released so the row can fit the
  * website column it is placed in.
+ *
+ * Broadcast cards are allowed to be very translucent because they may sit
+ * over a controlled TV background. Public result pages do not have that
+ * guarantee, so clamp card/surface opacity here. This keeps the broadcast
+ * identity while preventing unreadable combined-result rows on the website.
  */
 function prepareCardForPublicSurface(
   card:
@@ -445,6 +450,27 @@ function prepareCardForPublicSurface(
       },
     );
 
+  const stateOverrides = Object.fromEntries(
+    Object.entries(card.stateOverrides ?? {}).map(([state, override]) => [
+      state,
+      override
+        ? {
+            ...override,
+            opacity:
+              override.opacity == null
+                ? override.opacity
+                : Math.max(0.9, override.opacity),
+            background: override.background
+              ? {
+                  ...override.background,
+                  opacity: Math.max(0.78, override.background.opacity),
+                }
+              : override.background,
+          }
+        : override,
+    ]),
+  ) as CardTemplateConfig["stateOverrides"];
+
   return {
     ...card,
 
@@ -456,6 +482,19 @@ function prepareCardForPublicSurface(
 
     maxWidth:
       null,
+
+    opacity:
+      Math.max(
+        0.92,
+        card.opacity,
+      ),
+
+    background: {
+      ...card.background,
+      opacity: Math.max(0.82, card.background.opacity),
+    },
+
+    stateOverrides,
 
     height:
       compact
