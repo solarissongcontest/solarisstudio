@@ -1,5 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Calculator, ShieldAlert, ShieldCheck, Sparkles, Vote } from "lucide-react";
+
+import {
+  ParticipationRouteChrome,
+  ParticipationServiceShell,
+} from "@/components/ParticipationServiceShell";
 
 const STEPS = [
   {
@@ -36,34 +41,46 @@ export const Route = createFileRoute("/televoting/how-to-vote")({
 
 function HowToVotePage() {
   return (
-    <div className="mx-auto max-w-3xl py-4 sm:py-8">
-      <header className="mb-8 text-center">
-        <p className="text-[10px] uppercase tracking-[0.28em] text-sky-100/70">Solaris Televoting</p>
-        <h1 className="font-display mt-3 text-5xl uppercase leading-[0.9] sm:text-6xl">How the televote works</h1>
-        <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground">Everything you need to know before casting a Solaris televote.</p>
-      </header>
-
-      <div className="space-y-3">
-        {STEPS.map(({ icon: Icon, title, body }) => (
-          <section key={title} className="glass flex gap-4 p-5">
-            <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/15 bg-sky-200/10 text-sky-100"><Icon className="size-5" /></div>
-            <div><h2 className="font-medium">{title}</h2><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p></div>
-          </section>
-        ))}
-      </div>
-
-      <section className="mt-4 rounded-[2rem] border border-amber-300/25 bg-amber-300/8 p-5">
-        <div className="flex gap-3">
-          <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-200" />
-          <div>
-            <h2 className="font-medium">Fair-voting and friend-voting warning</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Your ballot should reflect your genuine preferences. Do not coordinate scores, arrange reciprocal support or maximum-score swaps, submit duplicate ballots, or attempt to manipulate the result.</p>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Coordinated, duplicate, manipulated, or otherwise invalid ballots may be automatically excluded, reviewed by the organizers, or removed from the official result. Integrity checks are supporting evidence and do not claim to identify every possible case perfectly.</p>
-          </div>
+    <ParticipationRouteChrome>
+      <ParticipationServiceShell
+        service="televoting"
+        title="How the televote works"
+        description="Everything you need to know before casting a Solaris televote."
+        actions={[
+          { to: "/televoting", label: "Voting" },
+          { to: "/televoting/results", label: "Published results" },
+        ]}
+        maxWidth="max-w-3xl"
+      >
+        <div className="space-y-3">
+          {STEPS.map(({ icon: Icon, title, body }) => (
+            <section key={title} className="data-panel flex gap-4 p-4 sm:p-5">
+              <div className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+                <Icon className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-display font-bold">{title}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </div>
+            </section>
+          ))}
         </div>
-      </section>
 
-      <div className="mt-6 flex justify-center"><Link to="/televoting" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.05] px-5 text-sm transition hover:bg-white/[0.08]">Back to Televoting</Link></div>
-    </div>
+        <section className="data-panel mt-4 border-amber-300/25 p-4 sm:p-5">
+          <div className="flex gap-3">
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-amber-200" />
+            <div>
+              <h2 className="font-display font-bold">Fair-voting and friend-voting warning</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Your ballot should reflect your genuine preferences. Do not coordinate scores, arrange reciprocal support or maximum-score swaps, submit duplicate ballots, or attempt to manipulate the result.
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Coordinated, duplicate, manipulated, or otherwise invalid ballots may be automatically excluded, reviewed by the organizers, or removed from the official result. Integrity checks are supporting evidence and do not claim to identify every possible case perfectly.
+              </p>
+            </div>
+          </div>
+        </section>
+      </ParticipationServiceShell>
+    </ParticipationRouteChrome>
   );
 }
