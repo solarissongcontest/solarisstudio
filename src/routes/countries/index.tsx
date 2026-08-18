@@ -69,6 +69,24 @@ function CountriesPage() {
     [countries, opts],
   );
 
+  const participantSearchTerms = useMemo(() => {
+    const byCountry = new Map<string, string[]>();
+
+    for (const participant of participants ?? []) {
+      const terms = [participant.artist, participant.song]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase());
+
+      if (!terms.length) continue;
+      byCountry.set(participant.country_id, [
+        ...(byCountry.get(participant.country_id) ?? []),
+        ...terms,
+      ]);
+    }
+
+    return byCountry;
+  }, [participants]);
+
   const regions = useMemo(
     () => [...new Set((countries ?? []).map((country) => country.region).filter(Boolean))].sort(),
     [countries],
@@ -79,12 +97,16 @@ function CountriesPage() {
 
     const list = allRows
       .filter(({ country }) => region === "all" || country.region === region)
-      .filter(
-        ({ country }) =>
-          !query ||
+      .filter(({ country }) => {
+        if (!query) return true;
+
+        return (
           country.name.toLowerCase().includes(query) ||
-          country.short_code.toLowerCase().includes(query),
-      );
+          country.short_code.toLowerCase().includes(query) ||
+          (country.native_name ?? "").toLowerCase().includes(query) ||
+          (participantSearchTerms.get(country.id) ?? []).some((term) => term.includes(query))
+        );
+      });
 
     return [...list].sort((a, b) => {
       if (sort === "name") return a.country.name.localeCompare(b.country.name);
@@ -98,7 +120,7 @@ function CountriesPage() {
         (b.stats.avgCombinedPlacement ?? Number.POSITIVE_INFINITY)
       );
     });
-  }, [allRows, search, region, sort]);
+  }, [allRows, search, region, sort, participantSearchTerms]);
 
   const leaders = useMemo(
     () =>
@@ -121,14 +143,17 @@ function CountriesPage() {
     () => allRows.reduce((sum, row) => sum + row.stats.participations, 0),
     [allRows],
   );
-  const activeFilters = (search.trim() ? 1 : 0) + (region !== "all" ? 1 : 0) + (sort !== "name" ? 1 : 0);
+  const activeFilters =
+    (search.trim() ? 1 : 0) +
+    (region !== "all" ? 1 : 0) +
+    (sort !== "name" ? 1 : 0);
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="Delegation directory"
         title="Countries"
-        description="Browse every Solaris delegation, compare records and find the countries that shaped the contest archive."
+        description="Browse every Solaris delegation, or search an artist or song to find the country that sent it."
         actions={
           <Link
             to="/compare"
@@ -139,7 +164,7 @@ function CountriesPage() {
         }
       />
 
-      <section className="mb-7 grid gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 grid-cols-2 sm:grid-cols-4">
+      <section className="mb-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 sm:grid-cols-4">
         <DirectoryStat label="Delegations" value={allRows.length} />
         <DirectoryStat label="Regions" value={regions.length} />
         <DirectoryStat label="Total entries" value={totalParticipations} />
@@ -176,7 +201,7 @@ function CountriesPage() {
           <div>
             <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Directory</p>
             <h2 className="mt-1 font-display text-xl font-black tracking-[-0.035em] sm:text-2xl">
-              Find a delegation
+              Find a delegation or entry
             </h2>
           </div>
           <p className="numeric text-xs text-muted-foreground">
@@ -192,12 +217,12 @@ function CountriesPage() {
 
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_180px_190px]">
             <label className="relative block min-w-0">
-              <span className="sr-only">Search countries</span>
+              <span className="sr-only">Search countries, artists or songs</span>
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search country or code…"
+                placeholder="Country, artist or song…"
                 className="min-h-11 w-full rounded-xl border border-border bg-background/45 pl-10 pr-3 text-sm outline-none transition focus:border-primary/55"
               />
             </label>
@@ -232,6 +257,10 @@ function CountriesPage() {
               </select>
             </label>
           </div>
+
+          <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+            Artist and song search uses entry information currently available in the Solaris archive.
+          </p>
         </div>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -241,7 +270,7 @@ function CountriesPage() {
 
           {!rows.length && (
             <div className="rounded-2xl border border-border/70 bg-surface p-7 text-center text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">
-              No countries match those filters.
+              No countries or archived entries match those filters.
             </div>
           )}
         </div>
