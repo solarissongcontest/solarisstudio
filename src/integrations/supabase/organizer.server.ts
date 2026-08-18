@@ -1,12 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { getRequestHeader } from "@tanstack/react-start/server";
 
+import type { Database } from "./types";
+
 export type SolarisOrganizer = {
   id: string;
   email: string | null;
 };
 
-function getSolarisPublicConfig() {
+export function getSolarisPublicConfig() {
   const url =
     process.env["SUPABASE_URL"] ||
     process.env["VITE_SUPABASE_URL"] ||
@@ -24,16 +26,18 @@ function getSolarisPublicConfig() {
   return { url, publishableKey };
 }
 
-export async function requireSolarisOrganizerServer(): Promise<SolarisOrganizer> {
-  const { url, publishableKey } = getSolarisPublicConfig();
-
+export function getSolarisAccessTokenServer() {
   const authHeader = getRequestHeader("authorization");
   if (!authHeader?.startsWith("Bearer ")) throw new Error("Not authenticated");
-
   const token = authHeader.slice("Bearer ".length).trim();
   if (!token) throw new Error("Not authenticated");
+  return token;
+}
 
-  const client = createClient(url, publishableKey, {
+export function createSolarisAuthenticatedClientServer() {
+  const { url, publishableKey } = getSolarisPublicConfig();
+  const token = getSolarisAccessTokenServer();
+  return createClient<Database>(url, publishableKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: {
       storage: undefined,
@@ -41,6 +45,11 @@ export async function requireSolarisOrganizerServer(): Promise<SolarisOrganizer>
       autoRefreshToken: false,
     },
   });
+}
+
+export async function requireSolarisOrganizerServer(): Promise<SolarisOrganizer> {
+  const token = getSolarisAccessTokenServer();
+  const client = createSolarisAuthenticatedClientServer();
 
   const { data: userData, error: userError } = await client.auth.getUser(token);
   if (userError || !userData.user) throw new Error("Not authenticated");

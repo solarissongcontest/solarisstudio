@@ -54,7 +54,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         path.startsWith("/admin/edition-theme/"),
     },
     {
-      label: "Voting",
+      label: "Televote",
       href: "/televoting/admin",
       icon: Vote,
       active: (path) => path.startsWith("/televoting/admin") || path.startsWith("/admin/hod-history"),
