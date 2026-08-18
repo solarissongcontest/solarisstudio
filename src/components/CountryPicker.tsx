@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FlagChip } from "./FlagChip";
 import type { Country } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,8 @@ export function CountryPicker({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
-  const ref = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selected = countries.find((c) => c.id === value) ?? null;
   const matches = useMemo(() => {
@@ -44,6 +45,20 @@ export function CountryPicker({
       .slice(0, 40);
   }, [countries, query, exclude, value]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const closeWhenPointerLeavesPicker = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !rootRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeWhenPointerLeavesPicker);
+    return () => document.removeEventListener("pointerdown", closeWhenPointerLeavesPicker);
+  }, [open]);
+
   const pick = (id: string) => {
     onChange(id);
     setQuery("");
@@ -51,12 +66,12 @@ export function CountryPicker({
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div ref={rootRef} className={cn("relative", className)}>
       <div
         className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1.5"
         onClick={() => {
           setOpen(true);
-          ref.current?.focus();
+          inputRef.current?.focus();
         }}
       >
         {selected && (
@@ -68,12 +83,11 @@ export function CountryPicker({
           />
         )}
         <input
-          ref={ref}
+          ref={inputRef}
           autoFocus={autoFocus}
           value={open ? query : (selected?.name ?? "")}
           placeholder={selected ? selected.name : placeholder}
           onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 140)}
           onChange={(e) => {
             setQuery(e.target.value);
             setCursor(0);
@@ -89,7 +103,7 @@ export function CountryPicker({
             } else if (e.key === "Enter") {
               e.preventDefault();
               if (matches[cursor]) pick(matches[cursor].id);
-            } else if (e.key === "Escape") {
+            } else if (e.key === "Escape" || e.key === "Tab") {
               setOpen(false);
             } else if (e.key === "Backspace" && !query && selected) {
               onChange(null);
