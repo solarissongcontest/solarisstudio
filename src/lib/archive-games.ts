@@ -217,31 +217,45 @@ function buildEditionDetective(
     .sort((a, b) => (a.edition_number ?? 0) - (b.edition_number ?? 0));
 
   const correctEdition = publishedEditions.find((edition) => edition.id === entry.editionId);
-  if (!correctEdition) return null;
+  if (!correctEdition || correctEdition.edition_number == null) return null;
 
+  // Use nearby editions as distractors rather than three unrelated random
+  // editions. This makes Edition Detective test archive knowledge instead of
+  // making the correct answer visually obvious from a wildly different era.
+  const nearbyPool = publishedEditions
+    .filter((edition) => edition.id !== entry.editionId && edition.edition_number != null)
+    .map((edition) => ({
+      edition,
+      distance: Math.abs((edition.edition_number ?? 0) - correctEdition.edition_number!),
+    }))
+    .sort((a, b) => a.distance - b.distance || (a.edition.edition_number ?? 0) - (b.edition.edition_number ?? 0));
+
+  const nearestDistance = nearbyPool[0]?.distance ?? Number.POSITIVE_INFINITY;
+  const closePool = nearbyPool.filter((item) => item.distance <= Math.max(3, nearestDistance + 2));
+  const distractorSource = closePool.length >= 3 ? closePool : nearbyPool;
   const distractors = shuffle(
-    publishedEditions.filter((edition) => edition.id !== entry.editionId),
+    distractorSource.map((item) => item.edition),
     `${seed}:distractors`,
   ).slice(0, 3);
 
   const optionEditions = shuffle([correctEdition, ...distractors], `${seed}:options`);
   if (optionEditions.length < 2) return null;
 
-  const clueParts = [entry.artist, entry.song].filter(Boolean);
-  const clue = clueParts.length ? clueParts.join(" · ") : `${entry.name} finished #${entry.finalRank}`;
+  const music = [entry.artist, entry.song].filter(Boolean).join(" · ");
+  const clue = music || `${entry.name} · ${entry.showName}`;
 
   return {
     id: `edition:${entry.editionId}:${entry.showId ?? "edition"}:${entry.entityId}`,
     mode: "edition-detective",
-    eyebrow: "Archive detective",
-    prompt: `Which edition featured ${entry.name} with ${clue}?`,
+    eyebrow: `Archive detective · ${entry.name}`,
+    prompt: `Which edition featured ${clue}?`,
     options: optionEditions.map((edition) => ({
       id: edition.id,
       label: editionDisplay(edition),
-      detail: edition.host_city || edition.name,
+      detail: edition.host_city || undefined,
     })),
     correctOptionId: correctEdition.id,
-    explanation: `${entry.name} appeared in ${editionDisplay(correctEdition)} and finished #${entry.finalRank} in ${entry.showName}.`,
+    explanation: `${entry.name} appeared in ${editionDisplay(correctEdition)} in ${entry.showName}.`,
     editionId: entry.editionId,
     showId: entry.showId ?? undefined,
     entityIds: [entry.entityId],
