@@ -1,8 +1,8 @@
 /* Solaris Studio background system
    --------------------------------
-   The old full-screen photo is intentionally gone. The canvas is now built
-   from CSS gradients plus the original Solaris star asset so every page
-   keeps one visual language while still being able to shift its colour mood. */
+   CSS gradients + the original Solaris star asset. The stars intentionally
+   avoid a neat wallpaper grid: different scales, rotations, opacity zones and
+   depth levels recreate the loose hand-placed feel of the old background. */
 
 :root {
   --solaris-bg-primary: 76 154 211;
@@ -24,24 +24,31 @@ body {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 62% at 13% 8%, rgb(var(--solaris-bg-secondary) / 0.24), transparent 64%),
-    radial-gradient(ellipse 58% 48% at 86% 18%, rgb(var(--solaris-bg-primary) / 0.20), transparent 67%),
-    radial-gradient(ellipse 48% 58% at 58% 96%, rgb(var(--solaris-bg-primary) / 0.16), transparent 72%),
-    linear-gradient(145deg, #02071d 0%, rgb(var(--solaris-bg-deep)) 37%, #06152f 72%, #020616 100%) !important;
+    radial-gradient(ellipse 72% 62% at 11% 5%, rgb(var(--solaris-bg-secondary) / 0.25), transparent 63%),
+    radial-gradient(ellipse 56% 50% at 91% 20%, rgb(var(--solaris-bg-primary) / 0.21), transparent 66%),
+    radial-gradient(ellipse 40% 52% at 57% 102%, rgb(var(--solaris-bg-primary) / 0.14), transparent 73%),
+    radial-gradient(ellipse 31% 27% at 42% 46%, rgb(var(--solaris-bg-secondary) / 0.075), transparent 76%),
+    linear-gradient(147deg, #02071d 0%, rgb(var(--solaris-bg-deep)) 36%, #06152f 72%, #020616 100%) !important;
   filter: none !important;
   isolation: isolate;
   transition: background 420ms ease;
 }
 
-/* Crisp / middle-distance stars. IMG_6171.png is the original Solaris star
-   outline used by the historical Solaris star-flag implementation. */
+/*
+ * Two independently rotated star fields create several apparent orientations.
+ * IMG_6171.png is the original Solaris star outline. The masks deliberately
+ * make some stars almost disappear while neighbouring stars remain visible.
+ */
 .app-background::before,
 .app-background::after {
   content: "";
   position: absolute;
-  inset: -9vmax;
   pointer-events: none;
   background-image:
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
     url("/IMG_6171.png"),
     url("/IMG_6171.png"),
     url("/IMG_6171.png"),
@@ -56,76 +63,124 @@ body {
     url("/IMG_6171.png");
   background-repeat: no-repeat;
   mix-blend-mode: screen;
-  will-change: opacity, filter;
+  transform-origin: 50% 50%;
+  will-change: opacity, filter, transform;
 }
 
+/* Mid-distance field: mostly crisp, but deliberately faint and uneven. */
 .app-background::before {
-  opacity: 0.11;
+  inset: -15vmax;
+  opacity: 0.145;
   background-size:
-    21vmin 21vmin,
-    8vmin 8vmin,
-    13vmin 13vmin,
+    25vmin 25vmin,
     6vmin 6vmin,
-    17vmin 17vmin,
-    9vmin 9vmin,
-    25vmin 25vmin,
-    7vmin 7vmin,
-    11vmin 11vmin,
-    5vmin 5vmin,
-    15vmin 15vmin,
-    8vmin 8vmin;
-  background-position:
-    -2% 3%,
-    28% 12%,
-    69% 4%,
-    91% 19%,
-    10% 47%,
-    38% 38%,
-    79% 52%,
-    96% 69%,
-    23% 84%,
-    54% 68%,
-    67% 91%,
-    5% 101%;
-  filter: saturate(0.72) brightness(1.55) hue-rotate(-8deg);
-}
-
-/* Near / far stars are softer and larger, like the original background. */
-.app-background::after {
-  inset: -13vmax;
-  opacity: 0.075;
-  background-size:
-    32vmin 32vmin,
     12vmin 12vmin,
+    4.5vmin 4.5vmin,
     18vmin 18vmin,
-    9vmin 9vmin,
-    25vmin 25vmin,
-    14vmin 14vmin,
-    38vmin 38vmin,
-    10vmin 10vmin,
-    21vmin 21vmin,
     8vmin 8vmin,
-    27vmin 27vmin,
-    12vmin 12vmin;
+    31vmin 31vmin,
+    5.5vmin 5.5vmin,
+    14vmin 14vmin,
+    7vmin 7vmin,
+    21vmin 21vmin,
+    4vmin 4vmin,
+    10vmin 10vmin,
+    16vmin 16vmin,
+    5vmin 5vmin,
+    9vmin 9vmin;
   background-position:
-    -8% -5%,
-    20% 25%,
-    47% 5%,
-    72% 31%,
-    102% 4%,
-    8% 70%,
-    108% 88%,
-    48% 84%,
-    64% 56%,
-    88% 43%,
-    33% 107%,
-    79% 106%;
-  filter: blur(5px) saturate(0.72) brightness(1.7) hue-rotate(-8deg);
-  transform: scale(1.035);
+    -7% 0%,
+    19% 8%,
+    38% 19%,
+    63% 4%,
+    82% 14%,
+    104% 33%,
+    -12% 51%,
+    16% 59%,
+    47% 48%,
+    69% 63%,
+    95% 55%,
+    31% 78%,
+    58% 88%,
+    83% 82%,
+    7% 99%,
+    109% 101%;
+  filter: blur(0.7px) saturate(0.72) brightness(1.5) hue-rotate(-8deg);
+  transform: rotate(-8deg) scale(1.08);
+  -webkit-mask-image:
+    radial-gradient(circle at 8% 14%, #000 0 10%, transparent 24%),
+    radial-gradient(circle at 31% 38%, rgb(0 0 0 / .42) 0 15%, transparent 31%),
+    radial-gradient(circle at 72% 18%, #000 0 9%, transparent 25%),
+    radial-gradient(circle at 91% 63%, rgb(0 0 0 / .68) 0 13%, transparent 30%),
+    radial-gradient(circle at 45% 84%, rgb(0 0 0 / .30) 0 18%, transparent 34%);
+  -webkit-mask-composite: source-over;
+  mask-image:
+    radial-gradient(circle at 8% 14%, #000 0 10%, transparent 24%),
+    radial-gradient(circle at 31% 38%, rgb(0 0 0 / .42) 0 15%, transparent 31%),
+    radial-gradient(circle at 72% 18%, #000 0 9%, transparent 25%),
+    radial-gradient(circle at 91% 63%, rgb(0 0 0 / .68) 0 13%, transparent 30%),
+    radial-gradient(circle at 45% 84%, rgb(0 0 0 / .30) 0 18%, transparent 34%);
+  mask-composite: add;
 }
 
-/* Route colour families. RootComponent updates the two RGB variables rather
-   than swapping background images, so transitions stay continuous. */
+/* Far / foreground field: much larger spread in blur and visual weight. */
+.app-background::after {
+  inset: -20vmax;
+  opacity: 0.10;
+  background-size:
+    39vmin 39vmin,
+    10vmin 10vmin,
+    19vmin 19vmin,
+    7vmin 7vmin,
+    27vmin 27vmin,
+    13vmin 13vmin,
+    46vmin 46vmin,
+    8vmin 8vmin,
+    23vmin 23vmin,
+    6vmin 6vmin,
+    32vmin 32vmin,
+    11vmin 11vmin,
+    17vmin 17vmin,
+    52vmin 52vmin,
+    8vmin 8vmin,
+    14vmin 14vmin;
+  background-position:
+    -15% -12%,
+    13% 23%,
+    34% -2%,
+    56% 29%,
+    77% 4%,
+    102% 24%,
+    115% 70%,
+    74% 48%,
+    54% 68%,
+    29% 55%,
+    -10% 77%,
+    19% 91%,
+    44% 108%,
+    78% 114%,
+    96% 91%,
+    3% 35%;
+  filter: blur(5.8px) saturate(0.70) brightness(1.75) hue-rotate(-10deg);
+  transform: rotate(13deg) scale(1.12);
+  -webkit-mask-image:
+    radial-gradient(circle at 14% 8%, rgb(0 0 0 / .75) 0 12%, transparent 27%),
+    radial-gradient(circle at 38% 28%, rgb(0 0 0 / .22) 0 15%, transparent 31%),
+    radial-gradient(circle at 75% 12%, #000 0 11%, transparent 28%),
+    radial-gradient(circle at 89% 70%, rgb(0 0 0 / .48) 0 17%, transparent 35%),
+    radial-gradient(circle at 36% 88%, rgb(0 0 0 / .16) 0 18%, transparent 38%);
+  -webkit-mask-composite: source-over;
+  mask-image:
+    radial-gradient(circle at 14% 8%, rgb(0 0 0 / .75) 0 12%, transparent 27%),
+    radial-gradient(circle at 38% 28%, rgb(0 0 0 / .22) 0 15%, transparent 31%),
+    radial-gradient(circle at 75% 12%, #000 0 11%, transparent 28%),
+    radial-gradient(circle at 89% 70%, rgb(0 0 0 / .48) 0 17%, transparent 35%),
+    radial-gradient(circle at 36% 88%, rgb(0 0 0 / .16) 0 18%, transparent 38%);
+  mask-composite: add;
+}
+
+/* Route colour families. The composition remains recognisably Solaris while
+   the gradient tint shifts subtly by section. */
 body[data-solaris-family="core"] {
   --solaris-bg-primary: 75 165 220;
   --solaris-bg-secondary: 55 93 188;
@@ -178,35 +233,103 @@ body[data-solaris-family="studio-tools"] {
   .app-background {
     inset: 0 !important;
     background:
-      radial-gradient(ellipse 96% 58% at 20% 0%, rgb(var(--solaris-bg-secondary) / 0.22), transparent 68%),
-      radial-gradient(ellipse 85% 54% at 96% 30%, rgb(var(--solaris-bg-primary) / 0.18), transparent 70%),
+      radial-gradient(ellipse 101% 62% at 15% -3%, rgb(var(--solaris-bg-secondary) / 0.23), transparent 67%),
+      radial-gradient(ellipse 83% 56% at 105% 31%, rgb(var(--solaris-bg-primary) / 0.19), transparent 70%),
+      radial-gradient(ellipse 66% 42% at 36% 104%, rgb(var(--solaris-bg-primary) / 0.09), transparent 75%),
       linear-gradient(155deg, #02071d 0%, rgb(var(--solaris-bg-deep)) 52%, #06142c 100%) !important;
   }
 
   .app-background::before {
-    inset: -5vmax;
-    opacity: 0.09;
+    inset: -19vw;
+    opacity: 0.135;
     background-size:
+      48vw 48vw,
+      12vw 12vw,
+      25vw 25vw,
+      8vw 8vw,
       34vw 34vw,
-      15vw 15vw,
-      22vw 22vw,
-      11vw 11vw,
-      29vw 29vw,
-      17vw 17vw,
-      42vw 42vw,
-      13vw 13vw,
-      19vw 19vw,
+      16vw 16vw,
+      58vw 58vw,
       10vw 10vw,
-      26vw 26vw,
-      14vw 14vw;
+      28vw 28vw,
+      13vw 13vw,
+      39vw 39vw,
+      7vw 7vw,
+      19vw 19vw,
+      31vw 31vw,
+      9vw 9vw,
+      17vw 17vw;
+    background-position:
+      -16% -1%,
+      26% 8%,
+      55% 17%,
+      86% 5%,
+      103% 35%,
+      15% 43%,
+      -24% 64%,
+      47% 58%,
+      82% 66%,
+      109% 82%,
+      22% 92%,
+      64% 82%,
+      91% 104%,
+      43% 112%,
+      4% 111%,
+      70% 38%;
+    filter: blur(0.4px) saturate(0.72) brightness(1.52) hue-rotate(-8deg);
+    transform: rotate(-11deg) scale(1.11);
   }
 
   .app-background::after {
-    opacity: 0.055;
-    filter: blur(4px) saturate(0.72) brightness(1.65) hue-rotate(-8deg);
+    inset: -28vw;
+    opacity: 0.085;
+    background-size:
+      73vw 73vw,
+      21vw 21vw,
+      38vw 38vw,
+      14vw 14vw,
+      51vw 51vw,
+      25vw 25vw,
+      87vw 87vw,
+      17vw 17vw,
+      44vw 44vw,
+      11vw 11vw,
+      62vw 62vw,
+      20vw 20vw,
+      33vw 33vw,
+      94vw 94vw,
+      15vw 15vw,
+      27vw 27vw;
+    background-position:
+      -35% -18%,
+      12% 26%,
+      46% -9%,
+      74% 27%,
+      112% 5%,
+      107% 53%,
+      132% 94%,
+      55% 69%,
+      21% 74%,
+      -6% 45%,
+      -31% 105%,
+      31% 111%,
+      75% 106%,
+      111% 130%,
+      96% 80%,
+      4% 18%;
+    filter: blur(6.5px) saturate(0.68) brightness(1.8) hue-rotate(-10deg);
+    transform: rotate(16deg) scale(1.15);
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  .app-background::after { opacity: 0.04; filter: blur(2px); }
+  .app-background::before {
+    opacity: 0.08;
+    filter: blur(0.5px) saturate(0.7) brightness(1.45);
+  }
+
+  .app-background::after {
+    opacity: 0.045;
+    filter: blur(2px) saturate(0.7) brightness(1.55);
+  }
 }
