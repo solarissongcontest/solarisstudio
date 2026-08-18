@@ -30,12 +30,18 @@ function NotFoundComponent() {
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Go home
+          </Link>
+          <Link
+            to="/wiki"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            Open Wiki
           </Link>
         </div>
       </div>
@@ -130,18 +136,65 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const serviceAdmin =
-    pathname.startsWith("/confirmations/admin") ||
-    pathname.startsWith("/televoting/admin");
+    pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
+
+  const content = serviceAdmin ? (
+    <UnifiedServiceAdminGate>
+      <Outlet />
+    </UnifiedServiceAdminGate>
+  ) : (
+    <Outlet />
+  );
 
   return (
     <QueryClientProvider client={queryClient}>
-      {serviceAdmin ? (
-        <UnifiedServiceAdminGate>
-          <Outlet />
-        </UnifiedServiceAdminGate>
-      ) : (
-        <Outlet />
-      )}
+      {content}
+      <ToolQuickGuide pathname={pathname} />
     </QueryClientProvider>
+  );
+}
+
+function ToolQuickGuide({ pathname }: { pathname: string }) {
+  const guide = pathname.startsWith("/result-lab")
+    ? {
+        title: "How Result Lab works",
+        steps: [
+          "Pick a published edition and show.",
+          "Change the jury/televote balance, jury scoring or included juries.",
+          "Watch the simulated ranking update immediately. There is no Apply button.",
+          "Nothing here changes the official SSC result.",
+        ],
+      }
+    : pathname.startsWith("/taste-dna")
+      ? {
+          title: "What to do in Taste DNA",
+          steps: [
+            "Choose a published show.",
+            "Reorder the entries into your personal ranking with the arrows.",
+            "Solaris compares your ranking with the jury, televote, overall result and available juries.",
+            "The Official/Jury/Televote buttons are starting presets. Saving is optional.",
+          ],
+        }
+      : null;
+
+  if (!guide) return null;
+
+  return (
+    <details
+      open
+      className="fixed bottom-[5.6rem] right-3 z-[80] w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-primary/25 bg-popover/95 shadow-2xl backdrop-blur-xl lg:bottom-5 lg:right-5"
+    >
+      <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-foreground [&::-webkit-details-marker]:hidden">
+        {guide.title} <span className="float-right text-muted-foreground">▾</span>
+      </summary>
+      <ol className="space-y-2 border-t border-border/70 px-4 py-3 text-[11px] leading-relaxed text-muted-foreground">
+        {guide.steps.map((step, index) => (
+          <li key={step} className="grid grid-cols-[22px_minmax(0,1fr)] gap-2">
+            <span className="numeric font-bold text-primary">{index + 1}</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }

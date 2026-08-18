@@ -18,6 +18,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import {
   editionLabel,
+  type Participant,
   useAllJuryVotes,
   useAllParticipants,
   useAllResults,
@@ -45,6 +46,7 @@ const TABS = [
 ] as const;
 
 type Tab = (typeof TABS)[number]["value"];
+type QualificationStatus = true | false | null;
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
@@ -100,6 +102,9 @@ function CountryProfilePage() {
   const showMap = new Map((shows ?? []).map((show) => [show.id, show]));
   const hasContestData = Boolean(stats && stats.participations > 0);
 
+  const myParticipants = (participants ?? []).filter(
+    (participant) => participant.country_id === country.id,
+  );
   const myResults = (results ?? [])
     .filter((result) => result.country_id === country.id)
     .sort(
@@ -112,35 +117,70 @@ function CountryProfilePage() {
     (result) => showMap.get(result.show_id ?? "")?.kind === "grand-final",
   );
 
-  const semiRows = (participants ?? [])
-    .filter(
-      (participant) =>
-        participant.country_id === country.id &&
-        showMap.get(participant.show_id ?? "")?.kind === "semi-final",
-    )
+  const finalPresence = new Set<string>();
+  for (const participant of myParticipants) {
+    if (showMap.get(participant.show_id ?? "")?.kind === "grand-final") {
+      finalPresence.add(participant.edition_id);
+    }
+  }
+  for (const result of finalResults) finalPresence.add(result.edition_id);
+
+  const qualificationFor = (participant: Participant | undefined): QualificationStatus => {
+    if (!participant) return null;
+    if (participant.qualified === true || finalPresence.has(participant.edition_id)) return true;
+    if (participant.qualified === false) return false;
+    return null;
+  };
+
+  const semiRows = myParticipants
+    .filter((participant) => showMap.get(participant.show_id ?? "")?.kind === "semi-final")
     .map((participant) => ({
       participant,
       edition: editionMap.get(participant.edition_id),
-      result: myResults.find((result) => result.show_id === participant.show_id),
+      status: qualificationFor(participant),
     }))
     .sort((a, b) => (b.edition?.edition_number ?? -1) - (a.edition?.edition_number ?? -1));
 
-  const participantByEdition = new Map(
-    (participants ?? [])
-      .filter((participant) => participant.country_id === country.id)
-      .map((participant) => [participant.edition_id, participant]),
-  );
+  const participantByEdition = new Map<string, Participant>();
+  for (const participant of myParticipants) {
+    const current = participantByEdition.get(participant.edition_id);
+    const currentShow = showMap.get(current?.show_id ?? "");
+    const candidateShow = showMap.get(participant.show_id ?? "");
+    const candidateIsFinal = candidateShow?.kind === "grand-final";
+    const currentIsFinal = currentShow?.kind === "grand-final";
+    const candidateHasEntry = Boolean(participant.artist || participant.song);
+    const currentHasEntry = Boolean(current?.artist || current?.song);
+
+    if (!current || (candidateIsFinal && !currentIsFinal) || (candidateHasEntry && !currentHasEntry)) {
+      participantByEdition.set(participant.edition_id, participant);
+    }
+  }
 
   const recentHistory =
     stats?.timeline
       .slice()
       .reverse()
       .slice(0, 6)
-      .map((point) => ({
-        point,
-        edition: editionMap.get(point.editionId),
-        participant: participantByEdition.get(point.editionId),
-      })) ?? [];
+      .map((point) => {
+        const participant = participantByEdition.get(point.editionId);
+        const semiParticipant = myParticipants.find(
+          (candidate) =>
+            candidate.edition_id === point.editionId &&
+            showMap.get(candidate.show_id ?? "")?.kind === "semi-final",
+        );
+        return {
+          point,
+          edition: editionMap.get(point.editionId),
+          participant,
+          qualification: finalPresence.has(point.editionId)
+            ? true
+            : qualificationFor(semiParticipant),
+        };
+      }) ?? [];
+
+  const hostedEditions = (editions ?? [])
+    .filter((edition) => edition.host_country_id === country.id)
+    .sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1));
 
   const given = (jury ?? []).filter((vote) => vote.voter_country_id === country.id);
   const received = (jury ?? []).filter((vote) => vote.receiving_country_id === country.id);
@@ -150,10 +190,10 @@ function CountryProfilePage() {
     key: "receiving_country_id" | "voter_country_id",
   ) => {
     const totals = new Map<string, number>();
-    rows.forEach((vote) => {
+    for (const vote of rows) {
       const id = vote[key];
       if (id) totals.set(id, (totals.get(id) ?? 0) + vote.points);
-    });
+    }
 
     return [...totals.entries()]
       .map(([id, points]) => ({ country: countryMap.get(id), points }))
@@ -170,11 +210,11 @@ function CountryProfilePage() {
 
   const myEditionIds = new Set(myResults.map((result) => result.edition_id));
   const sharedIds = new Set<string>();
-  (results ?? []).forEach((result) => {
+  for (const result of results ?? []) {
     if (result.country_id !== country.id && myEditionIds.has(result.edition_id)) {
       sharedIds.add(result.country_id);
     }
-  });
+  }
 
   const relationshipRows = [...sharedIds]
     .map((id) => {
@@ -200,11 +240,7 @@ function CountryProfilePage() {
   const chartData =
     stats?.timeline
       .filter((point) => point.rank != null)
-      .map((point) => ({
-        edition: point.label,
-        editionNumber: point.editionNumber,
-        rank: point.rank,
-      })) ?? [];
+      .map((point) => ({ edition: point.label, rank: point.rank })) ?? [];
 
   return (
     <AppShell>
@@ -282,10 +318,11 @@ function CountryProfilePage() {
                 title="SSC at a glance"
                 description="A compact summary. Full history and qualification details live in Results."
               >
-                <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-5">
                   <StatTile label="Participations" value={stats.participations} />
                   <StatTile label="Wins" value={stats.wins} />
                   <StatTile label="Podiums" value={stats.podiums} />
+                  <StatTile label="Hosted" value={hostedEditions.length} />
                   <StatTile
                     label="Avg. placement"
                     value={stats.avgCombinedPlacement?.toFixed(1) ?? "—"}
@@ -293,9 +330,26 @@ function CountryProfilePage() {
                 </div>
               </Panel>
 
+              {hostedEditions.length > 0 && (
+                <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
+                  <div className="flex flex-wrap gap-2">
+                    {hostedEditions.map((edition) => (
+                      <Link
+                        key={edition.id}
+                        to="/editions/$slug"
+                        params={{ slug: edition.slug }}
+                        className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold hover:border-primary/40"
+                      >
+                        {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                      </Link>
+                    ))}
+                  </div>
+                </Panel>
+              )}
+
               <Panel
                 title="Recent SSC history"
-                description="One row per edition, so a qualifier is not shown twice for its semi-final and final."
+                description="One row per edition. Missing entry metadata is labelled as missing rather than guessed."
                 actions={
                   <button
                     type="button"
@@ -308,7 +362,7 @@ function CountryProfilePage() {
               >
                 {recentHistory.length ? (
                   <div className="divide-y divide-border/60">
-                    {recentHistory.map(({ point, edition, participant }) => (
+                    {recentHistory.map(({ point, edition, participant, qualification }) => (
                       <div
                         key={point.editionId}
                         className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
@@ -319,7 +373,7 @@ function CountryProfilePage() {
                           </p>
                           <p className="mt-1 truncate text-[11px] text-muted-foreground">
                             {[participant?.artist, participant?.song].filter(Boolean).join(" · ") ||
-                              "Entry details not archived"}
+                              "Entry details not archived yet"}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
@@ -327,7 +381,11 @@ function CountryProfilePage() {
                             {point.rank != null ? `#${point.rank}` : "—"}
                           </p>
                           <p className="mt-1 text-[10px] text-muted-foreground">
-                            {point.qualified === false ? "Did not qualify" : "Final / overall"}
+                            {qualification === false
+                              ? "Did not qualify"
+                              : qualification === true
+                                ? "Reached final"
+                                : "Qualification not archived"}
                           </p>
                         </div>
                       </div>
@@ -341,7 +399,7 @@ function CountryProfilePage() {
           ) : (
             <Panel title="Solaris Song Contest">
               <p className="text-sm leading-relaxed text-muted-foreground">
-                No published contest history is available for {country.name} yet. Its Terra Solaris profile can still be explored above and in the Wiki.
+                No published Solaris Song Contest history is available for {country.name} yet. Its Terra Solaris profile can still be explored above and in the Wiki.
               </p>
             </Panel>
           )}
@@ -353,7 +411,7 @@ function CountryProfilePage() {
           <div className="space-y-5">
             <Panel
               title="Placement timeline"
-              description="One historical placement per edition. Lower placement is better."
+              description="One archived placement per edition. Lower placement is better."
             >
               {chartData.length ? (
                 <div className="h-[270px]">
@@ -361,12 +419,7 @@ function CountryProfilePage() {
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="edition" stroke="var(--muted-foreground)" fontSize={11} />
-                      <YAxis
-                        reversed
-                        allowDecimals={false}
-                        stroke="var(--muted-foreground)"
-                        fontSize={11}
-                      />
+                      <YAxis reversed allowDecimals={false} stroke="var(--muted-foreground)" fontSize={11} />
                       <Tooltip
                         contentStyle={{
                           background: "var(--popover)",
@@ -396,11 +449,11 @@ function CountryProfilePage() {
               </Panel>
               <Panel
                 title="Qualification history"
-                description="Semi-final participation is kept here instead of duplicating it on the Overview."
+                description="Only explicit eliminations are labelled as eliminated. If old qualification metadata is missing, Solaris says so instead of guessing."
               >
                 {semiRows.length ? (
                   <div className="divide-y divide-border/60">
-                    {semiRows.map(({ participant, edition }) => (
+                    {semiRows.map(({ participant, edition, status }) => (
                       <div
                         key={participant.id}
                         className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
@@ -410,18 +463,11 @@ function CountryProfilePage() {
                             {edition ? editionLabel(edition) : "Edition"}
                           </p>
                           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            {[participant.artist, participant.song].filter(Boolean).join(" · ") || "Semi-final entry"}
+                            {[participant.artist, participant.song].filter(Boolean).join(" · ") ||
+                              "Semi-final entry details not archived"}
                           </p>
                         </div>
-                        <span
-                          className={
-                            participant.qualified
-                              ? "shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
-                              : "shrink-0 rounded-full bg-surface px-2 py-1 text-[10px] text-muted-foreground"
-                          }
-                        >
-                          {participant.qualified ? "Qualified" : "Eliminated"}
-                        </span>
+                        <QualificationBadge status={status} />
                       </div>
                     ))}
                   </div>
@@ -439,14 +485,8 @@ function CountryProfilePage() {
           <div className="space-y-5">
             <Panel>
               <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
-                <StatTile
-                  label="Avg. received"
-                  value={stats.avgReceivedPerContest?.toFixed(0) ?? "—"}
-                />
-                <StatTile
-                  label="Avg. given"
-                  value={stats.avgGivenPerContest?.toFixed(0) ?? "—"}
-                />
+                <StatTile label="Avg. received" value={stats.avgReceivedPerContest?.toFixed(0) ?? "—"} />
+                <StatTile label="Avg. given" value={stats.avgGivenPerContest?.toFixed(0) ?? "—"} />
                 <StatTile label="Top scores received" value={stats.topScoresReceived} />
                 <StatTile label="Top scores given" value={stats.topScoresGiven} />
               </div>
@@ -515,45 +555,34 @@ function CountryProfilePage() {
                   value={form.formIndex?.toFixed(0) ?? "—"}
                   hint={form.formBand === "unrated" ? "Not enough data" : form.formBand}
                 />
-                <StatTile
-                  label="Consistency"
-                  value={form.consistency?.toFixed(0) ?? "—"}
-                />
+                <StatTile label="Consistency" value={form.consistency?.toFixed(0) ?? "—"} />
                 <StatTile
                   label="Voting reach"
                   value={form.votingReach != null ? `${form.votingReach.toFixed(0)}%` : "—"}
                 />
                 <StatTile
                   label="Momentum"
-                  value={
-                    form.momentum != null
-                      ? `${form.momentum >= 0 ? "+" : ""}${form.momentum.toFixed(0)}`
-                      : "—"
-                  }
+                  value={form.momentum != null ? `${form.momentum >= 0 ? "+" : ""}${form.momentum.toFixed(0)}` : "—"}
                 />
               </div>
             </Panel>
 
             <Panel title="Recent form history" description={form.methodology}>
               <div className="divide-y divide-border/60">
-                {form.timeline
-                  .slice()
-                  .reverse()
-                  .slice(0, 8)
-                  .map((point) => (
-                    <div
-                      key={point.editionId}
-                      className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
-                    >
-                      <span className="min-w-0 truncate text-sm font-medium">{point.label}</span>
-                      <span className="numeric whitespace-nowrap text-xs text-muted-foreground">
-                        #{point.rank} / {point.fieldSize}
-                      </span>
-                      <span className="numeric min-w-10 text-right text-sm font-semibold">
-                        {point.percentile.toFixed(0)}
-                      </span>
-                    </div>
-                  ))}
+                {form.timeline.slice().reverse().slice(0, 8).map((point) => (
+                  <div
+                    key={point.editionId}
+                    className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <span className="min-w-0 truncate text-sm font-medium">{point.label}</span>
+                    <span className="numeric whitespace-nowrap text-xs text-muted-foreground">
+                      #{point.rank} / {point.fieldSize}
+                    </span>
+                    <span className="numeric min-w-10 text-right text-sm font-semibold">
+                      {point.percentile.toFixed(0)}
+                    </span>
+                  </div>
+                ))}
               </div>
             </Panel>
 
@@ -563,10 +592,7 @@ function CountryProfilePage() {
               </summary>
               <div className="grid gap-5 border-t border-border/60 px-4 py-4 sm:grid-cols-2 sm:px-5">
                 <div className="divide-y divide-border/60">
-                  <Row
-                    label="Support dependence"
-                    value={form.supportDependence != null ? `${form.supportDependence.toFixed(0)}%` : "—"}
-                  />
+                  <Row label="Support dependence" value={form.supportDependence != null ? `${form.supportDependence.toFixed(0)}%` : "—"} />
                   <Row
                     label="Jury / tele identity"
                     value={
@@ -592,6 +618,28 @@ function CountryProfilePage() {
         ) : <NoContestData countryName={country.name} />
       )}
     </AppShell>
+  );
+}
+
+function QualificationBadge({ status }: { status: QualificationStatus }) {
+  if (status === true) {
+    return (
+      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+        Qualified
+      </span>
+    );
+  }
+  if (status === false) {
+    return (
+      <span className="shrink-0 rounded-full bg-surface px-2 py-1 text-[10px] text-muted-foreground">
+        Eliminated
+      </span>
+    );
+  }
+  return (
+    <span className="shrink-0 rounded-full border border-border bg-surface px-2 py-1 text-[10px] text-muted-foreground">
+      Not archived
+    </span>
   );
 }
 
@@ -629,27 +677,31 @@ function ResultList({
       {rows.map((row) => {
         const edition = editionMap.get(row.edition_id);
         const show = showMap.get(row.show_id ?? "");
-        return (
-          <div
-            key={row.id}
-            className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-          >
+        const content = (
+          <>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {edition ? editionLabel(edition) : "Edition"}
-              </p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                {show?.name ?? "Grand Final"}
-              </p>
+              <p className="truncate text-sm font-medium">{edition ? editionLabel(edition) : "Edition"}</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{show?.name ?? "Grand Final"}</p>
             </div>
             <div className="shrink-0 text-right">
-              <p className="numeric text-sm font-semibold">
-                {row.final_rank ? `#${row.final_rank}` : "—"}
-              </p>
-              <p className="numeric mt-0.5 text-[11px] text-muted-foreground">
-                {row.total_points} pts
-              </p>
+              <p className="numeric text-sm font-semibold">{row.final_rank ? `#${row.final_rank}` : "—"}</p>
+              <p className="numeric mt-0.5 text-[11px] text-muted-foreground">{row.total_points} pts</p>
             </div>
+          </>
+        );
+
+        return show ? (
+          <Link
+            key={row.id}
+            to="/shows/$showId"
+            params={{ showId: show.id }}
+            className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+          >
+            {content}
+          </Link>
+        ) : (
+          <div key={row.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+            {content}
           </div>
         );
       })}

@@ -28,8 +28,14 @@ const TOOL_GROUPS = [
   },
   {
     title: "Explore results",
-    description: "Pull the scoreboard apart without changing the official result.",
+    description: "Open full voting detail or pull the scoreboard apart without changing the official result.",
     tools: [
+      {
+        to: "/scorecharts",
+        title: "Full Scorecharts",
+        description: "Browse every published detailed voting matrix directly, show by show.",
+        eyebrow: "Detailed voting",
+      },
       {
         to: "/result-lab",
         title: "Result Lab",
@@ -47,6 +53,12 @@ const TOOL_GROUPS = [
         title: "Broadcast Intelligence",
         description: "Replay a result reveal and surface the biggest swings, lead changes and storylines.",
         eyebrow: "Results replay",
+      },
+      {
+        to: "/broadcast-intelligence/jury",
+        title: "Jury Replay",
+        description: "Reveal published jury ballots one jury at a time and watch the jury scoreboard build live.",
+        eyebrow: "Jury replay",
       },
     ],
   },
@@ -88,7 +100,7 @@ function ToolsPage() {
       <PageHeader
         eyebrow="Explore Solaris"
         title="Tools"
-        description="Predictions, what-if scoreboards, personal taste analytics, result replays and archive tools in one place."
+        description="Full scorecharts, predictions, what-if scoreboards, personal taste analytics, result replays and archive tools in one place."
       />
 
       <div className="space-y-5">

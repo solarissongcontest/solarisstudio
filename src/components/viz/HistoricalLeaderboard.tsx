@@ -1,12 +1,5 @@
-import {
-  useMemo,
-  useState,
-} from "react";
-
-import {
-  Link,
-} from "@tanstack/react-router";
-
+import { Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -17,19 +10,8 @@ import {
   YAxis,
 } from "recharts";
 
-import type {
-  Country,
-  Edition,
-  ResultRow,
-} from "@/lib/data";
-
-import {
-  editionLabel,
-} from "@/lib/data";
-
-import {
-  cn,
-} from "@/lib/utils";
+import { editionLabel, type Country, type Edition, type ResultRow } from "@/lib/data";
+import { cn } from "@/lib/utils";
 
 export function HistoricalLeaderboard({
   countries,
@@ -37,391 +19,199 @@ export function HistoricalLeaderboard({
   results,
   limit = 8,
 }: {
-  countries:
-    Country[];
-
-  editions:
-    Edition[];
-
-  results:
-    ResultRow[];
-
-  limit?:
-    number;
+  countries: Country[];
+  editions: Edition[];
+  results: ResultRow[];
+  limit?: number;
 }) {
-  const [
-    hoverId,
-    setHoverId,
-  ] =
-    useState<
-      string | null
-    >(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
+  const countryMap = new Map(countries.map((country) => [country.id, country]));
 
-  const countryMap =
-    new Map(
-      countries.map(
-        (country) => [
-          country.id,
-          country,
-        ],
-      ),
-    );
+  const sortedEditions = useMemo(
+    () =>
+      [...editions]
+        .filter((edition) => edition.edition_number != null)
+        .sort((a, b) => (a.edition_number ?? 0) - (b.edition_number ?? 0)),
+    [editions],
+  );
 
-  /* =========================================================
-     IMPORTANT:
-     Chronology is edition_number, never year.
-     ========================================================= */
+  const rankedResults = results.filter((result) => result.final_rank != null);
 
-  const sortedEditions =
-    useMemo(
-      () =>
-        [...editions]
-          .filter(
-            (edition) =>
-              edition.edition_number !=
-              null,
-          )
-          .sort(
-            (a, b) =>
-              (a.edition_number ??
-                0) -
-              (b.edition_number ??
-                0),
-          ),
-      [
-        editions,
-      ],
-    );
+  const topIds = useMemo(() => {
+    const appearances = new Map<string, number>();
+    const points = new Map<string, number>();
 
-  const rankedResults =
-    results.filter(
-      (result) =>
-        result.final_rank !=
-        null,
-    );
+    for (const result of rankedResults) {
+      appearances.set(result.country_id, (appearances.get(result.country_id) ?? 0) + 1);
+      points.set(result.country_id, (points.get(result.country_id) ?? 0) + result.total_points);
+    }
 
-  const topIds =
-    useMemo(
-      () => {
-        const counts =
-          new Map<
-            string,
-            number
-          >();
+    return [...appearances.keys()]
+      .sort(
+        (a, b) =>
+          (points.get(b) ?? 0) - (points.get(a) ?? 0) ||
+          (appearances.get(b) ?? 0) - (appearances.get(a) ?? 0),
+      )
+      .slice(0, limit);
+  }, [rankedResults, limit]);
 
-        rankedResults.forEach(
-          (result) => {
-            counts.set(
-              result.country_id,
+  const data = useMemo(
+    () =>
+      sortedEditions.map((edition) => {
+        const row: Record<string, number | string | null> = {
+          label: editionLabel(edition),
+          editionNumber: edition.edition_number,
+        };
 
-              (counts.get(
-                result.country_id,
-              ) ?? 0) + 1,
-            );
-          },
-        );
-
-        return [
-          ...counts.entries(),
-        ]
-          .sort(
-            (a, b) =>
-              b[1] -
-              a[1],
-          )
-          .slice(
-            0,
-            limit,
-          )
-          .map(
-            ([id]) =>
-              id,
+        for (const id of topIds) {
+          const result = rankedResults.find(
+            (candidate) =>
+              candidate.edition_id === edition.id && candidate.country_id === id,
           );
-      },
-      [
-        rankedResults,
-        limit,
-      ],
-    );
+          row[id] = result?.final_rank ?? null;
+        }
 
-  const data =
-    useMemo(
-      () =>
-        sortedEditions.map(
-          (edition) => {
-            const row:
-              Record<
-                string,
-                | number
-                | string
-                | null
-              > = {
-              label:
-                editionLabel(
-                  edition,
-                ),
+        return row;
+      }),
+    [sortedEditions, topIds, rankedResults],
+  );
 
-              editionNumber:
-                edition.edition_number,
-            };
-
-            topIds.forEach(
-              (id) => {
-                const result =
-                  rankedResults.find(
-                    (candidate) =>
-                      candidate.edition_id ===
-                        edition.id &&
-                      candidate.country_id ===
-                        id,
-                  );
-
-                row[id] =
-                  result?.final_rank ??
-                  null;
-              },
-            );
-
-            return row;
-          },
-        ),
-      [
-        sortedEditions,
-        topIds,
-        rankedResults,
-      ],
-    );
-
-  if (
-    !topIds.length ||
-    !sortedEditions.length
-  ) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Not enough historical data yet.
-      </p>
-    );
+  if (!topIds.length || !sortedEditions.length) {
+    return <p className="text-sm text-muted-foreground">Not enough historical data yet.</p>;
   }
 
-  const maxRank =
-    Math.max(
-      1,
-
-      ...rankedResults
-        .filter(
-          (result) =>
-            topIds.includes(
-              result.country_id,
-            ),
-        )
-        .map(
-          (result) =>
-            result.final_rank ??
-            1,
-        ),
-    );
+  const maxRank = Math.max(
+    1,
+    ...rankedResults
+      .filter((result) => topIds.includes(result.country_id))
+      .map((result) => result.final_rank ?? 1),
+  );
 
   return (
-    <div>
-      <div
-        style={{
-          width:
-            "100%",
+    <div className="min-w-0">
+      <div className="mb-4 grid gap-2 sm:grid-cols-3">
+        <GuideItem
+          number="01"
+          title="Each line is a country"
+          text="The chart follows the selected countries across the editions included by the filters above."
+        />
+        <GuideItem
+          number="02"
+          title="Higher is better"
+          text="The vertical axis is finishing position, so #1 is at the top and lower placements appear farther down."
+        />
+        <GuideItem
+          number="03"
+          title="Gaps mean no result"
+          text="If a country has no archived ranked result in an edition, that edition is left blank rather than treated as last place."
+        />
+      </div>
 
-          height:
-            380,
-        }}
-      >
+      <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+        This view is about <strong className="text-foreground">placement history</strong>, not cumulative points.
+        Hover or tap a country label below to isolate its line. Archive gaps will disappear automatically as more historical data is added.
+      </p>
+
+      <div style={{ width: "100%", height: 380 }}>
         <ResponsiveContainer>
           <LineChart
             data={data}
-            margin={{
-              top: 10,
-              right: 20,
-              bottom: 10,
-              left: 0,
-            }}
+            margin={{ top: 10, right: 20, bottom: 10, left: 0 }}
           >
-            <CartesianGrid
-              stroke="var(--border)"
-              strokeDasharray="3 3"
-            />
-
-            <XAxis
-              dataKey="label"
-              stroke="var(--muted-foreground)"
-              fontSize={
-                10
-              }
-            />
-
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+            <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} />
             <YAxis
               reversed
-              domain={[
-                1,
-                maxRank,
-              ]}
+              domain={[1, maxRank]}
               stroke="var(--muted-foreground)"
-              fontSize={
-                11
-              }
-              allowDecimals={
-                false
-              }
+              fontSize={11}
+              allowDecimals={false}
+              tickFormatter={(value) => `#${value}`}
             />
-
             <Tooltip
               contentStyle={{
-                background:
-                  "var(--popover)",
-
-                border:
-                  "1px solid var(--border)",
-
-                borderRadius:
-                  8,
-
-                fontSize:
-                  12,
+                background: "var(--popover)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                fontSize: 12,
               }}
-              labelStyle={{
-                color:
-                  "var(--foreground)",
-              }}
-              formatter={(
-                value:
-                  any,
-
-                key:
-                  any,
-              ) => [
-                value ??
-                  "—",
-
-                countryMap.get(
-                  String(
-                    key,
-                  ),
-                )?.name ??
-                  key,
+              labelStyle={{ color: "var(--foreground)" }}
+              formatter={(value: unknown, key: unknown) => [
+                value == null ? "No archived result" : `#${String(value)}`,
+                countryMap.get(String(key))?.name ?? String(key),
               ]}
             />
 
-            {topIds.map(
-              (id) => {
-                const country =
-                  countryMap.get(
-                    id,
-                  );
+            {topIds.map((id) => {
+              const country = countryMap.get(id);
+              const dim = Boolean(hoverId && hoverId !== id);
 
-                const dim =
-                  hoverId &&
-                  hoverId !==
-                    id;
-
-                return (
-                  <Line
-                    key={
-                      id
-                    }
-                    type="monotone"
-                    dataKey={
-                      id
-                    }
-                    name={
-                      country?.name ??
-                      id
-                    }
-                    stroke={
-                      country?.accent_color ??
-                      "var(--jury)"
-                    }
-                    strokeWidth={
-                      hoverId ===
-                      id
-                        ? 3
-                        : 1.75
-                    }
-                    strokeOpacity={
-                      dim
-                        ? 0.15
-                        : 1
-                    }
-                    dot={{
-                      r: 2,
-                    }}
-                    connectNulls
-                    isAnimationActive
-                    animationDuration={
-                      800
-                    }
-                  />
-                );
-              },
-            )}
+              return (
+                <Line
+                  key={id}
+                  type="monotone"
+                  dataKey={id}
+                  name={country?.name ?? id}
+                  stroke={country?.accent_color ?? "var(--jury)"}
+                  strokeWidth={hoverId === id ? 3 : 1.75}
+                  strokeOpacity={dim ? 0.15 : 1}
+                  dot={{ r: 2 }}
+                  connectNulls={false}
+                  isAnimationActive
+                  animationDuration={800}
+                />
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {topIds.map(
-          (id) => {
-            const country =
-              countryMap.get(
-                id,
-              );
+        {topIds.map((id) => {
+          const country = countryMap.get(id);
+          if (!country) return null;
 
-            if (
-              !country
-            ) {
-              return null;
-            }
-
-            return (
-              <Link
-                key={
-                  id
-                }
-                to="/countries/$code"
-                params={{
-                  code:
-                    country.short_code,
-                }}
-                onMouseEnter={() =>
-                  setHoverId(
-                    id,
-                  )
-                }
-                onMouseLeave={() =>
-                  setHoverId(
-                    null,
-                  )
-                }
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition-colors",
-
-                  hoverId ===
-                    id
-                    ? "bg-surface-strong"
-                    : "bg-surface",
-                )}
-              >
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{
-                    background:
-                      country.accent_color,
-                  }}
-                />
-
-                {
-                  country.name
-                }
-              </Link>
-            );
-          },
-        )}
+          return (
+            <Link
+              key={id}
+              to="/countries/$code"
+              params={{ code: country.short_code }}
+              onMouseEnter={() => setHoverId(id)}
+              onMouseLeave={() => setHoverId(null)}
+              onFocus={() => setHoverId(id)}
+              onBlur={() => setHoverId(null)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs transition-colors",
+                hoverId === id ? "bg-surface-strong" : "bg-surface",
+              )}
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: country.accent_color }}
+              />
+              {country.name}
+            </Link>
+          );
+        })}
       </div>
+    </div>
+  );
+}
+
+function GuideItem({
+  number,
+  title,
+  text,
+}: {
+  number: string;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-surface p-3">
+      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">{number}</p>
+      <p className="mt-1 text-xs font-semibold">{title}</p>
+      <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{text}</p>
     </div>
   );
 }

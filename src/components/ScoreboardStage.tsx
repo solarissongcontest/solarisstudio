@@ -1,45 +1,24 @@
 "use client";
 
-import {
-  CountryCard,
-} from "@/components/broadcast/CountryCard";
-
-import type {
-  Country,
-  Participant,
-} from "@/lib/data";
-
-import type {
-  Standing,
-} from "@/lib/analysis";
-
+import { CountryCard } from "@/components/broadcast/CountryCard";
+import type { Country, Participant } from "@/lib/data";
+import type { Standing } from "@/lib/analysis";
 import {
   resolveScoreboard,
   type BroadcastRowData,
   type CardTemplateConfig,
   type ScoreboardConfig,
 } from "@/lib/scoreboard";
-
-import type {
-  ThemeConfig,
-} from "@/lib/theme";
-
-import {
-  cn,
-} from "@/lib/utils";
+import type { ThemeConfig } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 /**
  * Public / embedded scoreboard renderer.
  *
- * This now uses the SAME CountryCard engine as the live broadcast.
- *
- * Source of truth:
- *   theme.scoreboardConfig
- *
- * That value is written by the edition Design & Broadcast page.
- *
- * Old editions without a custom card config still get an automatic
- * resolveScoreboard() fallback, so old data does not break.
+ * This uses the same CountryCard engine as the live broadcast. Public result
+ * pages additionally make global-country rows navigable to their country
+ * profile. The admin edition editor is excluded so editing a preview cannot
+ * unexpectedly navigate away from the studio.
  */
 export function ScoreboardStage({
   theme,
@@ -53,402 +32,167 @@ export function ScoreboardStage({
   className,
   compact,
 }: {
-  theme:
-    ThemeConfig;
-
-  standings:
-    Standing[];
-
-  countries:
-    Map<
-      string,
-      Country
-    >;
-
-  participants?:
-    Map<
-      string,
-      Participant
-    >;
-
-  awarded?:
-    Record<
-      string,
-      number
-    >;
-
-  highlight?:
-    string | null;
-
-  votingCountryId?:
-    string | null;
-
-  qualifiers?:
-    number | null;
-
-  className?:
-    string;
-
-  compact?:
-    boolean;
+  theme: ThemeConfig;
+  standings: Standing[];
+  countries: Map<string, Country>;
+  participants?: Map<string, Participant>;
+  awarded?: Record<string, number>;
+  highlight?: string | null;
+  votingCountryId?: string | null;
+  qualifiers?: number | null;
+  className?: string;
+  compact?: boolean;
 }) {
-  const rows =
-    standings.slice(
-      0,
-      standings.length,
-    );
+  const rows = standings.slice(0, standings.length);
 
   const resolved =
     theme.scoreboardConfig ??
-    resolveScoreboard(
-      null,
-      {
-        theme,
-
-        rowCount:
-          rows.length,
-      },
-    );
-
-  const columns =
-    resolveShowColumns(
-      rows.length,
-      resolved,
-    );
-
-  const card =
-    prepareCardForPublicSurface(
-      resolved.card,
+    resolveScoreboard(null, {
       theme,
-      compact,
-    );
+      rowCount: rows.length,
+    });
 
-  const topAward =
-    Math.max(
-      0,
-      ...Object.values(
-        awarded ??
-          {},
-      ),
-    );
+  const columns = resolveShowColumns(rows.length, resolved);
+  const card = prepareCardForPublicSurface(resolved.card, theme, compact);
+  const topAward = Math.max(0, ...Object.values(awarded ?? {}));
 
-  const broadcastRows =
-    rows.map<BroadcastRowData>(
-      (
-        standing,
-        index,
-      ) => {
-        const country =
-          countries.get(
-            standing.countryId,
-          );
+  const broadcastRows = rows.map<BroadcastRowData>((standing, index) => {
+    const country = countries.get(standing.countryId);
+    const participant = participants?.get(standing.countryId);
+    const gain = awarded?.[standing.countryId];
+    const qualified = qualifiers
+      ? standing.rank <= qualifiers
+      : participant?.qualified ?? null;
 
-        const participant =
-          participants?.get(
-            standing.countryId,
-          );
+    return {
+      id: standing.countryId,
+      entityType: "global",
+      name: country?.name ?? standing.countryId,
+      abbreviation: country?.short_code ?? "",
+      flagImage: country?.flag_image ?? null,
+      accent: country?.accent_color ?? theme.colors.primary,
+      rank: standing.rank,
+      runningOrder: participant?.running_order ?? index + 1,
+      score: standing.total,
+      juryScore: standing.jury,
+      televoteScore: standing.televote,
+      movement: 0,
+      qualified: qualified === true,
+      eliminated: qualified === false,
+      active: votingCountryId === standing.countryId,
+      highlighted: highlight === standing.countryId,
+      leader: standing.rank === 1,
+      winner: standing.rank === 1,
+      subtitle:
+        participant?.artist && participant?.song
+          ? `${participant.artist} — ${participant.song}`
+          : participant?.artist ?? participant?.song ?? null,
+      topPoints: gain === topAward && topAward > 0,
+    } as BroadcastRowData;
+  });
 
-        const gain =
-          awarded?.[
-            standing.countryId
-          ];
+  const perColumn = Math.ceil(broadcastRows.length / columns);
+  const columnRows = Array.from({ length: columns }, (_, columnIndex) =>
+    broadcastRows.slice(columnIndex * perColumn, (columnIndex + 1) * perColumn),
+  );
 
-        const qualified =
-          qualifiers
-            ? standing.rank <=
-              qualifiers
-            : participant?.qualified ??
-              null;
+  const openCountryFromColumn = (
+    event: React.MouseEvent<HTMLOListElement>,
+    column: BroadcastRowData[],
+  ) => {
+    if (typeof window === "undefined" || window.location.pathname.startsWith("/admin/")) return;
 
-        return {
-          id:
-            standing.countryId,
+    const target = event.target as HTMLElement;
+    const rowElement = target.closest("li");
+    if (!rowElement || rowElement.parentElement !== event.currentTarget) return;
 
-          entityType:
-            "global",
+    const rowElements = Array.from(event.currentTarget.children);
+    const rowIndex = rowElements.indexOf(rowElement);
+    const row = column[rowIndex];
+    if (!row) return;
 
-          name:
-            country?.name ??
-            standing.countryId,
+    const country = countries.get(row.id);
+    if (!country?.short_code) return;
 
-          abbreviation:
-            country?.short_code ??
-            "",
-
-          flagImage:
-            country?.flag_image ??
-            null,
-
-          accent:
-            country?.accent_color ??
-            theme.colors.primary,
-
-          rank:
-            standing.rank,
-
-          runningOrder:
-            participant?.running_order ??
-            index +
-              1,
-
-          score:
-            standing.total,
-
-          juryScore:
-            standing.jury,
-
-          televoteScore:
-            standing.televote,
-
-          movement:
-            0,
-
-          qualified:
-            qualified ===
-            true,
-
-          eliminated:
-            qualified ===
-            false,
-
-          active:
-            votingCountryId ===
-            standing.countryId,
-
-          highlighted:
-            highlight ===
-            standing.countryId,
-
-          leader:
-            standing.rank ===
-            1,
-
-          winner:
-            standing.rank ===
-            1,
-
-          subtitle:
-            participant?.artist &&
-            participant?.song
-              ? `${participant.artist} — ${participant.song}`
-              : participant?.artist ??
-                participant?.song ??
-                null,
-
-          /**
-           * This is not part of the visual identity itself, but it allows
-           * the same award animation to appear on the custom row.
-           */
-          topPoints:
-            gain ===
-              topAward &&
-            topAward >
-              0,
-        } as BroadcastRowData;
-      },
-    );
-
-  const perColumn =
-    Math.ceil(
-      broadcastRows.length /
-        columns,
-    );
-
-  const columnRows =
-    Array.from(
-      {
-        length:
-          columns,
-      },
-
-      (
-        _,
-        columnIndex,
-      ) =>
-        broadcastRows.slice(
-          columnIndex *
-            perColumn,
-
-          (
-            columnIndex +
-            1
-          ) *
-            perColumn,
-        ),
-    );
+    window.location.assign(`/countries/${encodeURIComponent(country.short_code)}`);
+  };
 
   return (
     <div
       className={cn(
         "grid min-w-0 gap-3",
-
-        columns ===
-          2 &&
-          "sm:grid-cols-2",
-
-        columns ===
-          3 &&
-          "sm:grid-cols-2 lg:grid-cols-3",
-
-        columns ===
-          4 &&
-          "sm:grid-cols-2 xl:grid-cols-4",
-
+        columns === 2 && "sm:grid-cols-2",
+        columns === 3 && "sm:grid-cols-2 lg:grid-cols-3",
+        columns === 4 && "sm:grid-cols-2 xl:grid-cols-4",
         className,
       )}
     >
-      {columnRows.map(
-        (
-          column,
-          columnIndex,
-        ) => (
-          <ol
-            key={
-              columnIndex
-            }
-            className="grid min-w-0 content-start"
-            style={{
-              gap:
-                Math.max(
-                  2,
-                  resolved.layout.rowGap,
-                ),
-            }}
-          >
-            {column.map(
-              (
-                row,
-              ) => (
-                <CountryCard
-                  key={
-                    row.id
-                  }
-                  card={
-                    card
-                  }
-                  theme={
-                    theme
-                  }
-                  row={
-                    row
-                  }
-                  awarded={
-                    awarded?.[
-                      row.id
-                    ] ??
-                    null
-                  }
-                  scale={
-                    compact
-                      ? 0.86
-                      : 1
-                  }
-                  animate
-                />
-              ),
-            )}
-          </ol>
-        ),
-      )}
+      {columnRows.map((column, columnIndex) => (
+        <ol
+          key={columnIndex}
+          className="grid min-w-0 content-start [&>li]:cursor-pointer"
+          style={{ gap: Math.max(2, resolved.layout.rowGap) }}
+          onClick={(event) => openCountryFromColumn(event, column)}
+        >
+          {column.map((row) => (
+            <CountryCard
+              key={row.id}
+              card={card}
+              theme={theme}
+              row={row}
+              awarded={awarded?.[row.id] ?? null}
+              scale={compact ? 0.86 : 1}
+              animate
+            />
+          ))}
+        </ol>
+      ))}
+
+      {typeof window === "undefined" || !window.location.pathname.startsWith("/admin/") ? (
+        <p className="col-span-full mt-1 text-center text-[10px] text-muted-foreground">
+          Tap a country on the scoreboard to open its profile.
+        </p>
+      ) : null}
     </div>
   );
 }
 
 /**
  * The edition shares one card style, while density adapts to each show.
- *
- * Saved board layout may suggest a column count, but we never force a
- * 14-entry semi into 3 columns or a 26-entry final into one huge column.
  */
 export function resolveShowColumns(
-  rowCount:
-    number,
-
-  config:
-    ScoreboardConfig,
+  rowCount: number,
+  config: ScoreboardConfig,
 ): 1 | 2 | 3 | 4 {
-  if (
-    rowCount <=
-    14
-  ) {
-    return 1;
-  }
+  if (rowCount <= 14) return 1;
+  if (rowCount <= 30) return 2;
 
-  if (
-    rowCount <=
-    30
-  ) {
-    return 2;
-  }
-
-  if (
-    rowCount <=
-    48
-  ) {
-    return Math.max(
-      2,
-      Math.min(
-        3,
-        config.layout.columns,
-      ),
-    ) as
-      | 2
-      | 3;
+  if (rowCount <= 48) {
+    return Math.max(2, Math.min(3, config.layout.columns)) as 2 | 3;
   }
 
   return 4;
 }
 
 /**
- * Public pages are responsive. The custom design itself is preserved,
- * but a fixed broadcast-only width is released so the row can fit the
- * website column it is placed in.
- *
- * Broadcast cards are allowed to be very translucent because they may sit
- * over a controlled TV background. Public result pages do not have that
- * guarantee, so clamp card/surface opacity here. This keeps the broadcast
- * identity while preventing unreadable combined-result rows on the website.
+ * Public pages are responsive. The custom design itself is preserved, but a
+ * fixed broadcast-only width is released so the row can fit the website.
  */
 function prepareCardForPublicSurface(
-  card:
-    CardTemplateConfig,
-
-  theme:
-    ThemeConfig,
-
-  compact:
-    boolean | undefined,
+  card: CardTemplateConfig,
+  theme: ThemeConfig,
+  compact: boolean | undefined,
 ): CardTemplateConfig {
-  const zones =
-    card.zones.map(
-      (
-        zone,
-      ) => {
-        if (
-          zone.type ===
-            "jury-score" ||
-          zone.type ===
-            "televote-score"
-        ) {
-          return {
-            ...zone,
+  const zones = card.zones.map((zone) => {
+    if (zone.type === "jury-score" || zone.type === "televote-score") {
+      return {
+        ...zone,
+        visible: zone.visible && theme.layout.showSplit,
+      };
+    }
 
-            visible:
-              zone.visible &&
-              theme.layout.showSplit,
-          };
-        }
-
-        if (
-          zone.type ===
-          "custom-text"
-        ) {
-          return zone;
-        }
-
-        return zone;
-      },
-    );
+    return zone;
+  });
 
   const stateOverrides = Object.fromEntries(
     Object.entries(card.stateOverrides ?? {}).map(([state, override]) => [
@@ -457,9 +201,7 @@ function prepareCardForPublicSurface(
         ? {
             ...override,
             opacity:
-              override.opacity == null
-                ? override.opacity
-                : Math.max(0.9, override.opacity),
+              override.opacity == null ? override.opacity : Math.max(0.9, override.opacity),
             background: override.background
               ? {
                   ...override.background,
@@ -473,112 +215,37 @@ function prepareCardForPublicSurface(
 
   return {
     ...card,
-
-    width:
-      null,
-
-    minWidth:
-      null,
-
-    maxWidth:
-      null,
-
-    opacity:
-      Math.max(
-        0.92,
-        card.opacity,
-      ),
-
+    width: null,
+    minWidth: null,
+    maxWidth: null,
+    opacity: Math.max(0.92, card.opacity),
     background: {
       ...card.background,
       opacity: Math.max(0.82, card.background.opacity),
     },
-
     stateOverrides,
-
-    height:
-      compact
-        ? Math.max(
-            28,
-            card.height *
-              0.82,
-          )
-        : card.height,
-
+    height: compact ? Math.max(28, card.height * 0.82) : card.height,
     zones,
   };
 }
 
-/**
- * Retained because a few older helpers import hexA from this module.
- */
-export function hexA(
-  hex:
-    string,
+/** Retained because a few older helpers import hexA from this module. */
+export function hexA(hex: string, alpha: number) {
+  const match = /^#?([a-f\d]{3}|[a-f\d]{6})$/i.exec(hex.trim());
+  if (!match) return hex;
 
-  alpha:
-    number,
-) {
-  const match =
-    /^#?([a-f\d]{3}|[a-f\d]{6})$/i.exec(
-      hex.trim(),
-    );
-
-  if (
-    !match
-  ) {
-    return hex;
+  let value = match[1];
+  if (value.length === 3) {
+    value = value
+      .split("")
+      .map((character) => character + character)
+      .join("");
   }
 
-  let value =
-    match[
-      1
-    ];
-
-  if (
-    value.length ===
-    3
-  ) {
-    value =
-      value
-        .split(
-          "",
-        )
-        .map(
-          (
-            character,
-          ) =>
-            character +
-            character,
-        )
-        .join(
-          "",
-        );
-  }
-
-  const number =
-    parseInt(
-      value,
-      16,
-    );
-
-  const red =
-    (
-      number >>
-      16
-    ) &
-    255;
-
-  const green =
-    (
-      number >>
-      8
-    ) &
-    255;
-
-  const blue =
-    number &
-    255;
+  const number = parseInt(value, 16);
+  const red = (number >> 16) & 255;
+  const green = (number >> 8) & 255;
+  const blue = number & 255;
 
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
