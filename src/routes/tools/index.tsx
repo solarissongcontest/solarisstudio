@@ -28,8 +28,14 @@ const TOOL_GROUPS = [
   },
   {
     title: "Explore results",
-    description: "Pull the scoreboard apart without changing the official result.",
+    description: "Open full voting detail or pull the scoreboard apart without changing the official result.",
     tools: [
+      {
+        to: "/scorecharts",
+        title: "Full Scorecharts",
+        description: "Browse every published detailed voting matrix directly, show by show.",
+        eyebrow: "Detailed voting",
+      },
       {
         to: "/result-lab",
         title: "Result Lab",
@@ -88,7 +94,7 @@ function ToolsPage() {
       <PageHeader
         eyebrow="Explore Solaris"
         title="Tools"
-        description="Predictions, what-if scoreboards, personal taste analytics, result replays and archive tools in one place."
+        description="Full scorecharts, predictions, what-if scoreboards, personal taste analytics, result replays and archive tools in one place."
       />
 
       <div className="space-y-5">
