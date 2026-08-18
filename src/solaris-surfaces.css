@@ -1,0 +1,130 @@
+/* Page-aware Solaris surfaces
+   ---------------------------
+   The background already changes colour by route. These tokens make cards,
+   panels and common surface utilities pick up the same colour family instead
+   of staying permanently navy. The tint is deliberately restrained so text,
+   flags and result artwork still dominate. */
+
+body[data-solaris-family] {
+  --card: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 11%, #07162f 89%);
+  --popover: color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, #061226 90%);
+  --surface: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 8%, #0a1a33 92%);
+  --surface-strong: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 16%, #0b1c35 84%);
+  --secondary: color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, #0a192f 90%);
+  --muted: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 7%, #0a192f 93%);
+  --input: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 9%, #08172d 91%);
+  --border: rgb(var(--solaris-bg-primary) / 0.18);
+}
+
+body[data-solaris-family] .data-panel,
+body[data-solaris-family] .surface {
+  border-color: rgb(var(--solaris-bg-primary) / 0.20) !important;
+  background:
+    linear-gradient(155deg,
+      rgb(var(--solaris-bg-primary) / 0.15),
+      rgb(var(--solaris-bg-secondary) / 0.075) 48%,
+      rgb(var(--solaris-bg-deep) / 0.35)),
+    linear-gradient(160deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 72%, #07162f 28%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep)) 86%, #020815 14%)) !important;
+  box-shadow:
+    0 12px 32px rgb(var(--solaris-bg-deep) / 0.24),
+    inset 0 1px 0 rgb(var(--solaris-bg-primary) / 0.12) !important;
+}
+
+body[data-solaris-family] .glass,
+body[data-solaris-family] .glass-strong {
+  border-color: rgb(var(--solaris-bg-primary) / 0.24) !important;
+  background:
+    linear-gradient(145deg,
+      rgb(var(--solaris-bg-primary) / 0.13),
+      rgb(var(--solaris-bg-secondary) / 0.06)),
+    color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 72%, #07162f 28%) !important;
+}
+
+body[data-solaris-family] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+body[data-solaris-family] textarea,
+body[data-solaris-family] select,
+body[data-solaris-family] [role="combobox"] {
+  border-color: rgb(var(--solaris-bg-primary) / 0.19) !important;
+  background: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 7%, #07172f 93%) !important;
+}
+
+/* A handful of the big editorial cards pre-date the shared panel system and
+   still carry a literal navy Tailwind background. Catch those too so they do
+   not visually ignore the page family. */
+body[data-solaris-family] a[class*="bg-[#031127]"],
+.solaris-family-card {
+  border-color: rgb(var(--solaris-bg-primary) / 0.24) !important;
+  background:
+    radial-gradient(circle at 88% 18%, rgb(var(--solaris-bg-primary) / 0.21), transparent 43%),
+    radial-gradient(circle at 7% 88%, rgb(var(--solaris-bg-secondary) / 0.15), transparent 47%),
+    linear-gradient(145deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 80%, #06142b 20%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep)) 88%, #020815 12%)) !important;
+  box-shadow:
+    0 16px 38px rgb(var(--solaris-bg-deep) / 0.26),
+    inset 0 1px 0 rgb(var(--solaris-bg-primary) / 0.10) !important;
+}
+
+body[data-solaris-family] a[class*="bg-[#031127]"] > div.absolute.inset-0,
+.solaris-family-card-overlay {
+  background: linear-gradient(135deg,
+    rgb(var(--solaris-bg-deep) / 0.82),
+    rgb(var(--solaris-bg-deep-2) / 0.62) 54%,
+    rgb(var(--solaris-bg-primary) / 0.13)) !important;
+}
+
+/* Navigation remains darker than content but should no longer look disconnected
+   from dramatically different page families. */
+body[data-solaris-family] .mobile-quick-nav {
+  background: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 5%, #050c1e 95%) !important;
+  border-color: rgb(var(--solaris-bg-primary) / 0.14) !important;
+}
+
+@media (max-width: 767px) {
+  body[data-solaris-family] .data-panel,
+  body[data-solaris-family] .surface {
+    background:
+      linear-gradient(155deg,
+        rgb(var(--solaris-bg-primary) / 0.17),
+        rgb(var(--solaris-bg-secondary) / 0.07) 52%,
+        rgb(var(--solaris-bg-deep) / 0.31)),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 76%, #06142b 24%) !important;
+  }
+
+  body[data-solaris-family] .glass,
+  body[data-solaris-family] .glass-strong {
+    background:
+      linear-gradient(145deg,
+        rgb(var(--solaris-bg-primary) / 0.14),
+        rgb(var(--solaris-bg-secondary) / 0.055)),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 78%, #06142b 22%) !important;
+  }
+
+  body[data-solaris-family] a[class*="bg-[#031127]"] {
+    background:
+      radial-gradient(circle at 96% 12%, rgb(var(--solaris-bg-primary) / 0.23), transparent 44%),
+      radial-gradient(circle at 2% 96%, rgb(var(--solaris-bg-secondary) / 0.16), transparent 48%),
+      linear-gradient(150deg,
+        color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 82%, #06142b 18%),
+        color-mix(in srgb, rgb(var(--solaris-bg-deep)) 90%, #020815 10%)) !important;
+  }
+}
+
+/* Keep organizer/admin workspaces neutral and operational. They have their own
+   shell and should not inherit the public editorial colour treatment. */
+.admin-control-room {
+  --card: rgba(8, 19, 38, 0.98);
+  --surface: rgba(255, 255, 255, 0.032);
+  --surface-strong: rgba(125, 190, 235, 0.085);
+  --border: rgba(210, 230, 242, 0.095);
+}
+
+.admin-control-room .data-panel,
+.admin-control-room .surface,
+.admin-control-room .glass,
+.admin-control-room .glass-strong {
+  border-color: rgba(210, 230, 242, 0.09) !important;
+  background: rgba(7, 18, 37, 0.94) !important;
+}
