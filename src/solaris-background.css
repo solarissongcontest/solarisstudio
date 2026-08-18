@@ -1,0 +1,212 @@
+/* Solaris Studio background system
+   --------------------------------
+   The old full-screen photo is intentionally gone. The canvas is now built
+   from CSS gradients plus the existing Solaris/SSC logo asset so every page
+   keeps one visual language while still being able to shift its colour mood. */
+
+:root {
+  --solaris-bg-primary: 76 154 211;
+  --solaris-bg-secondary: 59 105 196;
+  --solaris-bg-deep: 3 9 34;
+}
+
+body {
+  background-color: rgb(var(--solaris-bg-deep)) !important;
+  background-image: none !important;
+  background-attachment: scroll !important;
+  transition: background-color 360ms ease;
+}
+
+.app-background {
+  position: fixed !important;
+  inset: 0 !important;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 62% at 13% 8%, rgb(var(--solaris-bg-secondary) / 0.24), transparent 64%),
+    radial-gradient(ellipse 58% 48% at 86% 18%, rgb(var(--solaris-bg-primary) / 0.20), transparent 67%),
+    radial-gradient(ellipse 48% 58% at 58% 96%, rgb(var(--solaris-bg-primary) / 0.16), transparent 72%),
+    linear-gradient(145deg, #02071d 0%, rgb(var(--solaris-bg-deep)) 37%, #06152f 72%, #020616 100%) !important;
+  filter: none !important;
+  isolation: isolate;
+  transition: background 420ms ease;
+}
+
+/* Crisp / middle-distance stars. We reuse the real repository logo asset
+   rather than manufacturing a second star symbol. */
+.app-background::before,
+.app-background::after {
+  content: "";
+  position: absolute;
+  inset: -9vmax;
+  pointer-events: none;
+  background-image:
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png"),
+    url("/IMG_9177.png");
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  will-change: opacity, filter;
+}
+
+.app-background::before {
+  opacity: 0.11;
+  background-size:
+    21vmin 21vmin,
+    8vmin 8vmin,
+    13vmin 13vmin,
+    6vmin 6vmin,
+    17vmin 17vmin,
+    9vmin 9vmin,
+    25vmin 25vmin,
+    7vmin 7vmin,
+    11vmin 11vmin,
+    5vmin 5vmin,
+    15vmin 15vmin,
+    8vmin 8vmin;
+  background-position:
+    -2% 3%,
+    28% 12%,
+    69% 4%,
+    91% 19%,
+    10% 47%,
+    38% 38%,
+    79% 52%,
+    96% 69%,
+    23% 84%,
+    54% 68%,
+    67% 91%,
+    5% 101%;
+  filter: saturate(0.72) brightness(1.55) hue-rotate(-8deg);
+}
+
+/* Near / far stars are softer and larger, like the original background. */
+.app-background::after {
+  inset: -13vmax;
+  opacity: 0.075;
+  background-size:
+    32vmin 32vmin,
+    12vmin 12vmin,
+    18vmin 18vmin,
+    9vmin 9vmin,
+    25vmin 25vmin,
+    14vmin 14vmin,
+    38vmin 38vmin,
+    10vmin 10vmin,
+    21vmin 21vmin,
+    8vmin 8vmin,
+    27vmin 27vmin,
+    12vmin 12vmin;
+  background-position:
+    -8% -5%,
+    20% 25%,
+    47% 5%,
+    72% 31%,
+    102% 4%,
+    8% 70%,
+    108% 88%,
+    48% 84%,
+    64% 56%,
+    88% 43%,
+    33% 107%,
+    79% 106%;
+  filter: blur(5px) saturate(0.72) brightness(1.7) hue-rotate(-8deg);
+  transform: scale(1.035);
+}
+
+/* Route colour families. RootComponent updates the two RGB variables rather
+   than swapping background images, so transitions stay continuous. */
+body[data-solaris-family="core"] {
+  --solaris-bg-primary: 75 165 220;
+  --solaris-bg-secondary: 55 93 188;
+  --solaris-bg-deep: 2 8 31;
+}
+
+body[data-solaris-family="analysis"] {
+  --solaris-bg-primary: 126 122 244;
+  --solaris-bg-secondary: 69 99 211;
+  --solaris-bg-deep: 7 7 36;
+}
+
+body[data-solaris-family="archive"] {
+  --solaris-bg-primary: 76 188 175;
+  --solaris-bg-secondary: 57 116 170;
+  --solaris-bg-deep: 2 18 31;
+}
+
+body[data-solaris-family="pulse"] {
+  --solaris-bg-primary: 61 186 224;
+  --solaris-bg-secondary: 41 116 201;
+  --solaris-bg-deep: 1 12 34;
+}
+
+body[data-solaris-family="predictions"] {
+  --solaris-bg-primary: 207 114 211;
+  --solaris-bg-secondary: 116 83 205;
+  --solaris-bg-deep: 15 5 34;
+}
+
+body[data-solaris-family="confirmations"] {
+  --solaris-bg-primary: 73 197 180;
+  --solaris-bg-secondary: 49 126 177;
+  --solaris-bg-deep: 2 17 31;
+}
+
+body[data-solaris-family="televoting"] {
+  --solaris-bg-primary: 73 169 242;
+  --solaris-bg-secondary: 74 88 222;
+  --solaris-bg-deep: 3 8 38;
+}
+
+body[data-solaris-family="studio-tools"] {
+  --solaris-bg-primary: 119 118 236;
+  --solaris-bg-secondary: 59 146 202;
+  --solaris-bg-deep: 5 8 35;
+}
+
+@media (max-width: 767px) {
+  .app-background {
+    inset: 0 !important;
+    background:
+      radial-gradient(ellipse 96% 58% at 20% 0%, rgb(var(--solaris-bg-secondary) / 0.22), transparent 68%),
+      radial-gradient(ellipse 85% 54% at 96% 30%, rgb(var(--solaris-bg-primary) / 0.18), transparent 70%),
+      linear-gradient(155deg, #02071d 0%, rgb(var(--solaris-bg-deep)) 52%, #06142c 100%) !important;
+  }
+
+  .app-background::before {
+    inset: -5vmax;
+    opacity: 0.09;
+    background-size:
+      34vw 34vw,
+      15vw 15vw,
+      22vw 22vw,
+      11vw 11vw,
+      29vw 29vw,
+      17vw 17vw,
+      42vw 42vw,
+      13vw 13vw,
+      19vw 19vw,
+      10vw 10vw,
+      26vw 26vw,
+      14vw 14vw;
+  }
+
+  .app-background::after {
+    opacity: 0.055;
+    filter: blur(4px) saturate(0.72) brightness(1.65) hue-rotate(-8deg);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-background::after { opacity: 0.04; filter: blur(2px); }
+}
