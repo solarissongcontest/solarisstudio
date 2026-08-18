@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ClipboardCheck, LayoutGrid, Vote } from "lucide-react";
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
@@ -12,44 +12,51 @@ type ServiceAction = {
   label: string;
 };
 
+const ParticipationChromeContext = createContext(false);
+
 export function ParticipationRouteChrome({ children }: { children: ReactNode }) {
+  const nested = useContext(ParticipationChromeContext);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
-  return (
-    <AppShell>
-      <div className="mx-auto mb-5 max-w-5xl min-w-0 sm:mb-6">
-        <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-border/65 bg-surface/70 p-2 sm:flex-row sm:items-center sm:justify-between sm:p-2.5">
-          <Link
-            to="/participate"
-            className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-foreground transition hover:bg-surface-strong"
-          >
-            <span className="grid size-8 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.07] text-primary">
-              <LayoutGrid className="size-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate text-xs font-semibold">Solaris Studio · Participate</span>
-              <span className="block truncate text-[10px] text-muted-foreground">Official participation services</span>
-            </span>
-          </Link>
+  if (nested) return <>{children}</>;
 
-          <nav aria-label="Participation services" className="grid grid-cols-2 gap-1 sm:w-[25rem]">
-            <ServiceTab
-              to="/confirmations"
-              label="Confirmations"
-              icon={ClipboardCheck}
-              active={pathname.startsWith("/confirmations")}
-            />
-            <ServiceTab
-              to="/televoting"
-              label="Televoting"
-              icon={Vote}
-              active={pathname.startsWith("/televoting")}
-            />
-          </nav>
+  return (
+    <ParticipationChromeContext.Provider value>
+      <AppShell>
+        <div className="mx-auto mb-5 max-w-5xl min-w-0 sm:mb-6">
+          <div className="flex min-w-0 flex-col gap-2 rounded-2xl border border-border/65 bg-surface/70 p-2 sm:flex-row sm:items-center sm:justify-between sm:p-2.5">
+            <Link
+              to="/participate"
+              className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-foreground transition hover:bg-surface-strong"
+            >
+              <span className="grid size-8 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.07] text-primary">
+                <LayoutGrid className="size-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold">Solaris Studio · Participate</span>
+                <span className="block truncate text-[10px] text-muted-foreground">Official participation services</span>
+              </span>
+            </Link>
+
+            <nav aria-label="Participation services" className="grid grid-cols-2 gap-1 sm:w-[25rem]">
+              <ServiceTab
+                to="/confirmations"
+                label="Confirmations"
+                icon={ClipboardCheck}
+                active={pathname.startsWith("/confirmations")}
+              />
+              <ServiceTab
+                to="/televoting"
+                label="Televoting"
+                icon={Vote}
+                active={pathname.startsWith("/televoting")}
+              />
+            </nav>
+          </div>
         </div>
-      </div>
-      {children}
-    </AppShell>
+        {children}
+      </AppShell>
+    </ParticipationChromeContext.Provider>
   );
 }
 
