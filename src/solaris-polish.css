@@ -1,0 +1,214 @@
+/* Solaris aesthetic + proportion pass
+   -----------------------------------
+   Softer, related colour families and defensive card proportions across
+   public and organizer views. This intentionally avoids touching data logic. */
+
+/* Keep route identities distinct, but within one premium nocturnal palette. */
+body[data-solaris-family="countries"] {
+  --solaris-bg-primary: 73 181 159;
+  --solaris-bg-secondary: 38 112 121;
+  --solaris-bg-tertiary: 77 142 190;
+  --solaris-bg-deep: 2 17 23;
+  --solaris-bg-deep-2: 5 39 45;
+}
+body[data-solaris-family="shows"] {
+  --solaris-bg-primary: 202 100 151;
+  --solaris-bg-secondary: 112 67 142;
+  --solaris-bg-tertiary: 82 111 176;
+  --solaris-bg-deep: 15 7 26;
+  --solaris-bg-deep-2: 35 15 43;
+}
+body[data-solaris-family="wiki"] {
+  --solaris-bg-primary: 194 158 94;
+  --solaris-bg-secondary: 116 89 67;
+  --solaris-bg-tertiary: 72 139 135;
+  --solaris-bg-deep: 18 13 10;
+  --solaris-bg-deep-2: 40 29 18;
+}
+body[data-solaris-family="analysis"] {
+  --solaris-bg-primary: 125 112 205;
+  --solaris-bg-secondary: 67 78 158;
+  --solaris-bg-tertiary: 67 148 185;
+  --solaris-bg-deep: 8 8 29;
+  --solaris-bg-deep-2: 25 22 55;
+}
+body[data-solaris-family="relationships"] {
+  --solaris-bg-primary: 184 103 157;
+  --solaris-bg-secondary: 108 71 145;
+  --solaris-bg-tertiary: 72 126 177;
+  --solaris-bg-deep: 16 7 25;
+  --solaris-bg-deep-2: 39 18 46;
+}
+body[data-solaris-family="compare"] {
+  --solaris-bg-primary: 190 104 111;
+  --solaris-bg-secondary: 151 104 72;
+  --solaris-bg-tertiary: 80 103 165;
+  --solaris-bg-deep: 20 9 14;
+  --solaris-bg-deep-2: 43 23 22;
+}
+body[data-solaris-family="records"] {
+  --solaris-bg-primary: 195 159 85;
+  --solaris-bg-secondary: 127 96 55;
+  --solaris-bg-tertiary: 67 132 157;
+  --solaris-bg-deep: 18 14 7;
+  --solaris-bg-deep-2: 39 29 13;
+}
+body[data-solaris-family="predictions"] {
+  --solaris-bg-primary: 184 102 174;
+  --solaris-bg-secondary: 103 79 169;
+  --solaris-bg-tertiary: 189 123 86;
+  --solaris-bg-deep: 17 7 28;
+  --solaris-bg-deep-2: 39 18 48;
+}
+body[data-solaris-family="confirmations"] {
+  --solaris-bg-primary: 69 174 151;
+  --solaris-bg-secondary: 42 119 118;
+  --solaris-bg-tertiary: 70 143 172;
+  --solaris-bg-deep: 2 18 22;
+  --solaris-bg-deep-2: 6 39 39;
+}
+body[data-solaris-family="broadcast"] {
+  --solaris-bg-primary: 202 121 88;
+  --solaris-bg-secondary: 145 73 92;
+  --solaris-bg-tertiary: 186 151 79;
+  --solaris-bg-deep: 21 9 12;
+  --solaris-bg-deep-2: 43 22 20;
+}
+body[data-solaris-family="archive-games"] {
+  --solaris-bg-primary: 116 171 103;
+  --solaris-bg-secondary: 64 119 91;
+  --solaris-bg-tertiary: 174 147 82;
+  --solaris-bg-deep: 8 18 13;
+  --solaris-bg-deep-2: 21 39 25;
+}
+body[data-solaris-family="tools"] {
+  --solaris-bg-primary: 113 105 190;
+  --solaris-bg-secondary: 61 124 158;
+  --solaris-bg-tertiary: 161 91 151;
+  --solaris-bg-deep: 8 8 28;
+  --solaris-bg-deep-2: 24 22 52;
+}
+
+/* Route colour belongs in the atmosphere, not poured over every card. */
+body[data-solaris-family] {
+  --card: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 6%, #07152b 94%);
+  --surface: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 5%, #09172d 95%);
+  --surface-strong: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 9%, #0a192f 91%);
+  --secondary: color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 6%, #09172d 94%);
+  --muted: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 4%, #09172d 96%);
+  --border: rgb(var(--solaris-bg-primary) / .14);
+}
+
+body[data-solaris-family] .glass,
+body[data-solaris-family] .glass-strong,
+body[data-solaris-family] .data-panel,
+body[data-solaris-family] .surface {
+  border-color: rgb(var(--solaris-bg-primary) / .16) !important;
+  box-shadow: 0 12px 30px rgb(0 0 0 / .18), inset 0 1px 0 rgb(255 255 255 / .035) !important;
+}
+
+/* The country profile hero was visually the height of a small apartment block
+   on phones. Keep its identity treatment, but make the content determine size. */
+body[data-solaris-family="countries"] .app-main > section.glass:first-child {
+  min-height: 0 !important;
+  padding: 1rem !important;
+}
+body[data-solaris-family="countries"] .app-main > section.glass:first-child > .relative.z-10 {
+  gap: .85rem !important;
+}
+body[data-solaris-family="countries"] .app-main > section.glass:first-child .flex.flex-wrap.gap-2 {
+  gap: .45rem !important;
+}
+
+/* Homepage lead story: badges are metadata, not a second headline. The card
+   should breathe without making the actual headline fight them for space. */
+body[data-solaris-family="home"] a.group[class*="min-h-[350px]"] {
+  min-height: 0 !important;
+}
+body[data-solaris-family="home"] a.group[class*="min-h-[350px]"] > .relative.z-10 {
+  min-height: 0 !important;
+  gap: 1.35rem !important;
+  padding: 1.15rem !important;
+}
+body[data-solaris-family="home"] a.group[class*="min-h-[350px]"] > .relative.z-10 > .flex.flex-wrap {
+  gap: .45rem !important;
+}
+body[data-solaris-family="home"] a.group[class*="min-h-[350px]"] h2 {
+  margin-top: .7rem !important;
+  font-size: clamp(1.85rem, 8.5vw, 3rem) !important;
+  line-height: 1.01 !important;
+}
+body[data-solaris-family="home"] a.group[class*="min-h-[350px]"] h2 + p {
+  margin-top: .9rem !important;
+}
+body[data-solaris-family="home"] a.group[class*="min-h-[350px]"] span[class*="mt-6"] {
+  margin-top: 1rem !important;
+}
+
+/* Global card sanity. Long copy should wrap; metadata should not inflate a card
+   merely because a utility class gave it a ceremonial minimum height. */
+.app-main .glass,
+.app-main .glass-strong,
+.app-main .data-panel,
+.app-main .surface,
+.admin-control-room article,
+.admin-control-room section {
+  min-width: 0;
+}
+.app-main .glass p,
+.app-main .glass-strong p,
+.app-main .data-panel p,
+.admin-control-room article p,
+.admin-control-room section p {
+  overflow-wrap: anywhere;
+}
+
+/* Admin: denser information hierarchy, fewer giant empty slabs. */
+.admin-control-room .data-panel,
+.admin-control-room .surface,
+.admin-control-room .glass,
+.admin-control-room .glass-strong {
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 24px rgb(0 0 0 / .16), inset 0 1px 0 rgb(255 255 255 / .025) !important;
+}
+.admin-control-room h2,
+.admin-control-room h3 {
+  text-wrap: balance;
+}
+.admin-control-room [class*="min-h-[200px]"],
+.admin-control-room [class*="min-h-[240px]"],
+.admin-control-room [class*="min-h-[280px]"],
+.admin-control-room [class*="min-h-[300px]"] {
+  min-height: 0 !important;
+}
+
+@media (max-width: 767px) {
+  body[data-solaris-family] .glass,
+  body[data-solaris-family] .glass-strong,
+  body[data-solaris-family] .data-panel,
+  body[data-solaris-family] .surface {
+    border-radius: 1.25rem;
+  }
+
+  body[data-solaris-family="countries"] .app-main > section.glass:first-child .flex.min-w-0.items-center {
+    align-items: center !important;
+    gap: .8rem !important;
+  }
+
+  body[data-solaris-family="countries"] .app-main > section.glass:first-child [class*="h-72"][class*="w-72"] {
+    width: 11rem !important;
+    height: 11rem !important;
+    top: -2.5rem !important;
+    right: -2.5rem !important;
+  }
+
+  .admin-control-room .grid {
+    align-items: start;
+  }
+}
+
+@media (min-width: 768px) {
+  body[data-solaris-family="home"] a.group[class*="min-h-[350px]"] > .relative.z-10 {
+    padding: 1.75rem !important;
+  }
+}
