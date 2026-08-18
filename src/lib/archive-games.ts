@@ -4,7 +4,8 @@ export type ArchiveGameMode =
   | "higher-lower"
   | "jury-tele"
   | "edition-detective"
-  | "winner-detective";
+  | "winner-detective"
+  | "archive-trivia";
 
 export type ArchiveGameOption = {
   id: string;
@@ -307,6 +308,85 @@ function buildWinnerDetective(
   };
 }
 
+function buildArchiveTrivia(
+  input: ArchiveGameInput,
+  entries: HistoricalEntry[],
+  seed: string,
+): ArchiveGameQuestion | null {
+  const hostEditions = input.editions.filter(
+    (edition) => edition.published && edition.host_city?.trim(),
+  );
+  const uniqueCities = [...new Set(hostEditions.map((edition) => edition.host_city!.trim()))];
+  const songEntries = entries.filter((entry) => entry.song?.trim() && entry.artist?.trim());
+
+  const tryHostQuestion = seededNumber(`${seed}:kind`) < 0.5 && hostEditions.length > 0 && uniqueCities.length >= 3;
+
+  if (tryHostQuestion) {
+    const edition = pick(hostEditions, `${seed}:host-edition`);
+    if (edition?.host_city) {
+      const correctCity = edition.host_city.trim();
+      const distractors = shuffle(
+        uniqueCities.filter((city) => city !== correctCity),
+        `${seed}:host-distractors`,
+      ).slice(0, 3);
+      const cities = shuffle([correctCity, ...distractors], `${seed}:host-options`);
+
+      if (cities.length >= 3) {
+        return {
+          id: `trivia:host:${edition.id}`,
+          mode: "archive-trivia",
+          eyebrow: `${editionDisplay(edition)} · Host trivia`,
+          prompt: `Which city hosted ${editionDisplay(edition)}?`,
+          options: cities.map((city) => ({ id: `city:${city}`, label: city })),
+          correctOptionId: `city:${correctCity}`,
+          explanation: `${editionDisplay(edition)} was hosted in ${correctCity}.`,
+          editionId: edition.id,
+          entityIds: [],
+        };
+      }
+    }
+  }
+
+  const entry = pick(songEntries, `${seed}:song-entry`);
+  if (!entry?.song) return null;
+
+  const sameEditionSongs = songEntries.filter(
+    (candidate) =>
+      candidate.editionId === entry.editionId &&
+      candidate.entityId !== entry.entityId &&
+      candidate.song &&
+      candidate.song !== entry.song,
+  );
+  const widerSongs = songEntries.filter(
+    (candidate) => candidate.entityId !== entry.entityId && candidate.song !== entry.song,
+  );
+  const distractorPool = sameEditionSongs.length >= 3 ? sameEditionSongs : widerSongs;
+  const distractors = shuffle(distractorPool, `${seed}:song-distractors`).slice(0, 3);
+  if (distractors.length < 2) return null;
+
+  const options = shuffle(
+    [entry, ...distractors].map((candidate) => ({
+      id: `song:${candidate.entityId}:${candidate.editionId}`,
+      label: candidate.song!,
+      detail: candidate.artist ?? undefined,
+    })),
+    `${seed}:song-options`,
+  );
+
+  return {
+    id: `trivia:song:${entry.editionId}:${entry.entityId}`,
+    mode: "archive-trivia",
+    eyebrow: `${entry.editionLabel} · Entry trivia`,
+    prompt: `Which song did ${entry.name} send in ${entry.editionLabel}?`,
+    options,
+    correctOptionId: `song:${entry.entityId}:${entry.editionId}`,
+    explanation: `${entry.name} sent “${entry.song}” by ${entry.artist} in ${entry.editionLabel}.`,
+    editionId: entry.editionId,
+    showId: entry.showId ?? undefined,
+    entityIds: [],
+  };
+}
+
 export function buildArchiveGameQuestion(
   input: ArchiveGameInput,
   mode: ArchiveGameMode,
@@ -318,6 +398,7 @@ export function buildArchiveGameQuestion(
   if (mode === "higher-lower") return buildHigherLower(entries, seed);
   if (mode === "jury-tele") return buildJuryTele(entries, seed);
   if (mode === "winner-detective") return buildWinnerDetective(entries, seed);
+  if (mode === "archive-trivia") return buildArchiveTrivia(input, entries, seed);
   return buildEditionDetective(entries, input.editions, seed);
 }
 
