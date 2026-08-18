@@ -140,6 +140,11 @@ function EditionThemePage() {
     }
   };
 
+  const saveCompatibilityImage = async (url: string | null) => {
+    const { error } = await supabase.from("editions").update({ logo: url }).eq("id", edition.id);
+    if (error) throw error;
+  };
+
   const save = async (generatedFromArtwork = false) => {
     setBusy(true);
     setMessage(null);
@@ -152,14 +157,16 @@ function EditionThemePage() {
         palette,
         generatedFromArtwork,
       });
+      await saveCompatibilityImage(artworkUrl);
       await synchroniseScoreboardThemes(theme);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["editions"] }),
+        qc.invalidateQueries({ queryKey: ["edition"] }),
         qc.invalidateQueries({ queryKey: ["themes"] }),
         qc.invalidateQueries({ queryKey: ["shows"] }),
         qc.invalidateQueries({ queryKey: ["all-shows"] }),
       ]);
-      setMessage("Edition theme saved. Edition pages, every show and all linked scoreboard themes now share these colours.");
+      setMessage("Edition theme saved. The public artwork stays uncropped, while edition pages, shows and linked scoreboards share these colours.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Edition theme could not be saved.");
     } finally {
@@ -186,14 +193,16 @@ function EditionThemePage() {
         palette: extracted.palette,
         generatedFromArtwork: true,
       });
+      await saveCompatibilityImage(asset.publicUrl);
       await synchroniseScoreboardThemes(extracted.theme);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["editions"] }),
+        qc.invalidateQueries({ queryKey: ["edition"] }),
         qc.invalidateQueries({ queryKey: ["themes"] }),
         qc.invalidateQueries({ queryKey: ["shows"] }),
         qc.invalidateQueries({ queryKey: ["all-shows"] }),
       ]);
-      setMessage("Artwork uploaded. Solaris generated the edition palette and synchronized all linked scoreboards. You can fine-tune it below.");
+      setMessage("Artwork uploaded. It is shown uncropped on the public edition page, and Solaris generated a matching edition palette. You can fine-tune it below.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Artwork could not be processed.");
     } finally {
@@ -204,12 +213,12 @@ function EditionThemePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Edition design · Artwork intelligence"
+        eyebrow="Design & Broadcast · Official artwork"
         title={edition.edition_number ? `SSC ${edition.edition_number} visual identity` : edition.name}
-        description="Upload the edition artwork and Solaris extracts a restrained palette for the edition page, every show and all linked scoreboards. Manual changes remain possible after generation."
+        description="Upload the official edition artwork without cropping it. Solaris can extract a restrained palette for the edition, shows and linked scoreboards."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to="/admin/design/$slug" params={{ slug }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Advanced design</Link>
+            <Link to="/admin/design/$slug" params={{ slug }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">← Design & Broadcast</Link>
             <Link to="/editions/$slug" params={{ slug }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Public edition →</Link>
           </div>
         }
@@ -217,12 +226,14 @@ function EditionThemePage() {
 
       <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
         <div className="space-y-5">
-          <Panel title="Edition artwork" description="JPEG, PNG or WebP. The image is stored with the edition and becomes part of its public hero design.">
+          <Panel title="Official edition artwork" description="JPEG, PNG or WebP. Solaris preserves the full composition and never uses object-cover for the public artwork card.">
             <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => event.target.files?.[0] && void upload(event.target.files[0])} className="block w-full text-sm" />
             {artworkUrl ? (
-              <img src={artworkUrl} alt={`${edition.name} artwork`} className="mt-4 aspect-[4/3] w-full rounded-2xl border border-border object-cover" />
+              <div className="mt-4 grid max-h-[72vh] place-items-center overflow-auto rounded-2xl border border-border bg-black/10 p-3">
+                <img src={artworkUrl} alt={`${edition.name} artwork`} className="block h-auto max-h-[68vh] w-auto max-w-full rounded-xl object-contain" />
+              </div>
             ) : (
-              <div className="mt-4 grid aspect-[4/3] place-items-center rounded-2xl border border-dashed border-border bg-surface text-sm text-muted-foreground">No edition artwork uploaded yet</div>
+              <div className="mt-4 grid min-h-52 place-items-center rounded-2xl border border-dashed border-border bg-surface text-sm text-muted-foreground">No edition artwork uploaded yet</div>
             )}
             {palette.length > 0 && (
               <div className="mt-4">
@@ -248,14 +259,18 @@ function EditionThemePage() {
           </Panel>
         </div>
 
-        <Panel title="Live edition preview" description="The same theme is inherited by edition pages, show pages and scoreboard chrome.">
-          <div className="relative min-h-[34rem] overflow-hidden rounded-3xl border p-6" style={{ background: `radial-gradient(circle at 80% 12%, ${theme.accent}38, transparent 34%), linear-gradient(150deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`, color: theme.textPrimary, borderColor: `${theme.accent}55` }}>
-            {artworkUrl && <img src={artworkUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-[.18] mix-blend-screen" />}
-            <div className="relative z-10">
+        <Panel title="Live edition preview" description="Artwork remains a complete image; the generated colours provide the surrounding atmosphere.">
+          <div className="overflow-hidden rounded-3xl border p-5" style={{ background: `radial-gradient(circle at 80% 12%, ${theme.accent}38, transparent 34%), linear-gradient(150deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`, color: theme.textPrimary, borderColor: `${theme.accent}55` }}>
+            {artworkUrl ? (
+              <div className="grid place-items-center rounded-2xl border p-3" style={{ background: theme.surface, borderColor: `${theme.accent}44` }}>
+                <img src={artworkUrl} alt="" className="block h-auto max-h-[48vh] w-auto max-w-full rounded-xl object-contain" />
+              </div>
+            ) : null}
+            <div className="mt-5">
               <p className="text-[10px] font-bold uppercase tracking-[.18em]" style={{ color: theme.accent }}>Solaris Song Contest</p>
-              <h2 className="mt-3 text-5xl font-bold">{edition.edition_number ? `SSC ${edition.edition_number}` : edition.name}</h2>
-              <p className="mt-3 max-w-md text-sm leading-relaxed" style={{ color: theme.textMuted }}>Edition artwork defines the atmosphere without sacrificing readable results, analysis and voting views.</p>
-              <div className="mt-8 rounded-2xl border p-5" style={{ background: theme.surface, borderColor: `${theme.accent}44` }}>
+              <h2 className="mt-2 text-4xl font-bold">{edition.edition_number ? `SSC ${edition.edition_number}` : edition.name}</h2>
+              <p className="mt-2 max-w-md text-sm leading-relaxed" style={{ color: theme.textMuted }}>The artwork is displayed separately and intact; the palette carries its visual identity through the surrounding interface.</p>
+              <div className="mt-5 rounded-2xl border p-5" style={{ background: theme.surface, borderColor: `${theme.accent}44` }}>
                 <p className="text-xs font-bold uppercase tracking-[.14em]" style={{ color: theme.accent }}>Scoreboard sample</p>
                 <div className="mt-4 space-y-2">
                   {["01  DIARIA", "02  FENNEK", "03  OLAND"].map((label, index) => (
