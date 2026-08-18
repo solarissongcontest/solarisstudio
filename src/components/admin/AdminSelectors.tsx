@@ -14,7 +14,11 @@ export function AdminSelectors() {
     [editions],
   );
 
-  const routeEdition = orderedEditions.find((edition) => pathname === `/admin/${edition.slug}`) ?? null;
+  const routeEdition = orderedEditions.find((edition) =>
+    pathname === `/admin/${edition.slug}` ||
+    pathname.startsWith(`/admin/design/${edition.slug}`) ||
+    pathname.startsWith(`/admin/edition-theme/${edition.slug}`),
+  ) ?? null;
   const savedEdition = orderedEditions.find((edition) => edition.id === editionId) ?? null;
   const activeEdition = routeEdition ?? savedEdition ?? orderedEditions[0] ?? null;
 
@@ -25,26 +29,26 @@ export function AdminSelectors() {
   const changeEdition = (nextId: string) => {
     const nextEdition = orderedEditions.find((edition) => edition.id === nextId);
     if (!nextEdition) return;
-
     setEditionId(nextEdition.id);
 
     if (routeEdition) {
-      window.location.href = `/admin/${nextEdition.slug}`;
+      window.location.assign(`/admin/${nextEdition.slug}`);
     }
   };
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="hidden text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground sm:inline">Edition</span>
+    <div className="flex min-w-0 items-center justify-end sm:justify-start">
+      <label className="sr-only" htmlFor="admin-edition-context">Active edition</label>
       <select
-        className="min-h-9 max-w-[13rem] rounded-lg border border-border bg-surface px-2 text-xs font-semibold outline-none sm:max-w-[18rem]"
+        id="admin-edition-context"
+        className="min-h-10 max-w-[9.5rem] rounded-xl border border-white/[0.08] bg-white/[0.035] px-2.5 text-xs font-bold text-foreground outline-none focus:border-sky-200/25 sm:max-w-[15rem]"
         value={activeEdition?.id ?? ""}
         onChange={(event) => changeEdition(event.target.value)}
-        aria-label="Active admin edition"
       >
+        {!orderedEditions.length ? <option value="">No editions</option> : null}
         {orderedEditions.map((edition) => (
           <option key={edition.id} value={edition.id}>
-            {editionLabel(edition)} · {edition.name}
+            {editionLabel(edition)}{edition === activeEdition ? "" : ` · ${edition.name}`}
           </option>
         ))}
       </select>
