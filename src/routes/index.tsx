@@ -18,10 +18,7 @@ import {
   winnerLeadStory,
   type HomeNewsStory,
 } from "@/lib/home-newsroom";
-import {
-  isShowPublic,
-  showPublishesResults,
-} from "@/lib/publication";
+import { isShowPublic, showPublishesResults } from "@/lib/publication";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,85 +27,49 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "The Solaris Song Contest newsroom: latest results, voting stories, predictions, records, interactive tools and archive analysis.",
+          "The Solaris Song Contest newsroom: latest results, countries, editions, records and archive analysis.",
       },
     ],
   }),
   component: HomePage,
 });
 
-const FEATURE_DESKS = [
+const CORE_DESTINATIONS = [
   {
-    to: "/pulse",
-    label: "Live desk",
-    title: "Solaris Pulse",
-    description: "Follow the countries, editions and shows you care about and get the important changes in one feed.",
-  },
-  {
-    to: "/predictions",
-    label: "Prediction desk",
-    title: "Prediction Arena",
-    description: "Call the winner, qualifiers and rankings before the round locks, then see how your prediction survived reality.",
-  },
-  {
-    to: "/result-lab",
-    label: "What-if desk",
-    title: "Result Lab",
-    description: "Change the jury/televote balance, remove juries and recalculate a published result without touching the official score.",
-  },
-  {
-    to: "/taste-dna",
-    label: "Personal desk",
-    title: "Taste DNA",
-    description: "Rank a field and discover whether your taste is jury-coded, televote-coded, mainstream or gloriously difficult.",
-  },
-  {
-    to: "/broadcast-intelligence",
-    label: "Results desk",
-    title: "Broadcast Intelligence",
-    description: "Replay the televote reveal and inspect lead changes, collapses, comebacks and jury-versus-public drama.",
-  },
-  {
-    to: "/archive-games",
-    label: "Games desk",
-    title: "Archive Games",
-    description: "Turn historical results into quick Higher or Lower, Jury vs Televote and Edition Detective rounds.",
-  },
-  {
-    to: "/analysis",
-    label: "Data desk",
-    title: "Analysis",
-    description: "Explore voting patterns, scoring behaviour and the deeper numbers behind the final rankings.",
-  },
-  {
-    to: "/relationships",
-    label: "Network desk",
-    title: "Relationships",
-    description: "See which countries repeatedly support each other, share taste or develop suspiciously persistent rivalries.",
-  },
-  {
-    to: "/compare",
-    label: "Head-to-head",
-    title: "Compare countries",
-    description: "Put two delegations side by side across placements, points and voting history.",
-  },
-  {
-    to: "/records",
-    label: "Archive desk",
-    title: "Records",
-    description: "Track the wins, streaks, points and all-time marks that still define Solaris history.",
+    to: "/countries",
+    label: "Delegations",
+    title: "Countries",
+    description: "Find a country, artist or song and open its SSC history.",
   },
   {
     to: "/editions",
     label: "Contest archive",
     title: "Editions",
-    description: "Open every published contest chapter, show and result from the Solaris archive.",
+    description: "Browse published contests, shows, entries and available results.",
   },
   {
-    to: "/countries",
-    label: "Delegation desk",
-    title: "Countries",
-    description: "Browse every delegation's placements, voting profile and contest history.",
+    to: "/analysis",
+    label: "Data",
+    title: "Analysis",
+    description: "Explore voting relationships, jury-versus-tele patterns and history.",
+  },
+  {
+    to: "/records",
+    label: "Archive",
+    title: "Records",
+    description: "Wins, streaks, career marks and other historical records.",
+  },
+  {
+    to: "/compare",
+    label: "Head-to-head",
+    title: "Compare countries",
+    description: "Put two delegations side by side without digging through separate pages.",
+  },
+  {
+    to: "/tools",
+    label: "Interactive",
+    title: "Tools & games",
+    description: "Result Lab, Prediction Arena, Taste DNA, Archive Games and more.",
   },
 ] as const;
 
@@ -145,9 +106,7 @@ function HomePage() {
     () =>
       latestEdition
         ? showList
-            .filter(
-              (show) => show.edition_id === latestEdition.id && isShowPublic(show),
-            )
+            .filter((show) => show.edition_id === latestEdition.id && isShowPublic(show))
             .sort((a, b) => a.sort_order - b.sort_order)
         : [],
     [latestEdition, showList],
@@ -200,7 +159,10 @@ function HomePage() {
     [latestCompletedResults, countryMap],
   );
 
-  const winner = namedLatestResults.find((entry) => entry.finalRank === 1) ?? namedLatestResults[0] ?? null;
+  const winner =
+    namedLatestResults.find((entry) => entry.finalRank === 1) ??
+    namedLatestResults[0] ??
+    null;
   const winnerCountry = winner ? countryMap.get(winner.countryId) ?? null : null;
   const leadStory = latestCompletedShow
     ? winnerLeadStory(namedLatestResults, latestCompletedShow.name)
@@ -214,18 +176,24 @@ function HomePage() {
       .map((show) => show.id),
   );
   const totalWinners = resultList.filter(
-    (result) => result.final_rank === 1 && result.show_id && grandFinalIds.has(result.show_id),
+    (result) =>
+      result.final_rank === 1 &&
+      result.show_id &&
+      grandFinalIds.has(result.show_id),
   ).length;
   const publicShowCount = showList.filter(isShowPublic).length;
   const latestEditionIsActive = Boolean(
     latestEdition && !["complete", "completed"].includes(latestEdition.status.toLowerCase()),
   );
 
-  const breakingStory = newsroomStories.find((story) => story.intensity === "breaking") ?? newsroomStories[0] ?? leadStory;
+  const breakingStory =
+    newsroomStories.find((story) => story.intensity === "breaking") ??
+    newsroomStories[0] ??
+    leadStory;
 
   return (
     <AppShell>
-      <div className="min-w-0 space-y-6 sm:space-y-10">
+      <div className="min-w-0 space-y-7 sm:space-y-9">
         <header className="min-w-0 border-b border-border/70 pb-4">
           <div className="flex min-w-0 items-end justify-between gap-4">
             <div className="min-w-0">
@@ -236,7 +204,7 @@ function HomePage() {
                 Solaris Today
               </h1>
               <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Results, voting drama, predictions and the stories hiding inside the scoreboard.
+                The quickest route into SSC countries, editions, results, records and analysis.
               </p>
             </div>
 
@@ -250,7 +218,11 @@ function HomePage() {
 
           <div className="mt-4 flex min-w-0 items-center gap-3 border-y border-border/60 py-2.5">
             <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-primary-foreground">
-              {latestEditionIsActive ? "Live" : breakingStory?.intensity === "breaking" ? "Breaking" : "Latest"}
+              {latestEditionIsActive
+                ? "Live"
+                : breakingStory?.intensity === "breaking"
+                  ? "Breaking"
+                  : "Latest"}
             </span>
             <p className="min-w-0 flex-1 truncate text-xs font-semibold sm:text-sm">
               {breakingStory?.headline ??
@@ -259,10 +231,10 @@ function HomePage() {
                   : "The Solaris newsroom is waiting for its next story")}
             </p>
             <Link
-              to="/tools"
+              to="/countries"
               className="shrink-0 text-[9px] font-black uppercase tracking-[0.13em] text-primary sm:text-[10px]"
             >
-              All desks →
+              Browse SSC →
             </Link>
           </div>
         </header>
@@ -274,17 +246,17 @@ function HomePage() {
             <Link
               to="/shows/$showId"
               params={{ showId: latestCompletedShow.id }}
-              className="group relative min-h-[390px] min-w-0 overflow-hidden rounded-[1.8rem] border border-white/15 bg-[#020817] shadow-2xl sm:min-h-[540px]"
+              className="group relative min-h-[350px] min-w-0 overflow-hidden rounded-[1.7rem] border border-white/15 bg-[#020817] shadow-2xl sm:min-h-[470px]"
             >
               <BackgroundFlag
                 image={winnerCountry?.flag_image}
                 className="-right-[18%] top-[45%] w-[105%] -translate-y-1/2 sm:w-[66%]"
-                opacity={0.32}
+                opacity={0.24}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-[#041329]/78 to-[#061d39]/24" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/75 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-[#041329]/82 to-[#061d39]/24" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/78 via-transparent to-transparent" />
 
-              <div className="relative z-10 flex min-h-[390px] flex-col justify-between p-5 sm:min-h-[540px] sm:p-8 lg:p-9">
+              <div className="relative z-10 flex min-h-[350px] flex-col justify-between p-5 sm:min-h-[470px] sm:p-8">
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-primary px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-primary-foreground">
                     {leadStory.label}
@@ -298,22 +270,15 @@ function HomePage() {
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
                     Lead story
                   </p>
-                  <h2 className="mt-3 break-words font-display text-[2rem] font-black leading-[0.96] tracking-[-0.05em] text-white sm:text-5xl lg:text-6xl">
+                  <h2 className="mt-3 break-words font-display text-[2rem] font-black leading-[0.98] tracking-[-0.05em] text-white sm:text-5xl">
                     {leadStory.headline}
                   </h2>
                   <p className="mt-4 max-w-2xl break-words text-sm leading-relaxed text-white/65 sm:text-base">
                     {leadStory.detail}
                   </p>
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <span className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-black text-[#061225] transition-transform group-hover:translate-x-1">
-                      Open result →
-                    </span>
-                    {winner && (
-                      <span className="numeric text-xs font-semibold text-white/55">
-                        {winner.totalPoints} winner points
-                      </span>
-                    )}
-                  </div>
+                  <span className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-black text-[#061225] transition-transform group-hover:translate-x-1">
+                    Open result →
+                  </span>
                 </div>
               </div>
             </Link>
@@ -321,15 +286,17 @@ function HomePage() {
             <Link
               to="/editions/$slug"
               params={{ slug: latestEdition.slug }}
-              className="glass flex min-h-[300px] min-w-0 items-end p-5 sm:min-h-[420px] sm:p-8"
+              className="glass flex min-h-[300px] min-w-0 items-end p-5 sm:min-h-[400px] sm:p-8"
             >
               <div className="min-w-0">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Edition desk</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                  Current edition
+                </p>
                 <h2 className="mt-2 break-words font-display text-3xl font-black sm:text-5xl">
                   {editionLabel(latestEdition)} is now in focus
                 </h2>
                 <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                  Open the edition for every show, entry, publication and result currently available.
+                  Open the edition for its published shows and entry information.
                 </p>
               </div>
             </Link>
@@ -338,13 +305,15 @@ function HomePage() {
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Newsroom</p>
                 <h2 className="mt-2 font-display text-3xl font-black">No public edition yet</h2>
-                <p className="mt-3 text-sm text-muted-foreground">The homepage will build itself around the first published edition.</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  The homepage will build itself around the first published edition.
+                </p>
               </div>
             </div>
           )}
 
           <aside className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            {newsroomStories.slice(0, 3).map((story) => (
+            {newsroomStories.slice(0, 2).map((story) => (
               <HeadlineCard
                 key={story.id}
                 story={story}
@@ -355,9 +324,9 @@ function HomePage() {
               <HeadlineCard
                 story={{
                   id: "analysis-fallback",
-                  label: "Data desk",
+                  label: "Analysis",
                   headline: "The scoreboard is only the beginning",
-                  detail: "Open Solaris analysis to explore voting patterns, records and country relationships.",
+                  detail: "Explore voting patterns, records and country relationships.",
                   intensity: "standard",
                 }}
                 to="/analysis"
@@ -366,37 +335,34 @@ function HomePage() {
           </aside>
         </section>
 
-        {newsroomStories.length > 3 && (
-          <section>
-            <SectionHeader
-              kicker="Newswire"
-              title="The stories behind the result"
-              linkLabel="Replay the result"
-              linkTo="/broadcast-intelligence"
-            />
-            <div className="mt-3 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {newsroomStories.slice(3, 8).map((story) => (
-                <HeadlineCard
-                  key={story.id}
-                  story={story}
-                  to={storyRoute(story, latestCompletedShow?.id)}
-                  compact
-                />
-              ))}
-            </div>
-          </section>
-        )}
+        <section>
+          <SectionHeader
+            kicker="Start here"
+            title="Explore Solaris"
+            linkLabel="All tools"
+            linkTo="/tools"
+          />
+          <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            Six clear starting points instead of a wall of similarly named desks. Humanity has rediscovered navigation.
+          </p>
+
+          <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {CORE_DESTINATIONS.map((item) => (
+              <DestinationCard key={item.to} {...item} />
+            ))}
+          </div>
+        </section>
 
         <section className="grid min-w-0 gap-5 lg:grid-cols-[1.15fr_.85fr]">
           <div className="min-w-0">
             <SectionHeader
-              kicker="Scoreboard"
+              kicker="Latest scoreboard"
               title={
                 latestCompletedShow
                   ? `${latestCompletedEdition ? `${editionLabel(latestCompletedEdition)} · ` : ""}${latestCompletedShow.name}`
                   : "Latest result"
               }
-              linkLabel="Full scoreboard"
+              linkLabel="Full result"
               linkTo={latestCompletedShow ? `/shows/${latestCompletedShow.id}` : "/editions"}
             />
 
@@ -413,7 +379,9 @@ function HomePage() {
                       params={{ code: country.short_code }}
                       className={`grid min-w-0 grid-cols-[34px_38px_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2 py-3 transition-colors hover:bg-surface sm:grid-cols-[42px_44px_minmax(0,1fr)_auto] sm:gap-3 ${index === 0 ? "bg-primary/5" : ""}`}
                     >
-                      <span className={`numeric text-center text-xs font-black sm:text-sm ${index === 0 ? "text-primary" : "text-muted-foreground"}`}>
+                      <span
+                        className={`numeric text-center text-xs font-black sm:text-sm ${index === 0 ? "text-primary" : "text-muted-foreground"}`}
+                      >
                         #{result.final_rank ?? index + 1}
                       </span>
                       <FlagChip
@@ -425,11 +393,14 @@ function HomePage() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{country.name}</p>
                         {index === 0 && (
-                          <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-primary">Winner</p>
+                          <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-primary">
+                            Winner
+                          </p>
                         )}
                       </div>
                       <span className="numeric shrink-0 text-xs font-black sm:text-sm">
-                        {result.total_points} <span className="text-[8px] font-normal text-muted-foreground">pts</span>
+                        {result.total_points}{" "}
+                        <span className="text-[8px] font-normal text-muted-foreground">pts</span>
                       </span>
                     </Link>
                   );
@@ -442,7 +413,7 @@ function HomePage() {
 
           <div className="min-w-0">
             <SectionHeader
-              kicker="Edition desk"
+              kicker="Current edition"
               title={latestEdition ? editionLabel(latestEdition) : "Current edition"}
               linkLabel="Open edition"
               linkTo={latestEdition ? `/editions/${latestEdition.slug}` : "/editions"}
@@ -479,29 +450,17 @@ function HomePage() {
           </div>
         </section>
 
-        <section>
-          <SectionHeader
-            kicker="Interactive newsroom"
-            title="Every Solaris desk, from predictions to archive games"
-            linkLabel="Open all tools"
-            linkTo="/tools"
-          />
-
-          <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {FEATURE_DESKS.map((desk, index) => (
-              <DeskCard key={desk.to} {...desk} number={String(index + 1).padStart(2, "0")} />
-            ))}
-          </div>
-        </section>
-
         <section className="border-y border-border/60 py-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.24em] text-primary">Public archive</p>
-              <h2 className="mt-1 font-display text-xl font-black sm:text-2xl">The size of Solaris right now</h2>
+              <h2 className="mt-1 font-display text-xl font-black sm:text-2xl">Solaris at a glance</h2>
             </div>
-            <Link to="/archive-games" className="text-[10px] font-black uppercase tracking-[0.12em] text-primary">
-              Play the archive →
+            <Link
+              to="/records"
+              className="text-[10px] font-black uppercase tracking-[0.12em] text-primary"
+            >
+              Browse records →
             </Link>
           </div>
 
@@ -518,7 +477,12 @@ function HomePage() {
 }
 
 function storyRoute(story: HomeNewsStory, showId?: string) {
-  if (story.id.includes("jury") || story.id.includes("tele") || story.id.includes("rise") || story.id.includes("fall")) {
+  if (
+    story.id.includes("jury") ||
+    story.id.includes("tele") ||
+    story.id.includes("rise") ||
+    story.id.includes("fall")
+  ) {
     return "/broadcast-intelligence";
   }
   if (story.id.includes("runner-up") || story.id.includes("podium")) {
@@ -527,17 +491,8 @@ function storyRoute(story: HomeNewsStory, showId?: string) {
   return "/analysis";
 }
 
-function HeadlineCard({
-  story,
-  to,
-  compact = false,
-}: {
-  story: HomeNewsStory;
-  to: string;
-  compact?: boolean;
-}) {
+function HeadlineCard({ story, to }: { story: HomeNewsStory; to: string }) {
   const breaking = story.intensity === "breaking";
-  const strong = story.intensity === "strong";
 
   return (
     <Link
@@ -545,20 +500,16 @@ function HeadlineCard({
       className={`group flex min-w-0 flex-col rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 ${
         breaking
           ? "border-primary/45 bg-primary/12"
-          : strong
-            ? "border-border/80 bg-surface-strong/55"
-            : "border-border/70 bg-surface/45"
-      } ${compact ? "sm:min-h-[180px]" : "sm:min-h-[165px]"}`}
+          : "border-border/70 bg-surface/45"
+      } sm:min-h-[165px]`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[8px] font-black uppercase tracking-[0.19em] text-primary">
-          {breaking ? "● Breaking · " : ""}{story.label}
-        </p>
-        <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-          {story.intensity}
-        </span>
-      </div>
-      <h3 className={`mt-2 break-words font-display font-black leading-[1.04] tracking-[-0.025em] ${breaking ? "text-xl sm:text-2xl" : "text-lg"}`}>
+      <p className="text-[8px] font-black uppercase tracking-[0.19em] text-primary">
+        {breaking ? "● Breaking · " : ""}
+        {story.label}
+      </p>
+      <h3
+        className={`mt-2 break-words font-display font-black leading-[1.04] tracking-[-0.025em] ${breaking ? "text-xl sm:text-2xl" : "text-lg"}`}
+      >
         {story.headline}
       </h3>
       <p className="mt-2 break-words text-[10px] leading-relaxed text-muted-foreground sm:text-xs">
@@ -586,10 +537,15 @@ function SectionHeader({
     <div className="flex min-w-0 items-end justify-between gap-4 border-b border-border/60 pb-2.5">
       <div className="min-w-0">
         <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">{kicker}</p>
-        <h2 className="mt-1 break-words font-display text-xl font-black tracking-[-0.025em] sm:text-2xl">{title}</h2>
+        <h2 className="mt-1 break-words font-display text-xl font-black tracking-[-0.025em] sm:text-2xl">
+          {title}
+        </h2>
       </div>
       {linkLabel && linkTo && (
-        <Link to={linkTo} className="shrink-0 text-right text-[9px] font-black uppercase tracking-[0.11em] text-primary sm:text-[10px]">
+        <Link
+          to={linkTo}
+          className="shrink-0 text-right text-[9px] font-black uppercase tracking-[0.11em] text-primary sm:text-[10px]"
+        >
           {linkLabel} →
         </Link>
       )}
@@ -597,14 +553,12 @@ function SectionHeader({
   );
 }
 
-function DeskCard({
-  number,
+function DestinationCard({
   label,
   title,
   description,
   to,
 }: {
-  number: string;
   label: string;
   title: string;
   description: string;
@@ -613,15 +567,16 @@ function DeskCard({
   return (
     <Link
       to={to}
-      className="group flex min-w-0 flex-col rounded-2xl border border-border/70 bg-surface/45 p-4 transition-colors hover:bg-surface-strong"
+      className="group flex min-w-0 flex-col rounded-2xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface-strong"
     >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[8px] font-black uppercase tracking-[0.18em] text-primary">{label}</p>
-        <span className="numeric text-[9px] font-black text-muted-foreground">{number}</span>
-      </div>
+      <p className="text-[8px] font-black uppercase tracking-[0.18em] text-primary">{label}</p>
       <h3 className="mt-2 break-words font-display text-lg font-black">{title}</h3>
-      <p className="mt-2 break-words text-[10px] leading-relaxed text-muted-foreground sm:text-xs">{description}</p>
-      <span className="mt-auto pt-4 text-xs font-black text-primary transition-transform group-hover:translate-x-1">Open desk →</span>
+      <p className="mt-2 break-words text-[10px] leading-relaxed text-muted-foreground sm:text-xs">
+        {description}
+      </p>
+      <span className="mt-auto pt-4 text-xs font-black text-primary transition-transform group-hover:translate-x-1">
+        Open →
+      </span>
     </Link>
   );
 }
@@ -630,7 +585,9 @@ function NumberStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="min-w-0">
       <p className="numeric font-display text-3xl font-black tracking-[-0.04em] sm:text-4xl">{value}</p>
-      <p className="mt-1 break-words text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
     </div>
   );
 }
