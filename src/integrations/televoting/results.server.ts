@@ -133,10 +133,7 @@ async function readPublishedResults(
 }
 
 function hasAdminBackend() {
-  return Boolean(
-    process.env.TELEVOTING_SUPABASE_URL &&
-      process.env.TELEVOTING_SUPABASE_SERVICE_ROLE_KEY,
-  );
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 export async function getMergedPublishedTelevotingResultsServer(
@@ -145,9 +142,6 @@ export async function getMergedPublishedTelevotingResultsServer(
   try {
     const publicResult = await readPublishedResults(televotingPublicServer, roundId);
 
-    // If public RLS exposes published result data, no privileged credential is
-    // needed. If it silently filters the published round, retry with the admin
-    // client only when the deployment actually has that server-only credential.
     if (publicResult.round || !hasAdminBackend()) return publicResult;
   } catch (publicError) {
     if (!hasAdminBackend()) {
