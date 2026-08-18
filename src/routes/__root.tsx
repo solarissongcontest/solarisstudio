@@ -16,8 +16,10 @@ import accessibilityCss from "../accessibility.css?url";
 import anniversaryCss from "../anniversary.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
+import solarisMotionCss from "../solaris-motion.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
+import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
@@ -160,6 +162,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: anniversaryCss },
       { rel: "stylesheet", href: cardTypographyCss },
       { rel: "stylesheet", href: solarisBackgroundCss },
+      { rel: "stylesheet", href: solarisMotionCss },
     ],
   }),
   shellComponent: RootShell,
@@ -206,6 +209,7 @@ function RootComponent() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const serviceAdmin =
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
+  const fullAdmin = pathname.startsWith("/admin") || serviceAdmin;
   const publicParticipation =
     !serviceAdmin &&
     (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
@@ -234,6 +238,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {!fullAdmin ? <SolarisAmbientBackground /> : null}
       {content}
       <ToolQuickGuide pathname={pathname} />
     </QueryClientProvider>
