@@ -1,11 +1,12 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type ReactNode } from "react";
-import { DatabaseZap } from "lucide-react";
+import { DatabaseZap, ShieldCheck } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
-import { AdminShell } from "./AdminShell";
+import { AdminShell, AdminPage } from "./AdminShell";
+import { AdminCard, AdminPageHeader, AdminStatus } from "./AdminUI";
 
 type GateState = "checking" | "allowed" | "redirecting" | "backend-missing";
 
@@ -29,11 +30,7 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
 
       if (userError || !userData.user) {
         if (alive) setState("redirecting");
-        await navigate({
-          to: "/auth",
-          search: { redirect: pathname },
-          replace: true,
-        });
+        await navigate({ to: "/auth", search: { redirect: pathname }, replace: true });
         return;
       }
 
@@ -72,33 +69,38 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
       if (alive) setState("allowed");
     })();
 
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [getTelevotingStatus, navigate, pathname]);
 
   if (state === "backend-missing") {
     return (
       <AdminShell>
-        <section className="glass-strong mx-auto mt-8 max-w-2xl border-amber-300/25 p-7">
-          <div className="flex items-start gap-4">
-            <div className="grid size-11 shrink-0 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-              <DatabaseZap className="size-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-100/70">
-                Televoting backend
-              </p>
-              <h1 className="mt-2 text-xl font-medium">Privileged backend is not ready</h1>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Solaris organizer authentication is working, but this Cloudflare deployment cannot complete a privileged Televoting database check. Confirm the Worker has the required Televoting service-role secret and that the configured Televoting Supabase project is reachable.
-              </p>
-              <p className="mt-3 text-xs text-amber-100/70">
-                Public voting uses the separate browser-safe connection and can remain available while the organizer backend is restored.
-              </p>
-            </div>
+        <AdminPage>
+          <div className="mx-auto max-w-2xl">
+            <AdminPageHeader
+              eyebrow="Voting service"
+              title="Organizer connection unavailable"
+              description="Your Solaris organizer session is valid, but the privileged Televoting connection is not ready. Public voting may still remain available."
+              actions={<AdminStatus tone="attention">Needs attention</AdminStatus>}
+            />
+            <AdminCard strong>
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-amber-200/15 bg-amber-200/[0.06] text-amber-100"><DatabaseZap className="size-5" /></span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base font-bold text-foreground">Televoting organizer tools are temporarily unavailable</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Avoid live organizer actions until the privileged service connection is restored. This screen does not mean public voting or stored ballots were deleted.</p>
+                  <details className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-muted-foreground hover:text-foreground">Technical details</summary>
+                    <div className="mt-3 space-y-2 text-xs leading-relaxed text-muted-foreground">
+                      <p>The deployment cannot complete the privileged Televoting database check.</p>
+                      <p>Verify the server-side Televoting service credentials and that the configured Televoting Supabase project is reachable from the deployment.</p>
+                    </div>
+                  </details>
+                </div>
+              </div>
+            </AdminCard>
           </div>
-        </section>
+        </AdminPage>
       </AdminShell>
     );
   }
@@ -106,14 +108,16 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
   if (state !== "allowed") {
     return (
       <AdminShell>
-        <section className="glass-strong mx-auto mt-8 max-w-xl p-8 text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-100/60">
-            Solaris Operations
-          </p>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {state === "checking" ? "Checking organizer access…" : "Opening the authorized workspace…"}
-          </p>
-        </section>
+        <AdminPage>
+          <div className="mx-auto max-w-xl">
+            <AdminCard strong>
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.06] text-sky-100"><ShieldCheck className="size-4" /></span>
+                <div className="min-w-0"><p className="text-sm font-semibold text-foreground">{state === "checking" ? "Checking organizer access…" : "Opening the authorized workspace…"}</p><p className="mt-1 text-xs text-muted-foreground">Solaris is verifying the current organizer session.</p></div>
+              </div>
+            </AdminCard>
+          </div>
+        </AdminPage>
       </AdminShell>
     );
   }
