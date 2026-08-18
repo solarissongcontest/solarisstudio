@@ -3,6 +3,36 @@ import { randomUUID } from "node:crypto";
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 
+type RoundEntryRow = {
+  id: string;
+  round_id: string;
+  entry_type: "country" | "custom";
+  entry_key: string;
+  country_code: string | null;
+  custom_name: string | null;
+  short_name: string | null;
+  entry_code: string | null;
+  subtitle: string | null;
+  image_url: string | null;
+  description: string | null;
+  display_order: number;
+};
+
+type CountryRow = {
+  code: string;
+  name: string;
+  flag: string | null;
+  flag_url: string | null;
+};
+
+type RoundRow = {
+  id: string;
+  name?: string;
+  status: string;
+  participant_mode: string | null;
+  self_voting_mode: string | null;
+};
+
 async function audit(
   actor: { id: string; username: string },
   action: string,
@@ -22,43 +52,47 @@ async function audit(
 }
 
 async function assertEditableRound(roundId: string) {
-  const { data: round, error } = await televotingAdmin
+  const { data: rawRound, error } = await televotingAdmin
     .from("rounds")
     .select("id,status,participant_mode,self_voting_mode")
     .eq("id", roundId)
     .maybeSingle();
   if (error) throw new Error(error.message);
+
+  const round = rawRound as RoundRow | null;
   if (!round) throw new Error("Round not found");
   if (round.status === "open") throw new Error("Close the round before changing its participants");
   return round;
 }
 
 async function normalizeOrders(roundId: string) {
-  const { data, error } = await televotingAdmin
+  const { data: rawData, error } = await televotingAdmin
     .from("round_entries")
     .select("id")
     .eq("round_id", roundId)
     .order("display_order");
   if (error) throw new Error(error.message);
 
-  for (let index = 0; index < (data ?? []).length; index += 1) {
+  const data = (rawData ?? []) as Array<Pick<RoundEntryRow, "id">>;
+  for (let index = 0; index < data.length; index += 1) {
     const { error: updateError } = await televotingAdmin
       .from("round_entries")
       .update({ display_order: index + 1 })
-      .eq("id", data![index]!.id);
+      .eq("id", data[index]!.id);
     if (updateError) throw new Error(updateError.message);
   }
 }
 
 async function syncParticipantMode(roundId: string) {
-  const { data, error } = await televotingAdmin
+  const { data: rawData, error } = await televotingAdmin
     .from("round_entries")
     .select("entry_type")
     .eq("round_id", roundId);
   if (error) throw new Error(error.message);
 
-  const hasCountry = (data ?? []).some((row) => row.entry_type === "country");
-  const hasCustom = (data ?? []).some((row) => row.entry_type === "custom");
+  const data = (rawData ?? []) as Array<Pick<RoundEntryRow, "entry_type">>;
+  const hasCountry = data.some((row) => row.entry_type === "country");
+  const hasCustom = data.some((row) => row.entry_type === "custom");
   const participantMode = hasCountry && hasCustom ? "mixed" : hasCustom ? "custom" : "countries";
 
   const { error: updateError } = await televotingAdmin
@@ -72,34 +106,45 @@ async function syncParticipantMode(roundId: string) {
 export async function getMergedRoundEntriesServer(roundId: string) {
   await requireMergedTelevotingAdminServer();
 
-  const { data: round, error: roundError } = await televotingAdmin
+  const { data: rawRound, error: roundError } = await televotingAdmin
     .from("rounds")
     .select("id,name,status,participant_mode,self_voting_mode")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) throw new Error(roundError.message);
+
+  const round = rawRound as RoundRow | null;
   if (!round) throw new Error("Round not found");
 
-  const { data: entries, error: entryError } = await televotingAdmin
+  const { data: rawEntries, error: entryError } = await televotingAdmin
     .from("round_entries")
     .select("id,round_id,entry_type,entry_key,country_code,custom_name,short_name,entry_code,subtitle,image_url,description,display_order")
     .eq("round_id", roundId)
     .order("display_order");
   if (entryError) throw new Error(entryError.message);
 
-  const codes = [...new Set((entries ?? []).map((entry) => entry.country_code).filter((code): code is string => Boolean(code)))];
-  const countryMap = new Map<string, { code: string; name: string; flag: string | null; flag_url: string | null }>();
+  const entries = (rawEntries ?? []) as RoundEntryRow[];
+  const codes = [
+    ...new Set(
+      entries
+        .map((entry) => entry.country_code)
+        .filter((code): code is string => Boolean(code)),
+    ),
+  ];
+  const countryMap = new Map<string, CountryRow>();
 
   if (codes.length) {
-    const { data: countries, error: countryError } = await televotingAdmin
+    const { data: rawCountries, error: countryError } = await televotingAdmin
       .from("countries")
       .select("code,name,flag,flag_url")
       .in("code", codes);
     if (countryError) throw new Error(countryError.message);
-    for (const country of countries ?? []) countryMap.set(country.code, country);
+
+    const countries = (rawCountries ?? []) as CountryRow[];
+    for (const country of countries) countryMap.set(country.code, country);
   }
 
-  const { data: allCountries, error: allCountriesError } = await televotingAdmin
+  const { data: rawAllCountries, error: allCountriesError } = await televotingAdmin
     .from("countries")
     .select("code,name,flag,flag_url")
     .order("name");
@@ -107,11 +152,11 @@ export async function getMergedRoundEntriesServer(roundId: string) {
 
   return {
     round,
-    entries: (entries ?? []).map((entry) => ({
+    entries: entries.map((entry) => ({
       ...entry,
       country: entry.country_code ? countryMap.get(entry.country_code) ?? null : null,
     })),
-    countries: allCountries ?? [],
+    countries: (rawAllCountries ?? []) as CountryRow[],
   };
 }
 
@@ -119,26 +164,28 @@ export async function saveMergedRoundCountriesServer(data: { roundId: string; co
   const actor = await requireMergedTelevotingAdminServer();
   await assertEditableRound(data.roundId);
 
-  const { data: validCountries, error: validError } = await televotingAdmin
+  const { data: rawValidCountries, error: validError } = await televotingAdmin
     .from("countries")
     .select("code")
     .in("code", data.countryCodes);
   if (validError) throw new Error(validError.message);
 
-  const valid = new Set((validCountries ?? []).map((row) => row.code));
+  const validCountries = (rawValidCountries ?? []) as Array<Pick<CountryRow, "code">>;
+  const valid = new Set(validCountries.map((row) => row.code));
   const unknown = data.countryCodes.filter((code) => !valid.has(code));
   if (unknown.length) {
     throw new Error(`Unknown country code${unknown.length === 1 ? "" : "s"}: ${unknown.join(", ")}`);
   }
 
-  const { data: before, error: beforeError } = await televotingAdmin
+  const { data: rawBefore, error: beforeError } = await televotingAdmin
     .from("round_entries")
     .select("*")
     .eq("round_id", data.roundId)
     .order("display_order");
   if (beforeError) throw new Error(beforeError.message);
 
-  const customEntries = (before ?? [])
+  const before = (rawBefore ?? []) as RoundEntryRow[];
+  const customEntries = before
     .filter((entry) => entry.entry_type === "custom")
     .sort((a, b) => a.display_order - b.display_order);
 
@@ -205,7 +252,7 @@ export async function saveMergedCustomRoundEntryServer(data: {
   await assertEditableRound(data.roundId);
 
   if (data.id) {
-    const { data: before, error: beforeError } = await televotingAdmin
+    const { data: rawBefore, error: beforeError } = await televotingAdmin
       .from("round_entries")
       .select("*")
       .eq("id", data.id)
@@ -213,6 +260,8 @@ export async function saveMergedCustomRoundEntryServer(data: {
       .eq("entry_type", "custom")
       .maybeSingle();
     if (beforeError) throw new Error(beforeError.message);
+
+    const before = rawBefore as RoundEntryRow | null;
     if (!before) throw new Error("Custom entry not found");
 
     const patch = {
@@ -224,7 +273,7 @@ export async function saveMergedCustomRoundEntryServer(data: {
       description: data.description ?? null,
     };
 
-    const { data: updated, error: updateError } = await televotingAdmin
+    const { data: rawUpdated, error: updateError } = await televotingAdmin
       .from("round_entries")
       .update(patch)
       .eq("id", data.id)
@@ -232,6 +281,7 @@ export async function saveMergedCustomRoundEntryServer(data: {
       .single();
     if (updateError) throw new Error(updateError.message);
 
+    const updated = rawUpdated as RoundEntryRow;
     await audit(actor, "update_custom_round_entry", data.id, before, updated);
     return { ok: true };
   }
@@ -243,7 +293,7 @@ export async function saveMergedCustomRoundEntryServer(data: {
   if (countError) throw new Error(countError.message);
   if ((count ?? 0) >= 50) throw new Error("A round can have at most 50 entries");
 
-  const { data: lastRows, error: lastError } = await televotingAdmin
+  const { data: rawLastRows, error: lastError } = await televotingAdmin
     .from("round_entries")
     .select("display_order")
     .eq("round_id", data.roundId)
@@ -251,8 +301,9 @@ export async function saveMergedCustomRoundEntryServer(data: {
     .limit(1);
   if (lastError) throw new Error(lastError.message);
 
+  const lastRows = (rawLastRows ?? []) as Array<Pick<RoundEntryRow, "display_order">>;
   const entryKey = `x_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
-  const { data: inserted, error: insertError } = await televotingAdmin
+  const { data: rawInserted, error: insertError } = await televotingAdmin
     .from("round_entries")
     .insert({
       round_id: data.roundId,
@@ -265,12 +316,13 @@ export async function saveMergedCustomRoundEntryServer(data: {
       subtitle: data.subtitle ?? null,
       image_url: data.imageUrl ?? null,
       description: data.description ?? null,
-      display_order: Number(lastRows?.[0]?.display_order ?? 0) + 1,
+      display_order: Number(lastRows[0]?.display_order ?? 0) + 1,
     })
     .select("*")
     .single();
   if (insertError) throw new Error(insertError.message);
 
+  const inserted = rawInserted as RoundEntryRow;
   const participantMode = await syncParticipantMode(data.roundId);
   await audit(actor, "create_custom_round_entry", inserted.id, null, inserted);
   return { ok: true, participantMode };
@@ -280,7 +332,7 @@ export async function deleteMergedCustomRoundEntryServer(data: { roundId: string
   const actor = await requireMergedTelevotingAdminServer();
   await assertEditableRound(data.roundId);
 
-  const { data: before, error: beforeError } = await televotingAdmin
+  const { data: rawBefore, error: beforeError } = await televotingAdmin
     .from("round_entries")
     .select("*")
     .eq("id", data.entryId)
@@ -288,15 +340,18 @@ export async function deleteMergedCustomRoundEntryServer(data: { roundId: string
     .eq("entry_type", "custom")
     .maybeSingle();
   if (beforeError) throw new Error(beforeError.message);
+
+  const before = rawBefore as RoundEntryRow | null;
   if (!before) throw new Error("Custom entry not found");
 
-  const { data: submissions, error: submissionError } = await televotingAdmin
+  const { data: rawSubmissions, error: submissionError } = await televotingAdmin
     .from("vote_submissions")
     .select("id")
     .eq("round_id", data.roundId);
   if (submissionError) throw new Error(submissionError.message);
 
-  const submissionIds = (submissions ?? []).map((row) => row.id);
+  const submissions = (rawSubmissions ?? []) as Array<{ id: string }>;
+  const submissionIds = submissions.map((row) => row.id);
   if (submissionIds.length) {
     const { count, error: dependencyError } = await televotingAdmin
       .from("vote_entries")
@@ -309,7 +364,10 @@ export async function deleteMergedCustomRoundEntryServer(data: { roundId: string
     }
   }
 
-  const { error: deleteError } = await televotingAdmin.from("round_entries").delete().eq("id", data.entryId);
+  const { error: deleteError } = await televotingAdmin
+    .from("round_entries")
+    .delete()
+    .eq("id", data.entryId);
   if (deleteError) throw new Error(deleteError.message);
 
   await normalizeOrders(data.roundId);
@@ -322,14 +380,15 @@ export async function reorderMergedRoundEntriesServer(data: { roundId: string; e
   const actor = await requireMergedTelevotingAdminServer();
   await assertEditableRound(data.roundId);
 
-  const { data: before, error: beforeError } = await televotingAdmin
+  const { data: rawBefore, error: beforeError } = await televotingAdmin
     .from("round_entries")
     .select("id,entry_key,display_order")
     .eq("round_id", data.roundId)
     .order("display_order");
   if (beforeError) throw new Error(beforeError.message);
 
-  const existingIds = (before ?? []).map((row) => row.id);
+  const before = (rawBefore ?? []) as Array<Pick<RoundEntryRow, "id" | "entry_key" | "display_order">>;
+  const existingIds = before.map((row) => row.id);
   if (
     existingIds.length !== data.entryIds.length ||
     data.entryIds.some((id) => !existingIds.includes(id))
