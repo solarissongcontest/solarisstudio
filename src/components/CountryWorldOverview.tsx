@@ -82,9 +82,6 @@ export function CountryWorldOverview({
           params={{ code: country.short_code }}
           className="text-xs font-semibold text-primary"
           onClick={(event) => {
-            // The country route owns its tab state, so keep this as a simple
-            // same-page anchor-style affordance rather than pretending a query
-            // parameter controls it.
             event.preventDefault();
             document.querySelector('[aria-label="Country section"]')?.scrollIntoView({
               behavior: "smooth",
@@ -110,7 +107,7 @@ export function CountryWorldOverview({
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold">
-                    {entry || "Entry details not archived yet"}
+                    {entry || "Entry details not available yet"}
                   </p>
                   <p className="mt-1 truncate text-[11px] text-muted-foreground">
                     {edition ? editionLabel(edition) : "Edition"}
@@ -134,11 +131,11 @@ export function CountryWorldOverview({
         </div>
       ) : (
         <p className="text-sm leading-relaxed text-muted-foreground">
-          No entry details have been archived for {country.name} yet.
+          No entry details are available for {country.name} yet.
         </p>
       )}
       <p className="mt-4 border-t border-border/60 pt-3 text-[10px] leading-relaxed text-muted-foreground">
-        Historical information reflects the editions currently archived in Solaris Studio. Missing editions are not treated as zeroes.
+        Historical information reflects the editions currently available in Solaris Studio. Missing editions are not counted as zeroes.
       </p>
     </Panel>
   );
@@ -236,7 +233,7 @@ export function CountryWorldOverview({
         <div className="min-w-0 space-y-5">
           <Panel
             title="Country character"
-            description="Automatically derived from national information and SSC history"
+            description="A quick profile based on national information and SSC history"
           >
             <p className="font-display text-lg font-semibold">{character.title}</p>
             <p className="mt-2 text-xs leading-6 text-muted-foreground">{character.summary}</p>
