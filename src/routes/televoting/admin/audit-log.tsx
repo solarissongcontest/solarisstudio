@@ -4,16 +4,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Clock3, FileClock, Search } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
-import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
 import {
-  listMergedAuditLog,
-  type MergedAuditRow,
-} from "@/integrations/televoting/audit.functions";
+  AdminCard,
+  AdminCardHeader,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
+import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
+import { listMergedAuditLog, type MergedAuditRow } from "@/integrations/televoting/audit.functions";
 import type { AuditJson } from "@/integrations/televoting/audit.server";
 
 export const Route = createFileRoute("/televoting/admin/audit-log")({
-  head: () => ({ meta: [{ title: "Televoting Audit Log — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Voting audit log — Solaris Organizer" }, { name: "robots", content: "noindex" }] }),
   component: AuditLogPage,
 });
 
@@ -25,15 +28,10 @@ function AuditLogPage() {
   const [action, setAction] = useState("");
   const [targetType, setTargetType] = useState("");
 
-  const { data: admin, isLoading: adminLoading } = useQuery({
-    queryKey: ["merged-televoting-admin"],
-    queryFn: () => getAdmin(),
-  });
+  const { data: admin, isLoading: adminLoading } = useQuery({ queryKey: ["merged-televoting-admin"], queryFn: () => getAdmin() });
 
   useEffect(() => {
-    if (!adminLoading && !admin) {
-      void navigate({ to: "/auth", search: { redirect: "/televoting/admin/audit-log" } });
-    }
+    if (!adminLoading && !admin) void navigate({ to: "/auth", search: { redirect: "/televoting/admin/audit-log" } });
   }, [admin, adminLoading, navigate]);
 
   const { data: rows = [], isLoading, error } = useQuery<MergedAuditRow[]>({
@@ -43,77 +41,69 @@ function AuditLogPage() {
     refetchInterval: 15_000,
   });
 
-  const actions = useMemo<string[]>(
-    () => [...new Set(rows.map((row: MergedAuditRow) => row.action))].sort(),
-    [rows],
-  );
-  const targetTypes = useMemo<string[]>(
-    () => [
-      ...new Set(
-        rows
-          .map((row: MergedAuditRow) => row.target_type)
-          .filter((value: string | null): value is string => Boolean(value)),
-      ),
-    ].sort(),
-    [rows],
-  );
+  const actions = useMemo<string[]>(() => [...new Set(rows.map((row) => row.action))].sort(), [rows]);
+  const targetTypes = useMemo<string[]>(() => [...new Set(rows.map((row) => row.target_type).filter((value): value is string => Boolean(value)))].sort(), [rows]);
   const filtered = useMemo<MergedAuditRow[]>(() => {
     const term = query.trim().toLowerCase();
     if (!term) return rows;
-    return rows.filter((row: MergedAuditRow) => [
-      row.action,
-      row.actor_username ?? "",
-      row.target_type ?? "",
-      row.target_id ?? "",
-      row.reason ?? "",
-      JSON.stringify(row.old_values ?? ""),
-      JSON.stringify(row.new_values ?? ""),
-    ].join(" ").toLowerCase().includes(term));
+    return rows.filter((row) => [row.action, row.actor_username ?? "", row.target_type ?? "", row.target_id ?? "", row.reason ?? "", JSON.stringify(row.old_values ?? ""), JSON.stringify(row.new_values ?? "")].join(" ").toLowerCase().includes(term));
   }, [query, rows]);
 
   return (
-    <div className="mx-auto max-w-6xl py-4 sm:py-8">
-      <div className="mb-5"><Link to="/admin/operations" className="text-xs text-muted-foreground hover:text-foreground">← Solaris Operations</Link></div>
+    <div className="mx-auto max-w-5xl space-y-4">
+      <AdminPageHeader
+        eyebrow="Voting service"
+        title="Audit log"
+        description="Trace result, round, moderation and integrity changes in one chronological organizer history. Technical payloads stay collapsed until you need them."
+        actions={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+      />
 
-      <header className="mb-8">
-        <div className="flex items-center gap-2 text-sky-100/65"><FileClock className="size-4" /><p className="text-[10px] uppercase tracking-[0.22em]">Administrator history</p></div>
-        <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">Audit log</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Trace Televoting result, round, moderation and integrity actions from Solaris organizers in one chronological history.</p>
-      </header>
-
-      <section className="glass mb-4 grid gap-3 p-4 lg:grid-cols-[1fr_220px_220px]">
-        <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search actor, action, reason or changed values…" className="pl-9" /></div>
-        <select value={action} onChange={(event) => setAction(event.target.value)} className="h-10 rounded-xl border border-white/12 bg-black/20 px-3 text-sm"><option value="">All actions</option>{actions.map((item: string) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select>
-        <select value={targetType} onChange={(event) => setTargetType(event.target.value)} className="h-10 rounded-xl border border-white/12 bg-black/20 px-3 text-sm"><option value="">All targets</option>{targetTypes.map((item: string) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}</select>
-      </section>
+      <AdminCard>
+        <AdminCardHeader eyebrow="Filter" title={`${filtered.length} visible event${filtered.length === 1 ? "" : "s"}`} description="Search the actor, action, reason, target or changed values." />
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="relative block sm:col-span-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search audit history…" className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] pl-9 pr-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
+          <select value={action} onChange={(event) => setAction(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All actions</option>{actions.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
+          <select value={targetType} onChange={(event) => setTargetType(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All targets</option>{targetTypes.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
+        </div>
+      </AdminCard>
 
       {adminLoading || isLoading ? (
-        <section className="glass-strong p-8 text-center text-sm text-muted-foreground">Loading audit history…</section>
+        <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading audit history…</p></AdminCard>
       ) : error ? (
-        <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Audit log could not be loaded."}</section>
-      ) : (
-        <section className="space-y-2">
-          {filtered.map((row: MergedAuditRow) => (
-            <article key={row.id} className="glass p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-sky-200/15 bg-sky-200/8 px-2.5 py-1 text-[9px] uppercase tracking-[0.14em] text-sky-100">{row.action.replaceAll("_", " ")}</span>{row.target_type ? <span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.14em] text-muted-foreground">{row.target_type.replaceAll("_", " ")}</span> : null}</div>
-                  <p className="mt-3 text-sm"><span className="text-muted-foreground">Actor:</span> <span className="font-medium">{row.actor_username ?? "System"}</span>{row.target_id ? <><span className="mx-2 text-white/20">·</span><span className="font-mono text-xs text-muted-foreground">{row.target_id}</span></> : null}</p>
+        <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]"><p className="text-sm text-rose-100">{error instanceof Error ? error.message : "Audit log could not be loaded."}</p></AdminCard>
+      ) : filtered.length ? (
+        <div className="space-y-2">
+          {filtered.map((row) => (
+            <AdminCard key={row.id} className="!p-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100"><FileClock className="size-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2"><p className="text-sm font-semibold text-foreground">{humanize(row.action)}</p>{row.target_type ? <AdminStatus tone="neutral">{humanize(row.target_type)}</AdminStatus> : null}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>{row.actor_username ?? "System"}</span><span className="inline-flex items-center gap-1"><Clock3 className="size-3" /> {new Date(row.created_at).toLocaleString()}</span></div>
                   {row.reason ? <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{row.reason}</p> : null}
+                  {(row.target_id || row.old_values != null || row.new_values != null) ? (
+                    <details className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                      <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">Technical change details</summary>
+                      {row.target_id ? <p className="mt-2 break-all text-xs text-muted-foreground">Target {row.target_id}</p> : null}
+                      <div className="mt-3 grid gap-3 lg:grid-cols-2">{row.old_values != null ? <JsonBlock label="Before" value={row.old_values} /> : null}{row.new_values != null ? <JsonBlock label="After" value={row.new_values} /> : null}</div>
+                    </details>
+                  ) : null}
                 </div>
-                <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground"><Clock3 className="size-3" /> {new Date(row.created_at).toLocaleString()}</span>
               </div>
-
-              {(row.old_values != null || row.new_values != null) ? <details className="mt-3 rounded-xl border border-white/8 bg-black/10 p-3"><summary className="cursor-pointer text-xs text-muted-foreground">Changed values</summary><div className="mt-3 grid gap-3 lg:grid-cols-2">{row.old_values != null ? <JsonBlock label="Before" value={row.old_values} /> : null}{row.new_values != null ? <JsonBlock label="After" value={row.new_values} /> : null}</div></details> : null}
-            </article>
+            </AdminCard>
           ))}
-          {!filtered.length ? <div className="glass-strong p-8 text-center text-sm text-muted-foreground">No audit events match this filter.</div> : null}
-        </section>
+        </div>
+      ) : (
+        <AdminCard><AdminEmptyState icon={FileClock} title="No events match" description="Change the filters to widen the audit history." /></AdminCard>
       )}
     </div>
   );
 }
 
 function JsonBlock({ label, value }: { label: string; value: AuditJson }) {
-  return <div><p className="mb-1.5 text-[9px] uppercase tracking-[0.13em] text-muted-foreground">{label}</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/20 p-2 text-[10px] leading-relaxed text-white/55">{JSON.stringify(value, null, 2)}</pre></div>;
+  return <div><p className="admin-section-label mb-2">{label}</p><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-white/[0.06] bg-black/15 p-3 text-xs leading-relaxed text-muted-foreground">{JSON.stringify(value, null, 2)}</pre></div>;
+}
+
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
