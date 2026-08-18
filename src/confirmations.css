@@ -84,6 +84,41 @@
   color: var(--foreground) !important;
 }
 
+/* Public Confirmations routes now live inside the Solaris Studio shell. Older
+   subpages still have full-screen wrappers from the standalone app; neutralise
+   those wrappers instead of making users scroll through a second fake page. */
+.app-main .confirmations-theme {
+  min-height: 0 !important;
+  background: transparent !important;
+}
+
+.app-main .confirmations-theme > main {
+  min-height: 0 !important;
+  width: 100% !important;
+  max-width: 52rem !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+}
+
+.app-main .confirmations-theme > main > a:first-child {
+  margin-bottom: 1rem;
+}
+
+.app-main .confirmations-theme header {
+  text-align: left !important;
+  margin-block: 1.25rem !important;
+}
+
+.app-main .confirmations-theme header > p:first-child {
+  color: var(--primary) !important;
+  font-weight: 800 !important;
+}
+
+.app-main .confirmations-theme header h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem) !important;
+  line-height: 1 !important;
+}
+
 /* Inside Solaris Operations the Control Room owns the canvas, spacing and
    navigation. Confirmations contributes content only. */
 .admin-control-room .confirmations-theme {
