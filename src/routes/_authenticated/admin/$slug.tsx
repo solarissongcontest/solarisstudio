@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  BarChart3,
   Calculator,
   ClipboardCheck,
   Globe2,
@@ -59,6 +60,7 @@ function AdminEditionWorkspace() {
             <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListChecks className="size-4" /> Shows</Link>
             <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListOrdered className="size-4" /> Entries</Link>
             <Link to="/admin/jury/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Scale className="size-4" /> Jury</Link>
+            <Link to="/admin/televote/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><BarChart3 className="size-4" /> Televote totals</Link>
             <Link to="/admin/voting-system/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Calculator className="size-4" /> Voting system</Link>
             <Link to="/admin/publication/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Globe2 className="size-4" /> Publication</Link>
             <Link to="/admin/design/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><RadioTower className="size-4" /> Design & broadcast</Link>
@@ -146,12 +148,13 @@ function EditionHome({ slug }: { slug: string }) {
           <WorkspaceLink icon={ListChecks} title="Shows" description="Create stages and manage each show's basic setup." to={`/admin/shows/${slug}`} />
           <WorkspaceLink icon={ListOrdered} title="Entries & running order" description="Build line-ups, edit songs and reorder entries." to={`/admin/entries/${slug}`} />
           <WorkspaceLink icon={Scale} title="Jury voting" description="Manage juries and enter complete jury ballots." to={`/admin/jury/${slug}`} />
+          <WorkspaceLink icon={BarChart3} title="Televote totals" description="Review or enter the aggregate televote points used by show standings." to={`/admin/televote/${slug}`} />
           <WorkspaceLink icon={Calculator} title="Voting system" description="Configure point scales, weighting, qualifiers and tie-breaks." to={`/admin/voting-system/${slug}`} />
           <WorkspaceLink icon={ClipboardCheck} title="Delegations" description="Confirmation responses, countries and submission rounds." to="/confirmations/admin" />
-          <WorkspaceLink icon={Vote} title="Televoting" description="Public vote rounds, calculated results and integrity review." to="/televoting/admin" />
+          <WorkspaceLink icon={Vote} title="Public televoting" description="Public vote rounds, calculated results and integrity review." to="/televoting/admin" />
           <WorkspaceLink icon={RadioTower} title="Design & broadcast" description="Official artwork, theme and broadcast presentation." to={`/admin/design/${slug}`} />
           <WorkspaceLink icon={Globe2} title="Publication" description="Stage what the public can see without editing the underlying contest data." to={`/admin/publication/${slug}`} />
-          <WorkspaceLink icon={Settings2} title="Advanced technical studio" description="Legacy specialist controls kept only for details that have not yet moved." to={`/admin/${slug}?advanced=true`} />
+          <WorkspaceLink icon={Settings2} title="Advanced technical studio" description="Legacy specialist controls kept only as a technical fallback while migration finishes." to={`/admin/${slug}?advanced=true`} />
         </div>
       </section>
 
