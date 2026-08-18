@@ -1,0 +1,226 @@
+/* Ambient Solaris motion ----------------------------------------------------
+   Gradient movement does most of the visual work. Individual stars only drift,
+   rotate, breathe in scale and occasionally shift focus/twinkle. */
+
+.solaris-ambient-background {
+  --far-x: 0px;
+  --far-y: 0px;
+  --mid-x: 0px;
+  --mid-y: 0px;
+  --near-x: 0px;
+  --near-y: 0px;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--solaris-bg-angle, 145deg), rgb(var(--solaris-bg-deep)) 0%, rgb(var(--solaris-bg-deep-2)) 58%, #020616 100%);
+  isolation: isolate;
+}
+
+/* Disable the old static star wallpaper while retaining AppShell's element as
+   a transparent stacking layer. */
+.app-background {
+  background: transparent !important;
+}
+
+.app-background::before,
+.app-background::after {
+  content: none !important;
+  display: none !important;
+}
+
+.solaris-ambient-glow {
+  position: absolute;
+  border-radius: 46% 54% 59% 41% / 54% 40% 60% 46%;
+  filter: blur(46px);
+  opacity: .68;
+  will-change: transform, border-radius;
+}
+
+.solaris-ambient-glow-a {
+  left: -18%;
+  top: -20%;
+  width: 78vw;
+  height: 68vh;
+  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-secondary) / .40), rgb(var(--solaris-bg-secondary) / .10) 48%, transparent 74%);
+  animation: solaris-glow-a 42s ease-in-out -13s infinite alternate;
+}
+
+.solaris-ambient-glow-b {
+  right: -24%;
+  top: 7%;
+  width: 72vw;
+  height: 72vh;
+  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-primary) / .38), rgb(var(--solaris-bg-primary) / .08) 51%, transparent 76%);
+  animation: solaris-glow-b 49s ease-in-out -29s infinite alternate;
+}
+
+.solaris-ambient-glow-c {
+  left: 18%;
+  bottom: -34%;
+  width: 70vw;
+  height: 68vh;
+  opacity: .46;
+  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-tertiary) / .30), rgb(var(--solaris-bg-tertiary) / .06) 54%, transparent 77%);
+  animation: solaris-glow-c 55s ease-in-out -38s infinite alternate;
+}
+
+.solaris-star-layer {
+  position: absolute;
+  inset: -4vmax;
+  transition: transform 550ms cubic-bezier(.2,.8,.2,1);
+  will-change: transform;
+}
+
+.solaris-star-layer-far {
+  transform: translate3d(var(--far-x), var(--far-y), 0);
+}
+
+.solaris-star-layer-mid {
+  transform: translate3d(var(--mid-x), var(--mid-y), 0);
+}
+
+.solaris-star-layer-near {
+  transform: translate3d(var(--near-x), var(--near-y), 0);
+}
+
+.solaris-star-anchor {
+  position: absolute;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+
+.solaris-star {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  opacity: var(--star-opacity);
+  filter: blur(var(--star-blur)) saturate(.72) brightness(1.58);
+  mix-blend-mode: screen;
+  transform-origin: 50% 50%;
+  animation:
+    solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate;
+  will-change: transform, opacity;
+}
+
+.solaris-star-twinkle {
+  animation:
+    solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate,
+    solaris-star-twinkle calc(var(--star-duration) * .47) ease-in-out calc(var(--star-delay) * .7) infinite alternate;
+}
+
+/* Only a small subset changes blur, because continuously filtering every star
+   would turn mobile Safari into a warm hand-warmer. */
+.solaris-star-focus {
+  animation:
+    solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate,
+    solaris-star-focus calc(var(--star-duration) * .78) ease-in-out calc(var(--star-delay) * .4) infinite alternate;
+}
+
+@keyframes solaris-star-drift {
+  0% {
+    transform: translate3d(calc(var(--star-drift-x) * -.35), calc(var(--star-drift-y) * -.30), 0)
+      rotate(calc(var(--star-rotate) - 3deg))
+      scale(var(--star-scale-from));
+  }
+  48% {
+    transform: translate3d(calc(var(--star-drift-x) * .22), calc(var(--star-drift-y) * -.12), 0)
+      rotate(var(--star-rotate))
+      scale(calc((var(--star-scale-from) + var(--star-scale-to)) / 2));
+  }
+  100% {
+    transform: translate3d(var(--star-drift-x), var(--star-drift-y), 0)
+      rotate(calc(var(--star-rotate) + 3deg))
+      scale(var(--star-scale-to));
+  }
+}
+
+@keyframes solaris-star-twinkle {
+  0%, 100% { opacity: calc(var(--star-opacity) * .78); }
+  52% { opacity: calc(var(--star-opacity) * 1.18); }
+}
+
+@keyframes solaris-star-focus {
+  0%, 100% {
+    filter: blur(var(--star-blur)) saturate(.72) brightness(1.55);
+    opacity: calc(var(--star-opacity) * .86);
+  }
+  52% {
+    filter: blur(calc(var(--star-blur) + 2.2px)) saturate(.70) brightness(1.68);
+    opacity: calc(var(--star-opacity) * 1.08);
+  }
+}
+
+@keyframes solaris-glow-a {
+  0% { transform: translate3d(-2vw, -2vh, 0) scale(.96) rotate(-4deg); border-radius: 46% 54% 59% 41% / 54% 40% 60% 46%; }
+  45% { transform: translate3d(10vw, 7vh, 0) scale(1.10) rotate(3deg); border-radius: 58% 42% 48% 52% / 43% 59% 41% 57%; }
+  100% { transform: translate3d(16vw, 15vh, 0) scale(1.03) rotate(7deg); border-radius: 39% 61% 55% 45% / 62% 38% 62% 38%; }
+}
+
+@keyframes solaris-glow-b {
+  0% { transform: translate3d(2vw, -3vh, 0) scale(1.04) rotate(5deg); border-radius: 50% 50% 43% 57% / 59% 43% 57% 41%; }
+  55% { transform: translate3d(-12vw, 9vh, 0) scale(.94) rotate(-3deg); border-radius: 61% 39% 59% 41% / 42% 61% 39% 58%; }
+  100% { transform: translate3d(-17vw, 18vh, 0) scale(1.08) rotate(-8deg); border-radius: 44% 56% 38% 62% / 57% 46% 54% 43%; }
+}
+
+@keyframes solaris-glow-c {
+  0% { transform: translate3d(-10vw, 3vh, 0) scale(.95) rotate(-5deg); }
+  50% { transform: translate3d(8vw, -11vh, 0) scale(1.12) rotate(2deg); }
+  100% { transform: translate3d(15vw, -18vh, 0) scale(1.02) rotate(6deg); }
+}
+
+@media (max-width: 767px) {
+  .solaris-ambient-glow {
+    filter: blur(34px);
+  }
+
+  .solaris-ambient-glow-a,
+  .solaris-ambient-glow-b {
+    width: 104vw;
+    height: 70vh;
+  }
+
+  .solaris-ambient-glow-c {
+    width: 96vw;
+    height: 58vh;
+  }
+
+  .solaris-star-layer {
+    inset: -7vmax;
+    transition: none;
+  }
+
+  .solaris-star-layer-far,
+  .solaris-star-layer-mid,
+  .solaris-star-layer-near {
+    transform: none;
+  }
+
+  .solaris-star {
+    animation-duration: calc(var(--star-duration) * 1.15);
+  }
+
+  .solaris-star-focus {
+    animation:
+      solaris-star-drift calc(var(--star-duration) * 1.15) ease-in-out var(--star-delay) infinite alternate;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-ambient-glow,
+  .solaris-star {
+    animation: none !important;
+  }
+
+  .solaris-star-layer {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .solaris-star {
+    opacity: calc(var(--star-opacity) * .82);
+  }
+}
