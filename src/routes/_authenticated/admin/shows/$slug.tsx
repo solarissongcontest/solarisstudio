@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ListChecks, ListOrdered, MoreHorizontal, Plus, RadioTower, Trash2 } from "lucide-react";
+import { ArrowLeft, ListChecks, ListOrdered, MoreHorizontal, Plus, RadioTower, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -139,7 +139,7 @@ function ShowsWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Shows"
-        description="Create the contest stages and keep their basic identity clear. Line-ups now have their own mobile workspace."
+        description="Create the contest stages and keep their basic identity clear. Line-ups and jury work now have dedicated mobile workspaces."
         actions={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> New show</button>}
       />
 
@@ -177,7 +177,7 @@ function ShowsWorkspace() {
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <Link to="/admin/entries/$slug" params={{ slug }} search={{ show: show.id }} className="admin-action-primary w-full"><ListOrdered className="size-4" /> Entries</Link>
-                  <button type="button" className="admin-action-secondary w-full" onClick={() => openEdit(show)}>Edit show</button>
+                  <Link to="/admin/jury/$slug" params={{ slug }} search={{ show: show.id }} className="admin-action-secondary w-full"><Scale className="size-4" /> Jury</Link>
                 </div>
               </AdminCard>
             );
@@ -198,7 +198,7 @@ function ShowsWorkspace() {
         {actionsTarget ? <div className="space-y-2">
           <AdminActionItem title="Edit show" description="Change the name, type or order." onClick={() => { const show = actionsTarget; setActionsTarget(null); openEdit(show); }} />
           <AdminActionItem title={actionsTarget.published ? "Make show private" : "Publish show route"} description={actionsTarget.published ? "Hide the public show route while keeping all data intact." : "Make the show route available. Individual publication layers still follow their publication settings."} onClick={() => void togglePublished(actionsTarget)} />
-          <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><RadioTower className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Detailed studio</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Open voting, theme, scoreboard and broadcast controls that have not moved yet.</span></span></Link>
+          <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><RadioTower className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Detailed studio</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Open voting system, theme, scoreboard and broadcast controls that have not moved yet.</span></span></Link>
           <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Permanently remove this show and dependent show data." onClick={() => { setDeleteTarget(actionsTarget); setActionsTarget(null); }} />
         </div> : null}
       </AdminSheet>
