@@ -16,10 +16,6 @@ body[data-solaris-family] {
   --border: rgb(var(--solaris-bg-primary) / 0.18);
 }
 
-/* Standard content panels get a family-coloured upper wash and a darker base.
-   This keeps the familiar Solaris depth while making an orange/red Shows page
-   actually have orange/red cards, a purple Analysis page have purple cards,
-   etc. */
 body[data-solaris-family] .data-panel,
 body[data-solaris-family] .surface {
   border-color: rgb(var(--solaris-bg-primary) / 0.20) !important;
@@ -54,25 +50,29 @@ body[data-solaris-family] [role="combobox"] {
   background: color-mix(in srgb, rgb(var(--solaris-bg-primary)) 7%, #07172f 93%) !important;
 }
 
-/* Hero/result cards can opt into a richer version of the current family. */
+/* A handful of the big editorial cards pre-date the shared panel system and
+   still carry a literal navy Tailwind background. Catch those too so they do
+   not visually ignore the page family. */
+body[data-solaris-family] a[class*="bg-[#031127]"],
 .solaris-family-card {
   border-color: rgb(var(--solaris-bg-primary) / 0.24) !important;
   background:
-    radial-gradient(circle at 88% 18%, rgb(var(--solaris-bg-primary) / 0.18), transparent 42%),
-    radial-gradient(circle at 7% 88%, rgb(var(--solaris-bg-secondary) / 0.12), transparent 45%),
+    radial-gradient(circle at 88% 18%, rgb(var(--solaris-bg-primary) / 0.21), transparent 43%),
+    radial-gradient(circle at 7% 88%, rgb(var(--solaris-bg-secondary) / 0.15), transparent 47%),
     linear-gradient(145deg,
-      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 78%, #06142b 22%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 80%, #06142b 20%),
       color-mix(in srgb, rgb(var(--solaris-bg-deep)) 88%, #020815 12%)) !important;
   box-shadow:
     0 16px 38px rgb(var(--solaris-bg-deep) / 0.26),
     inset 0 1px 0 rgb(var(--solaris-bg-primary) / 0.10) !important;
 }
 
+body[data-solaris-family] a[class*="bg-[#031127]"] > div.absolute.inset-0,
 .solaris-family-card-overlay {
   background: linear-gradient(135deg,
-    rgb(var(--solaris-bg-deep) / 0.88),
-    rgb(var(--solaris-bg-deep-2) / 0.68) 56%,
-    rgb(var(--solaris-bg-primary) / 0.10)) !important;
+    rgb(var(--solaris-bg-deep) / 0.82),
+    rgb(var(--solaris-bg-deep-2) / 0.62) 54%,
+    rgb(var(--solaris-bg-primary) / 0.13)) !important;
 }
 
 /* Navigation remains darker than content but should no longer look disconnected
@@ -100,6 +100,15 @@ body[data-solaris-family] .mobile-quick-nav {
         rgb(var(--solaris-bg-primary) / 0.14),
         rgb(var(--solaris-bg-secondary) / 0.055)),
       color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 78%, #06142b 22%) !important;
+  }
+
+  body[data-solaris-family] a[class*="bg-[#031127]"] {
+    background:
+      radial-gradient(circle at 96% 12%, rgb(var(--solaris-bg-primary) / 0.23), transparent 44%),
+      radial-gradient(circle at 2% 96%, rgb(var(--solaris-bg-secondary) / 0.16), transparent 48%),
+      linear-gradient(150deg,
+        color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 82%, #06142b 18%),
+        color-mix(in srgb, rgb(var(--solaris-bg-deep)) 90%, #020815 10%)) !important;
   }
 }
 
