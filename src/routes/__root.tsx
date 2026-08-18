@@ -24,43 +24,49 @@ const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
 
 type BackgroundFamily =
-  | "core"
+  | "home"
+  | "editions"
+  | "countries"
+  | "shows"
+  | "wiki"
   | "analysis"
-  | "archive"
+  | "relationships"
+  | "compare"
+  | "records"
   | "pulse"
   | "predictions"
+  | "participate"
   | "confirmations"
   | "televoting"
-  | "studio-tools";
+  | "result-lab"
+  | "taste-dna"
+  | "broadcast"
+  | "archive-games"
+  | "scorecharts"
+  | "tools"
+  | "core";
 
 function backgroundFamilyFor(pathname: string): BackgroundFamily {
   if (pathname.startsWith("/confirmations")) return "confirmations";
   if (pathname.startsWith("/televoting")) return "televoting";
+  if (pathname.startsWith("/participate")) return "participate";
   if (pathname.startsWith("/pulse")) return "pulse";
   if (pathname.startsWith("/predictions")) return "predictions";
-  if (
-    pathname.startsWith("/analysis") ||
-    pathname.startsWith("/relationships") ||
-    pathname.startsWith("/compare")
-  ) {
-    return "analysis";
-  }
-  if (
-    pathname.startsWith("/archive-games") ||
-    pathname.startsWith("/records") ||
-    pathname.startsWith("/wiki")
-  ) {
-    return "archive";
-  }
-  if (
-    pathname.startsWith("/result-lab") ||
-    pathname.startsWith("/taste-dna") ||
-    pathname.startsWith("/broadcast-intelligence") ||
-    pathname.startsWith("/scorecharts") ||
-    pathname.startsWith("/tools")
-  ) {
-    return "studio-tools";
-  }
+  if (pathname.startsWith("/relationships")) return "relationships";
+  if (pathname.startsWith("/compare")) return "compare";
+  if (pathname.startsWith("/analysis")) return "analysis";
+  if (pathname.startsWith("/records")) return "records";
+  if (pathname.startsWith("/archive-games")) return "archive-games";
+  if (pathname.startsWith("/wiki")) return "wiki";
+  if (pathname.startsWith("/result-lab")) return "result-lab";
+  if (pathname.startsWith("/taste-dna")) return "taste-dna";
+  if (pathname.startsWith("/broadcast-intelligence")) return "broadcast";
+  if (pathname.startsWith("/scorecharts")) return "scorecharts";
+  if (pathname.startsWith("/tools")) return "tools";
+  if (pathname.startsWith("/editions")) return "editions";
+  if (pathname.startsWith("/countries")) return "countries";
+  if (pathname.startsWith("/shows")) return "shows";
+  if (pathname === "/") return "home";
   return "core";
 }
 
