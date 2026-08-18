@@ -2,38 +2,39 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  ArrowRight,
   BarChart3,
-  CalendarDays,
+  Blend,
   DatabaseZap,
+  Globe2,
   PlayCircle,
   ShieldAlert,
   Trophy,
-  Users,
 } from "lucide-react";
 
-import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
+import {
+  AdminCard,
+  AdminCardHeader,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import { getMergedTelevotingOverview } from "@/integrations/televoting/admin-data.functions";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
 
 export const Route = createFileRoute("/televoting/admin/")({
   head: () => ({
     meta: [
-      { title: "Televoting Control Centre — Solaris Studio" },
+      { title: "Voting — Solaris Organizer" },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: TelevotingAdminOverview,
+  component: VotingAdminOverview,
 });
 
-function TelevotingAdminOverview() {
-  const getAdmin = useServerFn(getMergedTelevotingAdmin);
+function VotingAdminOverview() {
   const getOverview = useServerFn(getMergedTelevotingOverview);
   const getStatus = useServerFn(getMergedTelevotingServerStatus);
-
-  const { data: admin } = useQuery({
-    queryKey: ["merged-televoting-admin"],
-    queryFn: () => getAdmin(),
-  });
 
   const { data: status, isLoading: statusLoading } = useQuery({
     queryKey: ["merged-televoting-server-status-admin"],
@@ -50,136 +51,269 @@ function TelevotingAdminOverview() {
     refetchInterval: 5_000,
   });
 
-  const cards = [
-    { label: "Editions", value: data?.editions ?? 0, icon: CalendarDays },
-    { label: "Rounds", value: data?.rounds ?? 0, icon: PlayCircle },
-    { label: "Open rounds", value: data?.openRounds ?? 0, icon: PlayCircle },
-    { label: "Submissions", value: data?.submissions ?? 0, icon: Users },
-    { label: "Blocked events", value: data?.blocked ?? 0, icon: ShieldAlert },
-    { label: "Active edition", value: data?.activeEdition ?? "—", icon: Trophy },
-  ] as const;
-
-  const liveTools = [
-    {
-      to: "/televoting/admin/rounds" as const,
-      label: "Rounds & entries",
-      description: "Configure voting rounds, participant entries, ordering and self-voting rules.",
-      icon: PlayCircle,
-    },
-    {
-      to: "/televoting/admin/results" as const,
-      label: "Results",
-      description: "Calculate, validate, lock and publish the official converted televote.",
-      icon: Trophy,
-    },
-    {
-      to: "/televoting/admin/analytics" as const,
-      label: "Analytics",
-      description: "Inspect turnout, delegation behaviour, score distribution and entry performance.",
-      icon: BarChart3,
-    },
-    {
-      to: "/televoting/admin/integrity" as const,
-      label: "Integrity",
-      description: "Review ballot-level risk evidence, moderation actions and integrity decisions.",
-      icon: ShieldAlert,
-    },
-  ];
+  const nextAction = !data || data.rounds === 0
+    ? {
+        title: "Create the first voting round",
+        description: "Set up the entries and voting rules before ballots can be submitted.",
+        to: "/televoting/admin/rounds",
+        label: "Set up round",
+      }
+    : data.openRounds > 0
+      ? {
+          title: "Voting is open",
+          description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} currently accepting ballots.`,
+          to: "/televoting/admin/rounds",
+          label: "Monitor voting",
+        }
+      : data.submissions > 0
+        ? {
+            title: "Review and prepare results",
+            description: `${data.submissions} submitted ballots are available across the voting archive.`,
+            to: "/televoting/admin/results",
+            label: "Open results",
+          }
+        : {
+            title: "Open or schedule a voting round",
+            description: "Voting rounds exist, but none are currently accepting ballots.",
+            to: "/televoting/admin/rounds",
+            label: "Manage rounds",
+          };
 
   return (
-    <div className="mx-auto max-w-6xl py-4 sm:py-8">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <Link to="/televoting" className="text-xs text-muted-foreground hover:text-foreground">
-          ← Televoting portal
-        </Link>
-        {admin ? (
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground">
-            Solaris organizer · {admin.username}
-          </span>
-        ) : (
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground">
-            Solaris organizer session
-          </span>
-        )}
-      </div>
-
-      <header className="mb-8">
-        <p className="text-[10px] uppercase tracking-[0.22em] text-sky-100/65">
-          Televoting workspace
-        </p>
-        <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">
-          Control centre
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Run voting rounds, results, analytics and integrity from the same Solaris Operations workspace and organizer identity used everywhere else in Studio.
-        </p>
-      </header>
+    <div className="mx-auto max-w-5xl">
+      <AdminPageHeader
+        eyebrow="Contest workflow"
+        title="Voting"
+        description="Rounds, ballots, official results and integrity review without bouncing between separate control centres."
+        actions={
+          <Link to="/televoting" target="_blank" className="admin-action-secondary">
+            <Globe2 className="size-4" /> Public voting
+          </Link>
+        }
+      />
 
       {statusLoading ? (
-        <section className="glass-strong p-8 text-center text-sm text-muted-foreground">
-          Checking Televoting backend…
-        </section>
+        <AdminCard>
+          <p className="py-6 text-center text-sm text-muted-foreground">Checking voting services…</p>
+        </AdminCard>
       ) : !backendReady ? (
-        <section className="glass-strong border-amber-300/25 p-6 sm:p-7">
-          <div className="flex items-start gap-4">
-            <div className="grid size-11 shrink-0 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-100">
-              <DatabaseZap className="size-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-medium">Televoting admin backend is not connected</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                Your Solaris organizer session is valid. The public Televoting connection is available, but this deployment is missing the server-only Televoting credential required for privileged admin reads, writes, moderation and audit actions.
-              </p>
-              <p className="mt-3 text-xs text-amber-100/70">
-                No login retry is needed. Admin tools stay unavailable until that backend connection is restored.
-              </p>
+        <AdminCard>
+          <div className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-4">
+            <div className="flex items-start gap-3">
+              <DatabaseZap className="mt-0.5 size-5 shrink-0 text-amber-100" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Organizer voting tools are unavailable</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  The organizer backend connection is not ready. Public voting can remain available while privileged organizer access is restored.
+                </p>
+              </div>
             </div>
           </div>
-        </section>
+        </AdminCard>
       ) : isLoading ? (
-        <section className="glass-strong p-8 text-center text-sm text-muted-foreground">
-          Loading Televoting control room…
-        </section>
+        <AdminCard>
+          <p className="py-6 text-center text-sm text-muted-foreground">Loading voting workspace…</p>
+        </AdminCard>
       ) : error ? (
-        <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">
-          {error instanceof Error ? error.message : "Admin data could not be loaded."}
-        </section>
-      ) : (
+        <AdminCard>
+          <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4 text-sm text-rose-100">
+            {error instanceof Error ? error.message : "Voting data could not be loaded."}
+          </div>
+        </AdminCard>
+      ) : data ? (
         <>
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-            {cards.map(({ label, value, icon: Icon }) => (
-              <article key={label} className="glass p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">{label}</span>
-                  <Icon className="size-4 text-sky-100/65" />
-                </div>
-                <p className="mt-3 truncate text-2xl font-medium tabular-nums sm:text-3xl">
-                  {value}
+          <AdminCard strong className="mb-4">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="admin-section-label">Voting status</p>
+                <h2 className="mt-1 truncate text-xl font-bold tracking-[-.025em]">
+                  {data.activeEdition ?? "No active voting edition"}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {data.openRounds > 0
+                    ? `${data.openRounds} ${data.openRounds === 1 ? "round" : "rounds"} currently open`
+                    : "No voting round is open right now"}
                 </p>
-              </article>
-            ))}
+              </div>
+              <AdminStatus tone={data.openRounds > 0 ? "ready" : "neutral"}>
+                {data.openRounds > 0 ? "Live" : "Closed"}
+              </AdminStatus>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-white/[0.06] bg-white/[0.018] p-3 text-center">
+              <Metric label="Rounds" value={data.rounds} />
+              <Metric label="Ballots" value={data.submissions} />
+              <Metric label="Blocked" value={data.blocked} />
+            </div>
+          </AdminCard>
+
+          {data.blocked > 0 ? (
+            <Link
+              to="/televoting/admin/integrity"
+              className="mb-4 flex min-w-0 items-start gap-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3.5 transition hover:bg-amber-200/[0.075]"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-200/[0.07] text-amber-100">
+                <ShieldAlert className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-foreground">
+                  {data.blocked} blocked {data.blocked === 1 ? "event needs" : "events need"} review
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  Open Integrity to inspect the evidence and moderation history.
+                </span>
+              </span>
+              <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground" />
+            </Link>
+          ) : null}
+
+          <AdminCard className="mb-4">
+            <AdminCardHeader
+              eyebrow="Next action"
+              title={nextAction.title}
+              description={nextAction.description}
+              action={
+                <Link to={nextAction.to as any} className="admin-action-primary !min-h-10">
+                  {nextAction.label} <ArrowRight className="size-4" />
+                </Link>
+              }
+            />
+          </AdminCard>
+
+          <section className="mb-5">
+            <p className="admin-section-label mb-2">Everyday workflow</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <WorkflowLink
+                to="/televoting/admin/rounds"
+                icon={PlayCircle}
+                title="Rounds & entries"
+                description="Set up who can vote, which entries receive points and when voting opens."
+                detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} configured`}
+              />
+              <WorkflowLink
+                to="/televoting/admin/results"
+                icon={Trophy}
+                title="Results"
+                description="Validate ballots, calculate the converted televote and prepare the official result."
+                detail={`${data.submissions} ballots in archive`}
+              />
+              <WorkflowLink
+                to="/televoting/admin/integrity"
+                icon={ShieldAlert}
+                title="Integrity"
+                description="Review ballot risk evidence, moderation decisions and repeated patterns."
+                detail={data.blocked ? `${data.blocked} blocked events` : "No blocked events"}
+              />
+              <WorkflowLink
+                to="/televoting/admin/analytics"
+                icon={BarChart3}
+                title="Analytics"
+                description="Turnout, score distribution, delegation behaviour and entry performance."
+              />
+            </div>
           </section>
 
-          <section className="mt-5 grid gap-3 sm:grid-cols-2">
-            {liveTools.map(({ to, label, description, icon: Icon }) => (
-              <Link
-                key={to}
-                to={to}
-                className="glass group p-5 transition hover:border-sky-200/25"
-              >
-                <div className="grid size-10 place-items-center rounded-xl border border-sky-200/15 bg-sky-200/10 text-sky-100">
-                  <Icon className="size-4" />
-                </div>
-                <h2 className="mt-4 text-lg font-medium">{label}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-                <p className="mt-3 text-[10px] uppercase tracking-[0.15em] text-sky-100/55">
-                  Open workspace →
-                </p>
-              </Link>
-            ))}
-          </section>
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Advanced"
+              title="Result & audit tools"
+              description="Lower-frequency tools stay available without competing with the normal voting workflow."
+            />
+            <div className="divide-y divide-white/[0.07]">
+              <AdminLinkRow
+                to="/televoting/admin/combined"
+                icon={Blend}
+                title="Combined results"
+                description="Inspect combined result preparation where jury and televote data meet."
+              />
+              <AdminLinkRow
+                to="/televoting/admin/intelligence"
+                icon={ShieldAlert}
+                title="Voting intelligence"
+                description="Deeper relationship and pattern analysis."
+              />
+              <AdminLinkRow
+                to="/televoting/admin/audit-log"
+                icon={ShieldAlert}
+                title="Audit log"
+                description="Trace organizer and moderation activity."
+              />
+            </div>
+          </AdminCard>
         </>
+      ) : (
+        <AdminCard>
+          <AdminEmptyState
+            icon={PlayCircle}
+            title="No voting data yet"
+            description="Create a voting round to begin the voting workflow."
+            action={<Link to="/televoting/admin/rounds" className="admin-action-primary">Set up round</Link>}
+          />
+        </AdminCard>
       )}
     </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-0">
+      <p className="numeric text-lg font-bold">{value}</p>
+      <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function WorkflowLink({
+  to,
+  icon: Icon,
+  title,
+  description,
+  detail,
+}: {
+  to: string;
+  icon: typeof PlayCircle;
+  title: string;
+  description: string;
+  detail?: string;
+}) {
+  return (
+    <Link
+      to={to as any}
+      className="admin-card group flex min-h-28 min-w-0 items-start gap-3 p-3.5 transition hover:border-white/[0.16] hover:bg-white/[0.045]"
+    >
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">{title}</span>
+        <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">{description}</span>
+        {detail ? <span className="mt-2 block text-[11px] font-semibold text-sky-100/75">{detail}</span> : null}
+      </span>
+      <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+    </Link>
+  );
+}
+
+function AdminLinkRow({
+  to,
+  icon: Icon,
+  title,
+  description,
+}: {
+  to: string;
+  icon: typeof ShieldAlert;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link to={to as any} className="admin-action-row group">
+      <span className="admin-action-row-icon"><Icon className="size-4" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
+      </span>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+    </Link>
   );
 }
