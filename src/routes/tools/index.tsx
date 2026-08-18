@@ -54,6 +54,12 @@ const TOOL_GROUPS = [
         description: "Replay a result reveal and surface the biggest swings, lead changes and storylines.",
         eyebrow: "Results replay",
       },
+      {
+        to: "/broadcast-intelligence/jury",
+        title: "Jury Replay",
+        description: "Reveal published jury ballots one jury at a time and watch the jury scoreboard build live.",
+        eyebrow: "Jury replay",
+      },
     ],
   },
   {
