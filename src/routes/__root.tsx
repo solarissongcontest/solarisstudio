@@ -17,6 +17,7 @@ import anniversaryCss from "../anniversary.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
+import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
@@ -199,6 +200,9 @@ function RootComponent() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const serviceAdmin =
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
+  const publicParticipation =
+    !serviceAdmin &&
+    (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
 
   useEffect(() => {
     const route = pathname.startsWith("/pulse") ? "pulse" : "";
@@ -213,12 +217,13 @@ function RootComponent() {
     };
   }, [pathname]);
 
+  const outlet = <Outlet />;
   const content = serviceAdmin ? (
-    <UnifiedServiceAdminGate>
-      <Outlet />
-    </UnifiedServiceAdminGate>
+    <UnifiedServiceAdminGate>{outlet}</UnifiedServiceAdminGate>
+  ) : publicParticipation ? (
+    <ParticipationRouteChrome>{outlet}</ParticipationRouteChrome>
   ) : (
-    <Outlet />
+    outlet
   );
 
   return (
