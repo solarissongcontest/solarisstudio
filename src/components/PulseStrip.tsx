@@ -43,7 +43,7 @@ export function PulseStrip() {
   return (
     <section className="glass p-4 sm:p-5" aria-labelledby="pulse-strip-title">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">
               Solaris Pulse
@@ -54,7 +54,7 @@ export function PulseStrip() {
               </span>
             )}
           </div>
-          <h2 id="pulse-strip-title" className="mt-1 font-display text-xl font-bold">
+          <h2 id="pulse-strip-title" className="mt-1 text-xl font-bold tracking-[-0.025em]">
             {user ? "Your latest meaningful changes" : "What changed recently?"}
           </h2>
         </div>
