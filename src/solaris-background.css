@@ -1,20 +1,28 @@
 /* Solaris Studio background system
    --------------------------------
-   CSS gradients + the original Solaris star asset. The stars intentionally
-   avoid a neat wallpaper grid: different scales, rotations, opacity zones and
-   depth levels recreate the loose hand-placed feel of the old background. */
+   CSS gradients + the original Solaris star asset. Each major public area now
+   has a genuinely different colour composition, not just a tiny tint change. */
 
 :root {
-  --solaris-bg-primary: 76 154 211;
-  --solaris-bg-secondary: 59 105 196;
-  --solaris-bg-deep: 3 9 34;
+  --solaris-bg-primary: 67 171 226;
+  --solaris-bg-secondary: 55 92 202;
+  --solaris-bg-tertiary: 39 211 190;
+  --solaris-bg-deep: 2 8 31;
+  --solaris-bg-deep-2: 5 19 49;
+  --solaris-glow-a-x: 12%;
+  --solaris-glow-a-y: 4%;
+  --solaris-glow-b-x: 91%;
+  --solaris-glow-b-y: 21%;
+  --solaris-glow-c-x: 57%;
+  --solaris-glow-c-y: 101%;
+  --solaris-bg-angle: 147deg;
 }
 
 body {
   background-color: rgb(var(--solaris-bg-deep)) !important;
   background-image: none !important;
   background-attachment: scroll !important;
-  transition: background-color 360ms ease;
+  transition: background-color 420ms ease;
 }
 
 .app-background {
@@ -24,21 +32,16 @@ body {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 72% 62% at 11% 5%, rgb(var(--solaris-bg-secondary) / 0.25), transparent 63%),
-    radial-gradient(ellipse 56% 50% at 91% 20%, rgb(var(--solaris-bg-primary) / 0.21), transparent 66%),
-    radial-gradient(ellipse 40% 52% at 57% 102%, rgb(var(--solaris-bg-primary) / 0.14), transparent 73%),
-    radial-gradient(ellipse 31% 27% at 42% 46%, rgb(var(--solaris-bg-secondary) / 0.075), transparent 76%),
-    linear-gradient(147deg, #02071d 0%, rgb(var(--solaris-bg-deep)) 36%, #06152f 72%, #020616 100%) !important;
+    radial-gradient(ellipse 76% 67% at var(--solaris-glow-a-x) var(--solaris-glow-a-y), rgb(var(--solaris-bg-secondary) / 0.34), transparent 61%),
+    radial-gradient(ellipse 62% 54% at var(--solaris-glow-b-x) var(--solaris-glow-b-y), rgb(var(--solaris-bg-primary) / 0.31), transparent 64%),
+    radial-gradient(ellipse 54% 58% at var(--solaris-glow-c-x) var(--solaris-glow-c-y), rgb(var(--solaris-bg-tertiary) / 0.23), transparent 69%),
+    radial-gradient(ellipse 33% 30% at 47% 47%, rgb(var(--solaris-bg-primary) / 0.10), transparent 74%),
+    linear-gradient(var(--solaris-bg-angle), rgb(var(--solaris-bg-deep)) 0%, rgb(var(--solaris-bg-deep-2)) 46%, #020616 100%) !important;
   filter: none !important;
   isolation: isolate;
-  transition: background 420ms ease;
+  transition: background 480ms ease;
 }
 
-/*
- * Two independently rotated star fields create several apparent orientations.
- * IMG_6171.png is the original Solaris star outline. The masks deliberately
- * make some stars almost disappear while neighbouring stars remain visible.
- */
 .app-background::before,
 .app-background::after {
   content: "";
@@ -67,7 +70,6 @@ body {
   will-change: opacity, filter, transform;
 }
 
-/* Mid-distance field: mostly crisp, but deliberately faint and uneven. */
 .app-background::before {
   inset: -15vmax;
   opacity: 0.145;
@@ -105,7 +107,7 @@ body {
     83% 82%,
     7% 99%,
     109% 101%;
-  filter: blur(0.7px) saturate(0.72) brightness(1.5) hue-rotate(-8deg);
+  filter: blur(0.7px) saturate(0.78) brightness(1.55) hue-rotate(-8deg);
   transform: rotate(-8deg) scale(1.08);
   -webkit-mask-image:
     radial-gradient(circle at 8% 14%, #000 0 10%, transparent 24%),
@@ -123,7 +125,6 @@ body {
   mask-composite: add;
 }
 
-/* Far / foreground field: much larger spread in blur and visual weight. */
 .app-background::after {
   inset: -20vmax;
   opacity: 0.10;
@@ -161,7 +162,7 @@ body {
     78% 114%,
     96% 91%,
     3% 35%;
-  filter: blur(5.8px) saturate(0.70) brightness(1.75) hue-rotate(-10deg);
+  filter: blur(5.8px) saturate(0.74) brightness(1.8) hue-rotate(-10deg);
   transform: rotate(13deg) scale(1.12);
   -webkit-mask-image:
     radial-gradient(circle at 14% 8%, rgb(0 0 0 / .75) 0 12%, transparent 27%),
@@ -179,64 +180,235 @@ body {
   mask-composite: add;
 }
 
-/* Route colour families. The composition remains recognisably Solaris while
-   the gradient tint shifts subtly by section. */
-body[data-solaris-family="core"] {
-  --solaris-bg-primary: 75 165 220;
-  --solaris-bg-secondary: 55 93 188;
-  --solaris-bg-deep: 2 8 31;
+/* Distinct page identities ------------------------------------------------ */
+body[data-solaris-family="home"] {
+  --solaris-bg-primary: 62 176 232;
+  --solaris-bg-secondary: 45 91 201;
+  --solaris-bg-tertiary: 40 211 195;
+  --solaris-bg-deep: 2 8 30;
+  --solaris-bg-deep-2: 4 25 53;
+}
+
+body[data-solaris-family="editions"] {
+  --solaris-bg-primary: 48 192 224;
+  --solaris-bg-secondary: 20 104 170;
+  --solaris-bg-tertiary: 33 231 180;
+  --solaris-bg-deep: 1 15 30;
+  --solaris-bg-deep-2: 2 43 55;
+  --solaris-glow-a-x: 5%; --solaris-glow-a-y: 20%;
+  --solaris-glow-b-x: 96%; --solaris-glow-b-y: 5%;
+  --solaris-bg-angle: 160deg;
+}
+
+body[data-solaris-family="countries"] {
+  --solaris-bg-primary: 69 214 139;
+  --solaris-bg-secondary: 35 140 129;
+  --solaris-bg-tertiary: 69 175 235;
+  --solaris-bg-deep: 1 18 22;
+  --solaris-bg-deep-2: 3 46 43;
+  --solaris-glow-a-x: 90%; --solaris-glow-a-y: 4%;
+  --solaris-glow-b-x: 8%; --solaris-glow-b-y: 45%;
+  --solaris-bg-angle: 132deg;
+}
+
+body[data-solaris-family="shows"] {
+  --solaris-bg-primary: 249 99 135;
+  --solaris-bg-secondary: 164 53 164;
+  --solaris-bg-tertiary: 94 118 241;
+  --solaris-bg-deep: 22 4 29;
+  --solaris-bg-deep-2: 48 8 47;
+  --solaris-glow-a-x: 12%; --solaris-glow-a-y: 8%;
+  --solaris-glow-b-x: 88%; --solaris-glow-b-y: 58%;
+  --solaris-bg-angle: 118deg;
+}
+
+body[data-solaris-family="wiki"] {
+  --solaris-bg-primary: 224 171 72;
+  --solaris-bg-secondary: 151 92 44;
+  --solaris-bg-tertiary: 57 168 153;
+  --solaris-bg-deep: 19 11 4;
+  --solaris-bg-deep-2: 49 27 7;
+  --solaris-glow-a-x: 7%; --solaris-glow-a-y: 8%;
+  --solaris-glow-b-x: 93%; --solaris-glow-b-y: 76%;
+  --solaris-bg-angle: 151deg;
 }
 
 body[data-solaris-family="analysis"] {
-  --solaris-bg-primary: 126 122 244;
-  --solaris-bg-secondary: 69 99 211;
-  --solaris-bg-deep: 7 7 36;
+  --solaris-bg-primary: 145 103 255;
+  --solaris-bg-secondary: 64 63 210;
+  --solaris-bg-tertiary: 47 190 241;
+  --solaris-bg-deep: 10 5 35;
+  --solaris-bg-deep-2: 31 13 69;
+  --solaris-glow-a-x: 50%; --solaris-glow-a-y: -5%;
+  --solaris-glow-b-x: 5%; --solaris-glow-b-y: 72%;
+  --solaris-bg-angle: 178deg;
 }
 
-body[data-solaris-family="archive"] {
-  --solaris-bg-primary: 76 188 175;
-  --solaris-bg-secondary: 57 116 170;
-  --solaris-bg-deep: 2 18 31;
+body[data-solaris-family="relationships"] {
+  --solaris-bg-primary: 232 82 171;
+  --solaris-bg-secondary: 138 58 194;
+  --solaris-bg-tertiary: 67 150 231;
+  --solaris-bg-deep: 20 4 31;
+  --solaris-bg-deep-2: 57 11 61;
+  --solaris-glow-a-x: 95%; --solaris-glow-a-y: 12%;
+  --solaris-glow-b-x: 8%; --solaris-glow-b-y: 81%;
+  --solaris-bg-angle: 124deg;
+}
+
+body[data-solaris-family="compare"] {
+  --solaris-bg-primary: 244 91 100;
+  --solaris-bg-secondary: 216 112 49;
+  --solaris-bg-tertiary: 84 102 229;
+  --solaris-bg-deep: 25 6 14;
+  --solaris-bg-deep-2: 58 21 13;
+  --solaris-glow-a-x: 2%; --solaris-glow-a-y: 30%;
+  --solaris-glow-b-x: 99%; --solaris-glow-b-y: 70%;
+  --solaris-bg-angle: 102deg;
+}
+
+body[data-solaris-family="records"] {
+  --solaris-bg-primary: 238 185 61;
+  --solaris-bg-secondary: 176 111 29;
+  --solaris-bg-tertiary: 61 171 207;
+  --solaris-bg-deep: 20 13 3;
+  --solaris-bg-deep-2: 54 34 5;
+  --solaris-glow-a-x: 88%; --solaris-glow-a-y: 5%;
+  --solaris-glow-b-x: 15%; --solaris-glow-b-y: 75%;
+  --solaris-bg-angle: 138deg;
 }
 
 body[data-solaris-family="pulse"] {
-  --solaris-bg-primary: 61 186 224;
-  --solaris-bg-secondary: 41 116 201;
-  --solaris-bg-deep: 1 12 34;
+  --solaris-bg-primary: 40 217 227;
+  --solaris-bg-secondary: 24 122 211;
+  --solaris-bg-tertiary: 65 235 154;
+  --solaris-bg-deep: 0 14 30;
+  --solaris-bg-deep-2: 0 43 58;
+  --solaris-glow-a-x: 90%; --solaris-glow-a-y: 15%;
+  --solaris-glow-b-x: 5%; --solaris-glow-b-y: 58%;
+  --solaris-bg-angle: 165deg;
 }
 
 body[data-solaris-family="predictions"] {
-  --solaris-bg-primary: 207 114 211;
-  --solaris-bg-secondary: 116 83 205;
-  --solaris-bg-deep: 15 5 34;
+  --solaris-bg-primary: 248 99 213;
+  --solaris-bg-secondary: 127 69 231;
+  --solaris-bg-tertiary: 255 157 72;
+  --solaris-bg-deep: 24 4 38;
+  --solaris-bg-deep-2: 61 10 73;
+  --solaris-glow-a-x: 50%; --solaris-glow-a-y: -8%;
+  --solaris-glow-b-x: 96%; --solaris-glow-b-y: 62%;
+  --solaris-bg-angle: 188deg;
+}
+
+body[data-solaris-family="participate"] {
+  --solaris-bg-primary: 51 206 184;
+  --solaris-bg-secondary: 40 128 192;
+  --solaris-bg-tertiary: 104 219 117;
+  --solaris-bg-deep: 0 18 26;
+  --solaris-bg-deep-2: 3 50 50;
 }
 
 body[data-solaris-family="confirmations"] {
-  --solaris-bg-primary: 73 197 180;
-  --solaris-bg-secondary: 49 126 177;
-  --solaris-bg-deep: 2 17 31;
+  --solaris-bg-primary: 42 220 164;
+  --solaris-bg-secondary: 26 141 122;
+  --solaris-bg-tertiary: 64 187 222;
+  --solaris-bg-deep: 0 21 24;
+  --solaris-bg-deep-2: 2 58 48;
+  --solaris-glow-a-x: 5%; --solaris-glow-a-y: 12%;
+  --solaris-glow-b-x: 95%; --solaris-glow-b-y: 78%;
+  --solaris-bg-angle: 135deg;
 }
 
 body[data-solaris-family="televoting"] {
-  --solaris-bg-primary: 73 169 242;
-  --solaris-bg-secondary: 74 88 222;
-  --solaris-bg-deep: 3 8 38;
+  --solaris-bg-primary: 46 126 255;
+  --solaris-bg-secondary: 65 68 226;
+  --solaris-bg-tertiary: 27 213 241;
+  --solaris-bg-deep: 2 5 34;
+  --solaris-bg-deep-2: 8 19 77;
+  --solaris-glow-a-x: 91%; --solaris-glow-a-y: -2%;
+  --solaris-glow-b-x: 12%; --solaris-glow-b-y: 82%;
+  --solaris-bg-angle: 118deg;
 }
 
-body[data-solaris-family="studio-tools"] {
-  --solaris-bg-primary: 119 118 236;
-  --solaris-bg-secondary: 59 146 202;
-  --solaris-bg-deep: 5 8 35;
+body[data-solaris-family="result-lab"] {
+  --solaris-bg-primary: 24 217 203;
+  --solaris-bg-secondary: 35 119 187;
+  --solaris-bg-tertiary: 105 228 90;
+  --solaris-bg-deep: 0 19 27;
+  --solaris-bg-deep-2: 2 51 55;
+  --solaris-glow-a-x: 96%; --solaris-glow-a-y: 18%;
+  --solaris-glow-b-x: 8%; --solaris-glow-b-y: 74%;
+}
+
+body[data-solaris-family="taste-dna"] {
+  --solaris-bg-primary: 196 84 255;
+  --solaris-bg-secondary: 88 61 219;
+  --solaris-bg-tertiary: 245 80 169;
+  --solaris-bg-deep: 15 3 37;
+  --solaris-bg-deep-2: 47 8 77;
+  --solaris-glow-a-x: 8%; --solaris-glow-a-y: 4%;
+  --solaris-glow-b-x: 92%; --solaris-glow-b-y: 75%;
+  --solaris-bg-angle: 156deg;
+}
+
+body[data-solaris-family="broadcast"] {
+  --solaris-bg-primary: 255 126 54;
+  --solaris-bg-secondary: 197 54 71;
+  --solaris-bg-tertiary: 244 194 59;
+  --solaris-bg-deep: 29 6 8;
+  --solaris-bg-deep-2: 68 19 11;
+  --solaris-glow-a-x: 90%; --solaris-glow-a-y: 10%;
+  --solaris-glow-b-x: 8%; --solaris-glow-b-y: 65%;
+  --solaris-bg-angle: 110deg;
+}
+
+body[data-solaris-family="archive-games"] {
+  --solaris-bg-primary: 105 212 89;
+  --solaris-bg-secondary: 45 143 80;
+  --solaris-bg-tertiary: 236 187 60;
+  --solaris-bg-deep: 4 20 12;
+  --solaris-bg-deep-2: 12 52 25;
+  --solaris-glow-a-x: 6%; --solaris-glow-a-y: 80%;
+  --solaris-glow-b-x: 94%; --solaris-glow-b-y: 8%;
+  --solaris-bg-angle: 145deg;
+}
+
+body[data-solaris-family="scorecharts"] {
+  --solaris-bg-primary: 69 149 255;
+  --solaris-bg-secondary: 38 81 180;
+  --solaris-bg-tertiary: 53 214 198;
+  --solaris-bg-deep: 1 8 31;
+  --solaris-bg-deep-2: 4 27 68;
+  --solaris-glow-a-x: 50%; --solaris-glow-a-y: -6%;
+  --solaris-glow-b-x: 8%; --solaris-glow-b-y: 88%;
+}
+
+body[data-solaris-family="tools"] {
+  --solaris-bg-primary: 118 99 245;
+  --solaris-bg-secondary: 40 157 205;
+  --solaris-bg-tertiary: 223 76 190;
+  --solaris-bg-deep: 7 6 34;
+  --solaris-bg-deep-2: 24 17 69;
+  --solaris-glow-a-x: 4%; --solaris-glow-a-y: 8%;
+  --solaris-glow-b-x: 96%; --solaris-glow-b-y: 82%;
+  --solaris-bg-angle: 130deg;
+}
+
+body[data-solaris-family="core"] {
+  --solaris-bg-primary: 64 164 220;
+  --solaris-bg-secondary: 47 92 186;
+  --solaris-bg-tertiary: 48 184 175;
+  --solaris-bg-deep: 2 8 31;
+  --solaris-bg-deep-2: 4 24 49;
 }
 
 @media (max-width: 767px) {
   .app-background {
     inset: 0 !important;
     background:
-      radial-gradient(ellipse 101% 62% at 15% -3%, rgb(var(--solaris-bg-secondary) / 0.23), transparent 67%),
-      radial-gradient(ellipse 83% 56% at 105% 31%, rgb(var(--solaris-bg-primary) / 0.19), transparent 70%),
-      radial-gradient(ellipse 66% 42% at 36% 104%, rgb(var(--solaris-bg-primary) / 0.09), transparent 75%),
-      linear-gradient(155deg, #02071d 0%, rgb(var(--solaris-bg-deep)) 52%, #06142c 100%) !important;
+      radial-gradient(ellipse 104% 68% at var(--solaris-glow-a-x) var(--solaris-glow-a-y), rgb(var(--solaris-bg-secondary) / 0.34), transparent 63%),
+      radial-gradient(ellipse 92% 62% at var(--solaris-glow-b-x) var(--solaris-glow-b-y), rgb(var(--solaris-bg-primary) / 0.30), transparent 67%),
+      radial-gradient(ellipse 76% 53% at var(--solaris-glow-c-x) var(--solaris-glow-c-y), rgb(var(--solaris-bg-tertiary) / 0.20), transparent 72%),
+      linear-gradient(var(--solaris-bg-angle), rgb(var(--solaris-bg-deep)) 0%, rgb(var(--solaris-bg-deep-2)) 56%, #020616 100%) !important;
   }
 
   .app-background::before {
@@ -276,7 +448,7 @@ body[data-solaris-family="studio-tools"] {
       43% 112%,
       4% 111%,
       70% 38%;
-    filter: blur(0.4px) saturate(0.72) brightness(1.52) hue-rotate(-8deg);
+    filter: blur(0.4px) saturate(0.78) brightness(1.56) hue-rotate(-8deg);
     transform: rotate(-11deg) scale(1.11);
   }
 
@@ -317,7 +489,7 @@ body[data-solaris-family="studio-tools"] {
       111% 130%,
       96% 80%,
       4% 18%;
-    filter: blur(6.5px) saturate(0.68) brightness(1.8) hue-rotate(-10deg);
+    filter: blur(6.5px) saturate(0.72) brightness(1.85) hue-rotate(-10deg);
     transform: rotate(16deg) scale(1.15);
   }
 }
