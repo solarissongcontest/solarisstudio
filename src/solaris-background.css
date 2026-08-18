@@ -1,7 +1,7 @@
 /* Solaris Studio background system
    --------------------------------
    The old full-screen photo is intentionally gone. The canvas is now built
-   from CSS gradients plus the existing Solaris/SSC logo asset so every page
+   from CSS gradients plus the original Solaris star asset so every page
    keeps one visual language while still being able to shift its colour mood. */
 
 :root {
@@ -33,8 +33,8 @@ body {
   transition: background 420ms ease;
 }
 
-/* Crisp / middle-distance stars. We reuse the real repository logo asset
-   rather than manufacturing a second star symbol. */
+/* Crisp / middle-distance stars. IMG_6171.png is the original Solaris star
+   outline used by the historical Solaris star-flag implementation. */
 .app-background::before,
 .app-background::after {
   content: "";
@@ -42,18 +42,18 @@ body {
   inset: -9vmax;
   pointer-events: none;
   background-image:
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png"),
-    url("/IMG_9177.png");
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png"),
+    url("/IMG_6171.png");
   background-repeat: no-repeat;
   mix-blend-mode: screen;
   will-change: opacity, filter;
