@@ -2,29 +2,43 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowRight,
+  Bell,
   CheckCircle2,
   ClipboardCheck,
+  Clock3,
   Flag,
   RadioTower,
+  ShieldAlert,
   Trophy,
   Users,
   Vote,
 } from "lucide-react";
+import { useMemo } from "react";
 
+import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
   AdminCardHeader,
+  AdminEmptyState,
   AdminPageHeader,
   AdminProgress,
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { buildEditionReadiness, type AdminIssue } from "@/lib/admin-readiness";
+import { useAdminReadinessData } from "@/lib/admin-readiness-data";
+import {
+  useAdminDeadlines,
+  useAdminNotifications,
+  useMarkNotificationRead,
+} from "@/lib/admin-ops";
 import { editionLabel, useAllParticipants, useAllShows, useCountries, useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
     meta: [
       { title: "Overview — Solaris Organizer" },
+      { name: "robots", content: "noindex" },
       { name: "description", content: "The mobile-first organizer overview for the current Solaris Song Contest edition." },
     ],
   }),
@@ -36,165 +50,220 @@ function OrganizerOverview() {
   const { data: editions = [] } = useEditions();
   const { data: countries = [] } = useCountries();
   const { data: shows = [] } = useAllShows();
-  const { data: participants = [] } = useAllParticipants();
+  const { data: allParticipants = [] } = useAllParticipants();
 
-  const activeEdition = editions.find((edition) => edition.id === editionId) ?? editions[0] ?? null;
-  const editionShows = activeEdition ? shows.filter((show) => show.edition_id === activeEdition.id) : [];
-  const editionParticipants = activeEdition
-    ? participants.filter((participant) => participant.edition_id === activeEdition.id)
-    : [];
+  const activeEdition = useMemo(() => {
+    const ordered = [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1));
+    return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
+  }, [editions, editionId]);
 
-  const publishedShows = editionShows.filter((show) => show.published).length;
-  const setupSignals = [
-    Boolean(activeEdition),
-    editionShows.length > 0,
-    editionParticipants.length > 0,
-    publishedShows > 0,
-  ];
-  const readiness = Math.round((setupSignals.filter(Boolean).length / setupSignals.length) * 100);
+  const { data: readinessData, isLoading: readinessLoading } = useAdminReadinessData(activeEdition?.id);
+  const { data: deadlines = [] } = useAdminDeadlines(activeEdition?.id ?? null);
+  const { data: notifications = [] } = useAdminNotifications();
+  const markRead = useMarkNotificationRead();
 
-  const issues = [
-    !activeEdition
-      ? { label: "Choose or create an edition", description: "The workspace needs an active contest edition before edition-specific work can begin.", to: "/admin", tone: "blocked" as const }
+  const readiness = useMemo(
+    () => activeEdition
+      ? buildEditionReadiness({
+          edition: activeEdition,
+          shows,
+          participants: readinessData?.participants ?? [],
+          voters: readinessData?.voters ?? [],
+          juryVotes: readinessData?.juryVotes ?? [],
+          televotes: readinessData?.televotes ?? [],
+          results: readinessData?.results ?? [],
+        })
       : null,
-    activeEdition && editionShows.length === 0
-      ? { label: "No shows created yet", description: `Create the shows for ${editionLabel(activeEdition)} before adding running orders or results.`, to: `/admin/${activeEdition.slug}`, tone: "attention" as const }
-      : null,
-    activeEdition && editionShows.length > 0 && editionParticipants.length === 0
-      ? { label: "No entries assigned", description: "The edition has shows, but no participants are attached to them yet.", to: `/admin/${activeEdition.slug}`, tone: "attention" as const }
-      : null,
-    activeEdition && editionShows.length > 0 && publishedShows === 0
-      ? { label: "Nothing is public yet", description: "The edition exists, but none of its shows currently expose public information.", to: `/admin/${activeEdition.slug}`, tone: "info" as const }
-      : null,
-  ].filter(Boolean) as Array<{ label: string; description: string; to: string; tone: "attention" | "blocked" | "info" }>;
+    [activeEdition, shows, readinessData],
+  );
 
-  const progress = [
-    { label: "Shows", value: editionShows.length, target: Math.max(editionShows.length, 3), detail: editionShows.length ? `${editionShows.length} configured` : "Not started" },
-    { label: "Entries", value: editionParticipants.length, target: Math.max(editionParticipants.length, countries.length || 1), detail: editionParticipants.length ? `${editionParticipants.length} assigned` : "Not started" },
-    { label: "Public shows", value: publishedShows, target: Math.max(editionShows.length, 1), detail: editionShows.length ? `${publishedShows}/${editionShows.length} public` : "No shows" },
-  ];
+  const openDeadlines = [...deadlines]
+    .filter((item) => !item.completed_at)
+    .sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
+  const upcoming = openDeadlines[0] ?? null;
+  const unread = notifications.filter((item) => !item.read_at);
+  const issues = readiness?.issues ?? [];
+  const topIssues = issues.slice(0, 6);
 
   return (
-    <div className="mx-auto max-w-5xl">
-      <AdminPageHeader
-        eyebrow="Organizer overview"
-        title={activeEdition ? editionLabel(activeEdition) : "Solaris Studio"}
-        description={activeEdition ? `${activeEdition.name} · the next actions and readiness signals that matter right now.` : "Choose an edition to begin organizing."}
-        actions={
-          activeEdition ? (
+    <AdminPage>
+      <div className="mx-auto max-w-5xl">
+        <AdminPageHeader
+          eyebrow="Organizer overview"
+          title={activeEdition ? editionLabel(activeEdition) : "Solaris Studio"}
+          description={activeEdition ? `${activeEdition.name} · what needs attention, what is ready and what should happen next.` : "Choose or create an edition to begin organizing."}
+          actions={activeEdition ? (
             <Link to={`/admin/${activeEdition.slug}` as any} className="admin-action-secondary">
               Open edition <ArrowRight className="size-4" />
             </Link>
-          ) : null
-        }
-      />
+          ) : null}
+        />
 
-      <AdminCard strong className="mb-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="admin-section-label">Contest readiness</p>
-            <p className="mt-2 text-3xl font-bold tracking-[-.04em]">{readiness}%</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              A quick setup signal based on the edition, shows, entries and public show information.
-            </p>
-          </div>
-          <AdminStatus tone={readiness >= 100 ? "ready" : readiness >= 50 ? "attention" : "info"}>
-            {readiness >= 100 ? "Ready" : readiness >= 50 ? "In progress" : "Setup"}
-          </AdminStatus>
-        </div>
-        <div className="mt-4"><AdminProgress value={readiness} /></div>
-      </AdminCard>
+        {!activeEdition ? (
+          <AdminCard>
+            <AdminEmptyState icon={Trophy} title="No active edition" description="Choose an existing edition or create one before edition-specific work can begin." action={<Link to="/admin" className="admin-action-primary">Manage editions</Link>} />
+          </AdminCard>
+        ) : (
+          <>
+            <AdminCard strong className="mb-4">
+              <div className="flex min-w-0 items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="admin-section-label">Contest readiness</p>
+                  <p className="numeric mt-2 text-3xl font-bold tracking-[-.04em]">{readinessLoading ? "…" : `${readiness?.progress ?? 0}%`}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Real checks across setup, entries, jury voting, televote, results and publication.
+                  </p>
+                </div>
+                <AdminStatus tone={readiness?.status === "ready" ? "ready" : readiness?.status === "blocked" ? "blocked" : "attention"}>
+                  {readinessLoading ? "Checking" : readiness?.status === "ready" ? "Ready" : readiness?.status === "blocked" ? "Blocked" : "Needs attention"}
+                </AdminStatus>
+              </div>
+              <div className="mt-4"><AdminProgress value={readiness?.progress ?? 0} /></div>
+            </AdminCard>
 
-      <div className="grid gap-4 lg:grid-cols-[1.05fr_.95fr]">
-        <AdminCard>
-          <AdminCardHeader
-            eyebrow="Next actions"
-            title={issues.length ? `${issues.length} ${issues.length === 1 ? "thing needs" : "things need"} attention` : "Nothing obvious is blocking setup"}
-            description="Start here instead of hunting through the admin navigation."
-            action={<Link to="/admin/action-centre" className="admin-action-quiet !min-h-9 !px-2 text-xs">All checks →</Link>}
-          />
+            <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+              <AdminCard>
+                <AdminCardHeader
+                  eyebrow="Next actions"
+                  title={readinessLoading ? "Checking the edition…" : issues.length ? `${issues.length} ${issues.length === 1 ? "issue needs" : "issues need"} attention` : "Nothing is blocking the contest"}
+                  description="The highest-priority checks are first. Tap an issue to go directly to the workspace that fixes it."
+                />
 
-          {issues.length ? (
-            <div className="space-y-2">
-              {issues.map((issue) => (
-                <Link key={issue.label} to={issue.to as any} className="flex min-w-0 items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3 transition hover:bg-white/[0.045]">
-                  <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-amber-200/[0.07] text-amber-100">
-                    <AlertTriangle className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold">{issue.label}</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{issue.description}</span>
-                  </span>
-                  <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-emerald-200/10 bg-emerald-200/[0.045] p-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
-                <p className="text-sm leading-relaxed text-muted-foreground">Core edition setup has data in place. Use the detailed readiness view for publication and voting checks.</p>
+                {readinessLoading ? (
+                  <p className="py-6 text-center text-sm text-muted-foreground">Loading readiness checks…</p>
+                ) : topIssues.length ? (
+                  <div className="divide-y divide-white/[0.07]">
+                    {topIssues.map((issue) => <IssueLink key={issue.id} issue={issue} slug={activeEdition.slug} />)}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-emerald-200/10 bg-emerald-200/[0.045] p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
+                      <p className="text-sm leading-relaxed text-muted-foreground">Every current readiness check passes. You can still open the edition workspaces for normal contest work.</p>
+                    </div>
+                  </div>
+                )}
+
+                {issues.length > topIssues.length ? (
+                  <details className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.018] p-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-muted-foreground hover:text-foreground">Show {issues.length - topIssues.length} more issue{issues.length - topIssues.length === 1 ? "" : "s"}</summary>
+                    <div className="mt-3 divide-y divide-white/[0.07]">
+                      {issues.slice(topIssues.length).map((issue) => <IssueLink key={issue.id} issue={issue} slug={activeEdition.slug} />)}
+                    </div>
+                  </details>
+                ) : null}
+              </AdminCard>
+
+              <div className="space-y-4">
+                <AdminCard>
+                  <AdminCardHeader eyebrow="Readiness" title="By area" description="One compact status per organizer workflow." />
+                  <div className="grid grid-cols-2 gap-2">
+                    {(readiness?.areas ?? []).map((area) => (
+                      <Link key={area.key} to={areaHref(activeEdition.slug, area.key)} className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3 transition hover:bg-white/[0.045]">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">{area.label}</p>
+                          <AdminStatus tone={area.status === "complete" ? "ready" : area.status === "critical" ? "blocked" : "attention"}>
+                            {area.status === "complete" ? "Clear" : area.status === "critical" ? "Blocked" : "Check"}
+                          </AdminStatus>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </AdminCard>
+
+                <AdminCard>
+                  <AdminCardHeader eyebrow="Next deadline" title={upcoming?.label ?? "Nothing scheduled"} description={upcoming ? `${humanize(upcoming.kind)} · ${new Date(upcoming.due_at).toLocaleString()}` : "There are no open organizer deadlines for this edition."} />
+                  <Link to="/admin/system" className="admin-action-secondary w-full"><Clock3 className="size-4" /> Manage deadlines</Link>
+                </AdminCard>
+
+                <AdminCard>
+                  <AdminCardHeader eyebrow="Notifications" title={unread.length ? `${unread.length} unread` : "All caught up"} description="Persistent organizer notices from across Solaris Studio." />
+                  {unread.length ? (
+                    <div className="divide-y divide-white/[0.07]">
+                      {unread.slice(0, 3).map((item) => item.href ? (
+                        <Link key={item.id} to={item.href as any} onClick={() => markRead.mutate(item.id)} className="admin-list-row">
+                          <Bell className="size-4 shrink-0 text-sky-100" />
+                          <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-foreground">{item.title}</span>{item.body ? <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.body}</span> : null}</span>
+                          <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                        </Link>
+                      ) : (
+                        <button key={item.id} type="button" onClick={() => markRead.mutate(item.id)} className="admin-list-row w-full text-left">
+                          <Bell className="size-4 shrink-0 text-sky-100" />
+                          <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-foreground">{item.title}</span>{item.body ? <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.body}</span> : null}</span>
+                          <AdminStatus tone="info">Mark read</AdminStatus>
+                        </button>
+                      ))}
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground">No unread operational notifications.</p>}
+                </AdminCard>
               </div>
             </div>
-          )}
-        </AdminCard>
 
-        <AdminCard>
-          <AdminCardHeader eyebrow="Progress" title="Current edition" description="A compact view of the parts you are most likely to check from your phone." />
-          <div className="space-y-4">
-            {progress.map((item) => {
-              const percent = Math.min(100, Math.round((item.value / Math.max(item.target, 1)) * 100));
-              return (
-                <div key={item.label}>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">{item.detail}</p>
-                  </div>
-                  <AdminProgress value={percent} />
-                </div>
-              );
-            })}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <QuickLink to="/confirmations/admin" icon={ClipboardCheck} label="Delegations" detail="Confirmations" />
+              <QuickLink to="/televoting/admin" icon={Vote} label="Voting" detail="Rounds & integrity" />
+              <QuickLink to={`/admin/design/${activeEdition.slug}`} icon={RadioTower} label="Broadcast" detail="Design & show" />
+              <QuickLink to="/admin/more" icon={Flag} label="More" detail="System & tools" />
+            </div>
+          </>
+        )}
+
+        <AdminCard className="mt-4">
+          <AdminCardHeader title="Archive at a glance" />
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <ArchiveStat icon={Trophy} label="Editions" value={editions.length} />
+            <ArchiveStat icon={Users} label="Countries" value={countries.length} />
+            <ArchiveStat icon={Flag} label="Entries" value={allParticipants.length} />
           </div>
         </AdminCard>
       </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <QuickLink to="/confirmations/admin" icon={ClipboardCheck} label="Delegations" detail="Confirmations" />
-        <QuickLink to="/televoting/admin" icon={Vote} label="Voting" detail="Rounds & ballots" />
-        <QuickLink to={activeEdition ? `/admin/design/${activeEdition.slug}` : "/admin"} icon={RadioTower} label="Broadcast" detail="Design & show" />
-        <QuickLink to="/admin/more" icon={Flag} label="More" detail="System & tools" />
-      </div>
-
-      <AdminCard className="mt-4">
-        <AdminCardHeader title="Archive at a glance" />
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <ArchiveStat icon={Trophy} label="Editions" value={editions.length} />
-          <ArchiveStat icon={Users} label="Countries" value={countries.length} />
-          <ArchiveStat icon={Flag} label="Entries" value={participants.length} />
-        </div>
-      </AdminCard>
-    </div>
+    </AdminPage>
   );
+}
+
+function IssueLink({ issue, slug }: { issue: AdminIssue; slug: string }) {
+  const critical = issue.severity === "critical";
+  return (
+    <Link to={issueHref(slug, issue)} className="admin-list-row group">
+      <span className={`grid size-9 shrink-0 place-items-center rounded-xl border ${critical ? "border-rose-200/15 bg-rose-200/[0.055] text-rose-100" : "border-amber-200/15 bg-amber-200/[0.05] text-amber-100"}`}>
+        {critical ? <ShieldAlert className="size-4" /> : <AlertTriangle className="size-4" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">{issue.title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{issue.detail}</span>
+      </span>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+    </Link>
+  );
+}
+
+function issueHref(slug: string, issue: AdminIssue) {
+  const base = areaHref(slug, issue.area);
+  if (!issue.showId || issue.area === "setup") return base;
+  return `${base}?show=${encodeURIComponent(issue.showId)}` as any;
+}
+
+function areaHref(slug: string, area: string) {
+  if (area === "setup") return `/admin/shows/${slug}` as any;
+  if (area === "entries") return `/admin/entries/${slug}` as any;
+  if (area === "jury") return `/admin/jury/${slug}` as any;
+  if (area === "televote") return `/admin/televote/${slug}` as any;
+  return `/admin/publication/${slug}` as any;
 }
 
 function QuickLink({ to, icon: Icon, label, detail }: { to: string; icon: typeof Vote; label: string; detail: string }) {
   return (
     <Link to={to as any} className="admin-card flex min-h-28 flex-col justify-between p-3 transition hover:border-white/[0.15] hover:bg-white/[0.045]">
       <span className="grid size-9 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100"><Icon className="size-4" /></span>
-      <span>
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="mt-1 block text-[11px] text-muted-foreground">{detail}</span>
-      </span>
+      <span><span className="block text-sm font-semibold">{label}</span><span className="mt-1 block text-[11px] text-muted-foreground">{detail}</span></span>
     </Link>
   );
 }
 
 function ArchiveStat({ icon: Icon, label, value }: { icon: typeof Trophy; label: string; value: number }) {
-  return (
-    <div>
-      <Icon className="mx-auto size-4 text-muted-foreground" />
-      <p className="mt-2 text-xl font-bold">{value}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
-    </div>
-  );
+  return <div><Icon className="mx-auto size-4 text-muted-foreground" /><p className="numeric mt-2 text-xl font-bold">{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{label}</p></div>;
+}
+
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
