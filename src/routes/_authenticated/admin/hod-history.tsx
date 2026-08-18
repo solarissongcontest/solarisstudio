@@ -279,7 +279,9 @@ function HodHistoryPage() {
       <AdminConfirmSheet
         open={!!removeTarget}
         onClose={() => !removeAssignment.isPending && setRemoveTarget(null)}
-        onConfirm={() => removeTarget && removeAssignment.mutate(removeTarget.id)}
+        onConfirm={() => {
+          if (removeTarget) removeAssignment.mutate(removeTarget.id);
+        }}
         title={removeTarget ? `Remove ${removeTarget.personName} from SSC${removeTarget.editionNumber ?? "?"}?` : "Remove HOD assignment?"}
         description={removeTarget ? <>This removes the historical {removeTarget.channel === "delegation" ? "delegation" : removeTarget.channel} assignment for {removeTarget.countryName}. It does not alter ballots, votes or official contest results.</> : "Remove this historical assignment?"}
         confirmLabel="Remove assignment"
