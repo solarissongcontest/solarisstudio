@@ -343,7 +343,7 @@ function HomePage() {
             linkTo="/tools"
           />
           <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-            Six clear starting points instead of a wall of similarly named desks. Humanity has rediscovered navigation.
+            Six clear starting points for the most-used parts of Solaris Studio.
           </p>
 
           <div className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 lg:grid-cols-3">
