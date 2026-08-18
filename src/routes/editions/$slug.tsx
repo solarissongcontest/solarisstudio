@@ -297,7 +297,7 @@ function EditionPage() {
         {grandFinalPublication?.results && !finalResults.length && (
           <Panel>
             <p className="text-sm text-muted-foreground">
-              Grand Final results are marked public, but no archived ranked results exist yet.
+              Grand Final results are not available in the public archive yet.
             </p>
           </Panel>
         )}
@@ -586,8 +586,7 @@ function EditionPage() {
         {!publicShows.length && (
           <Panel>
             <p className="text-sm text-muted-foreground">
-              This edition is public, but no individual show currently has public information. Open
-              the edition in Studio and save its Publication settings.
+              No individual show information is available publicly for this edition yet.
             </p>
           </Panel>
         )}
