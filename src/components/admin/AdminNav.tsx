@@ -39,10 +39,7 @@ export function AdminNav() {
       label: "Overview",
       to: "/admin/operations",
       icon: LayoutDashboard,
-      active: (path) =>
-        path === "/admin/operations" ||
-        path.startsWith("/admin/control-room") ||
-        path.startsWith("/admin/action-centre"),
+      active: (path) => path.startsWith("/admin/operations"),
     },
     {
       label: "Edition",
@@ -50,8 +47,12 @@ export function AdminNav() {
       icon: Trophy,
       active: (path) =>
         editions.some((edition) => path === `/admin/${edition.slug}`) ||
-        path.startsWith("/admin/design/") ||
-        path.startsWith("/admin/edition-theme/"),
+        path.startsWith("/admin/shows/") ||
+        path.startsWith("/admin/entries/") ||
+        path.startsWith("/admin/jury/") ||
+        path.startsWith("/admin/televote/") ||
+        path.startsWith("/admin/voting-system/") ||
+        path.startsWith("/admin/publication/"),
     },
     {
       label: "Delegations",
@@ -63,10 +64,7 @@ export function AdminNav() {
       label: "Voting",
       to: "/televoting/admin",
       icon: Vote,
-      active: (path) =>
-        path.startsWith("/televoting/admin") ||
-        path.startsWith("/admin/hod-history") ||
-        path.startsWith("/admin/sync-health"),
+      active: (path) => path.startsWith("/televoting/admin") || path.startsWith("/admin/hod-history"),
     },
     {
       label: "Broadcast",
@@ -103,7 +101,8 @@ export function AdminNav() {
         path.startsWith("/admin/more") ||
         path.startsWith("/admin/country-accounts") ||
         path.startsWith("/admin/hosts") ||
-        path.startsWith("/admin/system"),
+        path.startsWith("/admin/system") ||
+        path.startsWith("/admin/sync-health"),
     },
   ];
 
