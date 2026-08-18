@@ -3,23 +3,39 @@ import { Command, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { editionLabel, useEditions } from "@/lib/data";
+import { useAdminContext } from "./AdminContext";
 
 const FIXED = [
-  ["Control Room", "/admin/control-room", "Overview"],
-  ["Manage editions", "/admin", "Contest"],
-  ["Action Centre", "/admin/action-centre", "Operations"],
-  ["Status", "/admin/status", "Operations"],
-  ["Hosting", "/admin/hosts", "Broadcast"],
-  ["Predictions", "/admin/predictions", "Engagement"],
-  ["Country accounts", "/admin/country-accounts", "Terra Solaris"],
-  ["Deadlines & audit", "/admin/system", "System"],
-  ["Public homepage", "/", "Public site"],
+  ["Overview", "/admin/operations", "Workspace", "home readiness next actions"],
+  ["All editions", "/admin", "Edition", "manage create archive"],
+  ["Delegations", "/confirmations/admin", "Edition", "confirmations responses countries"],
+  ["Delegation responses", "/confirmations/admin/responses", "Delegations", "entries confirmations submissions"],
+  ["Submission rounds", "/confirmations/admin/rounds", "Delegations", "waves open close schedule"],
+  ["Delegation calendar", "/confirmations/admin/calendar", "Delegations", "national finals reveals deadlines"],
+  ["Voting", "/televoting/admin", "Voting", "televote ballots rounds"],
+  ["Voting rounds & entries", "/televoting/admin/rounds", "Voting", "open close entries rules"],
+  ["Voting results", "/televoting/admin/results", "Voting", "calculate lock publish"],
+  ["Voting integrity", "/televoting/admin/integrity", "Voting", "risk review moderation"],
+  ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout distribution"],
+  ["Predictions", "/admin/predictions", "More", "engagement"],
+  ["Beta feedback", "/admin/beta-feedback", "More", "testers reviews"],
+  ["Country accounts", "/admin/country-accounts", "More", "delegation ownership access"],
+  ["Hosting", "/admin/hosts", "More", "host country city"],
+  ["System settings", "/admin/system", "More", "deadlines audit settings"],
+  ["More organizer tools", "/admin/more", "More", "system engagement archive"],
+  ["Public Solaris Studio", "/", "Public site", "homepage"],
 ] as const;
 
 export function AdminCommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
+
+  const activeEdition =
+    editions.find((edition) => edition.id === editionId) ??
+    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
+    null;
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -33,45 +49,116 @@ export function AdminCommandPalette() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const commands = useMemo(
-    () => [
-      ...FIXED.map(([label, href, group]) => ({ label, href, group })),
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
+
+  const commands = useMemo(() => {
+    const currentEdition = activeEdition
+      ? [
+          {
+            label: `${editionLabel(activeEdition)} workspace`,
+            href: `/admin/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} edition home`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} design & broadcast`,
+            href: `/admin/design/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} artwork theme broadcast`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} advanced studio`,
+            href: `/admin/${activeEdition.slug}?advanced=true`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} shows entries jury televote publication advanced`,
+          },
+        ]
+      : [];
+
+    return [
+      ...currentEdition,
+      ...FIXED.map(([label, href, group, keywords]) => ({ label, href, group, keywords })),
       ...editions.map((edition) => ({
         label: `${editionLabel(edition)} · ${edition.name}`,
         href: `/admin/${edition.slug}`,
         group: "Editions",
+        keywords: `${edition.host_city ?? ""} ${edition.edition_number ?? ""}`,
       })),
-    ],
-    [editions],
-  );
+    ];
+  }, [activeEdition, editions]);
 
   const needle = query.trim().toLowerCase();
-  const filtered = commands.filter((item) => !needle || `${item.label} ${item.group}`.toLowerCase().includes(needle));
+  const filtered = commands.filter(
+    (item) =>
+      !needle ||
+      `${item.label} ${item.group} ${item.keywords}`.toLowerCase().includes(needle),
+  );
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="hidden min-h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-xs text-muted-foreground hover:text-foreground sm:flex">
-        <Search className="h-3.5 w-3.5" /> Search <kbd className="ml-1 rounded bg-background/60 px-1.5 py-0.5 text-[9px]">⌘K</kbd>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground sm:flex sm:w-auto sm:px-3"
+        aria-label="Search organizer workspace"
+      >
+        <Search className="size-4" />
+        <span className="hidden text-xs sm:inline">Search</span>
+        <kbd className="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[9px] text-muted-foreground lg:inline">⌘K</kbd>
       </button>
-      {open && (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/70 px-3 pt-[12vh] backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-border px-4">
-              <Command className="h-4 w-4 text-primary" />
-              <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search admin tools or editions…" className="min-h-14 min-w-0 flex-1 bg-transparent text-sm outline-none" />
-              <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg hover:bg-surface"><X className="h-4 w-4" /></button>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-[200] flex items-start justify-center bg-black/72 px-2 pt-[7vh] backdrop-blur-sm sm:px-3 sm:pt-[12vh]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/[0.1] bg-[#081326] shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-white/[0.08] px-3 sm:px-4">
+              <Command className="size-4 shrink-0 text-sky-100" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search actions, editions or tools…"
+                className="min-h-14 min-w-0 flex-1 bg-transparent text-sm outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="grid size-9 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-white/[0.05] hover:text-foreground"
+                aria-label="Close search"
+              >
+                <X className="size-4" />
+              </button>
             </div>
-            <div className="max-h-[55vh] overflow-y-auto p-2">
-              {filtered.slice(0, 20).map((item) => (
-                <Link key={`${item.group}-${item.href}-${item.label}`} to={item.href as any} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-xl px-3 hover:bg-surface">
-                  <span className="min-w-0"><span className="block truncate text-sm font-semibold">{item.label}</span><span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{item.group}</span></span>
+
+            <div className="max-h-[68dvh] overflow-y-auto p-2 scroll-slim">
+              {filtered.slice(0, 24).map((item) => (
+                <Link
+                  key={`${item.group}-${item.href}-${item.label}`}
+                  to={item.href as any}
+                  onClick={() => setOpen(false)}
+                  className="flex min-h-13 items-center rounded-xl px-3 transition hover:bg-white/[0.045]"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{item.label}</span>
+                    <span className="mt-0.5 block text-[10px] font-semibold text-muted-foreground">{item.group}</span>
+                  </span>
                 </Link>
               ))}
-              {!filtered.length && <p className="p-6 text-center text-sm text-muted-foreground">No admin destination matches that search.</p>}
+              {!filtered.length ? (
+                <p className="p-7 text-center text-sm text-muted-foreground">
+                  Nothing in the organizer workspace matches that search.
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

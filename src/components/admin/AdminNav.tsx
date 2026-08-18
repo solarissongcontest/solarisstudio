@@ -2,14 +2,11 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   ClipboardCheck,
-  Flag,
   LayoutDashboard,
   MoreHorizontal,
   RadioTower,
-  Settings,
   Sparkles,
   Trophy,
-  Users,
   Vote,
   type LucideIcon,
 } from "lucide-react";
@@ -42,15 +39,16 @@ export function AdminNav() {
       label: "Overview",
       to: "/admin/operations",
       icon: LayoutDashboard,
-      active: (path) => path === "/admin/operations" || path.startsWith("/admin/control-room") || path.startsWith("/admin/action-centre"),
+      active: (path) =>
+        path === "/admin/operations" ||
+        path.startsWith("/admin/control-room") ||
+        path.startsWith("/admin/action-centre"),
     },
     {
       label: "Edition",
       to: editionHref,
       icon: Trophy,
       active: (path) =>
-        path === "/admin" ||
-        path === "/admin/" ||
         editions.some((edition) => path === `/admin/${edition.slug}`) ||
         path.startsWith("/admin/design/") ||
         path.startsWith("/admin/edition-theme/"),
@@ -65,7 +63,10 @@ export function AdminNav() {
       label: "Voting",
       to: "/televoting/admin",
       icon: Vote,
-      active: (path) => path.startsWith("/televoting/admin") || path.startsWith("/admin/hod-history") || path.startsWith("/admin/sync-health"),
+      active: (path) =>
+        path.startsWith("/televoting/admin") ||
+        path.startsWith("/admin/hod-history") ||
+        path.startsWith("/admin/sync-health"),
     },
     {
       label: "Broadcast",
@@ -76,13 +77,34 @@ export function AdminNav() {
   ];
 
   const secondary: NavItem[] = [
-    { label: "Manage editions", to: "/admin", icon: Trophy, active: (path) => path === "/admin" || path === "/admin/" },
-    { label: "Country accounts", to: "/admin/country-accounts", icon: Users, active: (path) => path.startsWith("/admin/country-accounts") },
-    { label: "Hosting", to: "/admin/hosts", icon: Flag, active: (path) => path.startsWith("/admin/hosts") },
-    { label: "Predictions", to: "/admin/predictions", icon: Sparkles, active: (path) => path.startsWith("/admin/predictions") },
-    { label: "Beta feedback", to: "/admin/beta-feedback", icon: BarChart3, active: (path) => path.startsWith("/admin/beta-feedback") },
-    { label: "System", to: "/admin/system", icon: Settings, active: (path) => path.startsWith("/admin/system") },
-    { label: "More", to: "/admin/more", icon: MoreHorizontal, active: (path) => path.startsWith("/admin/more") },
+    {
+      label: "All editions",
+      to: "/admin",
+      icon: Trophy,
+      active: (path) => path === "/admin" || path === "/admin/",
+    },
+    {
+      label: "Predictions",
+      to: "/admin/predictions",
+      icon: Sparkles,
+      active: (path) => path.startsWith("/admin/predictions"),
+    },
+    {
+      label: "Beta feedback",
+      to: "/admin/beta-feedback",
+      icon: BarChart3,
+      active: (path) => path.startsWith("/admin/beta-feedback"),
+    },
+    {
+      label: "More",
+      to: "/admin/more",
+      icon: MoreHorizontal,
+      active: (path) =>
+        path.startsWith("/admin/more") ||
+        path.startsWith("/admin/country-accounts") ||
+        path.startsWith("/admin/hosts") ||
+        path.startsWith("/admin/system"),
+    },
   ];
 
   return (
@@ -104,6 +126,7 @@ export function AdminNav() {
 function NavLink({ item, pathname, quiet = false }: { item: NavItem; pathname: string; quiet?: boolean }) {
   const Icon = item.icon;
   const active = item.active(pathname);
+
   return (
     <Link
       to={item.to as any}
@@ -116,10 +139,14 @@ function NavLink({ item, pathname, quiet = false }: { item: NavItem; pathname: s
         quiet && !active && "text-xs",
       )}
     >
-      <span className={cn(
-        "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors",
-        active ? "border-sky-200/10 bg-sky-200/[0.08] text-sky-100" : "border-white/[0.06] bg-white/[0.025] text-muted-foreground group-hover:text-foreground",
-      )}>
+      <span
+        className={cn(
+          "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors",
+          active
+            ? "border-sky-200/10 bg-sky-200/[0.08] text-sky-100"
+            : "border-white/[0.06] bg-white/[0.025] text-muted-foreground group-hover:text-foreground",
+        )}
+      >
         <Icon className="size-4" />
       </span>
       <span className="truncate">{item.label}</span>
