@@ -58,6 +58,7 @@ function AdminEditionWorkspace() {
             <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListChecks className="size-4" /> Shows</Link>
             <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListOrdered className="size-4" /> Entries</Link>
             <Link to="/admin/jury/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Scale className="size-4" /> Jury</Link>
+            <Link to="/admin/publication/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Globe2 className="size-4" /> Publication</Link>
             <Link to="/admin/design/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><RadioTower className="size-4" /> Design & broadcast</Link>
           </div>
         </div>
@@ -93,14 +94,16 @@ function EditionHome({ slug }: { slug: string }) {
     : !participants.length
       ? { title: "Add entries", description: "The shows exist, but no entries have been assigned to this edition yet.", destination: "entries" as const }
       : publicShows.length === 0
-        ? { title: "Review publication", description: "The edition has content, but nothing from its shows is public yet.", destination: "advanced" as const }
-        : { title: "Continue edition setup", description: "Core edition data exists. Review the remaining publication and broadcast details.", destination: "advanced" as const };
+        ? { title: "Review publication", description: "The edition has content, but nothing from its shows is public yet.", destination: "publication" as const }
+        : { title: "Continue edition setup", description: "Core edition data exists. Review the remaining voting-system and broadcast details.", destination: "advanced" as const };
 
   const nextActionLink = nextAction.destination === "shows"
     ? <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
     : nextAction.destination === "entries"
       ? <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
-      : <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>;
+      : nextAction.destination === "publication"
+        ? <Link to="/admin/publication/$slug" params={{ slug }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>
+        : <Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-primary !min-h-10">Continue <ArrowRight className="size-4" /></Link>;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -144,8 +147,8 @@ function EditionHome({ slug }: { slug: string }) {
           <WorkspaceLink icon={ClipboardCheck} title="Delegations" description="Confirmation responses, countries and submission rounds." to="/confirmations/admin" />
           <WorkspaceLink icon={Vote} title="Televoting" description="Public vote rounds, calculated results and integrity review." to="/televoting/admin" />
           <WorkspaceLink icon={RadioTower} title="Design & broadcast" description="Official artwork, theme and broadcast presentation." to={`/admin/design/${slug}`} />
-          <WorkspaceLink icon={Globe2} title="Publication" description="Control what information from the edition becomes public." to={`/admin/${slug}?advanced=true`} />
-          <WorkspaceLink icon={Settings2} title="Advanced setup" description="The remaining publication, voting-system and detailed broadcast controls while migration continues." to={`/admin/${slug}?advanced=true`} />
+          <WorkspaceLink icon={Globe2} title="Publication" description="Stage what the public can see without editing the underlying contest data." to={`/admin/publication/${slug}`} />
+          <WorkspaceLink icon={Settings2} title="Advanced setup" description="The remaining voting-system and detailed broadcast controls while migration continues." to={`/admin/${slug}?advanced=true`} />
         </div>
       </section>
 
