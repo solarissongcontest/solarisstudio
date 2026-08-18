@@ -1,6 +1,10 @@
 import type { Edition, Participant, ResultRow, Show } from "@/lib/data";
 
-export type ArchiveGameMode = "higher-lower" | "jury-tele" | "edition-detective";
+export type ArchiveGameMode =
+  | "higher-lower"
+  | "jury-tele"
+  | "edition-detective"
+  | "winner-detective";
 
 export type ArchiveGameOption = {
   id: string;
@@ -75,9 +79,7 @@ function shuffle<T>(items: T[], seed: string) {
 }
 
 function editionDisplay(edition: Edition) {
-  if (edition.edition_number != null) {
-    return `SSC ${edition.edition_number}`;
-  }
+  if (edition.edition_number != null) return `SSC ${edition.edition_number}`;
   return edition.name || "Solaris edition";
 }
 
@@ -129,17 +131,17 @@ function entryDetail(entry: HistoricalEntry) {
   return music || entry.editionLabel;
 }
 
-function buildHigherLower(entries: HistoricalEntry[], seed: string): ArchiveGameQuestion | null {
+function groupedByShow(entries: HistoricalEntry[]) {
   const grouped = new Map<string, HistoricalEntry[]>();
-
   for (const entry of entries) {
     const key = entry.showId ?? `edition:${entry.editionId}`;
-    const current = grouped.get(key) ?? [];
-    current.push(entry);
-    grouped.set(key, current);
+    grouped.set(key, [...(grouped.get(key) ?? []), entry]);
   }
+  return grouped;
+}
 
-  const groups = [...grouped.values()].filter((group) => group.length >= 2);
+function buildHigherLower(entries: HistoricalEntry[], seed: string): ArchiveGameQuestion | null {
+  const groups = [...groupedByShow(entries).values()].filter((group) => group.length >= 2);
   const group = pick(groups, `${seed}:group`);
   if (!group) return null;
 
@@ -219,19 +221,22 @@ function buildEditionDetective(
   const correctEdition = publishedEditions.find((edition) => edition.id === entry.editionId);
   if (!correctEdition || correctEdition.edition_number == null) return null;
 
-  // Use nearby editions as distractors rather than three unrelated random
-  // editions. This makes Edition Detective test archive knowledge instead of
-  // making the correct answer visually obvious from a wildly different era.
   const nearbyPool = publishedEditions
     .filter((edition) => edition.id !== entry.editionId && edition.edition_number != null)
     .map((edition) => ({
       edition,
       distance: Math.abs((edition.edition_number ?? 0) - correctEdition.edition_number!),
     }))
-    .sort((a, b) => a.distance - b.distance || (a.edition.edition_number ?? 0) - (b.edition.edition_number ?? 0));
+    .sort(
+      (a, b) =>
+        a.distance - b.distance ||
+        (a.edition.edition_number ?? 0) - (b.edition.edition_number ?? 0),
+    );
 
   const nearestDistance = nearbyPool[0]?.distance ?? Number.POSITIVE_INFINITY;
-  const closePool = nearbyPool.filter((item) => item.distance <= Math.max(3, nearestDistance + 2));
+  const closePool = nearbyPool.filter(
+    (item) => item.distance <= Math.max(3, nearestDistance + 2),
+  );
   const distractorSource = closePool.length >= 3 ? closePool : nearbyPool;
   const distractors = shuffle(
     distractorSource.map((item) => item.edition),
@@ -262,6 +267,46 @@ function buildEditionDetective(
   };
 }
 
+function buildWinnerDetective(
+  entries: HistoricalEntry[],
+  seed: string,
+): ArchiveGameQuestion | null {
+  const groups = [...groupedByShow(entries).values()].filter(
+    (group) => group.length >= 4 && group.some((entry) => entry.finalRank === 1),
+  );
+  const group = pick(groups, `${seed}:group`);
+  if (!group) return null;
+
+  const winner = group.find((entry) => entry.finalRank === 1);
+  if (!winner) return null;
+
+  const closestFinishers = group
+    .filter((entry) => entry.entityId !== winner.entityId)
+    .sort((a, b) => a.finalRank - b.finalRank)
+    .slice(0, 8);
+  const distractors = shuffle(closestFinishers, `${seed}:distractors`).slice(0, 3);
+  if (distractors.length < 2) return null;
+
+  const options = shuffle([winner, ...distractors], `${seed}:options`).map((entry) => ({
+    id: entry.entityId,
+    label: entry.name,
+    detail: entryDetail(entry),
+  }));
+
+  return {
+    id: `winner:${winner.editionId}:${winner.showId ?? "edition"}`,
+    mode: "winner-detective",
+    eyebrow: `${winner.editionLabel} · ${winner.showName}`,
+    prompt: `Who won ${winner.showName}?`,
+    options,
+    correctOptionId: winner.entityId,
+    explanation: `${winner.name} won ${winner.showName} with ${winner.totalPoints} points.`,
+    editionId: winner.editionId,
+    showId: winner.showId ?? undefined,
+    entityIds: options.map((option) => option.id),
+  };
+}
+
 export function buildArchiveGameQuestion(
   input: ArchiveGameInput,
   mode: ArchiveGameMode,
@@ -272,6 +317,7 @@ export function buildArchiveGameQuestion(
 
   if (mode === "higher-lower") return buildHigherLower(entries, seed);
   if (mode === "jury-tele") return buildJuryTele(entries, seed);
+  if (mode === "winner-detective") return buildWinnerDetective(entries, seed);
   return buildEditionDetective(entries, input.editions, seed);
 }
 
