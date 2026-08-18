@@ -9,7 +9,6 @@ import {
   ListOrdered,
   RadioTower,
   Scale,
-  Settings2,
   Trophy,
   Users,
   Vote,
@@ -23,7 +22,6 @@ import {
   AdminProgress,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { Route as EditionFeatureRoute } from "@/features/admin/edition/AdminEditionRoute";
 import { editionLabel, useEdition, useParticipants, useShows } from "@/lib/data";
 import {
   hasAnyPublicInformation,
@@ -31,46 +29,18 @@ import {
   resolveShowPublication,
 } from "@/lib/publication";
 
-const featureOptions = EditionFeatureRoute.options as any;
-const AdminEditionComponent = featureOptions.component;
-const editionHead = featureOptions.head;
-
-type EditionSearch = {
-  advanced?: boolean;
-};
-
 export const Route = createFileRoute("/_authenticated/admin/$slug")({
   component: AdminEditionWorkspace,
-  head: editionHead,
-  validateSearch: (search: Record<string, unknown>): EditionSearch => ({
-    advanced: search.advanced === true || search.advanced === "true" ? true : undefined,
+  head: ({ params }) => ({
+    meta: [
+      { title: `${params.slug} Organizer — Solaris Studio` },
+      { name: "robots", content: "noindex" },
+    ],
   }),
 });
 
 function AdminEditionWorkspace() {
   const { slug } = Route.useParams();
-  const search = Route.useSearch();
-
-  if (search.advanced) {
-    return (
-      <div className="min-w-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] p-2.5">
-          <Link to="/admin/$slug" params={{ slug }} search={{}} className="admin-action-secondary !min-h-10">← Edition home</Link>
-          <div className="flex flex-wrap gap-2">
-            <Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListChecks className="size-4" /> Shows</Link>
-            <Link to="/admin/entries/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><ListOrdered className="size-4" /> Entries</Link>
-            <Link to="/admin/jury/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Scale className="size-4" /> Jury</Link>
-            <Link to="/admin/televote/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><BarChart3 className="size-4" /> Televote totals</Link>
-            <Link to="/admin/voting-system/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Calculator className="size-4" /> Voting system</Link>
-            <Link to="/admin/publication/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><Globe2 className="size-4" /> Publication</Link>
-            <Link to="/admin/design/$slug" params={{ slug }} className="admin-action-secondary !min-h-10"><RadioTower className="size-4" /> Design & broadcast</Link>
-          </div>
-        </div>
-        <div className="admin-legacy-studio min-w-0"><AdminEditionComponent /></div>
-      </div>
-    );
-  }
-
   return <EditionHome slug={slug} />;
 }
 
@@ -90,7 +60,12 @@ function EditionHome({ slug }: { slug: string }) {
     ? resolveAutomaticEditionStatus(shows.map((show) => ({ kind: show.kind, published: show.published, publication_config: show.publication_config })))
     : "draft";
 
-  const readinessSignals = [shows.length > 0, participants.length > 0, shows.some((show) => show.kind === "grand-final" || show.kind === "final"), publicShows.length > 0];
+  const readinessSignals = [
+    shows.length > 0,
+    participants.length > 0,
+    shows.some((show) => show.kind === "grand-final" || show.kind === "final"),
+    publicShows.length > 0,
+  ];
   const readiness = Math.round((readinessSignals.filter(Boolean).length / readinessSignals.length) * 100);
 
   const nextAction = !shows.length
@@ -115,7 +90,6 @@ function EditionHome({ slug }: { slug: string }) {
         eyebrow="Current edition"
         title={editionLabel(edition)}
         description={`${edition.name}${edition.host_city ? ` · ${edition.host_city}` : ""}`}
-        actions={<Link to="/admin/$slug" params={{ slug }} search={{ advanced: true }} className="admin-action-secondary"><Settings2 className="size-4" /> Advanced technical studio</Link>}
       />
 
       <AdminCard strong className="mb-4">
@@ -152,14 +126,13 @@ function EditionHome({ slug }: { slug: string }) {
           <WorkspaceLink icon={Calculator} title="Voting system" description="Configure point scales, weighting, qualifiers and tie-breaks." to={`/admin/voting-system/${slug}`} />
           <WorkspaceLink icon={ClipboardCheck} title="Delegations" description="Confirmation responses, countries and submission rounds." to="/confirmations/admin" />
           <WorkspaceLink icon={Vote} title="Public televoting" description="Public vote rounds, calculated results and integrity review." to="/televoting/admin" />
-          <WorkspaceLink icon={RadioTower} title="Design & broadcast" description="Official artwork, theme and broadcast presentation." to={`/admin/design/${slug}`} />
+          <WorkspaceLink icon={RadioTower} title="Design & broadcast" description="Official artwork, theme, scoreboard and broadcast presentation." to={`/admin/design/${slug}`} />
           <WorkspaceLink icon={Globe2} title="Publication" description="Stage what the public can see without editing the underlying contest data." to={`/admin/publication/${slug}`} />
-          <WorkspaceLink icon={Settings2} title="Advanced technical studio" description="Legacy specialist controls kept only as a technical fallback while migration finishes." to={`/admin/${slug}?advanced=true`} />
         </div>
       </section>
 
       <AdminCard>
-        <AdminCardHeader eyebrow="Shows" title={shows.length ? `${shows.length} configured` : "No shows yet"} description={shows.length ? "Open a show's line-up directly, or use Shows to change the stage itself." : "Create the first stage without entering the legacy studio."} />
+        <AdminCardHeader eyebrow="Shows" title={shows.length ? `${shows.length} configured` : "No shows yet"} description={shows.length ? "Open a show's line-up directly, or use Shows to change the stage itself." : "Create the first stage from the Shows workspace."} />
         {shows.length ? (
           <div className="divide-y divide-white/[0.07]">
             {[...shows].sort((a, b) => a.sort_order - b.sort_order).map((show) => {
