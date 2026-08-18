@@ -1,17 +1,20 @@
-import "@/confirmations.css";
-
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Search, ShieldAlert } from "lucide-react";
 
+import {
+  AdminCard,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import { Input } from "@/components/ui/input";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/confirmations/admin/responses")({
   head: () => ({
     meta: [
-      { title: "Confirmation Responses — Solaris Studio" },
+      { title: "Delegation responses — Solaris Studio" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -75,23 +78,18 @@ function overallState(row: ResponseRow) {
 }
 
 function StateBadge({ state }: { state: string }) {
-  const accepted = state === "accepted";
-  const declined = state === "declined";
-  const missing = state === "missing";
+  const tone =
+    state === "accepted"
+      ? "ready"
+      : state === "declined"
+        ? "blocked"
+        : state === "missing"
+          ? "attention"
+          : state === "pending"
+            ? "info"
+            : "neutral";
 
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] font-medium uppercase tracking-[0.16em]",
-        accepted && "border-emerald-300/25 bg-emerald-300/10 text-emerald-100",
-        declined && "border-red-300/30 bg-red-300/10 text-red-100",
-        missing && "border-amber-200/25 bg-amber-200/10 text-amber-100",
-        !accepted && !declined && !missing && "border-white/10 bg-white/[0.04] text-white/55",
-      )}
-    >
-      {state.replaceAll("-", " ")}
-    </span>
-  );
+  return <AdminStatus tone={tone}>{state.replaceAll("-", " ")}</AdminStatus>;
 }
 
 function ConfirmationResponsesPage() {
@@ -99,14 +97,12 @@ function ConfirmationResponsesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "review" | "incomplete">("all");
 
   useEffect(() => {
     let alive = true;
 
     void (async () => {
-      // Authentication and the Solaris organizer role are enforced once by
-      // UnifiedServiceAdminGate. Do not resurrect the retired Confirmations
-      // auth universe here by checking its old user_roles table again.
       const { data, error: loadError } = await confirmationsSupabase.rpc(
         "admin_confirmation_responses",
       );
@@ -129,9 +125,16 @@ function ConfirmationResponsesPage() {
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return rows;
 
     return rows.filter((row) => {
+      const state = overallState(row);
+      if (filter === "review" && row.reviewed) return false;
+      if (filter === "incomplete" && !["missing", "declined", "pending"].includes(state)) {
+        return false;
+      }
+
+      if (!term) return true;
+
       const internal = row.internal_entries;
       const nfEntries = row.national_finals?.national_final_entries ?? [];
       const text = [
@@ -148,158 +151,155 @@ function ConfirmationResponsesPage() {
         .toLowerCase();
       return text.includes(term);
     });
-  }, [query, rows]);
+  }, [filter, query, rows]);
+
+  const unreviewed = rows.filter((row) => !row.reviewed).length;
+  const incomplete = rows.filter((row) => ["missing", "declined", "pending"].includes(overallState(row))).length;
 
   return (
-    <div className="confirmations-theme">
-      <section className="mb-8">
-        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-sky-200/65">
-          Confirmations · Organiser workspace
-        </p>
-        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="confirmations-display text-5xl font-normal uppercase leading-none sm:text-6xl">
-              Responses
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm text-white/55">
-              Live participation responses, entry details and review state from the Confirmations backend.
-            </p>
-          </div>
-          <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/65">
-            {rows.length} total responses
-          </div>
-        </div>
-      </section>
+    <div className="admin-page pb-5">
+      <AdminPageHeader
+        eyebrow="Delegations"
+        title="Responses"
+        description="Review confirmations and entry information. The list is designed for quick organizer triage on a phone."
+        actions={
+          <Link to="/confirmations/admin" className="admin-action-secondary">
+            Delegations overview
+          </Link>
+        }
+      />
 
-      <div className="confirmations-surface mb-5 p-4">
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <button
+          type="button"
+          onClick={() => setFilter("all")}
+          className={filter === "all" ? "admin-action-primary !px-2" : "admin-action-secondary !px-2"}
+        >
+          All · {rows.length}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("review")}
+          className={filter === "review" ? "admin-action-primary !px-2" : "admin-action-secondary !px-2"}
+        >
+          Review · {unreviewed}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("incomplete")}
+          className={filter === "incomplete" ? "admin-action-primary !px-2" : "admin-action-secondary !px-2"}
+        >
+          Issues · {incomplete}
+        </button>
+      </div>
+
+      <AdminCard className="mb-4 !p-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-white/35" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search country, username, artist or song…"
-            className="pl-9"
+            className="min-h-11 pl-9"
           />
         </div>
-      </div>
+      </AdminCard>
 
       {loading ? (
-        <div className="confirmations-surface p-8 text-center text-sm text-white/55">
+        <AdminCard className="py-8 text-center text-sm text-muted-foreground">
           Loading responses…
-        </div>
+        </AdminCard>
       ) : error ? (
-        <div className="confirmations-surface border-red-300/20 p-6">
-          <div className="flex items-start gap-3 text-red-100">
-            <ShieldAlert className="mt-0.5 size-5 shrink-0" />
+        <AdminCard className="border-rose-200/20 bg-rose-200/[0.045]">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
             <div>
-              <p className="font-medium">Responses could not be loaded</p>
-              <p className="mt-1 text-sm text-red-100/70">{error}</p>
+              <p className="font-semibold">Responses could not be loaded</p>
+              <p className="mt-1 text-sm text-muted-foreground">{error}</p>
             </div>
           </div>
-        </div>
-      ) : (
-        <section className="grid gap-3 md:grid-cols-2">
+        </AdminCard>
+      ) : filtered.length ? (
+        <section className="grid gap-3 lg:grid-cols-2">
           {filtered.map((row) => {
             const state = overallState(row);
             const internal = row.internal_entries;
             const nf = row.national_finals;
             const activeNfEntries = (nf?.national_final_entries ?? []).filter(
-              (entry) => !entry.removed,
+              (entry) => !entry.removed && entry.review_status !== "removed",
             );
 
+            const entrySummary = !row.participating
+              ? "Not participating"
+              : row.selection_method === "internal"
+                ? internal?.song_title
+                  ? `${internal.artist || "Unknown artist"} — ${internal.song_title}`
+                  : "Internal entry not submitted yet"
+                : row.selection_method === "national_final"
+                  ? `${nf?.nf_name || "National Final"} · ${activeNfEntries.length} ${activeNfEntries.length === 1 ? "entry" : "entries"}`
+                  : "Selection method not submitted yet";
+
             return (
-              <article key={row.id} className="confirmations-surface p-5">
+              <AdminCard key={row.id} className="!p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[9px] uppercase tracking-[0.18em] text-white/35">
-                      {row.editions ? `SSC ${row.editions.edition_number}` : "SSC"} ·{" "}
-                      {row.submission_rounds?.name ?? "Confirmation"}
+                    <p className="admin-section-label">
+                      {row.editions ? `SSC ${row.editions.edition_number}` : "SSC"} · {row.submission_rounds?.name ?? "Confirmation"}
                     </p>
-                    <h2 className="mt-2 truncate text-xl font-medium text-white">{row.country}</h2>
-                    <p className="mt-1 truncate text-xs text-white/45">
+                    <h2 className="mt-1 truncate text-lg font-bold tracking-[-.02em]">{row.country}</h2>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
                       @{row.instagram_username.replace(/^@/, "")}
                     </p>
                   </div>
                   <StateBadge state={state} />
                 </div>
 
-                <div className="mt-4 rounded-xl border border-white/8 bg-black/10 p-3">
-                  {!row.participating ? (
-                    <p className="text-sm text-white/55">Not participating</p>
-                  ) : row.selection_method === "internal" ? (
-                    <>
-                      <p className="text-[9px] uppercase tracking-[0.16em] text-white/35">
-                        Internal selection
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-white">
-                        {internal?.artist || "Unknown artist"}{" "}
-                        {internal?.song_title ? `— ${internal.song_title}` : ""}
-                      </p>
-                    </>
-                  ) : row.selection_method === "national_final" ? (
-                    <>
-                      <p className="text-[9px] uppercase tracking-[0.16em] text-white/35">
-                        National Final
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-white">
-                        {nf?.nf_name || "National Final"}
-                      </p>
-                      <p className="mt-1 text-xs text-white/45">
-                        {activeNfEntries.length} submitted{" "}
-                        {activeNfEntries.length === 1 ? "entry" : "entries"}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-white/55">Selection method unknown</p>
-                  )}
+                <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.022] p-3">
+                  <p className="text-sm font-semibold leading-snug">{entrySummary}</p>
+                  {row.selection_method === "national_final" && activeNfEntries.length > 0 ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {nf?.winning_entry_id ? "Winning entry selected" : "Winner not selected yet"}
+                    </p>
+                  ) : null}
                 </div>
 
-                {row.selection_method === "national_final" && activeNfEntries.length ? (
-                  <div className="mt-3 space-y-1.5">
-                    {activeNfEntries.slice(0, 3).map((entry) => (
-                      <div key={entry.id} className="flex items-center justify-between gap-3 text-xs">
-                        <span className="min-w-0 truncate text-white/55">
-                          {entry.artist ?? "Unknown artist"} — {entry.song_title ?? "Unknown song"}
-                        </span>
-                        <StateBadge state={entry.review_status ?? "pending"} />
-                      </div>
-                    ))}
-                    {activeNfEntries.length > 3 ? (
-                      <p className="text-[10px] text-white/30">
-                        +{activeNfEntries.length - 3} more entries
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <div className="mt-4 flex items-center justify-between gap-3 text-[10px] text-white/35">
-                  <span>{new Date(row.submitted_at).toLocaleString()}</span>
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>{new Date(row.submitted_at).toLocaleDateString()}</span>
                   {row.reviewed ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-100/70">
-                      <CheckCircle2 className="size-3" /> Reviewed
+                    <span className="inline-flex items-center gap-1 text-emerald-200/80">
+                      <CheckCircle2 className="size-3.5" /> Reviewed
                     </span>
                   ) : (
-                    <span>Needs review</span>
+                    <AdminStatus tone="attention">Needs review</AdminStatus>
                   )}
                 </div>
 
                 <Link
                   to="/confirmations/admin/responses/$id"
                   params={{ id: row.id }}
-                  className="mt-4 flex min-h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white/65 transition hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+                  className={row.reviewed ? "admin-action-secondary mt-4 w-full" : "admin-action-primary mt-4 w-full"}
                 >
-                  Open response →
+                  {row.reviewed ? "Open response" : "Review response"}
                 </Link>
-              </article>
+              </AdminCard>
             );
           })}
-
-          {!filtered.length ? (
-            <div className="confirmations-surface p-8 text-center text-sm text-white/55 md:col-span-2">
-              No responses match this search.
-            </div>
-          ) : null}
         </section>
+      ) : (
+        <AdminCard>
+          <AdminEmptyState
+            title={query ? "No matching responses" : "Nothing in this view"}
+            description={
+              query
+                ? "Try another country, username, artist or song."
+                : filter === "review"
+                  ? "Every response has been reviewed."
+                  : filter === "incomplete"
+                    ? "No obvious submission issues are waiting here."
+                    : "No confirmation responses have been submitted yet."
+            }
+          />
+        </AdminCard>
       )}
     </div>
   );
