@@ -39,9 +39,9 @@ export const Route = createFileRoute("/countries/$code")({
 const TABS = [
   { value: "overview", label: "Overview" },
   { value: "results", label: "Results" },
-  { value: "form", label: "Current form" },
   { value: "voting", label: "Voting" },
   { value: "relationships", label: "Relationships" },
+  { value: "form", label: "Form" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["value"];
@@ -124,6 +124,23 @@ function CountryProfilePage() {
       result: myResults.find((result) => result.show_id === participant.show_id),
     }))
     .sort((a, b) => (b.edition?.edition_number ?? -1) - (a.edition?.edition_number ?? -1));
+
+  const participantByEdition = new Map(
+    (participants ?? [])
+      .filter((participant) => participant.country_id === country.id)
+      .map((participant) => [participant.edition_id, participant]),
+  );
+
+  const recentHistory =
+    stats?.timeline
+      .slice()
+      .reverse()
+      .slice(0, 6)
+      .map((point) => ({
+        point,
+        edition: editionMap.get(point.editionId),
+        participant: participantByEdition.get(point.editionId),
+      })) ?? [];
 
   const given = (jury ?? []).filter((vote) => vote.voter_country_id === country.id);
   const received = (jury ?? []).filter((vote) => vote.receiving_country_id === country.id);
@@ -233,7 +250,7 @@ function CountryProfilePage() {
               params={{ code: country.short_code }}
               className="rounded-xl bg-aurora px-3 py-2 text-xs font-semibold text-primary-foreground"
             >
-              Terra Solaris Wiki
+              Wiki
             </Link>
             <Link
               to="/compare"
@@ -261,76 +278,65 @@ function CountryProfilePage() {
 
           {hasContestData && stats ? (
             <>
-              <Panel title="SSC at a glance" description="Contest history, separated from the country's Terra Solaris identity">
-                <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-3 lg:grid-cols-5">
+              <Panel
+                title="SSC at a glance"
+                description="A compact summary. Full history and qualification details live in Results."
+              >
+                <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
                   <StatTile label="Participations" value={stats.participations} />
                   <StatTile label="Wins" value={stats.wins} />
+                  <StatTile label="Podiums" value={stats.podiums} />
                   <StatTile
                     label="Avg. placement"
                     value={stats.avgCombinedPlacement?.toFixed(1) ?? "—"}
                   />
-                  <StatTile
-                    label="Qualification"
-                    value={
-                      stats.qualificationPct != null
-                        ? `${stats.qualificationPct.toFixed(0)}%`
-                        : "—"
-                    }
-                  />
-                  <StatTile
-                    label="Current form"
-                    value={form?.formIndex != null ? form.formIndex.toFixed(0) : "—"}
-                    hint="Recent results weighted more"
-                  />
                 </div>
               </Panel>
 
-              <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
-                <Panel title="Recent editions">
+              <Panel
+                title="Recent SSC history"
+                description="One row per edition, so a qualifier is not shown twice for its semi-final and final."
+                actions={
+                  <button
+                    type="button"
+                    onClick={() => setTab("results")}
+                    className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-primary"
+                  >
+                    Full results →
+                  </button>
+                }
+              >
+                {recentHistory.length ? (
                   <div className="divide-y divide-border/60">
-                    {myResults.slice(0, 6).map((result) => {
-                      const edition = editionMap.get(result.edition_id);
-                      const show = showMap.get(result.show_id ?? "");
-                      return (
-                        <div
-                          key={`${result.edition_id}-${result.show_id}`}
-                          className="grid grid-cols-[1fr_auto] gap-3 py-3 first:pt-0 last:pb-0"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">
-                              {edition ? editionLabel(edition) : "Edition"}
-                            </p>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground">
-                              {show?.name ?? "Show"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="numeric text-sm font-semibold">
-                              {result.final_rank ? `#${result.final_rank}` : "—"}
-                            </p>
-                            <p className="numeric mt-0.5 text-[11px] text-muted-foreground">
-                              {result.total_points} pts
-                            </p>
-                          </div>
+                    {recentHistory.map(({ point, edition, participant }) => (
+                      <div
+                        key={point.editionId}
+                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">
+                            {edition ? editionLabel(edition) : point.label}
+                          </p>
+                          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                            {[participant?.artist, participant?.song].filter(Boolean).join(" · ") ||
+                              "Entry details not archived"}
+                          </p>
                         </div>
-                      );
-                    })}
+                        <div className="shrink-0 text-right">
+                          <p className="numeric text-sm font-semibold">
+                            {point.rank != null ? `#${point.rank}` : "—"}
+                          </p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            {point.qualified === false ? "Did not qualify" : "Final / overall"}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </Panel>
-
-                <Panel title="Career">
-                  <div className="divide-y divide-border/60">
-                    <Row label="Finals reached" value={stats.finals} />
-                    <Row label="Podiums" value={stats.podiums} />
-                    <Row label="Top 10 finishes" value={stats.top10} />
-                    <Row label="Highest score" value={stats.highestScore ?? "—"} />
-                    <Row
-                      label="Qualification streak"
-                      value={stats.consecutiveQualifications}
-                    />
-                  </div>
-                </Panel>
-              </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No archived edition history yet.</p>
+                )}
+              </Panel>
             </>
           ) : (
             <Panel title="Solaris Song Contest">
@@ -342,112 +348,12 @@ function CountryProfilePage() {
         </div>
       )}
 
-      {tab === "form" && (
-        hasContestData && form ? (
-          <div className="space-y-5">
-            <Panel title="Solaris Form Index" description={form.methodology}>
-              <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
-                <StatTile
-                  label="Form"
-                  value={form.formIndex?.toFixed(0) ?? "—"}
-                  hint={form.formBand === "unrated" ? "Not enough data" : form.formBand}
-                />
-                <StatTile
-                  label="Consistency"
-                  value={form.consistency?.toFixed(0) ?? "—"}
-                  hint="Higher means less placement variation"
-                />
-                <StatTile
-                  label="Voting reach"
-                  value={form.votingReach != null ? `${form.votingReach.toFixed(0)}%` : "—"}
-                  hint="Share of available juries giving points"
-                />
-                <StatTile
-                  label="Momentum"
-                  value={
-                    form.momentum != null
-                      ? `${form.momentum >= 0 ? "+" : ""}${form.momentum.toFixed(0)}`
-                      : "—"
-                  }
-                  hint="Recent form versus earlier baseline"
-                />
-              </div>
-            </Panel>
-
-            <div className="grid gap-5 lg:grid-cols-2">
-              <Panel title="Form components">
-                <div className="divide-y divide-border/60">
-                  <Row
-                    label="Top-three supporter dependence"
-                    value={
-                      form.supportDependence != null
-                        ? `${form.supportDependence.toFixed(0)}%`
-                        : "—"
-                    }
-                  />
-                  <Row
-                    label="Jury / televote identity"
-                    value={
-                      form.juryTelevoteLean == null
-                        ? "—"
-                        : Math.abs(form.juryTelevoteLean) < 5
-                          ? "Balanced"
-                          : form.juryTelevoteLean > 0
-                            ? `Jury +${form.juryTelevoteLean.toFixed(0)}`
-                            : `Tele +${Math.abs(form.juryTelevoteLean).toFixed(0)}`
-                    }
-                  />
-                  <Row
-                    label="Post-setback resilience"
-                    value={form.resilience != null ? form.resilience.toFixed(0) : "—"}
-                  />
-                  <Row label="Rated editions" value={form.sampleSize} />
-                </div>
-              </Panel>
-
-              <Panel title="Eras">
-                <div className="divide-y divide-border/60">
-                  <Row label="Peak run" value={form.peakEra ?? "—"} />
-                  <Row label="Lowest run" value={form.droughtEra ?? "—"} />
-                </div>
-              </Panel>
-            </div>
-
-            <Panel
-              title="Normalized result history"
-              description="100 is first place; 0 is last place after adjusting for field size."
-            >
-              <div className="divide-y divide-border/60">
-                {form.timeline
-                  .slice()
-                  .reverse()
-                  .slice(0, 10)
-                  .map((point) => (
-                    <div
-                      key={point.editionId}
-                      className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-3 first:pt-0 last:pb-0"
-                    >
-                      <span className="text-sm font-medium">{point.label}</span>
-                      <span className="numeric text-xs text-muted-foreground">
-                        #{point.rank} /{point.fieldSize}
-                      </span>
-                      <span className="numeric min-w-10 text-right text-sm font-semibold">
-                        {point.percentile.toFixed(0)}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </Panel>
-          </div>
-        ) : <NoContestData countryName={country.name} />
-      )}
-
       {tab === "results" && (
         hasContestData ? (
           <div className="space-y-5">
             <Panel
               title="Placement timeline"
-              description="Edition numbers are used as the historical timeline. Lower placement is better."
+              description="One historical placement per edition. Lower placement is better."
             >
               {chartData.length ? (
                 <div className="h-[270px]">
@@ -488,27 +394,30 @@ function CountryProfilePage() {
               <Panel title="Grand finals">
                 <ResultList rows={finalResults} editionMap={editionMap} showMap={showMap} />
               </Panel>
-              <Panel title="Qualification history">
+              <Panel
+                title="Qualification history"
+                description="Semi-final participation is kept here instead of duplicating it on the Overview."
+              >
                 {semiRows.length ? (
                   <div className="divide-y divide-border/60">
-                    {semiRows.map(({ participant, edition, result }) => (
+                    {semiRows.map(({ participant, edition }) => (
                       <div
                         key={participant.id}
                         className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                       >
-                        <div>
-                          <p className="text-sm font-medium">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
                             {edition ? editionLabel(edition) : "Edition"}
                           </p>
-                          <p className="numeric mt-0.5 text-[11px] text-muted-foreground">
-                            {result?.total_points ?? "—"} pts
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                            {[participant.artist, participant.song].filter(Boolean).join(" · ") || "Semi-final entry"}
                           </p>
                         </div>
                         <span
                           className={
                             participant.qualified
-                              ? "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
-                              : "rounded-full bg-surface px-2 py-1 text-[10px] text-muted-foreground"
+                              ? "shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
+                              : "shrink-0 rounded-full bg-surface px-2 py-1 text-[10px] text-muted-foreground"
                           }
                         >
                           {participant.qualified ? "Qualified" : "Eliminated"}
@@ -554,7 +463,7 @@ function CountryProfilePage() {
         hasContestData ? (
           <Panel
             title="Closest relationships"
-            description="Ranked by opportunity-normalized two-way support."
+            description="Countries with the strongest repeated two-way support in the available archive."
           >
             {relationshipRows.length ? (
               <div className="grid gap-2 sm:grid-cols-2">
@@ -563,7 +472,7 @@ function CountryProfilePage() {
                     key={other.id}
                     to="/relationships/$pair"
                     params={{ pair: `${country.short_code}-vs-${other.short_code}`.toUpperCase() }}
-                    className="rounded-xl bg-surface px-3 py-3 hover:bg-surface-strong"
+                    className="group rounded-xl bg-surface px-3 py-3 hover:bg-surface-strong"
                   >
                     <div className="flex items-center gap-3">
                       <FlagChip
@@ -573,16 +482,15 @@ function CountryProfilePage() {
                         size="sm"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{other.name}</p>
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {relationship.friendshipScore.toFixed(0)} normalized support ·{" "}
-                          {relationship.reciprocityScore.toFixed(0)} reciprocity ·{" "}
-                          {relationship.relationshipTrend}
+                        <p className="truncate text-sm font-semibold">{other.name}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Connection {relationship.friendshipScore.toFixed(0)} / 100 · {relationship.relationshipTrend}
                         </p>
-                        <p className="mt-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground/80">
-                          {headToHead.sharedEditions} shared editions · {relationship.sampleConfidence} sample
+                        <p className="mt-1 text-[10px] text-muted-foreground/80">
+                          {headToHead.sharedEditions} shared edition{headToHead.sharedEditions === 1 ? "" : "s"} · {relationship.sampleConfidence} confidence
                         </p>
                       </div>
+                      <span className="shrink-0 text-primary transition-transform group-hover:translate-x-1">→</span>
                     </div>
                   </Link>
                 ))}
@@ -591,6 +499,96 @@ function CountryProfilePage() {
               <p className="text-sm text-muted-foreground">No relationships recorded yet.</p>
             )}
           </Panel>
+        ) : <NoContestData countryName={country.name} />
+      )}
+
+      {tab === "form" && (
+        hasContestData && form ? (
+          <div className="space-y-5">
+            <Panel
+              title="Current form"
+              description="A recent-performance summary. This is optional context, not another version of the country history."
+            >
+              <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
+                <StatTile
+                  label="Form"
+                  value={form.formIndex?.toFixed(0) ?? "—"}
+                  hint={form.formBand === "unrated" ? "Not enough data" : form.formBand}
+                />
+                <StatTile
+                  label="Consistency"
+                  value={form.consistency?.toFixed(0) ?? "—"}
+                />
+                <StatTile
+                  label="Voting reach"
+                  value={form.votingReach != null ? `${form.votingReach.toFixed(0)}%` : "—"}
+                />
+                <StatTile
+                  label="Momentum"
+                  value={
+                    form.momentum != null
+                      ? `${form.momentum >= 0 ? "+" : ""}${form.momentum.toFixed(0)}`
+                      : "—"
+                  }
+                />
+              </div>
+            </Panel>
+
+            <Panel title="Recent form history" description={form.methodology}>
+              <div className="divide-y divide-border/60">
+                {form.timeline
+                  .slice()
+                  .reverse()
+                  .slice(0, 8)
+                  .map((point) => (
+                    <div
+                      key={point.editionId}
+                      className="grid grid-cols-[1fr_auto_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <span className="min-w-0 truncate text-sm font-medium">{point.label}</span>
+                      <span className="numeric whitespace-nowrap text-xs text-muted-foreground">
+                        #{point.rank} / {point.fieldSize}
+                      </span>
+                      <span className="numeric min-w-10 text-right text-sm font-semibold">
+                        {point.percentile.toFixed(0)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </Panel>
+
+            <details className="data-panel overflow-hidden">
+              <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold sm:px-5 [&::-webkit-details-marker]:hidden">
+                Advanced form details ▾
+              </summary>
+              <div className="grid gap-5 border-t border-border/60 px-4 py-4 sm:grid-cols-2 sm:px-5">
+                <div className="divide-y divide-border/60">
+                  <Row
+                    label="Support dependence"
+                    value={form.supportDependence != null ? `${form.supportDependence.toFixed(0)}%` : "—"}
+                  />
+                  <Row
+                    label="Jury / tele identity"
+                    value={
+                      form.juryTelevoteLean == null
+                        ? "—"
+                        : Math.abs(form.juryTelevoteLean) < 5
+                          ? "Balanced"
+                          : form.juryTelevoteLean > 0
+                            ? `Jury +${form.juryTelevoteLean.toFixed(0)}`
+                            : `Tele +${Math.abs(form.juryTelevoteLean).toFixed(0)}`
+                    }
+                  />
+                  <Row label="Resilience" value={form.resilience?.toFixed(0) ?? "—"} />
+                </div>
+                <div className="divide-y divide-border/60">
+                  <Row label="Rated editions" value={form.sampleSize} />
+                  <Row label="Peak run" value={form.peakEra ?? "—"} />
+                  <Row label="Lowest run" value={form.droughtEra ?? "—"} />
+                </div>
+              </div>
+            </details>
+          </div>
         ) : <NoContestData countryName={country.name} />
       )}
     </AppShell>
@@ -636,13 +634,15 @@ function ResultList({
             key={row.id}
             className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
           >
-            <div>
-              <p className="text-sm font-medium">{edition ? editionLabel(edition) : "Edition"}</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">
+                {edition ? editionLabel(edition) : "Edition"}
+              </p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                 {show?.name ?? "Grand Final"}
               </p>
             </div>
-            <div className="text-right">
+            <div className="shrink-0 text-right">
               <p className="numeric text-sm font-semibold">
                 {row.final_rank ? `#${row.final_rank}` : "—"}
               </p>
