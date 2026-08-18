@@ -1,0 +1,217 @@
+/* Solaris Organizer Workspace ------------------------------------------------
+   Mobile is the primary admin surface. Desktop expands the same system instead
+   of inventing a second information architecture. */
+
+.admin-control-room {
+  --admin-bg: #050b17;
+  --admin-bg-elevated: #091426;
+  --admin-surface: rgba(12, 28, 50, 0.88);
+  --admin-surface-strong: rgba(18, 39, 67, 0.94);
+  --admin-border: rgba(177, 211, 236, 0.11);
+  --admin-border-strong: rgba(177, 211, 236, 0.18);
+  --admin-accent: #7fc9f0;
+  --admin-accent-soft: rgba(127, 201, 240, 0.11);
+  --admin-success: #76c7a6;
+  --admin-warning: #e0b66e;
+  --admin-danger: #e58b95;
+  --admin-ui-font: "Gotham", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --admin-display-font: "Classica Crastao", Georgia, serif;
+
+  background:
+    radial-gradient(circle at 5% 0%, rgba(58, 127, 177, 0.12), transparent 34%),
+    radial-gradient(circle at 100% 26%, rgba(92, 82, 148, 0.07), transparent 28%),
+    linear-gradient(180deg, #050b17 0%, #050a15 100%);
+  color: var(--foreground);
+  font-family: var(--admin-ui-font) !important;
+}
+
+.admin-control-room *,
+.admin-control-room input,
+.admin-control-room button,
+.admin-control-room select,
+.admin-control-room textarea {
+  font-family: var(--admin-ui-font);
+}
+
+.admin-control-room .admin-brand-title,
+.admin-control-room .admin-page-title {
+  font-family: var(--admin-display-font) !important;
+  font-weight: 400 !important;
+  text-transform: uppercase;
+  letter-spacing: .025em;
+}
+
+.admin-control-room .font-display:not(.admin-page-title):not(.admin-brand-title) {
+  font-family: var(--admin-ui-font) !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  letter-spacing: -.02em !important;
+}
+
+.admin-page {
+  width: 100%;
+  max-width: 96rem;
+  margin-inline: auto;
+}
+
+.admin-mobile-nav {
+  background: rgba(5, 12, 25, .94);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.admin-sidebar {
+  background: rgba(6, 14, 28, .72);
+}
+
+.admin-card {
+  min-width: 0;
+  border: 1px solid var(--admin-border);
+  border-radius: 1rem;
+  background:
+    linear-gradient(150deg, rgba(127, 201, 240, .045), transparent 44%),
+    var(--admin-surface);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 12px 32px rgba(0,0,0,.12);
+}
+
+.admin-card-strong {
+  background:
+    radial-gradient(circle at 92% 6%, rgba(127, 201, 240, .09), transparent 32%),
+    var(--admin-surface-strong);
+  border-color: var(--admin-border-strong);
+}
+
+.admin-section-label {
+  color: color-mix(in srgb, var(--admin-accent) 82%, white 18%);
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.admin-status {
+  display: inline-flex;
+  min-height: 1.7rem;
+  align-items: center;
+  gap: .35rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  padding: .25rem .55rem;
+  font-size: .68rem;
+  font-weight: 700;
+}
+
+.admin-status[data-tone="ready"] { color: #bcebd7; background: rgba(118,199,166,.09); border-color: rgba(118,199,166,.18); }
+.admin-status[data-tone="attention"] { color: #f1d6a3; background: rgba(224,182,110,.09); border-color: rgba(224,182,110,.18); }
+.admin-status[data-tone="blocked"] { color: #f3b8be; background: rgba(229,139,149,.09); border-color: rgba(229,139,149,.18); }
+.admin-status[data-tone="info"] { color: #bfe4f7; background: rgba(127,201,240,.09); border-color: rgba(127,201,240,.18); }
+.admin-status[data-tone="neutral"] { color: var(--muted-foreground); background: rgba(255,255,255,.025); }
+
+.admin-action-primary,
+.admin-action-secondary,
+.admin-action-quiet,
+.admin-action-danger {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  border-radius: .8rem;
+  padding: .65rem .9rem;
+  font-size: .8rem;
+  font-weight: 700;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.admin-action-primary { background: var(--admin-accent); color: #03101a; }
+.admin-action-primary:hover { filter: brightness(1.05); }
+.admin-action-secondary { border: 1px solid var(--admin-border-strong); background: rgba(255,255,255,.035); color: var(--foreground); }
+.admin-action-secondary:hover { background: rgba(255,255,255,.065); }
+.admin-action-quiet { color: var(--muted-foreground); }
+.admin-action-quiet:hover { background: rgba(255,255,255,.04); color: var(--foreground); }
+.admin-action-danger { border: 1px solid rgba(229,139,149,.18); background: rgba(229,139,149,.08); color: #f2b3ba; }
+
+.admin-list-row {
+  display: flex;
+  min-width: 0;
+  min-height: 3.75rem;
+  align-items: center;
+  gap: .75rem;
+  border-bottom: 1px solid rgba(177,211,236,.075);
+  padding: .7rem .15rem;
+}
+.admin-list-row:last-child { border-bottom: 0; }
+
+.admin-progress-track {
+  height: .38rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.065);
+}
+.admin-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--admin-accent);
+}
+
+.admin-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  background: rgba(0,0,0,.62);
+  backdrop-filter: blur(4px);
+}
+.admin-sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 150;
+  max-height: min(88vh, 760px);
+  overflow-y: auto;
+  border: 1px solid var(--admin-border-strong);
+  border-bottom: 0;
+  border-radius: 1.4rem 1.4rem 0 0;
+  background: #081326;
+  box-shadow: 0 -20px 60px rgba(0,0,0,.35);
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.admin-sheet-handle {
+  width: 2.6rem;
+  height: .27rem;
+  margin: .55rem auto .2rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,.18);
+}
+
+.admin-sticky-actions {
+  position: sticky;
+  bottom: calc(4.6rem + env(safe-area-inset-bottom));
+  z-index: 30;
+  margin-inline: -.75rem;
+  border-top: 1px solid var(--admin-border);
+  background: rgba(5, 12, 25, .9);
+  padding: .65rem .75rem;
+  backdrop-filter: blur(18px);
+}
+
+@media (min-width: 1024px) {
+  .admin-sheet {
+    inset: 0 0 0 auto;
+    width: min(31rem, 42vw);
+    max-height: none;
+    border: 0;
+    border-left: 1px solid var(--admin-border-strong);
+    border-radius: 0;
+    padding-bottom: 1rem;
+  }
+  .admin-sheet-handle { display: none; }
+  .admin-sticky-actions { bottom: 0; margin-inline: 0; border-radius: 1rem; }
+}
+
+@media (max-width: 767px) {
+  .admin-control-room .text-\[9px\] { font-size: .66rem !important; line-height: .9rem !important; }
+  .admin-control-room .text-\[10px\] { font-size: .7rem !important; line-height: .95rem !important; }
+  .admin-page { padding-inline: .75rem !important; }
+  .admin-page-title { font-size: clamp(2rem, 10vw, 2.75rem) !important; line-height: .92 !important; }
+}
