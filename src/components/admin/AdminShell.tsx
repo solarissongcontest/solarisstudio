@@ -19,10 +19,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
   }, []);
 
-  const pageAlreadyShowsHealth =
-    pathname === "/admin/control-room" ||
-    pathname === "/admin/action-centre" ||
-    pathname === "/admin/operations";
+  const pageAlreadyShowsHealth = pathname === "/admin/operations";
 
   return (
     <AdminContextProvider>
@@ -31,7 +28,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <div className="relative flex min-h-[4rem] items-center gap-2 px-3 sm:gap-3 sm:px-5">
             <Link to="/admin/operations" className="min-w-0 shrink-0">
               <p className="admin-brand-title text-[1.02rem] leading-none text-foreground sm:text-lg">Solaris Studio</p>
-              <p className="mt-1 hidden text-[10px] font-semibold text-muted-foreground sm:block">Organizer workspace</p>
+              <p className="mt-1 hidden text-[11px] font-semibold text-muted-foreground sm:block">Organizer workspace</p>
             </Link>
 
             <div className="min-w-0 flex-1">
@@ -48,7 +45,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <ExternalLink className="size-3.5" /> Public site
             </Link>
 
-            {email ? <p className="hidden max-w-40 truncate text-[10px] text-muted-foreground xl:block">{email}</p> : null}
+            {email ? <p className="hidden max-w-40 truncate text-xs text-muted-foreground xl:block">{email}</p> : null}
           </div>
 
           {!pageAlreadyShowsHealth ? <AdminHealthStrip /> : null}
