@@ -1,12 +1,16 @@
-import "@/confirmations.css";
-
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Copy, LogOut, Settings2 } from "lucide-react";
+import { Copy, ExternalLink, LogOut, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ConfirmationsAdminNav } from "@/components/confirmations/ConfirmationsAdminNav";
-import { Button } from "@/components/ui/button";
+import { AdminPage } from "@/components/admin/AdminShell";
+import {
+  AdminActionItem,
+  AdminCard,
+  AdminCardHeader,
+  AdminPageHeader,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import {
   loadConfirmationEditions,
   requireConfirmationsAdmin,
@@ -15,7 +19,7 @@ import {
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 
 export const Route = createFileRoute("/confirmations/admin/settings")({
-  head: () => ({ meta: [{ title: "Confirmation Settings — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Delegation Settings — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
   component: SettingsPage,
 });
 
@@ -40,14 +44,12 @@ function SettingsPage() {
         setEmail(admin.email ?? null);
         setEditions(rows);
       } catch (caught) {
-        if (alive) setError(caught instanceof Error ? caught.message : "Could not load settings.");
+        if (alive) setError(caught instanceof Error ? caught.message : "Could not load delegation settings.");
       } finally {
         if (alive) setLoading(false);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [navigate]);
 
   const activeEdition = useMemo(
@@ -63,53 +65,77 @@ function SettingsPage() {
   }
 
   return (
-    <div className="confirmations-theme min-h-screen">
-      <div className="confirmations-backdrop" aria-hidden="true" />
-      <main className="relative z-10 mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
-        <div className="mb-6"><Link to="/confirmations/admin" className="text-xs text-white/55 hover:text-white">← Organiser overview</Link></div>
-        <ConfirmationsAdminNav current="/confirmations/admin/settings" />
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Delegations · Administration"
+        title="Settings"
+        description="Low-frequency delegation settings and public access information. Everyday review work stays in the Delegations workspace."
+      />
 
-        <header className="mb-7">
-          <div className="flex items-center gap-2 text-sky-100/70"><Settings2 className="size-4" /><p className="text-[10px] uppercase tracking-[0.22em]">Organiser workspace</p></div>
-          <h1 className="confirmations-display mt-2 text-5xl font-normal uppercase leading-none sm:text-6xl">Settings</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/55">Account, edition setup and public-form information for delegation confirmations.</p>
-        </header>
-
-        {loading ? <div className="confirmations-surface p-8 text-center text-sm text-white/55">Loading settings…</div> : error ? <div className="confirmations-surface border-red-300/20 p-6 text-sm text-red-100">{error}</div> : (
-          <div className="space-y-4">
-            <section className="confirmations-surface p-5">
-              <h2 className="text-lg font-medium text-white">Account & system</h2>
-              <div className="mt-4 divide-y divide-white/8 text-sm">
-                <div className="flex flex-wrap justify-between gap-3 py-3"><span className="text-white/40">Solaris account</span><span className="font-medium text-white/75">{email ?? "—"}</span></div>
-                <div className="flex flex-wrap justify-between gap-3 py-3"><span className="text-white/40">Access</span><span className="font-medium text-white/75">Organizer</span></div>
-                <div className="flex flex-wrap justify-between gap-3 py-3"><span className="text-white/40">Active edition</span><span className="font-medium text-white/75">{activeEdition ? `SSC ${activeEdition.edition_number} — ${activeEdition.name}` : "None"}</span></div>
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <span className="text-white/40">Public form</span>
-                  <div className="flex min-w-0 items-center gap-2"><code className="max-w-[520px] truncate text-xs text-white/70">{publicUrl}</code><Button size="sm" variant="outline" onClick={async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Public form link copied"); }}><Copy className="size-3.5" /> Copy</Button></div>
-                </div>
+      {loading ? (
+        <AdminCard><p className="py-6 text-center text-sm text-muted-foreground">Loading settings…</p></AdminCard>
+      ) : error ? (
+        <AdminCard><p className="text-sm text-rose-200">{error}</p></AdminCard>
+      ) : (
+        <div className="space-y-4">
+          <AdminCard strong>
+            <AdminCardHeader eyebrow="Current context" title={activeEdition ? `SSC ${activeEdition.edition_number}` : "No active edition"} description={activeEdition?.name ?? "Choose or configure an edition before opening confirmations."} action={<AdminStatus tone={activeEdition ? "ready" : "attention"}>{activeEdition ? "Active" : "Needs setup"}</AdminStatus>} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+                <p className="admin-section-label">Organizer account</p>
+                <p className="mt-2 truncate text-sm font-semibold text-foreground">{email ?? "Solaris organizer"}</p>
               </div>
-            </section>
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+                <p className="admin-section-label">Response editing</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{activeEdition?.editing_enabled ? "Open" : "Closed"}</p>
+              </div>
+            </div>
+          </AdminCard>
 
-            <section className="confirmations-surface p-5">
-              <h2 className="text-lg font-medium text-white">Edition workflow</h2>
-              <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-white/50">
-                <li>Create the new SSC edition on the Editions page.</li>
-                <li>Add one or more submission rounds and optional response limits.</li>
-                <li>Set a round to Open when confirmations should begin.</li>
-                <li>The public confirmation portal updates automatically.</li>
-                <li>Close new submissions separately from existing-response editing when delegations still need correction access.</li>
-              </ol>
-            </section>
+          <AdminCard>
+            <AdminCardHeader eyebrow="Public access" title="Confirmation portal" description="Share this link with delegations when a submission round is open." />
+            <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+              <p className="break-all text-xs leading-relaxed text-muted-foreground">{publicUrl}</p>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <button type="button" className="admin-action-secondary w-full" onClick={async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Confirmation portal link copied"); }}>
+                <Copy className="size-4" /> Copy link
+              </button>
+              <a href="/confirmations" target="_blank" rel="noreferrer" className="admin-action-secondary w-full">
+                <ExternalLink className="size-4" /> Open portal
+              </a>
+            </div>
+          </AdminCard>
 
-            <section className="confirmations-surface p-5">
-              <h2 className="text-lg font-medium text-white">Data continuity</h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/48">Submissions, rounds, review history and recovery codes remain continuous across editions. Organizer actions made here update the same live Confirmations records used by the public portal.</p>
-            </section>
+          <AdminCard>
+            <AdminCardHeader eyebrow="How it works" title="Delegation workflow" description="The normal confirmation cycle in five steps." />
+            <ol className="space-y-3 text-sm text-muted-foreground">
+              {[
+                "Select the SSC edition in the Organizer workspace.",
+                "Create one or more submission rounds and set the limits you need.",
+                "Open a round when delegations should be able to submit.",
+                "Review responses from the Delegations queue and resolve anything that needs attention.",
+                "Close new submissions separately from response editing when corrections still need to remain available.",
+              ].map((step, index) => (
+                <li key={step} className="flex gap-3">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full border border-white/[0.08] bg-white/[0.035] text-xs font-bold text-foreground">{index + 1}</span>
+                  <span className="pt-1 leading-relaxed">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </AdminCard>
 
-            <Button variant="outline" onClick={() => void signOut()}><LogOut className="size-4" /> Sign out of Solaris</Button>
-          </div>
-        )}
-      </main>
-    </div>
+          <AdminCard>
+            <AdminCardHeader eyebrow="Account" title="Session" description="Signing out also ends access to the organizer workspace on this browser." />
+            <AdminActionItem icon={Settings2} title="Delegation settings are stored with the live confirmation service" description="Responses, rounds, review history and recovery access remain continuous across editions." />
+            <div className="mt-3">
+              <button type="button" className="admin-action-secondary w-full sm:w-auto" onClick={() => void signOut()}>
+                <LogOut className="size-4" /> Sign out of Solaris
+              </button>
+            </div>
+          </AdminCard>
+        </div>
+      )}
+    </AdminPage>
   );
 }
