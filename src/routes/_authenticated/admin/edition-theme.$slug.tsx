@@ -54,7 +54,11 @@ function EditionThemePage() {
     setArtworkUrl(edition.artwork_url ?? null);
     setArtworkPath(edition.artwork_storage_path ?? null);
     const raw = edition.theme_colors as { palette?: unknown } | null;
-    setPalette(Array.isArray(raw?.palette) ? raw!.palette!.filter((v): v is string => typeof v === "string") : []);
+    setPalette(
+      Array.isArray(raw?.palette)
+        ? raw!.palette!.filter((value): value is string => typeof value === "string")
+        : [],
+    );
   }, [edition]);
 
   if (!edition) {
@@ -64,11 +68,8 @@ function EditionThemePage() {
   const set = (key: keyof VisualTheme, value: string) =>
     setTheme((current) => ({ ...current, [key]: value }));
 
-  const synchroniseScoreboardTheme = async (nextTheme: VisualTheme) => {
-    if (!edition.theme_id) return;
-    const selected = (themes ?? []).find((item) => item.id === edition.theme_id);
-    if (!selected) return;
-    const config = { ...(selected.config as Record<string, any>) };
+  const buildSyncedConfig = (configInput: unknown, nextTheme: VisualTheme) => {
+    const config = { ...((configInput && typeof configInput === "object" ? configInput : {}) as Record<string, any>) };
     config.background = {
       ...(config.background ?? {}),
       type: "gradient",
@@ -91,11 +92,52 @@ function EditionThemePage() {
       headerText: nextTheme.textPrimary,
       panelBackground: nextTheme.surface,
       panelText: nextTheme.textPrimary,
+      progressTrack: nextTheme.backgroundSecondary,
       progressFill: nextTheme.accent,
+      spokespersonBackground: nextTheme.surface,
+      spokespersonText: nextTheme.textPrimary,
       spokespersonAccent: nextTheme.accent,
     };
-    const { error } = await supabase.from("themes").update({ config }).eq("id", edition.theme_id);
-    if (error) throw error;
+    config.states = {
+      ...(config.states ?? {}),
+      leaderBackground: nextTheme.surface,
+      leaderBorder: nextTheme.accent,
+      leaderText: nextTheme.textPrimary,
+      highlight: nextTheme.accent,
+      votingBackground: nextTheme.backgroundSecondary,
+      votingText: nextTheme.textPrimary,
+      selected: nextTheme.accent,
+      hover: nextTheme.surface,
+      qualified: nextTheme.accent,
+    };
+    return config;
+  };
+
+  const synchroniseScoreboardThemes = async (nextTheme: VisualTheme) => {
+    const { data: showRows, error: showError } = await supabase
+      .from("shows")
+      .select("theme_id")
+      .eq("edition_id", edition.id);
+    if (showError) throw showError;
+
+    const themeIds = new Set<string>();
+    if (edition.theme_id) themeIds.add(edition.theme_id);
+    for (const show of showRows ?? []) {
+      if (typeof show.theme_id === "string" && show.theme_id) themeIds.add(show.theme_id);
+    }
+
+    for (const themeId of themeIds) {
+      const selected = (themes ?? []).find((item) => item.id === themeId);
+      let sourceConfig: unknown = selected?.config;
+      if (!sourceConfig) {
+        const { data: row, error } = await supabase.from("themes").select("config").eq("id", themeId).maybeSingle();
+        if (error) throw error;
+        sourceConfig = row?.config;
+      }
+      const config = buildSyncedConfig(sourceConfig, nextTheme);
+      const { error } = await supabase.from("themes").update({ config }).eq("id", themeId);
+      if (error) throw error;
+    }
   };
 
   const save = async (generatedFromArtwork = false) => {
@@ -110,12 +152,14 @@ function EditionThemePage() {
         palette,
         generatedFromArtwork,
       });
-      await synchroniseScoreboardTheme(theme);
+      await synchroniseScoreboardThemes(theme);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["editions"] }),
         qc.invalidateQueries({ queryKey: ["themes"] }),
+        qc.invalidateQueries({ queryKey: ["shows"] }),
+        qc.invalidateQueries({ queryKey: ["all-shows"] }),
       ]);
-      setMessage("Edition theme saved. Edition pages, shows and the edition scoreboard now share these colours.");
+      setMessage("Edition theme saved. Edition pages, every show and all linked scoreboard themes now share these colours.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Edition theme could not be saved.");
     } finally {
@@ -142,12 +186,14 @@ function EditionThemePage() {
         palette: extracted.palette,
         generatedFromArtwork: true,
       });
-      await synchroniseScoreboardTheme(extracted.theme);
+      await synchroniseScoreboardThemes(extracted.theme);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["editions"] }),
         qc.invalidateQueries({ queryKey: ["themes"] }),
+        qc.invalidateQueries({ queryKey: ["shows"] }),
+        qc.invalidateQueries({ queryKey: ["all-shows"] }),
       ]);
-      setMessage("Artwork uploaded and a coordinated edition palette was generated automatically. You can fine-tune it below.");
+      setMessage("Artwork uploaded. Solaris generated the edition palette and synchronized all linked scoreboards. You can fine-tune it below.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Artwork could not be processed.");
     } finally {
@@ -160,7 +206,7 @@ function EditionThemePage() {
       <PageHeader
         eyebrow="Edition design · Artwork intelligence"
         title={edition.edition_number ? `SSC ${edition.edition_number} visual identity` : edition.name}
-        description="Upload the edition artwork and Solaris extracts a restrained palette for the edition page, every show and the scoreboard. Manual changes remain possible after generation."
+        description="Upload the edition artwork and Solaris extracts a restrained palette for the edition page, every show and all linked scoreboards. Manual changes remain possible after generation."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/admin/design/$slug" params={{ slug }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Advanced design</Link>
@@ -171,7 +217,7 @@ function EditionThemePage() {
 
       <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]">
         <div className="space-y-5">
-          <Panel title="Edition artwork" description="JPEG, PNG or WebP. The image is stored with the edition and shown on its public page.">
+          <Panel title="Edition artwork" description="JPEG, PNG or WebP. The image is stored with the edition and becomes part of its public hero design.">
             <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => event.target.files?.[0] && void upload(event.target.files[0])} className="block w-full text-sm" />
             {artworkUrl ? (
               <img src={artworkUrl} alt={`${edition.name} artwork`} className="mt-4 aspect-[4/3] w-full rounded-2xl border border-border object-cover" />
