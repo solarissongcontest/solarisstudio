@@ -4,16 +4,26 @@ import { describe, expect, it } from "vitest";
 
 const PUBLIC_ROUTES = [
   "src/components/AppShell.tsx",
+  "src/components/CountryWorldOverview.tsx",
+  "src/components/ScoreboardStage.tsx",
+  "src/components/viz/VotingHeatmap.tsx",
+  "src/routes/analysis/index.tsx",
   "src/routes/archive-games/index.tsx",
   "src/routes/broadcast-intelligence/index.tsx",
   "src/routes/confirmations/index.tsx",
+  "src/routes/countries/$code.tsx",
+  "src/routes/editions/$slug.tsx",
   "src/routes/me/index.tsx",
   "src/routes/participate/index.tsx",
   "src/routes/predictions/index.tsx",
   "src/routes/predictions/$showId.tsx",
   "src/routes/predictions/share/$token.tsx",
   "src/routes/pulse/index.tsx",
+  "src/routes/relationships/index.tsx",
+  "src/routes/relationships/$pair.tsx",
   "src/routes/result-lab/index.tsx",
+  "src/routes/scorecharts/index.tsx",
+  "src/routes/shows/$showId.tsx",
   "src/routes/taste-dna/index.tsx",
   "src/routes/televoting/index.tsx",
   "src/routes/sitemap[.]xml.ts",
@@ -35,6 +45,11 @@ const FORBIDDEN_PUBLIC_COPY = [
   /Lovable/i,
   /missing the public Televoting connection/i,
   /deployment is missing/i,
+  /Open the edition in Studio/i,
+  /save its Publication settings/i,
+  /Save the show results once in Studio/i,
+  /open .* in Studio and save/i,
+  /configure .* in Studio/i,
 ];
 
 describe("public product copy", () => {
