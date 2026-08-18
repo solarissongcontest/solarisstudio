@@ -61,7 +61,7 @@ export function AdminNav() {
       active: (path) => path.startsWith("/confirmations/admin"),
     },
     {
-      label: "Voting",
+      label: "Televoting",
       to: "/televoting/admin",
       icon: Vote,
       active: (path) => path.startsWith("/televoting/admin") || path.startsWith("/admin/hod-history"),
