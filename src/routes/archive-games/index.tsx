@@ -27,6 +27,7 @@ const MODES: ReadonlyArray<readonly [ArchiveGameMode, string, string]> = [
   ["higher-lower", "Higher or Lower", "Pick which entry finished higher in the same historical show."],
   ["jury-tele", "Jury vs Televote", "Guess which voting side supported an entry more."],
   ["edition-detective", "Edition Detective", "Match an archived entry to the edition where it appeared."],
+  ["winner-detective", "Winner Detective", "Choose the winner from four real entries in the same historical show."],
 ];
 
 function ArchiveGamesPage() {
