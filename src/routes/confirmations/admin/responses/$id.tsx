@@ -1,5 +1,3 @@
-import "@/confirmations.css";
-
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
@@ -8,12 +6,23 @@ import {
   CheckCircle2,
   ExternalLink,
   LockKeyhole,
-  Save,
+  RefreshCw,
+  Settings2,
   Trophy,
   XCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import {
+  AdminActionItem,
+  AdminCard,
+  AdminCardHeader,
+  AdminEmptyState,
+  AdminMoreMenu,
+  AdminPageHeader,
+  AdminSheet,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,12 +31,11 @@ import {
   syncConfirmationSnapshotToSolaris,
   type ConfirmationSolarisSyncResult,
 } from "@/integrations/confirmations/sync.functions";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/confirmations/admin/responses/$id")({
   head: () => ({
     meta: [
-      { title: "Confirmation Response — Solaris Studio" },
+      { title: "Delegation response — Solaris Studio" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -98,20 +106,14 @@ type ResponseDetail = {
   history: HistoryItem[];
 };
 
-function ReviewBadge({ status }: { status: string }) {
-  const bad = status === "declined" || status === "removed";
-  return (
-    <span
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-[9px] font-medium uppercase tracking-[0.15em]",
-        status === "accepted" && "border-emerald-300/25 bg-emerald-300/10 text-emerald-100",
-        bad && "border-red-300/25 bg-red-300/10 text-red-100",
-        status !== "accepted" && !bad && "border-white/10 bg-white/[0.04] text-white/55",
-      )}
-    >
-      {status}
-    </span>
-  );
+function reviewTone(status: string) {
+  if (status === "accepted") return "ready" as const;
+  if (status === "declined" || status === "removed") return "blocked" as const;
+  return "attention" as const;
+}
+
+function reviewLabel(entry: ReviewEntry) {
+  return entry.removed ? "removed" : entry.review_status || "pending";
 }
 
 function EntryReviewCard({
@@ -125,27 +127,38 @@ function EntryReviewCard({
   targetType: "internal" | "national_final";
   winner?: boolean;
   onChanged: () => Promise<void>;
-  onWinner?: () => Promise<void>;
+  onWinner?: (reason: string) => Promise<void>;
 }) {
+  const [open, setOpen] = useState(false);
   const [reason, setReason] = useState(entry.review_reason ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const status = reviewLabel(entry);
 
-  async function review(status: "accepted" | "declined" | "removed") {
-    if (status !== "accepted" && !reason.trim()) {
-      setError("Add a reason before declining or removing an entry.");
+  async function review(nextStatus: "accepted" | "declined" | "removed") {
+    if (nextStatus !== "accepted" && !reason.trim()) {
+      setError("Add an organiser reason first.");
       return;
     }
+
     setBusy(true);
     setError(null);
     try {
       const { error: rpcError } = await confirmationsSupabase.rpc("admin_review_confirmation_entry", {
         _target_type: targetType,
         _entry_id: entry.id,
-        _status: status,
+        _status: nextStatus,
         _reason: reason.trim(),
       });
       if (rpcError) throw rpcError;
+      toast.success(
+        nextStatus === "accepted"
+          ? "Entry accepted"
+          : nextStatus === "declined"
+            ? "Entry declined"
+            : "Entry removed",
+      );
+      setOpen(false);
       await onChanged();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Review action failed.");
@@ -154,72 +167,141 @@ function EntryReviewCard({
     }
   }
 
+  async function chooseWinner() {
+    if (!onWinner) return;
+    if (!reason.trim()) {
+      setError("Add an organiser reason before selecting the winner.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await onWinner(reason.trim());
+      toast.success("National Final winner selected");
+      setOpen(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Winner could not be selected.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <article className={cn("rounded-2xl border p-4", winner ? "border-amber-200/30 bg-amber-200/[0.06]" : "border-white/10 bg-black/10")}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            {winner ? <Trophy className="size-4 text-amber-100" /> : null}
-            <p className="font-medium text-white">
-              {entry.artist ?? "Unknown artist"} — {entry.song_title ?? "Unknown song"}
-            </p>
+    <>
+      <AdminCard className={winner ? "border-amber-200/20 bg-amber-200/[0.035] !p-4" : "!p-4"}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              {winner ? <Trophy className="size-4 shrink-0 text-amber-200" /> : null}
+              <h3 className="truncate text-sm font-bold">
+                {entry.artist ?? "Unknown artist"} — {entry.song_title ?? "Unknown song"}
+              </h3>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {entry.song_url ? (
+                <a
+                  href={entry.song_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-9 items-center gap-1 text-sky-100/75 hover:text-sky-100"
+                >
+                  Open song <ExternalLink className="size-3.5" />
+                </a>
+              ) : (
+                <span>No song link</span>
+              )}
+              {entry.preview_start ? (
+                <span>Preview {entry.preview_start}{entry.preview_end ? `–${entry.preview_end}` : ""}</span>
+              ) : null}
+            </div>
           </div>
-          {entry.song_url ? (
-            <a href={entry.song_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-sky-100/65 hover:text-sky-100">
-              Open song <ExternalLink className="size-3" />
-            </a>
-          ) : null}
-          {entry.preview_start ? (
-            <p className="mt-1 text-[10px] text-white/35">Preview {entry.preview_start}{entry.preview_end ? `–${entry.preview_end}` : ""}</p>
-          ) : null}
+          <AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>
         </div>
-        <ReviewBadge status={entry.removed ? "removed" : entry.review_status} />
-      </div>
 
-      {entry.review_reason ? (
-        <p className="mt-3 rounded-xl border border-white/8 bg-white/[0.025] p-3 text-xs leading-relaxed text-white/55">
-          Current reason: {entry.review_reason}
-        </p>
-      ) : null}
-
-      <div className="mt-4 space-y-2">
-        <Label htmlFor={`reason-${entry.id}`}>Organiser reason</Label>
-        <Textarea
-          id={`reason-${entry.id}`}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="Required for decline/remove; optional for acceptance."
-          rows={2}
-        />
-      </div>
-
-      {error ? <p className="mt-2 text-xs text-red-100">{error}</p> : null}
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button size="sm" disabled={busy} onClick={() => void review("accepted")}>
-          <CheckCircle2 className="size-3.5" /> Accept
-        </Button>
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => void review("declined")}>
-          <XCircle className="size-3.5" /> Decline
-        </Button>
-        {targetType === "national_final" ? (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void review("removed")}>
-            Remove
-          </Button>
+        {entry.review_reason ? (
+          <p className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-xs leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">Review note:</span> {entry.review_reason}
+          </p>
         ) : null}
-        {onWinner && !winner ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy || !reason.trim()}
-            onClick={() => void onWinner()}
-            title={!reason.trim() ? "Add a reason before selecting a winner" : undefined}
-          >
-            <Trophy className="size-3.5" /> Set winner
-          </Button>
-        ) : null}
-      </div>
-    </article>
+
+        <button type="button" onClick={() => setOpen(true)} className="admin-action-secondary mt-4 w-full">
+          {status === "pending" ? "Review entry" : "Review actions"}
+        </button>
+      </AdminCard>
+
+      <AdminSheet
+        open={open}
+        onClose={busy ? () => undefined : () => setOpen(false)}
+        title={`${entry.artist ?? "Unknown artist"} — ${entry.song_title ?? "Unknown song"}`}
+        description="Accept the entry or record an organiser decision. Declines, removals and winner selections require a reason."
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+            <span className="text-sm font-semibold">Current status</span>
+            <AdminStatus tone={reviewTone(status)}>{status}</AdminStatus>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`review-reason-${entry.id}`}>Organiser reason</Label>
+            <Textarea
+              id={`review-reason-${entry.id}`}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Required for decline, remove or selecting a winner."
+              rows={4}
+            />
+          </div>
+
+          {error ? (
+            <div className="rounded-xl border border-rose-200/20 bg-rose-200/[0.05] p-3 text-sm text-rose-100">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void review("accepted")}
+              className="admin-action-primary w-full"
+            >
+              <CheckCircle2 className="size-4" /> {busy ? "Working…" : "Accept entry"}
+            </button>
+
+            {onWinner && !winner ? (
+              <button
+                type="button"
+                disabled={busy || !reason.trim()}
+                onClick={() => void chooseWinner()}
+                className="admin-action-secondary w-full"
+              >
+                <Trophy className="size-4" /> Select as NF winner
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={busy || !reason.trim()}
+              onClick={() => void review("declined")}
+              className="admin-action-secondary w-full"
+            >
+              <XCircle className="size-4" /> Decline entry
+            </button>
+
+            {targetType === "national_final" ? (
+              <button
+                type="button"
+                disabled={busy || !reason.trim()}
+                onClick={() => void review("removed")}
+                className="admin-action-danger w-full"
+              >
+                Remove entry
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </AdminSheet>
+    </>
   );
 }
 
@@ -233,6 +315,7 @@ function ResponseDetailPage() {
   const [editingAllowed, setEditingAllowed] = useState(false);
   const [locked, setLocked] = useState(false);
   const [notes, setNotes] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingControls, setSavingControls] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
@@ -245,9 +328,12 @@ function ResponseDetailPage() {
       const result = await syncToSolaris({ data: { snapshot: detail } });
       setSolarisSync(result);
       if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
+      return result;
     } catch (caught) {
       setSolarisSync(null);
-      setSolarisSyncError(caught instanceof Error ? caught.message : "Could not sync this response to Solaris.");
+      const message = caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
+      setSolarisSyncError(message);
+      throw caught;
     } finally {
       setSyncingSolaris(false);
     }
@@ -277,7 +363,12 @@ function ResponseDetailPage() {
     setLocked(detail.locked);
     setNotes(detail.admin_notes ?? "");
     setLoading(false);
-    await syncSnapshot(detail);
+
+    try {
+      await syncSnapshot(detail);
+    } catch {
+      // The review screen stays usable even if the canonical sync is temporarily unavailable.
+    }
   }, [id, navigate, syncSnapshot]);
 
   useEffect(() => {
@@ -296,210 +387,300 @@ function ResponseDetailPage() {
         _admin_notes: notes,
       });
       if (rpcError) throw rpcError;
+      toast.success("Response settings saved");
+      setSettingsOpen(false);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not save controls.");
+      setError(caught instanceof Error ? caught.message : "Could not save response settings.");
     } finally {
       setSavingControls(false);
     }
   }
 
-  async function setWinner(entry: ReviewEntry) {
+  async function setWinner(entry: ReviewEntry, reason: string) {
     if (!data?.national_final) return;
-    const reasonField = document.getElementById(`reason-${entry.id}`) as HTMLTextAreaElement | null;
-    const reason = reasonField?.value.trim() ?? "";
-    if (!reason) {
-      setError("Add a reason on the entry before selecting it as winner.");
-      return;
-    }
-
     const { error: rpcError } = await confirmationsSupabase.rpc("admin_set_confirmation_winner", {
       _national_final_id: data.national_final.id,
       _entry_id: entry.id,
       _reason: reason,
     });
-    if (rpcError) {
-      setError(rpcError.message);
-      return;
-    }
+    if (rpcError) throw rpcError;
     await load();
+  }
+
+  async function manualSync() {
+    if (!data) return;
+    try {
+      const result = await syncSnapshot(data);
+      if (result.ok) toast.success("Synced with Solaris Studio");
+      else toast.error(result.message ?? "Solaris sync needs attention");
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Could not sync with Solaris Studio");
+    }
   }
 
   if (loading) {
     return (
-      <div className="confirmations-theme min-h-screen">
-        <div className="confirmations-backdrop" aria-hidden="true" />
-        <main className="relative z-10 mx-auto max-w-3xl px-4 py-12">
-          <div className="confirmations-surface p-8 text-center text-sm text-white/55">Loading response…</div>
-        </main>
+      <div className="admin-page pb-5">
+        <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading response…</AdminCard>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="confirmations-theme min-h-screen">
-        <div className="confirmations-backdrop" aria-hidden="true" />
-        <main className="relative z-10 mx-auto max-w-3xl px-4 py-12">
-          <Link to="/confirmations/admin/responses" className="inline-flex items-center gap-2 text-xs text-white/55"><ArrowLeft className="size-3.5" /> Responses</Link>
-          <div className="confirmations-surface mt-5 p-7 text-red-100">{error ?? "Response not found."}</div>
-        </main>
+      <div className="admin-page pb-5">
+        <AdminPageHeader
+          eyebrow="Delegations"
+          title="Response unavailable"
+          actions={
+            <Link to="/confirmations/admin/responses" className="admin-action-secondary">
+              <ArrowLeft className="size-4" /> Responses
+            </Link>
+          }
+        />
+        <AdminCard>
+          <AdminEmptyState title="Response not found" description={error ?? "This response could not be loaded."} />
+        </AdminCard>
       </div>
     );
   }
 
+  const entryCount = data.internal_entry ? 1 : data.national_final?.entries.length ?? 0;
+  const acceptedCount = [data.internal_entry, ...(data.national_final?.entries ?? [])].filter(
+    (entry): entry is ReviewEntry => Boolean(entry && !entry.removed && entry.review_status === "accepted"),
+  ).length;
+
   return (
-    <div className="confirmations-theme min-h-screen">
-      <div className="confirmations-backdrop" aria-hidden="true" />
-      <main className="relative z-10 mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
-        <Link
-          to="/confirmations/admin/responses"
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3.5 py-2 text-xs text-white/65 backdrop-blur-xl transition hover:text-white"
-        >
-          <ArrowLeft className="size-3.5" /> Responses
-        </Link>
-
-        <header className="my-7">
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-sky-200/65">
-            {data.edition ? `SSC ${data.edition.edition_number}` : "Solaris Song Contest"} · {data.round?.name ?? "Confirmation"}
-          </p>
-          <h1 className="confirmations-display mt-3 text-5xl font-normal uppercase leading-none sm:text-6xl">{data.country}</h1>
-          <p className="mt-3 text-sm text-white/50">@{data.instagram_username.replace(/^@/, "")} · submitted {new Date(data.submitted_at).toLocaleString()}</p>
-        </header>
-
-        {error ? <div className="mb-4 rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div> : null}
-
-        <div className="grid gap-4 lg:grid-cols-[1fr_0.72fr]">
-          <div className="space-y-4">
-            <section className="confirmations-surface p-5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Submission</p>
-              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                <div><p className="text-[10px] text-white/35">Participating</p><p className="mt-1 text-white">{data.participating ? "Yes" : "No"}</p></div>
-                <div><p className="text-[10px] text-white/35">Selection</p><p className="mt-1 text-white">{data.selection_method?.replaceAll("_", " ") ?? "Unknown"}</p></div>
-                <div><p className="text-[10px] text-white/35">Country account</p><p className="mt-1 text-white">{data.country_account || (data.has_country_account ? "Provided" : "None")}</p></div>
-                <div><p className="text-[10px] text-white/35">Edits</p><p className="mt-1 text-white">{data.edit_count}</p></div>
+    <div className="admin-page pb-5">
+      <AdminPageHeader
+        eyebrow={`${data.edition ? `SSC ${data.edition.edition_number}` : "Solaris Song Contest"} · ${data.round?.name ?? "Confirmation"}`}
+        title={data.country}
+        description={`@${data.instagram_username.replace(/^@/, "")} · submitted ${new Date(data.submitted_at).toLocaleString()}`}
+        actions={
+          <>
+            <Link to="/confirmations/admin/responses" className="admin-action-secondary">
+              <ArrowLeft className="size-4" /> Responses
+            </Link>
+            <AdminMoreMenu
+              label="Response actions"
+              title={`${data.country} actions`}
+              description="Access controls and technical tools that are not part of the normal review flow."
+            >
+              <div className="space-y-1">
+                <AdminActionItem
+                  icon={Settings2}
+                  title="Response settings"
+                  description="Editing access, lock state and private organiser notes."
+                  onClick={() => setSettingsOpen(true)}
+                />
+                <AdminActionItem
+                  icon={RefreshCw}
+                  title="Sync with Solaris Studio"
+                  description="Refresh canonical participation and official-entry data."
+                  disabled={syncingSolaris}
+                  onClick={() => void manualSync()}
+                  trailing={
+                    <AdminStatus tone={solarisSync?.ok ? "ready" : solarisSyncError ? "attention" : "neutral"}>
+                      {syncingSolaris ? "Syncing" : solarisSync?.ok ? "Linked" : "Check"}
+                    </AdminStatus>
+                  }
+                />
               </div>
-            </section>
+            </AdminMoreMenu>
+          </>
+        }
+      />
 
-            {data.internal_entry ? (
-              <section className="confirmations-surface p-5">
-                <p className="mb-4 text-[10px] uppercase tracking-[0.18em] text-white/35">Internal entry review</p>
-                <EntryReviewCard entry={data.internal_entry} targetType="internal" onChanged={load} />
-              </section>
-            ) : null}
+      {error ? (
+        <AdminCard className="mb-4 border-rose-200/20 bg-rose-200/[0.045] text-sm text-rose-100">
+          {error}
+        </AdminCard>
+      ) : null}
 
-            {data.national_final ? (
-              <section className="confirmations-surface p-5">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">National Final</p>
-                    <h2 className="mt-1 text-xl font-medium text-white">{data.national_final.nf_name || "National Final"}</h2>
-                  </div>
-                  <span className="text-xs text-white/40">{data.national_final.entries.length} entries</span>
-                </div>
-                <div className="space-y-3">
-                  {data.national_final.entries.map((entry) => (
-                    <EntryReviewCard
-                      key={entry.id}
-                      entry={entry}
-                      targetType="national_final"
-                      winner={data.national_final?.winning_entry_id === entry.id}
-                      onChanged={load}
-                      onWinner={() => setWinner(entry)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            <section className="confirmations-surface p-5">
-              <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Review history</p>
-              <div className="mt-4 space-y-3">
-                {data.history.length ? data.history.map((item) => (
-                  <div key={item.id} className="rounded-xl border border-white/8 bg-black/10 p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-white">{item.artist ? `${item.artist} — ${item.song_title ?? ""}` : "Entry"}</p>
-                      <ReviewBadge status={item.action} />
-                    </div>
-                    <p className="mt-2 text-xs leading-relaxed text-white/55">{item.reason}</p>
-                    <p className="mt-2 text-[10px] text-white/30">{new Date(item.created_at).toLocaleString()}</p>
-                  </div>
-                )) : <p className="text-sm text-white/40">No organiser review actions yet.</p>}
-              </div>
-            </section>
+      <div className="space-y-4">
+        <AdminCard strong>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="admin-section-label">Submission</p>
+              <h2 className="mt-1 text-xl font-bold tracking-[-.025em]">
+                {data.participating ? "Participating" : "Not participating"}
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {data.selection_method
+                  ? data.selection_method === "national_final"
+                    ? data.national_final?.nf_name || "National Final"
+                    : "Internal selection"
+                  : "Selection method not provided"}
+              </p>
+            </div>
+            <AdminStatus tone={data.participating ? "ready" : "neutral"}>
+              {data.participating ? "Confirmed" : "Declined"}
+            </AdminStatus>
           </div>
 
-          <aside className="space-y-4">
-            <section className="confirmations-surface p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-white/35">Solaris canonical data</p>
-                  <p className="mt-2 text-sm font-medium text-white">
-                    {syncingSolaris
-                      ? "Syncing…"
-                      : solarisSync?.ok
-                        ? solarisSync.officialEntryKnown
-                          ? "Participation + official entry linked"
-                          : "Participation linked · entry pending"
-                        : "Needs sync"}
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-[9px] uppercase tracking-[0.15em]",
-                    syncingSolaris && "border-sky-200/20 bg-sky-200/10 text-sky-100",
-                    !syncingSolaris && solarisSync?.ok && "border-emerald-300/25 bg-emerald-300/10 text-emerald-100",
-                    !syncingSolaris && !solarisSync?.ok && "border-amber-200/25 bg-amber-200/10 text-amber-100",
-                  )}
-                >
-                  {syncingSolaris ? "Syncing" : solarisSync?.ok ? "Linked" : "Check"}
-                </span>
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground">Entries</p>
+              <p className="mt-1 text-2xl font-bold">{entryCount}</p>
+            </div>
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground">Accepted</p>
+              <p className="mt-1 text-2xl font-bold">{acceptedCount}</p>
+            </div>
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground">Edits</p>
+              <p className="mt-1 text-2xl font-bold">{data.edit_count}</p>
+            </div>
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground">Country account</p>
+              <p className="mt-1 truncate text-sm font-bold">{data.country_account || (data.has_country_account ? "Provided" : "None")}</p>
+            </div>
+          </div>
+        </AdminCard>
+
+        {data.internal_entry ? (
+          <section>
+            <div className="mb-2 flex items-end justify-between gap-3 px-1">
+              <div>
+                <p className="admin-section-label">Entry review</p>
+                <h2 className="mt-1 text-base font-bold">Internal selection</h2>
               </div>
-              {solarisSyncError ? <p className="mt-3 text-xs leading-relaxed text-red-100">{solarisSyncError}</p> : null}
-              {solarisSync?.ok && !solarisSync.officialEntryKnown ? (
-                <p className="mt-3 text-xs leading-relaxed text-white/45">The country is in the canonical SSC participant list. Its official song will populate automatically after an accepted internal entry or accepted NF winner exists.</p>
-              ) : null}
-              <Button className="mt-4 w-full" size="sm" variant="outline" disabled={syncingSolaris} onClick={() => void syncSnapshot(data)}>
-                {syncingSolaris ? "Syncing…" : "Sync now"}
-              </Button>
-            </section>
+              <AdminStatus tone={reviewTone(reviewLabel(data.internal_entry))}>
+                {reviewLabel(data.internal_entry)}
+              </AdminStatus>
+            </div>
+            <EntryReviewCard entry={data.internal_entry} targetType="internal" onChanged={load} />
+          </section>
+        ) : null}
 
-            <section className="confirmations-surface p-5 lg:sticky lg:top-6">
-              <div className="flex items-center gap-2">
-                <LockKeyhole className="size-4 text-sky-100/70" />
-                <h2 className="font-medium text-white">Response controls</h2>
+        {data.national_final ? (
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Entry review"
+              title={data.national_final.nf_name || "National Final"}
+              description={`${data.national_final.entries.length} ${data.national_final.entries.length === 1 ? "entry" : "entries"}${data.national_final.winning_entry_id ? " · winner selected" : " · winner not selected"}`}
+              action={
+                data.national_final.winning_entry_id ? (
+                  <AdminStatus tone="ready">Winner set</AdminStatus>
+                ) : (
+                  <AdminStatus tone="attention">Winner needed</AdminStatus>
+                )
+              }
+            />
+            <div className="space-y-3">
+              {data.national_final.entries.map((entry) => (
+                <EntryReviewCard
+                  key={entry.id}
+                  entry={entry}
+                  targetType="national_final"
+                  winner={data.national_final?.winning_entry_id === entry.id}
+                  onChanged={load}
+                  onWinner={(reason) => setWinner(entry, reason)}
+                />
+              ))}
+            </div>
+          </AdminCard>
+        ) : null}
+
+        <AdminCard>
+          <AdminCardHeader
+            eyebrow="Audit"
+            title="Review history"
+            description="A chronological record of organiser decisions for this response."
+          />
+          {data.history.length ? (
+            <div>
+              {data.history.map((item) => (
+                <div key={item.id} className="admin-list-row items-start">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">
+                      {item.artist ? `${item.artist} — ${item.song_title ?? ""}` : "Entry"}
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.reason}</span>
+                    <span className="mt-1 block text-[11px] text-muted-foreground/70">
+                      {new Date(item.created_at).toLocaleString()}
+                    </span>
+                  </span>
+                  <AdminStatus tone={reviewTone(item.action)}>{item.action}</AdminStatus>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <AdminEmptyState
+              title="No review decisions yet"
+              description="Entry decisions will appear here automatically as the response is reviewed."
+            />
+          )}
+        </AdminCard>
+
+        {solarisSyncError ? (
+          <AdminCard className="border-amber-200/15 bg-amber-200/[0.04]">
+            <div className="flex items-start gap-3">
+              <RefreshCw className="mt-0.5 size-4 shrink-0 text-amber-200" />
+              <div>
+                <p className="text-sm font-semibold">Solaris sync needs attention</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{solarisSyncError}</p>
               </div>
+            </div>
+          </AdminCard>
+        ) : null}
+      </div>
 
-              <div className="mt-5 space-y-4">
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/10 p-3">
-                  <div>
-                    <p className="text-sm text-white">Editing allowed</p>
-                    <p className="mt-1 text-[10px] text-white/35">Participant can update this response.</p>
-                  </div>
-                  <Switch checked={editingAllowed} onCheckedChange={setEditingAllowed} />
-                </div>
+      <AdminSheet
+        open={settingsOpen}
+        onClose={savingControls ? () => undefined : () => setSettingsOpen(false)}
+        title="Response settings"
+        description="These controls affect delegation access. They are intentionally kept outside the normal entry-review workflow."
+      >
+        <div className="space-y-4">
+          <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+            <span>
+              <span className="block text-sm font-semibold">Allow editing</span>
+              <span className="mt-1 block text-xs text-muted-foreground">The delegation can update this response.</span>
+            </span>
+            <Switch checked={editingAllowed} onCheckedChange={setEditingAllowed} />
+          </label>
 
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-white/8 bg-black/10 p-3">
-                  <div>
-                    <p className="text-sm text-white">Locked</p>
-                    <p className="mt-1 text-[10px] text-white/35">Blocks participant changes.</p>
-                  </div>
-                  <Switch checked={locked} onCheckedChange={setLocked} />
-                </div>
+          <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+            <span>
+              <span className="block text-sm font-semibold">Lock response</span>
+              <span className="mt-1 block text-xs text-muted-foreground">Blocks delegation changes until unlocked.</span>
+            </span>
+            <Switch checked={locked} onCheckedChange={setLocked} />
+          </label>
 
-                <div className="space-y-2">
-                  <Label htmlFor="admin-notes">Admin notes</Label>
-                  <Textarea id="admin-notes" rows={6} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Private organiser notes…" />
-                </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-notes">Private organiser notes</Label>
+            <Textarea
+              id="admin-notes"
+              rows={6}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Notes visible only to organisers…"
+            />
+          </div>
 
-                <Button className="w-full" disabled={savingControls} onClick={() => void saveControls()}>
-                  <Save className="size-4" /> {savingControls ? "Saving…" : "Save controls"}
-                </Button>
-              </div>
-            </section>
-          </aside>
+          <div className="admin-sticky-actions grid grid-cols-[auto_1fr] gap-2">
+            <button
+              type="button"
+              disabled={savingControls}
+              onClick={() => setSettingsOpen(false)}
+              className="admin-action-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={savingControls}
+              onClick={() => void saveControls()}
+              className="admin-action-primary"
+            >
+              <LockKeyhole className="size-4" /> {savingControls ? "Saving…" : "Save settings"}
+            </button>
+          </div>
         </div>
-      </main>
+      </AdminSheet>
     </div>
   );
 }
