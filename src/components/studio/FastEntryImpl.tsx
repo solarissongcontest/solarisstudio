@@ -37,7 +37,7 @@ export function FastJuryEntry({
   const keyOf = useMemo(() => {
     const cache = new Map<string, string>();
     return (v: JuryVote) => {
-      const cacheKey = `${v.voter_id ?? ""}|${v.voter_country_id ?? ""}`;
+      const cacheKey = `${v.voter_id ?? ""}|${v.voter_entity_id ?? ""}|${v.voter_country_id ?? ""}`;
       let k = cache.get(cacheKey);
       if (k === undefined) {
         k = matchVoterKey(v, voters);
