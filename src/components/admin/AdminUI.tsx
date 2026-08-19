@@ -25,7 +25,7 @@ export function AdminPageHeader({
       {eyebrow ? <p className="admin-section-label">{eyebrow}</p> : null}
       <div className="mt-1 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="admin-page-title text-[2.45rem] leading-[.92] sm:text-5xl">{title}</h1>
+          <h1 className="admin-page-title text-[2.45rem] leading-[.92] sm:text-[2.7rem] lg:text-[2.9rem]">{title}</h1>
           {description ? (
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
           ) : null}
@@ -46,7 +46,7 @@ export function AdminCard({
   strong?: boolean;
 }) {
   return (
-    <section className={cn("admin-card p-4 sm:p-5", strong && "admin-card-strong", className)}>
+    <section className={cn("admin-card p-4 sm:p-[1.125rem]", strong && "admin-card-strong", className)}>
       {children}
     </section>
   );
@@ -187,7 +187,7 @@ export function AdminSheet({
       <button type="button" aria-label="Close panel" className="admin-sheet-backdrop" onClick={onClose} />
       <aside className="admin-sheet" role="dialog" aria-modal="true" aria-label={title}>
         <div className="admin-sheet-handle" />
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-white/[0.07] bg-[#081326]/95 px-4 py-4 backdrop-blur-xl sm:px-5">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] bg-[#081326]/95 px-4 py-4 backdrop-blur-xl sm:px-5">
           <div className="min-w-0">
             <h2 className="text-lg font-bold">{title}</h2>
             {description ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p> : null}
@@ -196,7 +196,7 @@ export function AdminSheet({
             <X className="size-4" />
           </button>
         </div>
-        <div className="p-4 sm:p-5">{children}</div>
+        <div className="admin-sheet-body p-4 sm:p-5">{children}</div>
       </aside>
     </>
   );
