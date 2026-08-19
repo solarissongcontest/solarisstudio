@@ -163,18 +163,18 @@ function EditionsPage() {
   return (
     <AdminPage>
       <AdminPageHeader
-        eyebrow="Delegations · Administration"
+        eyebrow="Delegations"
         title="Edition links"
-        description="Solaris Studio owns edition identity. This page only controls the Confirmations projection and whether existing delegation responses may still be edited."
+        description="Keep delegation rounds connected to the correct Solaris edition and control whether submitted responses can still be edited."
         actions={
-          <AdminMoreMenu label="Edition actions" title="Edition administration" description="Technical and low-frequency actions for the delegation service.">
-            <AdminActionItem icon={RefreshCw} title={syncing ? "Synchronizing…" : "Sync edition links"} description="Refresh Confirmations edition projections from canonical Solaris editions." disabled={syncing} onClick={() => void synchronize(true)} />
+          <AdminMoreMenu label="Edition actions" title="Edition actions" description="Occasional delegation-edition controls.">
+            <AdminActionItem icon={RefreshCw} title={syncing ? "Synchronizing…" : "Sync edition links"} description="Refresh delegation edition links from Solaris." disabled={syncing} onClick={() => void synchronize(true)} />
           </AdminMoreMenu>
         }
       />
 
       {error ? <AdminCard><p className="text-sm text-rose-200">{error}</p></AdminCard> : null}
-      {orphanCount ? <AdminCard><AdminCardHeader eyebrow="Legacy data" title={`${orphanCount} unlinked Confirmations edition${orphanCount === 1 ? "" : "s"}`} description="These legacy records remain stored but are hidden because they do not map to the canonical Solaris edition catalog." /></AdminCard> : null}
+      {orphanCount ? <AdminCard><AdminCardHeader eyebrow="Unlinked data" title={`${orphanCount} unlinked delegation edition${orphanCount === 1 ? "" : "s"}`} description="These older records remain stored but are hidden because they are not connected to a Solaris edition." /></AdminCard> : null}
 
       {loading ? (
         <AdminCard><p className="py-6 text-center text-sm text-muted-foreground">Synchronizing edition links…</p></AdminCard>
@@ -193,7 +193,7 @@ function EditionsPage() {
                       <AdminStatus tone={remote ? "info" : "attention"}>{remote ? "Linked" : "Needs link"}</AdminStatus>
                     </div>
                     <p className="mt-1 truncate text-sm font-semibold text-foreground">{edition.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{remote ? `${remote.rounds.length} rounds · ${remote.response_count} responses` : "Confirmation projection will be created on synchronization."}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{remote ? `${remote.rounds.length} rounds · ${remote.response_count} responses` : "Delegation edition link will be created on synchronization."}</p>
                   </div>
                   <SlidersHorizontal className="mt-1 size-4 shrink-0 text-muted-foreground" />
                 </div>
