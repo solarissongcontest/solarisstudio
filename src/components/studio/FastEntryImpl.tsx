@@ -65,13 +65,13 @@ export function FastJuryEntry({
   const usedReceivers = new Set(ballot.map((v) => v.receiving_country_id));
 
   return (
-    <div className="space-y-4">
-      <div>
+    <div className="admin-jury-entry space-y-4">
+      <div className="admin-jury-voters">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Voting entity</p>
           <p className="text-[11px] text-muted-foreground">Complete or DNV resolves a jury</p>
         </div>
-        <div className="scroll-slim flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
+        <div className="admin-jury-voter-list scroll-slim flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
           {completeness.map((c) => {
             const voterOpt = vMap.get(c.id);
             if (!voterOpt) return null;
@@ -82,7 +82,7 @@ export function FastJuryEntry({
                 type="button"
                 onClick={() => onVoterChange(c.id)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition",
+                  "admin-jury-voter-button flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition",
                   activeVoter === c.id
                     ? "border-primary bg-primary/15"
                     : done || c.didNotVote
@@ -100,7 +100,7 @@ export function FastJuryEntry({
       </div>
 
       {activeVoter ? (
-        <div className="space-y-3">
+        <div className="admin-jury-ballot space-y-3">
           {activeDidNotVote ? (
             <div className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4">
               <p className="text-sm font-semibold text-foreground">This jury is marked “did not vote”</p>
@@ -116,7 +116,7 @@ export function FastJuryEntry({
               <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Point allocations</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">The picker opens upward automatically near the bottom of the screen. On wider screens the ballot is split into two columns so low-point rows stay reachable.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">The ballot expands into extra columns on desktop. On smaller screens, pickers automatically open upward near the bottom so every award remains reachable.</p>
                 </div>
                 {onDidNotVoteChange ? (
                   <button
@@ -131,7 +131,7 @@ export function FastJuryEntry({
                 ) : null}
               </div>
 
-              <ul className="grid gap-2 md:grid-cols-2">
+              <ul className="admin-jury-point-grid grid gap-2">
                 {voting.juryPoints.map((pts) => {
                   const receiver = byPoints.get(pts) ?? null;
                   const exclude = new Set([...usedReceivers].filter((id) => id !== receiver));
