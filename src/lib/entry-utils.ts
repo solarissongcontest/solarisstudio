@@ -35,23 +35,32 @@ function completeness(entry: ParticipantWithListenLinks) {
   );
 }
 
+function canonicalIdentity(entry: ParticipantWithListenLinks) {
+  return entry.country_id || entry.contest_entity_id || entry.id;
+}
+
 /**
- * One canonical entry per country per edition. A show appearance is never a
+ * One canonical entry per delegation per edition. A show appearance is never a
  * second song or participation. The show_id=null row wins when present; older
  * archives fall back to the most complete appearance.
+ *
+ * The edition is deliberately part of the key. Callers may safely pass rows
+ * from several editions without accidentally collapsing a country's whole
+ * history into one entry.
  */
 export function canonicalEditionEntries(participants: Participant[]): ParticipantWithListenLinks[] {
-  const byCountry = new Map<string, ParticipantWithListenLinks>();
+  const byEditionAndCountry = new Map<string, ParticipantWithListenLinks>();
 
   for (const raw of participants) {
     const entry = raw as ParticipantWithListenLinks;
-    const current = byCountry.get(entry.country_id);
+    const key = `${entry.edition_id}:${canonicalIdentity(entry)}`;
+    const current = byEditionAndCountry.get(key);
     if (!current || completeness(entry) > completeness(current)) {
-      byCountry.set(entry.country_id, entry);
+      byEditionAndCountry.set(key, entry);
     }
   }
 
-  return [...byCountry.values()];
+  return [...byEditionAndCountry.values()];
 }
 
 export function canonicalEntryFor(
