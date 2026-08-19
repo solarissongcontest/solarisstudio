@@ -13,6 +13,7 @@ import {
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { CountryWorldOverview } from "@/components/CountryWorldOverview";
+import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
@@ -27,6 +28,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { canonicalEntryFor } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
 import { computeCountryStats, computeHeadToHead, computeRelationship } from "@/lib/stats";
 
@@ -137,24 +139,10 @@ function CountryProfilePage() {
     .map((participant) => ({
       participant,
       edition: editionMap.get(participant.edition_id),
+      entry: canonicalEntryFor(myParticipants, participant.edition_id, country.id) ?? participant,
       status: qualificationFor(participant),
     }))
     .sort((a, b) => (b.edition?.edition_number ?? -1) - (a.edition?.edition_number ?? -1));
-
-  const participantByEdition = new Map<string, Participant>();
-  for (const participant of myParticipants) {
-    const current = participantByEdition.get(participant.edition_id);
-    const currentShow = showMap.get(current?.show_id ?? "");
-    const candidateShow = showMap.get(participant.show_id ?? "");
-    const candidateIsFinal = candidateShow?.kind === "grand-final";
-    const currentIsFinal = currentShow?.kind === "grand-final";
-    const candidateHasEntry = Boolean(participant.artist || participant.song);
-    const currentHasEntry = Boolean(current?.artist || current?.song);
-
-    if (!current || (candidateIsFinal && !currentIsFinal) || (candidateHasEntry && !currentHasEntry)) {
-      participantByEdition.set(participant.edition_id, participant);
-    }
-  }
 
   const recentHistory =
     stats?.timeline
@@ -162,7 +150,7 @@ function CountryProfilePage() {
       .reverse()
       .slice(0, 6)
       .map((point) => {
-        const participant = participantByEdition.get(point.editionId);
+        const participant = canonicalEntryFor(myParticipants, point.editionId, country.id) ?? undefined;
         const semiParticipant = myParticipants.find(
           (candidate) =>
             candidate.edition_id === point.editionId &&
@@ -244,10 +232,10 @@ function CountryProfilePage() {
 
   return (
     <AppShell>
-      <section className="glass relative mb-6 overflow-hidden p-5 sm:p-6">
+      <section className="country-public-hero glass relative mb-6 overflow-hidden p-5 sm:p-6">
         <BackgroundFlag
           image={country.flag_image}
-          className="-right-20 -top-20 h-72 w-72"
+          className="country-hero-background-flag -right-20 -top-20 h-72 w-72"
           opacity={0.14}
         />
 
@@ -349,7 +337,7 @@ function CountryProfilePage() {
 
               <Panel
                 title="Recent SSC history"
-                description="One row per edition. Missing entry metadata is labelled as missing rather than guessed."
+                description="One row per edition, with direct listening links when the delegation has added them."
                 actions={
                   <button
                     type="button"
@@ -363,30 +351,30 @@ function CountryProfilePage() {
                 {recentHistory.length ? (
                   <div className="divide-y divide-border/60">
                     {recentHistory.map(({ point, edition, participant, qualification }) => (
-                      <div
-                        key={point.editionId}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">
-                            {edition ? editionLabel(edition) : point.label}
-                          </p>
-                          <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                            {[participant?.artist, participant?.song].filter(Boolean).join(" · ") ||
-                              "Entry details not archived yet"}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className="numeric text-sm font-semibold">
-                            {point.rank != null ? `#${point.rank}` : "—"}
-                          </p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            {qualification === false
-                              ? "Did not qualify"
-                              : qualification === true
-                                ? "Reached final"
-                                : "Qualification not archived"}
-                          </p>
+                      <div key={point.editionId} className="py-3 first:pt-0 last:pb-0">
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">
+                              {edition ? editionLabel(edition) : point.label}
+                            </p>
+                            <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                              {[participant?.artist, participant?.song].filter(Boolean).join(" · ") ||
+                                "Entry details not archived yet"}
+                            </p>
+                            <EntryListenLinks entry={participant} compact className="mt-2" />
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="numeric text-sm font-semibold">
+                              {point.rank != null ? `#${point.rank}` : "—"}
+                            </p>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              {qualification === false
+                                ? "Did not qualify"
+                                : qualification === true
+                                  ? "Reached final"
+                                  : "Qualification not archived"}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -445,7 +433,7 @@ function CountryProfilePage() {
 
             <div className="grid gap-5 lg:grid-cols-2">
               <Panel title="Grand finals">
-                <ResultList rows={finalResults} editionMap={editionMap} showMap={showMap} />
+                <ResultList rows={finalResults} editionMap={editionMap} showMap={showMap} participants={myParticipants} countryId={country.id} />
               </Panel>
               <Panel
                 title="Qualification history"
@@ -453,21 +441,21 @@ function CountryProfilePage() {
               >
                 {semiRows.length ? (
                   <div className="divide-y divide-border/60">
-                    {semiRows.map(({ participant, edition, status }) => (
-                      <div
-                        key={participant.id}
-                        className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {edition ? editionLabel(edition) : "Edition"}
-                          </p>
-                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                            {[participant.artist, participant.song].filter(Boolean).join(" · ") ||
-                              "Semi-final entry details not archived"}
-                          </p>
+                    {semiRows.map(({ participant, entry, edition, status }) => (
+                      <div key={participant.id} className="py-3 first:pt-0 last:pb-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {edition ? editionLabel(edition) : "Edition"}
+                            </p>
+                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                              {[entry.artist, entry.song].filter(Boolean).join(" · ") ||
+                                "Semi-final entry details not archived"}
+                            </p>
+                            <EntryListenLinks entry={entry} compact className="mt-2" />
+                          </div>
+                          <QualificationBadge status={status} />
                         </div>
-                        <QualificationBadge status={status} />
                       </div>
                     ))}
                   </div>
@@ -657,6 +645,8 @@ function ResultList({
   rows,
   editionMap,
   showMap,
+  participants,
+  countryId,
 }: {
   rows: Array<{
     id: string;
@@ -667,6 +657,8 @@ function ResultList({
   }>;
   editionMap: Map<string, any>;
   showMap: Map<string, any>;
+  participants: Participant[];
+  countryId: string;
 }) {
   if (!rows.length) {
     return <p className="text-sm text-muted-foreground">No Grand Final results recorded.</p>;
@@ -677,17 +669,21 @@ function ResultList({
       {rows.map((row) => {
         const edition = editionMap.get(row.edition_id);
         const show = showMap.get(row.show_id ?? "");
+        const entry = canonicalEntryFor(participants, row.edition_id, countryId);
         const content = (
-          <>
+          <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{edition ? editionLabel(edition) : "Edition"}</p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{show?.name ?? "Grand Final"}</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {[entry?.artist, entry?.song].filter(Boolean).join(" · ") || show?.name || "Grand Final"}
+              </p>
+              <EntryListenLinks entry={entry} compact className="mt-2" />
             </div>
             <div className="shrink-0 text-right">
               <p className="numeric text-sm font-semibold">{row.final_rank ? `#${row.final_rank}` : "—"}</p>
               <p className="numeric mt-0.5 text-[11px] text-muted-foreground">{row.total_points} pts</p>
             </div>
-          </>
+          </div>
         );
 
         return show ? (
@@ -695,12 +691,12 @@ function ResultList({
             key={row.id}
             to="/shows/$showId"
             params={{ showId: show.id }}
-            className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+            className="flex items-center py-3 first:pt-0 last:pb-0"
           >
             {content}
           </Link>
         ) : (
-          <div key={row.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+          <div key={row.id} className="flex items-center py-3 first:pt-0 last:pb-0">
             {content}
           </div>
         );
