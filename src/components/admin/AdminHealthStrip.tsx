@@ -44,6 +44,7 @@ export function AdminHealthStrip() {
           participants: readinessData.participants,
           voters: readinessData.voters,
           juryVotes: readinessData.juryVotes,
+          juryBallotStatuses: readinessData.juryBallotStatuses,
           televotes: readinessData.televotes,
           results: readinessData.results,
         })
