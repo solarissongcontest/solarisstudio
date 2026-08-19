@@ -26,6 +26,18 @@
   scroll-padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
 }
 
+.admin-jury-point-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Even when the bottom navigation is genuinely needed, reserve enough room for
+   the final control in long forms to scroll completely above it. */
+@media (min-width: 640px) and (max-width: 799px) {
+  .admin-jury-point-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Laptop / landscape tablet and larger. This deliberately starts before the
    old 1024px breakpoint, because browser chrome, zoom and OS scaling can make
    a real desktop window report fewer CSS pixels than its physical screen. */
@@ -81,6 +93,27 @@
   .admin-sheet-handle {
     display: none;
   }
+
+  .admin-jury-voter-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    max-height: 12rem;
+    align-items: stretch;
+  }
+
+  .admin-jury-voter-button {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  .admin-jury-voter-button .numeric {
+    margin-left: auto;
+  }
+
+  .admin-jury-point-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Standard desktop. Give dense organizer tools a visibly wider working area
@@ -100,6 +133,14 @@
 
   .admin-page-stack {
     gap: 1.35rem;
+  }
+
+  .admin-jury-point-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-jury-voter-list {
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
   }
 }
 
@@ -121,5 +162,10 @@
 
   .admin-topbar {
     padding-inline: 2.25rem !important;
+  }
+
+  .admin-jury-voter-list {
+    max-height: 15rem;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   }
 }
