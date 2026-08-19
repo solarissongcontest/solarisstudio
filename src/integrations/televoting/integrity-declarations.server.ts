@@ -58,6 +58,11 @@ type PreflightDbRow = {
   created_at: string;
 };
 
+type RoundDbRow = { id: string; name: string | null; edition_id: string | null };
+type SubmissionDbRow = { id: string; status: string | null };
+type EditionDbRow = { id: string; name: string | null; edition_number: number | null };
+type RoundMeta = { name: string; editionId: string };
+
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
@@ -98,32 +103,35 @@ export async function listIntegrityDeclarationsServer(input?: {
   const [roundsResult, submissionsResult] = await Promise.all([
     roundIds.length
       ? tv.from("rounds").select("id,name,edition_id").in("id", roundIds)
-      : Promise.resolve({ data: [], error: null }),
+      : Promise.resolve({ data: [] as RoundDbRow[], error: null }),
     submissionIds.length
       ? tv.from("vote_submissions").select("id,status").in("id", submissionIds)
-      : Promise.resolve({ data: [], error: null }),
+      : Promise.resolve({ data: [] as SubmissionDbRow[], error: null }),
   ]);
   if (roundsResult.error) throw new Error(roundsResult.error.message);
   if (submissionsResult.error) throw new Error(submissionsResult.error.message);
 
-  const rounds = new Map(
-    (roundsResult.data ?? []).map((round: any) => [
+  const roundRows = (roundsResult.data ?? []) as RoundDbRow[];
+  const submissionRows = (submissionsResult.data ?? []) as SubmissionDbRow[];
+  const rounds = new Map<string, RoundMeta>(
+    roundRows.map((round) => [
       String(round.id),
       { name: String(round.name ?? "Voting round"), editionId: String(round.edition_id ?? "") },
     ]),
   );
-  const submissionStatus = new Map(
-    (submissionsResult.data ?? []).map((submission: any) => [String(submission.id), String(submission.status ?? "")]),
+  const submissionStatus = new Map<string, string>(
+    submissionRows.map((submission) => [String(submission.id), String(submission.status ?? "")]),
   );
 
   const editionIds = [...new Set([...rounds.values()].map((round) => round.editionId).filter(Boolean))];
   const editionsResult = editionIds.length
     ? await tv.from("editions").select("id,name,edition_number").in("id", editionIds)
-    : { data: [], error: null };
+    : { data: [] as EditionDbRow[], error: null };
   if (editionsResult.error) throw new Error(editionsResult.error.message);
 
-  const editionNames = new Map(
-    (editionsResult.data ?? []).map((edition: any) => [
+  const editionRows = (editionsResult.data ?? []) as EditionDbRow[];
+  const editionNames = new Map<string, string>(
+    editionRows.map((edition) => [
       String(edition.id),
       edition.edition_number
         ? `SSC ${edition.edition_number} · ${String(edition.name ?? "Edition")}`
