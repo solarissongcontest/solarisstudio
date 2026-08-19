@@ -1,0 +1,125 @@
+/* Desktop-specific Organizer workspace layout ---------------------------------
+   The Organizer shell should stop behaving like a phone as soon as there is
+   enough room for a proper navigation rail. Keep portrait/mobile behaviour
+   below 800px, then progressively use the available desktop canvas. */
+
+.admin-frame {
+  display: block;
+}
+
+.admin-sidebar {
+  display: none;
+}
+
+.admin-main {
+  width: 100%;
+  max-width: none;
+  padding: .75rem .75rem calc(6.75rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
+}
+
+.admin-mobile-nav {
+  display: block;
+}
+
+.admin-control-room {
+  scroll-padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
+}
+
+/* Laptop / landscape tablet and larger. This deliberately starts before the
+   old 1024px breakpoint, because browser chrome, zoom and OS scaling can make
+   a real desktop window report fewer CSS pixels than its physical screen. */
+@media (min-width: 800px) {
+  .admin-frame {
+    display: grid;
+    grid-template-columns: 13.75rem minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .admin-sidebar {
+    display: block;
+    min-width: 0;
+  }
+
+  .admin-mobile-nav {
+    display: none !important;
+  }
+
+  .admin-main {
+    width: 100%;
+    max-width: none;
+    padding: 1.35rem 1.5rem 2rem;
+    scroll-padding-bottom: 2rem;
+  }
+
+  .admin-page {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .admin-topbar {
+    padding-inline: 1.25rem !important;
+  }
+
+  .admin-sticky-actions {
+    bottom: 0;
+    margin-inline: 0;
+    border-radius: 1rem;
+  }
+
+  .admin-sheet {
+    inset: 0 0 0 auto;
+    width: min(31rem, 46vw);
+    max-height: none;
+    border: 0;
+    border-left: 1px solid var(--admin-border-strong);
+    border-radius: 0;
+    padding-bottom: 1rem;
+  }
+
+  .admin-sheet-handle {
+    display: none;
+  }
+}
+
+/* Standard desktop. Give dense organizer tools a visibly wider working area
+   instead of centering a phone-width column inside a large monitor. */
+@media (min-width: 1180px) {
+  .admin-frame {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+
+  .admin-main {
+    padding: 1.65rem 2rem 2.25rem;
+  }
+
+  .admin-topbar {
+    padding-inline: 1.75rem !important;
+  }
+
+  .admin-page-stack {
+    gap: 1.35rem;
+  }
+}
+
+/* Large desktop / external monitor. Preserve readable line lengths for text,
+   but let data-heavy pages, tables and voting tools use nearly the full canvas. */
+@media (min-width: 1500px) {
+  .admin-frame {
+    grid-template-columns: 16rem minmax(0, 1fr);
+  }
+
+  .admin-main {
+    padding: 1.9rem 2.75rem 2.5rem;
+  }
+
+  .admin-page {
+    max-width: 118rem;
+    margin-inline: auto;
+  }
+
+  .admin-topbar {
+    padding-inline: 2.25rem !important;
+  }
+}
