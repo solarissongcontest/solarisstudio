@@ -60,19 +60,49 @@ export function AdminCommandPalette() {
             label: `${editionLabel(activeEdition)} workspace`,
             href: `/admin/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} edition home`,
+            keywords: `${activeEdition.name} edition home workflow`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} shows`,
+            href: `/admin/shows/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} shows stages create edit`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} entries & running order`,
+            href: `/admin/entries/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} entries songs artists line-up lineup running order`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} jury`,
+            href: `/admin/jury/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} jury juries ballots scores roster`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} voting system`,
+            href: `/admin/voting-system/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} point scale weighting qualifiers self voting tie rules`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} televote totals`,
+            href: `/admin/televote/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} televote totals aggregate points`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} publication`,
+            href: `/admin/publication/${activeEdition.slug}`,
+            group: "Current edition",
+            keywords: `${activeEdition.name} publish visibility results public release`,
           },
           {
             label: `${editionLabel(activeEdition)} design & broadcast`,
             href: `/admin/design/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} artwork theme broadcast`,
-          },
-          {
-            label: `${editionLabel(activeEdition)} advanced studio`,
-            href: `/admin/${activeEdition.slug}?advanced=true`,
-            group: "Current edition",
-            keywords: `${activeEdition.name} shows entries jury televote publication advanced`,
+            keywords: `${activeEdition.name} artwork theme broadcast scoreboard hosts scenes`,
           },
         ]
       : [];
