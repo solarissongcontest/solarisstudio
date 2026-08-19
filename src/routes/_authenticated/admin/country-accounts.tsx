@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ShieldCheck, UserRoundCog } from "lucide-react";
+import { ArrowLeft, RefreshCw, ShieldCheck, UserRoundCog } from "lucide-react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
 
 function CountryAccountsAdminPage() {
   const { data: countries = [] } = useCountries();
-  const { data } = useAdminCountryAccounts();
+  const { data, isLoading, error, refetch } = useAdminCountryAccounts();
   const setStatus = useAdminSetCountryAccountStatus();
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<AdminCountryAccount | null>(null);
@@ -67,8 +67,8 @@ function CountryAccountsAdminPage() {
       await setStatus.mutateAsync({ userId: target.user_id, status: "suspended", reason: reason.trim() });
       setMessage(`${target.country_name} account suspended.`);
       setTarget(null);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Account could not be suspended.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Account could not be suspended.");
     }
   }
 
@@ -79,13 +79,13 @@ function CountryAccountsAdminPage() {
       await setStatus.mutateAsync({ userId: target.user_id, status: "active" });
       setMessage(`${target.country_name} account restored.`);
       setTarget(null);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Account could not be restored.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Account could not be restored.");
     }
   }
 
-  const claimed = data?.accounts.length ?? 0;
-  const suspended = (data?.accounts ?? []).filter((account) => account.status === "suspended").length;
+  const claimed = data?.accounts.length;
+  const suspended = data?.accounts.filter((account) => account.status === "suspended").length;
 
   return (
     <AdminPage>
@@ -99,18 +99,31 @@ function CountryAccountsAdminPage() {
       {message ? <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3 text-sm text-foreground">{message}</div> : null}
 
       <div className="grid grid-cols-3 gap-2">
-        <Metric label="Claimed" value={claimed} />
-        <Metric label="Unclaimed" value={Math.max(0, countries.length - claimed)} />
-        <Metric label="Suspended" value={suspended} attention={suspended > 0} />
+        <Metric label="Claimed" value={isLoading ? "…" : error ? "—" : claimed ?? 0} />
+        <Metric label="Unclaimed" value={isLoading ? "…" : error ? "—" : Math.max(0, countries.length - (claimed ?? 0))} />
+        <Metric label="Suspended" value={isLoading ? "…" : error ? "—" : suspended ?? 0} attention={!isLoading && !error && (suspended ?? 0) > 0} />
       </div>
 
       <AdminCard>
         <AdminCardHeader eyebrow="Terra Solaris" title="Ownership" description="Search by country, code or owner email. Moderation actions stay inside each claimed account instead of cluttering the list." />
 
-        {data?.schemaReady === false ? (
+        {isLoading ? (
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4 text-sm text-muted-foreground">
+            Loading claimed country accounts…
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.045] p-4">
+            <p className="text-sm font-semibold text-rose-100">Country ownership could not be loaded.</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">Solaris will not assume that means nobody has claimed a country.</p>
+            <button type="button" onClick={() => void refetch()} className="admin-action-secondary mt-3"><RefreshCw className="size-4" /> Retry</button>
+          </div>
+        ) : data?.schemaReady === false ? (
           <AdminEmptyState icon={ShieldCheck} title="Moderation unavailable" description="Country account moderation is temporarily unavailable." />
         ) : (
           <>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">{claimed ?? 0} claimed countr{claimed === 1 ? "y" : "ies"} loaded.</p>
+            </div>
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search country, code or account email…" className="mb-4 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" />
             <div className="divide-y divide-white/[0.07]">
               {rows.map(({ country, account }) => (
@@ -122,7 +135,7 @@ function CountryAccountsAdminPage() {
                         <p className="truncate text-sm font-semibold text-foreground">{country.name}</p>
                         <AdminStatus tone={!account ? "neutral" : account.status === "suspended" ? "blocked" : "ready"}>{!account ? "Unclaimed" : account.status === "suspended" ? "Suspended" : "Active"}</AdminStatus>
                       </div>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">{account?.email ?? country.short_code}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{account?.email ?? (account ? `${country.short_code} · claimed account` : country.short_code)}</p>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
                       <Link to="/country-hub" search={{ country: country.id }} className="admin-action-secondary !min-h-10 !px-3">Open</Link>
@@ -162,6 +175,6 @@ function CountryAccountsAdminPage() {
   );
 }
 
-function Metric({ label, value, attention = false }: { label: string; value: number; attention?: boolean }) {
+function Metric({ label, value, attention = false }: { label: string; value: number | string; attention?: boolean }) {
   return <div className={`admin-card px-3 py-3 text-center ${attention ? "!border-rose-200/15 !bg-rose-200/[0.045]" : ""}`}><p className={`numeric text-xl font-bold ${attention ? "text-rose-100" : ""}`}>{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{label}</p></div>;
 }
