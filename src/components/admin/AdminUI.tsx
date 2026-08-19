@@ -6,6 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -181,8 +182,23 @@ export function AdminSheet({
   description?: string;
   children: ReactNode;
 }) {
-  if (!open) return null;
-  return (
+  useEffect(() => {
+    if (!open || typeof document === "undefined") return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  const portalTarget =
+    document.querySelector<HTMLElement>(".admin-control-room") ?? document.body;
+
+  return createPortal(
     <>
       <button type="button" aria-label="Close panel" className="admin-sheet-backdrop" onClick={onClose} />
       <aside className="admin-sheet" role="dialog" aria-modal="true" aria-label={title}>
@@ -198,7 +214,8 @@ export function AdminSheet({
         </div>
         <div className="admin-sheet-body p-4 sm:p-5">{children}</div>
       </aside>
-    </>
+    </>,
+    portalTarget,
   );
 }
 
