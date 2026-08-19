@@ -363,8 +363,8 @@ function JuryWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Jury voting"
-        description="Enter jury ballots quickly during production, or manage the voting roster without opening the legacy edition studio."
-        actions={<AdminMoreMenu label="More" title="Jury actions" description="Configuration that should stay out of the way during live ballot entry."><AdminActionItem icon={Users} title="Manage jury roster" description={explicitRoster ? `${orderedVoters.length} explicit jury entities configured.` : "Participating countries are used automatically."} onClick={() => setView("roster")} /><AdminActionItem icon={Settings2} title="Voting system" description="Change point scale, weighting, self-voting and qualifier rules in Advanced Setup." onClick={() => { window.location.href = `/admin/${slug}?advanced=true`; }} /></AdminMoreMenu>}
+        description="Enter jury ballots quickly during production, or manage the voting roster from the same workspace."
+        actions={<AdminMoreMenu label="More" title="Jury actions" description="Configuration that should stay out of the way during live ballot entry."><AdminActionItem icon={Users} title="Manage jury roster" description={explicitRoster ? `${orderedVoters.length} explicit jury entities configured.` : "Participating countries are used automatically."} onClick={() => setView("roster")} /><AdminActionItem icon={Settings2} title="Voting system" description="Change point scale, weighting, self-voting and qualifier rules." onClick={() => void navigate({ to: "/admin/voting-system/$slug", params: { slug } })} /></AdminMoreMenu>}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

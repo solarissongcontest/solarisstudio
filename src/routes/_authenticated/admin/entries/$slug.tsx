@@ -430,7 +430,7 @@ function EntriesWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Entries & running order"
-        description="Build each show's line-up, fill artist and song details, and adjust running order without entering the legacy studio."
+        description="Build each show's line-up, fill artist and song details, and adjust running order from one mobile-friendly workspace."
         actions={
           <div className="flex gap-2">
             <button type="button" className="admin-action-primary" onClick={() => setAddOpen(true)} disabled={!activeShow}><Plus className="size-4" /> Add entry</button>
