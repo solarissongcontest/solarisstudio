@@ -75,19 +75,19 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   ];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] lg:grid lg:grid-cols-[232px_minmax(0,1fr)]">
-      <aside className="admin-sidebar hidden border-r border-white/[0.07] lg:block">
+    <div className="admin-frame min-h-[calc(100vh-4rem)]">
+      <aside className="admin-sidebar border-r border-white/[0.07]">
         <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto scroll-slim">
           <AdminNav />
         </div>
       </aside>
 
-      <main className="admin-page min-w-0 p-3 pb-24 sm:p-5 lg:px-7 lg:py-6 lg:pb-8 xl:px-8">
+      <main className="admin-page admin-main min-w-0">
         {children}
       </main>
 
       <nav
-        className="admin-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.08] px-2 pt-2 lg:hidden"
+        className="admin-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.08] px-2 pt-2"
         style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
         aria-label="Organizer navigation"
       >
