@@ -24,12 +24,24 @@ describe("first admin beta findings", () => {
   it("keeps low jury point rows reachable and supports intentional DNV", () => {
     const picker = source("src/components/CountryPicker.tsx");
     const fastEntry = source("src/components/studio/FastEntryImpl.tsx");
+    const desktopCss = source("src/admin-desktop.css");
+    const adminFrame = source("src/components/admin/AdminFrame.tsx");
     const juryRoute = source("src/routes/_authenticated/admin/jury/$slug.tsx");
     const readiness = source("src/lib/admin-readiness.ts");
 
     expect(picker).toContain("bottom-full mb-1");
     expect(fastEntry).toContain("md:grid-cols-2");
+    expect(fastEntry).toContain("admin-jury-point-grid");
+    expect(fastEntry).toContain("admin-jury-entry");
     expect(fastEntry).toContain("Mark did not vote");
+    expect(adminFrame).toContain("admin-frame");
+    expect(adminFrame).toContain("admin-mobile-nav");
+    expect(adminFrame).toContain("admin-sidebar");
+    expect(desktopCss).toContain("@media (min-width: 720px)");
+    expect(desktopCss).toContain(".admin-mobile-nav");
+    expect(desktopCss).toContain("display: none !important");
+    expect(desktopCss).toContain(".admin-sidebar");
+    expect(desktopCss).toContain("display: block");
     expect(juryRoute).toContain("jury_ballot_statuses");
     expect(juryRoute).toContain("didNotVoteVoterKeys");
     expect(readiness).toContain("did_not_vote");
