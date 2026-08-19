@@ -17,6 +17,8 @@ import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
+import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import {
   editionLabel,
   type Participant,
@@ -30,7 +32,7 @@ import {
 } from "@/lib/data";
 import { canonicalEntryFor } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
-import { computeCountryStats, computeHeadToHead, computeRelationship } from "@/lib/stats";
+import { computeRelationship } from "@/lib/stats";
 
 export const Route = createFileRoute("/countries/$code")({
   head: ({ params }) => ({
@@ -78,7 +80,7 @@ function CountryProfilePage() {
   );
 
   const stats = useMemo(
-    () => (country ? computeCountryStats(country.id, opts) : null),
+    () => (country ? computeCanonicalCountryStats(country.id, opts) : null),
     [country, opts],
   );
   const form = useMemo(
@@ -115,8 +117,23 @@ function CountryProfilePage() {
         (editionMap.get(a.edition_id)?.edition_number ?? -1),
     );
 
-  const finalResults = myResults.filter(
-    (result) => showMap.get(result.show_id ?? "")?.kind === "grand-final",
+  const finalResultByEdition = new Map<string, (typeof myResults)[number]>();
+  for (const result of myResults) {
+    if (showMap.get(result.show_id ?? "")?.kind !== "grand-final") continue;
+    const current = finalResultByEdition.get(result.edition_id);
+    if (
+      !current ||
+      (result.final_rank != null && current.final_rank == null) ||
+      (result.final_rank != null && current.final_rank != null && result.final_rank < current.final_rank) ||
+      (result.final_rank === current.final_rank && result.total_points > current.total_points)
+    ) {
+      finalResultByEdition.set(result.edition_id, result);
+    }
+  }
+  const finalResults = [...finalResultByEdition.values()].sort(
+    (a, b) =>
+      (editionMap.get(b.edition_id)?.edition_number ?? -1) -
+      (editionMap.get(a.edition_id)?.edition_number ?? -1),
   );
 
   const finalPresence = new Set<string>();
@@ -134,8 +151,20 @@ function CountryProfilePage() {
     return null;
   };
 
-  const semiRows = myParticipants
-    .filter((participant) => showMap.get(participant.show_id ?? "")?.kind === "semi-final")
+  const semiParticipantByEdition = new Map<string, Participant>();
+  for (const participant of myParticipants) {
+    if (showMap.get(participant.show_id ?? "")?.kind !== "semi-final") continue;
+    const current = semiParticipantByEdition.get(participant.edition_id);
+    if (
+      !current ||
+      participant.qualified === true ||
+      (current.qualified == null && participant.qualified != null)
+    ) {
+      semiParticipantByEdition.set(participant.edition_id, participant);
+    }
+  }
+
+  const semiRows = [...semiParticipantByEdition.values()]
     .map((participant) => ({
       participant,
       edition: editionMap.get(participant.edition_id),
@@ -151,11 +180,7 @@ function CountryProfilePage() {
       .slice(0, 6)
       .map((point) => {
         const participant = canonicalEntryFor(myParticipants, point.editionId, country.id) ?? undefined;
-        const semiParticipant = myParticipants.find(
-          (candidate) =>
-            candidate.edition_id === point.editionId &&
-            showMap.get(candidate.show_id ?? "")?.kind === "semi-final",
-        );
+        const semiParticipant = semiParticipantByEdition.get(point.editionId);
         return {
           point,
           edition: editionMap.get(point.editionId),
@@ -216,10 +241,7 @@ function CountryProfilePage() {
           results: results ?? [],
           shows: shows ?? [],
         }),
-        headToHead: computeHeadToHead(country.id, id, {
-          editions: editions ?? [],
-          results: results ?? [],
-        }),
+        headToHead: computeCanonicalHeadToHead(country.id, id, opts),
       };
     })
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
@@ -442,7 +464,7 @@ function CountryProfilePage() {
                 {semiRows.length ? (
                   <div className="divide-y divide-border/60">
                     {semiRows.map(({ participant, entry, edition, status }) => (
-                      <div key={participant.id} className="py-3 first:pt-0 last:pb-0">
+                      <div key={participant.edition_id} className="py-3 first:pt-0 last:pb-0">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">
