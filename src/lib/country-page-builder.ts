@@ -19,6 +19,33 @@ export type CountrySectionType =
   | "divider";
 export type CountrySectionContentMode = "manual" | "auto";
 export type CountrySectionImageLayout = "wide" | "split" | "left" | "right" | "full";
+export type CountrySectionWidth = "narrow" | "standard" | "wide" | "full";
+export type CountrySectionPanelStyle = "glass" | "solid" | "outline" | "transparent" | "accent";
+export type CountrySectionTextAlign = "left" | "center";
+export type CountrySectionSpacing = "compact" | "normal" | "spacious";
+export type CountrySectionImageAspect = "auto" | "16:9" | "4:3" | "square" | "portrait";
+export type CountrySectionImageFit = "cover" | "contain";
+export type CountrySectionDividerStyle = "line" | "glow" | "dots";
+
+export type CountryCustomFactRow = {
+  label: string;
+  value: string;
+};
+
+export type CountrySectionPresentation = {
+  width: CountrySectionWidth;
+  panelStyle: CountrySectionPanelStyle;
+  textAlign: CountrySectionTextAlign;
+  spacing: CountrySectionSpacing;
+  imageAspect: CountrySectionImageAspect;
+  imageFit: CountrySectionImageFit;
+  focalX: number;
+  focalY: number;
+  galleryColumns: 2 | 3 | 4;
+  dividerStyle: CountrySectionDividerStyle;
+  factMode: "auto" | "manual";
+  customFacts: CountryCustomFactRow[];
+};
 
 export type CountryPageSection = CountryProfileSection & {
   section_type?: CountrySectionType | null;
@@ -67,6 +94,7 @@ export type CountrySectionTemplate = {
   heading: string;
   kicker?: string;
   autoKind?: string;
+  contentJson?: Record<string, unknown>;
 };
 
 export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
@@ -111,6 +139,20 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     autoKind: "facts",
   },
   {
+    id: "custom-facts",
+    label: "Custom stats / facts",
+    description: "Build your own label-and-value grid for lore, geography, rankings or anything else.",
+    sectionType: "facts",
+    heading: "At a glance",
+    contentJson: {
+      factMode: "manual",
+      customFacts: [
+        { label: "Fact", value: "Value" },
+        { label: "Fact", value: "Value" },
+      ],
+    },
+  },
+  {
     id: "image",
     label: "Image feature",
     description: "A large image with optional heading, caption and supporting text.",
@@ -118,11 +160,25 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     heading: "Featured image",
   },
   {
+    id: "editorial-feature",
+    label: "Editorial feature",
+    description: "A wider magazine-style story block ready for a strong image and longer text.",
+    sectionType: "rich_text",
+    heading: "Feature",
+    contentJson: {
+      width: "wide",
+      panelStyle: "transparent",
+      spacing: "spacious",
+      imageAspect: "16:9",
+    },
+  },
+  {
     id: "quote",
     label: "Quote / statement",
     description: "A prominent national quote, slogan, lyric-free motto or statement.",
     sectionType: "quote",
     heading: "Statement",
+    contentJson: { width: "narrow", textAlign: "center" },
   },
   {
     id: "gallery",
@@ -130,6 +186,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     description: "Place your country gallery inside the article wherever you want it.",
     sectionType: "gallery",
     heading: "Gallery",
+    contentJson: { width: "wide", galleryColumns: 3, imageAspect: "4:3" },
   },
   {
     id: "divider",
@@ -137,11 +194,53 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     description: "Add breathing room and a visual break between larger sections.",
     sectionType: "divider",
     heading: "Section break",
+    contentJson: { dividerStyle: "glow" },
   },
 ];
 
 function clean(value?: string | null) {
   return value?.trim() || null;
+}
+
+function enumValue<T extends string>(value: unknown, options: readonly T[], fallback: T): T {
+  return typeof value === "string" && options.includes(value as T) ? (value as T) : fallback;
+}
+
+function boundedNumber(value: unknown, min: number, max: number, fallback: number) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
+export function countrySectionPresentation(
+  sectionOrJson?: Pick<CountryPageSection, "content_json"> | Record<string, unknown> | null,
+): CountrySectionPresentation {
+  const raw = sectionOrJson && "content_json" in sectionOrJson
+    ? sectionOrJson.content_json ?? {}
+    : sectionOrJson ?? {};
+  const json = raw as Record<string, unknown>;
+  const customFacts = Array.isArray(json.customFacts)
+    ? json.customFacts
+        .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object"))
+        .map((row) => ({ label: String(row.label ?? "").trim(), value: String(row.value ?? "").trim() }))
+        .filter((row) => row.label || row.value)
+        .slice(0, 24)
+    : [];
+  const columns = Math.round(boundedNumber(json.galleryColumns, 2, 4, 3));
+
+  return {
+    width: enumValue(json.width, ["narrow", "standard", "wide", "full"] as const, "standard"),
+    panelStyle: enumValue(json.panelStyle, ["glass", "solid", "outline", "transparent", "accent"] as const, "glass"),
+    textAlign: enumValue(json.textAlign, ["left", "center"] as const, "left"),
+    spacing: enumValue(json.spacing, ["compact", "normal", "spacious"] as const, "normal"),
+    imageAspect: enumValue(json.imageAspect, ["auto", "16:9", "4:3", "square", "portrait"] as const, "auto"),
+    imageFit: enumValue(json.imageFit, ["cover", "contain"] as const, "cover"),
+    focalX: Math.round(boundedNumber(json.focalX, 0, 100, 50)),
+    focalY: Math.round(boundedNumber(json.focalY, 0, 100, 50)),
+    galleryColumns: (columns === 2 || columns === 4 ? columns : 3) as 2 | 3 | 4,
+    dividerStyle: enumValue(json.dividerStyle, ["line", "glow", "dots"] as const, "line"),
+    factMode: enumValue(json.factMode, ["auto", "manual"] as const, "auto"),
+    customFacts,
+  };
 }
 
 export function buildCountryAutoSection(
@@ -203,6 +302,11 @@ export function autoFactRows(profile?: CountryProfile | null) {
   ]
     .filter((row): row is [string, string] => Boolean(row[1]?.trim()))
     .map(([label, value]) => ({ label, value }));
+}
+
+export function factRowsForSection(section: CountryPageSection, profile?: CountryProfile | null) {
+  const presentation = countrySectionPresentation(section);
+  return presentation.factMode === "manual" ? presentation.customFacts : autoFactRows(profile);
 }
 
 export function normalizeCountryPageSection(section: CountryPageSection): NormalizedCountryPageSection {
