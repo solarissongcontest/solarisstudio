@@ -37,6 +37,8 @@ export function FastJuryEntry(props: {
   onVoterChange: (key: string) => void;
   onAssign: (voterKey: string, receiver: string, points: number) => void;
   onClear: (voterKey: string, points: number) => void;
+  didNotVoteVoterKeys?: ReadonlySet<string>;
+  onDidNotVoteChange?: (voterKey: string, didNotVote: boolean) => void;
 }) {
   return (
     <Suspense fallback={<VoteEntryFallback />}>

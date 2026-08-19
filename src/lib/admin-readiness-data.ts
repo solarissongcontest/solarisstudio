@@ -35,10 +35,22 @@ async function pagedRows<T>(table: string, editionId: string): Promise<T[]> {
   return rows;
 }
 
+export type JuryBallotStatus = {
+  id: string;
+  edition_id: string;
+  show_id: string;
+  voter_id: string | null;
+  voter_country_id: string | null;
+  voter_entity_id: string | null;
+  status: "did_not_vote";
+  note: string | null;
+};
+
 export type AdminReadinessData = {
   participants: Participant[];
   voters: Voter[];
   juryVotes: JuryVote[];
+  juryBallotStatuses: JuryBallotStatus[];
   televotes: Televote[];
   results: ResultRow[];
 };
@@ -59,15 +71,17 @@ export function useAdminReadinessData(editionId?: string | null) {
           participants: [],
           voters: [],
           juryVotes: [],
+          juryBallotStatuses: [],
           televotes: [],
           results: [],
         };
       }
 
-      const [participants, voters, juryVotes, televotes, results] = await Promise.all([
+      const [participants, voters, juryVotes, juryBallotStatuses, televotes, results] = await Promise.all([
         pagedRows<Participant>("participants", editionId),
         pagedRows<Voter>("voters", editionId),
         pagedRows<JuryVote>("jury_votes", editionId),
+        pagedRows<JuryBallotStatus>("jury_ballot_statuses", editionId),
         pagedRows<Televote>("televote_votes", editionId),
         pagedRows<ResultRow>("results", editionId),
       ]);
@@ -76,6 +90,7 @@ export function useAdminReadinessData(editionId?: string | null) {
         participants,
         voters,
         juryVotes,
+        juryBallotStatuses,
         televotes,
         results,
       };

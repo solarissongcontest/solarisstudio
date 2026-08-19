@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowLeft,
@@ -45,6 +45,7 @@ import {
   useShows,
   type Voter,
   type VoterKind,
+  type VoterOption,
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
@@ -52,6 +53,17 @@ import { resolveVoting } from "@/lib/voting";
 
 type JurySearch = { show?: string };
 type View = "ballots" | "roster";
+
+type JuryBallotStatus = {
+  id: string;
+  edition_id: string;
+  show_id: string;
+  voter_id: string | null;
+  voter_country_id: string | null;
+  voter_entity_id: string | null;
+  status: "did_not_vote";
+  note: string | null;
+};
 
 type VoterDraft = {
   kind: VoterKind;
@@ -76,6 +88,26 @@ const emptyVoter: VoterDraft = {
   flag_image: "",
   accent_color: "#8888aa",
 };
+
+function matchBallotStatusKey(status: JuryBallotStatus, options: VoterOption[]) {
+  if (status.voter_id) {
+    const direct = options.find((option) => option.voterId === status.voter_id);
+    if (direct) return direct.key;
+  }
+
+  if (status.voter_entity_id) {
+    const byEntity = options.find((option) => option.countryId === status.voter_entity_id);
+    if (byEntity) return byEntity.key;
+  }
+
+  if (status.voter_country_id) {
+    const byCountry = options.find((option) => option.countryId === status.voter_country_id);
+    if (byCountry) return byCountry.key;
+    return `c:${status.voter_country_id}`;
+  }
+
+  return status.voter_id ? `v:${status.voter_id}` : "";
+}
 
 export const Route = createFileRoute("/_authenticated/admin/jury/$slug")({
   head: () => ({ meta: [{ title: "Jury Voting — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -106,6 +138,19 @@ function JuryWorkspace() {
   );
   const { data: showVoters = [], isLoading: loadingVoters } = useShowVoters(selectedShow?.id);
   const { data: juryVotes = [], isLoading: loadingVotes } = useJuryVotes(selectedShow?.id);
+  const { data: ballotStatuses = [], isLoading: loadingStatuses } = useQuery({
+    enabled: !!selectedShow?.id,
+    queryKey: ["jury_ballot_statuses", "show", selectedShow?.id ?? "pending"],
+    queryFn: async () => {
+      if (!selectedShow?.id) return [] as JuryBallotStatus[];
+      const { data, error } = await (supabase as any)
+        .from("jury_ballot_statuses")
+        .select("*")
+        .eq("show_id", selectedShow.id);
+      if (error) throw error;
+      return (data ?? []) as JuryBallotStatus[];
+    },
+  });
 
   const displays = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const order = useMemo(() => participants.map((participant) => participant.country_id).filter(Boolean), [participants]);
@@ -142,13 +187,33 @@ function JuryWorkspace() {
     });
     return counts;
   }, [juryVotes, voterOptions]);
-  const completedVoters = voterOptions.filter((option) => (ballotCounts.get(option.key) ?? 0) >= neededPerBallot).length;
-  const remainingVoters = Math.max(0, voterOptions.length - completedVoters);
+  const didNotVoteVoterKeys = useMemo(
+    () => new Set(
+      ballotStatuses
+        .filter((status) => status.status === "did_not_vote")
+        .map((status) => matchBallotStatusKey(status, voterOptions))
+        .filter(Boolean),
+    ),
+    [ballotStatuses, voterOptions],
+  );
+  const didNotVoteCount = voterOptions.filter((option) => didNotVoteVoterKeys.has(option.key)).length;
+  const completedVoters = voterOptions.filter(
+    (option) => !didNotVoteVoterKeys.has(option.key) && (ballotCounts.get(option.key) ?? 0) >= neededPerBallot,
+  ).length;
+  const resolvedVoters = voterOptions.filter(
+    (option) => didNotVoteVoterKeys.has(option.key) || (ballotCounts.get(option.key) ?? 0) >= neededPerBallot,
+  ).length;
+  const remainingVoters = Math.max(0, voterOptions.length - resolvedVoters);
+  const conflictingStatuses = voterOptions.filter(
+    (option) => didNotVoteVoterKeys.has(option.key) && (ballotCounts.get(option.key) ?? 0) > 0,
+  );
 
   async function refresh() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["voters"] }),
       qc.invalidateQueries({ queryKey: ["jury_votes"] }),
+      qc.invalidateQueries({ queryKey: ["jury_ballot_statuses"] }),
+      qc.invalidateQueries({ queryKey: ["admin-readiness-data"] }),
     ]);
   }
 
@@ -166,6 +231,10 @@ function JuryWorkspace() {
 
   async function assign(voterKey: string, receiver: string, points: number) {
     if (!edition || !selectedShow) return;
+    if (didNotVoteVoterKeys.has(voterKey)) {
+      toast.error("Restore this jury ballot before assigning points.");
+      return;
+    }
     const { voterId, countryId } = decodeVoterKey(voterKey);
     const voterIdentity = countryId ? identityFor(countryId) : { country_id: null, contest_entity_id: null };
     const target = identityFor(receiver);
@@ -184,6 +253,7 @@ function JuryWorkspace() {
       return;
     }
     await qc.invalidateQueries({ queryKey: ["jury_votes"] });
+    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
   }
 
   async function clearPoint(voterKey: string, points: number) {
@@ -203,6 +273,63 @@ function JuryWorkspace() {
       return;
     }
     await qc.invalidateQueries({ queryKey: ["jury_votes"] });
+    await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+  }
+
+  async function setDidNotVote(voterKey: string, didNotVote: boolean) {
+    if (!edition || !selectedShow) return;
+    const option = voterOptions.find((item) => item.key === voterKey);
+    if (!option) return;
+
+    const existing = ballotStatuses.find(
+      (status) => matchBallotStatusKey(status, voterOptions) === voterKey,
+    );
+
+    setBusy(true);
+    try {
+      if (!didNotVote) {
+        if (existing) {
+          const { error } = await (supabase as any)
+            .from("jury_ballot_statuses")
+            .delete()
+            .eq("id", existing.id);
+          if (error) throw error;
+        }
+        toast.success(`${option.name} restored to ballot entry`);
+      } else {
+        const savedRows = ballotCounts.get(voterKey) ?? 0;
+        if (savedRows > 0) {
+          toast.error(`Clear ${option.name}'s ${savedRows} saved jury score row${savedRows === 1 ? "" : "s"} before marking did not vote.`);
+          return;
+        }
+
+        const voterIdentity = option.countryId
+          ? identityFor(option.countryId)
+          : { country_id: null, contest_entity_id: null };
+        const row = {
+          edition_id: edition.id,
+          show_id: selectedShow.id,
+          voter_id: option.voterId,
+          voter_country_id: voterIdentity.country_id,
+          voter_entity_id: voterIdentity.contest_entity_id,
+          status: "did_not_vote",
+          note: null,
+        };
+
+        const response = existing
+          ? await (supabase as any).from("jury_ballot_statuses").update(row).eq("id", existing.id)
+          : await (supabase as any).from("jury_ballot_statuses").insert(row);
+        if (response.error) throw response.error;
+        toast.success(`${option.name} marked did not vote`);
+      }
+
+      await qc.invalidateQueries({ queryKey: ["jury_ballot_statuses"] });
+      await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+    } catch (caught) {
+      toast.error(reportSupabaseError(caught, "Jury ballot status could not be changed."));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function addMissingParticipants() {
@@ -354,6 +481,13 @@ function JuryWorkspace() {
   const participatingCountryIds = new Set(participants.map((participant) => identityFor(participant.country_id).country_id).filter((id): id is string => !!id));
   const countryChoices = draft.kind === "country" ? countries.filter((country) => participatingCountryIds.has(country.id)) : countries;
 
+  const statusForVoter = (key: string, given: number) => {
+    if (didNotVoteVoterKeys.has(key)) return { label: "Did not vote", tone: "neutral" as const };
+    if (given >= neededPerBallot) return { label: "Complete", tone: "ready" as const };
+    if (given) return { label: "Started", tone: "attention" as const };
+    return { label: "Pending", tone: "neutral" as const };
+  };
+
   if (loadingEdition || loadingShows) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading jury workspace…</p></AdminCard>;
   if (!edition) return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
   if (!orderedShows.length) return <AdminPage><AdminPageHeader eyebrow={editionLabel(edition)} title="Jury voting" description="Create a show before configuring its juries and ballots." /><AdminCard><AdminEmptyState icon={Users} title="No shows yet" description="Juries belong to a show." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create a show</Link>} /></AdminCard></AdminPage>;
@@ -363,7 +497,7 @@ function JuryWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Jury voting"
-        description="Enter jury ballots quickly during production, or manage the voting roster from the same workspace."
+        description="Enter jury ballots quickly during production, or explicitly mark a jury as did not vote without inventing scores."
         actions={<AdminMoreMenu label="More" title="Jury actions" description="Configuration that should stay out of the way during live ballot entry."><AdminActionItem icon={Users} title="Manage jury roster" description={explicitRoster ? `${orderedVoters.length} explicit jury entities configured.` : "Participating countries are used automatically."} onClick={() => setView("roster")} /><AdminActionItem icon={Settings2} title="Voting system" description="Change point scale, weighting, self-voting and qualifier rules." onClick={() => void navigate({ to: "/admin/voting-system/$slug", params: { slug } })} /></AdminMoreMenu>}
       />
 
@@ -374,7 +508,19 @@ function JuryWorkspace() {
         </select>
       </div>
 
-      <div className="mb-4 grid grid-cols-3 gap-2"><Metric label="Juries" value={voterOptions.length} /><Metric label="Complete" value={completedVoters} /><Metric label="Remaining" value={remainingVoters} /></div>
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Metric label="Juries" value={voterOptions.length} />
+        <Metric label="Complete" value={completedVoters} />
+        <Metric label="Did not vote" value={didNotVoteCount} />
+        <Metric label="Remaining" value={remainingVoters} />
+      </div>
+
+      {conflictingStatuses.length ? (
+        <AdminCard className="mb-4 !border-rose-200/20 !bg-rose-200/[0.05]">
+          <p className="text-sm font-semibold text-rose-100">{conflictingStatuses.length} jury status conflict{conflictingStatuses.length === 1 ? "" : "s"}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">A jury is marked “did not vote” but also has saved points. Restore the ballot status or remove the saved scores before results are treated as ready.</p>
+        </AdminCard>
+      ) : null}
 
       <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-1.5">
         <button type="button" onClick={() => setView("ballots")} className={view === "ballots" ? "admin-action-primary w-full" : "admin-action-quiet w-full"}><Vote className="size-4" /> Ballots</button>
@@ -385,8 +531,13 @@ function JuryWorkspace() {
 
       {view === "ballots" ? (
         <AdminCard>
-          <AdminCardHeader eyebrow="Live entry" title={selectedShow?.name ?? "Jury ballots"} description={`${neededPerBallot} awards per jury · ${voting.allowSelfVote ? "self-voting allowed" : "self-voting blocked"}. Scores save immediately through the existing jury-vote RPC.`} action={completedVoters === voterOptions.length && voterOptions.length ? <AdminStatus tone="ready"><CheckCircle2 className="size-3" /> All complete</AdminStatus> : <AdminStatus tone="attention">{completedVoters}/{voterOptions.length} complete</AdminStatus>} />
-          {loadingVoters || loadingVotes ? <p className="py-8 text-center text-sm text-muted-foreground">Loading ballots…</p> : !participants.length ? <AdminEmptyState icon={ListChecks} title="No entries in this show" description="Build the line-up before entering jury votes." action={<Link to="/admin/entries/$slug" params={{ slug }} search={{ show: selectedShow?.id }} className="admin-action-primary">Open entries</Link>} /> : !voterOptions.length ? <AdminEmptyState icon={Users} title="No jury entities" description="Participating countries normally become juries automatically. If this show uses a custom roster, configure it in Juries." action={<button type="button" className="admin-action-primary" onClick={() => setView("roster")}>Manage juries</button>} /> : <FastJuryEntry voters={voterOptions} receivers={receiverDisplays} voting={voting} votes={juryVotes} activeVoter={resolvedActiveVoter} onVoterChange={setActiveVoter} onAssign={(voter, receiver, points) => void assign(voter, receiver, points)} onClear={(voter, points) => void clearPoint(voter, points)} />}
+          <AdminCardHeader
+            eyebrow="Live entry"
+            title={selectedShow?.name ?? "Jury ballots"}
+            description={`${neededPerBallot} awards per jury · ${voting.allowSelfVote ? "self-voting allowed" : "self-voting blocked"}. Scores save immediately; “did not vote” is a separate absence status and never inserts points.`}
+            action={resolvedVoters === voterOptions.length && voterOptions.length ? <AdminStatus tone="ready"><CheckCircle2 className="size-3" /> All resolved</AdminStatus> : <AdminStatus tone="attention">{resolvedVoters}/{voterOptions.length} resolved</AdminStatus>}
+          />
+          {loadingVoters || loadingVotes || loadingStatuses ? <p className="py-8 text-center text-sm text-muted-foreground">Loading ballots…</p> : !participants.length ? <AdminEmptyState icon={ListChecks} title="No entries in this show" description="Build the line-up before entering jury votes." action={<Link to="/admin/entries/$slug" params={{ slug }} search={{ show: selectedShow?.id }} className="admin-action-primary">Open entries</Link>} /> : !voterOptions.length ? <AdminEmptyState icon={Users} title="No jury entities" description="Participating countries normally become juries automatically. If this show uses a custom roster, configure it in Juries." action={<button type="button" className="admin-action-primary" onClick={() => setView("roster")}>Manage juries</button>} /> : <FastJuryEntry voters={voterOptions} receivers={receiverDisplays} voting={voting} votes={juryVotes} activeVoter={resolvedActiveVoter} onVoterChange={setActiveVoter} onAssign={(voter, receiver, points) => void assign(voter, receiver, points)} onClear={(voter, points) => void clearPoint(voter, points)} didNotVoteVoterKeys={didNotVoteVoterKeys} onDidNotVoteChange={(voter, didNotVote) => void setDidNotVote(voter, didNotVote)} />}
         </AdminCard>
       ) : (
         <AdminCard>
@@ -394,12 +545,12 @@ function JuryWorkspace() {
           {!explicitRoster ? (
             <div className="space-y-4">
               <div className="rounded-xl border border-sky-200/10 bg-sky-200/[0.035] p-3 text-xs leading-relaxed text-muted-foreground">Automatic mode is deliberately read-only. Creating an editable roster first copies all participating countries, so adding an external jury cannot accidentally make the normal juries disappear.</div>
-              {voterOptions.length ? <div className="divide-y divide-white/[0.07]">{voterOptions.map((option) => { const given = ballotCounts.get(option.key) ?? 0; return <div key={option.key} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><FlagChip code={option.short_code ?? "?"} color={option.accent_color} image={option.flag_image} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{option.name}</p><p className="mt-1 text-xs text-muted-foreground">Participating country · {given}/{neededPerBallot} awards</p></div><AdminStatus tone={given >= neededPerBallot ? "ready" : given ? "attention" : "neutral"}>{given >= neededPerBallot ? "Complete" : given ? "Started" : "Pending"}</AdminStatus></div>; })}</div> : <AdminEmptyState icon={Users} title="No automatic juries" description="Add entries to this show first." />}
+              {voterOptions.length ? <div className="divide-y divide-white/[0.07]">{voterOptions.map((option) => { const given = ballotCounts.get(option.key) ?? 0; const status = statusForVoter(option.key, given); return <div key={option.key} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"><FlagChip code={option.short_code ?? "?"} color={option.accent_color} image={option.flag_image} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{option.name}</p><p className="mt-1 text-xs text-muted-foreground">Participating country · {didNotVoteVoterKeys.has(option.key) ? "no ballot expected" : `${given}/${neededPerBallot} awards`}</p></div><AdminStatus tone={status.tone}>{status.label}</AdminStatus></div>; })}</div> : <AdminEmptyState icon={Users} title="No automatic juries" description="Add entries to this show first." />}
               <button type="button" disabled={busy || !participants.length} onClick={() => void addMissingParticipants()} className="admin-action-secondary w-full"><Users className="size-4" /> {busy ? "Creating roster…" : "Create editable roster"}</button>
             </div>
           ) : !orderedVoters.length ? <AdminEmptyState icon={Users} title="No explicit juries" description="Add a country, external country, organisation, person or custom voting entity." action={<button type="button" className="admin-action-primary" onClick={openAddVoter}><Plus className="size-4" /> Add jury</button>} /> : (
             <div className="space-y-4">
-              <div className="divide-y divide-white/[0.07]">{orderedVoters.map((voter, index) => { const option = voterOptions.find((item) => item.voterId === voter.id); const given = option ? ballotCounts.get(option.key) ?? 0 : 0; return <div key={voter.id} className="flex min-w-0 items-center gap-2 py-3 first:pt-0 last:pb-0"><FlagChip code={option?.short_code ?? "?"} color={voter.accent_color || DEFAULT_ACCENT} image={voter.flag_image ?? option?.flag_image ?? null} size="sm" /><button type="button" onClick={() => openEdit(voter)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{voter.name}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{voter.kind.replaceAll("-", " ")} · {given}/{neededPerBallot} awards</span></button><AdminStatus tone={given >= neededPerBallot ? "ready" : given ? "attention" : "neutral"}>{given >= neededPerBallot ? "Complete" : given ? "Started" : "Pending"}</AdminStatus><div className="flex shrink-0 gap-1"><button type="button" disabled={busy || index === 0} onClick={() => void moveVoter(index, -1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} up`}><ArrowUp className="size-4" /></button><button type="button" disabled={busy || index === orderedVoters.length - 1} onClick={() => void moveVoter(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} down`}><ArrowDown className="size-4" /></button><button type="button" onClick={() => setDeleteTarget(voter)} className="admin-action-quiet size-9 !p-0 text-rose-200" aria-label={`Remove ${voter.name}`}><Trash2 className="size-4" /></button></div></div>; })}</div>
+              <div className="divide-y divide-white/[0.07]">{orderedVoters.map((voter, index) => { const option = voterOptions.find((item) => item.voterId === voter.id); const given = option ? ballotCounts.get(option.key) ?? 0 : 0; const key = option?.key ?? `v:${voter.id}`; const status = statusForVoter(key, given); return <div key={voter.id} className="flex min-w-0 items-center gap-2 py-3 first:pt-0 last:pb-0"><FlagChip code={option?.short_code ?? "?"} color={voter.accent_color || DEFAULT_ACCENT} image={voter.flag_image ?? option?.flag_image ?? null} size="sm" /><button type="button" onClick={() => openEdit(voter)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{voter.name}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{voter.kind.replaceAll("-", " ")} · {didNotVoteVoterKeys.has(key) ? "no ballot expected" : `${given}/${neededPerBallot} awards`}</span></button><AdminStatus tone={status.tone}>{status.label}</AdminStatus><div className="flex shrink-0 gap-1"><button type="button" disabled={busy || index === 0} onClick={() => void moveVoter(index, -1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} up`}><ArrowUp className="size-4" /></button><button type="button" disabled={busy || index === orderedVoters.length - 1} onClick={() => void moveVoter(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} down`}><ArrowDown className="size-4" /></button><button type="button" onClick={() => setDeleteTarget(voter)} className="admin-action-quiet size-9 !p-0 text-rose-200" aria-label={`Remove ${voter.name}`}><Trash2 className="size-4" /></button></div></div>; })}</div>
               <button type="button" disabled={busy} onClick={() => void addMissingParticipants()} className="admin-action-secondary w-full"><Users className="size-4" /> Add missing participating countries</button>
             </div>
           )}

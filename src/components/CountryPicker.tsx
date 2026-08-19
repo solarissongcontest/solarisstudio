@@ -26,6 +26,7 @@ export function CountryPicker({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const [cursor, setCursor] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +46,19 @@ export function CountryPicker({
       .slice(0, 40);
   }, [countries, query, exclude, value]);
 
+  const updatePlacement = () => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    setOpenUp(spaceBelow < 300 && spaceAbove > spaceBelow);
+  };
+
+  const openPicker = () => {
+    updatePlacement();
+    setOpen(true);
+  };
+
   useEffect(() => {
     if (!open) return;
 
@@ -54,9 +68,16 @@ export function CountryPicker({
         setOpen(false);
       }
     };
+    const reposition = () => updatePlacement();
 
     document.addEventListener("pointerdown", closeWhenPointerLeavesPicker);
-    return () => document.removeEventListener("pointerdown", closeWhenPointerLeavesPicker);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenPointerLeavesPicker);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
   }, [open]);
 
   const pick = (id: string) => {
@@ -70,7 +91,7 @@ export function CountryPicker({
       <div
         className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1.5"
         onClick={() => {
-          setOpen(true);
+          openPicker();
           inputRef.current?.focus();
         }}
       >
@@ -87,11 +108,11 @@ export function CountryPicker({
           autoFocus={autoFocus}
           value={open ? query : (selected?.name ?? "")}
           placeholder={selected ? selected.name : placeholder}
-          onFocus={() => setOpen(true)}
+          onFocus={openPicker}
           onChange={(e) => {
             setQuery(e.target.value);
             setCursor(0);
-            setOpen(true);
+            openPicker();
           }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
@@ -114,7 +135,12 @@ export function CountryPicker({
       </div>
 
       {open && matches.length > 0 && (
-        <ul className="scroll-slim absolute z-50 mt-1 max-h-72 w-full overflow-auto rounded-xl border border-border bg-popover p-1 shadow-2xl">
+        <ul
+          className={cn(
+            "scroll-slim absolute z-[90] max-h-[min(18rem,45vh)] w-full overflow-auto rounded-xl border border-border bg-popover p-1 shadow-2xl",
+            openUp ? "bottom-full mb-1" : "top-full mt-1",
+          )}
+        >
           {matches.map((c, i) => (
             <li key={c.id}>
               <button

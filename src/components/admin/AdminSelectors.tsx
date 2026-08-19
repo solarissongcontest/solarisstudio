@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Check, ChevronDown, Trophy } from "lucide-react";
+import { Check, ChevronDown, Search, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { editionLabel, useEditions } from "@/lib/data";
@@ -12,6 +12,7 @@ export function AdminSelectors() {
   const { editionId, setEditionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const orderedEditions = useMemo(
     () => [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1)),
@@ -34,9 +35,30 @@ export function AdminSelectors() {
   const savedEdition = orderedEditions.find((edition) => edition.id === editionId) ?? null;
   const activeEdition = routeEdition ?? savedEdition ?? orderedEditions[0] ?? null;
 
+  const filteredEditions = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return orderedEditions;
+    return orderedEditions.filter((edition) =>
+      [
+        editionLabel(edition),
+        edition.name,
+        edition.slug,
+        edition.host_city ?? "",
+        edition.edition_number == null ? "" : String(edition.edition_number),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [orderedEditions, search]);
+
   useEffect(() => {
     if (activeEdition && activeEdition.id !== editionId) setEditionId(activeEdition.id);
   }, [activeEdition, editionId, setEditionId]);
+
+  useEffect(() => {
+    if (!open) setSearch("");
+  }, [open]);
 
   const changeEdition = async (nextId: string) => {
     const nextEdition = orderedEditions.find((edition) => edition.id === nextId);
@@ -117,10 +139,22 @@ export function AdminSelectors() {
         open={open}
         onClose={() => setOpen(false)}
         title="Switch edition"
-        description="The selected edition stays active across the organizer workspace."
+        description={`${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"} available. Your current workspace is preserved when possible.`}
       >
-        <div className="space-y-2">
-          {orderedEditions.map((edition) => {
+        <div className="sticky top-0 z-10 -mx-1 mb-3 bg-[#081326] pb-2">
+          <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search edition, number or host city…"
+              className="min-h-0 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm outline-none"
+            />
+          </label>
+        </div>
+
+        <div className="space-y-2 pb-2">
+          {filteredEditions.map((edition) => {
             const active = edition.id === activeEdition?.id;
             return (
               <button
@@ -138,7 +172,9 @@ export function AdminSelectors() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-foreground">{editionLabel(edition)}</span>
-                  <span className="mt-1 block truncate text-xs text-muted-foreground">{edition.name}</span>
+                  <span className="mt-1 block truncate text-xs text-muted-foreground">
+                    {edition.name}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                  </span>
                 </span>
                 {active ? <Check className="size-4 shrink-0 text-sky-100" /> : null}
               </button>
@@ -148,6 +184,12 @@ export function AdminSelectors() {
           {!orderedEditions.length ? (
             <div className="rounded-xl border border-dashed border-white/[0.1] p-5 text-center text-sm text-muted-foreground">
               No editions exist yet.
+            </div>
+          ) : null}
+
+          {orderedEditions.length && !filteredEditions.length ? (
+            <div className="rounded-xl border border-dashed border-white/[0.1] p-5 text-center text-sm text-muted-foreground">
+              No edition matches “{search.trim()}”.
             </div>
           ) : null}
         </div>
