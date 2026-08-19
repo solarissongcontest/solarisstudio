@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
+import { ProfileActivityPanel } from "@/components/country/ProfileActivityPanel";
 import {
   uploadCountryAsset,
   useAddCountryMedia,
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/country-hub/")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
     country: typeof search.country === "string" ? search.country : undefined,
   }),
-  head: () => ({ meta: [{ title: "My country — Solaris Studio" }] }),
+  head: () => ({ meta: [{ title: "My Solaris — Solaris Studio" }] }),
   component: CountryHubPage,
 });
 
@@ -68,7 +69,7 @@ function CountryHubPage() {
   const organizerOverride = Boolean(access?.isOrganizer && targetCountryId && adminTarget);
 
   if (isLoading || (targetCountryId && access?.isOrganizer && countriesLoading)) {
-    return <AppShell><p className="text-sm text-muted-foreground">Loading country access…</p></AppShell>;
+    return <AppShell><p className="text-sm text-muted-foreground">Loading My Solaris…</p></AppShell>;
   }
 
   if (targetCountryId && access?.isOrganizer && !adminTarget) {
@@ -95,6 +96,7 @@ function CountryHubPage() {
       country={country}
       isOrganizer={Boolean(access?.isOrganizer)}
       organizerOverride={organizerOverride}
+      targetCountryId={targetCountryId}
     />
   );
 }
@@ -103,20 +105,23 @@ function SuspendedCountry({ country, reason }: { country: Country; reason: strin
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Country account"
+        eyebrow="My Solaris"
         title={`${country.name} is suspended`}
-        description="You can still sign in and use public Solaris features, but country editing is currently disabled by an organizer."
+        description="Your personal Solaris profile remains available, but country editing is currently disabled by an organizer."
         actions={
           <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
             View public page →
           </Link>
         }
       />
-      <Panel title="Account status">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {reason || "No suspension reason was provided."}
-        </p>
-      </Panel>
+      <div className="space-y-5">
+        <ProfileActivityPanel />
+        <Panel title="Country account status">
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            {reason || "No suspension reason was provided."}
+          </p>
+        </Panel>
+      </div>
     </AppShell>
   );
 }
@@ -142,37 +147,36 @@ function ClaimCountry({ isOrganizer }: { isOrganizer: boolean }) {
   return (
     <AppShell>
       <PageHeader
-        eyebrow={isOrganizer ? "Organizer country" : "Country account"}
-        title="Choose your Terra Solaris country"
+        eyebrow="My Solaris"
+        title={isOrganizer ? "Your Solaris profile" : "Choose your Terra Solaris country"}
         description={
           isOrganizer
-            ? "Organizer powers and country ownership are separate. You may own one country while keeping full Studio access to the whole contest."
-            : "Each country can belong to one account only. Once claimed, the account can maintain that country's profile and entries without organizer approval."
+            ? "Your personal profile and organizer powers are separate. Organizer accounts can manage countries without claiming one."
+            : "Profile, activity and country management now live in the same workspace. If you represent a country, claim it here."
         }
-        actions={
-          isOrganizer ? (
-            <Link to="/admin/country-accounts" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              Manage all countries →
-            </Link>
-          ) : undefined
-        }
+        actions={isOrganizer ? <Link to="/admin/country-accounts" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Manage all countries →</Link> : undefined}
       />
-      <div className="mx-auto max-w-xl">
-        <Panel title="Country ownership">
-          {data?.schemaReady === false ? (
-            <p className="text-sm text-muted-foreground">Country account registration is temporarily unavailable.</p>
-          ) : (
-            <form onSubmit={submit} className="space-y-3">
-              <select value={countryId} onChange={(event) => setCountryId(event.target.value)} required className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
-                <option value="">Choose an unclaimed country…</option>
-                {(data?.countries ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.short_code})</option>)}
-              </select>
-              <p className="text-xs leading-relaxed text-muted-foreground">This choice is exclusive: one account per country and one country per account.</p>
-              <button disabled={!countryId || claim.isPending} className="min-h-11 w-full rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">{claim.isPending ? "Claiming…" : "Claim country"}</button>
-              {message && <p className="text-sm text-destructive">{message}</p>}
-            </form>
-          )}
-        </Panel>
+      <div className="space-y-5">
+        <ProfileActivityPanel />
+        {!isOrganizer && (
+          <div className="mx-auto max-w-xl">
+            <Panel title="Country ownership">
+              {data?.schemaReady === false ? (
+                <p className="text-sm text-muted-foreground">Country account registration is temporarily unavailable.</p>
+              ) : (
+                <form onSubmit={submit} className="space-y-3">
+                  <select value={countryId} onChange={(event) => setCountryId(event.target.value)} required className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
+                    <option value="">Choose an unclaimed country…</option>
+                    {(data?.countries ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} ({item.short_code})</option>)}
+                  </select>
+                  <p className="text-xs leading-relaxed text-muted-foreground">This choice is exclusive: one account per country and one country per account.</p>
+                  <button disabled={!countryId || claim.isPending} className="min-h-11 w-full rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">{claim.isPending ? "Claiming…" : "Claim country"}</button>
+                  {message && <p className="text-sm text-destructive">{message}</p>}
+                </form>
+              )}
+            </Panel>
+          </div>
+        )}
       </div>
     </AppShell>
   );
@@ -192,10 +196,12 @@ function OwnedCountryHub({
   country,
   isOrganizer,
   organizerOverride,
+  targetCountryId,
 }: {
   country: Country;
   isOrganizer: boolean;
   organizerOverride: boolean;
+  targetCountryId?: string;
 }) {
   const world = useCountryWorldProfile(country.id);
   const updateIdentity = useUpdateCountryIdentity(country.id, organizerOverride);
@@ -237,9 +243,6 @@ function OwnedCountryHub({
     [contestEntities, country.id],
   );
 
-  // A participant row is a show appearance. A real SSC participation is the
-  // country + edition identity, so a qualifier that appears in a semi and the
-  // final must still get exactly one artist/song editor.
   const myEntries = useMemo<EditionEntry[]>(() => {
     const owned = (participants ?? []).filter(
       (entry) => entry.country_id === country.id || Boolean(entry.contest_entity_id && ownedEntityIds.has(entry.contest_entity_id)),
@@ -249,14 +252,9 @@ function OwnedCountryHub({
     for (const entry of owned) {
       const current = byEdition.get(entry.edition_id);
       if (!current) {
-        byEdition.set(entry.edition_id, {
-          editionId: entry.edition_id,
-          entry,
-          appearances: [entry],
-        });
+        byEdition.set(entry.edition_id, { editionId: entry.edition_id, entry, appearances: [entry] });
         continue;
       }
-
       current.appearances.push(entry);
       if (entryCompleteness(entry) > entryCompleteness(current.entry)) current.entry = entry;
     }
@@ -269,6 +267,7 @@ function OwnedCountryHub({
   }, [participants, editions, country.id, ownedEntityIds]);
 
   const addShows = (shows ?? []).filter((show) => show.edition_id === addEntry.editionId);
+  const countrySearch = targetCountryId ? { country: targetCountryId } : {};
 
   const run = async (task: () => Promise<unknown>, success: string) => {
     setMessage(null);
@@ -314,24 +313,37 @@ function OwnedCountryHub({
   return (
     <AppShell>
       <PageHeader
-        eyebrow={organizerOverride ? "Organizer override" : "Country account"}
-        title={country.name}
+        eyebrow={organizerOverride ? "Organizer override" : "My Solaris"}
+        title={organizerOverride ? `Editing ${country.name}` : "Profile, activity & country"}
         description={
           organizerOverride
             ? "You are editing this country with organizer authority. Changes apply to the same public country and SSC data used everywhere else."
-            : "Maintain your country's SSC entries and its Terra Solaris profile. Contest administration, voting and results remain organizer-only."
+            : `Your personal Solaris profile, activity and ${country.name} country account now live in one workspace.`
         }
         actions={
-          <>
-            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">View public page →</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Public page</Link>
+            <Link to="/country-hub/theme" search={countrySearch} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Appearance</Link>
+            <Link to="/country-hub/page-builder" search={countrySearch} className="rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Page builder</Link>
             {isOrganizer && <Link to="/admin/country-accounts" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Manage countries</Link>}
-          </>
+          </div>
         }
       />
 
       {message && <p className="mb-5 rounded-xl border border-border bg-surface px-4 py-3 text-sm">{message}</p>}
 
       <div className="space-y-5">
+        {!organizerOverride && <ProfileActivityPanel />}
+
+        <Panel title="Public page controls" description="The public country profile and Terra Solaris Wiki share one identity and one content library, but each custom block can decide where it appears.">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <Link to="/country-hub/theme" search={countrySearch} className="min-h-20 rounded-xl border border-border bg-surface p-3"><p className="text-sm font-semibold">Appearance</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Background image, gradients, colours and header style.</p></Link>
+            <Link to="/country-hub/page-builder" search={countrySearch} className="min-h-20 rounded-xl border border-border bg-surface p-3"><p className="text-sm font-semibold">Page builder</p><p className="mt-1 text-xs leading-5 text-muted-foreground">Manual or smart sections, images, visibility and ordering.</p></Link>
+            <Link to="/countries/$code" params={{ code: country.short_code }} className="min-h-20 rounded-xl border border-border bg-surface p-3"><p className="text-sm font-semibold">Preview country</p><p className="mt-1 text-xs leading-5 text-muted-foreground">See the statistical profile exactly as visitors do.</p></Link>
+            <Link to="/wiki/$code" params={{ code: country.short_code }} className="min-h-20 rounded-xl border border-border bg-surface p-3"><p className="text-sm font-semibold">Preview Wiki</p><p className="mt-1 text-xs leading-5 text-muted-foreground">See the longer Terra Solaris article.</p></Link>
+          </div>
+        </Panel>
+
         <Panel title="Country identity" description="Name and flag changes propagate through country pages and linked contest entities. The stable country code remains organizer-controlled.">
           <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
             <div className="space-y-3">
@@ -350,7 +362,7 @@ function OwnedCountryHub({
           </div>
         </Panel>
 
-        <Panel title="Terra Solaris infobox" description="Structured facts for the public country page.">
+        <Panel title="National facts" description="Structured facts power the public infobox and can be turned into editable smart sections in the page builder.">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Input label="Capital" value={profile.capital} onChange={(value) => setProfile((current) => ({ ...current, capital: value }))} />
             <Input label="Government type" value={profile.government_type} placeholder="Kingdom, republic, federation…" onChange={(value) => setProfile((current) => ({ ...current, government_type: value }))} />
@@ -363,26 +375,30 @@ function OwnedCountryHub({
             <Input label="Established" value={profile.established} onChange={(value) => setProfile((current) => ({ ...current, established: value }))} />
             <Input label="Motto" value={profile.motto} onChange={(value) => setProfile((current) => ({ ...current, motto: value }))} className="lg:col-span-3" />
             <label className="block sm:col-span-2 lg:col-span-3"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Country introduction</span><textarea value={profile.summary} onChange={(event) => setProfile((current) => ({ ...current, summary: event.target.value }))} rows={5} className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm" /></label>
-            <button type="button" disabled={saveProfile.isPending} onClick={() => void run(() => saveProfile.mutateAsync(profile), "Country profile updated." )} className="min-h-11 rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60 sm:col-span-2 lg:col-span-3">Save profile</button>
+            <button type="button" disabled={saveProfile.isPending} onClick={() => void run(() => saveProfile.mutateAsync(profile), "Country facts updated." )} className="min-h-11 rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60 sm:col-span-2 lg:col-span-3">Save national facts</button>
           </div>
         </Panel>
 
         <div className="grid gap-5 xl:grid-cols-[1.2fr_.8fr]">
-          <Panel title="Article sections" description="Add as many Wikipedia-style heading and body sections as you want.">
+          <Panel
+            title="Quick article sections"
+            description="These simple text/image sections still work. For visibility controls, smart drafts, more block types and mobile reordering, use the full Page builder."
+            actions={<Link to="/country-hub/page-builder" search={countrySearch} className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground">Open page builder →</Link>}
+          >
             <div className="space-y-3">
               {(world.data?.sections ?? []).map((section) => <SectionEditor key={section.id} section={section} media={world.data?.media ?? []} onSave={(values) => run(() => saveSection.mutateAsync(values), "Section updated.")} onDelete={() => run(() => deleteSection.mutateAsync(section.id), "Section removed.")} />)}
               <div className="rounded-xl border border-border bg-surface p-3">
-                <p className="mb-3 text-sm font-semibold">New section</p>
+                <p className="mb-3 text-sm font-semibold">New simple section</p>
                 <Input label="Heading" value={newSection.heading} onChange={(value) => setNewSection((current) => ({ ...current, heading: value }))} />
                 <label className="mt-3 block"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Body</span><textarea value={newSection.body} onChange={(event) => setNewSection((current) => ({ ...current, body: event.target.value }))} rows={6} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /></label>
                 <MediaSelect className="mt-3" media={world.data?.media ?? []} value={newSection.image_url} onChange={(value) => setNewSection((current) => ({ ...current, image_url: value }))} />
                 <Input className="mt-3" label="Image caption" value={newSection.image_caption} onChange={(value) => setNewSection((current) => ({ ...current, image_caption: value }))} />
-                <button type="button" disabled={!newSection.heading.trim() || saveSection.isPending} onClick={() => void saveNewSection()} className="mt-3 min-h-10 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50">Add section</button>
+                <button type="button" disabled={!newSection.heading.trim() || saveSection.isPending} onClick={() => void saveNewSection()} className="mt-3 min-h-10 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50">Add simple section</button>
               </div>
             </div>
           </Panel>
 
-          <Panel title="Country gallery" description="JPG, PNG, WebP or GIF. Maximum 8 MB per image.">
+          <Panel title="Country media" description="Reusable images for article blocks and galleries. JPG, PNG, WebP or GIF, maximum 8 MB.">
             <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => setGalleryFile(event.target.files?.[0] ?? null)} className="block w-full text-xs" />
             <Input className="mt-3" label="Caption" value={galleryCaption} onChange={setGalleryCaption} />
             <Input className="mt-3" label="Alt text" value={galleryAlt} onChange={setGalleryAlt} />
