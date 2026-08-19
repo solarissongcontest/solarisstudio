@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 describe("first admin beta findings", () => {
-  it("keeps the edition picker searchable and its sheet body scrollable", () => {
+  it("keeps the edition picker searchable, scrollable and outside sticky header containing blocks", () => {
     const selectors = source("src/components/admin/AdminSelectors.tsx");
     const adminUi = source("src/components/admin/AdminUI.tsx");
     const adminCss = source("src/admin.css");
@@ -15,6 +15,8 @@ describe("first admin beta findings", () => {
     expect(selectors).toContain("Search edition, number or host city");
     expect(selectors).toContain("filteredEditions");
     expect(adminUi).toContain("admin-sheet-body");
+    expect(adminUi).toContain("createPortal");
+    expect(adminUi).toContain('document.querySelector<HTMLElement>(".admin-control-room")');
     expect(adminCss).toContain(".admin-sheet-body");
     expect(adminCss).toContain("overflow-y: auto");
   });
