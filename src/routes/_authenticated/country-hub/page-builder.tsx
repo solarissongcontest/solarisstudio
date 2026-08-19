@@ -16,7 +16,6 @@ import {
   uploadCountryAsset,
   useAddCountryMedia,
   useCountryWorldProfile,
-  useDeleteCountryMedia,
   useDeleteCountrySection,
   useMyCountryAccount,
   type CountryMedia,
@@ -26,9 +25,11 @@ import {
   COUNTRY_SECTION_TEMPLATES,
   autoFactRows,
   buildCountryAutoSection,
+  countrySectionPresentation,
   normalizeCountryPageSection,
   useReorderCountryPageSections,
   useSaveCountryPageSection,
+  type CountryCustomFactRow,
   type CountryPageSection,
   type CountryPageSectionInput,
   type CountrySectionImageLayout,
@@ -77,7 +78,6 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
   const reorder = useReorderCountryPageSections(country.id);
   const deleteSection = useDeleteCountrySection(country.id);
   const addMedia = useAddCountryMedia(country.id);
-  const deleteMedia = useDeleteCountryMedia(country.id);
   const sections = useMemo(
     () => ((world.data?.sections ?? []) as CountryPageSection[]).map(normalizeCountryPageSection),
     [world.data?.sections],
@@ -121,7 +121,10 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
         visibleOnCountry: true,
         visibleOnWiki: true,
         imageLayout: "wide",
-        contentJson: template.autoKind ? { autoKind: template.autoKind } : {},
+        contentJson: {
+          ...(template.contentJson ?? {}),
+          ...(template.autoKind ? { autoKind: template.autoKind } : {}),
+        },
         sortOrder: sections.length,
       }),
       `${template.label} added.`,
@@ -134,7 +137,7 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
       <PageHeader
         eyebrow="My Solaris · Page builder"
         title={`${country.name} pages`}
-        description="Build the public country profile and Terra Solaris Wiki from the same modular content. Write everything yourself, let Solaris draft from facts you supplied, decide where each block appears and move it into your preferred order."
+        description="Build the public country profile and Terra Solaris Wiki from the same modular content. Write everything yourself, let Solaris draft from facts you supplied, decide where each block appears and control how every block looks."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/country-hub" search={targetCountryId ? { country: targetCountryId } : {}} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">← My Solaris</Link>
@@ -156,7 +159,7 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
           </div>
 
           {adding && (
-            <Panel title="Choose a block" description="Templates are only starting points. Everything generated from national facts remains editable.">
+            <Panel title="Choose a block" description="Templates are only starting points. Generated content and presentation settings remain editable.">
               <div className="grid gap-2 sm:grid-cols-2">
                 {COUNTRY_SECTION_TEMPLATES.map((template) => (
                   <button key={template.id} type="button" onClick={() => void addTemplate(template.id)} disabled={saveSection.isPending} className="min-h-24 rounded-xl border border-border bg-surface p-3 text-left disabled:opacity-50">
@@ -204,6 +207,14 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
               <p><strong className="text-foreground">Country page</strong> is the statistical/profile experience under Countries.</p>
               <p><strong className="text-foreground">Wiki</strong> is the longer Terra Solaris article.</p>
               <p>Turning a block off on one surface does not delete it or affect the other.</p>
+            </div>
+          </Panel>
+
+          <Panel title="Presentation controls" description="Every block can have its own visual role instead of looking like the same card copied twelve times.">
+            <div className="space-y-2 text-xs leading-5 text-muted-foreground">
+              <p>Choose block width, panel treatment, spacing and alignment.</p>
+              <p>Images get their own crop ratio, fit and focal point.</p>
+              <p>Fact grids can use Solaris data or completely custom rows.</p>
             </div>
           </Panel>
 
@@ -274,8 +285,20 @@ function SectionBuilderCard({
   const [value, setValue] = useState(initial);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const presentation = countrySectionPresentation(value.contentJson);
 
   useEffect(() => setValue(initial()), [section]);
+
+  const setJson = (patch: Record<string, unknown>) => {
+    setValue((current) => ({
+      ...current,
+      contentJson: { ...current.contentJson, ...patch },
+    }));
+  };
+
+  const setCustomFacts = (rows: CountryCustomFactRow[]) => {
+    setJson({ factMode: "manual", customFacts: rows });
+  };
 
   const regenerate = () => {
     const autoKind = String(value.contentJson.autoKind ?? "overview");
@@ -320,9 +343,10 @@ function SectionBuilderCard({
         </div>
         <button type="button" onClick={() => setOpen((current) => !current)} className="min-w-0 flex-1 text-left">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-semibold">{section.section_type === "divider" ? "Visual divider" : section.heading || "Untitled section"}</p>
+            <p className="truncate text-sm font-semibold">{normalized.section_type === "divider" ? "Visual divider" : normalized.heading || "Untitled section"}</p>
             <span className="rounded-full border border-border bg-background px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground">{String(normalized.section_type).replace("_", " ")}</span>
             {normalized.content_mode === "auto" ? <span className="rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold text-primary">Smart draft</span> : null}
+            <span className="rounded-full border border-border bg-background px-2 py-1 text-[9px] font-semibold text-muted-foreground">{presentation.width}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">{normalized.visible_on_country ? <Eye className="size-3" /> : <EyeOff className="size-3" />} Country</span>
@@ -337,16 +361,35 @@ function SectionBuilderCard({
         <div className="border-t border-border p-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField label="Block type" value={value.sectionType} onChange={(next) => setValue((current) => ({ ...current, sectionType: next as CountrySectionType }))} options={[
-              ["rich_text", "Text / article"], ["image", "Image feature"], ["quote", "Quote / statement"], ["facts", "Quick facts"], ["gallery", "Gallery"], ["divider", "Divider"],
+              ["rich_text", "Text / article"], ["image", "Image feature"], ["quote", "Quote / statement"], ["facts", "Facts / stats"], ["gallery", "Gallery"], ["divider", "Divider"],
             ]} />
             <SelectField label="Image layout" value={value.imageLayout} onChange={(next) => setValue((current) => ({ ...current, imageLayout: next as CountrySectionImageLayout }))} options={[
-              ["wide", "Wide"], ["split", "Split text + image"], ["left", "Image left"], ["right", "Image right"], ["full", "Full bleed"],
-            ]} disabled={!value.imageUrl && value.sectionType !== "image"} />
+              ["wide", "Wide below text"], ["split", "Split text + image"], ["left", "Image left"], ["right", "Image right"], ["full", "Full bleed"],
+            ]} disabled={!value.imageUrl && value.sectionType !== "image" && value.sectionType !== "rich_text"} />
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
             <VisibilityButton label="Country page" active={value.visibleOnCountry} onClick={() => setValue((current) => ({ ...current, visibleOnCountry: !current.visibleOnCountry }))} />
             <VisibilityButton label="Wiki page" active={value.visibleOnWiki} onClick={() => setValue((current) => ({ ...current, visibleOnWiki: !current.visibleOnWiki }))} />
+          </div>
+
+          <div className="mt-4 rounded-xl border border-border bg-background p-3">
+            <p className="text-xs font-semibold">Block presentation</p>
+            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">These settings apply independently to this block on both the Country and Wiki surfaces.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <SelectField label="Width" value={presentation.width} onChange={(next) => setJson({ width: next })} options={[
+                ["narrow", "Narrow article"], ["standard", "Standard"], ["wide", "Wide feature"], ["full", "Full container width"],
+              ]} />
+              <SelectField label="Panel style" value={presentation.panelStyle} onChange={(next) => setJson({ panelStyle: next })} options={[
+                ["glass", "Glass / page default"], ["solid", "Solid card"], ["outline", "Outline only"], ["transparent", "No card"], ["accent", "Accent highlight"],
+              ]} />
+              <SelectField label="Text alignment" value={presentation.textAlign} onChange={(next) => setJson({ textAlign: next })} options={[
+                ["left", "Left"], ["center", "Centered"],
+              ]} />
+              <SelectField label="Spacing" value={presentation.spacing} onChange={(next) => setJson({ spacing: next })} options={[
+                ["compact", "Compact"], ["normal", "Normal"], ["spacious", "Spacious / editorial"],
+              ]} />
+            </div>
           </div>
 
           {value.sectionType !== "divider" && (
@@ -371,18 +414,80 @@ function SectionBuilderCard({
 
           {value.sectionType === "facts" && (
             <div className="mt-4 rounded-xl border border-border bg-background p-3">
-              <p className="text-xs font-semibold">Automatic fact rows</p>
-              <div className="mt-2 grid grid-cols-2 gap-2">{autoFactRows(profile).map((row) => <div key={row.label} className="rounded-lg bg-surface p-2"><p className="text-[9px] uppercase text-muted-foreground">{row.label}</p><p className="mt-1 text-xs font-semibold">{row.value}</p></div>)}</div>
-              {!autoFactRows(profile).length && <p className="mt-2 text-xs text-muted-foreground">No structured facts are filled in yet.</p>}
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold">Fact source</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Use national profile data or write every row yourself.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1">
+                  <button type="button" onClick={() => setJson({ factMode: "auto" })} className={`min-h-9 rounded-lg px-3 text-[11px] font-semibold ${presentation.factMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Solaris facts</button>
+                  <button type="button" onClick={() => setJson({ factMode: "manual" })} className={`min-h-9 rounded-lg px-3 text-[11px] font-semibold ${presentation.factMode === "manual" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Custom facts</button>
+                </div>
+              </div>
+
+              {presentation.factMode === "auto" ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">{autoFactRows(profile).map((row) => <div key={row.label} className="rounded-lg bg-surface p-2"><p className="text-[9px] uppercase text-muted-foreground">{row.label}</p><p className="mt-1 text-xs font-semibold">{row.value}</p></div>)}</div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {presentation.customFacts.map((row, factIndex) => (
+                    <div key={factIndex} className="grid grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)_auto] gap-2">
+                      <input value={row.label} onChange={(event) => setCustomFacts(presentation.customFacts.map((item, index) => index === factIndex ? { ...item, label: event.target.value } : item))} placeholder="Label" className="min-h-10 min-w-0 rounded-lg border border-border bg-surface px-2.5 text-xs" />
+                      <input value={row.value} onChange={(event) => setCustomFacts(presentation.customFacts.map((item, index) => index === factIndex ? { ...item, value: event.target.value } : item))} placeholder="Value" className="min-h-10 min-w-0 rounded-lg border border-border bg-surface px-2.5 text-xs" />
+                      <button type="button" onClick={() => setCustomFacts(presentation.customFacts.filter((_, index) => index !== factIndex))} aria-label="Remove fact row" className="grid size-10 place-items-center rounded-lg border border-destructive/25 text-destructive"><Trash2 className="size-3.5" /></button>
+                    </div>
+                  ))}
+                  <button type="button" disabled={presentation.customFacts.length >= 24} onClick={() => setCustomFacts([...presentation.customFacts, { label: "", value: "" }])} className="min-h-10 w-full rounded-lg border border-border bg-surface px-3 text-xs font-semibold disabled:opacity-40"><Plus className="mr-1 inline size-3.5" /> Add fact row</button>
+                  {!presentation.customFacts.length && <p className="text-xs text-muted-foreground">Add your first row. These can be lore facts, statistics, geography, rankings or whatever makes sense for the country.</p>}
+                </div>
+              )}
             </div>
           )}
 
           {(value.sectionType === "image" || value.sectionType === "rich_text") && (
             <div className="mt-4 rounded-xl border border-border bg-background p-3">
-              <div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold">Section image</p><label className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-2 text-[11px] font-semibold"><ImagePlus className="mr-1 inline size-3" /> Upload<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => event.target.files?.[0] && void onAddMedia(event.target.files[0])} /></label></div>
+              <div className="flex items-center justify-between gap-2"><div><p className="text-xs font-semibold">Section image</p><p className="mt-1 text-[10px] text-muted-foreground">For wide images, 1600×900 or larger works best. You can choose the visible crop below.</p></div><label className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-2 text-[11px] font-semibold"><ImagePlus className="mr-1 inline size-3" /> Upload<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => event.target.files?.[0] && void onAddMedia(event.target.files[0])} /></label></div>
               <select value={value.imageUrl} onChange={(event) => setValue((current) => ({ ...current, imageUrl: event.target.value }))} className="mt-3 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"><option value="">No image</option>{media.map((item) => <option key={item.id} value={item.public_url}>{item.caption || item.alt_text || "Country image"}</option>)}</select>
-              {value.imageUrl && <img src={value.imageUrl} alt="Section preview" className="mt-3 aspect-video w-full rounded-xl object-cover" />}
+              {value.imageUrl && <img src={value.imageUrl} alt="Section preview" className={`mt-3 w-full rounded-xl ${presentation.imageAspect === "square" ? "aspect-square" : presentation.imageAspect === "portrait" ? "aspect-[3/4]" : presentation.imageAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`} style={{ objectPosition: `${presentation.focalX}% ${presentation.focalY}%` }} />}
               <TextField className="mt-3" label="Image caption" value={value.imageCaption} onChange={(imageCaption) => setValue((current) => ({ ...current, imageCaption }))} />
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <SelectField label="Image crop" value={presentation.imageAspect} onChange={(next) => setJson({ imageAspect: next })} options={[
+                  ["auto", "Automatic"], ["16:9", "16:9 widescreen"], ["4:3", "4:3 landscape"], ["square", "1:1 square"], ["portrait", "3:4 portrait"],
+                ]} />
+                <SelectField label="Image fit" value={presentation.imageFit} onChange={(next) => setJson({ imageFit: next })} options={[
+                  ["cover", "Fill crop"], ["contain", "Show whole image"],
+                ]} />
+                <RangeField label={`Focal point X · ${presentation.focalX}%`} min={0} max={100} value={presentation.focalX} onChange={(next) => setJson({ focalX: next })} />
+                <RangeField label={`Focal point Y · ${presentation.focalY}%`} min={0} max={100} value={presentation.focalY} onChange={(next) => setJson({ focalY: next })} />
+              </div>
+            </div>
+          )}
+
+          {value.sectionType === "gallery" && (
+            <div className="mt-4 rounded-xl border border-border bg-background p-3">
+              <p className="text-xs font-semibold">Gallery layout</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <SelectField label="Columns" value={String(presentation.galleryColumns)} onChange={(next) => setJson({ galleryColumns: Number(next) })} options={[
+                  ["2", "2 columns"], ["3", "3 columns"], ["4", "4 columns"],
+                ]} />
+                <SelectField label="Image crop" value={presentation.imageAspect} onChange={(next) => setJson({ imageAspect: next })} options={[
+                  ["auto", "4:3 default"], ["16:9", "16:9 widescreen"], ["4:3", "4:3 landscape"], ["square", "1:1 square"], ["portrait", "3:4 portrait"],
+                ]} />
+                <SelectField label="Image fit" value={presentation.imageFit} onChange={(next) => setJson({ imageFit: next })} options={[
+                  ["cover", "Fill crop"], ["contain", "Show whole image"],
+                ]} />
+                <div className="grid grid-cols-2 gap-2">
+                  <RangeField label={`X · ${presentation.focalX}%`} min={0} max={100} value={presentation.focalX} onChange={(next) => setJson({ focalX: next })} />
+                  <RangeField label={`Y · ${presentation.focalY}%`} min={0} max={100} value={presentation.focalY} onChange={(next) => setJson({ focalY: next })} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {value.sectionType === "divider" && (
+            <div className="mt-4 rounded-xl border border-border bg-background p-3">
+              <SelectField label="Divider style" value={presentation.dividerStyle} onChange={(next) => setJson({ dividerStyle: next })} options={[
+                ["line", "Soft line"], ["glow", "Accent glow"], ["dots", "Three dots"],
+              ]} />
             </div>
           )}
 
@@ -410,4 +515,8 @@ function TextField({ label, value, onChange, placeholder, className = "" }: { la
 
 function SelectField({ label, value, onChange, options, disabled = false }: { label: string; value: string; onChange: (value: string) => void; options: Array<readonly [string, string]>; disabled?: boolean }) {
   return <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-40">{options.map(([option, labelText]) => <option key={option} value={option}>{labelText}</option>)}</select></label>;
+}
+
+function RangeField({ label, min, max, value, onChange }: { label: string; min: number; max: number; value: number; onChange: (value: number) => void }) {
+  return <label className="block"><span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="h-11 w-full accent-primary" /></label>;
 }
