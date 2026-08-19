@@ -6,6 +6,7 @@ import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
+import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
 import {
@@ -20,7 +21,6 @@ import {
 } from "@/lib/data";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
-import { computeCountryStats } from "@/lib/stats";
 
 export const Route = createFileRoute("/wiki/$code")({
   head: ({ params }) => ({
@@ -57,7 +57,7 @@ function CountryWikiPage() {
   );
 
   const stats = useMemo(
-    () => (country ? computeCountryStats(country.id, opts) : null),
+    () => (country ? computeCanonicalCountryStats(country.id, opts) : null),
     [country, opts],
   );
   const form = useMemo(
@@ -91,11 +91,7 @@ function CountryWikiPage() {
 
   const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
   const countryParticipants = (participants ?? []).filter((entry) => entry.country_id === country.id);
-  const latestEntries = [...new Set(countryParticipants.map((entry) => entry.edition_id))]
-    .map((editionId) =>
-      canonicalEditionEntries(countryParticipants.filter((entry) => entry.edition_id === editionId))[0],
-    )
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+  const latestEntries = canonicalEditionEntries(countryParticipants)
     .sort(
       (a, b) =>
         (editionMap.get(b.edition_id)?.edition_number ?? -1) -
