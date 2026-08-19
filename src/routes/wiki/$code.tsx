@@ -3,6 +3,7 @@ import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
+import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { useCountryWorldProfile } from "@/lib/country-account";
@@ -17,6 +18,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
 import { computeCountryStats } from "@/lib/stats";
 
@@ -88,16 +90,18 @@ function CountryWikiPage() {
   });
 
   const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
-  const latestEntries = [...new Map(
-    (participants ?? [])
-      .filter((entry) => entry.country_id === country.id)
-      .sort(
-        (a, b) =>
-          (editionMap.get(b.edition_id)?.edition_number ?? -1) -
-          (editionMap.get(a.edition_id)?.edition_number ?? -1),
-      )
-      .map((entry) => [entry.edition_id, entry]),
-  ).values()].slice(0, 8);
+  const countryParticipants = (participants ?? []).filter((entry) => entry.country_id === country.id);
+  const latestEntries = [...new Set(countryParticipants.map((entry) => entry.edition_id))]
+    .map((editionId) =>
+      canonicalEditionEntries(countryParticipants.filter((entry) => entry.edition_id === editionId))[0],
+    )
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .sort(
+      (a, b) =>
+        (editionMap.get(b.edition_id)?.edition_number ?? -1) -
+        (editionMap.get(a.edition_id)?.edition_number ?? -1),
+    )
+    .slice(0, 8);
 
   const infoRows = [
     ["Capital", profile?.capital],
@@ -180,12 +184,15 @@ function CountryWikiPage() {
                       {latestEntries.map((entry) => {
                         const edition = editionMap.get(entry.edition_id);
                         return (
-                          <div key={entry.edition_id} className="grid min-w-0 grid-cols-[1fr_auto] gap-3 border-b border-border/50 px-3 py-3 last:border-b-0">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold">{entry.artist || "Artist TBC"} · {entry.song || "Song TBC"}</p>
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">{edition ? editionLabel(edition) : "Edition"}</p>
+                          <div key={entry.edition_id} className="border-b border-border/50 px-3 py-3 last:border-b-0">
+                            <div className="grid min-w-0 grid-cols-[1fr_auto] gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold">{entry.artist || "Artist TBC"} · {entry.song || "Song TBC"}</p>
+                                <p className="mt-0.5 text-[10px] text-muted-foreground">{edition ? editionLabel(edition) : "Edition"}</p>
+                              </div>
+                              {edition ? <Link to="/editions/$slug" params={{ slug: edition.slug }} className="self-center text-[10px] font-semibold text-primary">View →</Link> : null}
                             </div>
-                            <Link to="/editions/$slug" params={{ slug: edition?.slug ?? "" }} className="self-center text-[10px] font-semibold text-primary" disabled={!edition}>View →</Link>
+                            <EntryListenLinks entry={entry} compact className="mt-2" />
                           </div>
                         );
                       })}
