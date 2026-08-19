@@ -65,13 +65,13 @@ export function FastJuryEntry({
   const usedReceivers = new Set(ballot.map((v) => v.receiving_country_id));
 
   return (
-    <div className="space-y-4 xl:grid xl:grid-cols-[minmax(15rem,.72fr)_minmax(0,2.28fr)] xl:items-start xl:gap-5 xl:space-y-0">
-      <div className="xl:sticky xl:top-[7.25rem] xl:self-start">
+    <div className="admin-jury-entry space-y-4">
+      <div className="admin-jury-voters">
         <div className="mb-2 flex items-center justify-between gap-3">
           <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Voting entity</p>
-          <p className="text-[11px] text-muted-foreground xl:hidden">Complete or DNV resolves a jury</p>
+          <p className="text-[11px] text-muted-foreground">Complete or DNV resolves a jury</p>
         </div>
-        <div className="scroll-slim flex max-h-32 flex-wrap gap-1.5 overflow-y-auto xl:max-h-[min(68vh,46rem)] xl:flex-col xl:flex-nowrap xl:pr-1">
+        <div className="admin-jury-voter-list scroll-slim flex max-h-32 flex-wrap gap-1.5 overflow-y-auto">
           {completeness.map((c) => {
             const voterOpt = vMap.get(c.id);
             if (!voterOpt) return null;
@@ -82,7 +82,7 @@ export function FastJuryEntry({
                 type="button"
                 onClick={() => onVoterChange(c.id)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition xl:min-h-10 xl:w-full xl:px-2.5 xl:py-2",
+                  "admin-jury-voter-button flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs transition",
                   activeVoter === c.id
                     ? "border-primary bg-primary/15"
                     : done || c.didNotVote
@@ -91,17 +91,16 @@ export function FastJuryEntry({
                 )}
               >
                 <FlagChip code={voterOpt.short_code ?? "??"} color={voterOpt.accent_color} image={voterOpt.flag_image} size="sm" />
-                <span className="max-w-[9rem] truncate xl:max-w-none xl:min-w-0 xl:flex-1 xl:text-left">{voterOpt.name}</span>
+                <span className="min-w-0 flex-1 truncate text-left">{voterOpt.name}</span>
                 <span className={cn("numeric opacity-70", c.didNotVote && "text-amber-200")}>{c.didNotVote ? "DNV" : `${c.given}/${c.need}`}</span>
               </button>
             );
           })}
         </div>
-        <p className="mt-2 hidden text-[11px] leading-5 text-muted-foreground xl:block">Complete or DNV resolves a jury. Keep this list visible while entering the ballot beside it.</p>
       </div>
 
       {activeVoter ? (
-        <div className="min-w-0 space-y-3">
+        <div className="admin-jury-ballot min-w-0 space-y-3">
           {activeDidNotVote ? (
             <div className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4">
               <p className="text-sm font-semibold text-foreground">This jury is marked “did not vote”</p>
@@ -117,7 +116,7 @@ export function FastJuryEntry({
               <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Point allocations</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Desktop keeps the jury list beside the ballot and spreads point rows across the available width. Pickers still open upward automatically when needed.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">On desktop the jury list stays beside the ballot and point rows spread across the available width. On smaller screens, pickers still open upward automatically near the bottom.</p>
                 </div>
                 {onDidNotVoteChange ? (
                   <button
@@ -132,7 +131,7 @@ export function FastJuryEntry({
                 ) : null}
               </div>
 
-              <ul className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+              <ul className="admin-jury-point-grid grid gap-2 md:grid-cols-2">
                 {voting.juryPoints.map((pts) => {
                   const receiver = byPoints.get(pts) ?? null;
                   const exclude = new Set([...usedReceivers].filter((id) => id !== receiver));
