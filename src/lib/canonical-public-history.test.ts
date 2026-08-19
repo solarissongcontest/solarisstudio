@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildAnniversaryRecap } from "./anniversary";
 import { computeCanonicalCountryStats } from "./canonical-country-stats";
 import { collapseFanRecordHolders } from "./canonical-fan-records";
+import { computeCanonicalHeadToHead } from "./canonical-head-to-head";
 import { canonicalEditionEntries } from "./entry-utils";
 
 const country = {
@@ -56,12 +57,13 @@ function participant(
   editionId: string,
   showId: string | null,
   qualified: boolean | null = null,
+  countryId = "a",
 ) {
   return {
     id,
     edition_id: editionId,
     show_id: showId,
-    country_id: "a",
+    country_id: countryId,
     contest_entity_id: null,
     artist: `Artist ${editionId}`,
     song: `Song ${editionId}`,
@@ -75,12 +77,19 @@ function participant(
   } as any;
 }
 
-function result(id: string, editionId: string, showId: string, rank: number, total: number) {
+function result(
+  id: string,
+  editionId: string,
+  showId: string,
+  rank: number,
+  total: number,
+  countryId = "a",
+) {
   return {
     id,
     edition_id: editionId,
     show_id: showId,
-    country_id: "a",
+    country_id: countryId,
     jury_points: Math.floor(total / 2),
     televote_points: total - Math.floor(total / 2),
     total_points: total,
@@ -180,6 +189,38 @@ describe("canonical public history", () => {
 
     expect(stats.qualificationPct).toBe(100);
     expect(stats.consecutiveQualifications).toBe(1);
+  });
+
+  it("compares the canonical edition placement instead of whichever show row was last", () => {
+    const e1 = edition("e1", 1);
+    const semi = show("semi-1", "e1", "semi-final");
+    const final = show("final-1", "e1", "grand-final");
+
+    const options = {
+      editions: [e1],
+      shows: [semi, final],
+      participants: [
+        participant("a-semi", "e1", "semi-1", true, "a"),
+        participant("a-final", "e1", "final-1", null, "a"),
+        participant("b-semi", "e1", "semi-1", true, "b"),
+        participant("b-final", "e1", "final-1", null, "b"),
+      ],
+      results: [
+        result("a-final-result", "e1", "final-1", 2, 150, "a"),
+        result("b-final-result", "e1", "final-1", 1, 160, "b"),
+        result("a-semi-result", "e1", "semi-1", 1, 100, "a"),
+        result("b-semi-result", "e1", "semi-1", 4, 70, "b"),
+      ],
+      jury: [],
+      televote: [],
+    };
+
+    const headToHead = computeCanonicalHeadToHead("a", "b", options as any);
+    expect(headToHead.sharedEditions).toBe(1);
+    expect(headToHead.aWins).toBe(0);
+    expect(headToHead.bWins).toBe(1);
+    expect(headToHead.rows[0]?.aRank).toBe(2);
+    expect(headToHead.rows[0]?.bRank).toBe(1);
   });
 
   it("counts a country once in a tied record while preserving all occurrence context", () => {
