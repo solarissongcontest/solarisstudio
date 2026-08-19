@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ShieldCheck, UserRoundCog } from "lucide-react";
+import { ArrowLeft, RefreshCw, ShieldCheck, UserRoundCog } from "lucide-react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -31,7 +31,14 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
 
 function CountryAccountsAdminPage() {
   const { data: countries = [] } = useCountries();
-  const { data } = useAdminCountryAccounts();
+  const {
+    data,
+    isLoading: accountsLoading,
+    isFetching: accountsFetching,
+    isError: accountsFailed,
+    error: accountsError,
+    refetch: refetchAccounts,
+  } = useAdminCountryAccounts();
   const setStatus = useAdminSetCountryAccountStatus();
   const [query, setQuery] = useState("");
   const [target, setTarget] = useState<AdminCountryAccount | null>(null);
@@ -84,8 +91,10 @@ function CountryAccountsAdminPage() {
     }
   }
 
-  const claimed = data?.accounts.length ?? 0;
-  const suspended = (data?.accounts ?? []).filter((account) => account.status === "suspended").length;
+  const accountsReady = Boolean(data?.schemaReady && !accountsFailed);
+  const claimed = accountsReady ? data!.accounts.length : null;
+  const suspended = accountsReady ? data!.accounts.filter((account) => account.status === "suspended").length : null;
+  const unclaimed = claimed === null ? null : Math.max(0, countries.length - claimed);
 
   return (
     <AdminPage>
@@ -99,15 +108,29 @@ function CountryAccountsAdminPage() {
       {message ? <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3 text-sm text-foreground">{message}</div> : null}
 
       <div className="grid grid-cols-3 gap-2">
-        <Metric label="Claimed" value={claimed} />
-        <Metric label="Unclaimed" value={Math.max(0, countries.length - claimed)} />
-        <Metric label="Suspended" value={suspended} attention={suspended > 0} />
+        <Metric label="Claimed" value={claimed ?? "—"} />
+        <Metric label="Unclaimed" value={unclaimed ?? "—"} />
+        <Metric label="Suspended" value={suspended ?? "—"} attention={(suspended ?? 0) > 0} />
       </div>
 
       <AdminCard>
-        <AdminCardHeader eyebrow="Terra Solaris" title="Ownership" description="Search by country, code or owner email. Moderation actions stay inside each claimed account instead of cluttering the list." />
+        <AdminCardHeader
+          eyebrow="Terra Solaris"
+          title="Ownership"
+          description="Search by country, code or owner email. Moderation actions stay inside each claimed account instead of cluttering the list."
+          action={accountsFetching && !accountsLoading ? <AdminStatus tone="neutral">Refreshing…</AdminStatus> : undefined}
+        />
 
-        {data?.schemaReady === false ? (
+        {accountsLoading ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">Loading country ownership…</div>
+        ) : accountsFailed ? (
+          <AdminEmptyState
+            icon={RefreshCw}
+            title="Country accounts could not be loaded"
+            description={accountsError instanceof Error ? accountsError.message : "The ownership directory request failed. No claim totals are being guessed."}
+            action={<button type="button" onClick={() => void refetchAccounts()} className="admin-action-primary"><RefreshCw className="size-4" /> Retry</button>}
+          />
+        ) : data?.schemaReady === false ? (
           <AdminEmptyState icon={ShieldCheck} title="Moderation unavailable" description="Country account moderation is temporarily unavailable." />
         ) : (
           <>
@@ -162,6 +185,6 @@ function CountryAccountsAdminPage() {
   );
 }
 
-function Metric({ label, value, attention = false }: { label: string; value: number; attention?: boolean }) {
+function Metric({ label, value, attention = false }: { label: string; value: number | string; attention?: boolean }) {
   return <div className={`admin-card px-3 py-3 text-center ${attention ? "!border-rose-200/15 !bg-rose-200/[0.045]" : ""}`}><p className={`numeric text-xl font-bold ${attention ? "text-rose-100" : ""}`}>{value}</p><p className="mt-1 text-[11px] text-muted-foreground">{label}</p></div>;
 }
