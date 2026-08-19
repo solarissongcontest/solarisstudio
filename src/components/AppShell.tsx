@@ -156,21 +156,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     roleItems.push({ to: "/admin/operations", label: "Organizer workspace" });
   }
 
-  if (access.countryId) {
-    roleItems.push({ to: "/country-hub", label: "My country" });
-  } else if (email) {
-    roleItems.push({
-      to: "/country-hub",
-      label: access.isOrganizer ? "Claim country" : "Country setup",
-    });
-  }
-
   const signOut = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
   };
 
-  const accountHref = email ? "/me" : "/auth";
+  // Profile, activity, country ownership and country editing are one workspace.
+  // /me stays as a backwards-compatible redirect, but the navigation no longer
+  // advertises it as a separate product from My Solaris.
+  const accountHref = email ? "/country-hub" : "/auth";
   const quickNavigation: Array<{
     to: string;
     label: string;
@@ -281,9 +275,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <p className="truncate text-xs font-semibold text-foreground">My Solaris</p>
                     <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{email}</p>
                   </div>
-                  <Link to="/me" className="nav-menu-item mt-1">
-                    <span className="font-semibold">Profile & activity</span>
-                    <span className="text-[10px] text-muted-foreground">Your Solaris account and follows</span>
+                  <Link to="/country-hub" className="nav-menu-item mt-1">
+                    <span className="font-semibold">Open My Solaris</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Profile, activity{access.countryId ? " & country" : " & country setup"}
+                    </span>
                   </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className="nav-menu-item">
@@ -365,13 +361,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               </div>
 
-              {(email || roleItems.length > 0) && (
+              {email && (
                 <div className="mb-5 border-t border-border/55 pt-4">
                   <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
                     My Solaris
                   </p>
-                  <Link to="/me" className={mobileDrawerLink(pathMatches(pathname, "/me"))}>
-                    Profile & activity
+                  <Link to="/country-hub" className={mobileDrawerLink(pathMatches(pathname, "/country-hub") || pathMatches(pathname, "/me"))}>
+                    My Solaris
                   </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className={mobileDrawerLink(pathMatches(pathname, item.to))}>
