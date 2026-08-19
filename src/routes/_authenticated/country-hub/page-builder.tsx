@@ -15,7 +15,6 @@ import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import {
   uploadCountryAsset,
   useAddCountryMedia,
-  useCountries,
   useCountryWorldProfile,
   useDeleteCountryMedia,
   useDeleteCountrySection,
@@ -35,7 +34,7 @@ import {
   type CountrySectionImageLayout,
   type CountrySectionType,
 } from "@/lib/country-page-builder";
-import type { Country } from "@/lib/data";
+import { useCountries, type Country } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/country-hub/page-builder")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
