@@ -148,7 +148,6 @@ export function CountryPicker({
                 onPointerDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  pick(c.id);
                 }}
                 onClick={() => pick(c.id)}
                 onMouseEnter={() => setCursor(i)}
