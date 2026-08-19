@@ -1,4 +1,3 @@
-import { televotingAdmin } from "@/integrations/televoting/client.server";
 import { televotingPublicServer } from "@/integrations/televoting/public.server";
 
 type TelevotingClient = typeof televotingPublicServer;
@@ -132,26 +131,16 @@ async function readPublishedResults(
   };
 }
 
-function hasAdminBackend() {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
-
 export async function getMergedPublishedTelevotingResultsServer(
   roundId?: string,
 ): Promise<PublishedResultsPayload> {
   try {
-    const publicResult = await readPublishedResults(televotingPublicServer, roundId);
-
-    if (publicResult.round || !hasAdminBackend()) return publicResult;
+    return await readPublishedResults(televotingPublicServer, roundId);
   } catch (publicError) {
-    if (!hasAdminBackend()) {
-      throw new Error(
-        publicError instanceof Error
-          ? `Published Televoting results are not publicly readable: ${publicError.message}`
-          : "Published Televoting results are not publicly readable.",
-      );
-    }
+    throw new Error(
+      publicError instanceof Error
+        ? `Published Televoting results are not publicly readable: ${publicError.message}`
+        : "Published Televoting results are not publicly readable.",
+    );
   }
-
-  return readPublishedResults(televotingAdmin, roundId);
 }
