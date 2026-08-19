@@ -14,7 +14,7 @@ describe("country edition participation editing", () => {
     expect(hub).toContain("byEdition.get(entry.edition_id)");
     expect(hub).toContain("key={group.editionId}");
     expect(hub).not.toContain("myEntries.map((entry) => <EntryEditor key={entry.id}");
-    expect(hub).toContain("These are appearances of the same edition entry. Artist and song are entered once.");
+    expect(hub).toContain("These are appearances of the same edition entry. Artist, song and listening links are entered once.");
   });
 
   it("keeps edition-wide artist and song synchronization in the database", () => {
