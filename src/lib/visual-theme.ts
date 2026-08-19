@@ -13,6 +13,19 @@ export type VisualTheme = {
   surface: string;
 };
 
+export type CountryVisualTheme = VisualTheme & {
+  backgroundMode: "solid" | "gradient" | "image";
+  gradientStyle: "linear" | "radial" | "aurora";
+  gradientAngle: number;
+  backgroundImageUrl: string | null;
+  backgroundImageStoragePath: string | null;
+  backgroundPositionX: number;
+  backgroundPositionY: number;
+  backgroundOverlay: number;
+  backgroundBlur: number;
+  heroLayout: "classic" | "editorial" | "minimal" | "flag-focus";
+};
+
 export type CountryThemeRow = {
   country_id: string;
   background_primary: string;
@@ -21,6 +34,16 @@ export type CountryThemeRow = {
   text_primary: string;
   text_muted: string;
   surface: string;
+  background_mode?: CountryVisualTheme["backgroundMode"] | null;
+  gradient_style?: CountryVisualTheme["gradientStyle"] | null;
+  gradient_angle?: number | null;
+  background_image_url?: string | null;
+  background_image_storage_path?: string | null;
+  background_position_x?: number | null;
+  background_position_y?: number | null;
+  background_overlay?: number | null;
+  background_blur?: number | null;
+  hero_layout?: CountryVisualTheme["heroLayout"] | null;
   updated_at: string;
 };
 
@@ -38,13 +61,42 @@ export const DEFAULT_THEME: VisualTheme = {
   surface: "#0d2634",
 };
 
+export const DEFAULT_COUNTRY_THEME: CountryVisualTheme = {
+  ...DEFAULT_THEME,
+  backgroundMode: "gradient",
+  gradientStyle: "aurora",
+  gradientAngle: 145,
+  backgroundImageUrl: null,
+  backgroundImageStoragePath: null,
+  backgroundPositionX: 50,
+  backgroundPositionY: 50,
+  backgroundOverlay: 0.36,
+  backgroundBlur: 0,
+  heroLayout: "classic",
+};
+
 function normaliseHex(value: string | undefined | null, fallback: string) {
   const text = value?.trim() ?? "";
   return /^#[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : fallback;
 }
 
-export function countryThemeToVisual(row?: CountryThemeRow | null): VisualTheme | null {
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
+export function countryThemeToVisual(row?: CountryThemeRow | null): CountryVisualTheme | null {
   if (!row) return null;
+  const backgroundMode = ["solid", "gradient", "image"].includes(String(row.background_mode))
+    ? (row.background_mode as CountryVisualTheme["backgroundMode"])
+    : DEFAULT_COUNTRY_THEME.backgroundMode;
+  const gradientStyle = ["linear", "radial", "aurora"].includes(String(row.gradient_style))
+    ? (row.gradient_style as CountryVisualTheme["gradientStyle"])
+    : DEFAULT_COUNTRY_THEME.gradientStyle;
+  const heroLayout = ["classic", "editorial", "minimal", "flag-focus"].includes(String(row.hero_layout))
+    ? (row.hero_layout as CountryVisualTheme["heroLayout"])
+    : DEFAULT_COUNTRY_THEME.heroLayout;
+
   return {
     backgroundPrimary: normaliseHex(row.background_primary, DEFAULT_THEME.backgroundPrimary),
     backgroundSecondary: normaliseHex(row.background_secondary, DEFAULT_THEME.backgroundSecondary),
@@ -52,6 +104,16 @@ export function countryThemeToVisual(row?: CountryThemeRow | null): VisualTheme 
     textPrimary: normaliseHex(row.text_primary, DEFAULT_THEME.textPrimary),
     textMuted: normaliseHex(row.text_muted, DEFAULT_THEME.textMuted),
     surface: normaliseHex(row.surface, DEFAULT_THEME.surface),
+    backgroundMode,
+    gradientStyle,
+    gradientAngle: clampNumber(row.gradient_angle, 0, 360, DEFAULT_COUNTRY_THEME.gradientAngle),
+    backgroundImageUrl: row.background_image_url ?? null,
+    backgroundImageStoragePath: row.background_image_storage_path ?? null,
+    backgroundPositionX: clampNumber(row.background_position_x, 0, 100, 50),
+    backgroundPositionY: clampNumber(row.background_position_y, 0, 100, 50),
+    backgroundOverlay: clampNumber(row.background_overlay, 0, 0.9, DEFAULT_COUNTRY_THEME.backgroundOverlay),
+    backgroundBlur: clampNumber(row.background_blur, 0, 30, 0),
+    heroLayout,
   };
 }
 
@@ -75,6 +137,21 @@ export function editionThemeToVisual(input: unknown): VisualTheme | null {
     textMuted: get("textMuted", "text_muted", DEFAULT_THEME.textMuted),
     surface: get("surface", "surface", DEFAULT_THEME.surface),
   };
+}
+
+export function countryBackgroundCss(theme: CountryVisualTheme) {
+  if (theme.backgroundMode === "solid") return theme.backgroundPrimary;
+  if (theme.backgroundMode === "image" && theme.backgroundImageUrl) {
+    const overlay = Math.round(theme.backgroundOverlay * 1000) / 1000;
+    return `linear-gradient(rgba(0,0,0,${overlay}), rgba(0,0,0,${overlay})), url(${JSON.stringify(theme.backgroundImageUrl)})`;
+  }
+  if (theme.gradientStyle === "linear") {
+    return `linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`;
+  }
+  if (theme.gradientStyle === "radial") {
+    return `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}, ${theme.backgroundPrimary} 72%)`;
+  }
+  return `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}cc, transparent 44%), linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`;
 }
 
 export function useCountryThemes() {
@@ -109,7 +186,7 @@ export function useCountryTheme(countryId?: string | null) {
 export function useSaveCountryTheme(countryId?: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (theme: VisualTheme) => {
+    mutationFn: async (theme: CountryVisualTheme) => {
       if (!countryId) throw new Error("No country is selected.");
       const payload = {
         country_id: countryId,
@@ -119,6 +196,16 @@ export function useSaveCountryTheme(countryId?: string | null) {
         text_primary: normaliseHex(theme.textPrimary, DEFAULT_THEME.textPrimary),
         text_muted: normaliseHex(theme.textMuted, DEFAULT_THEME.textMuted),
         surface: normaliseHex(theme.surface, DEFAULT_THEME.surface),
+        background_mode: theme.backgroundMode,
+        gradient_style: theme.gradientStyle,
+        gradient_angle: Math.round(clampNumber(theme.gradientAngle, 0, 360, 145)),
+        background_image_url: theme.backgroundImageUrl,
+        background_image_storage_path: theme.backgroundImageStoragePath,
+        background_position_x: Math.round(clampNumber(theme.backgroundPositionX, 0, 100, 50)),
+        background_position_y: Math.round(clampNumber(theme.backgroundPositionY, 0, 100, 50)),
+        background_overlay: clampNumber(theme.backgroundOverlay, 0, 0.9, 0.36),
+        background_blur: Math.round(clampNumber(theme.backgroundBlur, 0, 30, 0)),
+        hero_layout: theme.heroLayout,
       };
       const { data, error } = await supabase
         .from("country_themes")

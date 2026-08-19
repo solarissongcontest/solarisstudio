@@ -36,6 +36,54 @@ body[data-entity-theme] .glass-strong {
     color-mix(in srgb, var(--surface) 86%, rgb(var(--solaris-bg-deep)) 14%) !important;
 }
 
+/* Country owners can make the full public country/Wiki background genuinely
+   theirs. The route theme component supplies one safe CSS background value,
+   crop position and optional blur. */
+body[data-entity-theme="country"] .app-background {
+  inset: calc(-1 * var(--country-page-blur, 0px)) !important;
+  background: var(--country-page-background) !important;
+  background-size: cover !important;
+  background-position: var(--country-page-position, 50% 50%) !important;
+  background-repeat: no-repeat !important;
+  filter: blur(var(--country-page-blur, 0px)) !important;
+  transform: scale(1.015);
+}
+
+body[data-entity-theme="country"][data-country-background-mode="image"] .app-background::before {
+  opacity: .055;
+}
+
+body[data-entity-theme="country"][data-country-background-mode="image"] .app-background::after {
+  opacity: .035;
+}
+
+/* Header personalities are intentionally bounded presets rather than arbitrary
+   CSS. Owners get a distinct look without being able to make mobile navigation
+   disappear into a 4px neon maze. */
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .country-public-hero h1,
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-public-hero h1 {
+  font-size: clamp(2.8rem, 8vw, 5.7rem) !important;
+  line-height: .92 !important;
+  letter-spacing: -.04em;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .country-public-hero,
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-public-hero {
+  background: color-mix(in srgb, var(--surface) 70%, transparent) !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .country-public-hero .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-public-hero .country-hero-background-flag {
+  display: none;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .country-public-hero .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .wiki-public-hero .country-hero-background-flag {
+  opacity: .28 !important;
+  transform: scale(1.18);
+}
+
 /* Edition artwork is not merely an upload sitting in a database. The main
    edition hero visibly uses it while the generated palette controls the rest
    of the route. */
@@ -66,5 +114,9 @@ body[data-entity-theme] .text-primary { color: var(--primary) !important; }
 @media (max-width: 767px) {
   body[data-entity-theme="edition"][data-edition-artwork="true"] .app-main section[class*="min-h-[340px]"] {
     background-position: 58% center !important;
+  }
+
+  body[data-entity-theme="country"] .app-background {
+    background-position: var(--country-page-position, 50% 50%) !important;
   }
 }
