@@ -20,6 +20,8 @@ import {
   type CountryMedia,
   type CountryProfileSection,
 } from "@/lib/country-account";
+import { useSaveEntryListeningLinks } from "@/lib/entry-listening";
+import { listenLinksFrom } from "@/lib/entry-utils";
 import {
   editionLabel,
   useAllContestEntities,
@@ -189,7 +191,7 @@ type EditionEntry = {
 };
 
 function entryCompleteness(entry: Participant) {
-  return Number(Boolean(entry.artist)) * 4 + Number(Boolean(entry.song)) * 4 + Number(Boolean(entry.notes));
+  return Number(entry.show_id == null) * 20 + Number(Boolean(entry.artist)) * 4 + Number(Boolean(entry.song)) * 4 + Number(Boolean(entry.notes));
 }
 
 function OwnedCountryHub({
@@ -211,6 +213,7 @@ function OwnedCountryHub({
   const addMedia = useAddCountryMedia(country.id);
   const deleteMedia = useDeleteCountryMedia(country.id);
   const saveEntry = useSaveCountryEntry(country.id, organizerOverride);
+  const saveEntryLinks = useSaveEntryListeningLinks(country.id, organizerOverride);
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
   const { data: participants } = useAllParticipants();
@@ -225,7 +228,7 @@ function OwnedCountryHub({
   const [galleryAlt, setGalleryAlt] = useState("");
   const [galleryBusy, setGalleryBusy] = useState(false);
   const [newSection, setNewSection] = useState({ heading: "", body: "", image_url: "", image_caption: "" });
-  const [addEntry, setAddEntry] = useState({ editionId: "", artist: "", song: "", notes: "" });
+  const [addEntry, setAddEntry] = useState({ editionId: "", artist: "", song: "", notes: "", youtubeUrl: "", spotifyUrl: "", appleMusicUrl: "" });
 
   useEffect(() => {
     setIdentity({ name: country.name, nativeName: country.native_name ?? "", region: country.region, description: country.description ?? "", accentColor: country.accent_color, flagImage: country.flag_image });
@@ -305,8 +308,9 @@ function OwnedCountryHub({
   const addHistoricalEntry = async () => {
     await run(async () => {
       await saveEntry.mutateAsync({ participantId: null, editionId: addEntry.editionId, showId: null, artist: addEntry.artist, song: addEntry.song, notes: addEntry.notes });
-      setAddEntry({ editionId: "", artist: "", song: "", notes: "" });
-    }, "Edition participation saved. Artist and song apply to the entire edition.");
+      await saveEntryLinks.mutateAsync({ participantId: null, editionId: addEntry.editionId, youtubeUrl: addEntry.youtubeUrl, spotifyUrl: addEntry.spotifyUrl, appleMusicUrl: addEntry.appleMusicUrl });
+      setAddEntry({ editionId: "", artist: "", song: "", notes: "", youtubeUrl: "", spotifyUrl: "", appleMusicUrl: "" });
+    }, "Edition participation and listening links saved.");
   };
 
   return (
@@ -415,7 +419,7 @@ function OwnedCountryHub({
             : "Each edition has one artist and one song. If you reached the final, that is the same entry as your semi-final appearance, not a second participation."}
         >
           <div className="mb-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3 text-xs leading-5 text-muted-foreground">
-            <strong className="text-foreground">Edition-wide entry:</strong> edit the song once here. Solaris synchronizes the artist and song to every show appearance in that edition automatically.
+            <strong className="text-foreground">Edition-wide entry:</strong> edit the song once here. Solaris synchronizes the artist, song and listening links to every show appearance in that edition automatically.
           </div>
           <div className="space-y-3">
             {myEntries.map((group) => (
@@ -426,19 +430,39 @@ function OwnedCountryHub({
                 showNames={group.appearances
                   .map((appearance) => shows?.find((show) => show.id === appearance.show_id)?.name ?? null)
                   .filter((name): name is string => Boolean(name))}
-                onSave={(values) => run(() => saveEntry.mutateAsync(values), "Edition entry updated everywhere." )}
+                busy={saveEntry.isPending || saveEntryLinks.isPending}
+                onSave={(values) => run(async () => {
+                  await saveEntry.mutateAsync({
+                    participantId: values.participantId,
+                    editionId: values.editionId,
+                    showId: null,
+                    artist: values.artist,
+                    song: values.song,
+                    notes: values.notes,
+                  });
+                  await saveEntryLinks.mutateAsync({
+                    participantId: values.participantId,
+                    editionId: values.editionId,
+                    youtubeUrl: values.youtubeUrl,
+                    spotifyUrl: values.spotifyUrl,
+                    appleMusicUrl: values.appleMusicUrl,
+                  });
+                }, "Edition entry and listening links updated everywhere.")}
               />
             ))}
           </div>
           <div className="mt-5 rounded-xl border border-border bg-surface p-4">
             <p className="text-sm font-semibold">Add a missing edition participation</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose the edition and enter the artist and song once. Show appearances, running order and qualification are managed separately and reuse this same edition entry.</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose the edition and enter the artist and song once. Listening links are optional. Show appearances, running order and qualification are managed separately and reuse this same edition entry.</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="sm:col-span-2"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Edition</span><select value={addEntry.editionId} onChange={(event) => setAddEntry((current) => ({ ...current, editionId: event.target.value }))} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"><option value="">Choose edition…</option>{(editions ?? []).map((edition) => <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>)}</select></label>
               <Input label="Artist" value={addEntry.artist} onChange={(value) => setAddEntry((current) => ({ ...current, artist: value }))} />
               <Input label="Song" value={addEntry.song} onChange={(value) => setAddEntry((current) => ({ ...current, song: value }))} />
+              <Input label="YouTube music video" value={addEntry.youtubeUrl} placeholder="https://youtube.com/watch?..." onChange={(value) => setAddEntry((current) => ({ ...current, youtubeUrl: value }))} />
+              <Input label="Spotify" value={addEntry.spotifyUrl} placeholder="https://open.spotify.com/track/..." onChange={(value) => setAddEntry((current) => ({ ...current, spotifyUrl: value }))} />
+              <Input label="Apple Music" value={addEntry.appleMusicUrl} placeholder="https://music.apple.com/..." onChange={(value) => setAddEntry((current) => ({ ...current, appleMusicUrl: value }))} className="sm:col-span-2" />
               <Input label="Notes" value={addEntry.notes} onChange={(value) => setAddEntry((current) => ({ ...current, notes: value }))} className="sm:col-span-2" />
-              <button type="button" disabled={!addEntry.editionId || !addEntry.artist.trim() || !addEntry.song.trim() || saveEntry.isPending} onClick={() => void addHistoricalEntry()} className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">Save edition participation</button>
+              <button type="button" disabled={!addEntry.editionId || !addEntry.artist.trim() || !addEntry.song.trim() || saveEntry.isPending || saveEntryLinks.isPending} onClick={() => void addHistoricalEntry()} className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">Save edition participation</button>
             </div>
           </div>
         </Panel>
@@ -461,24 +485,46 @@ function SectionEditor({ section, media, onSave, onDelete }: { section: CountryP
   return <div className="rounded-xl bg-surface p-3"><Input label="Heading" value={value.heading} onChange={(heading) => setValue((current) => ({ ...current, heading }))} /><label className="mt-3 block"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Body</span><textarea value={value.body} onChange={(event) => setValue((current) => ({ ...current, body: event.target.value }))} rows={5} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /></label><div className="mt-3 grid gap-3 sm:grid-cols-2"><MediaSelect media={media} value={value.image_url} onChange={(image_url) => setValue((current) => ({ ...current, image_url }))} /><Input label="Image caption" value={value.image_caption} onChange={(image_caption) => setValue((current) => ({ ...current, image_caption }))} /></div><div className="mt-3 flex gap-2"><button type="button" onClick={() => void onSave({ id: section.id, heading: value.heading, body: value.body, image_url: value.image_url || null, image_caption: value.image_caption || null, sort_order: value.sort_order })} className="min-h-9 rounded-lg border border-border px-3 text-xs font-semibold">Save</button><button type="button" onClick={() => void onDelete()} className="min-h-9 rounded-lg px-3 text-xs font-semibold text-destructive">Delete</button></div></div>;
 }
 
+type EntryEditorValues = {
+  participantId: string;
+  editionId: string;
+  artist: string;
+  song: string;
+  notes: string;
+  youtubeUrl: string;
+  spotifyUrl: string;
+  appleMusicUrl: string;
+};
+
 function EntryEditor({
   entry,
   edition,
   showNames,
+  busy,
   onSave,
 }: {
   entry: Participant;
   edition: { edition_number: number | null; name: string; year: number | null } | undefined;
   showNames: string[];
-  onSave: (values: { participantId: string; editionId: string; showId: string | null; artist: string; song: string; notes: string }) => Promise<unknown>;
+  busy: boolean;
+  onSave: (values: EntryEditorValues) => Promise<unknown>;
 }) {
+  const initialLinks = listenLinksFrom(entry);
   const [artist, setArtist] = useState(entry.artist ?? "");
   const [song, setSong] = useState(entry.song ?? "");
   const [notes, setNotes] = useState(entry.notes ?? "");
+  const [youtubeUrl, setYoutubeUrl] = useState(initialLinks.youtube_url ?? "");
+  const [spotifyUrl, setSpotifyUrl] = useState(initialLinks.spotify_url ?? "");
+  const [appleMusicUrl, setAppleMusicUrl] = useState(initialLinks.apple_music_url ?? "");
+
   useEffect(() => {
+    const links = listenLinksFrom(entry);
     setArtist(entry.artist ?? "");
     setSong(entry.song ?? "");
     setNotes(entry.notes ?? "");
+    setYoutubeUrl(links.youtube_url ?? "");
+    setSpotifyUrl(links.spotify_url ?? "");
+    setAppleMusicUrl(links.apple_music_url ?? "");
   }, [entry]);
 
   const uniqueShows = [...new Set(showNames)];
@@ -495,14 +541,18 @@ function EntryEditor({
           )) : <span className="text-[11px] text-muted-foreground">No show appearance assigned yet</span>}
         </div>
         {uniqueShows.length > 1 ? (
-          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">These are appearances of the same edition entry. Artist and song are entered once.</p>
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">These are appearances of the same edition entry. Artist, song and listening links are entered once.</p>
         ) : null}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Input label="Artist" value={artist} onChange={setArtist} />
         <Input label="Song" value={song} onChange={setSong} />
+        <Input label="YouTube music video" value={youtubeUrl} placeholder="https://youtube.com/watch?..." onChange={setYoutubeUrl} />
+        <Input label="Spotify" value={spotifyUrl} placeholder="https://open.spotify.com/track/..." onChange={setSpotifyUrl} />
+        <Input label="Apple Music" value={appleMusicUrl} placeholder="https://music.apple.com/..." onChange={setAppleMusicUrl} className="sm:col-span-2" />
         <Input label="Notes" value={notes} onChange={setNotes} className="sm:col-span-2" />
-        <button type="button" disabled={!artist.trim() || !song.trim()} onClick={() => void onSave({ participantId: entry.id, editionId: entry.edition_id, showId: null, artist, song, notes })} className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">Save edition entry</button>
+        <p className="text-[11px] leading-5 text-muted-foreground sm:col-span-2">Listening links are optional and are shown publicly so fans can go straight to the song.</p>
+        <button type="button" disabled={!artist.trim() || !song.trim() || busy} onClick={() => void onSave({ participantId: entry.id, editionId: entry.edition_id, artist, song, notes, youtubeUrl, spotifyUrl, appleMusicUrl })} className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">{busy ? "Saving…" : "Save edition entry"}</button>
       </div>
     </div>
   );
