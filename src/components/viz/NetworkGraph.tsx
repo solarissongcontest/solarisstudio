@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { buildPointFlow } from "@/lib/stats";
+import { useMemo, useState } from "react";
+
 import type { Country, JuryVote } from "@/lib/data";
+import { buildPointFlow } from "@/lib/stats";
 
 /** Deterministic circular voting network: nodes = countries, edges weighted by points. */
 export function NetworkGraph({
@@ -17,7 +18,6 @@ export function NetworkGraph({
 }) {
   const [hover, setHover] = useState<string | null>(null);
   const cMap = new Map(countries.map((country) => [country.id, country]));
-
   const links = useMemo(() => buildPointFlow(jury, 1), [jury]);
 
   const nodeIds = useMemo(() => {
@@ -26,7 +26,6 @@ export function NetworkGraph({
       totals.set(link.source, (totals.get(link.source) ?? 0) + link.value);
       totals.set(link.target, (totals.get(link.target) ?? 0) + link.value);
     });
-
     return [...totals.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit)
@@ -34,7 +33,6 @@ export function NetworkGraph({
   }, [links, limit]);
 
   const maxVal = Math.max(1, ...links.map((link) => link.value));
-
   const strongLinks = useMemo(
     () =>
       links.filter(
@@ -45,7 +43,6 @@ export function NetworkGraph({
       ),
     [links, nodeIds, maxVal, minEdgeShare],
   );
-
   const strongest = useMemo(
     () => [...strongLinks].sort((a, b) => b.value - a.value).slice(0, 5),
     [strongLinks],
@@ -62,16 +59,9 @@ export function NetworkGraph({
   const pos = new Map(
     nodeIds.map((id, index) => {
       const angle = (index / nodeIds.length) * Math.PI * 2 - Math.PI / 2;
-      return [
-        id,
-        {
-          x: cx + radius * Math.cos(angle),
-          y: cy + radius * Math.sin(angle),
-        },
-      ];
+      return [id, { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) }];
     }),
   );
-
   const hoveredCountry = hover ? cMap.get(hover) : null;
 
   return (
@@ -97,24 +87,16 @@ export function NetworkGraph({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border/60 bg-background/25">
+      <div className="rounded-xl border border-border/60 bg-background/25 p-2 sm:p-4">
         <svg
-          width={size}
-          height={size}
-          className="mx-auto block"
+          viewBox={`0 0 ${size} ${size}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="mx-auto block aspect-square w-full max-w-[720px]"
           role="img"
           aria-label="Voting network showing the strongest point flows between countries"
         >
           <defs>
-            <marker
-              id="arrow"
-              viewBox="0 0 10 10"
-              refX="9"
-              refY="5"
-              markerWidth="5"
-              markerHeight="5"
-              orient="auto-start-reverse"
-            >
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted-foreground)" />
             </marker>
           </defs>
@@ -123,7 +105,6 @@ export function NetworkGraph({
             const p1 = pos.get(link.source)!;
             const p2 = pos.get(link.target)!;
             const dim = hover && hover !== link.source && hover !== link.target;
-
             return (
               <line
                 key={`${link.source}-${link.target}-${index}`}
@@ -137,9 +118,7 @@ export function NetworkGraph({
                 markerEnd="url(#arrow)"
                 className="transition-opacity"
               >
-                <title>
-                  {cMap.get(link.source)?.name} → {cMap.get(link.target)?.name}: {link.value} pts
-                </title>
+                <title>{cMap.get(link.source)?.name} → {cMap.get(link.target)?.name}: {link.value} pts</title>
               </line>
             );
           })}
@@ -155,33 +134,12 @@ export function NetworkGraph({
                   (link.source === hover && link.target === id) ||
                   (link.target === hover && link.source === id),
               );
-
             return (
-              <g
-                key={id}
-                onMouseEnter={() => setHover(id)}
-                onMouseLeave={() => setHover(null)}
-                className="cursor-pointer"
-                opacity={connected ? 1 : 0.18}
-              >
+              <g key={id} onMouseEnter={() => setHover(id)} onMouseLeave={() => setHover(null)} className="cursor-pointer" opacity={connected ? 1 : 0.18}>
                 <title>{country?.name ?? "Unknown country"}</title>
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={hover === id ? 12 : 10}
-                  fill={country?.accent_color ?? "var(--jury)"}
-                  stroke="var(--background)"
-                  strokeWidth={3}
-                />
+                <circle cx={point.x} cy={point.y} r={hover === id ? 12 : 10} fill={country?.accent_color ?? "var(--jury)"} stroke="var(--background)" strokeWidth={3} />
                 <Link to="/countries/$code" params={{ code: country?.short_code ?? "" }}>
-                  <text
-                    x={point.x}
-                    y={point.y - 15}
-                    fontSize={hover === id ? 12 : 10}
-                    fontWeight={hover === id ? 700 : 500}
-                    textAnchor="middle"
-                    className="fill-foreground"
-                  >
+                  <text x={point.x} y={point.y - 15} fontSize={hover === id ? 12 : 10} fontWeight={hover === id ? 700 : 500} textAnchor="middle" className="fill-foreground">
                     {country?.short_code ?? "?"}
                   </text>
                 </Link>
@@ -195,9 +153,7 @@ export function NetworkGraph({
         <div className="mb-2 flex items-end justify-between gap-3">
           <div>
             <p className="text-xs font-semibold text-foreground">Strongest visible connections</p>
-            <p className="mt-0.5 text-[10px] text-muted-foreground">
-              A readable summary of the same lines shown above.
-            </p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">A readable summary of the same lines shown above.</p>
           </div>
           <span className="text-[10px] text-muted-foreground">{strongLinks.length} shown</span>
         </div>
@@ -208,14 +164,9 @@ export function NetworkGraph({
               const source = cMap.get(link.source);
               const target = cMap.get(link.target);
               return (
-                <div
-                  key={`${link.source}-${link.target}-summary`}
-                  className="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 py-2.5"
-                >
+                <div key={`${link.source}-${link.target}-summary`} className="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 py-2.5">
                   <span className="numeric text-[10px] text-muted-foreground">#{index + 1}</span>
-                  <p className="truncate text-xs font-medium">
-                    {source?.name ?? "?"} → {target?.name ?? "?"}
-                  </p>
+                  <p className="truncate text-xs font-medium">{source?.name ?? "?"} → {target?.name ?? "?"}</p>
                   <span className="numeric text-xs font-semibold">{link.value} pts</span>
                 </div>
               );
