@@ -38,19 +38,6 @@ export type IntegritySanctionRow = {
   revocation_reason: string | null;
 };
 
-export type IntegrityAuditRow = {
-  id: string;
-  preflight_id: string | null;
-  decision_id: string | null;
-  sanction_id: string | null;
-  submission_id: string | null;
-  action: string;
-  organizer_id: string | null;
-  reason: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-};
-
 export type IntegrityModerationCase = IntegrityDeclarationRow & {
   human_decision: IntegrityDecisionRow | null;
   sanctions: IntegritySanctionRow[];
@@ -67,18 +54,15 @@ export async function loadIntegrityModerationServer() {
   const declarations = await listIntegrityDeclarationsServer({ limit: 750, signedOnly: false });
   const tv = (supabaseAdmin as any).schema("televoting");
 
-  const [decisionsResult, sanctionsResult, auditResult] = await Promise.all([
+  const [decisionsResult, sanctionsResult] = await Promise.all([
     tv.from("vote_integrity_decisions").select("*").order("updated_at", { ascending: false }).limit(1000),
     tv.from("voter_sanctions").select("*").order("created_at", { ascending: false }).limit(1000),
-    tv.from("integrity_action_audit").select("*").order("created_at", { ascending: false }).limit(500),
   ]);
   if (decisionsResult.error) throw new Error(decisionsResult.error.message);
   if (sanctionsResult.error) throw new Error(sanctionsResult.error.message);
-  if (auditResult.error) throw new Error(auditResult.error.message);
 
   const decisions = (decisionsResult.data ?? []) as IntegrityDecisionRow[];
   const sanctions = (sanctionsResult.data ?? []) as IntegritySanctionRow[];
-  const audit = (auditResult.data ?? []) as IntegrityAuditRow[];
   const decisionByPreflight = new Map(decisions.map((row) => [row.preflight_id, row]));
   const sanctionsByPreflight = new Map<string, IntegritySanctionRow[]>();
   for (const sanction of sanctions) {
@@ -101,7 +85,7 @@ export async function loadIntegrityModerationServer() {
     (!sanction.expires_at || new Date(sanction.expires_at).getTime() > now),
   );
 
-  return { cases, sanctions, activeSanctions, audit };
+  return { cases, sanctions, activeSanctions };
 }
 
 export async function recordIntegrityDecisionServer(input: {
