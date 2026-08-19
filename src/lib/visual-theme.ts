@@ -13,6 +13,27 @@ export type VisualTheme = {
   surface: string;
 };
 
+export type CountryHeroLayout =
+  | "classic"
+  | "editorial"
+  | "minimal"
+  | "flag-focus"
+  | "poster"
+  | "split"
+  | "spotlight"
+  | "broadcast";
+
+export const COUNTRY_HERO_LAYOUTS: CountryHeroLayout[] = [
+  "classic",
+  "editorial",
+  "minimal",
+  "flag-focus",
+  "poster",
+  "split",
+  "spotlight",
+  "broadcast",
+];
+
 export type CountryVisualTheme = VisualTheme & {
   backgroundMode: "solid" | "gradient" | "image";
   gradientStyle: "linear" | "radial" | "aurora";
@@ -23,7 +44,7 @@ export type CountryVisualTheme = VisualTheme & {
   backgroundPositionY: number;
   backgroundOverlay: number;
   backgroundBlur: number;
-  heroLayout: "classic" | "editorial" | "minimal" | "flag-focus";
+  heroLayout: CountryHeroLayout;
 };
 
 export type CountryThemeRow = {
@@ -93,8 +114,8 @@ export function countryThemeToVisual(row?: CountryThemeRow | null): CountryVisua
   const gradientStyle = ["linear", "radial", "aurora"].includes(String(row.gradient_style))
     ? (row.gradient_style as CountryVisualTheme["gradientStyle"])
     : DEFAULT_COUNTRY_THEME.gradientStyle;
-  const heroLayout = ["classic", "editorial", "minimal", "flag-focus"].includes(String(row.hero_layout))
-    ? (row.hero_layout as CountryVisualTheme["heroLayout"])
+  const heroLayout = COUNTRY_HERO_LAYOUTS.includes(row.hero_layout as CountryHeroLayout)
+    ? (row.hero_layout as CountryHeroLayout)
     : DEFAULT_COUNTRY_THEME.heroLayout;
 
   return {

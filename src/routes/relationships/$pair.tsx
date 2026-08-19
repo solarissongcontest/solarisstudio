@@ -12,16 +12,18 @@ import {
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
+import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import {
   editionLabel,
   useAllJuryVotes,
   useAllParticipants,
   useAllResults,
   useAllShows,
+  useAllTelevotes,
   useCountries,
   useEditions,
 } from "@/lib/data";
-import { computeHeadToHead, computeRelationship } from "@/lib/stats";
+import { computeRelationship } from "@/lib/stats";
 
 export const Route = createFileRoute("/relationships/$pair")({
   head: ({ params }) => ({
@@ -36,6 +38,7 @@ function RelationshipPairPage() {
   const { data: editions } = useEditions();
   const { data: participants } = useAllParticipants();
   const { data: jury } = useAllJuryVotes();
+  const { data: televote } = useAllTelevotes();
   const { data: results } = useAllResults();
   const { data: shows } = useAllShows();
 
@@ -59,9 +62,13 @@ function RelationshipPairPage() {
     shows: shows ?? [],
   });
 
-  const headToHead = computeHeadToHead(a.id, b.id, {
+  const headToHead = computeCanonicalHeadToHead(a.id, b.id, {
     editions: editions ?? [],
+    shows: shows ?? [],
+    participants: participants ?? [],
     results: results ?? [],
+    jury: jury ?? [],
+    televote: televote ?? [],
   });
 
   const aEditions = new Set(

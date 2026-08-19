@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
+import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -13,7 +14,6 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
-import { computeCountryStats } from "@/lib/stats";
 
 export const Route = createFileRoute("/countries/")({
   head: () => ({
@@ -32,7 +32,7 @@ type SortKey = "name" | "participations" | "wins" | "placement";
 
 type CountryRow = {
   country: any;
-  stats: ReturnType<typeof computeCountryStats>;
+  stats: ReturnType<typeof computeCanonicalCountryStats>;
 };
 
 function CountriesPage() {
@@ -64,7 +64,7 @@ function CountriesPage() {
     () =>
       (countries ?? []).map((country) => ({
         country,
-        stats: computeCountryStats(country.id, opts),
+        stats: computeCanonicalCountryStats(country.id, opts),
       })),
     [countries, opts],
   );

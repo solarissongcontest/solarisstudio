@@ -2,10 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import {
-  type Participant,
-  type ResultRow,
   useAllJuryVotes,
   useAllParticipants,
   useAllResults,
@@ -13,7 +13,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
-import { computeHistoricalRecords, type HistoricalRecordEntry } from "@/lib/stats";
+import { type FanRecord, type FanRecordCategory, type FanRecordHolder } from "@/lib/fan-records";
 
 export const Route = createFileRoute("/records/")({
   head: () => ({ meta: [{ title: "Records — Solaris Studio" }] }),
@@ -24,10 +24,22 @@ const TABS = [
   { value: "all", label: "All" },
   { value: "career", label: "Career" },
   { value: "streaks", label: "Streaks" },
+  { value: "edition", label: "Edition" },
   { value: "voting", label: "Voting" },
+  { value: "regional", label: "Regional" },
+  { value: "unusual", label: "Unusual" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["value"];
+
+const CATEGORY_LABELS: Record<FanRecordCategory, string> = {
+  career: "Career",
+  streaks: "Streak",
+  edition: "Edition",
+  voting: "Voting",
+  regional: "Regional",
+  unusual: "Unusual",
+};
 
 function RecordsPage() {
   const { data: countries } = useCountries();
@@ -40,7 +52,7 @@ function RecordsPage() {
 
   const records = useMemo(
     () =>
-      computeHistoricalRecords({
+      buildCanonicalFanRecords({
         countries: countries ?? [],
         editions: editions ?? [],
         shows: shows ?? [],
@@ -51,43 +63,16 @@ function RecordsPage() {
     [countries, editions, shows, participants, results, jury],
   );
 
-  const requestedRecords = useMemo(
-    () =>
-      computeBetaRequestedRecords({
-        countries: countries ?? [],
-        editions: editions ?? [],
-        shows: shows ?? [],
-        participants: participants ?? [],
-        results: results ?? [],
-      }),
-    [countries, editions, shows, participants, results],
-  );
-
-  const allRecords = useMemo(() => {
-    const existing = new Set(records.map((record) => record.label.toLowerCase()));
-    return [
-      ...records,
-      ...requestedRecords.filter((record) => !existing.has(record.label.toLowerCase())),
-    ];
-  }, [records, requestedRecords]);
-
-  const filtered = allRecords.filter((record) => {
-    if (tab === "all") return true;
-    const label = record.label.toLowerCase();
-    if (tab === "career") return /participation|win|points|average|last place|top|final|career|successful/i.test(label);
-    if (tab === "streaks") return /streak|drought|consecutive|qualification/i.test(label);
-    return /jury|televote|vote|12|point/i.test(label);
-  });
-
-  const showById = useMemo(
-    () => new Map((shows ?? []).map((show) => [show.id, show])),
-    [shows],
-  );
+  const filtered = tab === "all" ? records : records.filter((record) => record.category === tab);
+  const showById = useMemo(() => new Map((shows ?? []).map((show) => [show.id, show])), [shows]);
   const archivedFinalEditions = useMemo(
     () =>
       new Set(
         (results ?? [])
-          .filter((result) => showById.get(result.show_id ?? "")?.kind === "grand-final")
+          .filter((result) => {
+            const kind = showById.get(result.show_id ?? "")?.kind;
+            return kind === "grand-final" || kind === "final";
+          })
           .map((result) => result.edition_id),
       ).size,
     [results, showById],
@@ -98,12 +83,9 @@ function RecordsPage() {
       <PageHeader
         eyebrow="Hall of records"
         title="Records"
-        description="All-time records from the part of the SSC archive that is currently loaded into Solaris Studio."
+        description="The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
         actions={
-          <Link
-            to="/archive-games"
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
-          >
+          <Link to="/archive-games" className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto">
             Play Archive Games →
           </Link>
         }
@@ -111,257 +93,88 @@ function RecordsPage() {
 
       <Panel className="mb-5" title="Archive coverage">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          These records currently use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final results. Missing editions are excluded rather than treated as zeroes, so records will update automatically as historical data is added.
+          These records currently use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final results, plus the jury and qualification data that is actually stored. Missing editions are excluded rather than treated as zeroes, so a record can change when older archive data is added.
         </p>
       </Panel>
 
-      <ResponsiveTabs
-        value={tab}
-        options={TABS}
-        onChange={setTab}
-        label="Record category"
-        className="mb-5"
-      />
+      <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Record category" className="mb-5" />
 
-      <Panel>
-        {filtered.length ? (
-          <div className="divide-y divide-border/60">
-            {filtered.map((record, index) => (
-              <div
-                key={`${record.label}-${index}`}
-                className="grid gap-1 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-5"
-              >
-                <div className="min-w-0">
-                  <p className="break-words text-sm font-medium">{record.label}</p>
-                  <p className="mt-1 break-words text-xs text-muted-foreground">{record.detail}</p>
-                </div>
-                <p className="numeric break-words text-xl font-semibold text-primary sm:text-right">
-                  {record.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No records in this category yet.</p>
-        )}
-      </Panel>
+      {filtered.length ? (
+        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+          {filtered.map((record) => <RecordCard key={record.id} record={record} />)}
+        </div>
+      ) : (
+        <Panel><p className="text-sm text-muted-foreground">No records in this category yet.</p></Panel>
+      )}
     </AppShell>
   );
 }
 
-function computeBetaRequestedRecords({
-  countries,
-  editions,
-  shows,
-  participants,
-  results,
-}: {
-  countries: Array<{ id: string; name: string }>;
-  editions: Array<{ id: string; edition_number: number | null }>;
-  shows: Array<{ id: string; kind: string }>;
-  participants: Participant[];
-  results: ResultRow[];
-}): HistoricalRecordEntry[] {
-  const countryName = new Map(countries.map((country) => [country.id, country.name]));
-  const editionNumber = new Map(editions.map((edition) => [edition.id, edition.edition_number]));
-  const showById = new Map(shows.map((show) => [show.id, show]));
-  const finalRows = results.filter(
-    (result) =>
-      showById.get(result.show_id ?? "")?.kind === "grand-final" &&
-      result.final_rank != null &&
-      editionNumber.get(result.edition_id) != null,
+function RecordCard({ record }: { record: FanRecord }) {
+  const primaryHolders = record.holders.slice(0, 8);
+  const remainingHolders = record.holders.slice(8);
+
+  return (
+    <article className="glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">{CATEGORY_LABELS[record.category]}</p>
+          <h2 className="mt-1 break-words font-display text-lg font-bold leading-tight sm:text-xl">{record.label}</h2>
+        </div>
+        {record.holders.length > 1 && (
+          <span className="shrink-0 rounded-full border border-primary/20 bg-primary/[0.07] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
+            {record.holders.length} tied
+          </span>
+        )}
+      </div>
+
+      <p className="numeric mt-4 break-words text-3xl font-black tracking-[-.045em] text-foreground">{record.value}</p>
+      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{record.explanation}</p>
+
+      <div className="mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3">
+        {primaryHolders.map((holder) => (
+          <RecordHolderRow key={holder.countryId} holder={holder} />
+        ))}
+      </div>
+
+      {remainingHolders.length > 0 && (
+        <details className="mt-2 overflow-hidden rounded-xl border border-border/60 bg-surface/35">
+          <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary [&::-webkit-details-marker]:hidden">
+            Show all {record.holders.length} tied countries ▾
+          </summary>
+          <div className="divide-y divide-border/55 border-t border-border/55 px-3">
+            {remainingHolders.map((holder) => (
+              <RecordHolderRow key={holder.countryId} holder={holder} />
+            ))}
+          </div>
+        </details>
+      )}
+    </article>
   );
-
-  if (!finalRows.length) return [];
-
-  const rowsByCountry = new Map<string, ResultRow[]>();
-  for (const row of finalRows) {
-    rowsByCountry.set(row.country_id, [...(rowsByCountry.get(row.country_id) ?? []), row]);
-  }
-
-  const records: HistoricalRecordEntry[] = [];
-
-  const top5 = strongestRankStreak(rowsByCountry, editionNumber, 5);
-  if (top5) {
-    records.push({
-      label: "Longest top-5 streak",
-      value: `${top5.length} edition${top5.length === 1 ? "" : "s"}`,
-      detail: `${countryName.get(top5.countryId) ?? "?"}${formatRange(top5.from, top5.to)}`,
-    });
-  }
-
-  const podium = strongestRankStreak(rowsByCountry, editionNumber, 3);
-  if (podium) {
-    records.push({
-      label: "Longest podium streak",
-      value: `${podium.length} edition${podium.length === 1 ? "" : "s"}`,
-      detail: `${countryName.get(podium.countryId) ?? "?"}${formatRange(podium.from, podium.to)}`,
-    });
-  }
-
-  const careerPoints = [...rowsByCountry.entries()]
-    .map(([countryId, rows]) => ({
-      countryId,
-      points: rows.reduce((sum, row) => sum + row.total_points, 0),
-      finals: rows.length,
-    }))
-    .sort((a, b) => b.points - a.points || b.finals - a.finals)[0];
-
-  if (careerPoints) {
-    records.push({
-      label: "Most career final points",
-      value: String(careerPoints.points),
-      detail: `${countryName.get(careerPoints.countryId) ?? "?"} · ${careerPoints.finals} archived final${careerPoints.finals === 1 ? "" : "s"}`,
-    });
-  }
-
-  const averageCandidates = [...rowsByCountry.entries()].map(([countryId, rows]) => ({
-    countryId,
-    average: rows.reduce((sum, row) => sum + row.total_points, 0) / rows.length,
-    finals: rows.length,
-  }));
-  const multiFinalCandidates = averageCandidates.filter((row) => row.finals >= 2);
-  const highestAverage = [...(multiFinalCandidates.length ? multiFinalCandidates : averageCandidates)]
-    .sort((a, b) => b.average - a.average || b.finals - a.finals)[0];
-
-  if (highestAverage) {
-    records.push({
-      label: "Highest average final points",
-      value: highestAverage.average.toFixed(1),
-      detail: `${countryName.get(highestAverage.countryId) ?? "?"} · ${highestAverage.finals} archived final${highestAverage.finals === 1 ? "" : "s"}`,
-    });
-  }
-
-  const lastPlaceCounts = new Map<string, number>();
-  const rowsByShow = new Map<string, ResultRow[]>();
-  for (const row of finalRows) {
-    const key = row.show_id ?? row.edition_id;
-    rowsByShow.set(key, [...(rowsByShow.get(key) ?? []), row]);
-  }
-  for (const rows of rowsByShow.values()) {
-    const lastRank = Math.max(...rows.map((row) => row.final_rank ?? 0));
-    for (const row of rows.filter((candidate) => candidate.final_rank === lastRank)) {
-      lastPlaceCounts.set(row.country_id, (lastPlaceCounts.get(row.country_id) ?? 0) + 1);
-    }
-  }
-  const mostLastPlaces = [...lastPlaceCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (mostLastPlaces) {
-    records.push({
-      label: "Most last-place finishes",
-      value: String(mostLastPlaces[1]),
-      detail: countryName.get(mostLastPlaces[0]) ?? "?",
-    });
-  }
-
-  const currentQualification = currentQualificationRecord({
-    participants,
-    showById,
-    editionNumber,
-  });
-  if (currentQualification) {
-    records.push({
-      label: "Longest current qualification streak",
-      value: `${currentQualification.length} edition${currentQualification.length === 1 ? "" : "s"}`,
-      detail: `${countryName.get(currentQualification.countryId) ?? "?"} · active through SSC ${currentQualification.to}`,
-    });
-  }
-
-  return records;
 }
 
-function currentQualificationRecord({
-  participants,
-  showById,
-  editionNumber,
-}: {
-  participants: Participant[];
-  showById: Map<string, { id: string; kind: string }>;
-  editionNumber: Map<string, number | null>;
-}) {
-  const byCountry = new Map<string, Participant[]>();
-  for (const participant of participants) {
-    if (showById.get(participant.show_id ?? "")?.kind !== "semi-final") continue;
-    byCountry.set(participant.country_id, [...(byCountry.get(participant.country_id) ?? []), participant]);
-  }
-
-  let best: { countryId: string; length: number; to: number } | null = null;
-
-  for (const [countryId, rows] of byCountry.entries()) {
-    const ordered = rows
-      .map((row) => ({ row, number: editionNumber.get(row.edition_id) }))
-      .filter((item): item is { row: Participant; number: number } => item.number != null)
-      .sort((a, b) => a.number - b.number);
-
-    let length = 0;
-    let previous: number | null = null;
-    for (let index = ordered.length - 1; index >= 0; index -= 1) {
-      const item = ordered[index];
-      if (item.row.qualified !== true) break;
-      if (previous != null && item.number !== previous - 1) break;
-      length += 1;
-      previous = item.number;
-    }
-
-    if (length > 0 && previous != null) {
-      const latest = ordered[ordered.length - 1]?.number ?? previous;
-      if (!best || length > best.length) best = { countryId, length, to: latest };
-    }
-  }
-
-  return best;
-}
-
-function strongestRankStreak(
-  rowsByCountry: Map<string, ResultRow[]>,
-  editionNumber: Map<string, number | null>,
-  maximumRank: number,
-) {
-  let best: { countryId: string; length: number; from: number; to: number } | null = null;
-
-  for (const [countryId, rows] of rowsByCountry.entries()) {
-    const byEdition = new Map<string, ResultRow>();
-    for (const row of rows) {
-      const current = byEdition.get(row.edition_id);
-      if (!current || (row.final_rank ?? 999) < (current.final_rank ?? 999)) {
-        byEdition.set(row.edition_id, row);
-      }
-    }
-
-    const ordered = [...byEdition.values()]
-      .map((row) => ({ row, number: editionNumber.get(row.edition_id) }))
-      .filter((item): item is { row: ResultRow; number: number } => item.number != null)
-      .sort((a, b) => a.number - b.number);
-
-    let length = 0;
-    let start = 0;
-    let previousEdition: number | null = null;
-
-    for (const item of ordered) {
-      const qualifies = item.row.final_rank != null && item.row.final_rank <= maximumRank;
-      const consecutive = previousEdition != null && item.number === previousEdition + 1;
-
-      if (qualifies) {
-        if (!consecutive || length === 0) {
-          length = 1;
-          start = item.number;
-        } else {
-          length += 1;
-        }
-
-        if (!best || length > best.length) {
-          best = { countryId, length, from: start, to: item.number };
-        }
-      } else {
-        length = 0;
-      }
-
-      previousEdition = item.number;
-    }
-  }
-
-  return best;
-}
-
-function formatRange(from: number, to: number) {
-  return from === to ? ` · SSC ${from}` : ` · SSC ${from}–${to}`;
+function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
+  return (
+    <div className="py-3 first:pt-2.5 last:pb-2.5">
+      <div className="flex min-w-0 items-start gap-3">
+        <FlagChip code={holder.shortCode} color={holder.accentColor} image={holder.flagImage} size="sm" />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <Link to="/countries/$code" params={{ code: holder.shortCode }} className="truncate text-sm font-semibold text-foreground hover:text-primary">
+              {holder.countryName}
+            </Link>
+            {holder.editionLabel && (
+              <span className="text-[10px] text-muted-foreground">{holder.editionLabel}</span>
+            )}
+          </div>
+          {(holder.artist || holder.song) && (
+            <p className="mt-1 truncate text-[11px] font-medium text-foreground/85">
+              {[holder.artist, holder.song].filter(Boolean).join(" · ")}
+            </p>
+          )}
+          {holder.context && <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{holder.context}</p>}
+        </div>
+      </div>
+    </div>
+  );
 }

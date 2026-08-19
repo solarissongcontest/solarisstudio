@@ -74,6 +74,10 @@ function editionName(edition?: Edition | null) {
   return edition.edition_number != null ? `SSC ${edition.edition_number}` : edition.name;
 }
 
+function participationIdentity(entry: Participant) {
+  return entry.country_id || entry.contest_entity_id || entry.id;
+}
+
 export function buildAnniversaryRecap({
   anniversaryYear,
   editions,
@@ -113,12 +117,15 @@ export function buildAnniversaryRecap({
   const periodShows = shows.filter((show) => show.published && editionIds.has(show.edition_id));
   const showIds = new Set(periodShows.map((show) => show.id));
   const periodParticipants = participants.filter((entry) => editionIds.has(entry.edition_id));
+  const participationKeys = new Set(
+    periodParticipants.map((entry) => `${entry.edition_id}:${participationIdentity(entry)}`),
+  );
   const periodResults = results.filter(
     (result) => editionIds.has(result.edition_id) && (!result.show_id || showIds.has(result.show_id)),
   );
   const countryMap = new Map(countries.map((country) => [country.id, country]));
   const participatingCountries = new Set(periodParticipants.map((entry) => entry.country_id).filter(Boolean));
-  const grandFinalShows = periodShows.filter((show) => show.kind === "grand-final");
+  const grandFinalShows = periodShows.filter((show) => show.kind === "grand-final" || show.kind === "final");
 
   const winners: AnniversaryRecap["winners"] = [];
   let closestFinal: AnniversaryRecap["closestFinal"] = null;
@@ -231,7 +238,7 @@ export function buildAnniversaryRecap({
   return {
     editionCount: selected.length,
     showCount: periodShows.length,
-    entryCount: periodParticipants.length,
+    entryCount: participationKeys.size,
     countryCount: participatingCountries.size,
     grandFinalCount: grandFinalShows.length,
     winners,

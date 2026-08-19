@@ -28,6 +28,8 @@ import {
   FlagChip,
 } from "@/components/FlagChip";
 
+import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
+import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import {
   useAllJuryVotes,
   useAllParticipants,
@@ -39,8 +41,6 @@ import {
 } from "@/lib/data";
 
 import {
-  computeCountryStats,
-  computeHeadToHead,
   computeRelationship,
 } from "@/lib/stats";
 
@@ -193,7 +193,7 @@ function ComparePage() {
 
   const statsA =
     countryA
-      ? computeCountryStats(
+      ? computeCanonicalCountryStats(
           countryA.id,
           opts,
         )
@@ -201,7 +201,7 @@ function ComparePage() {
 
   const statsB =
     countryB
-      ? computeCountryStats(
+      ? computeCanonicalCountryStats(
           countryB.id,
           opts,
         )
@@ -210,18 +210,10 @@ function ComparePage() {
   const headToHead =
     countryA &&
     countryB
-      ? computeHeadToHead(
+      ? computeCanonicalHeadToHead(
           countryA.id,
           countryB.id,
-          {
-            editions:
-              editions ??
-              [],
-
-            results:
-              results ??
-              [],
-          },
+          opts,
         )
       : null;
 

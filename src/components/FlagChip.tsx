@@ -10,10 +10,11 @@ export function FlagChip({
   code: string;
   color: string;
   image?: string | null;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const dims = {
+    xs: "h-5 w-7.5 text-[8px]",
     sm: "h-6 w-9 text-[10px]",
     md: "h-8 w-12 text-xs",
     lg: "h-12 w-18 text-sm",
@@ -57,4 +58,3 @@ export function FlagChip({
     </span>
   );
 }
-
