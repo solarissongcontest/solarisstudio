@@ -1,4 +1,5 @@
 import "@/admin.css";
+import "@/admin-desktop.css";
 
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
@@ -25,7 +26,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <AdminContextProvider>
       <div className="admin-control-room relative min-h-screen overflow-x-clip [&_.site-nav]:hidden [&_.mobile-quick-nav]:hidden [&_.app-background]:hidden [&_.app-main]:!max-w-none [&_.app-main]:!p-0">
         <header className="sticky top-0 z-[70] border-b border-white/[0.07] bg-[#06101f]/88 backdrop-blur-2xl">
-          <div className="relative flex min-h-[4rem] items-center gap-2 px-3 sm:gap-3 sm:px-5">
+          <div className="admin-topbar relative flex min-h-[4rem] items-center gap-2 px-3 sm:gap-3 sm:px-5">
             <Link to="/admin/operations" className="min-w-0 shrink-0">
               <p className="admin-brand-title text-[1.02rem] leading-none text-foreground sm:text-lg">Solaris Studio</p>
               <p className="mt-1 hidden text-[11px] font-semibold text-muted-foreground sm:block">Organizer workspace</p>
@@ -60,5 +61,5 @@ export function AdminShell({ children }: { children: ReactNode }) {
 }
 
 export function AdminPage({ children }: { children: ReactNode }) {
-  return <div className="space-y-4 sm:space-y-5">{children}</div>;
+  return <div className="admin-page-stack space-y-4 sm:space-y-5">{children}</div>;
 }
