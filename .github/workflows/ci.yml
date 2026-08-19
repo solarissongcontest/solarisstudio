@@ -76,7 +76,22 @@ jobs:
           echo "Generated route tree is correctly untracked and ignored."
 
       - name: TypeScript
-        run: bun run typecheck
+        shell: bash
+        run: |
+          set +e
+          bun run typecheck 2>&1 | tee typecheck-diagnostics.txt
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> typecheck-diagnostics.txt
+          exit "$code"
+
+      - name: Upload TypeScript diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-diagnostics
+          path: typecheck-diagnostics.txt
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Unit tests
         run: bun test
