@@ -150,19 +150,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  // Profile, activity, country ownership and country editing now share one
+  // My Solaris workspace. Do not create a second “My country”/“Country setup”
+  // destination in account navigation. Organizer tools remain separate.
   const roleItems: Array<{ to: string; label: string }> = [];
 
   if (access.isOrganizer) {
     roleItems.push({ to: "/admin/operations", label: "Organizer workspace" });
-  }
-
-  if (access.countryId) {
-    roleItems.push({ to: "/country-hub", label: "My country" });
-  } else if (email) {
-    roleItems.push({
-      to: "/country-hub",
-      label: access.isOrganizer ? "Claim country" : "Country setup",
-    });
   }
 
   const signOut = async () => {
@@ -282,8 +276,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{email}</p>
                   </div>
                   <Link to="/me" className="nav-menu-item mt-1">
-                    <span className="font-semibold">Profile & activity</span>
-                    <span className="text-[10px] text-muted-foreground">Your Solaris account and follows</span>
+                    <span className="font-semibold">My Solaris</span>
+                    <span className="text-[10px] text-muted-foreground">Profile, activity and country workspace</span>
                   </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className="nav-menu-item">
@@ -370,8 +364,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
                     My Solaris
                   </p>
-                  <Link to="/me" className={mobileDrawerLink(pathMatches(pathname, "/me"))}>
-                    Profile & activity
+                  <Link to="/me" className={mobileDrawerLink(anyPathMatches(pathname, ACCOUNT_ROUTES))}>
+                    My Solaris
                   </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className={mobileDrawerLink(pathMatches(pathname, item.to))}>
