@@ -59,10 +59,11 @@ describe("country page customization", () => {
   });
 
   it("keeps modular country/wiki blocks, visibility and ordering controls", () => {
-    expect(builder).toContain("visible_on_country");
-    expect(builder).toContain("visible_on_wiki");
-    expect(builder).toContain("content_mode");
-    expect(builder).toContain("image_layout");
-    expect(builder).toContain("reorder");
+    expect(builder).toContain("visibleOnCountry");
+    expect(builder).toContain("visibleOnWiki");
+    expect(builder).toContain("contentMode");
+    expect(builder).toContain("imageLayout");
+    expect(builder).toContain("useReorderCountryPageSections");
+    expect(builder).toContain("Write everything yourself, let Solaris draft from facts you supplied");
   });
 });
