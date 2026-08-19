@@ -23,7 +23,13 @@ export function AdminSelectors() {
       (edition) =>
         pathname === `/admin/${edition.slug}` ||
         pathname.startsWith(`/admin/design/${edition.slug}`) ||
-        pathname.startsWith(`/admin/edition-theme/${edition.slug}`),
+        pathname.startsWith(`/admin/edition-theme/${edition.slug}`) ||
+        pathname.startsWith(`/admin/shows/${edition.slug}`) ||
+        pathname.startsWith(`/admin/entries/${edition.slug}`) ||
+        pathname.startsWith(`/admin/jury/${edition.slug}`) ||
+        pathname.startsWith(`/admin/televote/${edition.slug}`) ||
+        pathname.startsWith(`/admin/voting-system/${edition.slug}`) ||
+        pathname.startsWith(`/admin/publication/${edition.slug}`),
     ) ?? null;
   const savedEdition = orderedEditions.find((edition) => edition.id === editionId) ?? null;
   const activeEdition = routeEdition ?? savedEdition ?? orderedEditions[0] ?? null;
@@ -48,6 +54,36 @@ export function AdminSelectors() {
 
     if (pathname.startsWith("/admin/edition-theme/")) {
       await navigate({ to: "/admin/edition-theme/$slug", params: { slug: nextEdition.slug } });
+      return;
+    }
+
+    if (pathname.startsWith("/admin/shows/")) {
+      await navigate({ to: "/admin/shows/$slug", params: { slug: nextEdition.slug } });
+      return;
+    }
+
+    if (pathname.startsWith("/admin/entries/")) {
+      await navigate({ to: "/admin/entries/$slug", params: { slug: nextEdition.slug }, search: {} });
+      return;
+    }
+
+    if (pathname.startsWith("/admin/jury/")) {
+      await navigate({ to: "/admin/jury/$slug", params: { slug: nextEdition.slug }, search: {} });
+      return;
+    }
+
+    if (pathname.startsWith("/admin/televote/")) {
+      await navigate({ to: "/admin/televote/$slug", params: { slug: nextEdition.slug } });
+      return;
+    }
+
+    if (pathname.startsWith("/admin/voting-system/")) {
+      await navigate({ to: "/admin/voting-system/$slug", params: { slug: nextEdition.slug } });
+      return;
+    }
+
+    if (pathname.startsWith("/admin/publication/")) {
+      await navigate({ to: "/admin/publication/$slug", params: { slug: nextEdition.slug } });
       return;
     }
 
