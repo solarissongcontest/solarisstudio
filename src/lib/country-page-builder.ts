@@ -31,6 +31,17 @@ export type CountryPageSection = CountryProfileSection & {
   content_json?: Record<string, unknown> | null;
 };
 
+type NormalizedCountryPageSection = Omit<
+  CountryPageSection,
+  "section_type" | "content_mode" | "visible_on_country" | "visible_on_wiki" | "image_layout"
+> & {
+  section_type: CountrySectionType;
+  content_mode: CountrySectionContentMode;
+  visible_on_country: boolean;
+  visible_on_wiki: boolean;
+  image_layout: CountrySectionImageLayout;
+};
+
 export type CountryPageSectionInput = {
   id?: string;
   heading: string;
@@ -194,9 +205,7 @@ export function autoFactRows(profile?: CountryProfile | null) {
     .map(([label, value]) => ({ label, value }));
 }
 
-export function normalizeCountryPageSection(section: CountryPageSection): Required<
-  Pick<CountryPageSection, "section_type" | "content_mode" | "visible_on_country" | "visible_on_wiki" | "image_layout">
-> & CountryPageSection {
+export function normalizeCountryPageSection(section: CountryPageSection): NormalizedCountryPageSection {
   return {
     ...section,
     section_type: section.section_type ?? "rich_text",
