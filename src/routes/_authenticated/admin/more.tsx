@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BarChart3,
+  ClipboardCheck,
   ExternalLink,
   Flag,
   History,
@@ -31,7 +32,14 @@ const groups = [
     title: "Engagement",
     items: [
       { label: "Predictions", description: "Prediction rounds and audience engagement settings.", to: "/admin/predictions", icon: Sparkles },
-      { label: "Beta feedback", description: "Review public beta responses and tester feedback.", to: "/admin/beta-feedback", icon: BarChart3 },
+      { label: "Public beta feedback", description: "Review public-site beta responses and tester feedback.", to: "/admin/beta-feedback", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Quality assurance",
+    items: [
+      { label: "Admin acceptance test", description: "Run the complete organizer workflow test and record what was actually covered.", to: "/admin/beta-test", icon: ClipboardCheck },
+      { label: "Admin beta coverage", description: "Compare both admins' latest test passes, blind spots, priorities and bugs.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
     ],
   },
   {
