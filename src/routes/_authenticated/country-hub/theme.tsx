@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Image, Layers3, Palette, Sparkles } from "lucide-react";
+import { Eye, Image, Layers3, Palette, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
@@ -12,6 +12,7 @@ import {
   countryThemeToVisual,
   useCountryTheme,
   useSaveCountryTheme,
+  type CountryHeroLayout,
   type CountryVisualTheme,
 } from "@/lib/visual-theme";
 
@@ -22,6 +23,17 @@ export const Route = createFileRoute("/_authenticated/country-hub/theme")({
   head: () => ({ meta: [{ title: "Country appearance — Solaris Studio" }] }),
   component: CountryThemePage,
 });
+
+const PERSONALITIES: Array<{ value: CountryHeroLayout; label: string; description: string }> = [
+  { value: "classic", label: "Classic", description: "Balanced Solaris identity with flag, title and introduction." },
+  { value: "editorial", label: "Editorial", description: "Oversized magazine headline with spacious, dramatic typography." },
+  { value: "minimal", label: "Minimal", description: "Quiet, restrained header with the decoration stripped back." },
+  { value: "flag-focus", label: "Flag focus", description: "The national flag becomes the visual anchor behind the identity." },
+  { value: "poster", label: "Poster", description: "Centred, tall and graphic, like a national campaign or event poster." },
+  { value: "split", label: "Split", description: "Identity and national visual sit on opposing sides in a sharper composition." },
+  { value: "spotlight", label: "Spotlight", description: "Focused glow, compact copy and a stage-like centre of attention." },
+  { value: "broadcast", label: "Broadcast", description: "On-air presentation with an assertive lower-third inspired identity block." },
+];
 
 function CountryThemePage() {
   const { country: targetCountryId } = Route.useSearch();
@@ -39,6 +51,7 @@ function CountryThemePage() {
   const [theme, setTheme] = useState<CountryVisualTheme>(DEFAULT_COUNTRY_THEME);
   const [message, setMessage] = useState<string | null>(null);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
   useEffect(() => {
     const existing = countryThemeToVisual(savedTheme);
@@ -59,6 +72,13 @@ function CountryThemePage() {
     }),
     [theme],
   );
+
+  useEffect(() => {
+    if (!mobilePreviewOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [mobilePreviewOpen]);
 
   if (isLoading) {
     return <AppShell><p className="text-sm text-muted-foreground">Loading country appearance…</p></AppShell>;
@@ -104,6 +124,16 @@ function CountryThemePage() {
       setBackgroundBusy(false);
     }
   };
+
+  const preview = (
+    <CountryThemePreview
+      countryName={country.name}
+      region={country.region}
+      description={country.description}
+      theme={theme}
+      previewStyle={previewStyle}
+    />
+  );
 
   return (
     <AppShell>
@@ -176,15 +206,10 @@ function CountryThemePage() {
             </div>
           </Panel>
 
-          <Panel title="Page personality" description="Choose how the country header feels. The content stays accessible, but the presentation can be more yours.">
+          <Panel title="Page personality" description="Eight deliberately different header compositions for both the country profile and Wiki. This changes layout, not just a tiny font size.">
             <div className="grid gap-2 sm:grid-cols-2">
-              {([
-                ["classic", "Classic", "Flag, title and national introduction"],
-                ["editorial", "Editorial", "Bigger title and magazine-like spacing"],
-                ["minimal", "Minimal", "Quiet header with less decoration"],
-                ["flag-focus", "Flag focus", "Makes the national flag the visual anchor"],
-              ] as const).map(([value, label, description]) => (
-                <button key={value} type="button" onClick={() => setTheme((current) => ({ ...current, heroLayout: value }))} className={`min-h-20 rounded-xl border p-3 text-left ${theme.heroLayout === value ? "border-primary bg-primary/10" : "border-border bg-surface"}`}>
+              {PERSONALITIES.map(({ value, label, description }) => (
+                <button key={value} type="button" onClick={() => setTheme((current) => ({ ...current, heroLayout: value }))} className={`min-h-24 rounded-xl border p-3 text-left transition-colors ${theme.heroLayout === value ? "border-primary bg-primary/10" : "border-border bg-surface hover:bg-surface-strong"}`}>
                   <span className="block text-sm font-semibold">{label}</span>
                   <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
                 </button>
@@ -192,34 +217,84 @@ function CountryThemePage() {
             </div>
           </Panel>
 
-          <div className="sticky bottom-20 z-20 flex flex-col gap-2 rounded-2xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur sm:bottom-4 sm:flex-row">
-            <button type="button" onClick={save} disabled={saveTheme.isPending || backgroundBusy} className="min-h-12 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
+          <div className="sticky bottom-20 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 rounded-2xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur sm:bottom-4 xl:grid-cols-[minmax(0,1fr)_auto]">
+            <button type="button" onClick={() => setMobilePreviewOpen(true)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.07] px-3 text-sm font-semibold xl:hidden">
+              <Eye className="size-4" /> Preview
+            </button>
+            <button type="button" onClick={save} disabled={saveTheme.isPending || backgroundBusy} className="min-h-12 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
               {saveTheme.isPending ? "Saving…" : "Save appearance"}
             </button>
             <button type="button" onClick={() => setTheme({ ...DEFAULT_COUNTRY_THEME, accent: country.accent_color || DEFAULT_COUNTRY_THEME.accent })} className="min-h-12 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">Reset</button>
           </div>
         </div>
 
-        <div className="xl:sticky xl:top-24 xl:self-start">
-          <Panel title="Live preview" description="A compact preview of the same background and page personality used publicly.">
-            <div className="relative min-h-[460px] overflow-hidden rounded-3xl border p-5" style={previewStyle}>
-              {theme.backgroundMode === "image" && theme.backgroundBlur > 0 && <div className="pointer-events-none absolute -inset-8" style={{ backgroundImage: theme.backgroundImageUrl ? `url(${JSON.stringify(theme.backgroundImageUrl)})` : undefined, backgroundSize: "cover", backgroundPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`, filter: `blur(${theme.backgroundBlur}px)`, opacity: 0.35 }} />}
-              <div className={`relative z-10 ${theme.heroLayout === "editorial" ? "pt-12" : theme.heroLayout === "minimal" ? "pt-20" : "pt-4"}`}>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.accent }}>Terra Solaris · {country.region}</p>
-                <h2 className={`${theme.heroLayout === "editorial" ? "text-5xl" : "text-3xl"} mt-2 font-bold`} style={{ color: theme.textPrimary }}>{country.name}</h2>
-                <p className="mt-3 max-w-sm text-sm leading-6" style={{ color: theme.textMuted }}>{country.description || "Your national story, SSC history and custom sections live here."}</p>
-                <div className="mt-6 rounded-2xl border p-4" style={{ background: `${theme.surface}e8`, borderColor: `${theme.accent}44` }}>
-                  <p className="text-xs font-semibold" style={{ color: theme.accent }}>Sample section</p>
-                  <p className="mt-1 text-sm" style={{ color: theme.textPrimary }}>Cards and article sections stay readable over your custom background.</p>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-xl border p-3" style={{ background: `${theme.surface}dd`, borderColor: `${theme.accent}33` }}><p className="text-[9px] uppercase" style={{ color: theme.textMuted }}>Capital</p><p className="mt-1 text-sm font-semibold">Your capital</p></div><div className="rounded-xl border p-3" style={{ background: `${theme.surface}dd`, borderColor: `${theme.accent}33` }}><p className="text-[9px] uppercase" style={{ color: theme.textMuted }}>SSC</p><p className="mt-1 text-sm font-semibold">History</p></div></div>
-              </div>
-            </div>
+        <div className="hidden xl:block xl:sticky xl:top-24 xl:self-start">
+          <Panel title="Live preview" description="This uses the current unsaved settings, so you can compare personalities before saving.">
+            {preview}
           </Panel>
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-border bg-surface p-3 text-xs leading-5 text-muted-foreground"><Layers3 className="mt-0.5 size-4 shrink-0" /><span>Content order, custom sections, images and country/Wiki visibility are controlled from the page builder in My Solaris.</span></div>
         </div>
       </div>
+
+      {mobilePreviewOpen && (
+        <div className="fixed inset-0 z-[120] xl:hidden" role="dialog" aria-modal="true" aria-label="Country appearance preview">
+          <button type="button" className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-label="Close preview" onClick={() => setMobilePreviewOpen(false)} />
+          <section className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] border border-border bg-background p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
+            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Unsaved preview</p><p className="mt-1 text-sm font-semibold">{PERSONALITIES.find((item) => item.value === theme.heroLayout)?.label}</p></div>
+              <button type="button" onClick={() => setMobilePreviewOpen(false)} className="grid size-11 place-items-center rounded-xl border border-border bg-surface" aria-label="Close preview"><X className="size-4" /></button>
+            </div>
+            {preview}
+            <button type="button" onClick={() => setMobilePreviewOpen(false)} className="mt-3 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">Back to editing</button>
+          </section>
+        </div>
+      )}
     </AppShell>
+  );
+}
+
+function CountryThemePreview({
+  countryName,
+  region,
+  description,
+  theme,
+  previewStyle,
+}: {
+  countryName: string;
+  region: string;
+  description: string | null;
+  theme: CountryVisualTheme;
+  previewStyle: React.CSSProperties;
+}) {
+  const layout = theme.heroLayout;
+  const centered = layout === "poster" || layout === "spotlight";
+  const split = layout === "split";
+  const broadcast = layout === "broadcast";
+  const titleSize = layout === "editorial" ? "text-5xl" : layout === "poster" ? "text-5xl" : layout === "minimal" ? "text-2xl" : "text-3xl";
+
+  return (
+    <div className="relative min-h-[430px] overflow-hidden rounded-3xl border p-5" style={previewStyle} data-preview-layout={layout}>
+      {theme.backgroundMode === "image" && theme.backgroundBlur > 0 && <div className="pointer-events-none absolute -inset-8" style={{ backgroundImage: theme.backgroundImageUrl ? `url(${JSON.stringify(theme.backgroundImageUrl)})` : undefined, backgroundSize: "cover", backgroundPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`, filter: `blur(${theme.backgroundBlur}px)`, opacity: 0.35 }} />}
+      {layout === "spotlight" && <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full opacity-40 blur-3xl" style={{ background: theme.accent }} />}
+      {layout === "split" && <div className="pointer-events-none absolute inset-y-0 right-0 w-[42%] border-l" style={{ background: `${theme.accent}18`, borderColor: `${theme.accent}44` }} />}
+
+      <div className={`relative z-10 ${centered ? "mx-auto max-w-sm pt-20 text-center" : split ? "max-w-[58%] pt-10" : broadcast ? "flex min-h-[380px] items-end" : layout === "editorial" ? "pt-12" : layout === "minimal" ? "pt-20" : "pt-4"}`}>
+        <div className={broadcast ? "w-full border-l-4 bg-black/35 p-4 backdrop-blur-sm" : ""} style={broadcast ? { borderColor: theme.accent } : undefined}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.accent }}>{broadcast ? "LIVE · COUNTRY PROFILE" : `Terra Solaris · ${region}`}</p>
+          <h2 className={`${titleSize} mt-2 font-bold ${layout === "poster" ? "uppercase tracking-[-.055em]" : ""}`} style={{ color: theme.textPrimary }}>{countryName}</h2>
+          <p className={`mt-3 text-sm leading-6 ${centered ? "mx-auto" : "max-w-sm"}`} style={{ color: theme.textMuted }}>{description || "Your national story, SSC history and custom sections live here."}</p>
+        </div>
+      </div>
+
+      {layout === "flag-focus" && <div className="pointer-events-none absolute -right-10 top-16 grid size-52 place-items-center rounded-full border text-6xl font-black opacity-25" style={{ borderColor: theme.accent, color: theme.accent }}>FLAG</div>}
+      {layout !== "minimal" && layout !== "poster" && !broadcast && (
+        <div className="absolute bottom-5 left-5 right-5 z-10 rounded-2xl border p-4" style={{ background: `${theme.surface}e8`, borderColor: `${theme.accent}44` }}>
+          <p className="text-xs font-semibold" style={{ color: theme.accent }}>Sample section</p>
+          <p className="mt-1 text-sm" style={{ color: theme.textPrimary }}>Cards and article sections stay readable over your custom background.</p>
+        </div>
+      )}
+      {layout === "poster" && <div className="absolute bottom-7 left-1/2 h-px w-24 -translate-x-1/2" style={{ background: theme.accent }} />}
+    </div>
   );
 }
 
