@@ -109,7 +109,46 @@ function RecordsPage() {
   );
 }
 
+function uniqueValues(values: Array<string | null | undefined>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value?.trim())).map((value) => value.trim()))];
+}
+
+/**
+ * A record is held by countries, not by raw historical row occurrences.
+ * If the same country matches the same record in multiple editions or streak
+ * segments, render it once and retain the useful occurrence context.
+ */
+function collapseRecordHolders(holders: FanRecordHolder[]) {
+  const byCountry = new Map<string, FanRecordHolder[]>();
+  holders.forEach((holder) => {
+    byCountry.set(holder.countryId, [...(byCountry.get(holder.countryId) ?? []), holder]);
+  });
+
+  return [...byCountry.values()].map((group) => {
+    const first = group[0];
+    if (group.length === 1) return first;
+
+    const editionLabels = uniqueValues(group.map((holder) => holder.editionLabel));
+    const contexts = uniqueValues(group.map((holder) => holder.context));
+    const artists = uniqueValues(group.map((holder) => holder.artist));
+    const songs = uniqueValues(group.map((holder) => holder.song));
+
+    return {
+      ...first,
+      editionId: undefined,
+      editionLabel: editionLabels.length ? editionLabels.join(" · ") : undefined,
+      artist: artists.length === 1 ? artists[0] : null,
+      song: songs.length === 1 ? songs[0] : null,
+      context: contexts.length ? contexts.join(" · ") : null,
+    } satisfies FanRecordHolder;
+  });
+}
+
 function RecordCard({ record }: { record: FanRecord }) {
+  const holders = collapseRecordHolders(record.holders);
+  const primaryHolders = holders.slice(0, 8);
+  const remainingHolders = holders.slice(8);
+
   return (
     <article className="glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
@@ -117,9 +156,9 @@ function RecordCard({ record }: { record: FanRecord }) {
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">{CATEGORY_LABELS[record.category]}</p>
           <h2 className="mt-1 break-words font-display text-lg font-bold leading-tight sm:text-xl">{record.label}</h2>
         </div>
-        {record.holders.length > 1 && (
+        {holders.length > 1 && (
           <span className="shrink-0 rounded-full border border-primary/20 bg-primary/[0.07] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
-            {record.holders.length} tied
+            {holders.length} tied
           </span>
         )}
       </div>
@@ -128,10 +167,23 @@ function RecordCard({ record }: { record: FanRecord }) {
       <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{record.explanation}</p>
 
       <div className="mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3">
-        {record.holders.map((holder, index) => (
-          <RecordHolderRow key={`${holder.countryId}-${holder.editionId ?? "career"}-${holder.context ?? ""}-${index}`} holder={holder} />
+        {primaryHolders.map((holder) => (
+          <RecordHolderRow key={holder.countryId} holder={holder} />
         ))}
       </div>
+
+      {remainingHolders.length > 0 && (
+        <details className="mt-2 overflow-hidden rounded-xl border border-border/60 bg-surface/35">
+          <summary className="cursor-pointer list-none px-3 py-2.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary [&::-webkit-details-marker]:hidden">
+            Show all {holders.length} tied countries ▾
+          </summary>
+          <div className="divide-y divide-border/55 border-t border-border/55 px-3">
+            {remainingHolders.map((holder) => (
+              <RecordHolderRow key={holder.countryId} holder={holder} />
+            ))}
+          </div>
+        </details>
+      )}
     </article>
   );
 }
@@ -147,9 +199,7 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
               {holder.countryName}
             </Link>
             {holder.editionLabel && (
-              holder.editionId ? (
-                <span className="text-[10px] font-semibold text-primary">{holder.editionLabel}</span>
-              ) : <span className="text-[10px] text-muted-foreground">{holder.editionLabel}</span>
+              <span className="text-[10px] text-muted-foreground">{holder.editionLabel}</span>
             )}
           </div>
           {(holder.artist || holder.song) && (
