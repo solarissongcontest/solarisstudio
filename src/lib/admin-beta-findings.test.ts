@@ -24,11 +24,17 @@ describe("first admin beta findings", () => {
   it("keeps low jury point rows reachable and supports intentional DNV", () => {
     const picker = source("src/components/CountryPicker.tsx");
     const fastEntry = source("src/components/studio/FastEntryImpl.tsx");
+    const desktopCss = source("src/admin-desktop.css");
     const juryRoute = source("src/routes/_authenticated/admin/jury/$slug.tsx");
     const readiness = source("src/lib/admin-readiness.ts");
 
     expect(picker).toContain("bottom-full mb-1");
-    expect(fastEntry).toContain("md:grid-cols-2");
+    expect(fastEntry).toContain("admin-jury-point-grid");
+    expect(desktopCss).toContain("@media (min-width: 800px)");
+    expect(desktopCss).toContain(".admin-mobile-nav");
+    expect(desktopCss).toContain("display: none !important");
+    expect(desktopCss).toContain(".admin-jury-point-grid");
+    expect(desktopCss).toContain("repeat(3, minmax(0, 1fr))");
     expect(fastEntry).toContain("Mark did not vote");
     expect(juryRoute).toContain("jury_ballot_statuses");
     expect(juryRoute).toContain("didNotVoteVoterKeys");
