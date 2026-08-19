@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronRight, Copy, Flag } from "lucide-react";
+import { Check, ChevronRight, Copy, ExternalLink, Flag, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +13,14 @@ import {
 } from "@/components/admin/AdminUI";
 import { loadConfirmationEditions, type ConfirmationEdition } from "@/integrations/confirmations/admin";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import {
+  useAllParticipants,
+  useAllResults,
+  useAllShows,
+  useCountries,
+  useEditions,
+} from "@/lib/data";
+import { computeCountryStats } from "@/lib/stats";
 
 export const Route = createFileRoute("/confirmations/admin/countries")({
   head: () => ({
@@ -51,6 +59,24 @@ type ResponseRow = {
   submission_rounds: { id: string; name: string; edition_id: string } | null;
   editions: { id: string; name: string; edition_number: number } | null;
 };
+
+type ContestRecord = {
+  code: string;
+  participations: number;
+  wins: number;
+  bestRank: number | null;
+  allTimePoints: number;
+  selectedResult: {
+    rank: number | null;
+    total: number;
+    jury: number;
+    televote: number;
+  } | null;
+};
+
+function normalizeCountryName(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
 
 function countryStatus(submission: ResponseRow) {
   if (!submission.participating) return "Not participating";
@@ -115,6 +141,12 @@ function CountriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { data: canonicalCountries = [] } = useCountries();
+  const { data: canonicalEditions = [] } = useEditions();
+  const { data: shows = [] } = useAllShows();
+  const { data: participants = [] } = useAllParticipants();
+  const { data: results = [] } = useAllResults();
+
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -156,6 +188,49 @@ function CountriesPage() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [scopedRows]);
 
+  const selectedConfirmationEdition = editions.find((edition) => edition.id === editionId) ?? null;
+
+  const contestRecords = useMemo(() => {
+    const recordMap = new Map<string, ContestRecord>();
+    if (!canonicalEditions.length) return recordMap;
+
+    for (const country of canonicalCountries) {
+      const stats = computeCountryStats(country.id, {
+        editions: canonicalEditions,
+        shows,
+        participants,
+        results,
+        jury: [],
+        televote: [],
+      });
+      const timeline = stats.timeline;
+      const selected = selectedConfirmationEdition
+        ? timeline.find((point) => point.editionNumber === selectedConfirmationEdition.edition_number) ?? null
+        : null;
+      const ranks = timeline
+        .map((point) => point.rank)
+        .filter((rank): rank is number => rank != null);
+
+      recordMap.set(normalizeCountryName(country.name), {
+        code: country.short_code,
+        participations: stats.participations,
+        wins: stats.wins,
+        bestRank: ranks.length ? Math.min(...ranks) : null,
+        allTimePoints: timeline.reduce((sum, point) => sum + point.total, 0),
+        selectedResult: selected
+          ? {
+              rank: selected.rank,
+              total: selected.total,
+              jury: selected.jury,
+              televote: selected.televote,
+            }
+          : null,
+      });
+    }
+
+    return recordMap;
+  }, [canonicalCountries, canonicalEditions, shows, participants, results, selectedConfirmationEdition]);
+
   const participatingStatuses = useMemo(
     () =>
       countries
@@ -179,7 +254,7 @@ function CountriesPage() {
       <AdminPageHeader
         eyebrow="Delegations"
         title="Countries"
-        description="One country at a time, with its latest participation state and every response submitted in this edition."
+        description="Current submission state plus real Solaris contest history, so the delegation view is useful without opening three archive tabs beside it."
         actions={
           <AdminMoreMenu
             label="Export delegation lists"
@@ -238,6 +313,7 @@ function CountriesPage() {
             const latest = list[0]!;
             const latestParticipating = list.find((row) => row.participating) ?? latest;
             const status = countryStatus(latestParticipating);
+            const record = contestRecords.get(normalizeCountryName(country)) ?? null;
 
             return (
               <AdminCard key={country} className="!p-0 overflow-hidden">
@@ -257,6 +333,30 @@ function CountriesPage() {
                   </div>
                   <AdminStatus tone={statusTone(status)}>{status}</AdminStatus>
                 </div>
+
+                {record ? (
+                  <div className="border-t border-white/[0.07] bg-white/[0.018] px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="admin-section-label">Contest record</p>
+                      <Link to="/countries/$code" params={{ code: record.code }} target="_blank" className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-100 hover:underline">Full profile <ExternalLink className="size-3" /></Link>
+                    </div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{selectedConfirmationEdition ? `SSC ${selectedConfirmationEdition.edition_number}` : "Selected edition"}</p>
+                        {record.selectedResult ? (
+                          <p className="numeric mt-1 text-sm font-bold text-foreground">{record.selectedResult.rank != null ? `#${record.selectedResult.rank}` : "Rank pending"} · {record.selectedResult.total.toLocaleString()} pts</p>
+                        ) : <p className="mt-1 text-xs text-muted-foreground">No canonical result recorded for this edition.</p>}
+                      </div>
+                      <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                        <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground"><Trophy className="size-3" /> All-time archive</p>
+                        <p className="numeric mt-1 text-sm font-bold text-foreground">{record.participations} edition{record.participations === 1 ? "" : "s"} · {record.allTimePoints.toLocaleString()} pts</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">Best {record.bestRank != null ? `#${record.bestRank}` : "—"} · {record.wins} win{record.wins === 1 ? "" : "s"}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-t border-white/[0.07] bg-white/[0.018] px-4 py-2.5 text-[11px] text-muted-foreground">No exact canonical country-name match was found, so Solaris is not guessing at historical results.</div>
+                )}
 
                 <div className="border-t border-white/[0.07] px-4">
                   {list.map((submission) => (
