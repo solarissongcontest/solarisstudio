@@ -33,8 +33,8 @@ describe("pre-submit voting integrity", () => {
     expect(preflight).toContain('resolve(first.edition_id, first.voter_country_id, "jury")');
     expect(preflight).toContain('resolve(editionId, voterCountryId, "televote")');
     expect(preflight).toContain("calculateFriendVotingRisk");
-    expect(preflight).toContain('lens: "hod"');
-    expect(preflight).toContain('lens: "country"');
+    expect(preflight).toContain('targetCode,\n      "country"');
+    expect(preflight).toContain('targetCode,\n        "hod"');
     expect(preflight).toContain("reciprocalSupport");
     expect(preflight).toContain("crossChannelEditions");
   });
