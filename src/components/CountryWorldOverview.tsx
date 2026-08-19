@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { Panel } from "@/components/AppShell";
+import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import {
   buildCountryCharacter,
@@ -75,7 +76,7 @@ export function CountryWorldOverview({
   const entryPanel = (
     <Panel
       title="Entries"
-      description="Artists and songs currently available in the Solaris archive"
+      description="One archived entry per edition. Semi-final and final are appearances of that same participation."
       actions={
         <Link
           to="/countries/$code"
@@ -102,7 +103,7 @@ export function CountryWorldOverview({
 
             return (
               <div
-                key={`${participant.edition_id}-${participant.id}`}
+                key={participant.edition_id}
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
               >
                 <div className="min-w-0">
@@ -111,7 +112,7 @@ export function CountryWorldOverview({
                   </p>
                   <p className="mt-1 truncate text-[11px] text-muted-foreground">
                     {edition ? editionLabel(edition) : "Edition"}
-                    {show?.name ? ` · ${show.name}` : ""}
+                    {show?.name ? ` · latest stored appearance: ${show.name}` : ""}
                   </p>
                 </div>
                 {participant.qualified != null && (
@@ -198,36 +199,6 @@ export function CountryWorldOverview({
               ))}
             </div>
           )}
-
-          {data.sections.length > 0 && (
-            <div className="mt-5 border-t border-border/60 pt-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-primary">
-                From the country article
-              </p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                {data.sections.slice(0, 2).map((section) => (
-                  <div key={section.id} className="min-w-0 overflow-hidden rounded-xl bg-surface">
-                    {section.image_url && (
-                      <img
-                        src={section.image_url}
-                        alt={section.image_caption || `${country.name} article image`}
-                        loading="lazy"
-                        className="aspect-[16/8] w-full object-cover"
-                      />
-                    )}
-                    <div className="p-3">
-                      <p className="break-words text-sm font-semibold">{section.heading}</p>
-                      {section.body && (
-                        <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                          {section.body}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </Panel>
 
         <div className="min-w-0 space-y-5">
@@ -268,6 +239,14 @@ export function CountryWorldOverview({
           )}
         </div>
       </div>
+
+      <CountryCustomSections
+        country={country}
+        profile={profile}
+        sections={data.sections}
+        media={data.media}
+        surface="country"
+      />
     </div>
   );
 }
