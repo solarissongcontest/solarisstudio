@@ -1,3 +1,4 @@
+import type { JuryBallotStatus } from "@/lib/admin-readiness-data";
 import {
   matchVoterKey,
   voterOptionsFromVoters,
@@ -8,6 +9,7 @@ import {
   type Show,
   type Televote,
   type Voter,
+  type VoterOption,
 } from "@/lib/data";
 import { resolveVoting } from "@/lib/voting";
 
@@ -66,12 +68,33 @@ function makeArea(key: AdminArea, label: string, total: number, issues: AdminIss
   };
 }
 
+function matchBallotStatusKey(status: JuryBallotStatus, options: VoterOption[]) {
+  if (status.voter_id) {
+    const direct = options.find((option) => option.voterId === status.voter_id);
+    if (direct) return direct.key;
+  }
+
+  if (status.voter_entity_id) {
+    const byEntity = options.find((option) => option.countryId === status.voter_entity_id);
+    if (byEntity) return byEntity.key;
+  }
+
+  if (status.voter_country_id) {
+    const byCountry = options.find((option) => option.countryId === status.voter_country_id);
+    if (byCountry) return byCountry.key;
+    return `c:${status.voter_country_id}`;
+  }
+
+  return status.voter_id ? `v:${status.voter_id}` : "";
+}
+
 export function buildEditionReadiness(input: {
   edition: Edition;
   shows: Show[];
   participants: Participant[];
   voters: Voter[];
   juryVotes: JuryVote[];
+  juryBallotStatuses: JuryBallotStatus[];
   televotes: Televote[];
   results: ResultRow[];
 }): EditionReadiness {
@@ -81,6 +104,7 @@ export function buildEditionReadiness(input: {
   const participants = input.participants.filter((row) => row.edition_id === edition.id);
   const voters = input.voters.filter((row) => row.edition_id === edition.id);
   const juryVotes = input.juryVotes.filter((row) => row.edition_id === edition.id);
+  const juryBallotStatuses = input.juryBallotStatuses.filter((row) => row.edition_id === edition.id);
   const televotes = input.televotes.filter((row) => row.edition_id === edition.id);
   const results = input.results.filter((row) => row.edition_id === edition.id);
   const issues: AdminIssue[] = [];
@@ -179,10 +203,12 @@ export function buildEditionReadiness(input: {
 
     /*
      * Jury readiness deliberately uses exactly the same voter resolver and
-     * completeness rule as FastJuryEntry. Do not recreate voter identity here.
+     * completeness rule as FastJuryEntry. An explicit did-not-vote status is
+     * a resolved absence, never a fabricated zero-point ballot.
      */
     const showVoters = voters.filter((voter) => voter.show_id === show.id);
     const showJury = juryVotes.filter((vote) => vote.show_id === show.id);
+    const showStatuses = juryBallotStatuses.filter((status) => status.show_id === show.id);
     const voting = resolveVoting(show.voting_config);
     const requiredRows = voting.juryPoints.length;
 
@@ -198,10 +224,36 @@ export function buildEditionReadiness(input: {
         counts.set(key, (counts.get(key) ?? 0) + 1);
       }
 
-      const incomplete = voterOptions.filter(
-        (voter) => (counts.get(voter.key) ?? 0) < requiredRows,
+      const didNotVoteKeys = new Set(
+        showStatuses
+          .filter((status) => status.status === "did_not_vote")
+          .map((status) => matchBallotStatusKey(status, voterOptions))
+          .filter(Boolean),
       );
-      const completeCount = voterOptions.length - incomplete.length;
+
+      const conflicts = voterOptions.filter(
+        (voter) => didNotVoteKeys.has(voter.key) && (counts.get(voter.key) ?? 0) > 0,
+      );
+
+      if (conflicts.length) {
+        issues.push({
+          id: `jury-status-conflict-${show.id}`,
+          severity: "critical",
+          area: "jury",
+          title: `${show.name}: ${conflicts.length} jury status conflict${conflicts.length === 1 ? "" : "s"}`,
+          detail: "A jury is marked did not vote but also has saved scores. Restore the ballot status or clear its scores before publication.",
+          tab: "jury",
+          showId: show.id,
+        });
+      }
+
+      const incomplete = voterOptions.filter(
+        (voter) => !didNotVoteKeys.has(voter.key) && (counts.get(voter.key) ?? 0) < requiredRows,
+      );
+      const didNotVoteCount = voterOptions.filter((voter) => didNotVoteKeys.has(voter.key)).length;
+      const completeCount = voterOptions.filter(
+        (voter) => !didNotVoteKeys.has(voter.key) && (counts.get(voter.key) ?? 0) >= requiredRows,
+      ).length;
 
       if (incomplete.length) {
         issues.push({
@@ -209,7 +261,7 @@ export function buildEditionReadiness(input: {
           severity: "action",
           area: "jury",
           title: `${show.name}: ${incomplete.length} ${incomplete.length === 1 ? "jury has" : "juries have"} incomplete votes`,
-          detail: `${completeCount}/${voterOptions.length} jury ballots contain all ${requiredRows} required point allocations.`,
+          detail: `${completeCount} complete · ${didNotVoteCount} did not vote · ${incomplete.length} remaining of ${voterOptions.length}.`,
           tab: "jury",
           showId: show.id,
         });
