@@ -16,6 +16,7 @@ const FIXED = [
   ["Voting rounds & entries", "/televoting/admin/rounds", "Voting", "open close entries rules"],
   ["Voting results", "/televoting/admin/results", "Voting", "calculate lock publish"],
   ["Voting integrity", "/televoting/admin/integrity", "Voting", "risk review moderation"],
+  ["Voting integrity declarations", "/televoting/admin/integrity-declarations", "Voting", "automatic fraud warning signed declaration oath attestation flagged ballot"],
   ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout distribution"],
   ["Predictions", "/admin/predictions", "More", "engagement"],
   ["Public beta feedback", "/admin/beta-feedback", "More", "public testers reviews"],
