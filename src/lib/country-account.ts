@@ -189,17 +189,73 @@ export function useMyCountryAccount() {
   });
 }
 
+async function loadAdminCountryAccountsFallback(): Promise<AdminCountryAccount[]> {
+  const { data: rows, error: accountError } = await supabase
+    .from("country_accounts")
+    .select("user_id,country_id,status,suspension_reason,created_at,updated_at")
+    .order("created_at", { ascending: true });
+  if (accountError) throw accountError;
+
+  const accounts = (rows ?? []) as Array<{
+    user_id: string;
+    country_id: string;
+    status: "active" | "suspended";
+    suspension_reason: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+  if (!accounts.length) return [];
+
+  const countryIds = [...new Set(accounts.map((row) => row.country_id))];
+  const { data: countryRows, error: countryError } = await supabase
+    .from("countries")
+    .select("id,name,short_code,flag_image")
+    .in("id", countryIds);
+  if (countryError) throw countryError;
+
+  const countryMap = new Map(
+    ((countryRows ?? []) as Array<{
+      id: string;
+      name: string;
+      short_code: string;
+      flag_image: string | null;
+    }>).map((country) => [country.id, country]),
+  );
+
+  return accounts.map((account) => {
+    const country = countryMap.get(account.country_id);
+    return {
+      ...account,
+      email: null,
+      country_name: country?.name ?? "Unknown country",
+      short_code: country?.short_code ?? "—",
+      flag_image: country?.flag_image ?? null,
+    };
+  });
+}
+
 export function useAdminCountryAccounts(enabled = true) {
   return useQuery({
     enabled,
     queryKey: ["admin-country-accounts"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("admin_country_accounts");
-      if (missingCountrySchema(error)) {
-        return { schemaReady: false, accounts: [] as AdminCountryAccount[] };
+      const rpc = await supabase.rpc("admin_country_accounts");
+      const rpcAccounts = (rpc.data ?? []) as AdminCountryAccount[];
+
+      if (!rpc.error && rpcAccounts.length > 0) {
+        return { schemaReady: true, accounts: rpcAccounts };
       }
-      if (error) throw error;
-      return { schemaReady: true, accounts: (data ?? []) as AdminCountryAccount[] };
+
+      try {
+        const fallbackAccounts = await loadAdminCountryAccountsFallback();
+        return { schemaReady: true, accounts: fallbackAccounts };
+      } catch (fallbackError) {
+        if (missingCountrySchema(fallbackError)) {
+          return { schemaReady: false, accounts: [] as AdminCountryAccount[] };
+        }
+        if (rpc.error && !missingCountrySchema(rpc.error)) throw rpc.error;
+        throw fallbackError;
+      }
     },
     staleTime: 10_000,
   });
@@ -527,9 +583,7 @@ export async function uploadCountryAsset(
 }
 
 type EntryInput = {
-  participantId: string | null;
   editionId: string;
-  showId: string | null;
   artist: string;
   song: string;
   notes: string;
@@ -539,21 +593,19 @@ export function useSaveCountryEntry(countryId?: string, organizerOverride = fals
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: EntryInput) => {
-      const fn = organizerOverride ? "admin_upsert_country_entry" : "upsert_owned_country_entry";
+      const fn = organizerOverride
+        ? "admin_upsert_country_edition_entry"
+        : "upsert_owned_country_edition_entry";
       const args = organizerOverride
         ? {
             _country_id: countryId,
-            _participant_id: input.participantId,
             _edition_id: input.editionId,
-            _show_id: input.showId,
             _artist: input.artist,
             _song: input.song,
             _notes: input.notes,
           }
         : {
-            _participant_id: input.participantId,
             _edition_id: input.editionId,
-            _show_id: input.showId,
             _artist: input.artist,
             _song: input.song,
             _notes: input.notes,
@@ -567,6 +619,7 @@ export function useSaveCountryEntry(countryId?: string, organizerOverride = fals
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["participants"] }),
+        qc.invalidateQueries({ queryKey: ["edition-participations"] }),
         qc.invalidateQueries({ queryKey: ["contest_entities"] }),
       ]);
     },
