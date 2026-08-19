@@ -178,6 +178,16 @@ function ClaimCountry({ isOrganizer }: { isOrganizer: boolean }) {
   );
 }
 
+type EditionEntry = {
+  editionId: string;
+  entry: Participant;
+  appearances: Participant[];
+};
+
+function entryCompleteness(entry: Participant) {
+  return Number(Boolean(entry.artist)) * 4 + Number(Boolean(entry.song)) * 4 + Number(Boolean(entry.notes));
+}
+
 function OwnedCountryHub({
   country,
   isOrganizer,
@@ -227,12 +237,37 @@ function OwnedCountryHub({
     [contestEntities, country.id],
   );
 
-  const myEntries = useMemo(
-    () => (participants ?? [])
-      .filter((entry) => entry.country_id === country.id || Boolean(entry.contest_entity_id && ownedEntityIds.has(entry.contest_entity_id)))
-      .sort((a, b) => (editions?.find((edition) => edition.id === b.edition_id)?.edition_number ?? -1) - (editions?.find((edition) => edition.id === a.edition_id)?.edition_number ?? -1)),
-    [participants, editions, country.id, ownedEntityIds],
-  );
+  // A participant row is a show appearance. A real SSC participation is the
+  // country + edition identity, so a qualifier that appears in a semi and the
+  // final must still get exactly one artist/song editor.
+  const myEntries = useMemo<EditionEntry[]>(() => {
+    const owned = (participants ?? []).filter(
+      (entry) => entry.country_id === country.id || Boolean(entry.contest_entity_id && ownedEntityIds.has(entry.contest_entity_id)),
+    );
+    const byEdition = new Map<string, EditionEntry>();
+
+    for (const entry of owned) {
+      const current = byEdition.get(entry.edition_id);
+      if (!current) {
+        byEdition.set(entry.edition_id, {
+          editionId: entry.edition_id,
+          entry,
+          appearances: [entry],
+        });
+        continue;
+      }
+
+      current.appearances.push(entry);
+      if (entryCompleteness(entry) > entryCompleteness(current.entry)) current.entry = entry;
+    }
+
+    return [...byEdition.values()].sort(
+      (a, b) =>
+        (editions?.find((edition) => edition.id === b.editionId)?.edition_number ?? -1) -
+        (editions?.find((edition) => edition.id === a.editionId)?.edition_number ?? -1),
+    );
+  }, [participants, editions, country.id, ownedEntityIds]);
+
   const addShows = (shows ?? []).filter((show) => show.edition_id === addEntry.editionId);
 
   const run = async (task: () => Promise<unknown>, success: string) => {
@@ -273,7 +308,7 @@ function OwnedCountryHub({
     await run(async () => {
       await saveEntry.mutateAsync({ participantId: null, editionId: addEntry.editionId, showId: addEntry.showId || null, artist: addEntry.artist, song: addEntry.song, notes: addEntry.notes });
       setAddEntry({ editionId: "", showId: "", artist: "", song: "", notes: "" });
-    }, "Entry saved. It now uses the same contest data as Studio and the edition pages.");
+    }, "Entry saved. Artist and song now apply to the entire edition participation.");
   };
 
   return (
@@ -358,20 +393,38 @@ function OwnedCountryHub({
           </Panel>
         </div>
 
-        <Panel title="SSC entries" description={organizerOverride ? "Organizer override can correct artist, song and notes for this country's historical entries." : "Edit the artist, song and your own notes. Running order, qualification, voting and results remain locked to organizers."}>
+        <Panel
+          title="SSC entries"
+          description={organizerOverride
+            ? "One artist and one song per country per edition. Semi-final and final rows are only show appearances of that same entry."
+            : "Each edition has one artist and one song. If you reached the final, that is the same entry as your semi-final appearance, not a second participation."}
+        >
+          <div className="mb-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3 text-xs leading-5 text-muted-foreground">
+            <strong className="text-foreground">Edition-wide entry:</strong> edit the song once here. Solaris synchronizes the artist and song to every show appearance in that edition automatically.
+          </div>
           <div className="space-y-3">
-            {myEntries.map((entry) => <EntryEditor key={entry.id} entry={entry} edition={editions?.find((item) => item.id === entry.edition_id)} showName={shows?.find((show) => show.id === entry.show_id)?.name ?? "Show"} onSave={(values) => run(() => saveEntry.mutateAsync(values), "Entry updated everywhere." )} />)}
+            {myEntries.map((group) => (
+              <EntryEditor
+                key={group.editionId}
+                entry={group.entry}
+                edition={editions?.find((item) => item.id === group.editionId)}
+                showNames={group.appearances
+                  .map((appearance) => shows?.find((show) => show.id === appearance.show_id)?.name ?? null)
+                  .filter((name): name is string => Boolean(name))}
+                onSave={(values) => run(() => saveEntry.mutateAsync(values), "Edition entry updated everywhere." )}
+              />
+            ))}
           </div>
           <div className="mt-5 rounded-xl border border-border bg-surface p-4">
-            <p className="text-sm font-semibold">Add a missing historical entry</p>
-            <p className="mt-1 text-xs text-muted-foreground">If an entry for that edition already exists, this updates its artist/song instead of creating a duplicate.</p>
+            <p className="text-sm font-semibold">Add a missing historical participation</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose the first show appearance to attach the historical participation to. Artist and song remain edition-wide; later semi/final appearances reuse them automatically.</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label><span className="mb-1 block text-xs font-semibold text-muted-foreground">Edition</span><select value={addEntry.editionId} onChange={(event) => setAddEntry((current) => ({ ...current, editionId: event.target.value, showId: "" }))} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"><option value="">Choose edition…</option>{(editions ?? []).map((edition) => <option key={edition.id} value={edition.id}>{editionLabel(edition)}</option>)}</select></label>
-              <label><span className="mb-1 block text-xs font-semibold text-muted-foreground">Show</span><select value={addEntry.showId} onChange={(event) => setAddEntry((current) => ({ ...current, showId: event.target.value }))} disabled={!addEntry.editionId} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-50"><option value="">Choose show…</option>{addShows.map((show) => <option key={show.id} value={show.id}>{show.name}</option>)}</select></label>
+              <label><span className="mb-1 block text-xs font-semibold text-muted-foreground">First show appearance</span><select value={addEntry.showId} onChange={(event) => setAddEntry((current) => ({ ...current, showId: event.target.value }))} disabled={!addEntry.editionId} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-50"><option value="">Choose show…</option>{addShows.map((show) => <option key={show.id} value={show.id}>{show.name}</option>)}</select></label>
               <Input label="Artist" value={addEntry.artist} onChange={(value) => setAddEntry((current) => ({ ...current, artist: value }))} />
               <Input label="Song" value={addEntry.song} onChange={(value) => setAddEntry((current) => ({ ...current, song: value }))} />
               <Input label="Notes" value={addEntry.notes} onChange={(value) => setAddEntry((current) => ({ ...current, notes: value }))} className="sm:col-span-2" />
-              <button type="button" disabled={!addEntry.editionId || !addEntry.showId || !addEntry.artist.trim() || !addEntry.song.trim() || saveEntry.isPending} onClick={() => void addHistoricalEntry()} className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">Save historical entry</button>
+              <button type="button" disabled={!addEntry.editionId || !addEntry.showId || !addEntry.artist.trim() || !addEntry.song.trim() || saveEntry.isPending} onClick={() => void addHistoricalEntry()} className="min-h-11 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">Save historical participation</button>
             </div>
           </div>
         </Panel>
@@ -394,8 +447,49 @@ function SectionEditor({ section, media, onSave, onDelete }: { section: CountryP
   return <div className="rounded-xl bg-surface p-3"><Input label="Heading" value={value.heading} onChange={(heading) => setValue((current) => ({ ...current, heading }))} /><label className="mt-3 block"><span className="mb-1 block text-xs font-semibold text-muted-foreground">Body</span><textarea value={value.body} onChange={(event) => setValue((current) => ({ ...current, body: event.target.value }))} rows={5} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" /></label><div className="mt-3 grid gap-3 sm:grid-cols-2"><MediaSelect media={media} value={value.image_url} onChange={(image_url) => setValue((current) => ({ ...current, image_url }))} /><Input label="Image caption" value={value.image_caption} onChange={(image_caption) => setValue((current) => ({ ...current, image_caption }))} /></div><div className="mt-3 flex gap-2"><button type="button" onClick={() => void onSave({ id: section.id, heading: value.heading, body: value.body, image_url: value.image_url || null, image_caption: value.image_caption || null, sort_order: value.sort_order })} className="min-h-9 rounded-lg border border-border px-3 text-xs font-semibold">Save</button><button type="button" onClick={() => void onDelete()} className="min-h-9 rounded-lg px-3 text-xs font-semibold text-destructive">Delete</button></div></div>;
 }
 
-function EntryEditor({ entry, edition, showName, onSave }: { entry: Participant; edition: { edition_number: number | null; name: string; year: number | null } | undefined; showName: string; onSave: (values: { participantId: string; editionId: string; showId: string | null; artist: string; song: string; notes: string }) => Promise<unknown> }) {
-  const [artist, setArtist] = useState(entry.artist ?? ""); const [song, setSong] = useState(entry.song ?? ""); const [notes, setNotes] = useState(entry.notes ?? "");
-  useEffect(() => { setArtist(entry.artist ?? ""); setSong(entry.song ?? ""); setNotes(entry.notes ?? ""); }, [entry]);
-  return <div className="rounded-xl bg-surface p-3"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold">{edition ? editionLabel(edition as any) : "Edition"}</p><p className="text-[11px] text-muted-foreground">{showName}</p></div></div><div className="grid gap-3 sm:grid-cols-2"><Input label="Artist" value={artist} onChange={setArtist} /><Input label="Song" value={song} onChange={setSong} /><Input label="Notes" value={notes} onChange={setNotes} className="sm:col-span-2" /><button type="button" disabled={!artist.trim() || !song.trim()} onClick={() => void onSave({ participantId: entry.id, editionId: entry.edition_id, showId: entry.show_id, artist, song, notes })} className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">Save entry</button></div></div>;
+function EntryEditor({
+  entry,
+  edition,
+  showNames,
+  onSave,
+}: {
+  entry: Participant;
+  edition: { edition_number: number | null; name: string; year: number | null } | undefined;
+  showNames: string[];
+  onSave: (values: { participantId: string; editionId: string; showId: string | null; artist: string; song: string; notes: string }) => Promise<unknown>;
+}) {
+  const [artist, setArtist] = useState(entry.artist ?? "");
+  const [song, setSong] = useState(entry.song ?? "");
+  const [notes, setNotes] = useState(entry.notes ?? "");
+  useEffect(() => {
+    setArtist(entry.artist ?? "");
+    setSong(entry.song ?? "");
+    setNotes(entry.notes ?? "");
+  }, [entry]);
+
+  const uniqueShows = [...new Set(showNames)];
+
+  return (
+    <div className="rounded-xl bg-surface p-3 sm:p-4">
+      <div className="mb-3">
+        <p className="text-sm font-semibold">{edition ? editionLabel(edition as any) : "Edition"}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {uniqueShows.length ? uniqueShows.map((showName) => (
+            <span key={showName} className="rounded-full border border-border bg-background/40 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
+              {showName}
+            </span>
+          )) : <span className="text-[11px] text-muted-foreground">No show appearance labelled</span>}
+        </div>
+        {uniqueShows.length > 1 ? (
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">These are appearances of the same edition entry. Artist and song are entered once.</p>
+        ) : null}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input label="Artist" value={artist} onChange={setArtist} />
+        <Input label="Song" value={song} onChange={setSong} />
+        <Input label="Notes" value={notes} onChange={setNotes} className="sm:col-span-2" />
+        <button type="button" disabled={!artist.trim() || !song.trim()} onClick={() => void onSave({ participantId: entry.id, editionId: entry.edition_id, showId: entry.show_id, artist, song, notes })} className="min-h-10 rounded-xl border border-border px-3 text-sm font-semibold disabled:opacity-50 sm:col-span-2">Save edition entry</button>
+      </div>
+    </div>
+  );
 }
