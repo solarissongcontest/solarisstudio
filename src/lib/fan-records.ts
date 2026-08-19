@@ -67,7 +67,6 @@ export function buildFanRecords(input: Input): FanRecord[] {
   const { countries, editions, shows, participants, results, jury } = input;
   const countryMap = new Map(countries.map((country) => [country.id, country]));
   const editionMap = new Map(editions.map((edition) => [edition.id, edition]));
-  const showMap = new Map(shows.map((show) => [show.id, show]));
   const finalShowIds = new Set(
     shows.filter((show) => show.kind === "grand-final" || show.kind === "final").map((show) => show.id),
   );
@@ -208,8 +207,9 @@ export function buildFanRecords(input: Input): FanRecord[] {
   const addStreak = (id: string, label: string, maximumRank: number, explanation: string) => {
     const extreme = tied(streakSegments((rank) => rank <= maximumRank).map((row) => ({ ...row, metric: row.length })), "max");
     if (extreme.value == null) return;
+    const value = extreme.value;
     const rows = uniqueBy(extreme.rows, (row) => `${row.countryId}:${row.from}:${row.to}`);
-    add(id, label, `${extreme.value} edition${extreme.value === 1 ? "" : "s"}`, "streaks", explanation, rows.map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.from}` : `SSC ${row.from}–${row.to}`)));
+    add(id, label, `${value} edition${value === 1 ? "" : "s"}`, "streaks", explanation, rows.map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.from}` : `SSC ${row.from}–${row.to}`)));
   };
   addStreak("win-streak", "Longest winning streak", 1, "Consecutive editions won.");
   addStreak("podium-streak", "Longest podium streak", 3, "Consecutive editions finishing on the podium.");
@@ -250,10 +250,16 @@ export function buildFanRecords(input: Input): FanRecord[] {
   };
 
   const qualificationExtreme = tied(qualificationSegments(true).map((row) => ({ ...row, metric: row.length })), "max");
-  if (qualificationExtreme.value != null) add("qualification-streak", "Longest qualification streak", `${qualificationExtreme.value} edition${qualificationExtreme.value === 1 ? "" : "s"}`, "streaks", "Consecutive semi-final editions where the country reached the final.", uniqueBy(qualificationExtreme.rows, (row) => `${row.countryId}:${row.from}:${row.to}`).map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.from}` : `SSC ${row.from}–${row.to}`)));
+  if (qualificationExtreme.value != null) {
+    const value = qualificationExtreme.value;
+    add("qualification-streak", "Longest qualification streak", `${value} edition${value === 1 ? "" : "s"}`, "streaks", "Consecutive semi-final editions where the country reached the final.", uniqueBy(qualificationExtreme.rows, (row) => `${row.countryId}:${row.from}:${row.to}`).map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.from}` : `SSC ${row.from}–${row.to}`)));
+  }
 
   const nqExtreme = tied(qualificationSegments(false).map((row) => ({ ...row, metric: row.length })), "max");
-  if (nqExtreme.value != null) add("nq-streak", "Longest non-qualification streak", `${nqExtreme.value} edition${nqExtreme.value === 1 ? "" : "s"}`, "streaks", "Consecutive semi-final editions ending in non-qualification.", uniqueBy(nqExtreme.rows, (row) => `${row.countryId}:${row.from}:${row.to}`).map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.from}` : `SSC ${row.from}–${row.to}`)));
+  if (nqExtreme.value != null) {
+    const value = nqExtreme.value;
+    add("nq-streak", "Longest non-qualification streak", `${value} edition${value === 1 ? "" : "s"}`, "streaks", "Consecutive semi-final editions ending in non-qualification.", uniqueBy(nqExtreme.rows, (row) => `${row.countryId}:${row.from}:${row.to}`).map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.from}` : `SSC ${row.from}–${row.to}`)));
+  }
 
   const currentQual: Array<{ countryId: string; from: number; to: number; metric: number }> = [];
   for (const [countryId, history] of qualificationHistory) {
@@ -270,7 +276,10 @@ export function buildFanRecords(input: Input): FanRecord[] {
     currentQual.push({ countryId, from, to, metric: length });
   }
   const currentQualExtreme = tied(currentQual, "max");
-  if (currentQualExtreme.value != null) add("current-qualification-streak", "Longest current qualification streak", `${currentQualExtreme.value} edition${currentQualExtreme.value === 1 ? "" : "s"}`, "streaks", "Active run of consecutive qualifications ending at that country's latest archived semi-final.", currentQualExtreme.rows.map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.to}` : `SSC ${row.from}–${row.to}`)));
+  if (currentQualExtreme.value != null) {
+    const value = currentQualExtreme.value;
+    add("current-qualification-streak", "Longest current qualification streak", `${value} edition${value === 1 ? "" : "s"}`, "streaks", "Active run of consecutive qualifications ending at that country's latest archived semi-final.", currentQualExtreme.rows.map((row) => holder(row.countryId, undefined, row.from === row.to ? `SSC ${row.to}` : `SSC ${row.from}–${row.to}`)));
+  }
 
   // Single-edition result records. Every exact tie is preserved.
   const addRowExtreme = (
@@ -302,7 +311,10 @@ export function buildFanRecords(input: Input): FanRecord[] {
     if (sorted[0] && sorted[1]) margins.push({ winner: sorted[0], metric: sorted[0].total_points - sorted[1].total_points });
   }
   const closest = tied(margins, "min");
-  if (closest.value != null) add("closest-win", "Closest winning margin", `${closest.value} pt${closest.value === 1 ? "" : "s"}`, "edition", "Smallest gap between first and second in the same archived Grand Final.", closest.rows.map(({ winner }) => holder(winner.country_id, winner.edition_id)));
+  if (closest.value != null) {
+    const value = closest.value;
+    add("closest-win", "Closest winning margin", `${value} pt${value === 1 ? "" : "s"}`, "edition", "Smallest gap between first and second in the same archived Grand Final.", closest.rows.map(({ winner }) => holder(winner.country_id, winner.edition_id)));
+  }
   const landslide = tied(margins, "max");
   if (landslide.value != null) add("largest-win", "Largest winning margin", `${landslide.value} pts`, "edition", "Largest gap between first and second in the same archived Grand Final.", landslide.rows.map(({ winner }) => holder(winner.country_id, winner.edition_id)));
 
@@ -320,9 +332,15 @@ export function buildFanRecords(input: Input): FanRecord[] {
   }
 
   const rescue = tied(rankMetrics.map((item) => ({ ...item, metric: item.juryRank - item.finalRank })).filter((item) => item.metric > 0), "max");
-  if (rescue.value != null) add("televote-rescue", "Biggest televote rescue", `${rescue.value} place${rescue.value === 1 ? "" : "s"}`, "edition", "Largest rise from jury rank to final combined rank.", rescue.rows.map((item) => holder(item.row.country_id, item.row.edition_id, `Jury #${item.juryRank} → final #${item.finalRank}`)));
+  if (rescue.value != null) {
+    const value = rescue.value;
+    add("televote-rescue", "Biggest televote rescue", `${value} place${value === 1 ? "" : "s"}`, "edition", "Largest rise from jury rank to final combined rank.", rescue.rows.map((item) => holder(item.row.country_id, item.row.edition_id, `Jury #${item.juryRank} → final #${item.finalRank}`)));
+  }
   const collapse = tied(rankMetrics.map((item) => ({ ...item, metric: item.finalRank - item.juryRank })).filter((item) => item.metric > 0), "max");
-  if (collapse.value != null) add("post-jury-collapse", "Biggest post-jury collapse", `${collapse.value} place${collapse.value === 1 ? "" : "s"}`, "edition", "Largest fall from jury rank to final combined rank.", collapse.rows.map((item) => holder(item.row.country_id, item.row.edition_id, `Jury #${item.juryRank} → final #${item.finalRank}`)));
+  if (collapse.value != null) {
+    const value = collapse.value;
+    add("post-jury-collapse", "Biggest post-jury collapse", `${value} place${value === 1 ? "" : "s"}`, "edition", "Largest fall from jury rank to final combined rank.", collapse.rows.map((item) => holder(item.row.country_id, item.row.edition_id, `Jury #${item.juryRank} → final #${item.finalRank}`)));
+  }
   const disagreement = tied(rankMetrics.map((item) => ({ ...item, metric: Math.abs(item.juryRank - item.teleRank) })).filter((item) => item.metric > 0), "max");
   if (disagreement.value != null) add("jury-tele-gap", "Largest jury–televote disagreement", `${disagreement.value}-place gap`, "edition", "Biggest difference between jury rank and televote rank inside one Grand Final.", disagreement.rows.map((item) => holder(item.row.country_id, item.row.edition_id, `Jury #${item.juryRank} · tele #${item.teleRank}`)));
 
