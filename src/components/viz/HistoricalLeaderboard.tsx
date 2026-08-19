@@ -40,12 +40,10 @@ export function HistoricalLeaderboard({
   const topIds = useMemo(() => {
     const appearances = new Map<string, number>();
     const points = new Map<string, number>();
-
     for (const result of rankedResults) {
       appearances.set(result.country_id, (appearances.get(result.country_id) ?? 0) + 1);
       points.set(result.country_id, (points.get(result.country_id) ?? 0) + result.total_points);
     }
-
     return [...appearances.keys()]
       .sort(
         (a, b) =>
@@ -62,15 +60,12 @@ export function HistoricalLeaderboard({
           label: editionLabel(edition),
           editionNumber: edition.edition_number,
         };
-
         for (const id of topIds) {
           const result = rankedResults.find(
-            (candidate) =>
-              candidate.edition_id === edition.id && candidate.country_id === id,
+            (candidate) => candidate.edition_id === edition.id && candidate.country_id === id,
           );
           row[id] = result?.final_rank ?? null;
         }
-
         return row;
       }),
     [sortedEditions, topIds, rankedResults],
@@ -112,12 +107,9 @@ export function HistoricalLeaderboard({
         Hover or tap a country label below to isolate its line. Archive gaps will disappear automatically as more historical data is added.
       </p>
 
-      <div style={{ width: "100%", height: 380 }}>
-        <ResponsiveContainer>
-          <LineChart
-            data={data}
-            margin={{ top: 10, right: 20, bottom: 10, left: 0 }}
-          >
+      <div className="h-[380px] w-full md:h-[460px] xl:h-[520px]">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <LineChart data={data} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
             <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
             <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} />
             <YAxis
@@ -145,7 +137,6 @@ export function HistoricalLeaderboard({
             {topIds.map((id) => {
               const country = countryMap.get(id);
               const dim = Boolean(hoverId && hoverId !== id);
-
               return (
                 <Line
                   key={id}
@@ -170,7 +161,6 @@ export function HistoricalLeaderboard({
         {topIds.map((id) => {
           const country = countryMap.get(id);
           if (!country) return null;
-
           return (
             <Link
               key={id}
@@ -185,10 +175,7 @@ export function HistoricalLeaderboard({
                 hoverId === id ? "bg-surface-strong" : "bg-surface",
               )}
             >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ background: country.accent_color }}
-              />
+              <span className="h-2 w-2 rounded-full" style={{ background: country.accent_color }} />
               {country.name}
             </Link>
           );
@@ -198,15 +185,7 @@ export function HistoricalLeaderboard({
   );
 }
 
-function GuideItem({
-  number,
-  title,
-  text,
-}: {
-  number: string;
-  title: string;
-  text: string;
-}) {
+function GuideItem({ number, title, text }: { number: string; title: string; text: string }) {
   return (
     <div className="rounded-xl border border-border/70 bg-surface p-3">
       <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">{number}</p>
