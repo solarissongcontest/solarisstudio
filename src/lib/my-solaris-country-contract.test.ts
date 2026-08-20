@@ -13,6 +13,7 @@ const appearance = source("src/routes/_authenticated/country-hub/theme.tsx");
 const builder = source("src/routes/_authenticated/country-hub/page-builder.tsx");
 const entryMigration = source("supabase/migrations/20260819212500_edition_level_country_entries.sql");
 const cleanRpcMigration = source("supabase/migrations/20260819215500_clean_edition_entry_rpcs.sql");
+const appearanceCountMigration = source("supabase/migrations/20260820123000_fix_edition_participation_appearance_count.sql");
 
 describe("edition-wide country entries", () => {
   it("gives HODs an edition-only database contract", () => {
@@ -29,6 +30,12 @@ describe("edition-wide country entries", () => {
     expect(entryMigration).toContain("never their\n  -- own artist/song identity");
     expect(hub).not.toContain("First show appearance");
     expect(hub).toContain("Show appearances, running order and qualification are managed separately");
+  });
+
+  it("does not count the canonical edition row as a show appearance", () => {
+    expect(appearanceCountMigration).toContain("count(*) filter (where p.show_id is not null)");
+    expect(appearanceCountMigration).toContain("array_agg(p.show_id");
+    expect(appearanceCountMigration).toContain("filter (where p.show_id is not null) as show_ids");
   });
 });
 
