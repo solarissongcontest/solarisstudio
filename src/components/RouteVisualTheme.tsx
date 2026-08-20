@@ -2,7 +2,6 @@ import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
 import "@/country-personalities.css";
-import "@/country-personalities-polish.css";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
