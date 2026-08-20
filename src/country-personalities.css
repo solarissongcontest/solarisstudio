@@ -1,324 +1,908 @@
 /* Country page personality refinements --------------------------------------
-   Loaded after entity-theme.css so these rules can extend the original eight
-   layouts without changing existing saved pages. */
+   This layer intentionally overrides the base hero presets. Each personality
+   gets its own flag geometry and mobile composition instead of stretching one
+   circular decoration across every design. */
 
 body[data-entity-theme="country"] .app-main :is(h1, h2, h3, h4, h5, h6) {
   color: var(--foreground) !important;
 }
 
-/* Broadcast deliberately puts the title on an accent-coloured lower third,
-   so it needs the deep background colour for readable contrast. */
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Broadcast deliberately puts the title on an accent-coloured lower third. */
 body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) h1 {
   color: rgb(var(--solaris-bg-deep)) !important;
 }
 
-/* The split layout is rectangular by design. Replace the circular dissolve
-   with a wide flag panel whose edges feather into the composition. */
+/* --------------------------------------------------------------------------
+   Flag geometry
+   -------------------------------------------------------------------------- */
+
+/* Only Classic and Spotlight use the original circular dissolve. Everywhere
+   else the flag keeps its real rectangular identity. */
+body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="editorial"],
+    [data-country-hero-layout="flag-focus"],
+    [data-country-hero-layout="poster"],
+    [data-country-hero-layout="split"],
+    [data-country-hero-layout="broadcast"],
+    [data-country-hero-layout="panorama"],
+    [data-country-hero-layout="monument"],
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="newspaper"],
+    [data-country-hero-layout="ribbon"],
+    [data-country-hero-layout="duotone"],
+    [data-country-hero-layout="passport"],
+    [data-country-hero-layout="horizon"]
+  ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag > svg {
+  display: none !important;
+}
+
+body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="editorial"],
+    [data-country-hero-layout="flag-focus"],
+    [data-country-hero-layout="poster"],
+    [data-country-hero-layout="split"],
+    [data-country-hero-layout="broadcast"],
+    [data-country-hero-layout="panorama"],
+    [data-country-hero-layout="monument"],
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="newspaper"],
+    [data-country-hero-layout="ribbon"],
+    [data-country-hero-layout="duotone"],
+    [data-country-hero-layout="passport"],
+    [data-country-hero-layout="horizon"]
+  ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--background-flag-image);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  image-rendering: auto;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: none !important;
+}
+
+/* CLASSIC: familiar Solaris card, compact enough to let the page continue. */
+body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(17rem, 28vw, 22rem) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  right: -2.5rem !important;
+  top: -2.75rem !important;
+  width: clamp(12rem, 24vw, 18rem) !important;
+  height: auto !important;
+  opacity: .1 !important;
+  transform: none !important;
+}
+
+/* EDITORIAL: text-led magazine cover with a slim full flag at the edge. */
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(20rem, 34vw, 27rem) !important;
+  display: flex;
+  align-items: flex-end;
+  padding-right: clamp(12rem, 29vw, 23rem) !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface) 88%, transparent) 0 66%, transparent 100%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  max-width: 11ch;
+  font-size: clamp(3rem, 7vw, 6rem) !important;
+  line-height: .88 !important;
+  letter-spacing: -.055em;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 50% !important;
+  right: 2rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: clamp(10rem, 24vw, 18rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .8 !important;
+  transform: translateY(-50%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  border-radius: .9rem;
+  box-shadow: 0 22px 54px -30px rgb(var(--solaris-bg-deep) / .85);
+}
+
+/* MINIMAL: no decorative flag and no forced empty canvas. */
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: 0 !important;
+  padding-block: clamp(1.4rem, 3vw, 2.2rem) !important;
+  background: color-mix(in srgb, var(--surface) 42%, transparent) !important;
+  border-color: transparent !important;
+  border-radius: .75rem !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  font-size: clamp(2.4rem, 5vw, 4.15rem) !important;
+  letter-spacing: -.035em;
+}
+
+/* FLAG FOCUS: the real flag is the visual anchor, not a circular crop. */
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(20rem, 35vw, 27rem) !important;
+  padding-right: clamp(15rem, 42vw, 34rem) !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) 0 54%, rgb(var(--solaris-bg-deep) / .08) 100%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 50% !important;
+  right: 1.4rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(41%, 31rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: 1 !important;
+  filter: none !important;
+  transform: translateY(-50%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  border-radius: 1.1rem;
+  box-shadow:
+    0 28px 70px -40px rgb(var(--solaris-bg-deep)),
+    0 0 0 1px rgb(var(--solaris-accent) / .18);
+}
+
+/* POSTER: graphic and centred, with a proper flag plaque rather than a ghost circle. */
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(24rem, 43vw, 33rem) !important;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-top: clamp(7rem, 13vw, 9rem) !important;
+  border-radius: 2rem !important;
+  background:
+    radial-gradient(circle at 50% 30%, rgb(var(--solaris-accent) / .16), transparent 34%),
+    linear-gradient(180deg, rgb(var(--solaris-bg-deep) / .12), rgb(var(--solaris-bg-deep) / .58)) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  max-width: 10ch;
+  margin-inline: auto;
+  font-size: clamp(3.25rem, 8vw, 6.7rem) !important;
+  line-height: .84 !important;
+  text-transform: uppercase;
+  letter-spacing: -.07em;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) p {
+  margin-inline: auto;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 1.6rem !important;
+  right: auto !important;
+  left: 50% !important;
+  width: clamp(8.5rem, 17vw, 12rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .92 !important;
+  transform: translateX(-50%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  border-radius: .65rem;
+  box-shadow: 0 16px 38px -26px rgb(var(--solaris-bg-deep));
+}
+
+/* SPLIT: genuinely two-column and rectangular. */
+body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(20rem, 34vw, 27rem) !important;
+  padding-right: clamp(17rem, 45vw, 36rem) !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 55%, rgb(var(--solaris-accent) / .1) 55% 100%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  font-size: clamp(3rem, 6vw, 5.4rem) !important;
+  line-height: .9 !important;
+}
+
 body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
   top: 50% !important;
   right: 2.5% !important;
   bottom: auto !important;
   left: auto !important;
-  width: 38% !important;
+  width: min(41%, 31rem) !important;
   height: auto !important;
   aspect-ratio: 3 / 2 !important;
-  transform: translateY(-50%) !important;
   opacity: 1 !important;
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag > svg {
-  display: none !important;
+  transform: translateY(-50%) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 1px solid rgb(var(--solaris-accent) / .22);
-  border-radius: 1.15rem;
-  background-image:
-    linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .36), transparent 24%, transparent 76%, rgb(var(--solaris-bg-deep) / .22)),
-    var(--background-flag-image);
-  background-position: center;
-  background-size: cover;
-  box-shadow: 0 26px 70px -34px rgb(var(--solaris-bg-deep) / .92);
-  opacity: .86;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%);
+  border: 1px solid rgb(var(--solaris-accent) / .18);
+  border-radius: 1rem;
+  box-shadow: 0 24px 62px -38px rgb(var(--solaris-bg-deep) / .9);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 5%, #000 95%, transparent 100%);
 }
 
-/* PANORAMA: low, wide and cinematic. */
-body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(23rem, 39vw, 31rem);
-  display: flex;
-  align-items: flex-end;
-  border-radius: 2rem !important;
-  background:
-    linear-gradient(180deg, transparent 12%, rgb(var(--solaris-bg-deep) / .16) 42%, rgb(var(--solaris-bg-deep) / .82) 100%) !important;
-}
-body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) h1 {
-  max-width: 13ch;
-  font-size: clamp(3rem, 6.8vw, 5.8rem) !important;
-  line-height: .88 !important;
-  letter-spacing: -.055em;
-}
-body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  top: -5% !important;
-  right: -2% !important;
-  width: 52% !important;
-  opacity: .17 !important;
-  transform: scale(1.12) !important;
-}
-
-/* MONUMENT: formal, centred and vertical. */
-body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(30rem, 57vw, 43rem);
+/* SPOTLIGHT: one of the two layouts where an emblem-like circle is intentional. */
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(22rem, 38vw, 29rem) !important;
   display: grid;
   place-items: center;
   text-align: center;
-  border-radius: .75rem !important;
   background:
-    linear-gradient(90deg, transparent 0 8%, rgb(var(--solaris-accent) / .08) 8% 8.4%, transparent 8.4% 91.6%, rgb(var(--solaris-accent) / .08) 91.6% 92%, transparent 92%),
-    color-mix(in srgb, var(--surface) 72%, rgb(var(--solaris-bg-deep)) 28%) !important;
+    radial-gradient(circle at 50% 15%, rgb(var(--solaris-accent) / .28), transparent 28%),
+    color-mix(in srgb, var(--surface) 84%, rgb(var(--solaris-bg-deep)) 16%) !important;
 }
+
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  max-width: 12ch;
+  margin-inline: auto;
+  font-size: clamp(3.1rem, 7vw, 5.7rem) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) p {
+  margin-inline: auto;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: -2.5rem !important;
+  right: 50% !important;
+  width: clamp(10rem, 20vw, 15rem) !important;
+  opacity: .075 !important;
+  transform: translateX(50%) !important;
+}
+
+/* BROADCAST: compact on-air lower third, with a rectangular station-style flag. */
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(19rem, 31vw, 24rem) !important;
+  display: flex;
+  align-items: flex-end;
+  padding-right: clamp(10rem, 27vw, 21rem) !important;
+  border-radius: .9rem !important;
+  border-left: .35rem solid rgb(var(--solaris-accent)) !important;
+  background:
+    linear-gradient(180deg, transparent 10%, rgb(var(--solaris-bg-deep) / .16) 42%, rgb(var(--solaris-bg-deep) / .78) 100%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  width: fit-content;
+  max-width: 14ch;
+  padding: .1em .18em .12em;
+  background: rgb(var(--solaris-accent));
+  font-size: clamp(2.8rem, 5.8vw, 5rem) !important;
+  line-height: .9 !important;
+  text-transform: uppercase;
+  letter-spacing: -.04em;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 1rem !important;
+  right: 1rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(24%, 13rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .58 !important;
+  transform: none !important;
+}
+
+/* PANORAMA: wide and cinematic without becoming a tall empty box. */
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(19rem, 31vw, 24rem) !important;
+  display: flex;
+  align-items: flex-end;
+  padding-right: clamp(11rem, 30vw, 24rem) !important;
+  border-radius: 1.5rem !important;
+  background:
+    linear-gradient(180deg, transparent 8%, rgb(var(--solaris-bg-deep) / .08) 45%, rgb(var(--solaris-bg-deep) / .66) 100%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  max-width: 13ch;
+  font-size: clamp(3rem, 6.5vw, 5.6rem) !important;
+  line-height: .9 !important;
+  letter-spacing: -.05em;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 50% !important;
+  right: 1.2rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(29%, 19rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .52 !important;
+  transform: translateY(-50%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  background-size: contain;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 13%, #000 87%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 13%, #000 87%, transparent);
+}
+
+/* MONUMENT: formal symmetry, but no ceremonial acre of unused pixels. */
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(22rem, 37vw, 29rem) !important;
+  display: grid;
+  place-items: center;
+  padding-top: clamp(6.5rem, 11vw, 8rem) !important;
+  text-align: center;
+  border-radius: .8rem !important;
+  background:
+    linear-gradient(90deg, transparent 0 8%, rgb(var(--solaris-accent) / .07) 8% 8.4%, transparent 8.4% 91.6%, rgb(var(--solaris-accent) / .07) 91.6% 92%, transparent 92%),
+    color-mix(in srgb, var(--surface) 76%, rgb(var(--solaris-bg-deep)) 24%) !important;
+}
+
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero)::after {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: 11%;
-  width: 4.5rem;
-  height: .18rem;
+  bottom: 1.4rem;
+  width: 4rem;
+  height: .16rem;
   transform: translateX(-50%);
   background: rgb(var(--solaris-accent));
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) h1 {
   max-width: 10ch;
   margin-inline: auto;
-  font-size: clamp(3.4rem, 8vw, 6.7rem) !important;
-  line-height: .84 !important;
-  letter-spacing: -.06em;
+  font-size: clamp(3.2rem, 7.4vw, 6rem) !important;
+  line-height: .86 !important;
+  letter-spacing: -.055em;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) p {
   margin-inline: auto;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  left: 50% !important;
+  top: 1.2rem !important;
   right: auto !important;
-  top: 4% !important;
-  width: clamp(12rem, 27vw, 20rem) !important;
+  bottom: auto !important;
+  left: 50% !important;
+  width: clamp(7.5rem, 15vw, 10.5rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .88 !important;
   transform: translateX(-50%) !important;
-  opacity: .08 !important;
 }
 
-/* GLASS CARD: a floating identity card inside an open hero canvas. */
+/* GLASS CARD: real liquid-glass layering, not merely a transparent rectangle. */
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(27rem, 49vw, 37rem);
+  min-height: clamp(20rem, 34vw, 27rem) !important;
   display: flex;
   align-items: center;
-  padding: clamp(1.25rem, 4vw, 3.5rem) !important;
-  border-color: transparent !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: clamp(1rem, 3vw, 2rem) !important;
+  border-color: rgb(255 255 255 / .08) !important;
+  background:
+    radial-gradient(circle at 12% 16%, rgb(255 255 255 / .11), transparent 24%),
+    radial-gradient(circle at 88% 78%, rgb(var(--solaris-accent) / .14), transparent 31%),
+    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .08), rgb(var(--solaris-bg-deep) / .14)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .08) !important;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > div.relative.z-10 {
-  width: min(100%, 44rem);
-  padding: clamp(1.25rem, 3vw, 2.25rem);
-  border: 1px solid rgb(var(--solaris-accent) / .22);
-  border-radius: 1.8rem;
-  background: color-mix(in srgb, var(--surface) 76%, transparent);
-  box-shadow: 0 30px 90px -48px rgb(var(--solaris-bg-deep));
-  backdrop-filter: blur(18px);
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 43rem);
+  padding: clamp(1.3rem, 3vw, 2.25rem);
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / .24);
+  border-radius: 2rem;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / .14), rgb(255 255 255 / .045) 42%, rgb(var(--solaris-accent) / .07) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .42),
+    inset 1px 0 0 rgb(255 255 255 / .14),
+    inset 0 -1px 0 rgb(var(--solaris-accent) / .12),
+    0 24px 70px -36px rgb(var(--solaris-bg-deep) / .88),
+    0 8px 24px -18px rgb(255 255 255 / .28);
+  -webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.06);
+  backdrop-filter: blur(22px) saturate(175%) brightness(1.06);
 }
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > div.relative.z-10::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -35% -12% 52% -16%;
+  pointer-events: none;
+  transform: rotate(-8deg);
+  background: linear-gradient(115deg, rgb(255 255 255 / .32), rgb(255 255 255 / .06) 42%, transparent 68%);
+  filter: blur(8px);
+  opacity: .72;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > div.relative.z-10::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: calc(2rem - 1px);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / .08),
+    inset 18px 12px 34px -30px rgb(255 255 255 / .72),
+    inset -16px -12px 30px -27px rgb(var(--solaris-accent) / .45);
+}
+
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) h1 {
-  font-size: clamp(2.8rem, 6vw, 5rem) !important;
+  font-size: clamp(2.9rem, 5.8vw, 5rem) !important;
   letter-spacing: -.045em;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  right: 2% !important;
   top: 50% !important;
-  width: 46% !important;
-  transform: translateY(-50%) scale(1.1) !important;
-  opacity: .16 !important;
+  right: 2% !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(38%, 24rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .42 !important;
+  transform: translateY(-50%) rotate(-3deg) !important;
 }
 
-/* NEWSPAPER: reference-page feel, rigid rules and editorial hierarchy. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+}
+
+@supports (backdrop-filter: url("#solaris-liquid-glass")) {
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > div.relative.z-10 {
+    backdrop-filter: url("#solaris-liquid-glass") blur(14px) saturate(180%) brightness(1.06);
+  }
+}
+
+/* NEWSPAPER: compact masthead, rules and a small un-cropped flag. */
 body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(22rem, 38vw, 29rem);
+  min-height: clamp(17rem, 28vw, 21rem) !important;
+  padding-right: clamp(9rem, 22vw, 16rem) !important;
   border-radius: 0 !important;
   border-width: 1px 0 !important;
-  border-color: rgb(var(--solaris-accent) / .34) !important;
-  background: color-mix(in srgb, var(--surface) 58%, transparent) !important;
+  border-color: rgb(var(--solaris-accent) / .32) !important;
+  background: color-mix(in srgb, var(--surface) 60%, transparent) !important;
   box-shadow: none !important;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) h1 {
-  max-width: 16ch;
-  padding-block: .12em .18em;
-  border-block: 1px solid rgb(var(--solaris-accent) / .34);
-  font-size: clamp(3.2rem, 7.5vw, 6.2rem) !important;
+  max-width: 14ch;
+  padding-block: .1em .15em;
+  border-block: 1px solid rgb(var(--solaris-accent) / .28);
+  font-size: clamp(3rem, 6.6vw, 5.5rem) !important;
   line-height: .9 !important;
-  letter-spacing: -.05em;
-}
-body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  right: -4% !important;
-  top: -18% !important;
-  width: 31% !important;
-  opacity: .07 !important;
+  letter-spacing: -.045em;
 }
 
-/* RIBBON: horizontal national-colour band cuts through the hero. */
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 1.5rem !important;
+  right: 1rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: clamp(7.5rem, 17vw, 11.5rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .86 !important;
+  transform: none !important;
+}
+
+/* RIBBON: a real flag strip cuts through the composition. */
 body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(25rem, 45vw, 34rem);
+  min-height: clamp(18rem, 30vw, 23rem) !important;
   display: flex;
   align-items: center;
-  background:
-    linear-gradient(180deg, transparent 0 36%, rgb(var(--solaris-accent) / .20) 36% 67%, transparent 67% 100%),
-    color-mix(in srgb, var(--surface) 80%, transparent) !important;
+  background: color-mix(in srgb, var(--surface) 78%, transparent) !important;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) h1 {
   width: fit-content;
   max-width: 14ch;
-  font-size: clamp(3.1rem, 7vw, 5.9rem) !important;
-  line-height: .88 !important;
+  font-size: clamp(3rem, 6.5vw, 5.5rem) !important;
+  line-height: .9 !important;
   letter-spacing: -.05em;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  right: 4% !important;
   top: 50% !important;
-  width: 35% !important;
+  right: 0 !important;
+  bottom: auto !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 7.5rem !important;
+  aspect-ratio: auto !important;
+  opacity: .15 !important;
   transform: translateY(-50%) !important;
-  opacity: .2 !important;
 }
 
-/* DUOTONE: hard diagonal geometry, intentionally poster-like but asymmetric. */
-body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(27rem, 50vw, 38rem);
-  padding-right: clamp(20%, 25vw, 30%) !important;
-  border-radius: 1.25rem !important;
-  background:
-    linear-gradient(112deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 59%, rgb(var(--solaris-accent) / .24) 59.2% 100%) !important;
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  background-size: cover;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 18%, #000 82%, transparent);
 }
+
+/* DUOTONE: balanced two-zone layout with an actual rectangular flag. */
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(20rem, 34vw, 27rem) !important;
+  padding-right: clamp(16rem, 40vw, 32rem) !important;
+  border-radius: 1.2rem !important;
+  background:
+    linear-gradient(112deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 61%, rgb(var(--solaris-accent) / .2) 61.2% 100%) !important;
+}
+
 body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) h1 {
   max-width: 10ch;
-  font-size: clamp(3.3rem, 7.3vw, 6.1rem) !important;
-  line-height: .85 !important;
+  font-size: clamp(3.2rem, 7vw, 5.8rem) !important;
+  line-height: .86 !important;
   text-transform: uppercase;
-  letter-spacing: -.065em;
-}
-body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  right: 1% !important;
-  top: 50% !important;
-  width: 34% !important;
-  transform: translateY(-50%) rotate(4deg) !important;
-  opacity: .24 !important;
+  letter-spacing: -.06em;
 }
 
-/* PASSPORT: compact official dossier with precise framing. */
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 50% !important;
+  right: 3% !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(35%, 25rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .9 !important;
+  transform: translateY(-50%) rotate(2deg) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  border-radius: .8rem;
+  box-shadow: 0 24px 58px -35px rgb(var(--solaris-bg-deep));
+}
+
+/* PASSPORT: dense official-document proportions. */
 body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(22rem, 38vw, 29rem);
-  border: 2px solid rgb(var(--solaris-accent) / .28) !important;
+  min-height: clamp(16rem, 26vw, 20rem) !important;
+  padding-right: clamp(8rem, 20vw, 14rem) !important;
+  border: 2px solid rgb(var(--solaris-accent) / .26) !important;
   border-radius: .6rem !important;
   background:
     repeating-linear-gradient(135deg, transparent 0 15px, rgb(var(--solaris-accent) / .025) 15px 16px),
     color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%) !important;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero)::after {
   content: "SOLARIS · TERRA SOLARIS";
   position: absolute;
-  right: 1rem;
-  bottom: .8rem;
-  color: rgb(var(--solaris-accent) / .58);
-  font-size: .56rem;
+  right: .85rem;
+  bottom: .65rem;
+  color: rgb(var(--solaris-accent) / .56);
+  font-size: .52rem;
   font-weight: 800;
-  letter-spacing: .18em;
-}
-body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) h1 {
-  font-size: clamp(2.8rem, 5.7vw, 4.8rem) !important;
-  letter-spacing: -.035em;
-}
-body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  right: 4% !important;
-  top: 50% !important;
-  width: 27% !important;
-  transform: translateY(-50%) !important;
-  opacity: .11 !important;
+  letter-spacing: .16em;
 }
 
-/* HORIZON: enormous negative space and a low identity line. */
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  font-size: clamp(2.7rem, 5.2vw, 4.5rem) !important;
+  letter-spacing: -.035em;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 1.3rem !important;
+  right: 1.3rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: clamp(6.5rem, 15vw, 9.5rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .9 !important;
+  transform: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  padding: .25rem;
+  border: 1px solid rgb(var(--solaris-accent) / .24);
+  border-radius: .35rem;
+  background-origin: content-box;
+}
+
+/* HORIZON: low and calm, without intentionally wasting half the screen. */
 body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(31rem, 58vw, 44rem);
+  min-height: clamp(19rem, 31vw, 24rem) !important;
   display: flex;
   align-items: flex-end;
-  padding-bottom: clamp(2rem, 5vw, 4rem) !important;
-  border-radius: 2.2rem !important;
+  padding-bottom: clamp(1.6rem, 3vw, 2.4rem) !important;
+  padding-right: clamp(10rem, 28vw, 21rem) !important;
+  border-radius: 1.5rem !important;
   background:
-    linear-gradient(180deg, transparent 0 57%, rgb(var(--solaris-bg-deep) / .12) 73%, rgb(var(--solaris-bg-deep) / .66) 100%) !important;
+    linear-gradient(180deg, transparent 0 44%, rgb(var(--solaris-bg-deep) / .08) 62%, rgb(var(--solaris-bg-deep) / .56) 100%) !important;
 }
+
 body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero)::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 29%;
+  bottom: 28%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(var(--solaris-accent) / .52), transparent);
-}
-body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) h1 {
-  max-width: 14ch;
-  font-size: clamp(3rem, 6.5vw, 5.6rem) !important;
-  line-height: .89 !important;
-  letter-spacing: -.05em;
-}
-body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  right: -4% !important;
-  top: -6% !important;
-  width: 38% !important;
-  opacity: .08 !important;
+  background: linear-gradient(90deg, transparent, rgb(var(--solaris-accent) / .5), transparent);
 }
 
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) h1 {
+  max-width: 14ch;
+  font-size: clamp(3rem, 6.2vw, 5.4rem) !important;
+  line-height: .9 !important;
+  letter-spacing: -.05em;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 50% !important;
+  right: 1rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: min(25%, 16rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .32 !important;
+  transform: translateY(-50%) !important;
+}
+
+/* Editor preview follows the same compact visual logic instead of showing a
+   430px empty mock card for every personality. */
+[data-preview-layout] {
+  min-height: 340px !important;
+}
+
+[data-preview-layout="minimal"],
+[data-preview-layout="newspaper"],
+[data-preview-layout="passport"] {
+  min-height: 285px !important;
+}
+
+[data-preview-layout="glass-card"] > div.relative.z-10 > div {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgb(255 255 255 / .16), rgb(255 255 255 / .045) 48%, transparent) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .4),
+    inset 1px 0 0 rgb(255 255 255 / .12),
+    0 20px 54px -32px rgb(0 0 0 / .75) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(170%) brightness(1.05);
+  backdrop-filter: blur(18px) saturate(170%) brightness(1.05);
+}
+
+/* --------------------------------------------------------------------------
+   Mobile compositions
+   -------------------------------------------------------------------------- */
 @media (max-width: 767px) {
-  body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 30rem;
-    padding-right: 1rem !important;
-    padding-bottom: 12.5rem !important;
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+    border-radius: 1.25rem !important;
   }
-  body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+
+  body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 17rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    right: -2.3rem !important;
+    top: -2rem !important;
+    width: 11rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 22rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 8.7rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
     top: auto !important;
-    right: 5% !important;
-    bottom: 1.2rem !important;
-    width: 90% !important;
-    aspect-ratio: 16 / 9 !important;
+    right: 1rem !important;
+    bottom: 1rem !important;
+    width: min(58%, 12rem) !important;
     transform: none !important;
   }
 
-  body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero),
-  body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero),
-  body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 29rem;
+  body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 0 !important;
+    padding: 1.2rem !important;
   }
 
-  body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero),
-  body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 34rem;
+  body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 23rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 10.2rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: auto !important;
+    right: 1rem !important;
+    bottom: 1rem !important;
+    width: calc(100% - 2rem) !important;
+    max-width: 20rem;
+    transform: none !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 24rem !important;
+    padding-top: 6rem !important;
     padding-inline: 1rem !important;
   }
 
+  body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: 1rem !important;
+    width: 7.5rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 24rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 10rem !important;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--surface) 90%, transparent) 0 58%, rgb(var(--solaris-accent) / .1) 58% 100%) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: auto !important;
+    right: 1rem !important;
+    bottom: 1rem !important;
+    width: calc(100% - 2rem) !important;
+    max-width: 20rem;
+    transform: none !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 23rem !important;
+    padding-inline: 1rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 19rem !important;
+    padding-right: 1rem !important;
+    padding-top: 5.5rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: .8rem !important;
+    right: .8rem !important;
+    width: 7rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) h1 {
+    font-size: clamp(2.3rem, 12vw, 3.6rem) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 21rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 8rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: auto !important;
+    right: .9rem !important;
+    bottom: .9rem !important;
+    width: min(52%, 11rem) !important;
+    transform: none !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 24rem !important;
+    padding-top: 5.8rem !important;
+    padding-inline: 1rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: 1rem !important;
+    width: 7rem !important;
+  }
+
   body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 31rem;
+    min-height: 20rem !important;
     padding: .75rem !important;
   }
+
   body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > div.relative.z-10 {
+    width: 100%;
     padding: 1.25rem;
+    border-radius: 1.55rem;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: auto !important;
+    right: -1rem !important;
+    bottom: -1rem !important;
+    width: 13rem !important;
+    opacity: .2 !important;
+    transform: rotate(-3deg) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 17rem !important;
+    padding-right: 1rem !important;
+    padding-top: 5.7rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: .8rem !important;
+    right: 1rem !important;
+    width: 7rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 18rem !important;
+    padding-inline: 1rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    height: 5.5rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 31rem;
+    min-height: 23rem !important;
     padding-right: 1rem !important;
+    padding-bottom: 9rem !important;
     background:
-      linear-gradient(160deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 67%, rgb(var(--solaris-accent) / .22) 67.2% 100%) !important;
+      linear-gradient(160deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 68%, rgb(var(--solaris-accent) / .2) 68.2% 100%) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: auto !important;
+    right: 1rem !important;
+    bottom: 1rem !important;
+    width: min(58%, 12rem) !important;
+    transform: rotate(1deg) !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) h1,
   body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) h1 {
-    font-size: clamp(2.7rem, 13vw, 4.2rem) !important;
+    font-size: clamp(2.65rem, 12vw, 4rem) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 16rem !important;
+    padding-right: 1rem !important;
+    padding-top: 5.8rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: .9rem !important;
+    right: 1rem !important;
+    width: 6.5rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 20rem !important;
+    padding-right: 1rem !important;
+    padding-bottom: 7.7rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    top: auto !important;
+    right: 1rem !important;
+    bottom: .9rem !important;
+    width: min(48%, 10rem) !important;
+    transform: none !important;
+  }
+
+  [data-preview-layout] {
+    min-height: 310px !important;
+  }
+
+  [data-preview-layout="minimal"],
+  [data-preview-layout="newspaper"],
+  [data-preview-layout="passport"] {
+    min-height: 260px !important;
   }
 }
