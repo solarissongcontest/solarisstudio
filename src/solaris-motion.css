@@ -17,6 +17,7 @@
   background:
     linear-gradient(var(--solaris-bg-angle, 145deg), rgb(var(--solaris-bg-deep)) 0%, rgb(var(--solaris-bg-deep-2)) 58%, #020616 100%);
   isolation: isolate;
+  contain: paint;
 }
 
 /* Disable the old static star wallpaper while retaining AppShell's element as
@@ -118,6 +119,13 @@
     solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate,
     solaris-star-focus var(--star-focus-duration) ease-in-out var(--star-focus-delay) infinite alternate;
   will-change: transform, opacity, filter;
+}
+
+/* A hidden tab cannot display any of this motion. Pause it explicitly instead
+   of relying only on browser background throttling. */
+.solaris-ambient-background[data-paused="true"] .solaris-ambient-glow,
+.solaris-ambient-background[data-paused="true"] .solaris-star {
+  animation-play-state: paused !important;
 }
 
 @keyframes solaris-star-drift {
