@@ -29,7 +29,8 @@ describe("edition-wide country entries", () => {
     expect(entryMigration).toContain("show_id = null row is the canonical edition entry edited by the HoD");
     expect(entryMigration).toContain("never their\n  -- own artist/song identity");
     expect(hub).not.toContain("First show appearance");
-    expect(hub).toContain("Show appearances, running order and qualification are managed separately");
+    expect(hub).toContain("Reaching the final does not create a second participation");
+    expect(hub).toContain("Edit once per edition:");
   });
 
   it("does not count the canonical edition row as a show appearance", () => {
@@ -51,6 +52,19 @@ describe("country claims and unified account workspace", () => {
     expect(shell).not.toContain('label: "My country"');
     expect(shell).not.toContain('label: "Country setup"');
     expect(shell).not.toContain('>Profile & activity<');
+  });
+
+  it("keeps My Solaris focused instead of rendering every editor at once", () => {
+    expect(hub).toContain('type HubTab = "overview" | "country" | "page" | "entries"');
+    expect(hub).toContain('label: "Overview"');
+    expect(hub).toContain('label: "Country"');
+    expect(hub).toContain('label: "Page & media"');
+    expect(hub).toContain('label: "Entries"');
+    expect(hub).toContain('activeTab === "overview"');
+    expect(hub).toContain('activeTab === "country"');
+    expect(hub).toContain('activeTab === "page"');
+    expect(hub).toContain('activeTab === "entries"');
+    expect(hub).toContain("Choose what you want to work on instead of scrolling through everything at once.");
   });
 });
 
