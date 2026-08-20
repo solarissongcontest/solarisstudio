@@ -18,11 +18,42 @@ create table if not exists public.beta2_test_submissions (
   created_at timestamptz not null default now()
 );
 
+-- Production may already contain the earlier Beta 2 table. Bring that table
+-- forward without deleting its extra telemetry columns or any submitted rows.
+alter table public.beta2_test_submissions
+  add column if not exists familiarity text,
+  add column if not exists form_version integer default 4;
+
+update public.beta2_test_submissions
+set form_version = 4
+where form_version is null;
+
+alter table public.beta2_test_submissions
+  alter column form_version set default 4,
+  alter column form_version set not null;
+
+do $constraints$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.beta2_test_submissions'::regclass
+      and conname = 'beta2_test_submissions_form_version_check'
+  ) then
+    alter table public.beta2_test_submissions
+      add constraint beta2_test_submissions_form_version_check
+      check (form_version = 4);
+  end if;
+end;
+$constraints$;
+
 alter table public.beta2_test_submissions enable row level security;
 
 revoke all on table public.beta2_test_submissions from anon, authenticated;
 grant select on table public.beta2_test_submissions to authenticated;
 
+drop policy if exists "Public beta 2 testers can submit feedback" on public.beta2_test_submissions;
+drop policy if exists "Organizers can read beta 2 feedback" on public.beta2_test_submissions;
 drop policy if exists "Organizers can read Beta 2 feedback" on public.beta2_test_submissions;
 create policy "Organizers can read Beta 2 feedback"
 on public.beta2_test_submissions
@@ -56,7 +87,7 @@ create or replace function public.route_beta2_submission()
 returns trigger
 language plpgsql
 security definer
-set search_path = 'public', 'pg_temp'
+set search_path = ''
 as $function$
 begin
   if new.form_version <> 4 then
