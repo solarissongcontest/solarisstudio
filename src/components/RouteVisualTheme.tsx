@@ -2,6 +2,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
 import "@/country-personalities.css";
+import "@/country-personalities-polish.css";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
@@ -127,7 +128,10 @@ export function RouteVisualTheme() {
 
     if (resolved.artwork) {
       body.dataset.editionArtwork = "true";
-      body.style.setProperty("--edition-artwork-image", `url(${JSON.stringify(resolved.artwork)})`);
+      body.style.setProperty(
+        "--edition-artwork-image",
+        `url(${JSON.stringify(resolved.artwork)})`,
+      );
     } else {
       delete body.dataset.editionArtwork;
       body.style.removeProperty("--edition-artwork-image");
