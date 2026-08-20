@@ -1,7 +1,40 @@
 begin;
 
--- Keep every existing Beta 1 response for the archive/comparison dashboard,
--- but only accept the new full Beta 2.0 form from this point onward.
+-- Beta 1 remains exactly where it is for the archive dashboard.
+-- New Beta 2.0 submissions are redirected into their own table so the two
+-- rounds can be compared without mixing different questionnaires.
+
+create table if not exists public.beta2_test_submissions (
+  id uuid primary key default gen_random_uuid(),
+  tester_name text not null check (length(btrim(tester_name)) between 1 and 120),
+  device text not null check (device in ('Phone', 'Tablet', 'Laptop', 'Desktop')),
+  browser text,
+  familiarity text,
+  answers jsonb not null default '{}'::jsonb,
+  bug_reports jsonb not null default '[]'::jsonb,
+  screenshot_paths text[] not null default '{}'::text[],
+  user_agent text,
+  form_version integer not null default 4 check (form_version = 4),
+  created_at timestamptz not null default now()
+);
+
+alter table public.beta2_test_submissions enable row level security;
+
+revoke all on table public.beta2_test_submissions from anon, authenticated;
+grant select on table public.beta2_test_submissions to authenticated;
+
+drop policy if exists "Organizers can read Beta 2 feedback" on public.beta2_test_submissions;
+create policy "Organizers can read Beta 2 feedback"
+on public.beta2_test_submissions
+for select
+to authenticated
+using (public.has_role(auth.uid(), 'organizer'));
+
+create index if not exists beta2_test_submissions_created_at_idx
+  on public.beta2_test_submissions (created_at desc);
+
+-- Close Beta 1 and the temporary seven-section v3 form. The public endpoint now
+-- accepts only the real full Beta 2.0 payload.
 alter table public.beta_test_submissions
   alter column form_version set default 4;
 
@@ -18,7 +51,60 @@ with check (
   and jsonb_typeof(bug_reports) = 'array'
 );
 
+create or replace function public.route_beta2_submission()
+returns trigger
+language plpgsql
+security definer
+set search_path = 'public', 'pg_temp'
+as $function$
+begin
+  if new.form_version <> 4 then
+    raise exception 'This beta round is closed';
+  end if;
+
+  insert into public.beta2_test_submissions (
+    id,
+    tester_name,
+    device,
+    browser,
+    familiarity,
+    answers,
+    bug_reports,
+    screenshot_paths,
+    user_agent,
+    form_version,
+    created_at
+  ) values (
+    new.id,
+    new.tester_name,
+    new.device,
+    new.browser,
+    new.familiarity,
+    new.answers,
+    new.bug_reports,
+    new.screenshot_paths,
+    new.user_agent,
+    4,
+    new.created_at
+  );
+
+  -- Returning null cancels the write to the Beta 1 archive table after the
+  -- Beta 2 copy has been stored successfully.
+  return null;
+end;
+$function$;
+
+revoke all on function public.route_beta2_submission() from public, anon, authenticated;
+
+drop trigger if exists beta2_submission_router on public.beta_test_submissions;
+create trigger beta2_submission_router
+before insert on public.beta_test_submissions
+for each row
+execute function public.route_beta2_submission();
+
 comment on table public.beta_test_submissions is
-  'Public Solaris Studio beta feedback. Beta 1 data is retained; new public submissions must use form version 4 (Beta 2.0).';
+  'Closed Beta 1 archive. Existing responses are retained. New form-version-4 inserts are routed to beta2_test_submissions.';
+comment on table public.beta2_test_submissions is
+  'Solaris Studio Beta 2.0 feedback. Kept separate from the Beta 1 archive for clean before/after analysis.';
 
 commit;
