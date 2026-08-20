@@ -65,7 +65,7 @@ function countryName(id: string, countries: Country[]) {
 }
 
 export function buildFanDiscovery(input: Input): DiscoveryStory[] {
-  const { countries, editions, shows, participants, results, jury } = input;
+  const { countries, editions, participants, results, jury } = input;
   const byShow = new Map<string, ResultRow[]>();
 
   for (const row of results) {
