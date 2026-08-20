@@ -41,10 +41,10 @@ const rectangularLayouts = [
 describe("expanded country page personalities", () => {
   it("registers sixteen supported hero layouts in the client and database", () => {
     for (const layout of newLayouts) {
-      expect(visualTheme).toContain(`| \"${layout}\"`);
-      expect(visualTheme).toContain(`\"${layout}\",`);
+      expect(visualTheme).toContain(`| "${layout}"`);
+      expect(visualTheme).toContain(`"${layout}",`);
       expect(migration).toContain(`'${layout}'`);
-      expect(editor).toContain(`value: \"${layout}\"`);
+      expect(editor).toContain(`value: "${layout}"`);
     }
   });
 
@@ -55,7 +55,7 @@ describe("expanded country page personalities", () => {
     expect(css).toContain("display: none !important");
     expect(css).toContain("Only Classic and Spotlight use the original circular dissolve");
     for (const layout of rectangularLayouts) {
-      expect(css).toContain(`[data-country-hero-layout=\"${layout}\"]`);
+      expect(css).toContain(`[data-country-hero-layout="${layout}"]`);
     }
   });
 
@@ -71,7 +71,7 @@ describe("expanded country page personalities", () => {
 
   it("uses layered liquid glass with progressive refraction", () => {
     expect(css).toContain("-webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.06)");
-    expect(css).toContain('backdrop-filter: url(\"#solaris-liquid-glass\")');
+    expect(css).toContain('backdrop-filter: url("#solaris-liquid-glass")');
     expect(css).toContain("inset 0 1px 0 rgb(255 255 255 / .42)");
     expect(routeVisualTheme).toContain('id="solaris-liquid-glass"');
     expect(routeVisualTheme).toContain("feDisplacementMap");

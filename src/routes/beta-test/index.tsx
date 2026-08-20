@@ -3,8 +3,6 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
-import { supabase } from "@/integrations/supabase/client";
-
 import {
   BetaBugReports,
   BetaQuestionCard,
@@ -20,12 +18,16 @@ import {
   isBetaQuestionVisible,
 } from "@/features/beta-test/sections";
 import type { BetaAnswer, BetaAnswers, BetaBugReport } from "@/features/beta-test/types";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/beta-test/")({
   head: () => ({
     meta: [
-      { title: "Public Beta Test — Solaris Studio" },
-      { name: "description", content: "Task-based public beta test for Solaris Studio." },
+      { title: "Beta 2.0 — Solaris Studio" },
+      {
+        name: "description",
+        content: "Structured Beta 2.0 usability test for Solaris Studio.",
+      },
       { name: "robots", content: "noindex,nofollow" },
     ],
   }),
@@ -41,6 +43,7 @@ function BetaTestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sectionError, setSectionError] = useState<string | null>(null);
+  const [sectionStartedAt, setSectionStartedAt] = useState(() => Date.now());
 
   useEffect(() => {
     try {
@@ -76,6 +79,7 @@ function BetaTestPage() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+    setSectionStartedAt(Date.now());
   }, [step]);
 
   const current = betaSections[step];
@@ -91,6 +95,16 @@ function BetaTestPage() {
     setSectionError(null);
   };
 
+  const recordCurrentSectionTime = () => {
+    if (!current) return;
+    const key = `_seconds_${current.id}`;
+    const elapsed = Math.max(1, Math.round((Date.now() - sectionStartedAt) / 1000));
+    setAnswers((previous) => ({
+      ...previous,
+      [key]: Number(previous[key] ?? 0) + elapsed,
+    }));
+  };
+
   const next = () => {
     if (!current) return;
 
@@ -98,9 +112,7 @@ function BetaTestPage() {
       (question) => question.required && isBetaAnswerEmpty(answers[question.id]),
     );
     if (missing) {
-      setSectionError(
-        `Please answer “${missing.label.replace(/^\d+[A-Z]?\.\s*/, "")}” before continuing.`,
-      );
+      setSectionError(`Please answer “${missing.label}” before continuing.`);
       return;
     }
 
@@ -114,12 +126,32 @@ function BetaTestPage() {
       );
       if (incompleteBug) {
         setSectionError(
-          "For each bug, fill in PAGE, I DID, I EXPECTED and INSTEAD. Those four bits are what make a bug reproducible rather than folklore.",
+          "For each bug, fill in PAGE, I DID, I EXPECTED and INSTEAD so the problem can actually be reproduced.",
         );
         return;
       }
     }
 
+    if (current.id === "psychology-priorities") {
+      const priorities = Array.isArray(answers.priorityAreas) ? answers.priorityAreas : [];
+      if (priorities.length !== 3) {
+        setSectionError("Choose exactly THREE areas Solaris should improve most before release.");
+        return;
+      }
+    }
+
+    if (current.id === "final") {
+      const raw = String(answers.releaseReadinessPercent ?? "").trim().replace("%", "");
+      if (raw) {
+        const readiness = Number(raw);
+        if (!Number.isFinite(readiness) || readiness < 0 || readiness > 100) {
+          setSectionError("Release readiness must be a number from 0 to 100%.");
+          return;
+        }
+      }
+    }
+
+    recordCurrentSectionTime();
     setSectionError(null);
     setStep((value) => Math.min(value + 1, betaSections.length));
   };
@@ -176,13 +208,14 @@ function BetaTestPage() {
         preparedBugs.push({ ...bugData, screenshotPath });
       }
 
+      const activityPoints = calculateActivityPoints(answers, bugs);
       const payload = {
         id: submissionId,
         tester_name: testerName,
         device,
         browser: answers.browser || null,
         familiarity: answers.familiarity || null,
-        answers,
+        answers: { ...answers, activityPoints },
         bug_reports: preparedBugs,
         screenshot_paths: uploadedPaths,
         user_agent: navigator.userAgent,
@@ -197,6 +230,7 @@ function BetaTestPage() {
 
       window.localStorage.removeItem(BETA_DRAFT_KEY);
       window.localStorage.setItem(BETA_SUBMITTED_KEY, "true");
+      setAnswers((previous) => ({ ...previous, activityPoints }));
       setSubmitted(true);
     } catch (submissionError) {
       console.error("Beta feedback submission failed", submissionError);
@@ -223,6 +257,7 @@ function BetaTestPage() {
   if (!hydrated) return null;
 
   if (submitted) {
+    const points = Number(answers.activityPoints ?? calculateActivityPoints(answers, bugs));
     return (
       <AppShell>
         <div className="mx-auto max-w-3xl py-10 sm:py-16">
@@ -230,15 +265,22 @@ function BetaTestPage() {
             <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground">
               <Check className="h-7 w-7" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Public beta</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
+              Solaris Studio · Beta 2.0
+            </p>
             <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">
-              Thank you for beta testing Solaris Studio!
+              Thank you for testing Beta 2.0!
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Your feedback will be used to improve Solaris Studio before its public release. Every bug,
-              confusing button, missing feature, oddly specific complaint and feature you loved helps decide
-              what should be changed before the final version.
+              Your feedback is saved. Activity points are based on how much you tested and how useful the feedback
+              is, not whether you were positive or negative.
             </p>
+            <div className="mx-auto mt-6 max-w-xs rounded-2xl border border-primary/20 bg-primary/[0.07] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                Estimated activity points
+              </p>
+              <p className="mt-1 text-3xl font-black text-primary">{points}</p>
+            </div>
             <button
               type="button"
               onClick={restart}
@@ -259,10 +301,10 @@ function BetaTestPage() {
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
-                Solaris Studio · Public beta
+                Solaris Studio · Beta 2.0
               </p>
               <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">
-                {isReview ? "Review your feedback" : current.title}
+                {isReview ? "Review your Beta 2.0 feedback" : current.title}
               </h1>
               {!isReview && current.description ? (
                 <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{current.description}</p>
@@ -280,9 +322,7 @@ function BetaTestPage() {
             />
           </div>
           <div className="mt-2 flex justify-between text-[10px] font-semibold text-muted-foreground">
-            <span>
-              {isReview ? "Ready to submit" : "Your answers save on this device as you go."}
-            </span>
+            <span>{isReview ? "Ready to submit" : "Your answers save on this device as you go."}</span>
             <span>{isReview ? "100%" : `${progress}%`}</span>
           </div>
         </header>
@@ -290,15 +330,20 @@ function BetaTestPage() {
         {step === 0 ? (
           <div className="mb-6 rounded-2xl border border-border/70 bg-surface/70 p-4 text-sm leading-6 text-muted-foreground sm:p-5">
             <p className="font-semibold text-foreground">
-              This test is designed to find real problems and improvements, not just whether you like the website.
+              Beta 2.0 has 20 sections and is designed to test whether Solaris Studio is actually understandable,
+              not merely whether it looks nice.
             </p>
             <p className="mt-2">
-              While testing, actually explore the parts of Solaris Studio mentioned in each task. You do not
-              need to write long answers. A few words are enough when that explains your experience.
+              Most questions are quick choices. Longer text boxes are optional unless they are needed to explain a
+              problem. During unaided tasks, do not use the Guide until the form specifically allows it.
             </p>
             <p className="mt-2">
-              If something is confusing, slow, unnecessary, missing, surprisingly good or completely broken,
-              mention it. Useful criticism beats polite fog.
+              Some old editions/results are still incomplete. Missing archive data is expected and should not lower
+              a feature rating by itself.
+            </p>
+            <p className="mt-2">
+              Activity points reward the amount and usefulness of testing, never whether your feedback is positive
+              or negative.
             </p>
           </div>
         ) : null}
@@ -353,7 +398,7 @@ function BetaTestPage() {
               disabled={submitting}
               className="flex min-h-11 flex-[2] items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-60 sm:ml-auto sm:flex-none"
             >
-              {submitting ? "Submitting…" : "Submit feedback"} <Check className="h-4 w-4" />
+              {submitting ? "Submitting…" : "Submit Beta 2.0 feedback"} <Check className="h-4 w-4" />
             </button>
           ) : (
             <button
@@ -369,4 +414,40 @@ function BetaTestPage() {
       </div>
     </AppShell>
   );
+}
+
+function calculateActivityPoints(answers: BetaAnswers, bugs: BetaBugReport[]) {
+  let points = 20;
+
+  const successfulDiscovery = [
+    answers.accountFindSuccess,
+    answers.confirmationFindSuccess,
+    answers.searchSuccess,
+    answers.guideFindSuccess,
+  ].filter((value) => typeof value === "string" && !String(value).includes("Could not") && value !== "No");
+  points += successfulDiscovery.length * 2;
+
+  const personalities = Array.isArray(answers.personalitiesTried) ? answers.personalitiesTried.length : 0;
+  points += Math.max(0, personalities - 3);
+
+  for (const bug of bugs) {
+    if (!bug.page.trim() || !bug.did.trim() || !bug.expected.trim() || !bug.instead.trim()) continue;
+    let bugPoints = 3;
+    if (bug.reproducibility === "Every time") bugPoints += 2;
+    if (bug.severity === "Makes a feature difficult to use" || bug.severity === "Feature doesn't work") bugPoints += 2;
+    if (bug.severity === "Major problem / blocks normal use") bugPoints += 5;
+    points += Math.min(bugPoints, 10);
+  }
+
+  if (answers.firstRound === "Yes" && answers.beta1BroadCompare && typeof answers.beta1BroadCompare === "object") {
+    points += 5;
+  }
+  if (answers.additionalDeviceTest === "Yes") points += 8;
+
+  for (const key of ["accountConfusing", "confirmationConfusing", "countryEditorProblem", "publicDiscoveryConfusing", "pulseImprove", "resultsInterfaceProblem", "personalityWhy", "priorityWhy", "betterIf"]) {
+    const value = answers[key];
+    if (typeof value === "string" && value.trim().length >= 30) points += 2;
+  }
+
+  return Math.min(points, 100);
 }

@@ -3,8 +3,8 @@ import { Check, ChevronDown, Search, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { editionLabel, useEditions } from "@/lib/data";
-import { AdminSheet } from "./AdminUI";
 import { useAdminContext } from "./AdminContext";
+import { AdminSheet } from "./AdminUI";
 
 export function AdminSelectors() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -139,7 +139,7 @@ export function AdminSelectors() {
         open={open}
         onClose={() => setOpen(false)}
         title="Switch edition"
-        description={`${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"} available. Your current workspace is preserved when possible.`}
+        description={`${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"} available. Solaris Studio keeps you on the same kind of page when it can.`}
       >
         <div className="sticky top-0 z-10 -mx-1 mb-3 bg-[#081326] pb-2">
           <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3">
@@ -173,7 +173,8 @@ export function AdminSelectors() {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-foreground">{editionLabel(edition)}</span>
                   <span className="mt-1 block truncate text-xs text-muted-foreground">
-                    {edition.name}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                    {edition.name}
+                    {edition.host_city ? ` · ${edition.host_city}` : ""}
                   </span>
                 </span>
                 {active ? <Check className="size-4 shrink-0 text-sky-100" /> : null}

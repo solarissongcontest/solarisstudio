@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
   ChevronDown,
+  CircleHelp,
   Compass,
   Home,
   Menu,
@@ -26,17 +27,17 @@ type PublicNavItem = {
 };
 
 const EXPLORE_NAV: PublicNavItem[] = [
-  { to: "/editions", label: "Editions", description: "Browse every Solaris Song Contest edition" },
-  { to: "/countries", label: "Countries", description: "Delegations, entries and historical records" },
-  { to: "/shows", label: "Shows", description: "Semi-finals, finals and broadcast pages" },
-  { to: "/wiki", label: "Wiki", description: "Reference material from across Terra Solaris" },
+  { to: "/editions", label: "Editions", description: "See every Solaris Song Contest edition" },
+  { to: "/countries", label: "Countries", description: "See countries, entries and results" },
+  { to: "/shows", label: "Shows", description: "Open semi-finals, finals and results" },
+  { to: "/wiki", label: "Wiki", description: "Read detailed country pages" },
 ];
 
 const INSIGHTS_NAV: PublicNavItem[] = [
-  { to: "/analysis", label: "Analysis", description: "Deep dives into results and voting" },
-  { to: "/pulse", label: "Pulse", description: "What is moving across Solaris right now" },
-  { to: "/relationships", label: "Relationships", description: "Long-term voting connections" },
-  { to: "/records", label: "Records", description: "All-time highs, lows and milestones" },
+  { to: "/analysis", label: "Analysis", description: "See what the results and votes show" },
+  { to: "/pulse", label: "Pulse", description: "See what has changed recently" },
+  { to: "/relationships", label: "Relationships", description: "See which countries often vote alike" },
+  { to: "/records", label: "Records", description: "See all-time records and milestones" },
 ];
 
 const TOOL_ROUTES = [
@@ -204,6 +205,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const exploreActive = anyPathMatches(pathname, EXPLORE_ROUTES);
   const insightsActive = anyPathMatches(pathname, INSIGHT_ROUTES);
   const participateActive = anyPathMatches(pathname, PARTICIPATE_ROUTES);
+  const guideActive = pathMatches(pathname, "/guide");
   const accountActive = anyPathMatches(pathname, ACCOUNT_ROUTES) || pathname.startsWith("/admin");
 
   return (
@@ -235,7 +237,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               label="Insights"
               active={insightsActive}
               items={INSIGHTS_NAV}
-              footer={{ to: "/tools", label: "Open tools", description: "Result Lab, Taste DNA, comparisons and archive games" }}
+              footer={{
+                to: "/tools",
+                label: "Open tools",
+                description: "Try Result Lab, Taste DNA, comparisons and archive games",
+              }}
             />
 
             <Link
@@ -257,6 +263,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             >
               Participate
+            </Link>
+
+            <Link
+              to="/guide"
+              aria-current={guideActive ? "page" : undefined}
+              className={desktopNavClass(guideActive)}
+            >
+              Guide
             </Link>
 
             {email ? (
@@ -359,6 +373,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link to="/participate" className={mobileDrawerLink(participateActive)}>
                   Participate
                 </Link>
+                <Link to="/guide" className={mobileDrawerLink(guideActive)}>
+                  <CircleHelp className="mr-2 h-4 w-4" /> Guide
+                </Link>
               </div>
 
               {email && (
@@ -366,11 +383,20 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
                     My Solaris
                   </p>
-                  <Link to="/country-hub" className={mobileDrawerLink(pathMatches(pathname, "/country-hub") || pathMatches(pathname, "/me"))}>
+                  <Link
+                    to="/country-hub"
+                    className={mobileDrawerLink(
+                      pathMatches(pathname, "/country-hub") || pathMatches(pathname, "/me"),
+                    )}
+                  >
                     My Solaris
                   </Link>
                   {roleItems.map((item) => (
-                    <Link key={item.to} to={item.to as any} className={mobileDrawerLink(pathMatches(pathname, item.to))}>
+                    <Link
+                      key={item.to}
+                      to={item.to as any}
+                      className={mobileDrawerLink(pathMatches(pathname, item.to))}
+                    >
                       {item.label}
                     </Link>
                   ))}
@@ -378,7 +404,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </nav>
 
-            <div className="border-t border-border p-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+            <div
+              className="border-t border-border p-4"
+              style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            >
               {email ? (
                 <div className="space-y-3">
                   <p className="truncate text-[10px] text-muted-foreground">{email}</p>
@@ -484,7 +513,9 @@ function DesktopNavMenu({
           <Link key={item.to} to={item.to as any} className="nav-menu-item">
             <span className="font-semibold text-foreground">{item.label}</span>
             {item.description && (
-              <span className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{item.description}</span>
+              <span className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                {item.description}
+              </span>
             )}
           </Link>
         ))}
@@ -495,7 +526,9 @@ function DesktopNavMenu({
           >
             <span className="font-semibold text-foreground">{footer.label}</span>
             {footer.description && (
-              <span className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{footer.description}</span>
+              <span className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                {footer.description}
+              </span>
             )}
           </Link>
         )}
@@ -519,7 +552,11 @@ function MobileNavSection({
         {title}
       </p>
       {items.map((item) => (
-        <Link key={item.to} to={item.to as any} className={mobileDrawerLink(pathMatches(pathname, item.to))}>
+        <Link
+          key={item.to}
+          to={item.to as any}
+          className={mobileDrawerLink(pathMatches(pathname, item.to))}
+        >
           <span className="min-w-0">
             <span className="block truncate">{item.label}</span>
             {item.description && (
@@ -644,7 +681,9 @@ export function Panel({
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
             )}
           </div>
-          {actions && <div className="flex min-w-0 flex-wrap gap-2 sm:shrink-0 sm:justify-end">{actions}</div>}
+          {actions && (
+            <div className="flex min-w-0 flex-wrap gap-2 sm:shrink-0 sm:justify-end">{actions}</div>
+          )}
         </div>
       )}
       <div className="min-w-0">{children}</div>

@@ -9,12 +9,15 @@ function source(path: string) {
 describe("country edition participation editing", () => {
   it("renders one editable entry per edition rather than one per show appearance", () => {
     const hub = source("src/routes/_authenticated/country-hub/index.tsx");
+    const normalizedHub = hub.replace(/\s+/g, " ");
 
     expect(hub).toContain("const byEdition = new Map<string, EditionEntry>()");
     expect(hub).toContain("byEdition.get(entry.edition_id)");
     expect(hub).toContain("key={group.editionId}");
     expect(hub).not.toContain("myEntries.map((entry) => <EntryEditor key={entry.id}");
-    expect(hub).toContain("These are appearances of the same edition entry. Artist, song and listening links are entered once.");
+    expect(normalizedHub).toContain(
+      "These are appearances of the same edition entry. Artist, song and listening links are entered once.",
+    );
   });
 
   it("keeps edition-wide artist and song synchronization in the database", () => {
