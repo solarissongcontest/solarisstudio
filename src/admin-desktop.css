@@ -25,6 +25,20 @@
   scroll-padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
 }
 
+/* FastJuryEntry owns its own ballot + live-standings desktop grid. Keep this
+   wrapper neutral so an older organizer layout cannot squeeze the entire new
+   workspace into a narrow outer column or make sticky text overlap it. */
+.admin-jury-entry {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-jury-voters,
+.admin-jury-ballot {
+  min-width: 0;
+}
+
 /* Laptop / landscape tablet. This starts well before the old 1024/1280px
    breakpoints because browser zoom and OS scaling often shrink desktop CSS px. */
 @media (min-width: 720px) {
@@ -112,8 +126,9 @@
   }
 }
 
-/* Full desktop: keep the jury list visible beside the ballot, while the ballot
-   itself uses the remaining width. */
+/* Full desktop. FastJuryEntry already creates the intended two-column layout:
+   the ballot takes the flexible main area and live jury standings stay in the
+   compact right rail. Do not add a second grid or sticky voter column here. */
 @media (min-width: 1180px) {
   .admin-frame {
     grid-template-columns: 15rem minmax(0, 1fr);
@@ -127,29 +142,17 @@
     gap: 1.35rem;
   }
 
-  .admin-jury-entry {
-    display: grid;
-    grid-template-columns: minmax(14rem, .72fr) minmax(0, 2.28fr);
-    align-items: start;
-    gap: 1.25rem;
-  }
-
   .admin-jury-voters {
-    position: sticky;
-    top: 7.25rem;
-    align-self: start;
+    position: static;
+    top: auto;
   }
 
   .admin-jury-voter-list {
-    display: flex !important;
-    max-height: min(68vh, 46rem);
-    flex-direction: column;
-    flex-wrap: nowrap;
-    padding-right: .25rem;
-  }
-
-  .admin-jury-ballot {
-    min-width: 0;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    max-height: 12rem;
+    overflow-y: auto;
+    padding-right: 0;
   }
 }
 
