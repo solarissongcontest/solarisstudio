@@ -57,6 +57,7 @@ export function SolarisAmbientBackground() {
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
     const precisePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const mobileViewport = window.matchMedia("(max-width: 767px)");
     let frame = 0;
 
     const writeMotion = (x: number, y: number, scrollY: number) => {
@@ -83,6 +84,7 @@ export function SolarisAmbientBackground() {
     let pointerY = 0;
 
     const schedule = () => {
+      if (document.hidden) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => writeMotion(pointerX, pointerY, window.scrollY));
     };
@@ -100,18 +102,31 @@ export function SolarisAmbientBackground() {
       schedule();
     };
 
-    const onScroll = () => schedule();
+    // Mobile CSS intentionally removes scroll parallax, so do not keep doing
+    // requestAnimationFrame + CSS-variable writes that cannot affect pixels.
+    const onScroll = () => {
+      if (mobileViewport.matches || reduced.matches) return;
+      schedule();
+    };
+
+    const onVisibilityChange = () => {
+      root.dataset.paused = document.hidden ? "true" : "false";
+      if (!document.hidden && !mobileViewport.matches) schedule();
+    };
 
     writeMotion(0, 0, window.scrollY);
+    onVisibilityChange();
     window.addEventListener("pointermove", onPointerMove, { passive: true });
     document.documentElement.addEventListener("mouseleave", onPointerLeave);
     window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", onPointerMove);
       document.documentElement.removeEventListener("mouseleave", onPointerLeave);
       window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
