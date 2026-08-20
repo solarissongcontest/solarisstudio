@@ -8,11 +8,7 @@ import {
   useNotificationPreferences,
 } from "@/lib/engagement-data";
 import { useFanSession } from "@/lib/prediction-data";
-import {
-  buildPulseInbox,
-  eventTypeLabel,
-  PULSE_CATEGORY_OPTIONS,
-} from "@/lib/pulse";
+import { buildPulseInbox, PULSE_CATEGORY_OPTIONS } from "@/lib/pulse";
 
 const DEFAULT_CATEGORIES = PULSE_CATEGORY_OPTIONS.map(([value]) => value);
 
@@ -36,68 +32,71 @@ export function PulseStrip() {
     inAppEnabled: preferences?.in_app_enabled ?? true,
   });
 
-  const unreadCount = user
-    ? events.filter((event) => !readIds.has(event.id)).length
-    : 0;
+  const unreadCount = user ? events.filter((event) => !readIds.has(event.id)).length : 0;
+  const lead = events.find((event) => event.importance === "important") ?? events[0];
+  const more = events.filter((event) => event.id !== lead?.id).slice(0, 2);
 
   return (
-    <section className="glass p-4 sm:p-5" aria-labelledby="pulse-strip-title">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+    <section
+      className="overflow-hidden rounded-3xl border border-border/70 bg-surface"
+      aria-labelledby="pulse-strip-title"
+    >
+      <div className="grid md:grid-cols-[1.15fr_.85fr]">
+        <div className="bg-gradient-to-br from-primary/15 via-surface to-background p-5 sm:p-6">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">
-              Solaris Pulse
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">
+              What changed
             </p>
             {user && unreadCount > 0 && (
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold text-primary">
-                {unreadCount} unread
+              <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
+                {unreadCount} new
               </span>
             )}
           </div>
-          <h2 id="pulse-strip-title" className="mt-1 text-xl font-bold tracking-[-0.025em]">
-            {user ? "Your latest meaningful changes" : "What changed recently?"}
+          <h2 id="pulse-strip-title" className="mt-2 text-2xl font-bold tracking-tight">
+            Solaris Pulse
           </h2>
-        </div>
-        <Link to="/pulse" className="shrink-0 text-xs font-bold text-primary">
-          Open →
-        </Link>
-      </div>
 
-      {events.length ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          {events.slice(0, 3).map((event) => (
-            <Link
-              key={event.id}
-              to={event.route}
-              className="rounded-xl bg-surface px-3 py-3 transition-colors hover:bg-surface-strong"
-            >
-              <div className="flex items-center gap-2">
-                {user && (
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      readIds.has(event.id) ? "bg-border" : "bg-primary"
-                    }`}
-                  />
-                )}
-                <p className="text-[8px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
-                  {eventTypeLabel(event.event_type)}
+          {lead ? (
+            <Link to={lead.route} className="mt-4 block">
+              <p className="text-lg font-bold leading-snug">{lead.title}</p>
+              {lead.summary && (
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                  {lead.summary}
                 </p>
-              </div>
-              <p className="mt-1 line-clamp-2 text-sm font-semibold">{event.title}</p>
+              )}
+              <p className="mt-3 text-sm font-semibold text-primary">See what changed →</p>
             </Link>
-          ))}
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Current contest changes will appear here when something happens.
+            </p>
+          )}
         </div>
-      ) : (
-        <div className="mt-3 rounded-xl bg-surface px-3 py-3">
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {user && preferences?.in_app_enabled === false
-              ? "Your Pulse inbox is paused. You can switch it back on from Pulse preferences."
-              : user && (followData?.follows.length ?? 0) > 0
-                ? "Nothing important has changed for the things you follow. A rare moment of internet peace."
-                : "Current edition status, open predictions and public updates are collected here."}
-          </p>
+
+        <div className="border-t border-border/70 p-5 md:border-l md:border-t-0">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-bold">More updates</p>
+            <Link to="/pulse" className="text-sm font-bold text-primary">
+              Catch up →
+            </Link>
+          </div>
+
+          {more.length ? (
+            <div className="mt-3 divide-y divide-border/70">
+              {more.map((event) => (
+                <Link key={event.id} to={event.route} className="block py-3 first:pt-0 last:pb-0">
+                  <p className="line-clamp-2 text-sm font-semibold leading-5">{event.title}</p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Nothing else needs your attention right now.
+            </p>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }
