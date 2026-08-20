@@ -1,8 +1,19 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
+import { CountryHeroArtControls } from "@/components/CountryHeroArtControls";
+import "@/country-hero-art.css";
 import "@/country-personalities.css";
 import "@/country-personalities-v2.css";
+import { useMyCountryAccount } from "@/lib/country-account";
+import {
+  normaliseHeroDecoration,
+  normaliseHeroVisualMode,
+  resolveHeroDecoration,
+  resolveHeroVisualMode,
+  type CountryHeroDecoration,
+  type CountryHeroVisualMode,
+} from "@/lib/country-hero-art";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
@@ -20,8 +31,19 @@ type EditionVisual = {
   artwork_url?: string | null;
 };
 
+type CountryThemeWithHeroArt = {
+  hero_visual_mode?: CountryHeroVisualMode | string | null;
+  hero_decoration?: CountryHeroDecoration | string | null;
+};
+
 type ResolvedVisual =
-  | { kind: "country"; theme: CountryVisualTheme; artwork: null }
+  | {
+      kind: "country";
+      theme: CountryVisualTheme;
+      artwork: null;
+      heroVisualMode: Exclude<CountryHeroVisualMode, "auto">;
+      heroDecoration: Exclude<CountryHeroDecoration, "auto">;
+    }
   | {
       kind: "edition";
       theme: ReturnType<typeof editionThemeToVisual> extends infer T ? Exclude<T, null> : never;
@@ -34,11 +56,23 @@ function segmentAfter(pathname: string, prefix: string) {
 }
 
 export function RouteVisualTheme() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const location = useRouterState({ select: (state) => state.location });
+  const pathname = location.pathname;
+  const search = location.search as Record<string, unknown>;
   const { data: countries } = useCountries();
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
   const { data: countryThemes } = useCountryThemes();
+  const { data: accountData } = useMyCountryAccount();
+
+  const editorCountry = useMemo(() => {
+    if (pathname !== "/country-hub/theme") return null;
+    const targetCountryId = typeof search.country === "string" ? search.country : null;
+    if (accountData?.access?.isOrganizer && targetCountryId) {
+      return (countries ?? []).find((country) => country.id === targetCountryId) ?? null;
+    }
+    return accountData?.country ?? null;
+  }, [pathname, search.country, accountData?.access?.isOrganizer, accountData?.country, countries]);
 
   const resolved = useMemo<ResolvedVisual | null>(() => {
     const countryCode =
@@ -52,7 +86,18 @@ export function RouteVisualTheme() {
         ? (countryThemes ?? []).find((theme) => theme.country_id === country.id)
         : null;
       const theme = countryThemeToVisual(row);
-      if (theme) return { theme, kind: "country", artwork: null };
+      if (theme) {
+        const art = (row ?? {}) as CountryThemeWithHeroArt;
+        const requestedVisualMode = normaliseHeroVisualMode(art.hero_visual_mode);
+        const requestedDecoration = normaliseHeroDecoration(art.hero_decoration);
+        return {
+          theme,
+          kind: "country",
+          artwork: null,
+          heroVisualMode: resolveHeroVisualMode(theme.heroLayout, requestedVisualMode),
+          heroDecoration: resolveHeroDecoration(theme.heroLayout, requestedDecoration),
+        };
+      }
     }
 
     const visualEditions = (editions ?? []) as EditionVisual[];
@@ -97,6 +142,8 @@ export function RouteVisualTheme() {
       delete body.dataset.editionArtwork;
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
+      delete body.dataset.countryHeroVisualMode;
+      delete body.dataset.countryHeroDecoration;
       keys.forEach((key) => body.style.removeProperty(key));
     };
 
@@ -112,6 +159,8 @@ export function RouteVisualTheme() {
     if (resolved.kind === "country") {
       body.dataset.countryBackgroundMode = resolved.theme.backgroundMode;
       body.dataset.countryHeroLayout = resolved.theme.heroLayout;
+      body.dataset.countryHeroVisualMode = resolved.heroVisualMode;
+      body.dataset.countryHeroDecoration = resolved.heroDecoration;
       body.style.setProperty("--country-page-background", countryBackgroundCss(resolved.theme));
       body.style.setProperty(
         "--country-page-position",
@@ -121,6 +170,8 @@ export function RouteVisualTheme() {
     } else {
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
+      delete body.dataset.countryHeroVisualMode;
+      delete body.dataset.countryHeroDecoration;
       body.style.removeProperty("--country-page-background");
       body.style.removeProperty("--country-page-position");
       body.style.removeProperty("--country-page-blur");
@@ -141,39 +192,45 @@ export function RouteVisualTheme() {
   }, [resolved]);
 
   return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      width="0"
-      height="0"
-      className="pointer-events-none absolute"
-    >
-      <defs>
-        <filter
-          id="solaris-liquid-glass"
-          x="-12%"
-          y="-12%"
-          width="124%"
-          height="124%"
-          colorInterpolationFilters="sRGB"
-        >
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.012 0.018"
-            numOctaves="2"
-            seed="17"
-            result="glassNoise"
-          />
-          <feGaussianBlur in="glassNoise" stdDeviation="0.8" result="softGlassNoise" />
-          <feDisplacementMap
-            in="SourceGraphic"
-            in2="softGlassNoise"
-            scale="5"
-            xChannelSelector="R"
-            yChannelSelector="G"
-          />
-        </filter>
-      </defs>
-    </svg>
+    <>
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        width="0"
+        height="0"
+        className="pointer-events-none absolute"
+      >
+        <defs>
+          <filter
+            id="solaris-liquid-glass"
+            x="-12%"
+            y="-12%"
+            width="124%"
+            height="124%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.012 0.018"
+              numOctaves="2"
+              seed="17"
+              result="glassNoise"
+            />
+            <feGaussianBlur in="glassNoise" stdDeviation="0.8" result="softGlassNoise" />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="softGlassNoise"
+              scale="5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </defs>
+      </svg>
+
+      {editorCountry && (
+        <CountryHeroArtControls countryId={editorCountry.id} countryName={editorCountry.name} />
+      )}
+    </>
   );
 }
