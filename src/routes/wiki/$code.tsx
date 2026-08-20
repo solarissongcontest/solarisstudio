@@ -129,6 +129,13 @@ function CountryWikiPage() {
             opacity={0.1}
           />
           <div className="relative z-10 max-w-3xl">
+            {country.flag_image && (
+              <div
+                aria-hidden="true"
+                className="country-glass-panel-flag"
+                style={{ backgroundImage: `url(${JSON.stringify(country.flag_image)})` }}
+              />
+            )}
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Terra Solaris Wiki</p>
             <h1 className="mt-2 break-words font-display text-3xl font-bold sm:text-5xl">{country.name}</h1>
             {country.native_name && country.native_name !== country.name && <p className="mt-1 text-sm text-muted-foreground">{country.native_name}</p>}
@@ -211,7 +218,7 @@ function CountryWikiPage() {
               </WikiSection>
             )}
 
-            <section className="glass overflow-hidden p-5 sm:p-6">
+            <section className="country-personality-card glass overflow-hidden p-5 sm:p-6">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Solaris character read</p>
               <h2 className="mt-2 font-display text-2xl font-semibold">{character.title}</h2>
               <p className="mt-3 text-sm leading-7 text-muted-foreground">{character.summary}</p>
@@ -219,7 +226,7 @@ function CountryWikiPage() {
             </section>
 
             {facts.length > 0 && (
-              <section className="glass p-5 sm:p-6">
+              <section className="country-personality-card glass p-5 sm:p-6">
                 <div className="mb-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">From the national record</p>
                   <h2 className="mt-1 font-display text-xl font-semibold">Fun facts</h2>
@@ -231,7 +238,7 @@ function CountryWikiPage() {
           </article>
 
           <aside className="min-w-0 lg:sticky lg:top-24">
-            <div className="glass overflow-hidden">
+            <div className="country-personality-card glass overflow-hidden">
               <div className="border-b border-border/60 p-4 text-center">
                 <div className="mx-auto flex justify-center"><FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="xl" /></div>
                 <p className="mt-3 font-display text-xl font-bold">{country.name}</p>
@@ -252,7 +259,7 @@ function CountryWikiPage() {
 
 function WikiSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="min-w-0 border-b border-border/60 pb-6 last:border-b-0">
+    <section className="country-personality-card min-w-0 border-b border-border/60 p-4 sm:p-5">
       <h2 className="border-b border-border/60 pb-2 font-display text-xl font-semibold sm:text-2xl">{title}</h2>
       <div className="mt-4 text-sm leading-7 text-muted-foreground">{children}</div>
     </section>
@@ -260,7 +267,7 @@ function WikiSection({ title, children }: { title: string; children: React.React
 }
 
 function MiniStat({ label, value }: { label: string; value: string | number }) {
-  return <div className="rounded-xl bg-surface p-3"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-1 font-display text-xl font-semibold text-foreground">{value}</p></div>;
+  return <div className="country-personality-inset rounded-xl bg-surface p-3"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-1 font-display text-xl font-semibold text-foreground">{value}</p></div>;
 }
 
 function articleFor(value: string) {

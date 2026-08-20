@@ -81,6 +81,7 @@ function CountryCustomSection({
   const wrapperClass = [
     widthClass(presentation.width),
     panelClass(presentation.panelStyle, surface),
+    presentation.panelStyle === "transparent" ? "" : "country-personality-card",
     spacingClass(presentation.spacing),
     presentation.textAlign === "center" ? "text-center" : "text-left",
     "min-w-0 overflow-hidden",
