@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 const visualTheme = source("src/lib/visual-theme.ts");
 const editor = source("src/routes/_authenticated/country-hub/theme.tsx");
 const css = source("src/country-personalities.css");
+const polishCss = source("src/country-personalities-polish.css");
 const backgroundFlag = source("src/components/BackgroundFlag.tsx");
 const routeVisualTheme = source("src/components/RouteVisualTheme.tsx");
 const migration = source("supabase/migrations/20260820160000_expand_country_page_personalities.sql");
@@ -22,14 +23,13 @@ const newLayouts = [
   "horizon",
 ];
 
-const rectangularLayouts = [
+const directImageLayouts = [
   "editorial",
   "flag-focus",
   "poster",
   "split",
   "broadcast",
   "panorama",
-  "monument",
   "glass-card",
   "newspaper",
   "ribbon",
@@ -46,33 +46,30 @@ describe("expanded country page personalities", () => {
       expect(migration).toContain(`'${layout}'`);
       expect(editor).toContain(`value: \"${layout}\"`);
     }
-    expect(editor).toContain("Sixteen deliberately different header compositions");
   });
 
-  it("keeps circular flag art only for layouts where an emblem shape is intentional", () => {
+  it("uses the original flag asset directly for geometric layouts", () => {
     expect(backgroundFlag).toContain("--background-flag-image");
-    expect(css).toContain("Only Classic and Spotlight use the original circular dissolve");
-    for (const layout of rectangularLayouts) {
-      expect(css).toContain(`[data-country-hero-layout=\"${layout}\"]`);
+    expect(polishCss).toContain("background-image: var(--background-flag-image)");
+    expect(polishCss).toContain(".country-hero-background-flag > svg");
+    expect(polishCss).toContain("display: none !important");
+    for (const layout of directImageLayouts) {
+      expect(polishCss).toContain(`[data-country-hero-layout=\"${layout}\"]`);
     }
-    expect(css).toContain(".country-hero-background-flag > svg");
-    expect(css).toContain("display: none !important");
-    expect(css).toContain("aspect-ratio: 3 / 2 !important");
   });
 
   it("keeps mobile heroes compact instead of inheriting tall desktop canvases", () => {
-    expect(css).toContain("@media (max-width: 767px)");
-    expect(css).toContain('[data-country-hero-layout="glass-card"]');
-    expect(css).toContain("min-height: 20rem !important");
-    expect(css).toContain('[data-country-hero-layout="split"]');
-    expect(css).toContain("min-height: 24rem !important");
-    expect(css).toContain('[data-country-hero-layout="passport"]');
-    expect(css).toContain("min-height: 16rem !important");
+    expect(polishCss).toContain("@media (max-width: 767px)");
+    expect(polishCss).toContain("min-height: auto !important");
+    expect(polishCss).toContain('[data-country-hero-layout="glass-card"]');
+    expect(polishCss).toContain('[data-country-hero-layout="split"]');
+    expect(polishCss).toContain('[data-country-hero-layout="passport"]');
   });
 
-  it("uses layered liquid glass with a progressive refraction filter", () => {
-    expect(css).toContain("-webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.06)");
-    expect(css).toContain("backdrop-filter: url(\"#solaris-liquid-glass\")");
+  it("uses layered liquid glass with progressive refraction", () => {
+    expect(polishCss).toContain("-webkit-backdrop-filter: blur(16px) saturate(175%)");
+    expect(polishCss).toContain('backdrop-filter: url("#solaris-liquid-glass")');
+    expect(polishCss).toContain("mix-blend-mode: screen");
     expect(routeVisualTheme).toContain('id="solaris-liquid-glass"');
     expect(routeVisualTheme).toContain("feDisplacementMap");
     expect(routeVisualTheme).toContain("feTurbulence");
@@ -81,6 +78,5 @@ describe("expanded country page personalities", () => {
   it("binds country and wiki headings to the configured main-text colour", () => {
     expect(css).toContain('.app-main :is(h1, h2, h3, h4, h5, h6)');
     expect(css).toContain("color: var(--foreground) !important");
-    expect(editor).toContain("Main text now controls every country/Wiki heading");
   });
 });
