@@ -168,7 +168,7 @@ function Beta2FeedbackDashboard() {
             title="Beta 1 weaknesses"
             description="These use the real Beta 1 counts instead of invented average scores."
             action={
-              <Link to="/admin/beta-feedback" className="admin-action-secondary !min-h-10">
+              <Link to="/admin/beta1-feedback" className="admin-action-secondary !min-h-10">
                 Open Beta 1 archive
               </Link>
             }
