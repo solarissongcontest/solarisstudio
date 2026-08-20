@@ -1,6 +1,5 @@
-import {
-  useId,
-} from "react";
+import { useId } from "react";
+import type { CSSProperties } from "react";
 
 type BackgroundFlagProps = {
   image?: string | null;
@@ -8,41 +7,34 @@ type BackgroundFlagProps = {
   opacity?: number;
 };
 
+type BackgroundFlagStyle = CSSProperties & {
+  "--background-flag-image"?: string;
+};
+
 export function BackgroundFlag({
   image,
   className = "",
   opacity = 0.2,
 }: BackgroundFlagProps) {
-  const reactId =
-    useId();
-
-  const id =
-    reactId.replace(
-      /:/g,
-      "",
-    );
+  const reactId = useId();
+  const id = reactId.replace(/:/g, "");
 
   if (!image) {
     return null;
   }
 
-  const patternId =
-    `background-flag-pattern-${id}`;
+  const patternId = `background-flag-pattern-${id}`;
+  const blurId = `background-flag-blur-${id}`;
+  const sharpMaskId = `background-flag-sharp-mask-${id}`;
+  const softMaskId = `background-flag-soft-mask-${id}`;
+  const sharpGradientId = `background-flag-sharp-gradient-${id}`;
+  const softGradientId = `background-flag-soft-gradient-${id}`;
 
-  const blurId =
-    `background-flag-blur-${id}`;
-
-  const sharpMaskId =
-    `background-flag-sharp-mask-${id}`;
-
-  const softMaskId =
-    `background-flag-soft-mask-${id}`;
-
-  const sharpGradientId =
-    `background-flag-sharp-gradient-${id}`;
-
-  const softGradientId =
-    `background-flag-soft-gradient-${id}`;
+  const style: BackgroundFlagStyle = {
+    opacity,
+    position: "absolute",
+    "--background-flag-image": `url(${JSON.stringify(image)})`,
+  };
 
   return (
     <div
@@ -54,10 +46,7 @@ export function BackgroundFlag({
         select-none
         ${className}
       `}
-      style={{
-        opacity,
-        position: "absolute",
-      }}
+      style={style}
     >
       <svg
         viewBox="-10 -10 120 120"
@@ -69,10 +58,7 @@ export function BackgroundFlag({
           w-full
           overflow-visible
         "
-        style={{
-          overflow:
-            "visible",
-        }}
+        style={{ overflow: "visible" }}
       >
         <defs>
           <pattern
@@ -99,16 +85,11 @@ export function BackgroundFlag({
             height="220%"
             colorInterpolationFilters="sRGB"
           >
-            <feGaussianBlur
-              stdDeviation="9"
-            />
+            <feGaussianBlur stdDeviation="9" />
           </filter>
 
-          {/* Sharp centre */}
           <radialGradient
-            id={
-              sharpGradientId
-            }
+            id={sharpGradientId}
             cx="50%"
             cy="50%"
             r="50%"
@@ -140,7 +121,6 @@ export function BackgroundFlag({
             />
           </mask>
 
-          {/* Long blurred fade */}
           <radialGradient
             id={softGradientId}
             cx="50%"
@@ -173,7 +153,6 @@ export function BackgroundFlag({
           </mask>
         </defs>
 
-        {/* Bigger / longer blurred dissolve */}
         <circle
           cx="50"
           cy="50"
@@ -183,7 +162,6 @@ export function BackgroundFlag({
           mask={`url(#${softMaskId})`}
         />
 
-        {/* Main sharp flag */}
         <circle
           cx="50"
           cy="50"

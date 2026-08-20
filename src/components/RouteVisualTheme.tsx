@@ -1,6 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
+import "@/country-personalities.css";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
@@ -20,7 +21,11 @@ type EditionVisual = {
 
 type ResolvedVisual =
   | { kind: "country"; theme: CountryVisualTheme; artwork: null }
-  | { kind: "edition"; theme: ReturnType<typeof editionThemeToVisual> extends infer T ? Exclude<T, null> : never; artwork: string | null };
+  | {
+      kind: "edition";
+      theme: ReturnType<typeof editionThemeToVisual> extends infer T ? Exclude<T, null> : never;
+      artwork: string | null;
+    };
 
 function segmentAfter(pathname: string, prefix: string) {
   if (!pathname.startsWith(prefix)) return null;
@@ -122,7 +127,10 @@ export function RouteVisualTheme() {
 
     if (resolved.artwork) {
       body.dataset.editionArtwork = "true";
-      body.style.setProperty("--edition-artwork-image", `url(${JSON.stringify(resolved.artwork)})`);
+      body.style.setProperty(
+        "--edition-artwork-image",
+        `url(${JSON.stringify(resolved.artwork)})`,
+      );
     } else {
       delete body.dataset.editionArtwork;
       body.style.removeProperty("--edition-artwork-image");
@@ -131,5 +139,40 @@ export function RouteVisualTheme() {
     return clear;
   }, [resolved]);
 
-  return null;
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="0"
+      height="0"
+      className="pointer-events-none absolute"
+    >
+      <defs>
+        <filter
+          id="solaris-liquid-glass"
+          x="-12%"
+          y="-12%"
+          width="124%"
+          height="124%"
+          colorInterpolationFilters="sRGB"
+        >
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.012 0.018"
+            numOctaves="2"
+            seed="17"
+            result="glassNoise"
+          />
+          <feGaussianBlur in="glassNoise" stdDeviation="0.8" result="softGlassNoise" />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="softGlassNoise"
+            scale="5"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
+        </filter>
+      </defs>
+    </svg>
+  );
 }
