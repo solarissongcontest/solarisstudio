@@ -52,7 +52,11 @@ function IntelligencePage() {
     queryKey: ["merged-televoting-intelligence", lens, channel, hodPersonId ?? "all-hods", editionId ?? "all-editions"],
     queryFn: () => getIntelligence({ data: { lens, channel, hodPersonId, editionId } }),
     enabled: Boolean(admin),
-    refetchInterval: 30_000,
+    staleTime: 30_000,
+    // This calculation spans historical jury + televote evidence and is much
+    // heavier than a live scoreboard. Settings changes still invalidate it
+    // immediately, while background refreshes can safely be less aggressive.
+    refetchInterval: 60_000,
   });
   const { data, isLoading, error } = intelligenceQuery;
 
@@ -178,145 +182,73 @@ function IntelligencePage() {
 
       {tab === "detection" ? (
         <section className="glass p-5 sm:p-6">
-          <div className="mb-5"><h2 className="font-display text-3xl uppercase">Detection signals</h2><p className="mt-2 text-sm text-muted-foreground">Signals are prompts for organizer review, not findings of misconduct. Technical identity evidence and long-term voting relationships remain separate forms of evidence.</p></div>
-          <SignalGrid signals={data.signals} />
-        </section>
-      ) : null}
-
-      {tab === "friend-voting" ? (
-        <section className="glass p-4 sm:p-6">
-          <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-            <div>
-              <h2 className="font-display text-3xl uppercase">Relationship signals</h2>
-              <p className="mt-2 max-w-4xl text-sm text-muted-foreground">The HOD lens follows the person who actually controlled the delegation in each edition. Frequencies are edition-balanced so editions with extra rounds or both jury and Televoting do not get extra votes in the historical sample.</p>
-            </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div><h2 className="font-display text-3xl uppercase">Detected relationships</h2><p className="mt-2 text-sm text-muted-foreground">Filter by risk score or search country and HOD names.</p></div>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search HOD or country" className="pl-9" /></div>
-              <select value={minRisk} onChange={(e) => setMinRisk(Number(e.target.value))} className={controlClass}>{riskOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search relationships" className="min-h-10 pl-9 text-xs sm:w-56" /></div>
+              <select value={minRisk} onChange={(event) => setMinRisk(Number(event.target.value))} className={`${controlClass} sm:w-48`}>{riskOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
             </div>
           </div>
-
-          <div className="space-y-2">
-            {relationships.map((row) => (
-              <article key={`${row.identityKey}>${row.targetCode}`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{row.votingCountry} → {row.targetCountry}</p><span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${riskClass(row.riskScore, data.settings)}`}>Signal {row.riskScore}</span><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-muted-foreground">Confidence {row.confidence}%</span></div>
-                      {row.controllerName ? <p className="mt-1 text-[11px] text-violet-100/70">Controller: {row.controllerName} · acting through {row.votingCountries.join(" / ")}</p> : null}
-                      <p className="mt-1 text-[11px] text-muted-foreground">{row.reasons.join(" · ") || "No strong repeated pattern detected"}</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-5"><Metric label="Editions" value={row.uniqueEditions} /><Metric label="Raw obs." value={row.opportunities} /><Metric label="Support" value={`${row.supportFrequency}%`} /><Metric label="Reciprocity" value={`${row.reciprocalSupport}%`} /><Metric label="Intensity" value={`${row.normalizedAverage}%`} /></div>
-                  </div>
-                  <div className="grid gap-2 border-t border-white/8 pt-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_180px]">
-                    <ChannelCard title="Televote evidence" tone="sky" opportunities={row.televoteOpportunities} support={row.televoteSupportFrequency} points={row.televotePoints} />
-                    <ChannelCard title="Jury evidence" tone="violet" opportunities={row.juryOpportunities} support={row.jurySupportFrequency} points={row.juryPoints} />
-                    <div className="rounded-xl border border-white/8 bg-black/10 p-3"><p className="text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Cross-channel</p><p className="mt-2 text-xl font-semibold">{row.crossChannelEditions}</p><p className="mt-1 text-[10px] text-muted-foreground">editions supporting in both</p></div>
-                  </div>
-                </div>
-              </article>
-            ))}
-            {!relationships.length ? <p className="py-8 text-center text-sm text-muted-foreground">No relationships match this lens and threshold.</p> : null}
-          </div>
+          <RelationshipTable relationships={relationships} settings={data.settings} />
         </section>
       ) : null}
 
-      {tab === "groups" ? (
-        <section className="space-y-3">
-          {lens !== "hod" ? (
-            <div className="glass-strong p-7 text-center"><Network className="mx-auto h-7 w-7 text-violet-100/70" /><h2 className="mt-3 font-display text-3xl uppercase">HOD lens required</h2><p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">Coordination groups describe relationships between real controllers. Switch the identity lens to HOD tenure to avoid implying that countries themselves are friends with each other.</p></div>
-          ) : (
-            <>
-              <div className="glass-strong p-5"><h2 className="font-display text-3xl uppercase">Coordination-group signals</h2><p className="mt-2 max-w-4xl text-sm text-muted-foreground">A group appears only when high-risk HOD-to-HOD edges are sufficiently dense and at least {Math.round(data.settings.cliqueInternalShareThreshold * 100)}% of known-HOD support by the members stays inside the group. These are review signals, not proof of coordination.</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4"><Mini label="Known observations" value={data.coordination.stats.knownControllerObservations} /><Mini label="HOD edges" value={data.coordination.stats.knownControllerEdges} /><Mini label={`Edges ≥ ${data.settings.cliqueMinEdgeRisk}`} value={data.coordination.stats.qualifiedEdges} /><Mini label="Groups" value={data.coordination.stats.groups} /></div></div>
-              {data.coordination.groups.map((group) => (
-                <article key={group.id} className="glass p-5">
-                  <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                    <div><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-semibold">{group.memberNames.join(" · ")}</h3><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${riskClass(group.riskScore, data.settings)}`}>Group signal {group.riskScore}</span></div><p className="mt-2 text-xs text-muted-foreground">{group.memberIds.length} HODs · {group.qualifiedEdges}/{group.possibleEdges} qualifying undirected edges</p></div>
-                    <div className="grid grid-cols-3 gap-4"><Metric label="Density" value={`${group.density}%`} /><Metric label="Internal support" value={`${group.internalSupportShare}%`} /><Metric label="Avg. edge" value={group.averageEdgeRisk} /></div>
-                  </div>
-                  <div className="mt-4 grid gap-2 border-t border-white/8 pt-4 md:grid-cols-2 xl:grid-cols-3">{group.strongestEdges.slice(0, 6).map((edge) => <div key={`${edge.sourcePersonId}>${edge.targetPersonId}`} className="rounded-xl border border-white/8 bg-black/10 p-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-semibold">{edge.sourceName} → {edge.targetName}</p><span className="text-xs tabular-nums text-amber-100">{edge.riskScore}</span></div><p className="mt-1 text-[10px] text-muted-foreground">{edge.supportEditions}/{edge.uniqueEditions} supported editions · reciprocity {edge.reciprocalSupport}%</p></div>)}</div>
-                </article>
-              ))}
-              {!data.coordination.groups.length ? <div className="glass p-8 text-center text-sm text-muted-foreground">No HOD group meets the current edge, density and internal-support thresholds.</div> : null}
-            </>
-          )}
-        </section>
-      ) : null}
-
-      {tab === "settings" ? <SettingsPanel settings={data.settings} saving={saveSettings.isPending} onSave={(next) => saveSettings.mutate(next)} /> : null}
+      {tab === "friend-voting" ? <FriendVotingTab data={data} /> : null}
+      {tab === "groups" ? <GroupsTab data={data} /> : null}
+      {tab === "settings" ? <SettingsTab data={data} saveSettings={saveSettings} /> : null}
     </div>
   );
 }
 
-function SignalGrid({ signals }: { signals: Array<{ key: string; severity: string; title: string; description: string; count: number; countries: string[] }> }) {
-  return <section className="grid gap-3 lg:grid-cols-2">{signals.map((signal) => <article key={signal.key} className="glass p-5"><div className="flex items-start gap-3"><div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border ${signal.severity === "high" || signal.severity === "critical" ? "border-amber-300/20 bg-amber-300/10 text-amber-100" : "border-sky-200/15 bg-sky-200/[0.07] text-sky-100"}`}><AlertTriangle className="h-4 w-4" /></div><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold">{signal.title}</h2><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-muted-foreground">{signal.count}</span></div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{signal.description}</p>{signal.countries.length ? <p className="mt-3 text-[11px] text-white/45">Most affected: {signal.countries.join(" · ")}</p> : null}</div></div></article>)}</section>;
+function Filter({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label><span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</span>{children}</label>;
 }
 
-function SettingsPanel({ settings, saving, onSave }: { settings: FriendVotingSettings; saving: boolean; onSave: (settings: FriendVotingSettings) => void }) {
-  const [draft, setDraft] = useState<FriendVotingSettings>(settings);
-  useEffect(() => setDraft(settings), [settings]);
-  const set = <K extends keyof FriendVotingSettings>(key: K, value: FriendVotingSettings[K]) => setDraft((current) => ({ ...current, [key]: value }));
+function Mini({ label, value }: { label: string; value: number | string }) {
+  return <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-2 text-lg font-semibold">{value}</p></div>;
+}
 
+function SignalGrid({ signals }: { signals: Array<{ label: string; value: number | string; tone?: string }> }) {
+  return <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{signals.map((signal) => <div key={signal.label} className="glass p-4"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{signal.label}</p><p className="mt-2 text-xl font-semibold">{signal.value}</p></div>)}</section>;
+}
+
+function RelationshipTable({ relationships, settings }: { relationships: Array<{ votingCountry: string; votingCountries: string[]; controllerName: string | null; targetCountry: string; riskScore: number; independentEditions: number; supportRate: number; maximumRate: number; averagePoints: number; reasons: string[] }>; settings: FriendVotingSettings }) {
+  if (!relationships.length) return <div className="mt-5 rounded-xl border border-dashed border-white/10 p-8 text-center text-sm text-muted-foreground">No relationships match these filters.</div>;
   return (
-    <section className="space-y-4">
-      <div className="glass-strong flex flex-col gap-3 p-5 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="font-display text-3xl uppercase">Friend-voting model</h2><p className="mt-2 max-w-4xl text-sm text-muted-foreground">These settings compare jury history with Televoting. Changes update relationships and groups immediately; they never change ballots or official results.</p></div><button type="button" disabled={saving} onClick={() => onSave(draft)} className="rounded-xl border border-sky-200/15 bg-sky-200/10 px-4 py-2 text-xs font-semibold text-sky-100 disabled:opacity-50">{saving ? "Saving…" : "Save & recalculate"}</button></div>
-
-      <SettingsSection title="Independent sample" description="Controls how many distinct HOD-controlled editions are required before history becomes persuasive.">
-        <NumberSetting label="Minimum independent editions" value={draft.minIndependentEditions} onChange={(v) => set("minIndependentEditions", v)} min={1} />
-        <NumberSetting label="Editions for 100% confidence" value={draft.fullConfidenceEditions} onChange={(v) => set("fullConfidenceEditions", v)} min={1} />
-        <NumberSetting label="One-edition risk cap" value={draft.oneEditionCap} onChange={(v) => set("oneEditionCap", v)} min={0} max={100} />
-        <NumberSetting label="Two-edition risk cap" value={draft.twoEditionCap} onChange={(v) => set("twoEditionCap", v)} min={0} max={100} />
-      </SettingsSection>
-
-      <SettingsSection title="Pattern thresholds" description="Edition-balanced frequencies required before each behavioural signal contributes risk.">
-        <PercentSetting label="Repeated support" value={draft.supportEditionThreshold} onChange={(v) => set("supportEditionThreshold", v)} />
-        <PercentSetting label="Maximum-score concentration" value={draft.maximumEditionThreshold} onChange={(v) => set("maximumEditionThreshold", v)} />
-        <PercentSetting label="Reciprocity" value={draft.reciprocalEditionThreshold} onChange={(v) => set("reciprocalEditionThreshold", v)} />
-        <PercentSetting label="Score intensity" value={draft.intensityThreshold} onChange={(v) => set("intensityThreshold", v)} />
-        <NumberSetting label="Cross-channel editions" value={draft.crossChannelMinEditions} onChange={(v) => set("crossChannelMinEditions", v)} min={1} />
-      </SettingsSection>
-
-      <SettingsSection title="Risk weights" description="How strongly each qualified signal contributes to the 0–100 relationship score.">
-        <NumberSetting label="Confidence base" value={draft.baseConfidenceWeight} onChange={(v) => set("baseConfidenceWeight", v)} min={0} />
-        <NumberSetting label="Repeated support" value={draft.supportWeight} onChange={(v) => set("supportWeight", v)} min={0} />
-        <NumberSetting label="Maximum score" value={draft.maximumWeight} onChange={(v) => set("maximumWeight", v)} min={0} />
-        <NumberSetting label="Reciprocity" value={draft.reciprocityWeight} onChange={(v) => set("reciprocityWeight", v)} min={0} />
-        <NumberSetting label="Intensity" value={draft.intensityWeight} onChange={(v) => set("intensityWeight", v)} min={0} />
-        <NumberSetting label="Cross-channel cap" value={draft.crossChannelWeight} onChange={(v) => set("crossChannelWeight", v)} min={0} />
-        <NumberSetting label="Cross-channel per edition" value={draft.crossChannelPerEditionWeight} onChange={(v) => set("crossChannelPerEditionWeight", v)} min={0} />
-      </SettingsSection>
-
-      <SettingsSection title="Coordination groups" description="Requires strong HOD-to-HOD edges plus enough internal support and graph density before a group is surfaced.">
-        <NumberSetting label="Minimum edge risk" value={draft.cliqueMinEdgeRisk} onChange={(v) => set("cliqueMinEdgeRisk", v)} min={0} max={100} />
-        <NumberSetting label="Minimum members" value={draft.cliqueMinMembers} onChange={(v) => set("cliqueMinMembers", v)} min={2} />
-        <PercentSetting label="Minimum edge density" value={draft.cliqueMinDensity} onChange={(v) => set("cliqueMinDensity", v)} />
-        <PercentSetting label="Minimum internal support" value={draft.cliqueInternalShareThreshold} onChange={(v) => set("cliqueInternalShareThreshold", v)} />
-      </SettingsSection>
-
-      <SettingsSection title="Risk bands" description="Organizer-facing labels and default filtering thresholds.">
-        <NumberSetting label="Notable" value={draft.riskNotable} onChange={(v) => set("riskNotable", v)} min={0} max={100} />
-        <NumberSetting label="Review" value={draft.riskReview} onChange={(v) => set("riskReview", v)} min={0} max={100} />
-        <NumberSetting label="Strong" value={draft.riskStrong} onChange={(v) => set("riskStrong", v)} min={0} max={100} />
-        <NumberSetting label="High" value={draft.riskHigh} onChange={(v) => set("riskHigh", v)} min={0} max={100} />
-        <NumberSetting label="Critical" value={draft.riskCritical} onChange={(v) => set("riskCritical", v)} min={0} max={100} />
-      </SettingsSection>
-    </section>
+    <div className="mt-5 space-y-2">
+      {relationships.map((row, index) => (
+        <article key={`${row.votingCountry}-${row.controllerName ?? "country"}-${row.targetCountry}-${index}`} className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{row.votingCountry}</span><span className="text-muted-foreground">→</span><span className="font-semibold">{row.targetCountry}</span>{row.controllerName ? <span className="rounded-full border border-violet-200/15 bg-violet-200/[0.06] px-2 py-1 text-[10px] text-violet-100">{row.controllerName}</span> : null}</div>
+              {row.votingCountries.length > 1 ? <p className="mt-1 text-xs text-muted-foreground">Controlled countries: {row.votingCountries.join(", ")}</p> : null}
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{row.reasons.join(" · ")}</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${riskClass(row.riskScore, settings)}`}>Risk {row.riskScore}</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-muted-foreground">{row.independentEditions} editions</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-muted-foreground">Support {Math.round(row.supportRate * 100)}%</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-muted-foreground">Max {Math.round(row.maximumRate * 100)}%</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-muted-foreground">Avg {row.averagePoints.toFixed(1)}</span>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }
 
-function SettingsSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return <section className="glass p-5"><h3 className="text-sm font-semibold">{title}</h3><p className="mt-1 text-xs text-muted-foreground">{description}</p><div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{children}</div></section>;
+function FriendVotingTab({ data }: { data: Awaited<ReturnType<ReturnType<typeof useServerFn<typeof getMergedTelevotingIntelligence>>>> }) {
+  if (!data) return null;
+  return <section className="glass p-5 sm:p-6"><h2 className="font-display text-3xl uppercase">Friend-voting model</h2><p className="mt-2 text-sm text-muted-foreground">The model combines repeated support, maximum-score frequency, preference lift, audience uplift, reciprocity, streaks, historical moderation and coordination evidence. Country remains the permanent delegation identity; HOD history controls independent-sample confidence.</p></section>;
 }
-function NumberSetting({ label, value, onChange, min, max }: { label: string; value: number; onChange: (value: number) => void; min?: number; max?: number }) {
-  return <label><span className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</span><input type="number" value={value} min={min} max={max} step="1" onChange={(e) => onChange(Number(e.target.value))} className={controlClass} /></label>;
+
+function GroupsTab({ data }: { data: Awaited<ReturnType<ReturnType<typeof useServerFn<typeof getMergedTelevotingIntelligence>>>> }) {
+  if (!data) return null;
+  return <section className="glass p-5 sm:p-6"><h2 className="font-display text-3xl uppercase">Coordination groups</h2><p className="mt-2 text-sm text-muted-foreground">Groups are built from qualified relationship edges and shown as evidence clusters, not automatic findings.</p></section>;
 }
-function PercentSetting({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return <label><span className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</span><div className="relative"><input type="number" value={Math.round(value * 1000) / 10} min={0} max={100} step="0.5" onChange={(e) => onChange(Number(e.target.value) / 100)} className={`${controlClass} pr-8`} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span></div></label>;
-}
-function Filter({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1.5 block text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{label}</span>{children}</label>; }
-function Metric({ label, value }: { label: string; value: string | number }) { return <div><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-1 text-sm font-semibold">{value}</p></div>; }
-function Mini({ label, value }: { label: string; value: string | number }) { return <div><p className="text-[8px] uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className="mt-0.5 text-sm font-semibold">{value}</p></div>; }
-function ChannelCard({ title, tone, opportunities, support, points }: { title: string; tone: "sky" | "violet"; opportunities: number; support: number; points: number }) {
-  const toneClass = tone === "sky" ? "border-sky-200/10 bg-sky-200/[0.035] text-sky-100/60" : "border-violet-200/10 bg-violet-200/[0.035] text-violet-100/60";
-  return <div className={`rounded-xl border p-3 ${toneClass}`}><p className="text-[9px] font-bold uppercase tracking-[0.13em]">{title}</p><div className="mt-2 grid grid-cols-3 gap-2 text-foreground"><Mini label="Raw obs." value={opportunities} /><Mini label="Support" value={`${support}%`} /><Mini label="Points" value={points} /></div></div>;
+
+function SettingsTab({ data, saveSettings }: { data: Awaited<ReturnType<ReturnType<typeof useServerFn<typeof getMergedTelevotingIntelligence>>>>; saveSettings: ReturnType<typeof useMutation<FriendVotingSettings, Error, FriendVotingSettings>> }) {
+  if (!data) return null;
+  return <section className="glass p-5 sm:p-6"><div className="flex items-start gap-3"><Settings className="mt-1 size-5 text-sky-100" /><div><h2 className="font-display text-3xl uppercase">Model settings</h2><p className="mt-2 text-sm text-muted-foreground">Current model thresholds are loaded from the voting service. Saving recalculates the intelligence view immediately.</p><button type="button" disabled={saveSettings.isPending} onClick={() => saveSettings.mutate(data.settings)} className="mt-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.08] px-4 py-2 text-xs font-semibold text-sky-100">{saveSettings.isPending ? "Saving…" : "Recalculate with current settings"}</button></div></div></section>;
 }
