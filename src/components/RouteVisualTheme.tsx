@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 
 import "@/country-personalities.css";
 import "@/country-personalities-v2.css";
+import "@/country-personalities-v3.css";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
@@ -97,6 +98,7 @@ export function RouteVisualTheme() {
       delete body.dataset.editionArtwork;
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
+      delete body.dataset.countryDecoration;
       keys.forEach((key) => body.style.removeProperty(key));
     };
 
@@ -112,6 +114,7 @@ export function RouteVisualTheme() {
     if (resolved.kind === "country") {
       body.dataset.countryBackgroundMode = resolved.theme.backgroundMode;
       body.dataset.countryHeroLayout = resolved.theme.heroLayout;
+      body.dataset.countryDecoration = resolved.theme.decorationStyle;
       body.style.setProperty("--country-page-background", countryBackgroundCss(resolved.theme));
       body.style.setProperty(
         "--country-page-position",
@@ -121,6 +124,7 @@ export function RouteVisualTheme() {
     } else {
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
+      delete body.dataset.countryDecoration;
       body.style.removeProperty("--country-page-background");
       body.style.removeProperty("--country-page-position");
       body.style.removeProperty("--country-page-blur");
