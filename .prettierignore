@@ -7,3 +7,4 @@ package-lock.json
 bun.lock
 routeTree.gen.ts
 src/routes/_authenticated/country-hub/theme.tsx
+src/country-personalities-v2.css
