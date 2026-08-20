@@ -10,84 +10,84 @@ export const Route = createFileRoute("/tools/")({
 const TOOL_GROUPS = [
   {
     title: "Follow the contest",
-    description: "Keep up with what is changing now.",
+    description: "See what is happening now.",
     tools: [
       {
         to: "/pulse",
         title: "Solaris Pulse",
-        description: "Personal updates, follows, record watch and prediction movement.",
+        description: "See recent updates, countries you follow, record changes and prediction movement.",
         eyebrow: "Updates",
       },
       {
         to: "/predictions",
         title: "Prediction Arena",
-        description: "Make predictions before a round locks and compare them with the eventual result.",
+        description: "Make your picks before a round closes, then compare them with the real result later.",
         eyebrow: "Predictions",
       },
     ],
   },
   {
     title: "Explore results",
-    description: "Open full voting detail or pull the scoreboard apart without changing the official result.",
+    description: "See full voting details or test a different version of a published result.",
     tools: [
       {
         to: "/scorecharts",
         title: "Full Scorecharts",
-        description: "Browse every published detailed voting matrix directly, show by show.",
+        description: "See the full voting table for each published show.",
         eyebrow: "Detailed voting",
       },
       {
         to: "/result-lab",
         title: "Result Lab",
-        description: "Change jury and televote weighting, remove juries and test alternative scoring rules.",
+        description: "Test different jury and televote balances or remove a jury. This never changes the official result.",
         eyebrow: "What-if analysis",
       },
       {
         to: "/taste-dna",
         title: "Taste DNA",
-        description: "Rank a field and see how closely your taste matches juries, televoters and consensus.",
+        description: "Rank the songs and see whether your choices are closest to the jury, televote or overall result.",
         eyebrow: "Personal analytics",
       },
       {
         to: "/broadcast-intelligence",
         title: "Broadcast Intelligence",
-        description: "Replay a result reveal and surface the biggest swings, lead changes and storylines.",
+        description: "Replay a published result and see the biggest jumps, lead changes and turning points.",
         eyebrow: "Results replay",
       },
       {
         to: "/broadcast-intelligence/jury",
         title: "Jury Replay",
-        description: "Reveal published jury ballots one jury at a time and watch the jury scoreboard build live.",
+        description: "Reveal the published jury votes one jury at a time and watch the scoreboard build.",
         eyebrow: "Jury replay",
       },
     ],
   },
   {
     title: "Explore the archive",
-    description: "Use the contest history instead of letting it gather digital dust.",
+    description: "Explore past Solaris results, records and voting history.",
     tools: [
       {
         to: "/archive-games",
         title: "Archive Games",
-        description: "Play quick games generated from real historical Solaris results.",
+        description: "Play quick games made from real past Solaris results.",
         eyebrow: "Games",
       },
       {
         to: "/records",
         title: "Records",
-        description: "Browse all-time milestones, streaks and voting records.",
+        description: "See all-time records, streaks and milestones.",
         eyebrow: "History",
       },
       {
         to: "/compare",
         title: "Compare countries",
-        description: "Put two delegations side by side across results and voting history.",
+        description: "Put two countries side by side and compare their results and voting history.",
         eyebrow: "Head-to-head",
       },
       {
         to: "/relationships",
         title: "Relationships",
-        description: "Explore recurring voting links, rivalries and shared taste between countries.",
+        description: "See which countries often vote for each other or have similar voting habits.",
         eyebrow: "Voting network",
       },
     ],
@@ -100,7 +100,7 @@ function ToolsPage() {
       <PageHeader
         eyebrow="Explore Solaris"
         title="Tools"
-        description="Full scorecharts, predictions, what-if scoreboards, personal taste analytics, result replays and archive tools in one place."
+        description="Scorecharts, predictions, result tests, comparisons and archive tools are all collected here."
       />
 
       <div className="space-y-5">

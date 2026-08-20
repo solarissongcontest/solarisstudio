@@ -22,31 +22,31 @@ const groups = [
   {
     title: "Contest management",
     items: [
-      { label: "Manage editions", description: "Create editions and manage archive-level edition settings.", to: "/admin", icon: Trophy },
-      { label: "Country accounts", description: "Delegation access and country ownership controls.", to: "/admin/country-accounts", icon: Users },
-      { label: "Hosting", description: "Host countries, cities and edition hosting details.", to: "/admin/hosts", icon: Flag },
-      { label: "HOD history", description: "Historical delegation controllers used by voting analytics.", to: "/admin/hod-history", icon: History },
+      { label: "Manage editions", description: "Create editions and change their main settings.", to: "/admin", icon: Trophy },
+      { label: "Country accounts", description: "See and manage who can sign in for each country.", to: "/admin/country-accounts", icon: Users },
+      { label: "Hosting", description: "Set host countries, host cities and other hosting details.", to: "/admin/hosts", icon: Flag },
+      { label: "HOD history", description: "See who managed each country in past editions.", to: "/admin/hod-history", icon: History },
     ],
   },
   {
     title: "Engagement",
     items: [
-      { label: "Predictions", description: "Prediction rounds and audience engagement settings.", to: "/admin/predictions", icon: Sparkles },
-      { label: "Public beta feedback", description: "Review public-site beta responses and tester feedback.", to: "/admin/beta-feedback", icon: BarChart3 },
+      { label: "Predictions", description: "Create and manage prediction rounds for visitors.", to: "/admin/predictions", icon: Sparkles },
+      { label: "Public beta feedback", description: "Read feedback sent by public-site testers.", to: "/admin/beta-feedback", icon: BarChart3 },
     ],
   },
   {
     title: "Quality assurance",
     items: [
-      { label: "Admin acceptance test", description: "Run the complete organizer workflow test and record what was actually covered.", to: "/admin/beta-test", icon: ClipboardCheck },
-      { label: "Admin beta coverage", description: "Compare both admins' latest test passes, blind spots, priorities and bugs.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
+      { label: "Admin acceptance test", description: "Run through the main organizer tasks and record what worked.", to: "/admin/beta-test", icon: ClipboardCheck },
+      { label: "Admin beta coverage", description: "Compare recent organizer tests, missing checks and reported bugs.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
     ],
   },
   {
     title: "System",
     items: [
-      { label: "System settings", description: "Deadlines, audit tools and platform-wide organizer settings.", to: "/admin/system", icon: Settings },
-      { label: "Sync health", description: "Check edition, confirmation and televoting synchronization.", to: "/admin/sync-health", icon: Settings },
+      { label: "System settings", description: "Manage deadlines, site-wide settings and maintenance tools.", to: "/admin/system", icon: Settings },
+      { label: "Sync health", description: "Check whether editions, confirmations and televoting are working together.", to: "/admin/sync-health", icon: Settings },
     ],
   },
 ] as const;
@@ -57,7 +57,7 @@ function MoreAdmin() {
       <AdminPageHeader
         eyebrow="Organizer workspace"
         title="More"
-        description="Lower-frequency tools live here so the everyday workspace stays focused."
+        description="Pages you use less often are kept here so the main organizer pages stay focused."
       />
 
       <div className="space-y-4">

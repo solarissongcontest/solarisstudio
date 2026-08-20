@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  CircleHelp,
   ClipboardCheck,
   LayoutDashboard,
   MoreHorizontal,
@@ -40,6 +41,12 @@ export function AdminNav() {
       to: "/admin/operations",
       icon: LayoutDashboard,
       active: (path) => path.startsWith("/admin/operations"),
+    },
+    {
+      label: "Guide",
+      to: "/admin/guide",
+      icon: CircleHelp,
+      active: (path) => path.startsWith("/admin/guide"),
     },
     {
       label: "Edition",
