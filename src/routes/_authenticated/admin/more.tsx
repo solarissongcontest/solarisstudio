@@ -33,7 +33,7 @@ const groups = [
     items: [
       { label: "Predictions", description: "Create and manage prediction rounds for visitors.", to: "/admin/predictions", icon: Sparkles },
       { label: "Beta 2 feedback", description: "See current Beta 2 usability results and Beta 1 comparisons.", to: "/admin/beta2-feedback", icon: BarChart3 },
-      { label: "Public beta feedback", description: "Open the closed Beta 1 feedback archive.", to: "/admin/beta-feedback", icon: History },
+      { label: "Beta 1 archive", description: "Read the original closed Beta 1 responses and benchmarks.", to: "/admin/beta1-feedback", icon: History },
     ],
   },
   {
