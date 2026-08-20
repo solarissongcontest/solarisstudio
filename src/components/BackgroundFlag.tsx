@@ -1,11 +1,16 @@
 import {
   useId,
+  type CSSProperties,
 } from "react";
 
 type BackgroundFlagProps = {
   image?: string | null;
   className?: string;
   opacity?: number;
+};
+
+type BackgroundFlagStyle = CSSProperties & {
+  "--background-flag-image"?: string;
 };
 
 export function BackgroundFlag({
@@ -44,6 +49,12 @@ export function BackgroundFlag({
   const softGradientId =
     `background-flag-soft-gradient-${id}`;
 
+  const style: BackgroundFlagStyle = {
+    opacity,
+    position: "absolute",
+    "--background-flag-image": `url(${JSON.stringify(image)})`,
+  };
+
   return (
     <div
       aria-hidden="true"
@@ -54,10 +65,7 @@ export function BackgroundFlag({
         select-none
         ${className}
       `}
-      style={{
-        opacity,
-        position: "absolute",
-      }}
+      style={style}
     >
       <svg
         viewBox="-10 -10 120 120"
