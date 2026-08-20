@@ -7,7 +7,6 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 const visualTheme = source("src/lib/visual-theme.ts");
 const editor = source("src/routes/_authenticated/country-hub/theme.tsx");
 const css = source("src/country-personalities.css");
-const polishCss = source("src/country-personalities-polish.css");
 const backgroundFlag = source("src/components/BackgroundFlag.tsx");
 const routeVisualTheme = source("src/components/RouteVisualTheme.tsx");
 const migration = source("supabase/migrations/20260820160000_expand_country_page_personalities.sql");
@@ -23,13 +22,14 @@ const newLayouts = [
   "horizon",
 ];
 
-const directImageLayouts = [
+const rectangularLayouts = [
   "editorial",
   "flag-focus",
   "poster",
   "split",
   "broadcast",
   "panorama",
+  "monument",
   "glass-card",
   "newspaper",
   "ribbon",
@@ -48,28 +48,31 @@ describe("expanded country page personalities", () => {
     }
   });
 
-  it("uses the original flag asset directly for geometric layouts", () => {
+  it("uses the original flag asset directly for layouts that need rectangular geometry", () => {
     expect(backgroundFlag).toContain("--background-flag-image");
-    expect(polishCss).toContain("background-image: var(--background-flag-image)");
-    expect(polishCss).toContain(".country-hero-background-flag > svg");
-    expect(polishCss).toContain("display: none !important");
-    for (const layout of directImageLayouts) {
-      expect(polishCss).toContain(`[data-country-hero-layout=\"${layout}\"]`);
+    expect(css).toContain("background-image: var(--background-flag-image)");
+    expect(css).toContain(".country-hero-background-flag > svg");
+    expect(css).toContain("display: none !important");
+    expect(css).toContain("Only Classic and Spotlight use the original circular dissolve");
+    for (const layout of rectangularLayouts) {
+      expect(css).toContain(`[data-country-hero-layout=\"${layout}\"]`);
     }
   });
 
   it("keeps mobile heroes compact instead of inheriting tall desktop canvases", () => {
-    expect(polishCss).toContain("@media (max-width: 767px)");
-    expect(polishCss).toContain("min-height: auto !important");
-    expect(polishCss).toContain('[data-country-hero-layout="glass-card"]');
-    expect(polishCss).toContain('[data-country-hero-layout="split"]');
-    expect(polishCss).toContain('[data-country-hero-layout="passport"]');
+    expect(css).toContain("@media (max-width: 767px)");
+    expect(css).toContain('[data-country-hero-layout="glass-card"]');
+    expect(css).toContain("min-height: 20rem !important");
+    expect(css).toContain('[data-country-hero-layout="split"]');
+    expect(css).toContain("min-height: 24rem !important");
+    expect(css).toContain('[data-country-hero-layout="passport"]');
+    expect(css).toContain("min-height: 16rem !important");
   });
 
   it("uses layered liquid glass with progressive refraction", () => {
-    expect(polishCss).toContain("-webkit-backdrop-filter: blur(16px) saturate(175%)");
-    expect(polishCss).toContain('backdrop-filter: url("#solaris-liquid-glass")');
-    expect(polishCss).toContain("mix-blend-mode: screen");
+    expect(css).toContain("-webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.06)");
+    expect(css).toContain('backdrop-filter: url(\"#solaris-liquid-glass\")');
+    expect(css).toContain("inset 0 1px 0 rgb(255 255 255 / .42)");
     expect(routeVisualTheme).toContain('id="solaris-liquid-glass"');
     expect(routeVisualTheme).toContain("feDisplacementMap");
     expect(routeVisualTheme).toContain("feTurbulence");
