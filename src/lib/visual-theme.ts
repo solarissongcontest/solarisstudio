@@ -50,6 +50,25 @@ export const COUNTRY_HERO_LAYOUTS: CountryHeroLayout[] = [
   "horizon",
 ];
 
+export type CountryDecorationStyle =
+  | "auto"
+  | "none"
+  | "flag"
+  | "orbits"
+  | "rays"
+  | "grid"
+  | "waves";
+
+export const COUNTRY_DECORATION_STYLES: CountryDecorationStyle[] = [
+  "auto",
+  "none",
+  "flag",
+  "orbits",
+  "rays",
+  "grid",
+  "waves",
+];
+
 export type CountryVisualTheme = VisualTheme & {
   backgroundMode: "solid" | "gradient" | "image";
   gradientStyle: "linear" | "radial" | "aurora";
@@ -61,6 +80,7 @@ export type CountryVisualTheme = VisualTheme & {
   backgroundOverlay: number;
   backgroundBlur: number;
   heroLayout: CountryHeroLayout;
+  decorationStyle: CountryDecorationStyle;
 };
 
 export type CountryThemeRow = {
@@ -81,6 +101,7 @@ export type CountryThemeRow = {
   background_overlay?: number | null;
   background_blur?: number | null;
   hero_layout?: CountryVisualTheme["heroLayout"] | null;
+  decoration_style?: CountryVisualTheme["decorationStyle"] | null;
   updated_at: string;
 };
 
@@ -110,6 +131,7 @@ export const DEFAULT_COUNTRY_THEME: CountryVisualTheme = {
   backgroundOverlay: 0.36,
   backgroundBlur: 0,
   heroLayout: "classic",
+  decorationStyle: "auto",
 };
 
 function normaliseHex(value: string | undefined | null, fallback: string) {
@@ -133,6 +155,11 @@ export function countryThemeToVisual(row?: CountryThemeRow | null): CountryVisua
   const heroLayout = COUNTRY_HERO_LAYOUTS.includes(row.hero_layout as CountryHeroLayout)
     ? (row.hero_layout as CountryHeroLayout)
     : DEFAULT_COUNTRY_THEME.heroLayout;
+  const decorationStyle = COUNTRY_DECORATION_STYLES.includes(
+    row.decoration_style as CountryDecorationStyle,
+  )
+    ? (row.decoration_style as CountryDecorationStyle)
+    : DEFAULT_COUNTRY_THEME.decorationStyle;
 
   return {
     backgroundPrimary: normaliseHex(row.background_primary, DEFAULT_THEME.backgroundPrimary),
@@ -151,6 +178,7 @@ export function countryThemeToVisual(row?: CountryThemeRow | null): CountryVisua
     backgroundOverlay: clampNumber(row.background_overlay, 0, 0.9, DEFAULT_COUNTRY_THEME.backgroundOverlay),
     backgroundBlur: clampNumber(row.background_blur, 0, 30, 0),
     heroLayout,
+    decorationStyle,
   };
 }
 
@@ -243,6 +271,7 @@ export function useSaveCountryTheme(countryId?: string | null) {
         background_overlay: clampNumber(theme.backgroundOverlay, 0, 0.9, 0.36),
         background_blur: Math.round(clampNumber(theme.backgroundBlur, 0, 30, 0)),
         hero_layout: theme.heroLayout,
+        decoration_style: theme.decorationStyle,
       };
       const { data, error } = await supabase
         .from("country_themes")
