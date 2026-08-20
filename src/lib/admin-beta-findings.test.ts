@@ -53,7 +53,7 @@ describe("first admin beta findings", () => {
 
     expect(theme).toContain("Unsaved changes");
     expect(theme).toContain("What this page changes");
-    expect(theme).toContain("Votes, points and results are never touched here");
+    expect(theme).toContain("Votes, points and results are never changed here");
     expect(theme).not.toContain("611");
     expect(theme).not.toContain("444");
     expect(theme).not.toContain("401");
@@ -66,7 +66,7 @@ describe("first admin beta findings", () => {
     expect(hod).toContain("Country identity is not the same thing as HOD identity");
     expect(hod).toContain("current Solaris label");
     expect(delegations).toContain("computeCountryStats");
-    expect(delegations).toContain("No exact canonical country-name match was found");
+    expect(delegations).toContain("The country name does not exactly match a Solaris country");
     expect(delegations).toContain("allTimePoints");
   });
 });
