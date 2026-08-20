@@ -14,8 +14,8 @@ import appCss from "../styles.css?url";
 import unifiedCss from "../unified-design.css?url";
 import accessibilityCss from "../accessibility.css?url";
 import anniversaryCss from "../anniversary.css?url";
-import cardTypographyCss from "../card-typography.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
+import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
@@ -161,8 +161,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: unifiedCss },
       { rel: "stylesheet", href: accessibilityCss },
       { rel: "stylesheet", href: anniversaryCss },
-      { rel: "stylesheet", href: cardTypographyCss },
       { rel: "stylesheet", href: solarisBackgroundCss },
+      { rel: "stylesheet", href: cardTypographyCss },
       { rel: "stylesheet", href: solarisMotionCss },
     ],
   }),
