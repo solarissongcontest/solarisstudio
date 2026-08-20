@@ -118,7 +118,10 @@ function TelevotingPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["merged-televoting-open-round"],
     queryFn: loadOpenRound,
-    refetchInterval: 15_000,
+    staleTime: 15_000,
+    // Supabase realtime below handles normal changes instantly. Keep a slow
+    // poll only as a safety net if a realtime connection drops silently.
+    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
   });
 
@@ -197,7 +200,7 @@ function TelevotingPage() {
                     <article key={entry.id} className="data-panel min-h-32 p-4">
                       <div className="flex items-center gap-3">
                         <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-border bg-surface">
-                          {entry.image ? <img src={entry.image} alt="" className="h-full w-full object-cover" /> : <span className="text-xl">{entry.flag || "✦"}</span>}
+                          {entry.image ? <img src={entry.image} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="text-xl">{entry.flag || "✦"}</span>}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate font-semibold">{entry.display_name}</p>
