@@ -172,14 +172,14 @@ function LatestEdition({ card }: { card: EditionCard }) {
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className="group relative block min-w-0 overflow-hidden rounded-[1.6rem] border border-border/80 bg-[linear-gradient(145deg,rgba(10,30,58,.97),rgba(3,15,34,.985))] p-4 shadow-[0_18px_48px_rgba(0,3,20,.2),inset_0_1px_0_rgba(255,255,255,.07)] sm:p-6"
+        className="solaris-family-card group relative block min-w-0 overflow-hidden rounded-[1.6rem] border p-4 sm:p-6"
       >
         <BackgroundFlag
           image={backgroundFlag}
           className="-bottom-24 -right-20 h-72 w-72 sm:-bottom-28 sm:-right-14 sm:h-80 sm:w-80"
           opacity={0.09}
         />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_95%_12%,rgba(105,205,235,.1),transparent_34%)]" />
+        <div className="solaris-family-card-overlay pointer-events-none absolute inset-0" />
 
         <div className="relative z-10 min-w-0">
           <div className="flex min-w-0 items-start justify-between gap-4">
@@ -274,14 +274,14 @@ function ArchiveEdition({ card }: { card: EditionCard }) {
     <Link
       to="/editions/$slug"
       params={{ slug: edition.slug }}
-      className="group relative min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-[linear-gradient(150deg,rgba(12,31,58,.96),rgba(4,17,37,.98))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition duration-200 hover:-translate-y-0.5 hover:border-primary/35 sm:p-5"
+      className="solaris-family-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition duration-200 hover:-translate-y-0.5 sm:p-5"
     >
       <BackgroundFlag
         image={backgroundFlag}
         className="-bottom-20 -right-16 h-56 w-56 sm:-bottom-24 sm:-right-20 sm:h-64 sm:w-64"
         opacity={0.075}
       />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_15%,rgba(96,190,230,.08),transparent_34%)]" />
+      <div className="solaris-family-card-overlay pointer-events-none absolute inset-0" />
 
       <div className="relative z-10 min-w-0">
         <div className="flex min-w-0 items-start justify-between gap-4">

@@ -15,7 +15,7 @@ export function GuideFAQ({ sections }: { sections: GuideSection[] }) {
   return (
     <div className="space-y-5">
       {sections.map((section) => (
-        <section key={section.title} className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+        <section key={section.title} className="data-panel rounded-2xl p-4 sm:p-5">
           <div className="mb-4">
             <h2 className="font-display text-xl font-semibold text-foreground">{section.title}</h2>
             {section.description ? (

@@ -246,7 +246,7 @@ function HomePage() {
             <Link
               to="/shows/$showId"
               params={{ showId: latestCompletedShow.id }}
-              className="group relative min-h-[350px] min-w-0 overflow-hidden rounded-[1.7rem] border border-white/15 bg-[#020817] shadow-2xl sm:min-h-[470px]"
+              className="solaris-family-card group relative min-h-[350px] min-w-0 overflow-hidden rounded-[1.7rem] border sm:min-h-[470px]"
             >
               <BackgroundFlag
                 image={winnerCountry?.flag_image}

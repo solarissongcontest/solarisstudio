@@ -11,6 +11,8 @@ import {
   DEFAULT_COUNTRY_THEME,
   countryBackgroundCss,
   countryThemeToVisual,
+  getThemeColourReport,
+  suggestThirdBackground,
   themeStyleProperties,
   useCountryTheme,
   useSaveCountryTheme,
@@ -126,16 +128,17 @@ function CountryThemePage() {
     };
   }, [country, theme.heroLayout, theme.decorationStyle]);
 
+  const colourReport = useMemo(() => getThemeColourReport(theme), [theme]);
   const previewStyle = useMemo(
     () => ({
-      backgroundImage: countryBackgroundCss(theme),
+      "--country-preview-background": countryBackgroundCss(theme),
+      "--country-preview-position": `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
       backgroundColor: theme.backgroundPrimary,
       backgroundSize: theme.backgroundMode === "image" ? "cover" : undefined,
-      backgroundPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
-      color: theme.textPrimary,
+      color: colourReport.foreground,
       borderColor: `${theme.accent}55`,
     }),
-    [theme],
+    [theme, colourReport.foreground],
   );
 
   useEffect(() => {
@@ -176,7 +179,7 @@ function CountryThemePage() {
   const setColour = (
     key: keyof Pick<
       CountryVisualTheme,
-      "backgroundPrimary" | "backgroundSecondary" | "accent" | "surface" | "textPrimary" | "textMuted"
+      "backgroundPrimary" | "backgroundSecondary" | "backgroundTertiary" | "accent" | "surface" | "textPrimary" | "textMuted"
     >,
     value: string,
   ) => setTheme((current) => ({ ...current, [key]: value }));
@@ -426,7 +429,7 @@ function CountryThemePage() {
 
           <Panel
             title="Colours"
-            description="Choose the colours used on your country page and Wiki. Main text also controls the headings."
+            description="Choose one to three matching background colours, plus the colours used for cards, buttons and text."
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <ColourField
@@ -439,6 +442,39 @@ function CountryThemePage() {
                 value={theme.backgroundSecondary}
                 onChange={(value) => setColour("backgroundSecondary", value)}
               />
+              {theme.backgroundTertiary ? (
+                <div className="rounded-xl bg-surface p-3">
+                  <ColourField
+                    label="Background 3"
+                    value={theme.backgroundTertiary}
+                    onChange={(value) => setColour("backgroundTertiary", value)}
+                    flush
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setTheme((current) => ({ ...current, backgroundTertiary: null }))}
+                    className="mt-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Remove third colour
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTheme((current) => ({
+                      ...current,
+                      backgroundTertiary: suggestThirdBackground(current),
+                    }))
+                  }
+                  className="min-h-24 rounded-xl border border-dashed border-border bg-surface p-3 text-left transition-colors hover:bg-surface-strong"
+                >
+                  <span className="block text-sm font-semibold">Add a matching third colour</span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                    Solaris will suggest one that connects your background and accent.
+                  </span>
+                </button>
+              )}
               <ColourField
                 label="Accent"
                 value={theme.accent}
@@ -459,6 +495,41 @@ function CountryThemePage() {
                 value={theme.textMuted}
                 onChange={(value) => setColour("textMuted", value)}
               />
+            </div>
+            <div
+              className="mt-4 overflow-hidden rounded-xl border p-4"
+              style={{
+                background: colourReport.surface,
+                borderColor: `${theme.accent}55`,
+                color: colourReport.foreground,
+              }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Card and button check</p>
+                  <p className="mt-1 text-xs" style={{ color: colourReport.mutedForeground }}>
+                    Text and large card surfaces are balanced automatically for comfortable reading.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full px-4 py-2 text-xs font-bold"
+                  style={{ background: theme.accent, color: colourReport.accentForeground }}
+                >
+                  Example button
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
+                <span className="rounded-full border border-white/10 px-2.5 py-1">
+                  Main text {colourReport.mainTextContrast.toFixed(1)}:1
+                </span>
+                <span className="rounded-full border border-white/10 px-2.5 py-1">
+                  Secondary text {colourReport.mutedTextContrast.toFixed(1)}:1
+                </span>
+                <span className="rounded-full border border-white/10 px-2.5 py-1">
+                  Button {colourReport.buttonContrast.toFixed(1)}:1
+                </span>
+              </div>
             </div>
           </Panel>
 
@@ -670,7 +741,7 @@ function CountryThemePreview({
 
   return (
     <div
-      className={`country-public-hero glass relative ${previewHeight} overflow-hidden px-5 py-6 sm:px-7 sm:py-8`}
+      className={`country-theme-live-preview country-public-hero glass relative ${previewHeight} overflow-hidden px-5 py-6 sm:px-7 sm:py-8`}
       style={{
         ...previewStyle,
         ...themeStyleProperties(theme),
@@ -835,13 +906,15 @@ function ColourField({
   label,
   value,
   onChange,
+  flush = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  flush?: boolean;
 }) {
   return (
-    <label className="block rounded-xl bg-surface p-3">
+    <label className={flush ? "block" : "block rounded-xl bg-surface p-3"}>
       <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
         {label}
       </span>

@@ -602,16 +602,23 @@ export function PageHeader({
   title,
   description,
   actions,
+  className,
 }: {
   eyebrow?: string;
   title: string;
   description?: string;
   actions?: ReactNode;
+  className?: string;
 }) {
   const visibleEyebrow = productEyebrow(eyebrow);
 
   return (
-    <header className="page-header mb-5 min-w-0 border-b border-border/60 pb-4 sm:mb-6 sm:pb-5 lg:mb-7">
+    <header
+      className={cn(
+        "page-header mb-5 min-w-0 border-b border-border/60 pb-4 sm:mb-6 sm:pb-5 lg:mb-7",
+        className,
+      )}
+    >
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           {visibleEyebrow && (

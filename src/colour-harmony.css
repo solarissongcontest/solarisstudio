@@ -8,9 +8,10 @@
 
 body[data-solaris-family] {
   --primary: rgb(var(--solaris-accent));
+  --primary-foreground: #06131e;
   --ring: color-mix(in srgb, rgb(var(--solaris-accent)) 78%, white 22%);
   --accent: color-mix(in srgb, rgb(var(--solaris-accent)) 82%, rgb(var(--solaris-bg-secondary)) 18%);
-  --accent-foreground: #07131f;
+  --accent-foreground: #06131e;
   --sidebar-primary: var(--primary);
   --sidebar-ring: var(--ring);
   --gradient-aurora: linear-gradient(
@@ -58,16 +59,15 @@ body[data-solaris-family="shows"] {
   --solaris-accent: 203 137 181;
 }
 
-/* Wiki used to be brown/gold with cyan UI accents. The result was the visual
-   equivalent of wearing a tuxedo with pool shoes. Keep it scholarly instead:
-   muted petrol/ink with a soft desaturated sage accent. */
+/* Wiki: deep ink, restrained violet and cool teal. The three hues give the
+   index depth without washing reading surfaces in one muddy brand colour. */
 body[data-solaris-family="wiki"] {
-  --solaris-bg-primary: 72 126 125;
-  --solaris-bg-secondary: 63 83 123;
-  --solaris-bg-tertiary: 94 126 112;
-  --solaris-bg-deep: 7 14 24;
-  --solaris-bg-deep-2: 13 30 38;
-  --solaris-accent: 154 194 177;
+  --solaris-bg-primary: 59 126 166;
+  --solaris-bg-secondary: 94 76 139;
+  --solaris-bg-tertiary: 48 139 129;
+  --solaris-bg-deep: 5 10 25;
+  --solaris-bg-deep-2: 17 20 45;
+  --solaris-accent: 147 218 201;
 }
 
 body[data-solaris-family="analysis"] {
@@ -235,9 +235,9 @@ body[data-solaris-family] .data-panel,
 body[data-solaris-family] .surface {
   background:
     linear-gradient(155deg,
-      rgb(var(--solaris-bg-primary) / .13),
-      rgb(var(--solaris-bg-secondary) / .075) 48%,
-      rgb(var(--solaris-bg-deep) / .31)),
+      rgb(var(--solaris-bg-primary) / .105),
+      rgb(var(--solaris-bg-secondary) / .06) 48%,
+      rgb(var(--solaris-bg-tertiary) / .045)),
     color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 72%, #071426 28%) !important;
 }
 
@@ -245,8 +245,9 @@ body[data-solaris-family] .glass,
 body[data-solaris-family] .glass-strong {
   background:
     linear-gradient(145deg,
-      rgb(var(--solaris-bg-primary) / .12),
-      rgb(var(--solaris-bg-secondary) / .07)),
+      rgb(var(--solaris-bg-primary) / .09),
+      rgb(var(--solaris-bg-secondary) / .052),
+      rgb(var(--solaris-bg-tertiary) / .032)),
     color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 74%, #071426 26%) !important;
 }
 
@@ -272,6 +273,184 @@ body[data-solaris-family] [class*="bg-primary/"] { background-color: rgb(var(--s
 body[data-solaris-family] .mobile-quick-nav {
   background: color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 30%, #050c1d 70%) !important;
   border-color: rgb(var(--solaris-accent) / .12) !important;
+}
+
+/* Every normal public page gets a restrained colour signature without turning
+   every title into another boxed hero. Directory pages opt into the larger
+   treatment below. */
+body[data-solaris-family] .page-header:not(.directory-page-hero) {
+  position: relative;
+  border-bottom-color: transparent !important;
+}
+
+body[data-solaris-family] .page-header:not(.directory-page-hero)::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--solaris-accent) / .52),
+    rgb(var(--solaris-bg-primary) / .28) 34%,
+    rgb(var(--solaris-bg-tertiary) / .22) 70%,
+    transparent
+  );
+}
+
+/* Opt-in treatment for older editorial cards and top-level links that sit
+   outside Panel. This keeps their one-off navy backgrounds from fighting the
+   route palette while preserving deliberately quiet nested controls. */
+body[data-solaris-family] .solaris-family-card {
+  border-color: rgb(var(--solaris-accent) / .20) !important;
+  background:
+    radial-gradient(circle at 91% 10%, rgb(var(--solaris-bg-primary) / .18), transparent 38%),
+    radial-gradient(circle at 8% 96%, rgb(var(--solaris-bg-tertiary) / .11), transparent 42%),
+    linear-gradient(145deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 73%, #08172a 27%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep)) 88%, rgb(var(--solaris-bg-secondary)) 12%)) !important;
+  box-shadow:
+    0 15px 38px rgb(var(--solaris-bg-deep) / .22),
+    inset 0 1px 0 rgb(255 255 255 / .06) !important;
+}
+
+body[data-solaris-family] .solaris-family-card:hover {
+  border-color: rgb(var(--solaris-accent) / .38) !important;
+}
+
+body[data-solaris-family] .solaris-family-card-overlay {
+  background: linear-gradient(
+    135deg,
+    rgb(var(--solaris-bg-deep) / .78),
+    rgb(var(--solaris-bg-secondary) / .14) 57%,
+    rgb(var(--solaris-bg-tertiary) / .10)
+  ) !important;
+}
+
+/* Default directory and library pages -------------------------------------
+   These pages show many repeated cards, so the palette needs hierarchy more
+   than saturation. Three route colours shape the page; each country's own
+   accent is limited to a fine identity edge. */
+.directory-page-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(1.25rem, 3vw, 2rem) !important;
+  border: 1px solid rgb(var(--solaris-accent) / .22) !important;
+  border-radius: clamp(1.35rem, 3vw, 2rem);
+  background:
+    radial-gradient(circle at 88% 18%, rgb(var(--solaris-bg-primary) / .24), transparent 34%),
+    radial-gradient(circle at 70% 115%, rgb(var(--solaris-bg-tertiary) / .16), transparent 44%),
+    linear-gradient(135deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 74%, #071426 26%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep)) 88%, rgb(var(--solaris-bg-secondary)) 12%));
+  box-shadow:
+    0 22px 56px rgb(var(--solaris-bg-deep) / .24),
+    inset 0 1px 0 rgb(255 255 255 / .075);
+}
+
+.directory-page-hero::before,
+.directory-page-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgb(var(--solaris-accent) / .13);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.directory-page-hero::before {
+  width: clamp(9rem, 22vw, 17rem);
+  aspect-ratio: 1;
+  right: clamp(-5rem, -5vw, -2rem);
+  top: clamp(-7rem, -8vw, -3rem);
+}
+
+.directory-page-hero::after {
+  width: clamp(5.5rem, 13vw, 10rem);
+  aspect-ratio: 1;
+  right: clamp(1rem, 12vw, 10rem);
+  bottom: clamp(-5rem, -6vw, -2rem);
+  border-color: rgb(var(--solaris-bg-tertiary) / .14);
+}
+
+.directory-page-hero > div {
+  position: relative;
+  z-index: 1;
+}
+
+.directory-page-action {
+  border-color: rgb(var(--solaris-accent) / .26) !important;
+  background:
+    linear-gradient(135deg, rgb(var(--solaris-accent) / .13), rgb(var(--solaris-bg-tertiary) / .075)),
+    color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 78%, #09182a 22%);
+  color: var(--foreground);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .06);
+  transition: border-color .2s ease, background .2s ease, transform .2s ease;
+}
+
+.directory-page-action:hover {
+  border-color: rgb(var(--solaris-accent) / .48) !important;
+  background:
+    linear-gradient(135deg, rgb(var(--solaris-accent) / .20), rgb(var(--solaris-bg-tertiary) / .11)),
+    color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 72%, #09182a 28%);
+  transform: translateY(-1px);
+}
+
+.directory-page-filter {
+  border-color: rgb(var(--solaris-accent) / .18) !important;
+  background:
+    linear-gradient(145deg,
+      rgb(var(--solaris-bg-primary) / .075),
+      rgb(var(--solaris-bg-secondary) / .045) 52%,
+      rgb(var(--solaris-bg-tertiary) / .035)),
+    color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 72%, #081628 28%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .055);
+}
+
+.directory-stat-strip {
+  border-color: rgb(var(--solaris-accent) / .17) !important;
+  background: rgb(var(--solaris-accent) / .13) !important;
+  box-shadow: 0 16px 38px rgb(var(--solaris-bg-deep) / .17);
+}
+
+.directory-stat-strip > * {
+  background:
+    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .07), rgb(var(--solaris-bg-tertiary) / .03)),
+    color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 74%, #081628 26%) !important;
+}
+
+.directory-country-card {
+  position: relative;
+  border-color: rgb(var(--solaris-accent) / .15) !important;
+  background:
+    linear-gradient(90deg, var(--country-card-accent, rgb(var(--solaris-accent))) 0 2px, transparent 2px),
+    radial-gradient(circle at 92% 10%, rgb(var(--solaris-bg-primary) / .10), transparent 36%),
+    linear-gradient(145deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 72%, #0a192b 28%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep)) 88%, rgb(var(--solaris-bg-tertiary)) 12%)) !important;
+  box-shadow:
+    0 10px 28px rgb(var(--solaris-bg-deep) / .16),
+    inset 0 1px 0 rgb(255 255 255 / .045);
+}
+
+.directory-country-card:hover {
+  border-color: rgb(var(--solaris-accent) / .34) !important;
+  background:
+    linear-gradient(90deg, var(--country-card-accent, rgb(var(--solaris-accent))) 0 3px, transparent 3px),
+    radial-gradient(circle at 90% 8%, rgb(var(--solaris-bg-primary) / .16), transparent 39%),
+    linear-gradient(145deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 66%, #0b1d31 34%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep)) 84%, rgb(var(--solaris-bg-tertiary)) 16%)) !important;
+  box-shadow:
+    0 16px 34px rgb(var(--solaris-bg-deep) / .24),
+    inset 0 1px 0 rgb(255 255 255 / .07);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 639px) {
+  .directory-page-hero::after { display: none; }
+  .directory-country-card:hover { transform: none; }
 }
 
 /* Status colours remain semantic. This audit only harmonises decorative/page

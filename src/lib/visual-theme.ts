@@ -80,6 +80,7 @@ export const COUNTRY_DECORATION_STYLES: CountryDecorationStyle[] = [
 ];
 
 export type CountryVisualTheme = VisualTheme & {
+  backgroundTertiary: string | null;
   backgroundMode: "solid" | "gradient" | "image";
   gradientStyle: "linear" | "radial" | "aurora";
   gradientAngle: number;
@@ -97,6 +98,7 @@ export type CountryThemeRow = {
   country_id: string;
   background_primary: string;
   background_secondary: string;
+  background_tertiary?: string | null;
   accent: string;
   text_primary: string;
   text_muted: string;
@@ -131,6 +133,7 @@ export const DEFAULT_THEME: VisualTheme = {
 
 export const DEFAULT_COUNTRY_THEME: CountryVisualTheme = {
   ...DEFAULT_THEME,
+  backgroundTertiary: null,
   backgroundMode: "gradient",
   gradientStyle: "aurora",
   gradientAngle: 145,
@@ -174,6 +177,9 @@ export function countryThemeToVisual(row?: CountryThemeRow | null): CountryVisua
   return {
     backgroundPrimary: normaliseHex(row.background_primary, DEFAULT_THEME.backgroundPrimary),
     backgroundSecondary: normaliseHex(row.background_secondary, DEFAULT_THEME.backgroundSecondary),
+    backgroundTertiary: row.background_tertiary
+      ? normaliseHex(row.background_tertiary, DEFAULT_THEME.accent)
+      : null,
     accent: normaliseHex(row.accent, DEFAULT_THEME.accent),
     textPrimary: normaliseHex(row.text_primary, DEFAULT_THEME.textPrimary),
     textMuted: normaliseHex(row.text_muted, DEFAULT_THEME.textMuted),
@@ -221,12 +227,19 @@ export function countryBackgroundCss(theme: CountryVisualTheme) {
     return `linear-gradient(rgba(0,0,0,${overlay}), rgba(0,0,0,${overlay})), url(${JSON.stringify(theme.backgroundImageUrl)})`;
   }
   if (theme.gradientStyle === "linear") {
-    return `linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`;
+    return theme.backgroundTertiary
+      ? `linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary} 0%, ${theme.backgroundSecondary} 52%, ${theme.backgroundTertiary} 100%)`
+      : `linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`;
   }
   if (theme.gradientStyle === "radial") {
-    return `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}, ${theme.backgroundPrimary} 72%)`;
+    return theme.backgroundTertiary
+      ? `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}, transparent 48%), radial-gradient(circle at ${100 - theme.backgroundPositionX}% ${100 - theme.backgroundPositionY}%, ${theme.backgroundTertiary}, ${theme.backgroundPrimary} 72%)`
+      : `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}, ${theme.backgroundPrimary} 72%)`;
   }
-  return `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}cc, transparent 44%), linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`;
+  const thirdGlow = theme.backgroundTertiary
+    ? `radial-gradient(circle at ${100 - theme.backgroundPositionX}% ${Math.min(100, theme.backgroundPositionY + 24)}%, ${theme.backgroundTertiary}b8, transparent 46%), `
+    : "";
+  return `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}cc, transparent 44%), ${thirdGlow}linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`;
 }
 
 export function useCountryThemes() {
@@ -267,6 +280,9 @@ export function useSaveCountryTheme(countryId?: string | null) {
         country_id: countryId,
         background_primary: normaliseHex(theme.backgroundPrimary, DEFAULT_THEME.backgroundPrimary),
         background_secondary: normaliseHex(theme.backgroundSecondary, DEFAULT_THEME.backgroundSecondary),
+        background_tertiary: theme.backgroundTertiary
+          ? normaliseHex(theme.backgroundTertiary, DEFAULT_THEME.accent)
+          : null,
         accent: normaliseHex(theme.accent, DEFAULT_THEME.accent),
         text_primary: normaliseHex(theme.textPrimary, DEFAULT_THEME.textPrimary),
         text_muted: normaliseHex(theme.textMuted, DEFAULT_THEME.textMuted),
@@ -454,18 +470,82 @@ function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 }
 
+function mixHex(first: string, second: string, secondWeight: number) {
+  const [r, g, b] = mix(hexToRgb(first), hexToRgb(second), secondWeight);
+  return rgbToHex(r, g, b);
+}
+
+export function contrastRatio(first: string, second: string) {
+  const lighter = Math.max(hexLuminance(first), hexLuminance(second));
+  const darker = Math.min(hexLuminance(first), hexLuminance(second));
+  return (lighter + .05) / (darker + .05);
+}
+
+function bestContrastText(background: string) {
+  const ink = "#07131f";
+  const light = "#ffffff";
+  return contrastRatio(ink, background) >= contrastRatio(light, background) ? ink : light;
+}
+
+function readableText(text: string, background: string, minimum: number) {
+  if (contrastRatio(text, background) >= minimum) return text;
+  const target = bestContrastText(background);
+  let adjusted = text;
+  for (let weight = .16; weight <= 1; weight += .16) {
+    adjusted = mixHex(text, target, Math.min(1, weight));
+    if (contrastRatio(adjusted, background) >= minimum) return adjusted;
+  }
+  return target;
+}
+
+function balancedSurface(theme: VisualTheme) {
+  // Owner colours still tint the cards, but large surfaces remain calm enough
+  // for long Wiki text instead of becoming a solid block of saturated colour.
+  const related = mixHex(theme.surface, theme.backgroundPrimary, .18);
+  return mixHex(related, "#07131f", .58);
+}
+
+export function suggestThirdBackground(theme: VisualTheme) {
+  const accentBridge = mixHex(theme.backgroundSecondary, theme.accent, .34);
+  return mixHex(accentBridge, theme.backgroundPrimary, .18);
+}
+
+export function getThemeColourReport(theme: VisualTheme) {
+  const surface = balancedSurface(theme);
+  const foreground = readableText(theme.textPrimary, surface, 4.5);
+  const mutedForeground = readableText(theme.textMuted, surface, 3.4);
+  const accentForeground = bestContrastText(theme.accent);
+  return {
+    surface,
+    foreground,
+    mutedForeground,
+    accentForeground,
+    mainTextContrast: contrastRatio(foreground, surface),
+    mutedTextContrast: contrastRatio(mutedForeground, surface),
+    buttonContrast: contrastRatio(accentForeground, theme.accent),
+  };
+}
+
 export function themeStyleProperties(theme: VisualTheme): Record<string, string> {
   const hexToTriplet = (hex: string) => hexToRgb(hex).join(" ");
+  const tertiary = (theme as Partial<CountryVisualTheme>).backgroundTertiary || theme.accent;
+  const report = getThemeColourReport(theme);
+  const surface = report.surface;
+  const raisedSurface = mixHex(surface, "#ffffff", .065);
   return {
     "--solaris-bg-primary": hexToTriplet(theme.backgroundPrimary),
     "--solaris-bg-secondary": hexToTriplet(theme.backgroundSecondary),
-    "--solaris-bg-tertiary": hexToTriplet(theme.accent),
+    "--solaris-bg-tertiary": hexToTriplet(tertiary),
     "--solaris-bg-deep": hexToTriplet(darkenHex(theme.backgroundPrimary, .34)),
     "--solaris-bg-deep-2": hexToTriplet(darkenHex(theme.backgroundSecondary, .52)),
     "--solaris-accent": hexToTriplet(theme.accent),
-    "--foreground": theme.textPrimary,
-    "--muted-foreground": theme.textMuted,
-    "--surface": theme.surface,
+    "--solaris-accent-foreground": report.accentForeground,
+    "--solaris-owner-surface": theme.surface,
+    "--solaris-card-surface": surface,
+    "--solaris-card-raised": raisedSurface,
+    "--foreground": report.foreground,
+    "--muted-foreground": report.mutedForeground,
+    "--surface": surface,
   };
 }
 

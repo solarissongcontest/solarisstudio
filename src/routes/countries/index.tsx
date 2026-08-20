@@ -154,6 +154,7 @@ function CountriesPage() {
         eyebrow="Delegation directory"
         title="Countries"
         description="Browse every Solaris delegation, or search an artist or song to find the country that sent it."
+        className="directory-page-hero countries-library-hero"
         actions={
           <Link
             to="/compare"
@@ -164,7 +165,7 @@ function CountriesPage() {
         }
       />
 
-      <section className="mb-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 sm:grid-cols-4">
+      <section className="directory-stat-strip mb-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border sm:grid-cols-4">
         <DirectoryStat label="Delegations" value={allRows.length} />
         <DirectoryStat label="Regions" value={regions.length} />
         <DirectoryStat label="Total entries" value={totalParticipations} />
@@ -209,7 +210,7 @@ function CountriesPage() {
           </p>
         </div>
 
-        <div className="mt-3 rounded-2xl border border-border/70 bg-surface/85 p-3 sm:p-4">
+        <div className="directory-page-filter mt-3 rounded-2xl border p-3 sm:p-4">
           <div className="mb-3 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground sm:hidden">
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filters{activeFilters ? ` · ${activeFilters} active` : ""}
@@ -286,7 +287,8 @@ function LeaderCard({ row, rank }: { row: CountryRow; rank: number }) {
     <Link
       to="/countries/$code"
       params={{ code: country.short_code }}
-      className="group relative min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-surface/90 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-primary/35"
+      className="directory-country-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition duration-200"
+      style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -321,7 +323,8 @@ function CountryCard({ row }: { row: CountryRow }) {
     <Link
       to="/countries/$code"
       params={{ code: country.short_code }}
-      className="group min-w-0 rounded-2xl border border-border/65 bg-surface/80 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-surface"
+      className="directory-country-card group min-w-0 rounded-2xl border p-4 transition duration-200"
+      style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
     >
       <div className="flex min-w-0 items-center gap-3">
         <FlagChip
