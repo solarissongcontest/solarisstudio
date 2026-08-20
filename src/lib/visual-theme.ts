@@ -21,7 +21,15 @@ export type CountryHeroLayout =
   | "poster"
   | "split"
   | "spotlight"
-  | "broadcast";
+  | "broadcast"
+  | "panorama"
+  | "monument"
+  | "glass-card"
+  | "newspaper"
+  | "ribbon"
+  | "duotone"
+  | "passport"
+  | "horizon";
 
 export const COUNTRY_HERO_LAYOUTS: CountryHeroLayout[] = [
   "classic",
@@ -32,6 +40,14 @@ export const COUNTRY_HERO_LAYOUTS: CountryHeroLayout[] = [
   "split",
   "spotlight",
   "broadcast",
+  "panorama",
+  "monument",
+  "glass-card",
+  "newspaper",
+  "ribbon",
+  "duotone",
+  "passport",
+  "horizon",
 ];
 
 export type CountryVisualTheme = VisualTheme & {
