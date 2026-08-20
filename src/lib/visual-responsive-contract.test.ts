@@ -36,7 +36,7 @@ describe("country page personalities", () => {
 
   it("renders materially different public hero CSS for every non-default personality", () => {
     layouts.forEach((layout) => {
-      expect(entityTheme).toContain(`data-country-hero-layout=\"${layout}\"`);
+      expect(entityTheme).toContain(`data-country-hero-layout="${layout}"`);
     });
     expect(entityTheme).toContain("min-height: clamp(31rem, 64vw, 47rem)");
     expect(entityTheme).toContain("border-left: .35rem solid");
