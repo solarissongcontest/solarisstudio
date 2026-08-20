@@ -48,7 +48,9 @@ function VotingAdminOverview() {
     queryKey: ["merged-televoting-admin-overview"],
     queryFn: () => getOverview(),
     enabled: backendReady,
-    refetchInterval: 5_000,
+    // Keep the live monitor just as responsive while voting is open, but stop
+    // hammering the overview endpoint every five seconds when nothing is live.
+    refetchInterval: (query) => (query.state.data?.openRounds ? 5_000 : 30_000),
   });
 
   const nextAction =
