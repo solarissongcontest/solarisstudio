@@ -57,7 +57,12 @@ export type CountryDecorationStyle =
   | "orbits"
   | "rays"
   | "grid"
-  | "waves";
+  | "waves"
+  | "aurora"
+  | "constellation"
+  | "facets"
+  | "topography"
+  | "eclipse";
 
 export const COUNTRY_DECORATION_STYLES: CountryDecorationStyle[] = [
   "auto",
@@ -67,6 +72,11 @@ export const COUNTRY_DECORATION_STYLES: CountryDecorationStyle[] = [
   "rays",
   "grid",
   "waves",
+  "aurora",
+  "constellation",
+  "facets",
+  "topography",
+  "eclipse",
 ];
 
 export type CountryVisualTheme = VisualTheme & {

@@ -3,6 +3,7 @@ import { Eye, Image, Layers3, Palette, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { uploadCountryBackground } from "@/lib/country-background";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useCountries } from "@/lib/data";
@@ -10,6 +11,7 @@ import {
   DEFAULT_COUNTRY_THEME,
   countryBackgroundCss,
   countryThemeToVisual,
+  themeStyleProperties,
   useCountryTheme,
   useSaveCountryTheme,
   type CountryDecorationStyle,
@@ -52,7 +54,7 @@ const DECORATIONS: Array<{
   {
     value: "auto",
     label: "Best match",
-    description: "Solaris picks a sharp abstract design that fits the personality. Flag focus keeps the flag.",
+    description: "Solaris integrates the flag in the way that best fits the selected personality.",
   },
   { value: "none", label: "None", description: "No extra shapes or flag decoration." },
   {
@@ -64,6 +66,11 @@ const DECORATIONS: Array<{
   { value: "rays", label: "Rays", description: "Angular rays for a bold poster-like look." },
   { value: "grid", label: "Grid", description: "Clean geometric lines for editorial and broadcast styles." },
   { value: "waves", label: "Waves", description: "Curved layered lines for a softer, cinematic look." },
+  { value: "aurora", label: "Aurora", description: "Layered ribbons of colour with a soft atmospheric glow." },
+  { value: "constellation", label: "Constellation", description: "Fine star points and connecting lines with plenty of breathing room." },
+  { value: "facets", label: "Facets", description: "Crisp translucent planes for a polished graphic look." },
+  { value: "topography", label: "Topography", description: "Elegant contour lines that feel detailed without becoming noisy." },
+  { value: "eclipse", label: "Eclipse", description: "A dramatic off-centre halo with restrained light and depth." },
 ];
 
 function CountryThemePage() {
@@ -86,11 +93,38 @@ function CountryThemePage() {
 
   useEffect(() => {
     const existing = countryThemeToVisual(savedTheme);
-    if (existing) setTheme(existing);
-    else if (country?.accent_color) {
+    if (existing) {
+      setTheme(
+        existing.heroLayout === "glass-card" &&
+          !["auto", "flag", "none"].includes(existing.decorationStyle)
+          ? { ...existing, decorationStyle: "auto" }
+          : existing,
+      );
+    } else if (country?.accent_color) {
       setTheme((current) => ({ ...current, accent: country.accent_color }));
     }
   }, [savedTheme, country?.accent_color]);
+
+  useEffect(() => {
+    if (!country) return;
+    const body = document.body;
+    const previous = {
+      entityTheme: body.dataset.entityTheme,
+      heroLayout: body.dataset.countryHeroLayout,
+      decoration: body.dataset.countryDecoration,
+    };
+    body.dataset.entityTheme = "country";
+    body.dataset.countryHeroLayout = theme.heroLayout;
+    body.dataset.countryDecoration = theme.decorationStyle;
+    return () => {
+      if (previous.entityTheme) body.dataset.entityTheme = previous.entityTheme;
+      else delete body.dataset.entityTheme;
+      if (previous.heroLayout) body.dataset.countryHeroLayout = previous.heroLayout;
+      else delete body.dataset.countryHeroLayout;
+      if (previous.decoration) body.dataset.countryDecoration = previous.decoration;
+      else delete body.dataset.countryDecoration;
+    };
+  }, [country, theme.heroLayout, theme.decorationStyle]);
 
   const previewStyle = useMemo(
     () => ({
@@ -437,7 +471,17 @@ function CountryThemePage() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setTheme((current) => ({ ...current, heroLayout: value }))}
+                  onClick={() =>
+                    setTheme((current) => ({
+                      ...current,
+                      heroLayout: value,
+                      decorationStyle:
+                        value === "glass-card" &&
+                        !["auto", "flag", "none"].includes(current.decorationStyle)
+                          ? "auto"
+                          : current.decorationStyle,
+                    }))
+                  }
                   className={`min-h-24 rounded-xl border p-3 text-left transition-colors ${
                     theme.heroLayout === value
                       ? "border-primary bg-primary/10"
@@ -455,10 +499,18 @@ function CountryThemePage() {
 
           <Panel
             title="Decoration"
-            description="Choose what appears behind the country name. You do not have to use the flag. Abstract designs stay sharp on every screen."
+            description={
+              theme.heroLayout === "glass-card"
+                ? "Choose whether the flag appears inside the glass panel. None keeps only the liquid-glass material."
+                : "Choose what appears behind the country name. You do not have to use the flag. Abstract designs stay sharp on every screen."
+            }
           >
             <div className="grid gap-2 sm:grid-cols-2">
-              {DECORATIONS.map(({ value, label, description }) => (
+              {DECORATIONS.filter(({ value }) =>
+                theme.heroLayout === "glass-card"
+                  ? ["auto", "none", "flag"].includes(value)
+                  : true,
+              ).map(({ value, label, description }) => (
                 <button
                   key={value}
                   type="button"
@@ -469,6 +521,11 @@ function CountryThemePage() {
                       : "border-border bg-surface hover:bg-surface-strong"
                   }`}
                 >
+                  <DecorationSwatch
+                    decoration={value}
+                    flagImage={country.flag_image}
+                    accent={theme.accent}
+                  />
                   <span className="block text-sm font-semibold">{label}</span>
                   <span className="mt-1 block text-xs leading-5 text-muted-foreground">
                     {description}
@@ -579,15 +636,16 @@ function CountryThemePage() {
 }
 
 function effectiveDecoration(theme: CountryVisualTheme): Exclude<CountryDecorationStyle, "auto"> {
-  if (theme.decorationStyle !== "auto") return theme.decorationStyle;
-  if (theme.heroLayout === "flag-focus") return "flag";
-  if (["classic", "spotlight", "glass-card", "passport"].includes(theme.heroLayout)) {
-    return "orbits";
+  // Glass allows its matched flag layer to be removed, but never replaces it
+  // with an unrelated orbit/ray/grid motif.
+  if (theme.heroLayout === "glass-card") {
+    return theme.decorationStyle === "none" ? "none" : "flag";
   }
-  if (["poster", "monument", "ribbon"].includes(theme.heroLayout)) return "rays";
-  if (["panorama", "horizon"].includes(theme.heroLayout)) return "waves";
+  if (theme.decorationStyle !== "auto") return theme.decorationStyle;
   if (theme.heroLayout === "minimal") return "none";
-  return "grid";
+  // Auto uses the country's own flag as design material. Abstract motifs are
+  // reserved for an explicit choice and are never auto-stamped onto a page.
+  return "flag";
 }
 
 function CountryThemePreview({
@@ -607,43 +665,16 @@ function CountryThemePreview({
 }) {
   const layout = theme.heroLayout;
   const decoration = effectiveDecoration(theme);
-  const centered = ["poster", "spotlight", "monument"].includes(layout);
-  const sideZone = ["split", "duotone"].includes(layout);
-  const bottomAligned = ["broadcast", "panorama", "horizon"].includes(layout);
   const compact = ["minimal", "passport", "newspaper"].includes(layout);
   const previewHeight = layout === "poster" ? "min-h-[350px]" : compact ? "min-h-[250px]" : "min-h-[300px]";
-  const titleSize =
-    layout === "editorial" || layout === "monument"
-      ? "text-4xl sm:text-5xl"
-      : ["poster", "duotone", "newspaper"].includes(layout)
-        ? "text-4xl"
-        : compact
-          ? "text-2xl sm:text-3xl"
-          : "text-3xl sm:text-4xl";
-
-  const contentClass = centered
-    ? "mx-auto max-w-sm text-center"
-    : sideZone
-      ? "max-w-[62%]"
-      : bottomAligned
-        ? "flex min-h-[250px] items-end"
-        : "max-w-md";
-
-  const glassStyle: React.CSSProperties =
-    layout === "glass-card"
-      ? {
-          borderColor: "rgba(255,255,255,.24)",
-          background: `linear-gradient(135deg, rgba(255,255,255,.14), rgba(255,255,255,.045) 48%, ${theme.accent}15), ${theme.backgroundPrimary}55`,
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,.42), 0 22px 55px -36px rgba(0,0,0,.72)",
-          backdropFilter: "blur(22px) saturate(170%)",
-          WebkitBackdropFilter: "blur(22px) saturate(170%)",
-        }
-      : {};
 
   return (
     <div
-      className={`relative ${previewHeight} overflow-hidden rounded-3xl border p-5 sm:p-6`}
-      style={{ ...previewStyle, ...glassStyle }}
+      className={`country-public-hero glass relative ${previewHeight} overflow-hidden px-5 py-6 sm:px-7 sm:py-8`}
+      style={{
+        ...previewStyle,
+        ...themeStyleProperties(theme),
+      } as React.CSSProperties}
       data-preview-layout={layout}
     >
       {theme.backgroundMode === "image" && theme.backgroundBlur > 0 && (
@@ -661,54 +692,20 @@ function CountryThemePreview({
         />
       )}
 
-      <PreviewDecoration
-        decoration={decoration}
-        layout={layout}
-        flagImage={flagImage}
-        accent={theme.accent}
+      <BackgroundFlag
+        image={flagImage}
+        className="country-hero-background-flag -right-20 -top-24 h-80 w-80"
+        opacity={0.1}
       />
 
-      {layout === "split" && decoration !== "flag" && (
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-[36%] border-l"
-          style={{
-            background: `linear-gradient(145deg, ${theme.accent}18, transparent)`,
-            borderColor: `${theme.accent}44`,
-          }}
-        />
-      )}
-      {layout === "duotone" && (
-        <div
-          className="pointer-events-none absolute -bottom-16 -right-14 h-[125%] w-[46%] rotate-[9deg]"
-          style={{ background: `${theme.accent}22` }}
-        />
-      )}
-      {layout === "broadcast" && (
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[38%]"
-          style={{ background: `linear-gradient(180deg, transparent, ${theme.backgroundPrimary}dd)` }}
-        />
-      )}
-      {layout === "newspaper" && (
-        <>
+      <div className="relative z-10 max-w-3xl">
+        {layout === "glass-card" && decoration === "flag" && flagImage && (
           <div
-            className="pointer-events-none absolute inset-x-5 top-10 h-px"
-            style={{ background: `${theme.accent}77` }}
+            aria-hidden="true"
+            className="country-glass-panel-flag"
+            style={{ backgroundImage: `url(${JSON.stringify(flagImage)})` }}
           />
-          <div
-            className="pointer-events-none absolute inset-x-5 bottom-10 h-px"
-            style={{ background: `${theme.accent}55` }}
-          />
-        </>
-      )}
-      {layout === "passport" && (
-        <div
-          className="pointer-events-none absolute inset-3 rounded-lg border-2"
-          style={{ borderColor: `${theme.accent}44` }}
-        />
-      )}
-
-      <div className={`relative z-10 flex h-full flex-col justify-center ${contentClass}`}>
+        )}
         <div
           className={layout === "broadcast" ? "w-full border-l-4 bg-black/35 p-4 backdrop-blur-sm" : ""}
           style={layout === "broadcast" ? { borderColor: theme.accent } : undefined}
@@ -723,16 +720,11 @@ function CountryThemePreview({
                 ? "TERRA SOLARIS · NATIONAL FILE"
                 : `Terra Solaris · ${region}`}
           </p>
-          <h2
-            className={`${titleSize} mt-2 font-bold ${
-              ["poster", "duotone"].includes(layout) ? "uppercase tracking-[-.055em]" : ""
-            }`}
-            style={{ color: layout === "broadcast" ? theme.textPrimary : theme.textPrimary }}
-          >
+          <h1 className="mt-2 break-words font-display text-3xl font-bold sm:text-5xl">
             {countryName}
-          </h2>
+          </h1>
           <p
-            className={`mt-3 text-sm leading-6 ${centered ? "mx-auto" : "max-w-sm"}`}
+            className="mt-3 max-w-2xl text-sm leading-6"
             style={{ color: theme.textMuted }}
           >
             {description || "Your national story, SSC history and custom sections live here."}
@@ -743,88 +735,35 @@ function CountryThemePreview({
   );
 }
 
-function PreviewDecoration({
+function DecorationSwatch({
   decoration,
-  layout,
   flagImage,
   accent,
 }: {
-  decoration: Exclude<CountryDecorationStyle, "auto">;
-  layout: CountryHeroLayout;
+  decoration: CountryDecorationStyle;
   flagImage: string | null;
   accent: string;
 }) {
-  if (decoration === "none") return null;
-
-  if (decoration === "flag") {
-    if (!flagImage) return null;
-
-    if (layout === "split") {
-      return (
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-[38%]"
-          style={{
-            backgroundImage: `linear-gradient(90deg, transparent, rgba(0,0,0,.08)), url(${JSON.stringify(flagImage)})`,
-            backgroundPosition: "center",
-            backgroundSize: "cover",
-          }}
+  const resolved = decoration === "auto" ? "aurora" : decoration;
+  return (
+    <span
+      aria-hidden="true"
+      className="relative mb-2 block h-10 overflow-hidden rounded-lg border border-white/10 bg-background/50"
+    >
+      {(resolved === "flag" || decoration === "auto") && flagImage ? (
+        <span
+          className="absolute inset-0 bg-cover bg-center opacity-55"
+          style={{ backgroundImage: `url(${JSON.stringify(flagImage)})` }}
         />
-      );
-    }
-
-    if (layout === "newspaper") {
-      return (
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-12 opacity-50"
-          style={{
-            backgroundImage: `url(${JSON.stringify(flagImage)})`,
-            backgroundPosition: "center",
-            backgroundSize: "cover",
-          }}
+      ) : resolved !== "none" ? (
+        <span
+          className="country-decoration-layer"
+          data-decoration={resolved}
+          style={{ "--decoration-accent": accent } as React.CSSProperties}
         />
-      );
-    }
-
-    return (
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: `url(${JSON.stringify(flagImage)})`,
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          backgroundSize: layout === "flag-focus" ? "cover" : "cover",
-          opacity: layout === "flag-focus" ? 0.52 : layout === "glass-card" ? 0.16 : 0.2,
-          filter: layout === "glass-card" ? "blur(8px) saturate(1.08)" : undefined,
-          WebkitMaskImage:
-            layout === "flag-focus"
-              ? "linear-gradient(#000, #000)"
-              : "radial-gradient(circle at 68% 46%, #000 0 26%, transparent 74%)",
-          maskImage:
-            layout === "flag-focus"
-              ? "linear-gradient(#000, #000)"
-              : "radial-gradient(circle at 68% 46%, #000 0 26%, transparent 74%)",
-        }}
-      />
-    );
-  }
-
-  const style: React.CSSProperties = { opacity: 0.75 };
-  if (decoration === "orbits") {
-    style.background = `radial-gradient(circle at 78% 30%, transparent 0 11%, ${accent}33 11.5% 12%, transparent 12.5% 20%, ${accent}1f 20.5% 21%, transparent 21.5%), radial-gradient(circle at 82% 34%, ${accent}22, transparent 33%)`;
-  } else if (decoration === "rays") {
-    style.background = `repeating-conic-gradient(from -10deg at 70% 48%, ${accent}29 0deg 8deg, transparent 8deg 21deg)`;
-    style.WebkitMaskImage = "radial-gradient(circle at 70% 48%, #000 0 18%, transparent 70%)";
-    style.maskImage = "radial-gradient(circle at 70% 48%, #000 0 18%, transparent 70%)";
-  } else if (decoration === "grid") {
-    style.background = `linear-gradient(${accent}17 1px, transparent 1px), linear-gradient(90deg, ${accent}17 1px, transparent 1px), radial-gradient(circle at 84% 30%, ${accent}20, transparent 30%)`;
-    style.backgroundSize = "26px 26px, 26px 26px, auto";
-    style.WebkitMaskImage = "linear-gradient(90deg, transparent 8%, #000 66%)";
-    style.maskImage = "linear-gradient(90deg, transparent 8%, #000 66%)";
-  } else {
-    style.background = `radial-gradient(ellipse at 72% 118%, transparent 0 35%, ${accent}2b 35.5% 36.5%, transparent 37% 47%, ${accent}1c 47.5% 48.5%, transparent 49%), linear-gradient(180deg, transparent 48%, ${accent}12)`;
-  }
-
-  return <div className="pointer-events-none absolute inset-0" style={style} />;
+      ) : null}
+    </span>
+  );
 }
 
 function ModeButton({

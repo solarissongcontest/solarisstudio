@@ -670,8 +670,9 @@ body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.count
   min-height: 285px !important;
 }
 
-[data-preview-layout="glass-card"] > div.relative.z-10 > div {
+[data-preview-layout="glass-card"] > div.relative.z-10 {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   background: linear-gradient(135deg, rgb(255 255 255 / .16), rgb(255 255 255 / .045) 48%, transparent) !important;
   box-shadow:

@@ -262,6 +262,13 @@ function CountryProfilePage() {
         />
 
         <div className="relative z-10 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          {country.flag_image && (
+            <div
+              aria-hidden="true"
+              className="country-glass-panel-flag"
+              style={{ backgroundImage: `url(${JSON.stringify(country.flag_image)})` }}
+            />
+          )}
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-4">
               <FlagChip

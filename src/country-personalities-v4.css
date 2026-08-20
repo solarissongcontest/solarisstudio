@@ -14,9 +14,157 @@ body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) >
   z-index: 3;
 }
 
+/* Optional motifs remain available when an owner deliberately selects one,
+   but they are never assigned by Auto and Glass rejects them below. These are
+   resolution-independent CSS lines rather than low-resolution symbol assets. */
+body[data-entity-theme="country"][data-country-decoration="none"] :is(.country-public-hero, .wiki-public-hero)::before {
+  content: none !important;
+  display: none !important;
+}
+
+body[data-entity-theme="country"]:is(
+  [data-country-decoration="orbits"],
+  [data-country-decoration="rays"],
+  [data-country-decoration="grid"],
+  [data-country-decoration="waves"],
+  [data-country-decoration="aurora"],
+  [data-country-decoration="constellation"],
+  [data-country-decoration="facets"],
+  [data-country-decoration="topography"],
+  [data-country-decoration="eclipse"]
+) :is(.country-public-hero, .wiki-public-hero)::before {
+  --decoration-colour: rgb(var(--solaris-accent));
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+}
+
+.country-decoration-layer {
+  --decoration-colour: var(--decoration-accent, rgb(var(--solaris-accent)));
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background-repeat: no-repeat;
+}
+
+body[data-entity-theme="country"][data-country-decoration="orbits"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="orbits"] {
+  background:
+    radial-gradient(ellipse 31% 48% at 79% 38%, transparent 56%, color-mix(in srgb, var(--decoration-colour) 25%, transparent) 57%, transparent 58.2%),
+    radial-gradient(ellipse 21% 34% at 79% 38%, transparent 58%, color-mix(in srgb, var(--decoration-colour) 38%, transparent) 59%, transparent 60.4%),
+    radial-gradient(circle at 79% 38%, color-mix(in srgb, var(--decoration-colour) 18%, transparent), transparent 25%),
+    radial-gradient(circle at 89% 17%, color-mix(in srgb, var(--decoration-colour) 48%, transparent) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 63% 71%, color-mix(in srgb, var(--decoration-colour) 38%, transparent) 0 1px, transparent 2px);
+}
+
+body[data-entity-theme="country"][data-country-decoration="rays"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="rays"] {
+  inset: -28% -18% -28% 38%;
+  background:
+    repeating-conic-gradient(from -12deg at 61% 50%, color-mix(in srgb, var(--decoration-colour) 14%, transparent) 0deg 5deg, transparent 5.5deg 17deg),
+    radial-gradient(circle at 61% 50%, color-mix(in srgb, var(--decoration-colour) 20%, transparent), transparent 28%);
+  -webkit-mask-image: radial-gradient(circle at 61% 50%, #000 0 14%, rgb(0 0 0 / .72) 36%, transparent 72%);
+  mask-image: radial-gradient(circle at 61% 50%, #000 0 14%, rgb(0 0 0 / .72) 36%, transparent 72%);
+}
+
+body[data-entity-theme="country"][data-country-decoration="grid"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="grid"] {
+  background:
+    linear-gradient(color-mix(in srgb, var(--decoration-colour) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--decoration-colour) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(135deg, transparent 48%, color-mix(in srgb, var(--decoration-colour) 9%, transparent) 49%, transparent 50%),
+    radial-gradient(circle at 82% 32%, color-mix(in srgb, var(--decoration-colour) 15%, transparent), transparent 32%);
+  background-size: 34px 34px, 34px 34px, 68px 68px, auto;
+  -webkit-mask-image: linear-gradient(90deg, transparent 10%, rgb(0 0 0 / .18) 34%, #000 78%);
+  mask-image: linear-gradient(90deg, transparent 10%, rgb(0 0 0 / .18) 34%, #000 78%);
+}
+
+body[data-entity-theme="country"][data-country-decoration="waves"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="waves"] {
+  background:
+    radial-gradient(ellipse 78% 58% at 72% 112%, transparent 57%, color-mix(in srgb, var(--decoration-colour) 24%, transparent) 57.6%, transparent 58.5%),
+    radial-gradient(ellipse 66% 49% at 72% 112%, transparent 59%, color-mix(in srgb, var(--decoration-colour) 16%, transparent) 59.6%, transparent 60.5%),
+    radial-gradient(ellipse 52% 39% at 72% 112%, transparent 61%, color-mix(in srgb, var(--decoration-colour) 11%, transparent) 61.6%, transparent 62.5%),
+    linear-gradient(180deg, transparent 50%, color-mix(in srgb, var(--decoration-colour) 7%, transparent));
+}
+
+body[data-entity-theme="country"][data-country-decoration="aurora"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="aurora"] {
+  inset: -10%;
+  background:
+    radial-gradient(ellipse 56% 34% at 81% 22%, color-mix(in srgb, var(--decoration-colour) 27%, transparent), transparent 70%),
+    radial-gradient(ellipse 48% 30% at 69% 67%, color-mix(in srgb, var(--decoration-colour) 18%, transparent), transparent 72%),
+    linear-gradient(128deg, transparent 40%, color-mix(in srgb, var(--decoration-colour) 9%, transparent) 53%, transparent 67%);
+  filter: blur(9px) saturate(1.18);
+  transform: rotate(-3deg) scale(1.04);
+}
+
+body[data-entity-theme="country"][data-country-decoration="constellation"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="constellation"] {
+  background:
+    radial-gradient(circle at 68% 24%, color-mix(in srgb, var(--decoration-colour) 75%, white) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 83% 19%, color-mix(in srgb, var(--decoration-colour) 58%, white) 0 1px, transparent 2px),
+    radial-gradient(circle at 91% 43%, color-mix(in srgb, var(--decoration-colour) 70%, white) 0 1.4px, transparent 2.3px),
+    radial-gradient(circle at 76% 61%, color-mix(in srgb, var(--decoration-colour) 52%, white) 0 1px, transparent 2px),
+    radial-gradient(circle at 61% 72%, color-mix(in srgb, var(--decoration-colour) 64%, white) 0 1.2px, transparent 2.2px),
+    linear-gradient(25deg, transparent 63.8%, color-mix(in srgb, var(--decoration-colour) 16%, transparent) 64%, transparent 64.3%),
+    linear-gradient(148deg, transparent 72.6%, color-mix(in srgb, var(--decoration-colour) 13%, transparent) 72.8%, transparent 73.1%),
+    radial-gradient(circle at 80% 40%, color-mix(in srgb, var(--decoration-colour) 10%, transparent), transparent 31%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 36%, #000 64%);
+  mask-image: linear-gradient(90deg, transparent 36%, #000 64%);
+}
+
+body[data-entity-theme="country"][data-country-decoration="facets"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="facets"] {
+  background:
+    linear-gradient(132deg, transparent 0 55%, color-mix(in srgb, var(--decoration-colour) 13%, transparent) 55.2% 68%, transparent 68.2%),
+    linear-gradient(38deg, transparent 0 70%, color-mix(in srgb, var(--decoration-colour) 9%, transparent) 70.2% 83%, transparent 83.2%),
+    conic-gradient(from 218deg at 82% 42%, transparent 0 17%, color-mix(in srgb, var(--decoration-colour) 15%, transparent) 17.3% 29%, transparent 29.3% 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 25%, #000 68%);
+  mask-image: linear-gradient(90deg, transparent 25%, #000 68%);
+}
+
+body[data-entity-theme="country"][data-country-decoration="topography"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="topography"] {
+  inset: -12% -8% -12% 30%;
+  background:
+    repeating-radial-gradient(ellipse at 74% 48%, transparent 0 17px, color-mix(in srgb, var(--decoration-colour) 13%, transparent) 18px 19px, transparent 20px 29px),
+    radial-gradient(ellipse at 74% 48%, color-mix(in srgb, var(--decoration-colour) 10%, transparent), transparent 58%);
+  transform: rotate(-7deg);
+  -webkit-mask-image: radial-gradient(ellipse at 74% 48%, #000 0 28%, transparent 76%);
+  mask-image: radial-gradient(ellipse at 74% 48%, #000 0 28%, transparent 76%);
+}
+
+body[data-entity-theme="country"][data-country-decoration="eclipse"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-decoration-layer[data-decoration="eclipse"] {
+  background:
+    radial-gradient(circle at 79% 42%, rgb(var(--solaris-bg-deep) / .38) 0 13%, transparent 13.4%),
+    radial-gradient(circle at 79% 42%, transparent 0 13%, color-mix(in srgb, var(--decoration-colour) 38%, transparent) 13.4% 14%, transparent 14.5% 22%, color-mix(in srgb, var(--decoration-colour) 11%, transparent) 22.4% 22.8%, transparent 23.2%),
+    radial-gradient(circle at 79% 42%, color-mix(in srgb, var(--decoration-colour) 20%, transparent), transparent 36%);
+}
+
+body[data-entity-theme="country"]:is(
+  [data-country-decoration="none"],
+  [data-country-decoration="orbits"],
+  [data-country-decoration="rays"],
+  [data-country-decoration="grid"],
+  [data-country-decoration="waves"],
+  [data-country-decoration="aurora"],
+  [data-country-decoration="constellation"],
+  [data-country-decoration="facets"],
+  [data-country-decoration="topography"],
+  [data-country-decoration="eclipse"]
+) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: none !important;
+}
+
 /* Auto decoration should not inject the v3 abstract-symbol layer. The flag is
-   the design material instead, except for Minimal. Explicit user-selected
-   motifs still remain available because this only disables AUTO symbols. */
+   the design material instead, except for Minimal. */
 body[data-entity-theme="country"][data-country-decoration="auto"] :is(.country-public-hero, .wiki-public-hero)::before {
   content: none !important;
   display: none !important;
@@ -240,22 +388,18 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.co
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
-body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  display: block !important;
-  inset: -10% !important;
-  width: auto !important;
-  height: auto !important;
-  opacity: .34 !important;
-  transform: scale(1.06) !important;
-  filter: blur(18px) saturate(1.22) contrast(1.04) !important;
+/* Glass is a flag-and-material composition. Old saved orbit/ray/grid choices
+   must never stamp a symbol over it. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero)::before {
+  content: none !important;
+  display: none !important;
 }
-body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover !important;
-  background-position: center !important;
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: none !important;
 }
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
-  width: min(88%, 43rem) !important;
-  max-width: 43rem !important;
+  width: min(84%, 41rem) !important;
+  max-width: 41rem !important;
   padding: clamp(1.35rem, 3vw, 2.1rem) !important;
   overflow: hidden !important;
   border: 1px solid rgb(255 255 255 / .28) !important;
@@ -268,6 +412,23 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.co
     0 22px 58px -34px rgb(var(--solaris-bg-deep) / .82) !important;
   -webkit-backdrop-filter: blur(24px) saturate(175%) brightness(1.06) !important;
   backdrop-filter: blur(24px) saturate(175%) brightness(1.06) !important;
+}
+.country-glass-panel-flag {
+  display: none;
+}
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]:not([data-country-decoration="none"]) :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 > .country-glass-panel-flag,
+[data-preview-layout="glass-card"] > .relative.z-10 > .country-glass-panel-flag {
+  display: block;
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  border-radius: inherit;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: .46;
+  filter: blur(14px) saturate(1.25) contrast(1.04);
+  transform: scale(1.08);
 }
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::before {
   content: "" !important;
@@ -372,6 +533,164 @@ body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.count
   background-position: center 55% !important;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 35%, #000 100%);
   mask-image: linear-gradient(180deg, transparent 0, #000 35%, #000 100%);
+}
+
+/* Personality continuity ---------------------------------------------------
+   The hero sets the identity; the content cards carry quieter versions of
+   the same geometry so the rest of the country and Wiki pages belong to it. */
+body[data-entity-theme="country"] .app-main :is(.data-panel, .country-personality-card) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgb(var(--solaris-accent) / .16) !important;
+  border-radius: 1.15rem !important;
+  background:
+    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .07), transparent 52%),
+    color-mix(in srgb, var(--surface) 92%, rgb(var(--solaris-accent)) 8%) !important;
+  box-shadow: 0 18px 48px -42px rgb(var(--solaris-bg-deep) / .9) !important;
+}
+
+body[data-entity-theme="country"] .app-main .country-personality-inset {
+  border: 1px solid rgb(var(--solaris-accent) / .11);
+  background: color-mix(in srgb, var(--surface) 91%, rgb(var(--solaris-accent)) 9%) !important;
+}
+
+body[data-entity-theme="country"] .app-main :is(.data-panel, .country-personality-card) .bg-surface {
+  border-color: rgb(var(--solaris-accent) / .12) !important;
+  background: color-mix(in srgb, var(--surface) 90%, rgb(var(--solaris-accent)) 10%) !important;
+}
+
+body[data-entity-theme="country"] .app-main :is(.data-panel, .country-personality-card)::before {
+  content: "" !important;
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="classic"] .app-main :is(.data-panel, .country-personality-card)::before {
+  inset: -5rem -4rem auto auto;
+  width: 11rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(var(--solaris-accent) / .11), transparent 68%);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .app-main :is(.data-panel, .country-personality-card) {
+  border-width: 0 0 1px 3px !important;
+  border-radius: 0 .7rem .7rem 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .app-main :is(.data-panel, .country-personality-card) {
+  border-width: 0 0 1px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .app-main :is(.data-panel, .country-personality-card),
+body[data-entity-theme="country"][data-country-hero-layout="poster"] .app-main :is(.data-panel, .country-personality-card) {
+  border-top: 2px solid rgb(var(--solaris-accent) / .48) !important;
+  background:
+    radial-gradient(circle at 88% 0, rgb(var(--solaris-accent) / .14), transparent 34%),
+    color-mix(in srgb, var(--surface) 90%, rgb(var(--solaris-bg-deep)) 10%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="poster"] .app-main :is(.data-panel, .country-personality-card) {
+  border-radius: 1.55rem !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="split"] .app-main :is(.data-panel, .country-personality-card),
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .app-main :is(.data-panel, .country-personality-card) {
+  background:
+    linear-gradient(90deg, transparent 0 82%, rgb(var(--solaris-accent) / .09) 82% 100%),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="split"] .app-main :is(.data-panel, .country-personality-card)::before,
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .app-main :is(.data-panel, .country-personality-card)::before {
+  inset: 0 18% 0 auto;
+  width: 1px;
+  background: rgb(var(--solaris-accent) / .16);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] .app-main :is(.data-panel, .country-personality-card) {
+  background:
+    radial-gradient(circle at 50% -25%, rgb(var(--solaris-accent) / .16), transparent 48%),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .app-main :is(.data-panel, .country-personality-card) {
+  border-left: 4px solid rgb(var(--solaris-accent) / .68) !important;
+  border-radius: .65rem !important;
+  background:
+    linear-gradient(180deg, rgb(var(--solaris-accent) / .07), transparent 36%),
+    color-mix(in srgb, var(--surface) 91%, rgb(var(--solaris-bg-deep)) 9%) !important;
+}
+
+body[data-entity-theme="country"]:is(
+  [data-country-hero-layout="panorama"],
+  [data-country-hero-layout="horizon"]
+) .app-main :is(.data-panel, .country-personality-card) {
+  background:
+    linear-gradient(180deg, transparent 58%, rgb(var(--solaris-accent) / .09) 100%),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .app-main :is(.data-panel, .country-personality-card) {
+  border-color: rgb(var(--solaris-accent) / .24) !important;
+  border-radius: .8rem !important;
+  box-shadow:
+    inset 4px 0 0 rgb(var(--solaris-accent) / .08),
+    inset -4px 0 0 rgb(var(--solaris-accent) / .08) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .app-main :is(.data-panel, .country-personality-card) {
+  border-color: rgb(255 255 255 / .2) !important;
+  border-radius: 1.45rem !important;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / .105), rgb(255 255 255 / .035) 56%, rgb(var(--solaris-accent) / .055)) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .25),
+    0 20px 54px -40px rgb(var(--solaris-bg-deep) / .9) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .app-main :is(.data-panel, .country-personality-card)::before {
+  inset: 0 38% 66% -8%;
+  transform: rotate(-8deg);
+  background: linear-gradient(110deg, rgb(255 255 255 / .16), transparent 72%);
+  filter: blur(7px);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .app-main :is(.data-panel, .country-personality-card) .bg-surface {
+  background: rgb(255 255 255 / .055) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
+  backdrop-filter: blur(10px) saturate(135%);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .app-main :is(.data-panel, .country-personality-card) {
+  border-width: 1px 0 !important;
+  border-radius: 0 !important;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 27px, rgb(var(--solaris-accent) / .025) 27px 28px),
+    color-mix(in srgb, var(--surface) 96%, rgb(var(--solaris-accent)) 4%) !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] .app-main :is(.data-panel, .country-personality-card) {
+  background:
+    linear-gradient(168deg, transparent 0 76%, rgb(var(--solaris-accent) / .12) 76.3% 83%, transparent 83.3%),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .app-main :is(.data-panel, .country-personality-card) {
+  border-color: rgb(var(--solaris-accent) / .24) !important;
+  border-radius: .8rem !important;
+  box-shadow:
+    inset 0 0 0 3px color-mix(in srgb, var(--surface) 90%, transparent),
+    inset 0 0 0 4px rgb(var(--solaris-accent) / .1) !important;
 }
 
 @media (max-width: 720px) {
