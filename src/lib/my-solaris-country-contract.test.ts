@@ -1,0 +1,69 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+function source(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+const account = source("src/lib/country-account.ts");
+const hub = source("src/routes/_authenticated/country-hub/index.tsx");
+const shell = source("src/components/AppShell.tsx");
+const appearance = source("src/routes/_authenticated/country-hub/theme.tsx");
+const builder = source("src/routes/_authenticated/country-hub/page-builder.tsx");
+const entryMigration = source("supabase/migrations/20260819212500_edition_level_country_entries.sql");
+const cleanRpcMigration = source("supabase/migrations/20260819215500_clean_edition_entry_rpcs.sql");
+
+describe("edition-wide country entries", () => {
+  it("gives HODs an edition-only database contract", () => {
+    expect(account).toContain('"upsert_owned_country_edition_entry"');
+    expect(account).toContain('"admin_upsert_country_edition_entry"');
+    expect(account).not.toContain("_show_id: input.showId");
+    expect(account).not.toContain("_participant_id: input.participantId");
+    expect(cleanRpcMigration).not.toContain("_show_id uuid");
+    expect(cleanRpcMigration).not.toContain("_participant_id uuid");
+  });
+
+  it("keeps semi-final/final rows as appearances of one canonical edition entry", () => {
+    expect(entryMigration).toContain("show_id = null row is the canonical edition entry edited by the HoD");
+    expect(entryMigration).toContain("never their\n  -- own artist/song identity");
+    expect(hub).not.toContain("First show appearance");
+    expect(hub).toContain("Show appearances, running order and qualification are managed separately");
+  });
+});
+
+describe("country claims and unified account workspace", () => {
+  it("does not silently convert an empty/broken admin RPC into zero real claims", () => {
+    expect(account).toContain("loadAdminCountryAccountsFallback");
+    expect(account).toContain('.from("country_accounts")');
+    expect(account).toContain("if (!rpc.error && rpcAccounts.length > 0)");
+  });
+
+  it("has one My Solaris destination instead of duplicate profile/country destinations", () => {
+    expect(shell).toContain("Open My Solaris");
+    expect(shell).not.toContain('label: "My country"');
+    expect(shell).not.toContain('label: "Country setup"');
+    expect(shell).not.toContain('>Profile & activity<');
+  });
+});
+
+describe("country page customization", () => {
+  it("keeps full background customization and image guidance", () => {
+    expect(appearance).toContain("1920×1080");
+    expect(appearance).toContain("2560×1440");
+    expect(appearance).toContain('backgroundMode === "image"');
+    expect(appearance).toContain('backgroundMode === "gradient"');
+    expect(appearance).toContain("Gradient style");
+    expect(appearance).toContain("Dark overlay");
+    expect(appearance).toContain("Background blur");
+  });
+
+  it("keeps modular country/wiki blocks, visibility and ordering controls", () => {
+    expect(builder).toContain("visibleOnCountry");
+    expect(builder).toContain("visibleOnWiki");
+    expect(builder).toContain("contentMode");
+    expect(builder).toContain("imageLayout");
+    expect(builder).toContain("useReorderCountryPageSections");
+    expect(builder).toContain("Write everything yourself, let Solaris draft from facts you supplied");
+  });
+});

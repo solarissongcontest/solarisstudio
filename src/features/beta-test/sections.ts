@@ -1,12 +1,11 @@
-import { betaSectionsCore } from "./sections-core";
-import { betaSectionsExtra } from "./sections-extra";
+import { betaSectionsRound2 } from "./sections-round-2";
 import type { BetaAnswer, BetaAnswers, BetaQuestion } from "./types";
 
-export const BETA_DRAFT_KEY = "solaris:public-beta-test:draft:v2";
-export const BETA_SUBMITTED_KEY = "solaris:public-beta-test:submitted:v2";
-export const BETA_FORM_VERSION = 2;
+export const BETA_DRAFT_KEY = "solaris:public-beta-test:draft:v3";
+export const BETA_SUBMITTED_KEY = "solaris:public-beta-test:submitted:v3";
+export const BETA_FORM_VERSION = 3;
 
-export const betaSections = [...betaSectionsCore, ...betaSectionsExtra];
+export const betaSections = betaSectionsRound2;
 
 export function isBetaQuestionVisible(question: BetaQuestion, answers: BetaAnswers) {
   if (!question.showWhen) return true;
