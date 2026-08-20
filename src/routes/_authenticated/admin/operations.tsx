@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 
-import { AdminContextProvider, useAdminContext } from "@/components/admin/AdminContext";
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
