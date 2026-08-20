@@ -1,9 +1,9 @@
 import { betaSectionsRound2 } from "./sections-round-2";
 import type { BetaAnswer, BetaAnswers, BetaQuestion } from "./types";
 
-export const BETA_DRAFT_KEY = "solaris:public-beta-test:draft:v3";
-export const BETA_SUBMITTED_KEY = "solaris:public-beta-test:submitted:v3";
-export const BETA_FORM_VERSION = 3;
+export const BETA_DRAFT_KEY = "solaris:public-beta-test:draft:v4";
+export const BETA_SUBMITTED_KEY = "solaris:public-beta-test:submitted:v4";
+export const BETA_FORM_VERSION = 4;
 
 export const betaSections = betaSectionsRound2;
 
