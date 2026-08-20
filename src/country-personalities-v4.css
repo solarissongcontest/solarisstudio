@@ -1,0 +1,150 @@
+/* Country personality v4 ---------------------------------------------------
+   Regression fix for the v3 decoration layer. Auto mode must preserve the
+   personality-specific integrated flag compositions from v2 instead of
+   replacing them with generic rings, grids, rays or waves. Explicit motif
+   choices still work, but Auto no longer injects them. Glass Card restores
+   the blurred flag under one single liquid-glass hero surface. */
+
+/* AUTO: restore the personality-specific flag treatments from v2. Minimal is
+   intentionally flagless. */
+body[data-entity-theme="country"][data-country-decoration="auto"]:not([data-country-hero-layout="minimal"]) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: block !important;
+}
+
+body[data-entity-theme="country"][data-country-decoration="auto"] :is(.country-public-hero, .wiki-public-hero)::before {
+  display: none !important;
+}
+
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: none !important;
+}
+
+/* Keep explicit abstract motifs available, but make them quieter and cleaner
+   so they behave like texture rather than low-quality clip-art symbols. */
+body[data-entity-theme="country"][data-country-decoration="orbits"] :is(.country-public-hero, .wiki-public-hero)::before,
+body[data-entity-theme="country"][data-country-decoration="rays"] :is(.country-public-hero, .wiki-public-hero)::before,
+body[data-entity-theme="country"][data-country-decoration="grid"] :is(.country-public-hero, .wiki-public-hero)::before,
+body[data-entity-theme="country"][data-country-decoration="waves"] :is(.country-public-hero, .wiki-public-hero)::before {
+  opacity: .42 !important;
+  filter: saturate(.82) contrast(.94);
+}
+
+/* GLASS CARD ---------------------------------------------------------------
+   One glass object only. The flag is a blurred full-bleed layer behind the
+   glass material, never a card/thumbnail placed inside the hero. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(20rem, 34vw, 26rem) !important;
+  padding: clamp(1.65rem, 4vw, 3.25rem) !important;
+  border: 1px solid rgb(255 255 255 / .26) !important;
+  border-radius: clamp(1.35rem, 3vw, 2.2rem) !important;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / .12), rgb(255 255 255 / .038) 42%, rgb(var(--solaris-accent) / .06) 100%),
+    rgb(var(--solaris-bg-deep) / .20) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .42),
+    inset 1px 0 0 rgb(255 255 255 / .12),
+    inset 0 -1px 0 rgb(var(--solaris-accent) / .14),
+    0 26px 70px -42px rgb(var(--solaris-bg-deep) / .92) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(175%) brightness(1.045);
+  backdrop-filter: blur(24px) saturate(175%) brightness(1.045);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+  width: min(100%, 49rem) !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::before,
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::after {
+  display: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]:is([data-country-decoration="auto"], [data-country-decoration="flag"]) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: block !important;
+  inset: -14% !important;
+  width: auto !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  opacity: .33 !important;
+  transform: scale(1.05) !important;
+  filter: blur(18px) saturate(1.16) contrast(1.02) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag > svg {
+  display: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--background-flag-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* The v2 compositions already integrate flags structurally. Auto should use
+   those shapes rather than inventing a generic rectangle or symbol on top. */
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: block !important;
+}
+
+/* Avoid the “stamped rectangle” feel when a structural layout uses the flag. */
+body[data-entity-theme="country"]:is(
+  [data-country-hero-layout="editorial"],
+  [data-country-hero-layout="poster"],
+  [data-country-hero-layout="split"],
+  [data-country-hero-layout="broadcast"],
+  [data-country-hero-layout="panorama"],
+  [data-country-hero-layout="monument"],
+  [data-country-hero-layout="newspaper"],
+  [data-country-hero-layout="ribbon"],
+  [data-country-hero-layout="duotone"],
+  [data-country-hero-layout="passport"],
+  [data-country-hero-layout="horizon"]
+) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 720px) {
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 19rem !important;
+    padding: 1.35rem !important;
+    border-radius: 1.6rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+    width: 100% !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]:is([data-country-decoration="auto"], [data-country-decoration="flag"]) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    inset: -18% !important;
+    opacity: .36 !important;
+    filter: blur(20px) saturate(1.2) !important;
+  }
+}
