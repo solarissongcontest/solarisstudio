@@ -8,9 +8,26 @@ const visualTheme = source("src/lib/visual-theme.ts");
 const editor = source("src/routes/_authenticated/country-hub/theme.tsx");
 const css = source("src/country-personalities.css");
 const backgroundFlag = source("src/components/BackgroundFlag.tsx");
+const routeVisualTheme = source("src/components/RouteVisualTheme.tsx");
 const migration = source("supabase/migrations/20260820160000_expand_country_page_personalities.sql");
 
 const newLayouts = [
+  "panorama",
+  "monument",
+  "glass-card",
+  "newspaper",
+  "ribbon",
+  "duotone",
+  "passport",
+  "horizon",
+];
+
+const rectangularLayouts = [
+  "editorial",
+  "flag-focus",
+  "poster",
+  "split",
+  "broadcast",
   "panorama",
   "monument",
   "glass-card",
@@ -32,13 +49,33 @@ describe("expanded country page personalities", () => {
     expect(editor).toContain("Sixteen deliberately different header compositions");
   });
 
-  it("uses a rectangular national flag treatment for split instead of the circular svg", () => {
+  it("keeps circular flag art only for layouts where an emblem shape is intentional", () => {
     expect(backgroundFlag).toContain("--background-flag-image");
-    expect(css).toContain('[data-country-hero-layout="split"]');
+    expect(css).toContain("Only Classic and Spotlight use the original circular dissolve");
+    for (const layout of rectangularLayouts) {
+      expect(css).toContain(`[data-country-hero-layout=\"${layout}\"]`);
+    }
     expect(css).toContain(".country-hero-background-flag > svg");
     expect(css).toContain("display: none !important");
     expect(css).toContain("aspect-ratio: 3 / 2 !important");
-    expect(editor).toContain("rectangular className=\"absolute right-5 top-1/2 w-[36%] -translate-y-1/2\"");
+  });
+
+  it("keeps mobile heroes compact instead of inheriting tall desktop canvases", () => {
+    expect(css).toContain("@media (max-width: 767px)");
+    expect(css).toContain('[data-country-hero-layout="glass-card"]');
+    expect(css).toContain("min-height: 20rem !important");
+    expect(css).toContain('[data-country-hero-layout="split"]');
+    expect(css).toContain("min-height: 24rem !important");
+    expect(css).toContain('[data-country-hero-layout="passport"]');
+    expect(css).toContain("min-height: 16rem !important");
+  });
+
+  it("uses layered liquid glass with a progressive refraction filter", () => {
+    expect(css).toContain("-webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.06)");
+    expect(css).toContain("backdrop-filter: url(\"#solaris-liquid-glass\")");
+    expect(routeVisualTheme).toContain('id="solaris-liquid-glass"');
+    expect(routeVisualTheme).toContain("feDisplacementMap");
+    expect(routeVisualTheme).toContain("feTurbulence");
   });
 
   it("binds country and wiki headings to the configured main-text colour", () => {
