@@ -11,6 +11,9 @@ describe("public Beta 2.0 contract", () => {
   const discovery = source("features/beta-test/sections-beta2-discovery.ts");
   const evaluation = source("features/beta-test/sections-beta2-evaluation.ts");
   const route = source("routes/beta-test/index.tsx");
+  const dashboard = source("routes/_authenticated/admin/beta2-feedback.tsx");
+  const more = source("routes/_authenticated/admin/more.tsx");
+  const palette = source("components/admin/AdminCommandPalette.tsx");
   const migration = source("../supabase/migrations/20260820162000_close_beta1_open_beta2.sql");
 
   it("uses a new form version and keeps old local drafts separate", () => {
@@ -57,9 +60,21 @@ describe("public Beta 2.0 contract", () => {
     expect(route).toContain("calculateActivityPoints");
   });
 
-  it("archives Beta 1 instead of deleting its responses", () => {
+  it("archives Beta 1 instead of deleting or mixing its responses", () => {
+    expect(migration).toContain("create table if not exists public.beta2_test_submissions");
     expect(migration).toContain("form_version = 4");
+    expect(migration).toContain("return null");
+    expect(migration).toContain("Closed Beta 1 archive");
     expect(migration).not.toContain("delete from public.beta_test_submissions");
     expect(migration).not.toContain("truncate");
+  });
+
+  it("keeps the current Beta 2 report beside the Beta 1 archive", () => {
+    expect(more).toContain('to: "/admin/beta2-feedback"');
+    expect(more).toContain('to: "/admin/beta-feedback"');
+    expect(palette).toContain('["Beta 2 feedback", "/admin/beta2-feedback"');
+    expect(dashboard).toContain('title="Beta 2.0 feedback"');
+    expect(dashboard).toContain("Open Beta 1 archive");
+    expect(dashboard).toContain("Beta 1 weaknesses");
   });
 });
