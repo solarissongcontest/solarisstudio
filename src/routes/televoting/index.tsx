@@ -17,7 +17,7 @@ export const Route = createFileRoute("/televoting/")({
   head: () => ({
     meta: [
       { title: "Solaris Televoting — Solaris Studio" },
-      { name: "description", content: "The Solaris Song Contest televoting portal inside Solaris Studio." },
+      { name: "description", content: "Vote in Solaris Song Contest televoting rounds." },
     ],
   }),
   component: TelevotingPage,

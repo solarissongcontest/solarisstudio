@@ -477,7 +477,7 @@ function ResponseDetailPage() {
                 <AdminActionItem
                   icon={RefreshCw}
                   title="Sync with Solaris Studio"
-                  description="Refresh canonical participation and official-entry data."
+                  description="Refresh participation and official entry details from Solaris."
                   disabled={syncingSolaris}
                   onClick={() => void manualSync()}
                   trailing={

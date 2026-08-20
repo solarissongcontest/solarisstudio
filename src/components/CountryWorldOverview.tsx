@@ -76,7 +76,7 @@ export function CountryWorldOverview({
   const entryPanel = (
     <Panel
       title="Entries"
-      description="One archived entry per edition. Semi-final and final are appearances of that same participation."
+      description="Each edition has one entry. The semi-final and final use that same entry."
       actions={
         <Link
           to="/countries/$code"

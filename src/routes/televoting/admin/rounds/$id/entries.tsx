@@ -216,7 +216,7 @@ function RoundEntriesPage() {
         <p className="text-[10px] uppercase tracking-[0.22em] text-sky-100/65">Participant editor</p>
         <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">{data?.round.name ?? "Round entries"}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          The recommended line-up comes from canonical Solaris participation and entry data. Manual and custom controls remain available for exceptional rounds.
+          The suggested line-up uses participation and entry details from Solaris. You can still add or change entries for special rounds.
         </p>
       </header>
 
@@ -242,15 +242,15 @@ function RoundEntriesPage() {
                     <Link2 className="size-4" />
                   </div>
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-sky-100/60">Canonical source</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-sky-100/60">Solaris edition</p>
                     <h2 className="text-lg font-medium">Solaris line-up</h2>
                   </div>
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                   {sourceLoading
-                    ? "Loading the canonical Solaris edition…"
+                    ? "Loading the Solaris edition…"
                     : solarisSource
-                      ? `${solarisSource.edition.name} is the source of truth. Country names, flags and official artist/song data are synchronized into this Televoting round while custom entries are preserved.`
+                      ? `${solarisSource.edition.name} supplies country names, flags and official artist and song details. Custom entries are kept.`
                       : "Solaris source information is unavailable."}
                 </p>
                 {sourceError ? (

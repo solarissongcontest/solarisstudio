@@ -192,7 +192,7 @@ function SyncHealthPage() {
 
           <AdminCard>
             <AdminCardHeader
-              eyebrow="Canonical links"
+              eyebrow="Edition links"
               title="Cross-service bindings"
               description="These numbers show how much information is connected between Confirmations, Televoting and HOD history."
             />

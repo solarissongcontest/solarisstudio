@@ -205,7 +205,7 @@ function EditionThemePage() {
             <div className="mt-2 grid gap-2 text-xs leading-relaxed text-muted-foreground sm:grid-cols-3">
               <p><strong className="text-foreground">Artwork:</strong> the official image is stored and displayed uncropped.</p>
               <p><strong className="text-foreground">Colours:</strong> backgrounds, surfaces, accents and text inherit this visual atmosphere.</p>
-              <p><strong className="text-foreground">Scoreboard theme:</strong> linked theme colours are synchronized. Votes, points and results are never touched here.</p>
+              <p><strong className="text-foreground">Scoreboard theme:</strong> colour changes also appear on linked scoreboards. Votes, points and results are never changed here.</p>
             </div>
           </div>
         </div>
@@ -232,7 +232,7 @@ function EditionThemePage() {
               <ColourField label="Accent" description="Highlights, progress and selected states." value={theme.accent} onChange={(value) => set("accent", value)} />
               <ColourField label="Surface" description="Cards and scoreboard panels." value={theme.surface} onChange={(value) => set("surface", value)} />
               <ColourField label="Main text" description="Primary readable text." value={theme.textPrimary} onChange={(value) => set("textPrimary", value)} />
-              <ColourField label="Muted text" description="Secondary labels and metadata." value={theme.textMuted} onChange={(value) => set("textMuted", value)} />
+              <ColourField label="Muted text" description="Secondary labels and supporting details." value={theme.textMuted} onChange={(value) => set("textMuted", value)} />
             </div>
             <div className="admin-sticky-actions mt-4 flex flex-col gap-2 sm:flex-row">
               <button type="button" disabled={busy || !dirty} onClick={discard} className="admin-action-secondary flex-1"><RotateCcw className="size-4" /> Discard changes</button>

@@ -138,6 +138,8 @@ describe("expanded country page personalities", () => {
     expect(editor).toContain('["auto", "none", "flag"]');
     expect(editor).toContain('? { ...existing, decorationStyle: "auto" }');
     expect(repairCss).toContain(".country-glass-panel-flag");
+    expect(repairCss).toContain("> .country-hero-background-flag");
+    expect(repairCss).toContain("visibility: hidden !important");
     expect(repairCss).toContain(':not([data-country-decoration="none"])');
     expect(countryRoute).toContain('className="country-glass-panel-flag"');
     expect(wikiRoute).toContain('className="country-glass-panel-flag"');
@@ -145,6 +147,39 @@ describe("expanded country page personalities", () => {
     expect(css).not.toContain(
       '[data-preview-layout="glass-card"] > div.relative.z-10 > div',
     );
+  });
+
+  it("keeps the appearance preview aligned with the real hero layouts", () => {
+    const repairCss = source("src/country-personalities-v4.css");
+    expect(editor).toContain("data-preview-decoration={decoration}");
+    expect(editor).toContain("data-decoration={decoration}");
+    for (const layout of [
+      "editorial",
+      "flag-focus",
+      "poster",
+      "split",
+      "broadcast",
+      "panorama",
+      "monument",
+      "glass-card",
+      "newspaper",
+      "ribbon",
+      "duotone",
+      "passport",
+      "horizon",
+    ]) {
+      expect(repairCss).toContain(`[data-preview-layout="${layout}"]`);
+    }
+  });
+
+  it("adds a scalable passport stamp and keeps Glass names intact on phones", () => {
+    const repairCss = source("src/country-personalities-v4.css");
+    expect(repairCss).toContain('content: "TS\\A ENTRY VISA"');
+    expect(repairCss).toContain("repeating-conic-gradient");
+    expect(repairCss).toContain(".country-hero-identity");
+    expect(repairCss).toContain("word-break: normal !important");
+    expect(countryRoute).toContain("country-hero-title");
+    expect(wikiRoute).toContain("country-hero-title");
   });
 
   it("continues each personality through country and Wiki content cards", () => {
@@ -174,6 +209,36 @@ describe("expanded country page personalities", () => {
       "horizon",
     ]) {
       expect(repairCss).toContain(`[data-country-hero-layout="${layout}"]`);
+    }
+  });
+
+  it("gives every personality its own scalable signature layer", () => {
+    const repairCss = source("src/country-personalities-v4.css");
+    expect(countryRoute).toContain("country-personality-signature");
+    expect(wikiRoute).toContain("country-personality-signature");
+    expect(editor).toContain("country-personality-signature");
+    expect(repairCss).toContain("Personality signatures");
+    for (const layout of [
+      "classic",
+      "editorial",
+      "minimal",
+      "flag-focus",
+      "poster",
+      "split",
+      "spotlight",
+      "broadcast",
+      "panorama",
+      "monument",
+      "glass-card",
+      "newspaper",
+      "ribbon",
+      "duotone",
+      "passport",
+      "horizon",
+    ]) {
+      expect(repairCss).toContain(
+        `[data-preview-layout="${layout}"] > .country-personality-signature`,
+      );
     }
   });
 

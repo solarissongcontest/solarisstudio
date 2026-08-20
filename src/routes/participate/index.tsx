@@ -9,7 +9,7 @@ export const Route = createFileRoute("/participate/")({
       { title: "Participate — Solaris Studio" },
       {
         name: "description",
-        content: "Confirm your Solaris Song Contest participation or enter the live televoting portal.",
+        content: "Confirm your Solaris Song Contest participation or vote in an open televoting round.",
       },
     ],
   }),
@@ -22,7 +22,7 @@ function ParticipatePage() {
       <PageHeader
         eyebrow="Participation"
         title="Take part in Solaris"
-        description="Confirm your delegation, manage an existing response, or enter the live televote from one Solaris participation portal."
+        description="Confirm your delegation, update an existing response, or vote when televoting is open."
       />
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -44,7 +44,7 @@ function ParticipatePage() {
             Confirmations
           </h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            Confirm participation, selection method and entry information. Recover or edit an existing response and join Next in Line from the same module.
+            Confirm participation, selection method and entry information. You can also recover or edit a response, or join Next in Line.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-white/45">
@@ -72,7 +72,7 @@ function ParticipatePage() {
             Televoting
           </h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            See the live voting round, review the rules and cast a ballot when voting is open, with duplicate and integrity checks applied automatically.
+            See the current round, review the rules and cast your ballot when voting is open.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-white/45">
@@ -82,12 +82,6 @@ function ParticipatePage() {
         </Link>
       </section>
 
-      <section className="mt-5 glass p-5 sm:p-6">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">One Solaris front door</p>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          Delegation confirmations and audience voting use the same Solaris navigation and design language, so participants can move between contest information and participation without leaving Studio.
-        </p>
-      </section>
     </AppShell>
   );
 }

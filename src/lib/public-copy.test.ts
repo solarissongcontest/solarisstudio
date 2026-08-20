@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Keep high-risk public surfaces in this list so implementation copy cannot quietly leak back out.
-const PUBLIC_ROUTES = [
+// Keep high-risk user-facing surfaces in this list so implementation copy cannot quietly leak back out.
+const COPY_SURFACES = [
   "src/components/AppShell.tsx",
   "src/components/CountryWorldOverview.tsx",
   "src/components/ScoreboardStage.tsx",
@@ -29,6 +29,20 @@ const PUBLIC_ROUTES = [
   "src/routes/televoting/index.tsx",
   "src/routes/sitemap[.]xml.ts",
   "src/features/beta-test/sections-extra.ts",
+  "src/features/admin-beta-test/sections-v2.ts",
+  "src/components/studio/ThemeEditorImpl.tsx",
+  "src/components/televoting/VotingResultsView.tsx",
+  "src/routes/_authenticated/admin/edition-theme.$slug.tsx",
+  "src/routes/_authenticated/admin/sync-health.tsx",
+  "src/routes/_authenticated/admin/televote/$slug.tsx",
+  "src/routes/confirmations/admin/countries.tsx",
+  "src/routes/confirmations/admin/editions.tsx",
+  "src/routes/confirmations/admin/responses/$id.tsx",
+  "src/routes/confirmations/admin/settings.tsx",
+  "src/routes/televoting/admin/analytics.tsx",
+  "src/routes/televoting/admin/editions.tsx",
+  "src/routes/televoting/admin/intelligence.tsx",
+  "src/routes/televoting/admin/rounds/$id/entries.tsx",
 ];
 
 const FORBIDDEN_PUBLIC_COPY = [
@@ -51,10 +65,16 @@ const FORBIDDEN_PUBLIC_COPY = [
   /Save the show results once in Studio/i,
   /open .* in Studio and save/i,
   /configure .* in Studio/i,
+  /One Solaris front door/i,
+  /design language/i,
+  /source of truth/i,
+  /linked projections/i,
+  /source\/binding/i,
+  /workspace\/context/i,
 ];
 
-describe("public product copy", () => {
-  for (const file of PUBLIC_ROUTES) {
+describe("user-facing product copy", () => {
+  for (const file of COPY_SURFACES) {
     it(`${file} does not expose implementation language`, () => {
       const source = readFileSync(resolve(process.cwd(), file), "utf8");
 

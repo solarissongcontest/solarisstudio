@@ -27,7 +27,7 @@ type Patch =
  * jury panels and scoreboard backgrounds are NOT edited here.
  *
  * Those are owned by ScoreboardEditor / ScoreboardConfig so there
- * is only one source of truth for every country row/card used by
+ * keeps one shared configuration for every country row/card used by
  * the edition's scoreboards, running-order boards and broadcasts.
  */
 export function ThemeEditor({
@@ -268,7 +268,7 @@ export function ThemeEditor({
 
       <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
         <strong className="text-foreground">Country-card styling is intentionally not available here.</strong>{" "}
-        Use the Scoreboard & Country Cards editor above. That custom card configuration is the edition-wide source of truth for scoreboard and running-order country rows.
+        Use the Scoreboard & Country Cards editor above. Its settings apply to country rows on the scoreboard and in the running order.
       </div>
     </div>
   );
