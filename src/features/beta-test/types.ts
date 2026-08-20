@@ -12,7 +12,7 @@ export type BetaShowWhen = {
 export type BetaQuestion = {
   id: string;
   label: string;
-  type: "text" | "textarea" | "single" | "multi" | "rating" | "matrix";
+  type: "text" | "textarea" | "single" | "multi" | "rating" | "matrix" | "instruction";
   required?: boolean;
   options?: string[];
   helper?: string;
@@ -22,6 +22,7 @@ export type BetaQuestion = {
   rows?: string[];
   showWhen?: BetaShowWhen;
   optionsFrom?: string;
+  scaleMax?: 5 | 10;
 };
 
 export type BetaSection = {
