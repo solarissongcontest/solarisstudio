@@ -30,9 +30,17 @@ const PERSONALITIES: Array<{ value: CountryHeroLayout; label: string; descriptio
   { value: "minimal", label: "Minimal", description: "Quiet, restrained header with the decoration stripped back." },
   { value: "flag-focus", label: "Flag focus", description: "The national flag becomes the visual anchor behind the identity." },
   { value: "poster", label: "Poster", description: "Centred, tall and graphic, like a national campaign or event poster." },
-  { value: "split", label: "Split", description: "Identity and national visual sit on opposing sides in a sharper composition." },
+  { value: "split", label: "Split", description: "Text and a wide rectangular flag panel occupy opposing halves." },
   { value: "spotlight", label: "Spotlight", description: "Focused glow, compact copy and a stage-like centre of attention." },
   { value: "broadcast", label: "Broadcast", description: "On-air presentation with an assertive lower-third inspired identity block." },
+  { value: "panorama", label: "Panorama", description: "Low, wide and cinematic with the identity anchored near the horizon." },
+  { value: "monument", label: "Monument", description: "Formal centred composition with strong symmetry and ceremonial scale." },
+  { value: "glass-card", label: "Glass card", description: "A floating translucent identity card over an open visual canvas." },
+  { value: "newspaper", label: "Newspaper", description: "Rigid editorial rules and reference-page typography with almost no gloss." },
+  { value: "ribbon", label: "Ribbon", description: "A horizontal national-colour band cuts straight through the composition." },
+  { value: "duotone", label: "Duotone", description: "Hard diagonal geometry and a deliberately asymmetric two-zone layout." },
+  { value: "passport", label: "Passport", description: "Compact official-document styling with precise borders and coded details." },
+  { value: "horizon", label: "Horizon", description: "Huge negative space with the identity sitting low and calm at the bottom." },
 ];
 
 function CountryThemePage() {
@@ -130,6 +138,8 @@ function CountryThemePage() {
       countryName={country.name}
       region={country.region}
       description={country.description}
+      flagImage={country.flag_image}
+      shortCode={country.short_code}
       theme={theme}
       previewStyle={previewStyle}
     />
@@ -195,7 +205,7 @@ function CountryThemePage() {
             )}
           </Panel>
 
-          <Panel title="Colour system" description="Fine-tune the colours used over your selected background.">
+          <Panel title="Colour system" description="Fine-tune the colours used over your selected background. Main text now controls every country/Wiki heading as well as ordinary primary text.">
             <div className="grid gap-3 sm:grid-cols-2">
               <ColourField label="Background 1" value={theme.backgroundPrimary} onChange={(value) => setColour("backgroundPrimary", value)} />
               <ColourField label="Background 2" value={theme.backgroundSecondary} onChange={(value) => setColour("backgroundSecondary", value)} />
@@ -206,7 +216,7 @@ function CountryThemePage() {
             </div>
           </Panel>
 
-          <Panel title="Page personality" description="Eight deliberately different header compositions for both the country profile and Wiki. This changes layout, not just a tiny font size.">
+          <Panel title="Page personality" description="Sixteen deliberately different header compositions shared by the country profile and Wiki. Layouts change geometry, scale, flag treatment and visual hierarchy, not merely font size.">
             <div className="grid gap-2 sm:grid-cols-2">
               {PERSONALITIES.map(({ value, label, description }) => (
                 <button key={value} type="button" onClick={() => setTheme((current) => ({ ...current, heroLayout: value }))} className={`min-h-24 rounded-xl border p-3 text-left transition-colors ${theme.heroLayout === value ? "border-primary bg-primary/10" : "border-border bg-surface hover:bg-surface-strong"}`}>
@@ -257,43 +267,98 @@ function CountryThemePreview({
   countryName,
   region,
   description,
+  flagImage,
+  shortCode,
   theme,
   previewStyle,
 }: {
   countryName: string;
   region: string;
   description: string | null;
+  flagImage: string | null;
+  shortCode: string;
   theme: CountryVisualTheme;
   previewStyle: React.CSSProperties;
 }) {
   const layout = theme.heroLayout;
-  const centered = layout === "poster" || layout === "spotlight";
-  const split = layout === "split";
-  const broadcast = layout === "broadcast";
-  const titleSize = layout === "editorial" ? "text-5xl" : layout === "poster" ? "text-5xl" : layout === "minimal" ? "text-2xl" : "text-3xl";
+  const centered = ["poster", "spotlight", "monument"].includes(layout);
+  const sideZone = ["split", "duotone"].includes(layout);
+  const bottomAligned = ["broadcast", "panorama", "horizon"].includes(layout);
+  const compact = ["minimal", "passport", "newspaper"].includes(layout);
+  const titleSize = layout === "editorial" || layout === "monument"
+    ? "text-5xl"
+    : ["poster", "duotone", "newspaper"].includes(layout)
+      ? "text-4xl sm:text-5xl"
+      : compact
+        ? "text-2xl sm:text-3xl"
+        : "text-3xl sm:text-4xl";
+
+  const contentClass = centered
+    ? "mx-auto max-w-sm pt-16 text-center"
+    : sideZone
+      ? "max-w-[58%] pt-10"
+      : bottomAligned
+        ? "flex min-h-[380px] items-end"
+        : layout === "glass-card"
+          ? "flex min-h-[380px] items-center"
+          : layout === "editorial"
+            ? "pt-12"
+            : layout === "minimal"
+              ? "pt-20"
+              : "pt-4";
 
   return (
     <div className="relative min-h-[430px] overflow-hidden rounded-3xl border p-5" style={previewStyle} data-preview-layout={layout}>
       {theme.backgroundMode === "image" && theme.backgroundBlur > 0 && <div className="pointer-events-none absolute -inset-8" style={{ backgroundImage: theme.backgroundImageUrl ? `url(${JSON.stringify(theme.backgroundImageUrl)})` : undefined, backgroundSize: "cover", backgroundPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`, filter: `blur(${theme.backgroundBlur}px)`, opacity: 0.35 }} />}
       {layout === "spotlight" && <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full opacity-40 blur-3xl" style={{ background: theme.accent }} />}
       {layout === "split" && <div className="pointer-events-none absolute inset-y-0 right-0 w-[42%] border-l" style={{ background: `${theme.accent}18`, borderColor: `${theme.accent}44` }} />}
+      {layout === "duotone" && <div className="pointer-events-none absolute -bottom-20 -right-16 h-[130%] w-[48%] rotate-[10deg]" style={{ background: `${theme.accent}28` }} />}
+      {layout === "ribbon" && <div className="pointer-events-none absolute inset-x-0 top-[38%] h-[30%]" style={{ background: `${theme.accent}26` }} />}
+      {layout === "horizon" && <div className="pointer-events-none absolute inset-x-0 bottom-[28%] h-px" style={{ background: `linear-gradient(90deg, transparent, ${theme.accent}, transparent)` }} />}
+      {layout === "monument" && <div className="pointer-events-none absolute bottom-12 left-1/2 h-1 w-14 -translate-x-1/2" style={{ background: theme.accent }} />}
+      {layout === "newspaper" && <><div className="pointer-events-none absolute inset-x-5 top-12 h-px" style={{ background: `${theme.accent}77` }} /><div className="pointer-events-none absolute inset-x-5 bottom-12 h-px" style={{ background: `${theme.accent}77` }} /></>}
+      {layout === "passport" && <div className="pointer-events-none absolute inset-3 rounded-lg border-2" style={{ borderColor: `${theme.accent}44` }} />}
 
-      <div className={`relative z-10 ${centered ? "mx-auto max-w-sm pt-20 text-center" : split ? "max-w-[58%] pt-10" : broadcast ? "flex min-h-[380px] items-end" : layout === "editorial" ? "pt-12" : layout === "minimal" ? "pt-20" : "pt-4"}`}>
-        <div className={broadcast ? "w-full border-l-4 bg-black/35 p-4 backdrop-blur-sm" : ""} style={broadcast ? { borderColor: theme.accent } : undefined}>
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.accent }}>{broadcast ? "LIVE · COUNTRY PROFILE" : `Terra Solaris · ${region}`}</p>
-          <h2 className={`${titleSize} mt-2 font-bold ${layout === "poster" ? "uppercase tracking-[-.055em]" : ""}`} style={{ color: theme.textPrimary }}>{countryName}</h2>
+      {layout === "split" && <PreviewFlag image={flagImage} code={shortCode} rectangular className="absolute right-5 top-1/2 w-[36%] -translate-y-1/2" accent={theme.accent} />}
+      {layout === "flag-focus" && <PreviewFlag image={flagImage} code={shortCode} className="absolute -right-7 top-14 size-52 opacity-30" accent={theme.accent} />}
+      {layout === "passport" && <PreviewFlag image={flagImage} code={shortCode} rectangular className="absolute right-7 top-8 w-24" accent={theme.accent} />}
+
+      <div className={`relative z-10 ${contentClass}`}>
+        <div
+          className={layout === "broadcast"
+            ? "w-full border-l-4 bg-black/35 p-4 backdrop-blur-sm"
+            : layout === "glass-card"
+              ? "w-full max-w-sm rounded-3xl border p-5 backdrop-blur-xl"
+              : ""}
+          style={layout === "broadcast"
+            ? { borderColor: theme.accent }
+            : layout === "glass-card"
+              ? { borderColor: `${theme.accent}55`, background: `${theme.surface}c9` }
+              : undefined}
+        >
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.accent }}>{layout === "broadcast" ? "LIVE · COUNTRY PROFILE" : layout === "passport" ? "TERRA SOLARIS · NATIONAL FILE" : `Terra Solaris · ${region}`}</p>
+          <h2 className={`${titleSize} mt-2 font-bold ${["poster", "duotone"].includes(layout) ? "uppercase tracking-[-.055em]" : ""}`} style={{ color: layout === "broadcast" ? theme.backgroundPrimary : theme.textPrimary }}>{countryName}</h2>
           <p className={`mt-3 text-sm leading-6 ${centered ? "mx-auto" : "max-w-sm"}`} style={{ color: theme.textMuted }}>{description || "Your national story, SSC history and custom sections live here."}</p>
         </div>
       </div>
 
-      {layout === "flag-focus" && <div className="pointer-events-none absolute -right-10 top-16 grid size-52 place-items-center rounded-full border text-6xl font-black opacity-25" style={{ borderColor: theme.accent, color: theme.accent }}>FLAG</div>}
-      {layout !== "minimal" && layout !== "poster" && !broadcast && (
+      {layout !== "minimal" && layout !== "poster" && layout !== "monument" && layout !== "horizon" && !["broadcast", "glass-card", "split", "duotone"].includes(layout) && (
         <div className="absolute bottom-5 left-5 right-5 z-10 rounded-2xl border p-4" style={{ background: `${theme.surface}e8`, borderColor: `${theme.accent}44` }}>
           <p className="text-xs font-semibold" style={{ color: theme.accent }}>Sample section</p>
           <p className="mt-1 text-sm" style={{ color: theme.textPrimary }}>Cards and article sections stay readable over your custom background.</p>
         </div>
       )}
       {layout === "poster" && <div className="absolute bottom-7 left-1/2 h-px w-24 -translate-x-1/2" style={{ background: theme.accent }} />}
+    </div>
+  );
+}
+
+function PreviewFlag({ image, code, rectangular = false, className = "", accent }: { image: string | null; code: string; rectangular?: boolean; className?: string; accent: string }) {
+  return (
+    <div className={`${rectangular ? "aspect-[3/2] overflow-hidden rounded-xl" : "aspect-square overflow-hidden rounded-full"} border ${className}`} style={{ borderColor: `${accent}55`, boxShadow: `0 18px 45px -24px ${accent}` }}>
+      {image
+        ? <img src={image} alt="" className="h-full w-full object-cover" />
+        : <div className="grid h-full w-full place-items-center text-lg font-black" style={{ background: `${accent}2b`, color: accent }}>{code}</div>}
     </div>
   );
 }
