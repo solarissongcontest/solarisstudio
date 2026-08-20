@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  CircleHelp,
   ClipboardCheck,
   LayoutDashboard,
   MoreHorizontal,
@@ -40,6 +41,12 @@ export function AdminNav() {
       to: "/admin/operations",
       icon: LayoutDashboard,
       active: (path) => path.startsWith("/admin/operations"),
+    },
+    {
+      label: "Guide",
+      to: "/admin/guide",
+      icon: CircleHelp,
+      active: (path) => path.startsWith("/admin/guide"),
     },
     {
       label: "Edition",
@@ -108,15 +115,19 @@ export function AdminNav() {
 
   return (
     <nav className="p-3" aria-label="Organizer navigation">
-      <p className="admin-section-label mb-2 px-2">Workspace</p>
+      <p className="admin-section-label mb-2 px-2">Organizer pages</p>
       <div className="space-y-1">
-        {primary.map((item) => <NavLink key={item.label} item={item} pathname={pathname} />)}
+        {primary.map((item) => (
+          <NavLink key={item.label} item={item} pathname={pathname} />
+        ))}
       </div>
 
       <div className="my-5 border-t border-white/[0.07]" />
-      <p className="admin-section-label mb-2 px-2">More</p>
+      <p className="admin-section-label mb-2 px-2">More pages</p>
       <div className="space-y-1">
-        {secondary.map((item) => <NavLink key={item.label} item={item} pathname={pathname} quiet />)}
+        {secondary.map((item) => (
+          <NavLink key={item.label} item={item} pathname={pathname} quiet />
+        ))}
       </div>
     </nav>
   );
