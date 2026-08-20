@@ -66,7 +66,6 @@ function countryName(id: string, countries: Country[]) {
 
 export function buildFanDiscovery(input: Input): DiscoveryStory[] {
   const { countries, editions, shows, participants, results, jury } = input;
-  const showMap = new Map(shows.map((show) => [show.id, show]));
   const byShow = new Map<string, ResultRow[]>();
 
   for (const row of results) {
@@ -195,6 +194,74 @@ export function buildFanDiscovery(input: Input): DiscoveryStory[] {
       description: `${name} ranked ${teleFavourite.juryRank - teleFavourite.teleRank} places higher with the televote than with juries.`,
       countryId: teleFavourite.result.country_id,
       ...contextFor(teleFavourite.result.country_id, teleFavourite.result.edition_id, editions, participants),
+    });
+  }
+
+  // Fans tend to remember results as stories: who swept both votes, who won
+  // through coalition rather than dominance, and which side's favourite fell
+  // furthest once both halves were combined. These are deliberately phrased as
+  // descriptive results, not causal claims about why people voted that way.
+  const consensusWinner = [...ranked]
+    .filter((row) => row.finalRank === 1 && row.juryRank === 1 && row.teleRank === 1)
+    .sort((a, b) => b.result.total_points - a.result.total_points)[0];
+  if (consensusWinner) {
+    const name = countryName(consensusWinner.result.country_id, countries);
+    stories.push({
+      id: "consensus-winner",
+      eyebrow: "No split decision required",
+      title: "Jury + televote consensus champion",
+      value: "#1 + #1",
+      description: `${name} topped both the jury vote and the televote, then won overall.`,
+      countryId: consensusWinner.result.country_id,
+      ...contextFor(consensusWinner.result.country_id, consensusWinner.result.edition_id, editions, participants),
+    });
+  }
+
+  const splitDecisionWinner = [...ranked]
+    .filter((row) => row.finalRank === 1 && row.juryRank > 1 && row.teleRank > 1)
+    .sort((a, b) => (b.juryRank + b.teleRank) - (a.juryRank + a.teleRank))[0];
+  if (splitDecisionWinner) {
+    const name = countryName(splitDecisionWinner.result.country_id, countries);
+    stories.push({
+      id: "split-decision-winner",
+      eyebrow: "Won the whole thing without winning either half",
+      title: "Ultimate compromise winner",
+      value: `Jury #${splitDecisionWinner.juryRank} · Tele #${splitDecisionWinner.teleRank}`,
+      description: `${name} was not #1 with juries or the televote, but the combined score still put it first overall.`,
+      countryId: splitDecisionWinner.result.country_id,
+      ...contextFor(splitDecisionWinner.result.country_id, splitDecisionWinner.result.edition_id, editions, participants),
+    });
+  }
+
+  const fallenJuryWinner = [...ranked]
+    .filter((row) => row.juryRank === 1 && row.finalRank > 1)
+    .sort((a, b) => b.finalRank - a.finalRank || b.teleRank - a.teleRank)[0];
+  if (fallenJuryWinner) {
+    const name = countryName(fallenJuryWinner.result.country_id, countries);
+    stories.push({
+      id: "fallen-jury-winner",
+      eyebrow: "The jury trophy was not enough",
+      title: "Jury winner that slipped furthest",
+      value: `#1 → #${fallenJuryWinner.finalRank}`,
+      description: `${name} won the jury vote but ended the combined result in #${fallenJuryWinner.finalRank}.`,
+      countryId: fallenJuryWinner.result.country_id,
+      ...contextFor(fallenJuryWinner.result.country_id, fallenJuryWinner.result.edition_id, editions, participants),
+    });
+  }
+
+  const fallenTeleWinner = [...ranked]
+    .filter((row) => row.teleRank === 1 && row.finalRank > 1)
+    .sort((a, b) => b.finalRank - a.finalRank || b.juryRank - a.juryRank)[0];
+  if (fallenTeleWinner) {
+    const name = countryName(fallenTeleWinner.result.country_id, countries);
+    stories.push({
+      id: "fallen-tele-winner",
+      eyebrow: "The public favourite still missed the trophy",
+      title: "Televote winner that slipped furthest",
+      value: `#1 → #${fallenTeleWinner.finalRank}`,
+      description: `${name} won the televote but finished #${fallenTeleWinner.finalRank} after jury and public points were combined.`,
+      countryId: fallenTeleWinner.result.country_id,
+      ...contextFor(fallenTeleWinner.result.country_id, fallenTeleWinner.result.edition_id, editions, participants),
     });
   }
 
