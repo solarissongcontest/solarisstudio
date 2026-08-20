@@ -6,26 +6,28 @@ import { editionLabel, useEditions } from "@/lib/data";
 import { useAdminContext } from "./AdminContext";
 
 const FIXED = [
-  ["Overview", "/admin/operations", "Workspace", "home readiness next actions"],
-  ["All editions", "/admin", "Edition", "manage create archive"],
+  ["Overview", "/admin/operations", "Organizer", "home status next things to do"],
+  ["Guide", "/admin/guide", "Help", "how to use instructions questions answers"],
+  ["All editions", "/admin", "Edition", "manage create old editions"],
   ["Delegations", "/confirmations/admin", "Edition", "confirmations responses countries"],
-  ["Delegation responses", "/confirmations/admin/responses", "Delegations", "entries confirmations submissions"],
-  ["Submission rounds", "/confirmations/admin/rounds", "Delegations", "waves open close schedule"],
+  ["Delegation responses", "/confirmations/admin/responses", "Delegations", "entries confirmations answers"],
+  ["Confirmation rounds", "/confirmations/admin/rounds", "Delegations", "rounds open close schedule"],
   ["Delegation calendar", "/confirmations/admin/calendar", "Delegations", "national finals reveals deadlines"],
-  ["Voting", "/televoting/admin", "Voting", "televote ballots rounds"],
-  ["Voting rounds & entries", "/televoting/admin/rounds", "Voting", "open close entries rules"],
+  ["Voting", "/televoting/admin", "Voting", "televote votes rounds"],
+  ["Voting rounds and entries", "/televoting/admin/rounds", "Voting", "open close entries rules"],
   ["Voting results", "/televoting/admin/results", "Voting", "calculate lock publish"],
-  ["Voting integrity", "/televoting/admin/integrity", "Voting", "risk review moderation"],
-  ["Voting integrity declarations", "/televoting/admin/integrity-declarations", "Voting", "automatic fraud warning signed declaration oath attestation flagged ballot"],
-  ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout distribution"],
-  ["Predictions", "/admin/predictions", "More", "engagement"],
-  ["Public beta feedback", "/admin/beta-feedback", "More", "public testers reviews"],
-  ["Admin beta test", "/admin/beta-test", "More", "organizer beta testing feedback form"],
-  ["Admin beta feedback", "/admin/admin-beta-feedback", "More", "organizer testers reviews admin workflow"],
-  ["Country accounts", "/admin/country-accounts", "More", "delegation ownership access"],
+  ["Check suspicious votes", "/televoting/admin/integrity", "Voting", "review suspicious votes warnings"],
+  ["Voting declarations", "/televoting/admin/integrity-declarations", "Voting", "review declarations flagged votes"],
+  ["Voting statistics", "/televoting/admin/analytics", "Voting", "turnout voting numbers"],
+  ["Predictions", "/admin/predictions", "More", "prediction rounds"],
+  ["Public tester feedback", "/admin/beta-feedback", "More", "public testers feedback"],
+  ["Organizer test", "/admin/beta-test", "More", "organizer testing feedback form"],
+  ["Organizer test results", "/admin/admin-beta-feedback", "More", "organizer testers results bugs"],
+  ["Country accounts", "/admin/country-accounts", "More", "country account access"],
   ["Hosting", "/admin/hosts", "More", "host country city"],
-  ["System settings", "/admin/system", "More", "deadlines audit settings"],
-  ["More organizer tools", "/admin/more", "More", "system engagement archive"],
+  ["System settings", "/admin/system", "More", "deadlines settings"],
+  ["System check", "/admin/sync-health", "More", "check connected systems voting confirmations"],
+  ["More organizer pages", "/admin/more", "More", "other organizer pages"],
   ["Public Solaris Studio", "/", "Public site", "homepage"],
 ] as const;
 
@@ -60,49 +62,49 @@ export function AdminCommandPalette() {
     const currentEdition = activeEdition
       ? [
           {
-            label: `${editionLabel(activeEdition)} workspace`,
+            label: `${editionLabel(activeEdition)} overview`,
             href: `/admin/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} edition home workflow`,
+            keywords: `${activeEdition.name} edition home`,
           },
           {
             label: `${editionLabel(activeEdition)} shows`,
             href: `/admin/shows/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} shows stages create edit`,
+            keywords: `${activeEdition.name} shows semi final create edit`,
           },
           {
-            label: `${editionLabel(activeEdition)} entries & running order`,
+            label: `${editionLabel(activeEdition)} entries and running order`,
             href: `/admin/entries/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} entries songs artists line-up lineup running order`,
+            keywords: `${activeEdition.name} entries songs artists running order`,
           },
           {
             label: `${editionLabel(activeEdition)} jury`,
             href: `/admin/jury/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} jury juries ballots scores roster`,
+            keywords: `${activeEdition.name} jury juries votes scores`,
           },
           {
-            label: `${editionLabel(activeEdition)} voting system`,
+            label: `${editionLabel(activeEdition)} voting rules`,
             href: `/admin/voting-system/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} point scale weighting qualifiers self voting tie rules`,
+            keywords: `${activeEdition.name} points weighting qualifiers self voting tie rules`,
           },
           {
-            label: `${editionLabel(activeEdition)} televote totals`,
+            label: `${editionLabel(activeEdition)} televote points`,
             href: `/admin/televote/${activeEdition.slug}`,
             group: "Current edition",
-            keywords: `${activeEdition.name} televote totals aggregate points`,
+            keywords: `${activeEdition.name} televote totals points`,
           },
           {
-            label: `${editionLabel(activeEdition)} publication`,
+            label: `${editionLabel(activeEdition)} public visibility`,
             href: `/admin/publication/${activeEdition.slug}`,
             group: "Current edition",
             keywords: `${activeEdition.name} publish visibility results public release`,
           },
           {
-            label: `${editionLabel(activeEdition)} design & broadcast`,
+            label: `${editionLabel(activeEdition)} design and broadcast`,
             href: `/admin/design/${activeEdition.slug}`,
             group: "Current edition",
             keywords: `${activeEdition.name} artwork theme broadcast scoreboard hosts scenes`,
@@ -135,7 +137,7 @@ export function AdminCommandPalette() {
         type="button"
         onClick={() => setOpen(true)}
         className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground sm:flex sm:w-auto sm:px-3"
-        aria-label="Search organizer workspace"
+        aria-label="Search organizer pages"
       >
         <Search className="size-4" />
         <span className="hidden text-xs sm:inline">Search</span>
@@ -156,7 +158,7 @@ export function AdminCommandPalette() {
                 autoFocus
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search actions, editions or tools…"
+                placeholder="Search pages or editions…"
                 className="min-h-14 min-w-0 flex-1 bg-transparent text-sm outline-none"
               />
               <button
@@ -185,7 +187,7 @@ export function AdminCommandPalette() {
               ))}
               {!filtered.length ? (
                 <p className="p-7 text-center text-sm text-muted-foreground">
-                  Nothing in the organizer workspace matches that search.
+                  No organizer page matches that search.
                 </p>
               ) : null}
             </div>
