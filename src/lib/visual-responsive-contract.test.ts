@@ -17,7 +17,7 @@ const appShell = source("src/components/AppShell.tsx");
 
 describe("ambient Solaris visual system", () => {
   it("actually mounts the ambient motion layer and respects reduced motion", () => {
-    expect(root).toContain('import "../solaris-motion.css"');
+    expect(root).toContain('import solarisMotionCss from "../solaris-motion.css?url"');
     expect(root).toContain("SolarisAmbientBackground");
     expect(motion).toContain("@keyframes solaris-glow-a");
     expect(motion).toContain("@keyframes solaris-star-drift");
