@@ -251,7 +251,7 @@ function TelevoteTotalsWorkspace() {
         onClose={() => !busy && setConfirmOpen(false)}
         onConfirm={saveChanges}
         title={`Save televote totals for ${selectedShow?.name ?? "this show"}?`}
-        description={<>You are changing {changes.length} canonical televote total{changes.length === 1 ? "" : "s"}. Existing ballot rows remain intact, but standings may change immediately after recalculation.</>}
+        description={<>You are changing {changes.length} official televote total{changes.length === 1 ? "" : "s"}. Saved ballots remain intact, but standings may change immediately after recalculation.</>}
         confirmLabel="Save changed totals"
         confirmationText={selectedShow?.name}
         confirmationHint={selectedShow ? `Type ${selectedShow.name} to confirm` : undefined}

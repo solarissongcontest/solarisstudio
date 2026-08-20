@@ -93,16 +93,16 @@ function SettingsPage() {
           </AdminCard>
 
           <AdminCard>
-            <AdminCardHeader eyebrow="Public access" title="Confirmation portal" description="Share this link with delegations when a submission round is open." />
+            <AdminCardHeader eyebrow="Public access" title="Confirmation page" description="Share this link with delegations when a submission round is open." />
             <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
               <p className="break-all text-xs leading-relaxed text-muted-foreground">{publicUrl}</p>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <button type="button" className="admin-action-secondary w-full" onClick={async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Confirmation portal link copied"); }}>
+              <button type="button" className="admin-action-secondary w-full" onClick={async () => { await navigator.clipboard.writeText(publicUrl); toast.success("Confirmation page link copied"); }}>
                 <Copy className="size-4" /> Copy link
               </button>
               <a href="/confirmations" target="_blank" rel="noreferrer" className="admin-action-secondary w-full">
-                <ExternalLink className="size-4" /> Open portal
+                <ExternalLink className="size-4" /> Open page
               </a>
             </div>
           </AdminCard>

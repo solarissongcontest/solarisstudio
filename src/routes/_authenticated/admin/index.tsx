@@ -492,7 +492,7 @@ function AdminHome() {
           <details className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
             <summary className="cursor-pointer text-sm font-semibold">More details</summary>
             <div className="mt-3">
-              <Field label="Year" hint="Optional calendar metadata">
+              <Field label="Year" hint="Optional calendar year">
                 <TextInput
                   type="number"
                   className="numeric"

@@ -763,3 +763,738 @@ body[data-entity-theme="country"][data-country-hero-layout="passport"] .app-main
     padding-bottom: 7rem !important;
   }
 }
+
+/* Final responsive and preview parity repairs --------------------------------
+   These rules intentionally sit last. They prevent an older flag layer from
+   reappearing over Glass and make the editor preview use the same compositions
+   as the public country and Wiki heroes. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-hero-background-flag {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-title {
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  hyphens: none !important;
+}
+
+/* A proper passport entry stamp, drawn at any resolution with CSS. */
+body[data-entity-theme="country"][data-country-hero-layout="passport"]
+  :is(.country-public-hero, .wiki-public-hero)::after,
+[data-preview-layout="passport"]::after {
+  content: "TS\A ENTRY VISA" !important;
+  position: absolute !important;
+  right: clamp(.9rem, 3vw, 1.7rem) !important;
+  bottom: clamp(.8rem, 2.5vw, 1.4rem) !important;
+  z-index: 2 !important;
+  display: grid !important;
+  width: clamp(4.8rem, 11vw, 6.7rem) !important;
+  aspect-ratio: 1 !important;
+  place-items: center !important;
+  padding: .7rem !important;
+  border: 2px solid rgb(var(--solaris-accent) / .5) !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle, transparent 0 47%, rgb(var(--solaris-accent) / .22) 48% 50%, transparent 51%),
+    repeating-conic-gradient(from 8deg, rgb(var(--solaris-accent) / .14) 0deg 2deg, transparent 2deg 12deg) !important;
+  box-shadow:
+    inset 0 0 0 4px color-mix(in srgb, var(--surface) 82%, transparent),
+    inset 0 0 0 5px rgb(var(--solaris-accent) / .38) !important;
+  color: rgb(var(--solaris-accent) / .7) !important;
+  font-size: clamp(.48rem, 1.15vw, .62rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.25 !important;
+  letter-spacing: .12em !important;
+  text-align: center !important;
+  white-space: pre-line !important;
+  transform: rotate(-10deg) !important;
+  pointer-events: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="passport"]
+  .app-main :is(.data-panel, .country-personality-card)::before {
+  background:
+    repeating-radial-gradient(ellipse at 88% 18%, transparent 0 8px, rgb(var(--solaris-accent) / .055) 9px 10px, transparent 11px 17px),
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .08), transparent 32%) !important;
+}
+
+/* The live editor uses the same flag placement and proportions as the pages. */
+[data-preview-layout] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+[data-preview-layout] > .relative.z-10 {
+  position: relative;
+  z-index: 3;
+}
+
+[data-preview-decoration]:not([data-preview-decoration="flag"]) > .country-hero-background-flag,
+[data-preview-layout="minimal"] > .country-hero-background-flag,
+[data-preview-layout="glass-card"] > .country-hero-background-flag {
+  display: none !important;
+}
+
+[data-preview-layout="editorial"] {
+  padding-right: clamp(9rem, 34%, 18rem) !important;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 64%, rgb(var(--solaris-bg-deep) / .18) 64% 100%) !important;
+}
+[data-preview-layout="editorial"] > .country-hero-background-flag {
+  inset: 0 0 0 66% !important;
+  width: 34% !important;
+  height: 100% !important;
+  opacity: .56 !important;
+  transform: none !important;
+}
+
+[data-preview-layout="flag-focus"] {
+  padding-right: 34% !important;
+  background: linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .84), rgb(var(--solaris-bg-deep) / .18)) !important;
+}
+[data-preview-layout="flag-focus"] > .country-hero-background-flag {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .72 !important;
+  transform: none !important;
+}
+
+[data-preview-layout="poster"] {
+  display: grid !important;
+  place-items: center !important;
+  text-align: center;
+  background: linear-gradient(180deg, rgb(var(--solaris-bg-deep) / .34), rgb(var(--solaris-bg-deep) / .72)) !important;
+}
+[data-preview-layout="poster"] > .country-hero-background-flag {
+  inset: -16% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .19 !important;
+  transform: rotate(-7deg) scale(1.08) !important;
+}
+
+[data-preview-layout="split"] {
+  padding-right: 43% !important;
+}
+[data-preview-layout="split"] > .country-hero-background-flag {
+  inset: 0 0 0 58% !important;
+  width: 42% !important;
+  height: 100% !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+[data-preview-layout="broadcast"] {
+  padding-top: 5.5rem !important;
+}
+[data-preview-layout="broadcast"] > .country-hero-background-flag,
+[data-preview-layout="newspaper"] > .country-hero-background-flag {
+  inset: 0 0 auto 0 !important;
+  width: 100% !important;
+  height: 4.2rem !important;
+  opacity: .48 !important;
+  transform: none !important;
+}
+
+[data-preview-layout="panorama"],
+[data-preview-layout="horizon"] {
+  padding-bottom: 8rem !important;
+}
+[data-preview-layout="panorama"] > .country-hero-background-flag,
+[data-preview-layout="horizon"] > .country-hero-background-flag {
+  inset: auto 0 0 0 !important;
+  width: 100% !important;
+  height: 42% !important;
+  opacity: .42 !important;
+  transform: none !important;
+}
+
+[data-preview-layout="monument"] {
+  padding-inline: clamp(3rem, 10%, 6rem) !important;
+  text-align: center;
+}
+[data-preview-layout="monument"] > .country-hero-background-flag {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .28 !important;
+  transform: none !important;
+}
+[data-preview-layout="monument"] > .country-hero-background-flag::before {
+  background-image: var(--background-flag-image), var(--background-flag-image) !important;
+  background-size: 23% 100%, 23% 100% !important;
+  background-position: left center, right center !important;
+  background-repeat: no-repeat !important;
+}
+
+[data-preview-layout="glass-card"] {
+  display: flex !important;
+  align-items: center !important;
+  padding: 1rem !important;
+  border: 0 !important;
+  background: linear-gradient(135deg, rgb(var(--solaris-bg-deep) / .1), rgb(var(--solaris-accent) / .055)) !important;
+  box-shadow: none !important;
+}
+[data-preview-layout="glass-card"] > .relative.z-10 {
+  width: min(84%, 41rem) !important;
+  max-width: 41rem !important;
+  padding: clamp(1.35rem, 3vw, 2.1rem) !important;
+  overflow: hidden !important;
+  border: 1px solid rgb(255 255 255 / .28) !important;
+  border-radius: 1.6rem !important;
+  background: linear-gradient(135deg, rgb(255 255 255 / .16), rgb(255 255 255 / .055) 52%, rgb(var(--solaris-accent) / .08)) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(175%) !important;
+  backdrop-filter: blur(24px) saturate(175%) !important;
+}
+
+[data-preview-layout="newspaper"] {
+  padding-top: 5.1rem !important;
+  border-width: 1px 0 !important;
+  border-radius: 0 !important;
+}
+
+[data-preview-layout="ribbon"] > .country-hero-background-flag {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .34 !important;
+  transform: none !important;
+}
+[data-preview-layout="ribbon"] > .country-hero-background-flag::before {
+  clip-path: polygon(0 58%, 100% 25%, 100% 48%, 0 81%) !important;
+}
+
+[data-preview-layout="duotone"] {
+  padding-right: 42% !important;
+}
+[data-preview-layout="duotone"] > .country-hero-background-flag {
+  inset: 0 0 0 62% !important;
+  width: 38% !important;
+  height: 100% !important;
+  opacity: .58 !important;
+  transform: none !important;
+}
+
+[data-preview-layout="passport"] {
+  padding-right: clamp(7rem, 25%, 11rem) !important;
+  border: 2px solid rgb(var(--solaris-accent) / .26) !important;
+  border-radius: .6rem !important;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 15px, rgb(var(--solaris-accent) / .025) 15px 16px),
+    color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%) !important;
+}
+[data-preview-layout="passport"] > .country-hero-background-flag {
+  top: 1.3rem !important;
+  right: 1.3rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: clamp(6rem, 20%, 9rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .14 !important;
+  transform: rotate(-2deg) !important;
+}
+
+@media (max-width: 720px) {
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+    :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+    width: 100% !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+    .country-public-hero .country-hero-identity {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: .8rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+    .country-public-hero .country-hero-title {
+    font-size: clamp(2.35rem, 13vw, 3.4rem) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="split"]
+    :is(.country-public-hero, .wiki-public-hero),
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"]
+    :is(.country-public-hero, .wiki-public-hero) {
+    padding-right: 1.25rem !important;
+    padding-bottom: 8.2rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="split"]
+    :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"]
+    :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    inset: auto 0 0 0 !important;
+    width: 100% !important;
+    height: 6.8rem !important;
+    opacity: .48 !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="passport"]
+    :is(.country-public-hero, .wiki-public-hero),
+  [data-preview-layout="passport"] {
+    padding-right: 1.25rem !important;
+    padding-bottom: 6.5rem !important;
+  }
+
+  [data-preview-layout="glass-card"] > .relative.z-10 {
+    width: 100% !important;
+  }
+}
+
+/* Personality signatures -----------------------------------------------------
+   Each option gets a different high-resolution graphic language. These layers
+   are CSS geometry, so they stay sharp on large screens and Retina phones and
+   appear identically in the editor preview. */
+.country-personality-signature {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.country-personality-signature::before,
+.country-personality-signature::after {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Classic: celestial engraving and restrained Solaris folio mark. */
+body[data-entity-theme="country"][data-country-hero-layout="classic"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="classic"] > .country-personality-signature {
+  background:
+    radial-gradient(circle at 86% 18%, transparent 0 2.7rem, rgb(var(--solaris-accent) / .14) 2.74rem 2.82rem, transparent 2.86rem 4.35rem, rgb(var(--solaris-accent) / .08) 4.4rem 4.48rem, transparent 4.53rem),
+    radial-gradient(circle at 76% 72%, rgb(var(--solaris-accent) / .5) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 91% 68%, rgb(var(--solaris-accent) / .36) 0 1.2px, transparent 1.8px),
+    linear-gradient(125deg, transparent 54%, rgb(var(--solaris-accent) / .045));
+}
+body[data-entity-theme="country"][data-country-hero-layout="classic"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="classic"] > .country-personality-signature::before {
+  content: "TERRA SOLARIS / COUNTRY FILE";
+  right: 1.2rem;
+  bottom: .85rem;
+  color: rgb(var(--solaris-accent) / .42);
+  font-size: .48rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+/* Editorial: magazine grid, issue line and a sharp colour tab. */
+body[data-entity-theme="country"][data-country-hero-layout="editorial"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="editorial"] > .country-personality-signature {
+  background:
+    linear-gradient(90deg, transparent 0 7%, rgb(var(--solaris-accent) / .1) 7.1% 7.25%, transparent 7.35% 62%, rgb(var(--solaris-accent) / .2) 62.1% 62.3%, transparent 62.4%),
+    linear-gradient(180deg, transparent 0 14%, rgb(var(--solaris-accent) / .09) 14.1% 14.35%, transparent 14.45% 84%, rgb(var(--solaris-accent) / .07) 84.1% 84.3%, transparent 84.4%);
+}
+body[data-entity-theme="country"][data-country-hero-layout="editorial"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="editorial"] > .country-personality-signature::before {
+  content: "SOLARIS EDITORIAL";
+  top: 1rem;
+  left: clamp(1.25rem, 4vw, 2rem);
+  color: rgb(var(--solaris-accent) / .55);
+  font-size: .52rem;
+  font-weight: 900;
+  letter-spacing: .2em;
+}
+body[data-entity-theme="country"][data-country-hero-layout="editorial"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+[data-preview-layout="editorial"] > .country-personality-signature::after {
+  content: "";
+  top: 0;
+  left: 7%;
+  width: 3.5rem;
+  height: .32rem;
+  background: rgb(var(--solaris-accent) / .75);
+}
+
+/* Minimal: one immaculate axis and a tiny coordinate marker. */
+body[data-entity-theme="country"][data-country-hero-layout="minimal"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="minimal"] > .country-personality-signature {
+  background:
+    linear-gradient(90deg, transparent 0 1.2rem, rgb(var(--solaris-accent) / .16) 1.2rem 1.26rem, transparent 1.26rem),
+    linear-gradient(180deg, transparent calc(100% - 1.2rem), rgb(var(--solaris-accent) / .16) calc(100% - 1.2rem) calc(100% - 1.14rem), transparent calc(100% - 1.14rem));
+}
+body[data-entity-theme="country"][data-country-hero-layout="minimal"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+[data-preview-layout="minimal"] > .country-personality-signature::after {
+  content: "+";
+  right: 1.15rem;
+  top: 1rem;
+  color: rgb(var(--solaris-accent) / .6);
+  font: 300 1.15rem/1 ui-monospace, monospace;
+}
+
+/* Flag focus: cinematic frame lines and a moving-light style sheen. */
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="flag-focus"] > .country-personality-signature {
+  inset: .65rem;
+  border: 1px solid rgb(255 255 255 / .16);
+  border-radius: 1rem;
+  background:
+    linear-gradient(108deg, transparent 0 44%, rgb(255 255 255 / .07) 50%, transparent 57%),
+    linear-gradient(180deg, rgb(var(--solaris-bg-deep) / .06), transparent 45%, rgb(var(--solaris-bg-deep) / .28));
+}
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="flag-focus"] > .country-personality-signature::before {
+  content: "FLAG / IDENTITY / STORY";
+  right: .7rem;
+  bottom: .55rem;
+  color: rgb(255 255 255 / .55);
+  font-size: .46rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+/* Poster: oversized outlined mark and fine print halftone. */
+body[data-entity-theme="country"][data-country-hero-layout="poster"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="poster"] > .country-personality-signature {
+  background-image: radial-gradient(circle, rgb(255 255 255 / .085) 0 .7px, transparent .8px);
+  background-size: 7px 7px;
+  -webkit-mask-image: linear-gradient(115deg, transparent 0 38%, #000 68%, transparent 100%);
+  mask-image: linear-gradient(115deg, transparent 0 38%, #000 68%, transparent 100%);
+}
+body[data-entity-theme="country"][data-country-hero-layout="poster"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="poster"] > .country-personality-signature::before {
+  content: "TS";
+  right: -1.5rem;
+  bottom: -2.7rem;
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(var(--solaris-accent) / .2);
+  font-family: var(--font-display, sans-serif);
+  font-size: clamp(9rem, 24vw, 18rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -.1em;
+}
+
+/* Split: precision seam with registration ticks. */
+body[data-entity-theme="country"][data-country-hero-layout="split"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="split"] > .country-personality-signature {
+  background:
+    linear-gradient(118deg, transparent 0 55.7%, rgb(255 255 255 / .22) 55.8% 56%, transparent 56.1%),
+    repeating-linear-gradient(180deg, transparent 0 30px, rgb(var(--solaris-accent) / .13) 30px 31px, transparent 31px 45px);
+  background-size: 100% 100%, .75rem 100%;
+  background-position: 0 0, 56% 0;
+  background-repeat: no-repeat;
+}
+
+/* Spotlight: actual light cone, stage halo and floating dust. */
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="spotlight"] > .country-personality-signature {
+  background:
+    radial-gradient(ellipse at 50% 84%, rgb(var(--solaris-accent) / .18), transparent 30%),
+    conic-gradient(from 164deg at 50% -20%, transparent 0 10%, rgb(255 255 255 / .055) 13% 20%, transparent 23% 100%),
+    radial-gradient(circle at 24% 36%, rgb(255 255 255 / .45) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 79% 31%, rgb(255 255 255 / .28) 0 1px, transparent 1.7px);
+}
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+[data-preview-layout="spotlight"] > .country-personality-signature::after {
+  content: "";
+  left: 50%;
+  bottom: 12%;
+  width: 42%;
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgb(var(--solaris-accent) / .65), transparent);
+  box-shadow: 0 0 24px 5px rgb(var(--solaris-accent) / .14);
+}
+
+/* Broadcast: scanlines, safe-area corners and an on-air bug. */
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="broadcast"] > .country-personality-signature {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 4px, rgb(255 255 255 / .022) 4px 5px),
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .3) 0 .22rem, transparent .22rem);
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="broadcast"] > .country-personality-signature::before {
+  content: "●  ON AIR   /   TSBC";
+  top: 1rem;
+  right: 1rem;
+  padding: .4rem .55rem;
+  border: 1px solid rgb(var(--solaris-accent) / .38);
+  background: rgb(var(--solaris-bg-deep) / .52);
+  color: rgb(var(--solaris-accent) / .86);
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+[data-preview-layout="broadcast"] > .country-personality-signature::after {
+  content: "";
+  inset: 1rem;
+  border: solid rgb(255 255 255 / .13);
+  border-width: 1px 0 0 1px;
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+/* Panorama: horizon coordinates and distant atmospheric glow. */
+body[data-entity-theme="country"][data-country-hero-layout="panorama"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="panorama"] > .country-personality-signature {
+  background:
+    radial-gradient(ellipse 46% 12% at 76% 69%, rgb(var(--solaris-accent) / .18), transparent 72%),
+    linear-gradient(180deg, transparent 0 67%, rgb(var(--solaris-accent) / .2) 67.2% 67.45%, transparent 67.7%);
+}
+body[data-entity-theme="country"][data-country-hero-layout="panorama"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="panorama"] > .country-personality-signature::before {
+  content: "TERRA SOLARIS  /  PANORAMA";
+  left: 1.1rem;
+  bottom: .8rem;
+  color: rgb(255 255 255 / .46);
+  font: 700 .48rem/1 ui-monospace, monospace;
+  letter-spacing: .14em;
+}
+
+/* Monument: engraved architecture and a ceremonial nameplate. */
+body[data-entity-theme="country"][data-country-hero-layout="monument"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="monument"] > .country-personality-signature {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .08), transparent 18%),
+    repeating-linear-gradient(90deg, transparent 0 11%, rgb(var(--solaris-accent) / .055) 11.2% 11.5%, transparent 11.7% 22%);
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="monument"] > .country-personality-signature::before {
+  content: "TERRA SOLARIS";
+  left: 50%;
+  bottom: .8rem;
+  min-width: 9rem;
+  padding: .45rem 1rem;
+  border-block: 1px solid rgb(var(--solaris-accent) / .32);
+  color: rgb(var(--solaris-accent) / .6);
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .24em;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+/* Glass: optical caustics and bokeh, kept outside the flag-filled panel. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="glass-card"] > .country-personality-signature {
+  background:
+    radial-gradient(circle at 91% 18%, rgb(255 255 255 / .2) 0 .18rem, transparent .24rem),
+    radial-gradient(circle at 84% 27%, rgb(var(--solaris-accent) / .13) 0 2.4rem, transparent 4.8rem),
+    radial-gradient(circle at 14% 85%, rgb(255 255 255 / .08) 0 2rem, transparent 4.2rem),
+    linear-gradient(114deg, transparent 18%, rgb(255 255 255 / .055) 36%, transparent 49%);
+  filter: saturate(1.15);
+}
+
+/* Newspaper: real masthead, column grid and folio number. */
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="newspaper"] > .country-personality-signature {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(25% - 1px), rgb(var(--solaris-accent) / .075) calc(25% - 1px) 25%),
+    repeating-linear-gradient(180deg, transparent 0 26px, rgb(var(--solaris-accent) / .035) 26px 27px);
+}
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="newspaper"] > .country-personality-signature::before {
+  content: "THE TERRA SOLARIS GAZETTE";
+  top: .7rem;
+  left: clamp(1.25rem, 4vw, 2rem);
+  color: rgb(var(--solaris-accent) / .65);
+  font-family: Georgia, serif;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .15em;
+}
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+[data-preview-layout="newspaper"] > .country-personality-signature::after {
+  content: "VOL. 01  •  COUNTRY EDITION";
+  right: 1rem;
+  bottom: .65rem;
+  color: rgb(var(--solaris-accent) / .45);
+  font: 700 .45rem/1 ui-monospace, monospace;
+  letter-spacing: .13em;
+}
+
+/* Ribbon: stitched edges and a foil Solaris end-cap. */
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="ribbon"] > .country-personality-signature {
+  background:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / .24) 0 7px, transparent 7px 14px) 0 calc(50% - 3.25rem) / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, rgb(255 255 255 / .18) 0 7px, transparent 7px 14px) 0 calc(50% + 3.25rem) / 100% 1px no-repeat;
+}
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+[data-preview-layout="ribbon"] > .country-personality-signature::after {
+  content: "TS";
+  right: 1rem;
+  top: 50%;
+  display: grid;
+  width: 3.1rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / .32);
+  background: rgb(var(--solaris-bg-deep) / .42);
+  box-shadow: inset 0 0 0 3px rgb(var(--solaris-accent) / .14);
+  color: rgb(255 255 255 / .7);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
+  transform: translateY(-50%);
+}
+
+/* Duotone: print-registration geometry at the colour-field join. */
+body[data-entity-theme="country"][data-country-hero-layout="duotone"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="duotone"] > .country-personality-signature {
+  background:
+    linear-gradient(112deg, transparent 0 60.6%, rgb(255 255 255 / .18) 60.75% 60.95%, transparent 61.1%),
+    linear-gradient(90deg, transparent 0 1rem, rgb(var(--solaris-accent) / .18) 1rem 1.06rem, transparent 1.06rem),
+    linear-gradient(180deg, transparent 0 1rem, rgb(var(--solaris-accent) / .18) 1rem 1.06rem, transparent 1.06rem);
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+[data-preview-layout="duotone"] > .country-personality-signature::after {
+  content: "DUOTONE";
+  left: 1rem;
+  bottom: .75rem;
+  color: rgb(var(--solaris-accent) / .55);
+  font: 800 .5rem/1 ui-monospace, monospace;
+  letter-spacing: .15em;
+}
+
+/* Passport: guilloché security field behind the existing entry stamp. */
+body[data-entity-theme="country"][data-country-hero-layout="passport"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="passport"] > .country-personality-signature {
+  background:
+    repeating-radial-gradient(ellipse at 82% 35%, transparent 0 10px, rgb(var(--solaris-accent) / .075) 11px 12px, transparent 13px 21px),
+    repeating-linear-gradient(135deg, transparent 0 11px, rgb(var(--solaris-accent) / .025) 11px 12px);
+  -webkit-mask-image: linear-gradient(90deg, transparent 28%, #000 68%);
+  mask-image: linear-gradient(90deg, transparent 28%, #000 68%);
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="passport"] > .country-personality-signature::before {
+  content: "TS-0001  •  VALID  •  TERRA SOLARIS  •  TS-0001  •  VALID";
+  left: 1rem;
+  right: 1rem;
+  top: .55rem;
+  overflow: hidden;
+  color: rgb(var(--solaris-accent) / .38);
+  font: 800 .42rem/1 ui-monospace, monospace;
+  letter-spacing: .16em;
+  white-space: nowrap;
+}
+
+/* Horizon: luminous sunrise line and quiet celestial points. */
+body[data-entity-theme="country"][data-country-hero-layout="horizon"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="horizon"] > .country-personality-signature {
+  background:
+    radial-gradient(circle at 77% 69%, rgb(var(--solaris-accent) / .34) 0 1.6rem, rgb(var(--solaris-accent) / .11) 1.7rem 4.5rem, transparent 7.5rem),
+    linear-gradient(180deg, transparent 0 68.5%, rgb(var(--solaris-accent) / .34) 68.7% 69%, transparent 69.2%),
+    radial-gradient(circle at 16% 20%, rgb(255 255 255 / .38) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 35% 13%, rgb(255 255 255 / .22) 0 1px, transparent 1.6px);
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="horizon"] > .country-personality-signature::before {
+  content: "BEYOND THE HORIZON";
+  right: 1rem;
+  bottom: .7rem;
+  color: rgb(255 255 255 / .46);
+  font-size: .46rem;
+  font-weight: 800;
+  letter-spacing: .2em;
+}
+
+/* Preview parity for the three original layouts that do not need a rectangular
+   flag composition but still need to match their public alignment. */
+[data-preview-layout="classic"] {
+  background:
+    radial-gradient(circle at 82% 22%, rgb(var(--solaris-accent) / .12), transparent 30%),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-accent)) 6%) !important;
+}
+[data-preview-layout="classic"][data-preview-decoration="flag"] > .country-hero-background-flag {
+  top: -2rem !important;
+  right: -2rem !important;
+  width: 13rem !important;
+  opacity: .11 !important;
+}
+
+[data-preview-layout="minimal"] {
+  min-height: 17rem !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-preview-layout="spotlight"] {
+  display: grid !important;
+  place-items: center !important;
+  text-align: center;
+  background: radial-gradient(circle at 50% 32%, rgb(var(--solaris-accent) / .15), transparent 38%) !important;
+}
+[data-preview-layout="spotlight"][data-preview-decoration="flag"] > .country-hero-background-flag {
+  display: block !important;
+  top: -2rem !important;
+  right: 50% !important;
+  width: 14rem !important;
+  opacity: .09 !important;
+  transform: translateX(50%) !important;
+}
+
+@media (max-width: 720px) {
+  .country-personality-signature::before,
+  .country-personality-signature::after {
+    max-width: calc(100% - 2rem);
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"]
+    :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+  [data-preview-layout="broadcast"] > .country-personality-signature::before {
+    content: "●  ON AIR";
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="ribbon"]
+    :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+  [data-preview-layout="ribbon"] > .country-personality-signature::after {
+    width: 2.45rem;
+    right: .75rem;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="newspaper"]
+    :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+  [data-preview-layout="newspaper"] > .country-personality-signature::after,
+  body[data-entity-theme="country"][data-country-hero-layout="classic"]
+    :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+  [data-preview-layout="classic"] > .country-personality-signature::before {
+    display: none;
+  }
+}

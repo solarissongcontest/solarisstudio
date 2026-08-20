@@ -112,7 +112,7 @@ function EditionsPage() {
       }
 
       await refresh();
-      if (showToast) toast.success(changed ? `Synchronized ${changed} edition projection${changed === 1 ? "" : "s"}` : "Delegation editions already match Solaris");
+      if (showToast) toast.success(changed ? `Updated ${changed} delegation edition${changed === 1 ? "" : "s"}` : "Delegation editions already match Solaris");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Could not synchronize editions.";
       setError(message);

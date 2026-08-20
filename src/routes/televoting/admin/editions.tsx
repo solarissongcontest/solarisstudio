@@ -56,7 +56,7 @@ function TelevotingEditionsPage() {
       />
 
       <AdminCard>
-        <AdminCardHeader eyebrow="How it works" title="One source of truth" description="Create, rename and archive editions in Solaris Studio. This page only shows the synchronized voting projection." action={<Link to="/admin" className="admin-action-secondary !min-h-10">Manage editions</Link>} />
+        <AdminCardHeader eyebrow="Editions" title="Managed in Solaris" description="Create, rename and archive editions in Solaris. Televoting updates automatically." action={<Link to="/admin" className="admin-action-secondary !min-h-10">Manage editions</Link>} />
       </AdminCard>
 
       {adminLoading || isLoading ? (
@@ -74,7 +74,7 @@ function TelevotingEditionsPage() {
                     <h2 className="truncate text-base font-bold text-foreground">SSC {edition.edition_number} · {edition.name}</h2>
                     {edition.is_active ? <AdminStatus tone="ready"><CheckCircle2 className="size-3" /> Active</AdminStatus> : edition.is_archived ? <AdminStatus tone="neutral">Archived</AdminStatus> : <AdminStatus tone="info">Linked</AdminStatus>}
                   </div>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Voting projection is linked to the canonical Solaris edition and refreshes from it automatically.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">This Televoting edition updates automatically when its Solaris edition changes.</p>
                   <details className="mt-2">
                     <summary className="cursor-pointer text-xs font-semibold text-muted-foreground hover:text-foreground">Technical IDs</summary>
                     <p className="mt-1 break-all text-xs text-muted-foreground">Solaris {edition.solaris_id} · voting projection {edition.id}</p>

@@ -676,6 +676,7 @@ function CountryThemePreview({
         ...themeStyleProperties(theme),
       } as React.CSSProperties}
       data-preview-layout={layout}
+      data-preview-decoration={decoration}
     >
       {theme.backgroundMode === "image" && theme.backgroundBlur > 0 && (
         <div
@@ -697,6 +698,17 @@ function CountryThemePreview({
         className="country-hero-background-flag -right-20 -top-24 h-80 w-80"
         opacity={0.1}
       />
+
+      {decoration !== "flag" && decoration !== "none" && (
+        <div
+          aria-hidden="true"
+          className="country-decoration-layer"
+          data-decoration={decoration}
+          style={{ "--decoration-accent": theme.accent } as React.CSSProperties}
+        />
+      )}
+
+      <div aria-hidden="true" className="country-personality-signature" />
 
       <div className="relative z-10 max-w-3xl">
         {layout === "glass-card" && decoration === "flag" && flagImage && (
@@ -720,7 +732,7 @@ function CountryThemePreview({
                 ? "TERRA SOLARIS · NATIONAL FILE"
                 : `Terra Solaris · ${region}`}
           </p>
-          <h1 className="mt-2 break-words font-display text-3xl font-bold sm:text-5xl">
+          <h1 className="country-hero-title mt-2 break-words font-display text-3xl font-bold sm:text-5xl">
             {countryName}
           </h1>
           <p

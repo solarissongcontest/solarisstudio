@@ -345,7 +345,7 @@ function CountriesPage() {
                         <p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{selectedConfirmationEdition ? `SSC ${selectedConfirmationEdition.edition_number}` : "Selected edition"}</p>
                         {record.selectedResult ? (
                           <p className="numeric mt-1 text-sm font-bold text-foreground">{record.selectedResult.rank != null ? `#${record.selectedResult.rank}` : "Rank pending"} · {record.selectedResult.total.toLocaleString()} pts</p>
-                        ) : <p className="mt-1 text-xs text-muted-foreground">No canonical result recorded for this edition.</p>}
+                        ) : <p className="mt-1 text-xs text-muted-foreground">No official result is recorded for this edition.</p>}
                       </div>
                       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                         <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground"><Trophy className="size-3" /> All-time archive</p>
@@ -355,7 +355,7 @@ function CountriesPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="border-t border-white/[0.07] bg-white/[0.018] px-4 py-2.5 text-[11px] text-muted-foreground">No exact canonical country-name match was found, so Solaris is not guessing at historical results.</div>
+                  <div className="border-t border-white/[0.07] bg-white/[0.018] px-4 py-2.5 text-[11px] text-muted-foreground">The country name does not exactly match a Solaris country, so historical results are left blank.</div>
                 )}
 
                 <div className="border-t border-white/[0.07] px-4">

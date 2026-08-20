@@ -260,6 +260,7 @@ function CountryProfilePage() {
           className="country-hero-background-flag -right-20 -top-20 h-72 w-72"
           opacity={0.14}
         />
+        <div aria-hidden="true" className="country-personality-signature" />
 
         <div className="relative z-10 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           {country.flag_image && (
@@ -270,7 +271,7 @@ function CountryProfilePage() {
             />
           )}
           <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-4">
+            <div className="country-hero-identity flex min-w-0 items-center gap-4">
               <FlagChip
                 code={country.short_code}
                 color={country.accent_color}
@@ -281,7 +282,7 @@ function CountryProfilePage() {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
                   {country.region}
                 </p>
-                <h1 className="mt-1 break-words font-display text-3xl font-bold sm:text-4xl">
+                <h1 className="country-hero-title mt-1 break-words font-display text-3xl font-bold sm:text-4xl">
                   {country.name}
                 </h1>
                 {country.native_name && country.native_name !== country.name && (
@@ -388,7 +389,7 @@ function CountryProfilePage() {
                             </p>
                             <p className="mt-1 truncate text-[11px] text-muted-foreground">
                               {[participant?.artist, participant?.song].filter(Boolean).join(" · ") ||
-                                "Entry details not archived yet"}
+                                "Entry details are not available yet"}
                             </p>
                             <EntryListenLinks entry={participant} compact className="mt-2" />
                           </div>
@@ -401,7 +402,7 @@ function CountryProfilePage() {
                                 ? "Did not qualify"
                                 : qualification === true
                                   ? "Reached final"
-                                  : "Qualification not archived"}
+                                  : "Qualification is not available"}
                             </p>
                           </div>
                         </div>
@@ -409,7 +410,7 @@ function CountryProfilePage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No archived edition history yet.</p>
+                  <p className="text-sm text-muted-foreground">No edition history is available yet.</p>
                 )}
               </Panel>
             </>
@@ -466,7 +467,7 @@ function CountryProfilePage() {
               </Panel>
               <Panel
                 title="Qualification history"
-                description="Only explicit eliminations are labelled as eliminated. If old qualification metadata is missing, Solaris says so instead of guessing."
+                description="A country is labelled as eliminated only when the saved results confirm it. If older qualification details are missing, Solaris says so instead of guessing."
               >
                 {semiRows.length ? (
                   <div className="divide-y divide-border/60">

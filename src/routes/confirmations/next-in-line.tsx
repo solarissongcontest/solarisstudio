@@ -275,7 +275,7 @@ function NextInLinePage() {
         </Link>
 
         <header className="my-8 text-center">
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-sky-200/65">Participation portal</p>
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-sky-200/65">Participation</p>
           <h1 className="confirmations-display mt-3 text-5xl font-normal uppercase leading-none sm:text-6xl">Next in line</h1>
           <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-white/55">
             Respond if your country is offered a remaining place in the current Solaris Song Contest edition.

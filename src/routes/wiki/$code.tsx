@@ -128,6 +128,7 @@ function CountryWikiPage() {
             className="country-hero-background-flag -right-20 -top-24 h-80 w-80"
             opacity={0.1}
           />
+          <div aria-hidden="true" className="country-personality-signature" />
           <div className="relative z-10 max-w-3xl">
             {country.flag_image && (
               <div
@@ -137,7 +138,7 @@ function CountryWikiPage() {
               />
             )}
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Terra Solaris Wiki</p>
-            <h1 className="mt-2 break-words font-display text-3xl font-bold sm:text-5xl">{country.name}</h1>
+            <h1 className="country-hero-title mt-2 break-words font-display text-3xl font-bold sm:text-5xl">{country.name}</h1>
             {country.native_name && country.native_name !== country.name && <p className="mt-1 text-sm text-muted-foreground">{country.native_name}</p>}
             <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
               {profile?.summary || country.description || `${country.name} is a country in Terra Solaris and a participant in Solaris Song Contest.`}

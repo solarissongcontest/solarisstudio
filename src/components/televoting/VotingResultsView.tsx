@@ -289,7 +289,7 @@ export function VotingResultsView() {
         </div>
       </AdminSheet>
 
-      <AdminConfirmSheet open={protectedRecalcOpen} onClose={() => setProtectedRecalcOpen(false)} onConfirm={() => recalcMutation.mutate(true)} title="Replace protected calculation?" description="This result is locked or published. Recalculation will replace the stored conversion using the current line-up and settings. Official canonical SSC results are not modified by this tool." confirmLabel="Recalculate result" danger busy={recalcMutation.isPending} />
+      <AdminConfirmSheet open={protectedRecalcOpen} onClose={() => setProtectedRecalcOpen(false)} onConfirm={() => recalcMutation.mutate(true)} title="Replace protected calculation?" description="This result is locked or published. Recalculation will replace the saved conversion using the current line-up and settings. Official SSC results are not changed by this tool." confirmLabel="Recalculate result" danger busy={recalcMutation.isPending} />
 
       <AdminConfirmSheet open={publishOpen} onClose={() => setPublishOpen(false)} onConfirm={() => changeStatus("published")} title="Publish televote result?" description="The stored converted televote will become available on the public Televoting Results page. The publication readiness check has passed for this round." confirmLabel="Publish result" busy={statusBusy} />
     </div>
