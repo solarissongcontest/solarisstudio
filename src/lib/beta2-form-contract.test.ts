@@ -10,8 +10,10 @@ describe("public Beta 2.0 contract", () => {
   const round = source("features/beta-test/sections-round-2.ts");
   const discovery = source("features/beta-test/sections-beta2-discovery.ts");
   const evaluation = source("features/beta-test/sections-beta2-evaluation.ts");
+  const beta1Sections = source("features/beta-test/sections-beta1.ts");
   const route = source("routes/beta-test/index.tsx");
   const dashboard = source("routes/_authenticated/admin/beta2-feedback.tsx");
+  const beta1Archive = source("routes/_authenticated/admin/beta1-feedback.tsx");
   const more = source("routes/_authenticated/admin/more.tsx");
   const palette = source("components/admin/AdminCommandPalette.tsx");
   const migration = source("../supabase/migrations/20260820162000_close_beta1_open_beta2.sql");
@@ -40,7 +42,7 @@ describe("public Beta 2.0 contract", () => {
     ]) {
       expect(discovery).toContain(phrase);
     }
-    expect(discovery).toContain("without using a recovery code");
+    expect(discovery).toContain("Without using a recovery code");
     expect(discovery).toContain("Overview");
     expect(discovery).toContain("Page & media");
     expect(discovery).toContain("Entries");
@@ -67,14 +69,19 @@ describe("public Beta 2.0 contract", () => {
     expect(migration).toContain("Closed Beta 1 archive");
     expect(migration).not.toContain("delete from public.beta_test_submissions");
     expect(migration).not.toContain("truncate");
+    expect(beta1Sections).toContain("...betaSectionsCore");
+    expect(beta1Sections).toContain("...betaSectionsExtra");
+    expect(beta1Archive).toContain("beta1Sections");
+    expect(beta1Archive).toContain('title="Beta 1 archive"');
   });
 
   it("keeps the current Beta 2 report beside the Beta 1 archive", () => {
     expect(more).toContain('to: "/admin/beta2-feedback"');
-    expect(more).toContain('to: "/admin/beta-feedback"');
+    expect(more).toContain('to: "/admin/beta1-feedback"');
     expect(palette).toContain('["Beta 2 feedback", "/admin/beta2-feedback"');
+    expect(palette).toContain('["Beta 1 archive", "/admin/beta1-feedback"');
     expect(dashboard).toContain('title="Beta 2.0 feedback"');
-    expect(dashboard).toContain("Open Beta 1 archive");
+    expect(dashboard).toContain('to="/admin/beta1-feedback"');
     expect(dashboard).toContain("Beta 1 weaknesses");
   });
 });
