@@ -1,0 +1,235 @@
+/* Country personality v4 ---------------------------------------------------
+   Final rendering safety layer. The v3 system made the flag optional and
+   introduced abstract decorations. This layer keeps those controls intact,
+   but prevents explicit flag mode from turning every personality into a
+   stretched full-bleed image and keeps mobile hero proportions disciplined. */
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Explicit flag mode is allowed, but it must respect the personality. The
+   default is a contained, softened national mark rather than a full-card crop.
+   Only Flag focus and Split are designed to use large flag fields. */
+body[data-entity-theme="country"][data-country-decoration="flag"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: 50% clamp(1rem, 4vw, 2.5rem) auto auto !important;
+  width: clamp(8.5rem, 24vw, 15rem) !important;
+  height: auto !important;
+  aspect-ratio: 3 / 2 !important;
+  opacity: .24 !important;
+  transform: translateY(-50%) !important;
+  filter: none !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 1rem !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-decoration="flag"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  inset: 0 !important;
+  background-size: contain !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  border: 0 !important;
+  border-radius: inherit !important;
+  box-shadow: none !important;
+  -webkit-mask-image: linear-gradient(#000, #000) !important;
+  mask-image: linear-gradient(#000, #000) !important;
+}
+
+/* Flag focus is the one personality where the flag is intentionally artwork.
+   It fills the surface, but the overlay keeps copy readable. */
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="flag-focus"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+body[data-entity-theme="country"][data-country-decoration="auto"][data-country-hero-layout="flag-focus"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  opacity: .55 !important;
+  transform: none !important;
+  border-radius: inherit !important;
+}
+
+body[data-entity-theme="country"]:is(
+    [data-country-decoration="flag"],
+    [data-country-decoration="auto"]
+  )[data-country-hero-layout="flag-focus"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  background-size: cover !important;
+  background-position: center !important;
+}
+
+/* Split owns a real second field. The flag fills only that field and never
+   becomes a small card floating within it. */
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="split"]
+  :is(.country-public-hero, .wiki-public-hero) {
+  padding-right: clamp(36%, 40vw, 44%) !important;
+}
+
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="split"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: 0 0 0 62% !important;
+  width: 38% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  opacity: .78 !important;
+  transform: none !important;
+  border-radius: 0 !important;
+}
+
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="split"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  background-size: cover !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%, #000) !important;
+  mask-image: linear-gradient(90deg, transparent, #000 22%, #000) !important;
+}
+
+/* Newspaper uses a print strip, not a giant image. */
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="newspaper"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: 0 0 auto !important;
+  width: 100% !important;
+  height: 2.75rem !important;
+  aspect-ratio: auto !important;
+  opacity: .32 !important;
+  transform: none !important;
+  border-radius: 0 !important;
+}
+
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="newspaper"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  background-size: cover !important;
+}
+
+/* Passport keeps a small document mark. No giant security-page flag. */
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="passport"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  top: 1.35rem !important;
+  right: 1.35rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: clamp(5.5rem, 14vw, 8rem) !important;
+  opacity: .62 !important;
+  transform: none !important;
+  border-radius: .35rem !important;
+}
+
+/* Glass Card is one liquid-glass object. Remove every inherited inner-card
+   treatment, including the pseudo-surfaces from older personality layers. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) {
+  min-height: clamp(17rem, 28vw, 22rem) !important;
+  padding: clamp(1.4rem, 4vw, 2.8rem) !important;
+  border: 1px solid rgb(255 255 255 / .22) !important;
+  border-radius: clamp(1.25rem, 3vw, 2rem) !important;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / .12), rgb(255 255 255 / .04) 46%, rgb(var(--solaris-accent) / .07)),
+    rgb(var(--solaris-bg-deep) / .20) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .38),
+    inset 1px 0 0 rgb(255 255 255 / .10),
+    inset 0 -1px 0 rgb(var(--solaris-accent) / .13),
+    0 24px 64px -42px rgb(var(--solaris-bg-deep) / .88) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(165%) brightness(1.04) !important;
+  backdrop-filter: blur(22px) saturate(165%) brightness(1.04) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+  width: min(100%, 46rem) !important;
+  max-width: 46rem !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::before,
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::after {
+  display: none !important;
+}
+
+/* If a flag is explicitly selected for Glass Card, it becomes a diffused
+   colour source behind the glass instead of a readable, enlarged bitmap. */
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: -10% !important;
+  width: auto !important;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  opacity: .14 !important;
+  transform: scale(1.04) !important;
+  filter: blur(16px) saturate(1.08) !important;
+  border-radius: inherit !important;
+}
+
+body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  background-size: cover !important;
+}
+
+/* Minimal never forces national artwork. */
+body[data-entity-theme="country"][data-country-hero-layout="minimal"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: none !important;
+}
+
+/* Tighter, predictable mobile proportions. No personality gets a giant blank
+   portrait slab simply because the screen is narrow. */
+@media (max-width: 720px) {
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 0 !important;
+  }
+
+  body[data-entity-theme="country"]:not([data-country-hero-layout="minimal"]):not([data-country-hero-layout="newspaper"])
+    :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 15.5rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="poster"],
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] {
+    --country-mobile-hero-min: 17rem;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="poster"]
+    :is(.country-public-hero, .wiki-public-hero),
+  body[data-entity-theme="country"][data-country-hero-layout="monument"]
+    :is(.country-public-hero, .wiki-public-hero) {
+    min-height: var(--country-mobile-hero-min) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-decoration="flag"]
+    :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    right: .85rem !important;
+    width: min(31vw, 7.5rem) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="split"]
+    :is(.country-public-hero, .wiki-public-hero) {
+    padding-right: 40% !important;
+  }
+
+  body[data-entity-theme="country"][data-country-decoration="flag"][data-country-hero-layout="split"]
+    :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    inset: 0 0 0 60% !important;
+    width: 40% !important;
+    height: 100% !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+    :is(.country-public-hero, .wiki-public-hero) {
+    min-height: 0 !important;
+    padding: 1.3rem !important;
+  }
+}
