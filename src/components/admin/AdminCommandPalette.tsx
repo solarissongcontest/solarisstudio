@@ -21,7 +21,7 @@ const FIXED = [
   ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout voting numbers"],
   ["Predictions", "/admin/predictions", "More", "prediction rounds"],
   ["Beta 2 feedback", "/admin/beta2-feedback", "More", "beta 2 public usability current testers comparison"],
-  ["Public beta feedback", "/admin/beta-feedback", "More", "beta 1 archive old public testers feedback"],
+  ["Beta 1 archive", "/admin/beta1-feedback", "More", "beta 1 archive old public testers feedback"],
   ["Admin beta test", "/admin/beta-test", "More", "organizer testing feedback form"],
   ["Admin beta feedback", "/admin/admin-beta-feedback", "More", "organizer testers results bugs"],
   ["Country accounts", "/admin/country-accounts", "More", "country account access"],
