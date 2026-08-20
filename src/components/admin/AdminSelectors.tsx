@@ -138,8 +138,8 @@ export function AdminSelectors() {
       <AdminSheet
         open={open}
         onClose={() => setOpen(false)}
-        title="Switch edition"
-        description={`${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"} available. Your current workspace is preserved when possible.`}
+        title="Choose an edition"
+        description={`There ${orderedEditions.length === 1 ? "is" : "are"} ${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"}. Choose the one you want to work on.`}
       >
         <div className="sticky top-0 z-10 -mx-1 mb-3 bg-[#081326] pb-2">
           <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3">
@@ -147,7 +147,7 @@ export function AdminSelectors() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search edition, number or host city…"
+              placeholder="Search by edition, number or host city…"
               className="min-h-0 min-w-0 flex-1 border-0 bg-transparent p-0 text-sm outline-none"
             />
           </label>
@@ -173,7 +173,8 @@ export function AdminSelectors() {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold text-foreground">{editionLabel(edition)}</span>
                   <span className="mt-1 block truncate text-xs text-muted-foreground">
-                    {edition.name}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                    {edition.name}
+                    {edition.host_city ? ` · ${edition.host_city}` : ""}
                   </span>
                 </span>
                 {active ? <Check className="size-4 shrink-0 text-sky-100" /> : null}
@@ -183,7 +184,7 @@ export function AdminSelectors() {
 
           {!orderedEditions.length ? (
             <div className="rounded-xl border border-dashed border-white/[0.1] p-5 text-center text-sm text-muted-foreground">
-              No editions exist yet.
+              There are no editions yet.
             </div>
           ) : null}
 

@@ -29,7 +29,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <div className="admin-topbar relative flex min-h-[4rem] items-center gap-2 px-3 sm:gap-3 sm:px-5">
             <Link to="/admin/operations" className="min-w-0 shrink-0">
               <p className="admin-brand-title text-[1.02rem] leading-none text-foreground sm:text-lg">Solaris Studio</p>
-              <p className="mt-1 hidden text-[11px] font-semibold text-muted-foreground sm:block">Organizer workspace</p>
+              <p className="mt-1 hidden text-[11px] font-semibold text-muted-foreground sm:block">Organizer pages</p>
             </Link>
 
             <div className="min-w-0 flex-1">

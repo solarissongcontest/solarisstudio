@@ -51,50 +51,51 @@ function VotingAdminOverview() {
     refetchInterval: 5_000,
   });
 
-  const nextAction = !data || data.rounds === 0
-    ? {
-        title: "Create the first voting round",
-        description: "Set up the entries and voting rules before ballots can be submitted.",
-        to: "/televoting/admin/rounds",
-        label: "Set up round",
-      }
-    : data.openRounds > 0
+  const nextAction =
+    !data || data.rounds === 0
       ? {
-          title: "Voting is open",
-          description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} currently accepting ballots.`,
+          title: "Create the first voting round",
+          description: "Choose the entries and voting rules before people can vote.",
           to: "/televoting/admin/rounds",
-          label: "Monitor voting",
+          label: "Create round",
         }
-      : data.submissions > 0
+      : data.openRounds > 0
         ? {
-            title: "Review and prepare results",
-            description: `${data.submissions} submitted ballots are available across the voting archive.`,
-            to: "/televoting/admin/results",
-            label: "Open results",
-          }
-        : {
-            title: "Open or schedule a voting round",
-            description: "Voting rounds exist, but none are currently accepting ballots.",
+            title: "Voting is open",
+            description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} accepting votes now.`,
             to: "/televoting/admin/rounds",
-            label: "Manage rounds",
-          };
+            label: "View voting",
+          }
+        : data.submissions > 0
+          ? {
+              title: "Check the votes and prepare results",
+              description: `${data.submissions} submitted ${data.submissions === 1 ? "vote is" : "votes are"} available to review.`,
+              to: "/televoting/admin/results",
+              label: "Open results",
+            }
+          : {
+              title: "Open or schedule a voting round",
+              description: "Voting rounds exist, but none are open right now.",
+              to: "/televoting/admin/rounds",
+              label: "Manage rounds",
+            };
 
   return (
     <div className="mx-auto max-w-5xl">
       <AdminPageHeader
-        eyebrow="Contest workflow"
-        title="Voting"
-        description="Rounds, ballots, official results and integrity review without bouncing between separate control centres."
+        eyebrow="Public voting"
+        title="Televoting"
+        description="Create voting rounds, see submitted votes, prepare results and check suspicious voting."
         actions={
           <Link to="/televoting" target="_blank" className="admin-action-secondary">
-            <Globe2 className="size-4" /> Public voting
+            <Globe2 className="size-4" /> Open public voting
           </Link>
         }
       />
 
       {statusLoading ? (
         <AdminCard>
-          <p className="py-6 text-center text-sm text-muted-foreground">Checking voting services…</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">Checking the voting system…</p>
         </AdminCard>
       ) : !backendReady ? (
         <AdminCard>
@@ -102,9 +103,9 @@ function VotingAdminOverview() {
             <div className="flex items-start gap-3">
               <DatabaseZap className="mt-0.5 size-5 shrink-0 text-amber-100" />
               <div>
-                <p className="text-sm font-semibold text-foreground">Organizer voting tools are unavailable</p>
+                <p className="text-sm font-semibold text-foreground">Organizer voting pages are unavailable</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  The organizer backend connection is not ready. Public voting can remain available while privileged organizer access is restored.
+                  Solaris Studio cannot currently reach the organizer side of the voting system. Public voting may still work. Check the System check page before doing organizer voting work.
                 </p>
               </div>
             </div>
@@ -112,12 +113,12 @@ function VotingAdminOverview() {
         </AdminCard>
       ) : isLoading ? (
         <AdminCard>
-          <p className="py-6 text-center text-sm text-muted-foreground">Loading voting workspace…</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">Loading voting information…</p>
         </AdminCard>
       ) : error ? (
         <AdminCard>
           <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4 text-sm text-rose-100">
-            {error instanceof Error ? error.message : "Voting data could not be loaded."}
+            {error instanceof Error ? error.message : "Voting information could not be loaded."}
           </div>
         </AdminCard>
       ) : data ? (
@@ -125,25 +126,25 @@ function VotingAdminOverview() {
           <AdminCard strong className="mb-4">
             <div className="flex min-w-0 items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="admin-section-label">Voting status</p>
+                <p className="admin-section-label">Voting now</p>
                 <h2 className="mt-1 truncate text-xl font-bold tracking-[-.025em]">
-                  {data.activeEdition ?? "No active voting edition"}
+                  {data.activeEdition ?? "No edition has active voting"}
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {data.openRounds > 0
-                    ? `${data.openRounds} ${data.openRounds === 1 ? "round" : "rounds"} currently open`
+                    ? `${data.openRounds} ${data.openRounds === 1 ? "round" : "rounds"} open now`
                     : "No voting round is open right now"}
                 </p>
               </div>
               <AdminStatus tone={data.openRounds > 0 ? "ready" : "neutral"}>
-                {data.openRounds > 0 ? "Live" : "Closed"}
+                {data.openRounds > 0 ? "Open" : "Closed"}
               </AdminStatus>
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-white/[0.06] bg-white/[0.018] p-3 text-center">
               <Metric label="Rounds" value={data.rounds} />
-              <Metric label="Ballots" value={data.submissions} />
-              <Metric label="Blocked" value={data.blocked} />
+              <Metric label="Submitted votes" value={data.submissions} />
+              <Metric label="Blocked votes" value={data.blocked} />
             </div>
           </AdminCard>
 
@@ -157,10 +158,10 @@ function VotingAdminOverview() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold text-foreground">
-                  {data.blocked} blocked {data.blocked === 1 ? "event needs" : "events need"} review
+                  {data.blocked} blocked {data.blocked === 1 ? "vote needs" : "votes need"} checking
                 </span>
                 <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                  Open Integrity to inspect the evidence and moderation history.
+                  Open Suspicious votes to see why they were flagged and what action was taken.
                 </span>
               </span>
               <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground" />
@@ -169,7 +170,7 @@ function VotingAdminOverview() {
 
           <AdminCard className="mb-4">
             <AdminCardHeader
-              eyebrow="Next action"
+              eyebrow="What to do next"
               title={nextAction.title}
               description={nextAction.description}
               action={
@@ -181,62 +182,62 @@ function VotingAdminOverview() {
           </AdminCard>
 
           <section className="mb-5">
-            <p className="admin-section-label mb-2">Everyday workflow</p>
+            <p className="admin-section-label mb-2">Main voting pages</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <WorkflowLink
+              <VotingPageLink
                 to="/televoting/admin/rounds"
                 icon={PlayCircle}
-                title="Rounds & entries"
-                description="Set up who can vote, which entries receive points and when voting opens."
-                detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} configured`}
+                title="Voting rounds and entries"
+                description="Choose who can vote, which entries can receive points and when voting opens."
+                detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} created`}
               />
-              <WorkflowLink
+              <VotingPageLink
                 to="/televoting/admin/results"
                 icon={Trophy}
                 title="Results"
-                description="Validate ballots, calculate the converted televote and prepare the official result."
-                detail={`${data.submissions} ballots in archive`}
+                description="Check submitted votes, calculate the televote points and prepare the official result."
+                detail={`${data.submissions} submitted votes`}
               />
-              <WorkflowLink
+              <VotingPageLink
                 to="/televoting/admin/integrity"
                 icon={ShieldAlert}
-                title="Integrity"
-                description="Review ballot risk evidence, moderation decisions and repeated patterns."
-                detail={data.blocked ? `${data.blocked} blocked events` : "No blocked events"}
+                title="Suspicious votes"
+                description="Check votes that Solaris Studio flagged because their voting pattern may need a closer look."
+                detail={data.blocked ? `${data.blocked} blocked votes` : "No blocked votes"}
               />
-              <WorkflowLink
+              <VotingPageLink
                 to="/televoting/admin/analytics"
                 icon={BarChart3}
-                title="Analytics"
-                description="Turnout, score distribution, delegation behaviour and entry performance."
+                title="Voting statistics"
+                description="See how many people voted, how points were spread and how countries and entries performed."
               />
             </div>
           </section>
 
           <AdminCard>
             <AdminCardHeader
-              eyebrow="Advanced"
-              title="Result & audit tools"
-              description="Lower-frequency tools stay available without competing with the normal voting workflow."
+              eyebrow="More voting pages"
+              title="Extra result and history tools"
+              description="These pages are useful when you need a closer look at results or past organizer actions."
             />
             <div className="divide-y divide-white/[0.07]">
               <AdminLinkRow
                 to="/televoting/admin/combined"
                 icon={Blend}
                 title="Combined results"
-                description="Inspect combined result preparation where jury and televote data meet."
+                description="See how jury and televote points are put together for the final result."
               />
               <AdminLinkRow
                 to="/televoting/admin/intelligence"
                 icon={ShieldAlert}
-                title="Voting intelligence"
-                description="Deeper relationship and pattern analysis."
+                title="Voting patterns"
+                description="Look more closely at repeated voting links and unusual patterns."
               />
               <AdminLinkRow
                 to="/televoting/admin/audit-log"
                 icon={ShieldAlert}
-                title="Audit log"
-                description="Trace organizer and moderation activity."
+                title="Change history"
+                description="See important organizer actions and decisions made about votes."
               />
             </div>
           </AdminCard>
@@ -245,9 +246,13 @@ function VotingAdminOverview() {
         <AdminCard>
           <AdminEmptyState
             icon={PlayCircle}
-            title="No voting data yet"
-            description="Create a voting round to begin the voting workflow."
-            action={<Link to="/televoting/admin/rounds" className="admin-action-primary">Set up round</Link>}
+            title="No voting information yet"
+            description="Create a voting round to begin."
+            action={
+              <Link to="/televoting/admin/rounds" className="admin-action-primary">
+                Create round
+              </Link>
+            }
           />
         </AdminCard>
       )}
@@ -264,7 +269,7 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function WorkflowLink({
+function VotingPageLink({
   to,
   icon: Icon,
   title,
@@ -308,7 +313,9 @@ function AdminLinkRow({
 }) {
   return (
     <Link to={to as any} className="admin-action-row group">
-      <span className="admin-action-row-icon"><Icon className="size-4" /></span>
+      <span className="admin-action-row-icon">
+        <Icon className="size-4" />
+      </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold">{title}</span>
         <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
