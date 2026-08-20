@@ -40,18 +40,19 @@ function WikiIndexPage() {
       <PageHeader
         eyebrow="Terra Solaris"
         title="Wiki"
-        description="Country profiles, national information and SSC history in one place. Choose a country below instead of wandering into a 404 like it is 2007."
+        description="Browse national profiles, country information and Solaris Song Contest history."
+        className="directory-page-hero wiki-library-hero"
         actions={
           <Link
             to="/countries"
-            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+            className="directory-page-action w-full rounded-xl border px-3 py-2 text-center text-sm font-semibold sm:w-auto"
           >
             SSC country directory →
           </Link>
         }
       />
 
-      <section className="mb-5 rounded-2xl border border-border/70 bg-surface/80 p-3 sm:p-4">
+      <section className="directory-page-filter mb-5 rounded-2xl border p-3 sm:p-4">
         <label className="relative block">
           <span className="sr-only">Search the Wiki</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -73,13 +74,14 @@ function WikiIndexPage() {
           <span className="numeric text-xs text-muted-foreground">{filtered.length}</span>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="wiki-library-grid grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((country) => (
             <Link
               key={country.id}
               to="/wiki/$code"
               params={{ code: country.short_code }}
-              className="group flex min-w-0 items-center gap-3 rounded-2xl border border-border/65 bg-surface/75 p-4 transition hover:border-primary/35 hover:bg-surface"
+              className="directory-country-card group flex min-w-0 items-center gap-3 rounded-2xl border p-4 transition"
+              style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
             >
               <FlagChip
                 code={country.short_code}

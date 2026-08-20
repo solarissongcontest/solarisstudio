@@ -4,15 +4,17 @@
 
 body[data-entity-theme] {
   --primary: rgb(var(--solaris-accent));
+  --primary-foreground: var(--solaris-accent-foreground, #07131f);
   --ring: color-mix(in srgb, rgb(var(--solaris-accent)) 78%, white 22%);
   --accent: color-mix(in srgb, rgb(var(--solaris-accent)) 86%, rgb(var(--solaris-bg-secondary)) 14%);
-  --border: rgb(var(--solaris-accent) / .19);
-  --card: color-mix(in srgb, var(--surface) 74%, rgb(var(--solaris-bg-deep)) 26%);
-  --popover: color-mix(in srgb, var(--surface) 78%, rgb(var(--solaris-bg-deep)) 22%);
-  --surface-strong: color-mix(in srgb, var(--surface) 78%, rgb(var(--solaris-accent)) 22%);
-  --secondary: color-mix(in srgb, var(--surface) 82%, rgb(var(--solaris-bg-secondary)) 18%);
-  --muted: color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%);
-  --input: color-mix(in srgb, var(--surface) 86%, rgb(var(--solaris-bg-deep)) 14%);
+  --accent-foreground: var(--solaris-accent-foreground, #07131f);
+  --border: rgb(var(--solaris-accent) / .25);
+  --card: var(--solaris-card-surface, var(--surface));
+  --popover: var(--solaris-card-raised, var(--surface));
+  --surface-strong: color-mix(in srgb, var(--solaris-card-raised, var(--surface)) 88%, rgb(var(--solaris-accent)) 12%);
+  --secondary: color-mix(in srgb, var(--solaris-card-surface, var(--surface)) 92%, rgb(var(--solaris-bg-secondary)) 8%);
+  --muted: color-mix(in srgb, var(--solaris-card-surface, var(--surface)) 94%, rgb(var(--solaris-bg-deep)) 6%);
+  --input: color-mix(in srgb, var(--solaris-card-surface, var(--surface)) 96%, white 4%);
 }
 
 body[data-entity-theme] .data-panel,
@@ -25,15 +27,15 @@ body[data-entity-theme] .glass-strong {
 body[data-entity-theme] .data-panel,
 body[data-entity-theme] .surface {
   background:
-    linear-gradient(150deg, rgb(var(--solaris-bg-primary) / .11), rgb(var(--solaris-bg-secondary) / .06) 50%, transparent),
-    color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%) !important;
+    linear-gradient(150deg, rgb(var(--solaris-bg-primary) / .075), rgb(var(--solaris-bg-secondary) / .045) 48%, rgb(var(--solaris-bg-tertiary) / .035)),
+    var(--solaris-card-surface, var(--surface)) !important;
 }
 
 body[data-entity-theme] .glass,
 body[data-entity-theme] .glass-strong {
   background:
-    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .10), rgb(var(--solaris-bg-secondary) / .055)),
-    color-mix(in srgb, var(--surface) 86%, rgb(var(--solaris-bg-deep)) 14%) !important;
+    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .07), rgb(var(--solaris-bg-secondary) / .04), rgb(var(--solaris-bg-tertiary) / .025)),
+    var(--solaris-card-surface, var(--surface)) !important;
 }
 
 /* Country owners can make the full public country/Wiki background genuinely
@@ -51,6 +53,16 @@ body[data-entity-theme="country"] .app-background {
 
 body[data-entity-theme="country"][data-country-background-mode="image"] .app-background::before { opacity: .055; }
 body[data-entity-theme="country"][data-country-background-mode="image"] .app-background::after { opacity: .035; }
+
+/* The appearance editor uses the exact same generated background as the
+   public page. This explicit layer prevents the generic glass-card surface
+   from replacing the owner's gradient inside the preview. */
+.country-theme-live-preview {
+  background: var(--country-preview-background) !important;
+  background-size: cover !important;
+  background-position: var(--country-preview-position, center) !important;
+  background-repeat: no-repeat !important;
+}
 
 /* Header personalities -------------------------------------------------------
    These are intentionally strong presets. The owner chooses a composition,
@@ -186,7 +198,7 @@ body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.cou
   max-width: 14ch;
   padding: .1em .18em .12em;
   background: rgb(var(--solaris-accent));
-  color: rgb(var(--solaris-bg-deep)) !important;
+  color: var(--solaris-accent-foreground, #07131f) !important;
   font-size: clamp(2.9rem, 6vw, 5.2rem) !important;
   line-height: .9 !important;
   text-transform: uppercase;

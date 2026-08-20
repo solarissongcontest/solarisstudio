@@ -111,7 +111,7 @@ function ToolsPage() {
                 <Link
                   key={tool.to}
                   to={tool.to}
-                  className="group min-w-0 rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-strong focus-visible:bg-surface-strong"
+                  className="solaris-family-card group min-w-0 rounded-2xl border p-4 transition-colors focus-visible:ring-2 focus-visible:ring-primary/40"
                 >
                   <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
                     {tool.eyebrow}

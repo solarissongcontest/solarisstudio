@@ -166,14 +166,14 @@ function FeaturedShow({ card, priority }: { card: ShowCard; priority?: boolean }
     <Link
       to="/shows/$showId"
       params={{ showId: show.id }}
-      className={`group relative min-w-0 overflow-hidden rounded-[1.6rem] border border-white/12 bg-[#031127] ${priority ? "min-h-[330px] lg:row-span-2" : "min-h-[260px]"}`}
+      className={`solaris-family-card group relative min-w-0 overflow-hidden rounded-[1.6rem] border ${priority ? "min-h-[330px] lg:row-span-2" : "min-h-[260px]"}`}
     >
       <BackgroundFlag
         image={winner?.flag_image}
         className="-right-[28%] top-1/2 w-[105%] -translate-y-1/2 sm:-right-[14%] sm:w-[72%]"
         opacity={0.2}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(2,8,23,.96),rgba(4,25,53,.78)_58%,rgba(3,17,39,.42))]" />
+      <div className="solaris-family-card-overlay absolute inset-0" />
 
       <div className="relative z-10 flex min-h-[inherit] h-full flex-col justify-between p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
@@ -230,7 +230,7 @@ function ArchiveShow({ card }: { card: ShowCard }) {
     <Link
       to="/shows/$showId"
       params={{ showId: show.id }}
-      className="group min-w-0 rounded-2xl border border-border/70 bg-surface/85 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-primary/35"
+      className="solaris-family-card group min-w-0 rounded-2xl border p-4 transition duration-200 hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
