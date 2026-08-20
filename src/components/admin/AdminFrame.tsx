@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  CircleHelp,
   LayoutDashboard,
   MoreHorizontal,
   Trophy,
@@ -60,6 +61,12 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       active: (path) => path.startsWith("/televoting/admin") || path.startsWith("/admin/hod-history"),
     },
     {
+      label: "Guide",
+      href: "/admin/guide",
+      icon: CircleHelp,
+      active: (path) => path.startsWith("/admin/guide"),
+    },
+    {
       label: "More",
       href: "/admin/more",
       icon: MoreHorizontal,
@@ -82,16 +89,14 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="admin-page admin-main min-w-0">
-        {children}
-      </main>
+      <main className="admin-page admin-main min-w-0">{children}</main>
 
       <nav
         className="admin-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.08] px-2 pt-2"
         style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
         aria-label="Organizer navigation"
       >
-        <div className="mx-auto grid max-w-xl grid-cols-4 gap-1">
+        <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
           {mobileItems.map((item) => {
             const Icon = item.icon;
             const active = item.active(pathname);
