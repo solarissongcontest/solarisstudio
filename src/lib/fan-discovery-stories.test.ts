@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 
+import type { Country, Edition, Participant, ResultRow, Show } from "./data";
 import { buildFanDiscovery } from "./fan-discovery";
 
 const countries = [
   { id: "a", name: "A", short_code: "AAA", accent_color: "#111111", flag_image: null },
   { id: "b", name: "B", short_code: "BBB", accent_color: "#222222", flag_image: null },
   { id: "c", name: "C", short_code: "CCC", accent_color: "#333333", flag_image: null },
-] as any;
+] as Country[];
 
 const editions = [
   { id: "e1", edition_number: 1, name: "SSC 1", slug: "ssc-1" },
   { id: "e2", edition_number: 2, name: "SSC 2", slug: "ssc-2" },
-] as any;
+] as Edition[];
 
 const shows = [
   { id: "s1", edition_id: "e1", kind: "grand-final" },
   { id: "s2", edition_id: "e2", kind: "grand-final" },
-] as any;
+] as Show[];
 
 const participants = [
   { id: "pa1", edition_id: "e1", country_id: "a", show_id: null, artist: "Artist A", song: "Song A" },
@@ -25,9 +26,18 @@ const participants = [
   { id: "pa2", edition_id: "e2", country_id: "a", show_id: null, artist: "Artist A2", song: "Song A2" },
   { id: "pb2", edition_id: "e2", country_id: "b", show_id: null, artist: "Artist B2", song: "Song B2" },
   { id: "pc2", edition_id: "e2", country_id: "c", show_id: null, artist: "Artist C2", song: "Song C2" },
-] as any;
+] as Participant[];
 
-function result(id: string, editionId: string, showId: string, countryId: string, jury: number, tele: number, total: number, rank: number) {
+function result(
+  id: string,
+  editionId: string,
+  showId: string,
+  countryId: string,
+  jury: number,
+  tele: number,
+  total: number,
+  rank: number,
+): ResultRow {
   return {
     id,
     edition_id: editionId,
@@ -37,7 +47,7 @@ function result(id: string, editionId: string, showId: string, countryId: string
     televote_points: tele,
     total_points: total,
     final_rank: rank,
-  } as any;
+  };
 }
 
 describe("fan discovery story patterns", () => {
@@ -46,7 +56,7 @@ describe("fan discovery story patterns", () => {
       countries,
       editions: editions.slice(0, 1),
       shows: shows.slice(0, 1),
-      participants: participants.filter((row: any) => row.edition_id === "e1"),
+      participants: participants.filter((row) => row.edition_id === "e1"),
       jury: [],
       results: [
         result("a", "e1", "s1", "a", 80, 80, 160, 1),
@@ -67,7 +77,7 @@ describe("fan discovery story patterns", () => {
       countries,
       editions: editions.slice(1),
       shows: shows.slice(1),
-      participants: participants.filter((row: any) => row.edition_id === "e2"),
+      participants: participants.filter((row) => row.edition_id === "e2"),
       jury: [],
       results: [
         result("a2", "e2", "s2", "a", 120, 140, 260, 1),
@@ -86,7 +96,7 @@ describe("fan discovery story patterns", () => {
       countries,
       editions: editions.slice(0, 1),
       shows: shows.slice(0, 1),
-      participants: participants.filter((row: any) => row.edition_id === "e1"),
+      participants: participants.filter((row) => row.edition_id === "e1"),
       jury: [],
       results: [
         result("a", "e1", "s1", "a", 120, 10, 130, 3),
