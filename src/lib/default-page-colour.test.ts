@@ -70,4 +70,11 @@ describe("default page colour system", () => {
     expect(tools).toContain("solaris-family-card");
     expect(guide).toContain('className="data-panel rounded-2xl p-4 sm:p-5"');
   });
+
+  it("loads the harmony layer after the legacy background palettes", () => {
+    const root = read("src/routes/__root.tsx");
+    expect(root.indexOf('{ rel: "stylesheet", href: solarisBackgroundCss }')).toBeLessThan(
+      root.indexOf('{ rel: "stylesheet", href: cardTypographyCss }'),
+    );
+  });
 });
