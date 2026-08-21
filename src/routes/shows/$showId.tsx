@@ -143,6 +143,24 @@ function ShowPage() {
     [archivedResults, publication.results, publication.jury_results, publication.televote_results],
   );
 
+  const publicLineupParticipants = useMemo(() => {
+    const rows = [...(participants ?? [])];
+    const byCountryName = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
+      (displayMap.get(a.country_id)?.name ?? a.country_id).localeCompare(
+        displayMap.get(b.country_id)?.name ?? b.country_id,
+        undefined,
+        { sensitivity: "base" },
+      );
+
+    if (!publication.running_order) return rows.sort(byCountryName);
+
+    return rows.sort((a, b) => {
+      const aPosition = a.running_order ?? Number.MAX_SAFE_INTEGER;
+      const bPosition = b.running_order ?? Number.MAX_SAFE_INTEGER;
+      return aPosition - bPosition || byCountryName(a, b);
+    });
+  }, [participants, publication.running_order, displayMap]);
+
   const tabOptions = useMemo<ResponsiveTabOption<Tab>[]>(() => {
     const options: ResponsiveTabOption<Tab>[] = [];
 
@@ -407,20 +425,27 @@ function ShowPage() {
       )}
 
       {tab === "lineup" && publication.participants && (
-        <Panel title={publication.running_order ? "Running order" : "Line-up"}>
+        <Panel
+          title={publication.running_order ? "Running order" : "Alphabetical line-up"}
+          description={publication.running_order ? "Published performance order." : "The running order has not been published yet."}
+        >
           <div className="divide-y divide-border/60">
-            {(participants ?? []).map((participant, index) => {
+            {publicLineupParticipants.map((participant) => {
               const country = displayMap.get(participant.country_id);
               if (!country) return null;
 
               return (
                 <div
                   key={participant.id}
-                  className="grid grid-cols-[40px_42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  className={publication.running_order
+                    ? "grid grid-cols-[40px_42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    : "grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"}
                 >
-                  <span className="numeric text-sm text-muted-foreground">
-                    {publication.running_order ? (participant.running_order ?? "—") : index + 1}
-                  </span>
+                  {publication.running_order && (
+                    <span className="numeric text-sm text-muted-foreground">
+                      {participant.running_order ?? "—"}
+                    </span>
+                  )}
                   <FlagChip
                     code={country.short_code}
                     color={country.accent_color}
@@ -461,7 +486,7 @@ function ShowPage() {
               );
             })}
 
-            {!(participants ?? []).length && (
+            {!publicLineupParticipants.length && (
               <p className="py-4 text-sm text-muted-foreground">No entries have been published.</p>
             )}
           </div>
