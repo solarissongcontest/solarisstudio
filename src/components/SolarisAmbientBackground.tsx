@@ -16,19 +16,19 @@ type StarSpec = {
 /*
  * Keep the atmosphere without asking the GPU to animate an aquarium.
  * The old background rendered eighteen continuously drifting/filtering stars
- * plus three huge blurred animated glows on every public route. Eight static
- * stars with tiny opacity twinkles and pointer-only parallax give the same
- * sense of depth while doing essentially no work when the user is idle.
+ * plus three huge blurred animated glows on every public route. Eight mostly
+ * static stars keep the performance budget tiny. They are intentionally large
+ * enough to read as part of the Solaris identity rather than faint dust.
  */
 const STARS: StarSpec[] = [
-  { id: "f1", layer: "far", x: 7, y: 14, size: 6.5, opacity: 0.11, rotate: -21 },
-  { id: "f2", layer: "far", x: 54, y: 13, size: 4.8, opacity: 0.09, rotate: 22, twinkle: true },
-  { id: "f3", layer: "far", x: 91, y: 31, size: 5.4, opacity: 0.08, rotate: -8 },
-  { id: "m1", layer: "mid", x: 16, y: 58, size: 9.5, opacity: 0.11, rotate: 18 },
-  { id: "m2", layer: "mid", x: 77, y: 62, size: 11, opacity: 0.10, rotate: -26, twinkle: true },
-  { id: "n1", layer: "near", x: -4, y: 84, size: 18, opacity: 0.10, rotate: 12 },
-  { id: "n2", layer: "near", x: 66, y: 34, size: 16, opacity: 0.11, rotate: -15 },
-  { id: "n3", layer: "near", x: 98, y: 92, size: 19, opacity: 0.09, rotate: 31 },
+  { id: "f1", layer: "far", x: 7, y: 14, size: 11, opacity: 0.14, rotate: -21 },
+  { id: "f2", layer: "far", x: 54, y: 13, size: 8.5, opacity: 0.12, rotate: 22, twinkle: true },
+  { id: "f3", layer: "far", x: 91, y: 31, size: 9.5, opacity: 0.12, rotate: -8 },
+  { id: "m1", layer: "mid", x: 16, y: 58, size: 15.5, opacity: 0.14, rotate: 18 },
+  { id: "m2", layer: "mid", x: 77, y: 62, size: 17.5, opacity: 0.14, rotate: -26, twinkle: true },
+  { id: "n1", layer: "near", x: -4, y: 84, size: 29, opacity: 0.13, rotate: 12 },
+  { id: "n2", layer: "near", x: 66, y: 34, size: 25, opacity: 0.15, rotate: -15 },
+  { id: "n3", layer: "near", x: 98, y: 92, size: 31, opacity: 0.13, rotate: 31 },
 ];
 
 const layers: StarLayer[] = ["far", "mid", "near"];
