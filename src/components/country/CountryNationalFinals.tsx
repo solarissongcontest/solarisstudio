@@ -75,10 +75,10 @@ export function CountryNationalFinals({ country }: { country: Country }) {
               )}
 
               <div className="divide-y divide-border/50 px-4">
-                {nationalFinal.entries.map((entry) => (
+                {nationalFinal.entries.map((entry, index) => (
                   <div key={entry.id} className="flex min-w-0 items-center gap-3 py-3">
                     <span className="numeric w-7 shrink-0 text-center text-xs text-muted-foreground">
-                      {entry.position ?? "·"}
+                      {index + 1}
                     </span>
                     <Music2 className="size-3.5 shrink-0 text-muted-foreground" />
                     <div className="min-w-0 flex-1">

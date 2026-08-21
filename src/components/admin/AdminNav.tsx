@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   MoreHorizontal,
   RadioTower,
+  RefreshCw,
   Sparkles,
   Trophy,
   Vote,
@@ -56,6 +57,7 @@ export function AdminNav() {
         editions.some((edition) => path === `/admin/${edition.slug}`) ||
         path.startsWith("/admin/shows/") ||
         path.startsWith("/admin/entries/") ||
+        path.startsWith("/admin/lineup-sync/") ||
         path.startsWith("/admin/jury/") ||
         path.startsWith("/admin/televote/") ||
         path.startsWith("/admin/voting-system/") ||
@@ -65,7 +67,13 @@ export function AdminNav() {
       label: "Delegations",
       to: "/confirmations/admin",
       icon: ClipboardCheck,
-      active: (path) => path.startsWith("/confirmations/admin"),
+      active: (path) => path.startsWith("/confirmations/admin") && !path.startsWith("/confirmations/admin/sync"),
+    },
+    {
+      label: "Line-up sync",
+      to: "/confirmations/admin/sync",
+      icon: RefreshCw,
+      active: (path) => path.startsWith("/confirmations/admin/sync") || path.startsWith("/admin/lineup-sync/"),
     },
     {
       label: "Televoting",
