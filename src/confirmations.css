@@ -7,9 +7,8 @@
   letter-spacing: normal;
 }
 
-/* Confirmations used to ship its own full-screen visual system, including
-   separate fonts, CSS variables and a second background. It now inherits the
-   Solaris Studio design system so the workflow feels native to Participate. */
+/* Confirmations is part of Solaris Studio, not a second website hiding inside
+   it. Keep the workflow on the same canvas, typography and surface language. */
 .confirmations-backdrop {
   display: none;
 }
@@ -22,7 +21,7 @@
 .confirmations-theme h6,
 .confirmations-display {
   font-family: var(--font-display);
-  letter-spacing: -0.025em;
+  letter-spacing: -0.035em;
 }
 
 .confirmations-display {
@@ -49,12 +48,13 @@
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(190, 224, 240, 0.18);
-  border-radius: 1rem;
-  background: linear-gradient(155deg, rgba(19, 43, 72, 0.90), rgba(4, 17, 38, 0.95));
+  border: 1px solid var(--border);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 92%, transparent), color-mix(in srgb, var(--surface) 94%, transparent));
   box-shadow:
-    0 12px 32px rgba(0, 4, 24, 0.15),
-    inset 0 1px 0 rgba(220, 240, 248, 0.07);
+    0 14px 34px rgba(0, 4, 24, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .confirmations-theme .surface {
@@ -82,11 +82,28 @@
 .confirmations-theme textarea,
 .confirmations-theme select {
   color: var(--foreground) !important;
+  border-color: color-mix(in srgb, var(--border) 85%, transparent) !important;
+  background: color-mix(in srgb, var(--surface) 88%, transparent) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
 }
 
-/* Public Confirmations routes now live inside the Solaris Studio shell. Older
-   subpages still have full-screen wrappers from the standalone app; neutralise
-   those wrappers instead of making users scroll through a second fake page. */
+.confirmations-theme input:focus,
+.confirmations-theme textarea:focus,
+.confirmations-theme select:focus {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border)) !important;
+}
+
+/* The wizard used to become one enormous green slab on mobile. Let the page
+   breathe like the rest of Solaris and keep its controls compact. */
+.confirmations-theme .surface > div,
+.confirmations-theme .surface > section {
+  min-width: 0;
+}
+
+.confirmations-theme button {
+  max-width: 100%;
+}
+
 .app-main .confirmations-theme {
   min-height: 0 !important;
   background: transparent !important;
@@ -119,8 +136,6 @@
   line-height: 1 !important;
 }
 
-/* Inside Solaris Operations the Control Room owns the canvas, spacing and
-   navigation. Confirmations contributes content only. */
 .admin-control-room .confirmations-theme {
   min-height: 0 !important;
   isolation: auto;
@@ -132,6 +147,19 @@
   max-width: none !important;
   margin: 0 !important;
   padding: 0 !important;
+}
+
+@media (max-width: 639px) {
+  .confirmations-theme .surface,
+  .confirmations-surface {
+    border-radius: 1.15rem;
+  }
+
+  .confirmations-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  .confirmations-theme textarea,
+  .confirmations-theme select {
+    font-size: 16px;
+  }
 }
 
 @keyframes confirmations-rise {
