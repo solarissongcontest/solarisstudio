@@ -3,6 +3,7 @@
 @import "./colour-harmony.css";
 @import "./entity-theme.css";
 @import "./calm-public-chrome.css";
+@import "./calm-public-layout.css";
 
 /*
  * Final public UI guard.
