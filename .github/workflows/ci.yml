@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - merge/confirmations
+      - beta2/hardened-ux-rollout
   pull_request:
     branches:
       - main
