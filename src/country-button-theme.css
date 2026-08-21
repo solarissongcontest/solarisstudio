@@ -1,0 +1,98 @@
+/* Country/Wiki button theming ----------------------------------------------
+   The country owner can choose an explicit action colour. Keep the accent for
+   typography and decoration; use --solaris-button for interactive surfaces. */
+
+/* The Solaris Studio brand is a home link, so routers mark it aria-current on
+   /. It is branding, not a selected navigation pill. Never paint a rectangle
+   behind the logo/name. */
+body[data-solaris-family]:not([data-entity-theme]) .site-nav > div > a:first-child[aria-current="page"],
+body[data-entity-theme] .site-nav > div > a:first-child[aria-current="page"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline-color: transparent;
+}
+
+body[data-entity-theme="country"] {
+  --country-button: var(--solaris-button, rgb(var(--solaris-accent)));
+  --country-button-foreground: var(--solaris-button-foreground, var(--foreground));
+}
+
+/* Hero actions should all belong to the same palette. Primary actions are
+   solid; secondary actions are a calm tint of the chosen button colour. */
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :is(a, button) {
+  border-color: color-mix(in srgb, var(--country-button) 34%, transparent) !important;
+  background: color-mix(in srgb, var(--country-button) 18%, var(--solaris-card-raised, var(--surface)) 82%) !important;
+  color: var(--foreground) !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :is(
+  a.bg-aurora,
+  a.bg-primary,
+  button.bg-primary,
+  [role="button"].bg-primary
+) {
+  background: var(--country-button) !important;
+  border-color: color-mix(in srgb, var(--country-button) 76%, white 24%) !important;
+  color: var(--country-button-foreground) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .24),
+    0 7px 18px rgb(var(--solaris-bg-deep) / .13) !important;
+}
+
+/* Common Country/Wiki page actions outside the hero. */
+body[data-entity-theme="country"] .app-main :is(
+  a.bg-surface,
+  button.bg-surface,
+  a[class*="bg-background"],
+  button[class*="bg-background"],
+  button.bg-secondary
+) {
+  background: color-mix(in srgb, var(--country-button) 12%, var(--solaris-card-raised, var(--surface)) 88%) !important;
+  border-color: color-mix(in srgb, var(--country-button) 28%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+body[data-entity-theme="country"] .app-main :is(
+  a.bg-primary,
+  button.bg-primary,
+  .bg-aurora:is(a, button, [role="button"])
+) {
+  background: var(--country-button) !important;
+  border-color: color-mix(in srgb, var(--country-button) 72%, white 28%) !important;
+  color: var(--country-button-foreground) !important;
+}
+
+/* Active tabs/selectors should echo the chosen action colour instead of
+   inventing a blue-grey pill unrelated to the page. */
+body[data-entity-theme="country"] .responsive-tabs .scroll-slim > div {
+  background: color-mix(in srgb, var(--country-button) 7%, var(--solaris-card-surface, var(--surface)) 93%) !important;
+  border-color: color-mix(in srgb, var(--country-button) 24%, transparent) !important;
+}
+
+body[data-entity-theme="country"] .responsive-tabs button[aria-current="page"] {
+  background: color-mix(in srgb, var(--country-button) 30%, var(--solaris-card-raised, var(--surface)) 70%) !important;
+  border-color: color-mix(in srgb, var(--country-button) 48%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+body[data-entity-theme="country"] .responsive-tabs select {
+  background: color-mix(in srgb, var(--country-button) 10%, var(--solaris-card-raised, var(--surface)) 90%) !important;
+  border-color: color-mix(in srgb, var(--country-button) 32%, transparent) !important;
+}
+
+/* The permanent chrome follows the page palette too, but at a restrained
+   strength so it does not compete with the country design. */
+body[data-entity-theme="country"] :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel) :is(a, button, summary)[aria-current="page"]:not(:first-child),
+body[data-entity-theme="country"] .mobile-quick-nav a[aria-current="page"] {
+  background: color-mix(in srgb, var(--country-button) 24%, transparent) !important;
+  border-color: color-mix(in srgb, var(--country-button) 36%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+@media (max-width: 767px) {
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :is(a, button) {
+    min-height: 2.75rem;
+  }
+}
