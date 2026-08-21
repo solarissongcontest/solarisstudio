@@ -6,6 +6,17 @@ body[data-solaris-family]:not([data-entity-theme]) {
   --solaris-accent: var(--solaris-bg-primary);
 }
 
+/* Permanent sticky/fixed chrome should not continuously blur the entire page
+   behind it. The themed gradients are already opaque enough to preserve the
+   same visual hierarchy without forcing GPU backdrop recomposition on scroll. */
+.site-nav,
+.mobile-quick-nav,
+.public-drawer,
+.nav-menu-panel {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 body[data-solaris-family]:not([data-entity-theme]) .site-nav {
   background:
     linear-gradient(180deg,
@@ -126,14 +137,4 @@ body[data-entity-theme] .responsive-tabs button[aria-current="page"] {
 body[data-entity-theme] .responsive-tabs select {
   background: color-mix(in srgb, var(--solaris-card-raised, var(--surface)) 90%, rgb(var(--solaris-accent)) 10%) !important;
   border-color: rgb(var(--solaris-accent) / .22) !important;
-}
-
-/* Keep route chrome calm on phones. The colour is present, but navigation
-   should never compete with the page itself. */
-@media (max-width: 767px) {
-  body[data-solaris-family]:not([data-entity-theme]) :is(.site-nav, .mobile-quick-nav, .public-drawer),
-  body[data-entity-theme] :is(.site-nav, .mobile-quick-nav, .public-drawer) {
-    -webkit-backdrop-filter: blur(8px) saturate(125%) !important;
-    backdrop-filter: blur(8px) saturate(125%) !important;
-  }
 }
