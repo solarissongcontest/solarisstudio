@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 
+import { MyHodHistoryShortcut } from "@/components/MyHodHistoryShortcut";
 import { MySolarisPortalExtension } from "@/components/MySolarisPortalExtension";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,6 +22,7 @@ function AuthenticatedLayout() {
     <>
       <Outlet />
       {isMySolaris && <MySolarisPortalExtension />}
+      {isMySolaris && <MyHodHistoryShortcut />}
     </>
   );
 }
