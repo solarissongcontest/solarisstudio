@@ -1,28 +1,44 @@
 /* Glass Card parity ---------------------------------------------------------
-   The outer hero is only a transparent canvas. All visible glass belongs to
-   the inner content panel, so there is never a second larger pale card behind
-   it. The same geometry is used by Country, Wiki and the appearance preview. */
+   Glass Card has exactly one visible surface: the inner liquid-glass panel.
+   The route hero and editor preview are layout canvases only. This is defined
+   explicitly rather than relying on Safari to composite an outer `.glass`
+   surface and then visually cancel it afterwards. */
 
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero),
 [data-preview-layout="glass-card"] {
-  background: transparent !important;
+  min-height: 0 !important;
+  display: block !important;
+  align-items: initial !important;
+  padding: 0 !important;
+  overflow: visible !important;
   border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
 
+/* Kill every outer decorative/compositing layer. The previous personality
+   signature covered the full hero canvas and could read as a second pale card,
+   especially in WebKit. Glass decoration now lives only inside the real card. */
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero)::before,
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero)::after,
 [data-preview-layout="glass-card"]::before,
-[data-preview-layout="glass-card"]::after {
+[data-preview-layout="glass-card"]::after,
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="glass-card"] > .country-personality-signature {
   content: none !important;
   display: none !important;
+  background: none !important;
+  box-shadow: none !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
 [data-preview-layout="glass-card"] > .relative.z-10 {
   position: relative !important;
+  isolation: isolate !important;
+  z-index: 1 !important;
   display: block !important;
   width: min(100%, 41rem) !important;
   max-width: 41rem !important;
@@ -76,12 +92,6 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.co
 }
 
 @media (max-width: 767px) {
-  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero),
-  [data-preview-layout="glass-card"] {
-    min-height: 0 !important;
-    padding: 0 !important;
-  }
-
   body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
   [data-preview-layout="glass-card"] > .relative.z-10 {
     width: 100% !important;
