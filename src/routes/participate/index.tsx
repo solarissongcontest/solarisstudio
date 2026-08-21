@@ -1,5 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, ClipboardCheck, ShieldCheck, Vote } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  Music2,
+  Scale,
+  ShieldCheck,
+  Vote,
+} from "lucide-react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 
@@ -9,7 +17,7 @@ export const Route = createFileRoute("/participate/")({
       { title: "Participate — Solaris Studio" },
       {
         name: "description",
-        content: "Confirm your Solaris Song Contest participation or vote in an open televoting round.",
+        content: "Confirm participation, cast an official jury ballot, vote in televoting or enter Next in Line.",
       },
     ],
   }),
@@ -22,7 +30,7 @@ function ParticipatePage() {
       <PageHeader
         eyebrow="Participate"
         title="Take part in Solaris"
-        description="Everything you need to enter the contest or vote, in one place."
+        description="Contest participation and voting services, separated by what they actually do. Revolutionary, apparently."
       />
 
       <section className="grid gap-3 md:grid-cols-2">
@@ -30,12 +38,25 @@ function ParticipatePage() {
           to="/confirmations"
           eyebrow="Delegations"
           title="Confirmations"
-          description="Confirm participation, update your entry or recover an existing response."
+          description="Confirm your country's participation, update entry details or recover an existing response."
           icon={ClipboardCheck}
           details={[
-            "Submit or update your confirmation",
+            "Submit or update participation",
             "Recover an existing response",
-            "Join Next in Line when available",
+            "Manage entry and reveal information",
+          ]}
+        />
+
+        <ParticipationCard
+          to="/jury-voting"
+          eyebrow="Official delegation vote"
+          title="Jury voting"
+          description="Cast your country's official jury ballot when the organizer has opened jury voting for a show."
+          icon={Scale}
+          details={[
+            "Country account required",
+            "Uses the show's jury point scale",
+            "Friend-voting integrity checks",
           ]}
         />
 
@@ -43,12 +64,25 @@ function ParticipatePage() {
           to="/televoting"
           eyebrow="Audience voting"
           title="Televoting"
-          description="Open the current voting round, check the rules and cast your ballot."
+          description="Open the current public voting round, check the rules and cast your ballot."
           icon={Vote}
           details={[
             "20-point ballot",
             "Live round status",
             "Built-in integrity checks",
+          ]}
+        />
+
+        <ParticipationCard
+          to="/next-in-line"
+          eyebrow="Separate competition"
+          title="Next in Line"
+          description="Enter an unused song from a country already competing in SSC. This is not a backup confirmation round."
+          icon={Music2}
+          details={[
+            "Only already-competing countries",
+            "Non-winning NF or unused internal song",
+            "Official SSC entry is excluded",
           ]}
         />
       </section>

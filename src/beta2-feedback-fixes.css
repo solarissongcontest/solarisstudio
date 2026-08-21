@@ -1,0 +1,96 @@
+/* Beta 2 feedback fixes -----------------------------------------------------
+   Narrow release fixes discovered from the newest tester submissions. */
+
+/* The base body and .app-background were both painting the same full-screen
+   artwork. Keep the dedicated app background and stop repainting the duplicate
+   fixed body layer on desktop. This preserves the exact visible background
+   while removing a needless full-viewport compositing pass. */
+body {
+  background-image: none !important;
+  background-attachment: scroll !important;
+}
+
+/* Analysis desktop edition picker is absolutely positioned below a sticky
+   glass filter bar. The glass utility globally clips overflow, which made the
+   picker appear and then vanish at the bar edge on Safari/Edge. */
+.app-main > .glass.sticky {
+  overflow: visible !important;
+}
+
+/* Appearance preview parity -------------------------------------------------
+   The old preview DOM remains owned by the editor, but its hand-built hero
+   children are hidden while the parity controller mounts the same Country or
+   Wiki hero structure used publicly. The outer preview keeps the editor's
+   live unsaved theme variables/background. */
+.country-theme-live-preview[data-parity-preview="true"]
+  > :is(
+    .country-hero-background-flag,
+    .country-decoration-layer,
+    .country-personality-signature,
+    .relative.z-10
+  ):not(
+    .parity-preview-flag,
+    .parity-preview-decoration,
+    .parity-preview-signature,
+    .parity-preview-content
+  ) {
+  display: none !important;
+}
+
+.country-theme-live-preview[data-parity-preview="true"] {
+  position: relative;
+}
+
+.country-theme-live-preview .parity-preview-controls {
+  position: absolute;
+  z-index: 60;
+  top: .65rem;
+  right: .65rem;
+  display: inline-flex;
+  gap: .2rem;
+  padding: .2rem;
+  border: 1px solid rgb(var(--solaris-accent) / .22);
+  border-radius: .85rem;
+  background: color-mix(in srgb, var(--solaris-card-raised, var(--surface)) 88%, transparent 12%);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
+  backdrop-filter: blur(10px) saturate(135%);
+  box-shadow: 0 8px 24px rgb(var(--solaris-bg-deep) / .18);
+}
+
+.country-theme-live-preview .parity-preview-controls button {
+  min-height: 2rem;
+  padding: 0 .65rem;
+  border: 0;
+  border-radius: .65rem;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: .65rem;
+  font-weight: 800;
+}
+
+.country-theme-live-preview .parity-preview-controls button[aria-pressed="true"] {
+  background: color-mix(in srgb, rgb(var(--solaris-accent)) 18%, var(--solaris-card-raised, var(--surface)) 82%);
+  color: var(--foreground);
+}
+
+/* Do not let the preview-only Country/Wiki switch affect personality geometry. */
+.country-theme-live-preview[data-preview-layout="broadcast"] .parity-preview-controls,
+.country-theme-live-preview[data-preview-layout="newspaper"] .parity-preview-controls {
+  top: auto;
+  bottom: .65rem;
+}
+
+@media (max-width: 767px) {
+  .country-theme-live-preview .parity-preview-controls {
+    top: .45rem;
+    right: .45rem;
+    transform: scale(.92);
+    transform-origin: top right;
+  }
+
+  .country-theme-live-preview[data-preview-layout="broadcast"] .parity-preview-controls,
+  .country-theme-live-preview[data-preview-layout="newspaper"] .parity-preview-controls {
+    top: auto;
+    bottom: .45rem;
+  }
+}

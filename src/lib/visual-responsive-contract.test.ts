@@ -8,20 +8,37 @@ function source(path: string) {
 
 const root = source("src/routes/__root.tsx");
 const motion = source("src/solaris-motion.css");
+const ambient = source("src/components/SolarisAmbientBackground.tsx");
 const entityTheme = source("src/entity-theme.css");
 const themeEditor = source("src/routes/_authenticated/country-hub/theme.tsx");
 const adminDesktop = source("src/admin-desktop.css");
 const analysis = source("src/routes/analysis/index.tsx");
 const records = source("src/routes/records/index.tsx");
 const appShell = source("src/components/AppShell.tsx");
+const calmChrome = source("src/calm-public-chrome.css");
 
 describe("ambient Solaris visual system", () => {
-  it("actually mounts the ambient motion layer and respects reduced motion", () => {
+  it("mounts one lightweight ambient layer and respects reduced motion", () => {
     expect(root).toContain('import solarisMotionCss from "../solaris-motion.css?url"');
     expect(root).toContain("SolarisAmbientBackground");
-    expect(motion).toContain("@keyframes solaris-glow-a");
-    expect(motion).toContain("@keyframes solaris-star-drift");
+    expect(motion).toContain("@keyframes solaris-star-twinkle");
     expect(motion).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(motion).not.toContain("@keyframes solaris-star-drift");
+    expect(motion).not.toContain("@keyframes solaris-glow-a");
+    expect(motion).not.toContain("filter: blur(46px)");
+  });
+
+  it("does no continuous scroll-parallax work and keeps the star budget small", () => {
+    expect(ambient).not.toContain('addEventListener("scroll"');
+    expect(ambient).not.toContain("focusShift");
+    expect(ambient).not.toContain("driftX");
+    const starIds = ambient.match(/id: "[fmn]\d+"/g) ?? [];
+    expect(starIds.length).toBeLessThanOrEqual(8);
+  });
+
+  it("keeps permanent navigation chrome out of live backdrop compositing", () => {
+    expect(calmChrome).toContain(".site-nav,");
+    expect(calmChrome).toContain("backdrop-filter: none !important");
   });
 
   it("keeps phone motion lighter than desktop motion", () => {

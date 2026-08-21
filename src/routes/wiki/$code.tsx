@@ -6,6 +6,7 @@ import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
+import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
@@ -205,6 +206,8 @@ function CountryWikiPage() {
                 </>
               ) : <p>{country.name} has no published Solaris Song Contest history yet.</p>}
             </WikiSection>
+
+            <CountryNationalFinals country={country} />
 
             {media.length > 0 && (
               <WikiSection title="Gallery">

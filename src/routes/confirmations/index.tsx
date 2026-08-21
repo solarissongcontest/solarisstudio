@@ -13,7 +13,7 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 
-import { ConfirmationForm } from "@/components/ConfirmationForm";
+import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
 import {
   ParticipationRouteChrome,
   ParticipationServiceShell,
@@ -272,7 +272,7 @@ function ConfirmationsPage() {
                   </Button>
                 </div>
               ) : (
-                <ConfirmationForm round={selected} availability={roundReason(selected)} />
+                <ConfirmationFormWithReceipt round={selected} availability={roundReason(selected)} />
               )}
             </section>
           ) : rounds.length ? (

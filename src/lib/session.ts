@@ -1,5 +1,10 @@
 /** Browser-session identity + local draft cache for public submissions. */
 
+import {
+  CONFIRMATION_SUBMITTED_EVENT,
+  dispatchSubmissionReceipt,
+} from "@/lib/submission-receipts";
+
 const SESSION_KEY = "ssc.session_id";
 
 function randomId(): string {
@@ -59,4 +64,9 @@ export function clearLocalDraft(roundId: string) {
   } catch {
     /* ignore */
   }
+
+  // ConfirmationForm only clears the draft after the server has accepted the
+  // response. Broadcasting that fact lets the route show the shared pending →
+  // confirmed receipt state without coupling the giant form to presentation UI.
+  dispatchSubmissionReceipt(CONFIRMATION_SUBMITTED_EVENT, roundId);
 }

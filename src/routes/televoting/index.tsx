@@ -8,7 +8,8 @@ import {
   ParticipationRouteChrome,
   ParticipationServiceShell,
 } from "@/components/ParticipationServiceShell";
-import { TelevotingBooth, type MergedTelevotingEntry } from "@/components/televoting/TelevotingBooth";
+import type { MergedTelevotingEntry } from "@/components/televoting/TelevotingBooth";
+import { TelevotingBoothWithReceipt } from "@/components/televoting/TelevotingBoothWithReceipt";
 import { Button } from "@/components/ui/button";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
@@ -183,7 +184,7 @@ function TelevotingPage() {
             </section>
 
             {serverStatus?.votingReady ? (
-              <TelevotingBooth
+              <TelevotingBoothWithReceipt
                 roundId={data.round.id}
                 roundName={data.round.name}
                 editionName={data.round.editions?.name ?? null}

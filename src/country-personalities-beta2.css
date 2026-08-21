@@ -1,0 +1,339 @@
+/* Beta 2 country personality polish ---------------------------------------
+   Final, narrow overrides for personalities that were still too similar or
+   visually weak. Keep this layer small so it can be removed independently. */
+
+/* Shared finish: personality cards should feel related without becoming one
+   giant rounded-card soup. The accent appears as a hairline, not a neon box. */
+body[data-entity-theme="country"] :is(.country-personality-card, .country-personality-inset) {
+  border-color: color-mix(in srgb, rgb(var(--solaris-accent)) 22%, rgb(var(--solaris-bg-deep)) 78%);
+}
+
+/* RIBBON: the flag is the ribbon itself. */
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="ribbon"] {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 90%, rgb(var(--solaris-bg-deep)) 10%), rgb(var(--solaris-bg-deep) / .28)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="ribbon"] .country-hero-background-flag {
+  inset: -18% -8% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .72 !important;
+  transform: rotate(-8deg) scale(1.05) !important;
+  clip-path: polygon(0 43%, 100% 43%, 100% 65%, 0 65%) !important;
+  filter: saturate(1.08) contrast(1.06) drop-shadow(0 10px 14px rgb(var(--solaris-bg-deep) / .28)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="ribbon"] .country-hero-background-flag::before {
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* DUOTONE: deliberately unlike Split. Split stays a clean rectangular flag
+   pane; Duotone gets a large angled colour/flag field and graphic contrast. */
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="duotone"] {
+  padding-right: clamp(43%, 48vw, 52%) !important;
+  background:
+    linear-gradient(112deg,
+      color-mix(in srgb, var(--surface) 92%, rgb(var(--solaris-bg-deep)) 8%) 0 56%,
+      color-mix(in srgb, rgb(var(--solaris-accent)) 52%, rgb(var(--solaris-bg-deep)) 48%) 56.3% 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="duotone"] .country-hero-background-flag {
+  inset: 0 0 0 48% !important;
+  width: 52% !important;
+  height: 100% !important;
+  opacity: .68 !important;
+  transform: none !important;
+  clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%) !important;
+  filter: saturate(.62) contrast(1.16) !important;
+  mix-blend-mode: luminosity;
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="duotone"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
+  mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
+}
+
+/* MONUMENT: restrained luxury. Symmetry, double hairlines and a soft centre
+   glow do the work instead of another oversized decorative object. */
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="monument"] {
+  background:
+    radial-gradient(circle at 50% 42%, rgb(var(--solaris-accent) / .13), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%), color-mix(in srgb, var(--surface) 72%, rgb(var(--solaris-bg-deep)) 28%)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / .12),
+    inset 0 0 0 5px rgb(var(--solaris-bg-deep) / .22),
+    inset 0 0 0 6px rgb(var(--solaris-accent) / .18) !important;
+}
+
+/* HORIZON: keep the visual weight low and calm. The flag becomes a landscape
+   band at the base instead of another side panel. */
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="horizon"] {
+  padding-bottom: clamp(6.5rem, 15vw, 9rem) !important;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) 0 62%, rgb(var(--solaris-accent) / .07) 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="horizon"] .country-hero-background-flag {
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 42% !important;
+  opacity: .42 !important;
+  transform: none !important;
+  filter: saturate(.8) contrast(1.06) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="horizon"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 34%, #000 100%) !important;
+  mask-image: linear-gradient(180deg, transparent 0, #000 34%, #000 100%) !important;
+}
+
+/* BROADCAST correction ------------------------------------------------------
+   Broadcast was accidentally changed into a dark right-hand block during the
+   Beta 2 polish pass. Restore the original broadcast language: the real flag
+   is a wide source strip across the top and dissolves vertically into the
+   page. Country, Wiki and the live editor use the exact same geometry. */
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="broadcast"] {
+  padding-top: clamp(5rem, 10vw, 7rem) !important;
+  padding-right: clamp(1.25rem, 4vw, 2.5rem) !important;
+  padding-bottom: clamp(1.25rem, 4vw, 2.5rem) !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="broadcast"] .country-hero-background-flag {
+  inset: 0 0 auto 0 !important;
+  width: 100% !important;
+  height: clamp(4.2rem, 9vw, 6.4rem) !important;
+  opacity: .5 !important;
+  transform: none !important;
+  clip-path: none !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="broadcast"] .country-hero-background-flag::before {
+  background-position: center 45% !important;
+  -webkit-mask-image: linear-gradient(180deg, #000 0 55%, rgb(0 0 0 / .72) 70%, rgb(0 0 0 / .28) 86%, transparent 100%) !important;
+  mask-image: linear-gradient(180deg, #000 0 55%, rgb(0 0 0 / .72) 70%, rgb(0 0 0 / .28) 86%, transparent 100%) !important;
+}
+
+/* The editor had an extra opaque-ish lower-third block that never existed on
+   the public Country or Wiki page. Neutralise it so preview parity is real. */
+[data-preview-layout="broadcast"] > .relative.z-10 > div {
+  border-left: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* GLASS CARD correction -----------------------------------------------------
+   The route hero is only a canvas. The inner panel is the single piece of
+   liquid glass. This removes the pale oversized ghost card that appeared
+   behind the real card, while keeping the flag/refraction inside the panel. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+[data-preview-layout="glass-card"] > .relative.z-10 {
+  width: min(100%, 41rem) !important;
+  max-width: 41rem !important;
+  margin: 0 !important;
+  padding: clamp(1.35rem, 3vw, 2.1rem) !important;
+  overflow: hidden !important;
+  border: 1px solid rgb(255 255 255 / .28) !important;
+  border-radius: clamp(1.35rem, 3vw, 1.9rem) !important;
+  background: linear-gradient(135deg, rgb(255 255 255 / .16), rgb(255 255 255 / .055) 52%, rgb(var(--solaris-accent) / .08)) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .48),
+    inset 1px 0 0 rgb(255 255 255 / .14),
+    inset 0 -1px 0 rgb(var(--solaris-accent) / .12),
+    0 22px 58px -34px rgb(var(--solaris-bg-deep) / .82) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(175%) brightness(1.06) !important;
+  backdrop-filter: blur(24px) saturate(175%) brightness(1.06) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::before,
+[data-preview-layout="glass-card"] > .relative.z-10::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: -45% -20% 58% -18% !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  transform: rotate(-8deg) !important;
+  background: linear-gradient(110deg, rgb(255 255 255 / .34), rgb(255 255 255 / .07) 48%, transparent 70%) !important;
+  filter: blur(10px) !important;
+  opacity: .74 !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::after,
+[data-preview-layout="glass-card"] > .relative.z-10::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 1px !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  border-radius: inherit !important;
+  box-shadow:
+    inset 16px 12px 30px -28px rgb(255 255 255 / .8),
+    inset -16px -12px 28px -27px rgb(var(--solaris-accent) / .38) !important;
+}
+
+/* Route-owned chrome should become part of an entity theme too. A green,
+   yellow or pink country should not suddenly acquire navy headers, drawers,
+   mobile navigation and buttons at the viewport edges. */
+body[data-entity-theme] .site-nav {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 19%, rgb(var(--solaris-bg-deep)) 81%),
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 13%, rgb(var(--solaris-bg-deep-2)) 87%)) !important;
+  border-color: rgb(var(--solaris-accent) / .18) !important;
+  box-shadow: 0 8px 28px rgb(var(--solaris-bg-deep) / .20) !important;
+}
+
+body[data-entity-theme] .mobile-quick-nav {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 17%, rgb(var(--solaris-bg-deep)) 83%),
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 11%, rgb(var(--solaris-bg-deep-2)) 89%)) !important;
+  border-color: rgb(var(--solaris-accent) / .18) !important;
+  box-shadow: 0 -10px 30px rgb(var(--solaris-bg-deep) / .22) !important;
+}
+
+body[data-entity-theme] :is(.public-drawer, .nav-menu-panel) {
+  background:
+    radial-gradient(circle at 92% 8%, rgb(var(--solaris-bg-primary) / .15), transparent 34%),
+    linear-gradient(160deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 12%, rgb(var(--solaris-bg-deep-2)) 88%),
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 8%, rgb(var(--solaris-bg-deep)) 92%)) !important;
+  border-color: rgb(var(--solaris-accent) / .20) !important;
+}
+
+body[data-entity-theme] .public-drawer > :is(div, nav) {
+  border-color: rgb(var(--solaris-accent) / .16) !important;
+}
+
+body[data-entity-theme] :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel) :is(a, button, summary)[aria-current="page"],
+body[data-entity-theme] .mobile-quick-nav a[aria-current="page"] {
+  background: color-mix(in srgb, rgb(var(--solaris-accent)) 16%, var(--solaris-card-raised, var(--surface))) !important;
+  border-color: rgb(var(--solaris-accent) / .28) !important;
+}
+
+body[data-entity-theme] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), textarea, select, [role="combobox"]) {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--solaris-card-raised, var(--surface)) 94%, rgb(var(--solaris-bg-primary)) 6%),
+      color-mix(in srgb, var(--solaris-card-surface, var(--surface)) 96%, rgb(var(--solaris-bg-deep)) 4%)) !important;
+  border-color: rgb(var(--solaris-accent) / .22) !important;
+  color: var(--foreground) !important;
+}
+
+body[data-entity-theme] :is(button.bg-secondary, button[class*="bg-background"], button.border.border-input, a[class*="bg-background"], a.bg-surface, button.bg-surface) {
+  background: color-mix(in srgb, var(--solaris-card-raised, var(--surface)) 92%, rgb(var(--solaris-accent)) 8%) !important;
+  border-color: rgb(var(--solaris-accent) / .22) !important;
+  color: var(--foreground) !important;
+}
+
+body[data-entity-theme] :is(.bg-aurora:is(button, a, [role="button"]), button.bg-primary, a.bg-primary, [role="button"].bg-primary) {
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, rgb(var(--solaris-accent)) 68%, white 32%) 0%,
+      rgb(var(--solaris-accent)) 52%,
+      color-mix(in srgb, rgb(var(--solaris-accent)) 72%, rgb(var(--solaris-bg-secondary)) 28%) 100%) !important;
+  color: var(--solaris-accent-foreground, var(--primary-foreground)) !important;
+  border-color: color-mix(in srgb, rgb(var(--solaris-accent)) 58%, white 42%) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .34),
+    0 8px 22px rgb(var(--solaris-bg-deep) / .16) !important;
+}
+
+/* Rectangular/field personalities already use the flag as part of the hero.
+   Do not also bolt a circular flag chip onto the Country version, which was a
+   major reason Country and Wiki looked like different interpretations. */
+body[data-entity-theme="country"]:is(
+  [data-country-hero-layout="editorial"],
+  [data-country-hero-layout="flag-focus"],
+  [data-country-hero-layout="poster"],
+  [data-country-hero-layout="split"],
+  [data-country-hero-layout="broadcast"],
+  [data-country-hero-layout="panorama"],
+  [data-country-hero-layout="monument"],
+  [data-country-hero-layout="newspaper"],
+  [data-country-hero-layout="ribbon"],
+  [data-country-hero-layout="duotone"],
+  [data-country-hero-layout="horizon"]
+) .country-public-hero .country-hero-identity > :first-child {
+  display: none !important;
+}
+
+/* Keep the two public profile surfaces on the same visual rhythm. Their
+   content is intentionally different, but the hero should not change scale
+   just because the visitor switched from Country to Wiki. */
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+  width: 100%;
+}
+body[data-entity-theme="country"] .wiki-public-hero > .relative.z-10 {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 767px) {
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero),
+  [data-preview-layout="duotone"] {
+    padding-right: 1.25rem !important;
+    padding-bottom: 8rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  [data-preview-layout="duotone"] .country-hero-background-flag {
+    inset: auto 0 0 !important;
+    width: 100% !important;
+    height: 42% !important;
+    clip-path: polygon(0 18%, 100% 0, 100% 100%, 0 100%) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
+  [data-preview-layout="broadcast"] {
+    padding-top: 5.2rem !important;
+    padding-right: 1.25rem !important;
+    padding-bottom: 1.25rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  [data-preview-layout="broadcast"] .country-hero-background-flag {
+    inset: 0 0 auto 0 !important;
+    width: 100% !important;
+    height: 4.5rem !important;
+    clip-path: none !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  [data-preview-layout="ribbon"] .country-hero-background-flag {
+    inset: -22% -20% !important;
+    clip-path: polygon(0 46%, 100% 46%, 100% 62%, 0 62%) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
+    padding-inline: .25rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+  [data-preview-layout="glass-card"] > .relative.z-10 {
+    width: 100% !important;
+    border-radius: 1.35rem !important;
+  }
+}

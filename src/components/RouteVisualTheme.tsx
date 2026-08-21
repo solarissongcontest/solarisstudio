@@ -3,6 +3,15 @@ import { useEffect, useMemo } from "react";
 
 import "@/country-personalities.css";
 import "@/country-personalities-v4.css";
+import "@/country-personalities-beta2.css";
+import "@/calm-public-layout.css";
+import "@/calm-public-chrome.css";
+import "@/country-glass-parity.css";
+import "@/beta2-feedback-fixes.css";
+import "@/country-button-theme.css";
+import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
+import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
+import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
@@ -148,39 +157,44 @@ export function RouteVisualTheme() {
   }, [resolved]);
 
   return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      width="0"
-      height="0"
-      className="pointer-events-none absolute"
-    >
-      <defs>
-        <filter
-          id="solaris-liquid-glass"
-          x="-12%"
-          y="-12%"
-          width="124%"
-          height="124%"
-          colorInterpolationFilters="sRGB"
-        >
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.012 0.018"
-            numOctaves="2"
-            seed="17"
-            result="glassNoise"
-          />
-          <feGaussianBlur in="glassNoise" stdDeviation="0.8" result="softGlassNoise" />
-          <feDisplacementMap
-            in="SourceGraphic"
-            in2="softGlassNoise"
-            scale="5"
-            xChannelSelector="R"
-            yChannelSelector="G"
-          />
-        </filter>
-      </defs>
-    </svg>
+    <>
+      <CountryPreviewParityController />
+      <CountryButtonThemeController />
+      <CountryButtonColourPanel />
+      <svg
+        aria-hidden="true"
+        focusable="false"
+        width="0"
+        height="0"
+        className="pointer-events-none absolute"
+      >
+        <defs>
+          <filter
+            id="solaris-liquid-glass"
+            x="-12%"
+            y="-12%"
+            width="124%"
+            height="124%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.012 0.018"
+              numOctaves="2"
+              seed="17"
+              result="glassNoise"
+            />
+            <feGaussianBlur in="glassNoise" stdDeviation="0.8" result="softGlassNoise" />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="softGlassNoise"
+              scale="5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </defs>
+      </svg>
+    </>
   );
 }
