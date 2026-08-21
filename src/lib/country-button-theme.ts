@@ -62,15 +62,11 @@ export function useSaveCountryButtonColour(countryId?: string | null) {
 
       const { data, error } = await supabase
         .from("country_themes")
-        .update({ button_color: value })
-        .eq("country_id", countryId)
+        .upsert({ country_id: countryId, button_color: value }, { onConflict: "country_id" })
         .select("*")
-        .maybeSingle();
+        .single();
 
       if (error) throw error;
-      if (!data) {
-        throw new Error("Save the country appearance once before setting a custom button colour.");
-      }
       return data;
     },
     onSuccess: async () => {
