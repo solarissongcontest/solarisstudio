@@ -8,8 +8,10 @@ import { toast } from "sonner";
 import { FlagChip } from "@/components/FlagChip";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { addCountriesToShow } from "@/lib/admin-lineup.functions";
-import { editionLabel, useCountries, useEdition, useParticipants, useShows } from "@/lib/data";
+import { editionLabel, useCountries, useEdition, useParticipants, useShows, type Participant } from "@/lib/data";
 import { DEFAULT_ACCENT } from "@/lib/entities";
+
+type ParticipantWithStatus = Participant & { participation_status?: string | null };
 
 export const Route = createFileRoute("/_authenticated/admin/lineup-sync/$slug")({
   head: ({ params }) => ({ meta: [{ title: `${params.slug} line-up sync — Solaris Studio` }, { name: "robots", content: "noindex" }] }),
@@ -28,7 +30,10 @@ function LineupSyncPage() {
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const canonical = useMemo(
-    () => participants.filter((participant) => participant.show_id === null && participant.country_id && participant.participation_status === "confirmed"),
+    () => participants.filter((participant) => {
+      const status = (participant as ParticipantWithStatus).participation_status;
+      return participant.show_id === null && Boolean(participant.country_id) && status === "confirmed";
+    }),
     [participants],
   );
   const memberships = useMemo(() => {
