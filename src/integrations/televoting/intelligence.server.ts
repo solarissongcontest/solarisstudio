@@ -122,7 +122,11 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       const hod = canonical.hod.resolve(editionId, voterCountry?.id, "televote");
       const editionLabel = displayEdition(canonical.hod.editionsById.get(editionId));
       if (hod) hodEditionCoverage.add(`${editionId}:${voterCode}`); else unknownHodEditionCoverage.add(`${editionId}:${voterCode}`);
-      const identity = lens === "country" ? `country:${voterCode}` : hod ? `hod:${hod.personId}` : `unknown:${editionId}:${voterCode}`;
+      // HOD-lens relationship analysis must follow an actual person. If this
+      // edition is marked another/unknown and has no resolved HOD identity, it
+      // contributes no personal friendship-voting observation at all.
+      if (lens === "hod" && !hod) continue;
+      const identity = lens === "country" ? `country:${voterCode}` : `hod:${hod!.personId}`;
       const ballotEntries = entriesBySubmission.get(submission.id) ?? [];
       const points = new Map(ballotEntries.map((entry) => [String(entry.target_country_code).toUpperCase(), Number(entry.points || 0)]));
       const maxScore = Math.max(0, ...points.values());
@@ -157,7 +161,8 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       const hod = canonical.hod.resolve(first.edition_id, first.voter_country_id, "jury");
       const editionLabel = displayEdition(canonical.hod.editionsById.get(first.edition_id));
       if (hod) hodEditionCoverage.add(`${first.edition_id}:${voterCode}`); else unknownHodEditionCoverage.add(`${first.edition_id}:${voterCode}`);
-      const identity = lens === "country" ? `country:${voterCode}` : hod ? `hod:${hod.personId}` : `unknown:${first.edition_id}:${voterCode}`;
+      if (lens === "hod" && !hod) continue;
+      const identity = lens === "country" ? `country:${voterCode}` : `hod:${hod!.personId}`;
       const scoreByTarget = new Map<string, number>();
       for (const vote of ballotVotes) {
         if (!vote.receiving_country_id) continue;
