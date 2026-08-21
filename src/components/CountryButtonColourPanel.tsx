@@ -62,13 +62,22 @@ export function CountryButtonColourPanel() {
 
   useEffect(() => {
     if (!onAppearancePage) return;
-    const header = document.querySelector(".app-main > .page-header");
-    if (!header?.parentElement) return;
+
+    const panels = Array.from(document.querySelectorAll<HTMLElement>(".app-main .data-panel"));
+    const coloursPanel = panels.find((panel) =>
+      Array.from(panel.querySelectorAll("h2")).some(
+        (heading) => heading.textContent?.trim().toLowerCase() === "colours",
+      ),
+    );
+    const anchor = coloursPanel ?? document.querySelector<HTMLElement>(".app-main > .page-header");
+    if (!anchor?.parentElement) return;
+
     const node = document.createElement("div");
     node.dataset.countryButtonColourPanel = "true";
     node.className = "mb-5";
-    header.insertAdjacentElement("afterend", node);
+    anchor.insertAdjacentElement("afterend", node);
     setHost(node);
+
     return () => {
       node.remove();
       setHost(null);
@@ -89,8 +98,8 @@ export function CountryButtonColourPanel() {
 
   return createPortal(
     <Panel
-      title="Buttons"
-      description="Choose a button colour that actually belongs with the page. Text colour is picked automatically for readable contrast."
+      title="Button colour"
+      description="Choose the action colour used for Country and Wiki buttons, active tabs and selected navigation. Solaris picks readable button text automatically."
       actions={
         <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
           <Paintbrush className="size-3.5" /> Country + Wiki
@@ -113,7 +122,7 @@ export function CountryButtonColourPanel() {
               type="button"
               onClick={() => {
                 setCustom(true);
-                setColour(saved.custom ? saved.buttonColor : saved.buttonColor);
+                setColour(saved.buttonColor);
               }}
               className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${
                 custom ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface"
@@ -152,7 +161,7 @@ export function CountryButtonColourPanel() {
             onClick={() => void save()}
             className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-55"
           >
-            {saveButton.isPending ? "Saving…" : "Save button style"}
+            {saveButton.isPending ? "Saving…" : "Save button colour"}
           </button>
           {message && <p className="text-xs text-muted-foreground">{message}</p>}
         </div>
@@ -165,7 +174,7 @@ export function CountryButtonColourPanel() {
           }}
         >
           <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-            Live button preview
+            Live preview
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <span
@@ -177,8 +186,8 @@ export function CountryButtonColourPanel() {
             <span
               className="rounded-xl border px-4 py-2 text-sm font-semibold"
               style={{
-                background: `color-mix(in srgb, ${effective} 18%, var(--surface) 82%)`,
-                borderColor: `${effective}66`,
+                background: `color-mix(in srgb, ${effective} 30%, var(--surface) 70%)`,
+                borderColor: `${effective}88`,
                 color: "var(--foreground)",
               }}
             >
@@ -186,7 +195,7 @@ export function CountryButtonColourPanel() {
             </span>
           </div>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
-            The same colour now carries through Country, Wiki, active tabs and themed navigation states.
+            This colour carries through Wiki, Compare, Follow, active tabs and themed navigation states.
           </p>
         </div>
       </div>
