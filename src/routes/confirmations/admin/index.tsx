@@ -8,6 +8,7 @@ import {
   Globe2,
   KeyRound,
   Layers3,
+  RefreshCw,
   Settings2,
   SlidersHorizontal,
 } from "lucide-react";
@@ -212,6 +213,13 @@ function DelegationsAdminOverview() {
                 title="Responses"
                 description="Review confirmations, entries and National Final information."
                 detail={activeEdition ? `${activeEdition.response_count} in ${formatEdition(activeEdition)}` : undefined}
+              />
+              <WorkflowLink
+                to="/confirmations/admin/sync"
+                icon={RefreshCw}
+                title="Sync to Solaris"
+                description="Choose a confirmation wave and a show, then sync every participating country and its canonical entry in one operation."
+                detail="Round → show"
               />
               <WorkflowLink
                 to="/confirmations/admin/countries"
