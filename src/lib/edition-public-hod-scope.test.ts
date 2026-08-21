@@ -12,11 +12,11 @@ const intelligence = source("src/integrations/televoting/intelligence.server.ts"
 
 describe("edition public design", () => {
   it("uses edition-owned public style settings rather than the generic page treatment", () => {
-    expect(routeTheme).toContain("data-edition-public-style");
+    expect(routeTheme).toContain("editionPublicStyle");
     expect(routeTheme).toContain("editionPublicSettings");
     expect(editionCss).toContain('body[data-entity-theme="edition"] .app-main > .page-header');
     expect(editionCss).toContain("border: 1px solid rgb(var(--solaris-accent)");
-    expect(editionCss).toContain("data-edition-public-style=\"glass\"");
+    expect(editionCss).toContain('data-edition-public-style="glass"');
   });
 });
 
