@@ -34,10 +34,12 @@ describe("country account username authentication", () => {
     expect(migration).toContain("instagram_username, display_name");
   });
 
-  it("supports recovery only when a real recovery email exists", () => {
+  it("supports recovery only when a real recovery email exists and protects the replacement password", () => {
     expect(authFunction).toContain("@country.solaris.invalid");
     expect(authFunction).toContain("resetPasswordForEmail");
     expect(authPage).toContain("Forgot password?");
-    expect(resetPage).toContain("updateUser({ password })");
+    expect(authClient).toContain('action: "set-password"');
+    expect(resetPage).toContain("setSolarisPassword(password)");
+    expect(resetPage).not.toContain("updateUser({ password })");
   });
 });
