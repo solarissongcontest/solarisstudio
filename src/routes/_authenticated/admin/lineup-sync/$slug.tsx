@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, ListOrdered, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check, ClipboardCheck, ListOrdered, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,7 +14,7 @@ import { DEFAULT_ACCENT } from "@/lib/entities";
 type ParticipantWithStatus = Participant & { participation_status?: string | null };
 
 export const Route = createFileRoute("/_authenticated/admin/lineup-sync/$slug")({
-  head: ({ params }) => ({ meta: [{ title: `${params.slug} line-up sync — Solaris Studio` }, { name: "robots", content: "noindex" }] }),
+  head: ({ params }) => ({ meta: [{ title: `${params.slug} confirmed countries — Solaris Studio` }, { name: "robots", content: "noindex" }] }),
   component: LineupSyncPage,
 });
 
@@ -66,22 +66,36 @@ function LineupSyncPage() {
     }
   }
 
-  if (loadingEdition) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading line-up manager…</p></AdminCard>;
+  if (loadingEdition) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading confirmed countries…</p></AdminCard>;
   if (!edition) return <AdminCard><AdminEmptyState title="Edition not found" description="Choose another edition from the organizer workspace." /></AdminCard>;
 
   return (
     <div className="admin-page pb-5">
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
-        title="One-click show manager"
-        description="Keep one canonical country entry per edition, then add that same entry to each show with one click. Artist, song and listening links travel with it."
-        actions={<Link to="/admin/$slug" params={{ slug }} className="admin-action-secondary"><ArrowLeft className="size-4" /> Edition</Link>}
+        title="Sync confirmed countries to shows"
+        description="Every confirmed country exists once for the edition. Add that same entry to any show with one click, including its artist, song and listening links."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Link to="/confirmations/admin/sync" className="admin-action-primary"><ClipboardCheck className="size-4" /> Sync confirmation waves</Link>
+            <Link to="/admin/$slug" params={{ slug }} className="admin-action-secondary"><ArrowLeft className="size-4" /> Edition</Link>
+          </div>
+        }
       />
 
       {!orderedShows.length ? (
         <AdminCard><AdminEmptyState icon={ListOrdered} title="No shows yet" description="Create the edition shows before building their line-ups." action={<Link to="/admin/shows/$slug" params={{ slug }} className="admin-action-primary">Create shows</Link>} /></AdminCard>
       ) : (
         <>
+          <AdminCard strong className="mb-4">
+            <AdminCardHeader
+              eyebrow="Confirmed edition countries"
+              title={`${canonical.length} ready to place`}
+              description="Use the show cards below to add every missing confirmed country at once. Or use the country list to add countries individually."
+              action={<AdminStatus tone={canonical.length ? "ready" : "attention"}>{canonical.length ? "Ready" : "Sync Confirmations first"}</AdminStatus>}
+            />
+          </AdminCard>
+
           <div className="mb-4 grid gap-3 md:grid-cols-2">
             {orderedShows.map((show) => {
               const inShow = canonical.filter((participant) => memberships.get(participant.country_id)?.has(show.id)).length;
@@ -102,7 +116,7 @@ function LineupSyncPage() {
                     onClick={() => void addMany(show.id, missing.map((participant) => participant.country_id), key)}
                   >
                     <RefreshCw className={busyKey === key ? "size-4 animate-spin" : "size-4"} />
-                    {busyKey === key ? "Adding entries…" : missing.length ? `Add all ${missing.length} missing` : "All confirmed countries added"}
+                    {busyKey === key ? "Adding confirmed countries…" : missing.length ? `Add all ${missing.length} confirmed countries` : "All confirmed countries added"}
                   </button>
                 </AdminCard>
               );
@@ -116,7 +130,7 @@ function LineupSyncPage() {
               description="A checked show means the country already appears there. An unchecked show button adds the same edition entry without creating another participation."
             />
             {!canonical.length ? (
-              <AdminEmptyState title="No confirmed edition entries yet" description="Sync Confirmations first, then they will appear here automatically." action={<Link to="/confirmations/admin/sync" className="admin-action-primary">Sync Confirmations</Link>} />
+              <AdminEmptyState title="No confirmed edition entries yet" description="Sync Confirmations first, then they will appear here automatically." action={<Link to="/confirmations/admin/sync" className="admin-action-primary">Sync confirmation waves</Link>} />
             ) : (
               <div className="divide-y divide-white/[0.07]">
                 {canonical.map((participant) => {

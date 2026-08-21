@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const internalEmailSuffix = "@country.solaris.invalid";
+const pwnedPasswordsRangeUrl = "https://api.pwnedpasswords.com/range";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -45,6 +46,55 @@ function safeResetRedirect(req: Request) {
   } catch {
     return undefined;
   }
+}
+
+async function sha1Hex(value: string) {
+  const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase();
+}
+
+async function breachedPasswordCount(password: string) {
+  const hash = await sha1Hex(password);
+  const prefix = hash.slice(0, 5);
+  const suffix = hash.slice(5);
+  const response = await fetch(`${pwnedPasswordsRangeUrl}/${prefix}`, {
+    headers: {
+      "Add-Padding": "true",
+      "User-Agent": "Solaris-Studio-Password-Safety",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Pwned Passwords returned HTTP ${response.status}`);
+  }
+
+  const body = await response.text();
+  for (const line of body.split(/\r?\n/)) {
+    const [candidateSuffix, countText] = line.trim().split(":", 2);
+    if (candidateSuffix?.toUpperCase() !== suffix) continue;
+    const count = Number(countText ?? "0");
+    return Number.isFinite(count) ? count : 0;
+  }
+  return 0;
+}
+
+async function passwordSafetyError(password: string) {
+  if (password.length < 6) return "Password must be at least 6 characters.";
+
+  try {
+    const count = await breachedPasswordCount(password);
+    if (count > 0) {
+      return "That password appears in known data breaches. Choose a different password that you do not use anywhere else.";
+    }
+  } catch (error) {
+    console.error("[country-auth] Password safety check failed", error);
+    return "Password safety check is temporarily unavailable. Try again in a moment.";
+  }
+
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -120,7 +170,8 @@ Deno.serve(async (req) => {
     if (!displayName || displayName.length > 80) {
       return json({ error: "Enter your name or nickname." }, 400);
     }
-    if (password.length < 6) return json({ error: "Password must be at least 6 characters." }, 400);
+    const passwordError = await passwordSafetyError(password);
+    if (passwordError) return json({ error: passwordError }, password.length < 6 ? 400 : 422);
     if (recoveryEmail && !validEmail(recoveryEmail)) {
       return json({ error: "Enter a valid recovery email or leave it blank." }, 400);
     }
@@ -216,6 +267,25 @@ Deno.serve(async (req) => {
     );
     if (error) return json({ error: "Password recovery could not be started. Try again later." }, 400);
     return json({ ok: true, recoveryAvailable: true });
+  }
+
+  if (action === "set-password") {
+    const password = String(body.password ?? "");
+    const passwordError = await passwordSafetyError(password);
+    if (passwordError) return json({ error: passwordError }, password.length < 6 ? 400 : 422);
+
+    const authorization = req.headers.get("authorization") ?? "";
+    const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    if (!token) return json({ error: "Your password reset session has expired. Request a new recovery link." }, 401);
+
+    const { data: userData, error: userError } = await publicAuth.auth.getUser(token);
+    if (userError || !userData.user) {
+      return json({ error: "Your password reset session has expired. Request a new recovery link." }, 401);
+    }
+
+    const { error: updateError } = await service.auth.admin.updateUserById(userData.user.id, { password });
+    if (updateError) return json({ error: "Password could not be changed. Try again." }, 400);
+    return json({ ok: true });
   }
 
   return json({ error: "Unknown authentication action." }, 400);

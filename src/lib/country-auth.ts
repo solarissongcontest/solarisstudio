@@ -11,6 +11,10 @@ type RecoveryPayload = {
   recoveryAvailable: boolean;
 };
 
+type PasswordUpdatePayload = {
+  ok: boolean;
+};
+
 type FunctionError = Error & { context?: Response };
 
 async function invokeCountryAuth<T>(body: Record<string, unknown>): Promise<T> {
@@ -64,4 +68,8 @@ export async function createCountryAccount(input: {
 
 export async function requestSolarisPasswordRecovery(identifier: string) {
   return invokeCountryAuth<RecoveryPayload>({ action: "recover", identifier });
+}
+
+export async function setSolarisPassword(password: string) {
+  return invokeCountryAuth<PasswordUpdatePayload>({ action: "set-password", password });
 }
