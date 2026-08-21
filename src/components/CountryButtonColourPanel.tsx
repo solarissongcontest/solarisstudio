@@ -7,6 +7,7 @@ import { Panel } from "@/components/AppShell";
 import { useMyCountryAccount } from "@/lib/country-account";
 import {
   bestButtonText,
+  deriveCountryButtonColor,
   resolveCountryButtonTheme,
   useSaveCountryButtonColour,
 } from "@/lib/country-button-theme";
@@ -33,10 +34,12 @@ export function CountryButtonColourPanel() {
   const { data: row } = useCountryTheme(country?.id);
   const saveButton = useSaveCountryButtonColour(country?.id);
 
+  const accent = row?.accent ?? country?.accent_color ?? "#86c9d7";
   const saved = useMemo(
-    () => resolveCountryButtonTheme(row, row?.accent ?? country?.accent_color ?? "#86c9d7"),
-    [row, country?.accent_color],
+    () => resolveCountryButtonTheme(row, accent),
+    [row, accent],
   );
+  const automaticColour = useMemo(() => deriveCountryButtonColor(accent), [accent]);
   const [custom, setCustom] = useState(false);
   const [colour, setColour] = useState("#86c9d7");
   const [message, setMessage] = useState<string | null>(null);
@@ -47,7 +50,7 @@ export function CountryButtonColourPanel() {
     setColour(saved.buttonColor);
   }, [saved.custom, saved.buttonColor]);
 
-  const effective = custom ? colour : (row?.accent ?? country?.accent_color ?? "#86c9d7");
+  const effective = custom ? colour : automaticColour;
   const foreground = bestButtonText(effective);
 
   useEffect(() => {
@@ -90,7 +93,11 @@ export function CountryButtonColourPanel() {
     setMessage(null);
     try {
       await saveButton.mutateAsync(custom ? colour : null);
-      setMessage(custom ? "Button colour saved." : "Buttons now follow the accent colour automatically.");
+      setMessage(
+        custom
+          ? "Button colour saved. Country and Wiki actions now use it."
+          : "Buttons now use an automatic contrasting colour based on your page palette.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Button colour could not be saved.");
     }
@@ -99,7 +106,7 @@ export function CountryButtonColourPanel() {
   return createPortal(
     <Panel
       title="Button colour"
-      description="Choose the action colour used for Country and Wiki buttons, active tabs and selected navigation. Solaris picks readable button text automatically."
+      description="Choose how action buttons look on both your Country and Wiki pages. Automatic makes a contrasting colour from your page palette; Custom uses exactly the colour you choose."
       actions={
         <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
           <Paintbrush className="size-3.5" /> Country + Wiki
@@ -116,13 +123,13 @@ export function CountryButtonColourPanel() {
                 !custom ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface"
               }`}
             >
-              Match accent
+              Automatic
             </button>
             <button
               type="button"
               onClick={() => {
                 setCustom(true);
-                setColour(saved.buttonColor);
+                if (!saved.custom) setColour(automaticColour);
               }}
               className={`min-h-12 rounded-xl border px-3 text-sm font-semibold ${
                 custom ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface"
@@ -135,7 +142,7 @@ export function CountryButtonColourPanel() {
           {custom && (
             <label className="block rounded-xl border border-border bg-surface p-3">
               <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
-                Button colour
+                Your button colour
               </span>
               <div className="flex items-center gap-2">
                 <input
@@ -161,7 +168,7 @@ export function CountryButtonColourPanel() {
             onClick={() => void save()}
             className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-55"
           >
-            {saveButton.isPending ? "Saving…" : "Save button colour"}
+            {saveButton.isPending ? "Saving…" : "Save button style"}
           </button>
           {message && <p className="text-xs text-muted-foreground">{message}</p>}
         </div>
@@ -170,7 +177,7 @@ export function CountryButtonColourPanel() {
           className="rounded-2xl border p-4"
           style={{
             background: row?.surface ?? "var(--surface)",
-            borderColor: `${effective}55`,
+            borderColor: `${effective}66`,
           }}
         >
           <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
@@ -178,24 +185,28 @@ export function CountryButtonColourPanel() {
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <span
-              className="rounded-xl px-4 py-2 text-sm font-semibold"
-              style={{ background: effective, color: foreground }}
+              className="rounded-xl border px-4 py-2 text-sm font-semibold"
+              style={{
+                background: effective,
+                borderColor: effective,
+                color: foreground,
+              }}
             >
               Main action
             </span>
             <span
               className="rounded-xl border px-4 py-2 text-sm font-semibold"
               style={{
-                background: `color-mix(in srgb, ${effective} 30%, var(--surface) 70%)`,
-                borderColor: `${effective}88`,
-                color: "var(--foreground)",
+                background: `color-mix(in srgb, ${effective} 68%, transparent)`,
+                borderColor: `color-mix(in srgb, ${effective} 86%, white 14%)`,
+                color: foreground,
               }}
             >
               Secondary
             </span>
           </div>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
-            This colour carries through Wiki, Compare, Follow, active tabs and themed navigation states.
+            This palette is used by Wiki, Compare, Follow, active tabs and selected navigation on your themed pages.
           </p>
         </div>
       </div>
