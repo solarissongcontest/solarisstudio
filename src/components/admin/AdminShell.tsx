@@ -10,6 +10,7 @@ import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminContextProvider } from "./AdminContext";
 import { AdminFrame } from "./AdminFrame";
 import { AdminHealthStrip } from "./AdminHealthStrip";
+import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
 export function AdminShell({ children }: { children: ReactNode }) {
@@ -53,7 +54,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
         </header>
 
         <div className="relative z-10">
-          <AdminFrame>{children}</AdminFrame>
+          <AdminFrame>
+            <JuryVotingWindowControl />
+            {children}
+          </AdminFrame>
         </div>
       </div>
     </AdminContextProvider>
