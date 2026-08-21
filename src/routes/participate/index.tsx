@@ -20,68 +20,90 @@ function ParticipatePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Participation"
+        eyebrow="Participate"
         title="Take part in Solaris"
-        description="Confirm your delegation, update an existing response, or vote when televoting is open."
+        description="Everything you need to enter the contest or vote, in one place."
       />
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Link
+      <section className="grid gap-3 md:grid-cols-2">
+        <ParticipationCard
           to="/confirmations"
-          className="glass-strong group relative min-h-[310px] overflow-hidden p-6 sm:p-8"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="grid size-12 place-items-center rounded-2xl border border-pink-200/15 bg-pink-200/10 text-pink-100">
-              <ClipboardCheck className="size-5" />
-            </div>
-            <ArrowRight className="size-5 text-white/30 transition group-hover:translate-x-1 group-hover:text-white/70" />
-          </div>
+          eyebrow="Delegations"
+          title="Confirmations"
+          description="Confirm participation, update your entry or recover an existing response."
+          icon={ClipboardCheck}
+          details={[
+            "Submit or update your confirmation",
+            "Recover an existing response",
+            "Join Next in Line when available",
+          ]}
+        />
 
-          <p className="mt-10 text-[10px] font-medium uppercase tracking-[0.22em] text-pink-100/65">
-            Delegations
-          </p>
-          <h2 className="font-display mt-2 text-4xl uppercase leading-none sm:text-5xl">
-            Confirmations
-          </h2>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            Confirm participation, selection method and entry information. You can also recover or edit a response, or join Next in Line.
-          </p>
-
-          <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-white/45">
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">New confirmation</span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">Recover response</span>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">Next in Line</span>
-          </div>
-        </Link>
-
-        <Link
+        <ParticipationCard
           to="/televoting"
-          className="glass-strong group relative min-h-[310px] overflow-hidden p-6 sm:p-8"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="grid size-12 place-items-center rounded-2xl border border-sky-200/15 bg-sky-200/10 text-sky-100">
-              <Vote className="size-5" />
-            </div>
-            <ArrowRight className="size-5 text-white/30 transition group-hover:translate-x-1 group-hover:text-white/70" />
-          </div>
-
-          <p className="mt-10 text-[10px] font-medium uppercase tracking-[0.22em] text-sky-100/65">
-            Audience voting
-          </p>
-          <h2 className="font-display mt-2 text-4xl uppercase leading-none sm:text-5xl">
-            Televoting
-          </h2>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground">
-            See the current round, review the rules and cast your ballot when voting is open.
-          </p>
-
-          <div className="mt-6 flex flex-wrap gap-2 text-[11px] text-white/45">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5"><CheckCircle2 className="size-3" /> 20-point ballot</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5"><ShieldCheck className="size-3" /> Integrity checks</span>
-          </div>
-        </Link>
+          eyebrow="Audience voting"
+          title="Televoting"
+          description="Open the current voting round, check the rules and cast your ballot."
+          icon={Vote}
+          details={[
+            "20-point ballot",
+            "Live round status",
+            "Built-in integrity checks",
+          ]}
+        />
       </section>
-
     </AppShell>
+  );
+}
+
+function ParticipationCard({
+  to,
+  eyebrow,
+  title,
+  description,
+  icon: Icon,
+  details,
+}: {
+  to: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  icon: typeof ClipboardCheck;
+  details: string[];
+}) {
+  return (
+    <Link
+      to={to as any}
+      className="solaris-family-card group relative block min-w-0 overflow-hidden rounded-[1.6rem] border p-5 sm:p-6"
+    >
+      <div className="solaris-family-card-overlay pointer-events-none absolute inset-0" />
+      <div className="relative z-10 min-w-0">
+        <div className="flex items-start justify-between gap-4">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/[0.08] text-primary">
+            <Icon className="size-4.5" />
+          </span>
+          <span className="grid size-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-primary transition-transform group-hover:translate-x-0.5">
+            <ArrowRight className="size-4" />
+          </span>
+        </div>
+
+        <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-primary">{eyebrow}</p>
+        <h2 className="display-headline mt-1 text-3xl leading-[0.95] text-white sm:text-4xl">{title}</h2>
+        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">{description}</p>
+
+        <div className="mt-5 space-y-2 border-t border-border/55 pt-4">
+          {details.map((detail) => (
+            <div key={detail} className="flex items-center gap-2 text-xs text-muted-foreground">
+              {detail.toLowerCase().includes("integrity") ? (
+                <ShieldCheck className="size-3.5 shrink-0 text-primary" />
+              ) : (
+                <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
+              )}
+              <span>{detail}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Link>
   );
 }
