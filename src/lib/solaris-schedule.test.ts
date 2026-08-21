@@ -23,6 +23,7 @@ describe("Solaris schedule state", () => {
     expect(
       resolveScheduleState(
         {
+          status: "open",
           opensAt: "2026-08-20T12:00:00.000Z",
           closesAt: "2026-08-25T12:00:00.000Z",
         },
@@ -35,6 +36,7 @@ describe("Solaris schedule state", () => {
     expect(
       resolveScheduleState(
         {
+          status: "open",
           opensAt: "2026-08-20T12:00:00.000Z",
           closesAt: "2026-08-22T12:00:00.000Z",
         },
@@ -45,6 +47,32 @@ describe("Solaris schedule state", () => {
 
   it("marks expired windows as closed", () => {
     expect(resolveScheduleState({ closesAt: "2026-08-21T11:59:59.000Z" }, now)).toBe("closed");
+  });
+
+  it("never resurrects an explicitly closed confirmation round without closes_at", () => {
+    expect(
+      resolveScheduleState(
+        {
+          status: "closed",
+          opensAt: "2026-08-08T18:00:00.000Z",
+          closesAt: null,
+        },
+        now,
+      ),
+    ).toBe("closed");
+  });
+
+  it("does not treat a draft with a stale opening timestamp as open", () => {
+    expect(
+      resolveScheduleState(
+        {
+          status: "draft",
+          opensAt: "2026-08-08T18:00:00.000Z",
+          closesAt: null,
+        },
+        now,
+      ),
+    ).toBe("upcoming");
   });
 });
 
