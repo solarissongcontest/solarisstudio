@@ -18,6 +18,12 @@ type ConfirmationSnapshot = {
   country: string;
   participating: boolean;
   selection_method?: string | null;
+  reveal_date_type?: string | null;
+  reveal_exact_date?: string | null;
+  reveal_approximate_text?: string | null;
+  nf_result_date_type?: string | null;
+  nf_result_exact_date?: string | null;
+  nf_result_approximate_text?: string | null;
   edition?: {
     id?: string | null;
     name?: string | null;
@@ -30,6 +36,12 @@ type ConfirmationSnapshot = {
     winning_entry_id?: string | null;
     entries?: ConfirmationReviewEntry[] | null;
   } | null;
+};
+
+type PublicationDecision = {
+  status: "draft" | "scheduled" | "published";
+  scheduledAt: string | null;
+  publishedAt: string | null;
 };
 
 export type ConfirmationSolarisSyncResult = {
@@ -50,6 +62,72 @@ function cleanText(value: unknown) {
 
 function normalizeName(value: string) {
   return value.trim().toLocaleLowerCase();
+}
+
+function dateOnlyAtUtcMidnight(value: unknown) {
+  const text = cleanText(value);
+  if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  const timestamp = `${text}T00:00:00.000Z`;
+  return Number.isFinite(Date.parse(timestamp)) ? timestamp : null;
+}
+
+export function deriveConfirmationEntryPublication(
+  snapshot: Pick<
+    ConfirmationSnapshot,
+    | "selection_method"
+    | "reveal_date_type"
+    | "reveal_exact_date"
+    | "nf_result_date_type"
+    | "nf_result_exact_date"
+  >,
+  nowMs = Date.now(),
+): PublicationDecision {
+  const revealType = cleanText(snapshot.reveal_date_type)?.toLowerCase();
+
+  if (revealType === "immediately" || revealType === "immediate") {
+    return {
+      status: "published",
+      scheduledAt: null,
+      publishedAt: new Date(nowMs).toISOString(),
+    };
+  }
+
+  if (revealType === "exact") {
+    const revealAt = dateOnlyAtUtcMidnight(snapshot.reveal_exact_date);
+    if (revealAt) {
+      if (Date.parse(revealAt) <= nowMs) {
+        return {
+          status: "published",
+          scheduledAt: null,
+          publishedAt: new Date(nowMs).toISOString(),
+        };
+      }
+      return { status: "scheduled", scheduledAt: revealAt, publishedAt: null };
+    }
+  }
+
+  // For a National Final, an exact published result date is also a safe reveal
+  // boundary for the winning song when no stronger explicit song-reveal rule exists.
+  if (
+    snapshot.selection_method === "national_final" &&
+    cleanText(snapshot.nf_result_date_type)?.toLowerCase() === "exact"
+  ) {
+    const resultAt = dateOnlyAtUtcMidnight(snapshot.nf_result_exact_date);
+    if (resultAt) {
+      if (Date.parse(resultAt) <= nowMs) {
+        return {
+          status: "published",
+          scheduledAt: null,
+          publishedAt: new Date(nowMs).toISOString(),
+        };
+      }
+      return { status: "scheduled", scheduledAt: resultAt, publishedAt: null };
+    }
+  }
+
+  // Approximate/unknown dates are intentionally not guessed. The HOD can
+  // publish manually when the announcement actually happens.
+  return { status: "draft", scheduledAt: null, publishedAt: null };
 }
 
 function assertSnapshot(value: unknown): ConfirmationSnapshot {
@@ -135,6 +213,7 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
     const snapshot = data.snapshot;
+    const confirmationPublication = deriveConfirmationEntryPublication(snapshot);
 
     const editionNumber = Number(snapshot.edition?.edition_number);
     if (!Number.isInteger(editionNumber)) {
@@ -216,13 +295,25 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
 
     const participantLookup = await db
       .from("participants")
-      .select("id")
+      .select("id,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden")
       .eq("edition_id", edition.id)
       .eq("country_id", country.id)
       .is("show_id", null)
       .maybeSingle();
     if (participantLookup.error) throw new Error(participantLookup.error.message);
     let participant = participantLookup.data;
+    const publicationWasPublic = participant?.publication_status === "published";
+
+    const confirmationPublicationFields = {
+      publication_status: confirmationPublication.status,
+      scheduled_publish_at: confirmationPublication.scheduledAt,
+      published_at:
+        confirmationPublication.status === "published"
+          ? participant?.published_at ?? confirmationPublication.publishedAt
+          : null,
+      publication_source: "confirmation",
+      publication_overridden: false,
+    };
 
     if (!participant) {
       const inserted = await db
@@ -235,27 +326,36 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
           semi_final: "final",
           participation_status: participationStatus,
           notes: "Synced from Confirmations",
+          ...confirmationPublicationFields,
         })
-        .select("id")
+        .select("id,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden")
         .single();
       if (inserted.error) throw new Error(inserted.error.message);
       participant = inserted.data;
     } else {
+      const payload: Record<string, unknown> = {
+        contest_entity_id: entity.id,
+        participation_status: participationStatus,
+      };
+      if (!participant.publication_overridden) Object.assign(payload, confirmationPublicationFields);
+
       const { error } = await db
         .from("participants")
-        .update({
-          contest_entity_id: entity.id,
-          participation_status: participationStatus,
-        })
+        .update(payload)
         .eq("id", participant.id);
       if (error) throw new Error(error.message);
     }
 
-    const { error: statusError } = await db
+    const statusPayload: Record<string, unknown> = { participation_status: participationStatus };
+    if (!participant.publication_overridden) Object.assign(statusPayload, confirmationPublicationFields);
+
+    let statusQuery = db
       .from("participants")
-      .update({ participation_status: participationStatus })
+      .update(statusPayload)
       .eq("edition_id", edition.id)
       .eq("country_id", country.id);
+    if (!participant.publication_overridden) statusQuery = statusQuery.eq("publication_overridden", false);
+    const { error: statusError } = await statusQuery;
     if (statusError) throw new Error(statusError.message);
 
     let officialEntry: ConfirmationReviewEntry | null = null;
@@ -309,6 +409,10 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
           confirmation_edition_id: snapshot.edition?.id ?? null,
           national_final_id: snapshot.national_final?.id ?? null,
           national_final_name: snapshot.national_final?.nf_name ?? null,
+          reveal_date_type: snapshot.reveal_date_type ?? null,
+          reveal_exact_date: snapshot.reveal_exact_date ?? null,
+          nf_result_date_type: snapshot.nf_result_date_type ?? null,
+          nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
         },
         updated_at: new Date().toISOString(),
       };
@@ -330,6 +434,17 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
         .eq("edition_id", edition.id)
         .eq("country_id", country.id);
       if (compatibilityError) throw new Error(compatibilityError.message);
+
+      if (
+        !participant.publication_overridden &&
+        confirmationPublication.status === "published" &&
+        !publicationWasPublic
+      ) {
+        await db.rpc("emit_entry_published_event", {
+          _edition_id: edition.id,
+          _country_id: country.id,
+        });
+      }
     } else if (!existingEntry || existingEntry.source === "confirmations") {
       const pendingPayload = {
         edition_id: edition.id,
@@ -346,6 +461,10 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
           confirmation_submission_id: snapshot.id,
           confirmation_edition_id: snapshot.edition?.id ?? null,
           awaiting_official_entry: true,
+          reveal_date_type: snapshot.reveal_date_type ?? null,
+          reveal_exact_date: snapshot.reveal_exact_date ?? null,
+          nf_result_date_type: snapshot.nf_result_date_type ?? null,
+          nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
         },
         updated_at: new Date().toISOString(),
       };
@@ -404,11 +523,6 @@ export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST"
     };
     await recordSyncEvent(db, snapshot, result);
 
-    // Televoting is a projection of canonical Solaris data. Once a round has
-    // been explicitly bound to an edition/show, keep only mutable drafts fresh.
-    // Never make Televoting availability a prerequisite for saving canonical
-    // confirmation data: a bridge outage is recorded/logged, not promoted into
-    // a failed participant review.
     try {
       const { autoSyncDraftTelevotingRoundsForEditionServer } = await import(
         "@/integrations/televoting/auto-sync.server"
