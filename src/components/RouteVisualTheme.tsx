@@ -9,10 +9,16 @@ import "@/calm-public-chrome.css";
 import "@/country-glass-parity.css";
 import "@/beta2-feedback-fixes.css";
 import "@/country-button-theme.css";
+import "@/edition-appearance.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
+import {
+  editionAppearanceFromConfig,
+  editionBackgroundCss,
+  type EditionAppearance,
+} from "@/lib/edition-appearance";
 import {
   countryBackgroundCss,
   countryThemeToVisual,
@@ -26,15 +32,19 @@ type EditionVisual = {
   id: string;
   slug: string;
   theme_colors?: unknown;
+  design_config?: unknown;
   artwork_url?: string | null;
 };
 
+type EditionTheme = ReturnType<typeof editionThemeToVisual> extends infer T ? Exclude<T, null> : never;
+
 type ResolvedVisual =
-  | { kind: "country"; theme: CountryVisualTheme; artwork: null }
+  | { kind: "country"; theme: CountryVisualTheme; artwork: null; appearance: null }
   | {
       kind: "edition";
-      theme: ReturnType<typeof editionThemeToVisual> extends infer T ? Exclude<T, null> : never;
+      theme: EditionTheme;
       artwork: string | null;
+      appearance: EditionAppearance;
     };
 
 function segmentAfter(pathname: string, prefix: string) {
@@ -61,23 +71,32 @@ export function RouteVisualTheme() {
         ? (countryThemes ?? []).find((theme) => theme.country_id === country.id)
         : null;
       const theme = countryThemeToVisual(row);
-      if (theme) return { theme, kind: "country", artwork: null };
+      if (theme) return { theme, kind: "country", artwork: null, appearance: null };
     }
 
     const visualEditions = (editions ?? []) as EditionVisual[];
+    const resolveEdition = (edition?: EditionVisual) => {
+      const theme = editionThemeToVisual(edition?.theme_colors);
+      if (!theme || !edition) return null;
+      return {
+        theme,
+        kind: "edition" as const,
+        artwork: edition.artwork_url ?? null,
+        appearance: editionAppearanceFromConfig(edition.design_config),
+      };
+    };
+
     const editionSlug = segmentAfter(pathname, "/editions/");
     if (editionSlug) {
-      const edition = visualEditions.find((item) => item.slug === editionSlug);
-      const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) return { theme, kind: "edition", artwork: edition?.artwork_url ?? null };
+      const result = resolveEdition(visualEditions.find((item) => item.slug === editionSlug));
+      if (result) return result;
     }
 
     const showId = segmentAfter(pathname, "/shows/");
     if (showId) {
       const show = (shows ?? []).find((item) => item.id === showId);
-      const edition = visualEditions.find((item) => item.id === show?.edition_id);
-      const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) return { theme, kind: "edition", artwork: edition?.artwork_url ?? null };
+      const result = resolveEdition(visualEditions.find((item) => item.id === show?.edition_id));
+      if (result) return result;
     }
 
     return null;
@@ -100,6 +119,9 @@ export function RouteVisualTheme() {
       "--muted-foreground",
       "--surface",
       "--edition-artwork-image",
+      "--edition-page-background",
+      "--edition-artwork-position",
+      "--edition-artwork-overlay",
       "--country-page-background",
       "--country-page-position",
       "--country-page-blur",
@@ -108,6 +130,11 @@ export function RouteVisualTheme() {
     const clear = () => {
       delete body.dataset.entityTheme;
       delete body.dataset.editionArtwork;
+      delete body.dataset.editionBackgroundMode;
+      delete body.dataset.editionGradient;
+      delete body.dataset.editionHero;
+      delete body.dataset.editionDecoration;
+      delete body.dataset.editionCardStyle;
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
       delete body.dataset.countryDecoration;
@@ -133,6 +160,11 @@ export function RouteVisualTheme() {
         `${resolved.theme.backgroundPositionX}% ${resolved.theme.backgroundPositionY}%`,
       );
       body.style.setProperty("--country-page-blur", `${resolved.theme.backgroundBlur}px`);
+      delete body.dataset.editionBackgroundMode;
+      delete body.dataset.editionGradient;
+      delete body.dataset.editionHero;
+      delete body.dataset.editionDecoration;
+      delete body.dataset.editionCardStyle;
     } else {
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
@@ -140,6 +172,21 @@ export function RouteVisualTheme() {
       body.style.removeProperty("--country-page-background");
       body.style.removeProperty("--country-page-position");
       body.style.removeProperty("--country-page-blur");
+
+      body.dataset.editionBackgroundMode = resolved.appearance.backgroundMode;
+      body.dataset.editionGradient = resolved.appearance.gradientStyle;
+      body.dataset.editionHero = resolved.appearance.heroLayout;
+      body.dataset.editionDecoration = resolved.appearance.decorationStyle;
+      body.dataset.editionCardStyle = resolved.appearance.cardStyle;
+      body.style.setProperty(
+        "--edition-page-background",
+        editionBackgroundCss(resolved.appearance, resolved.theme, resolved.artwork),
+      );
+      body.style.setProperty(
+        "--edition-artwork-position",
+        `${resolved.appearance.artworkPositionX}% ${resolved.appearance.artworkPositionY}%`,
+      );
+      body.style.setProperty("--edition-artwork-overlay", String(resolved.appearance.artworkOverlay));
     }
 
     if (resolved.artwork) {
