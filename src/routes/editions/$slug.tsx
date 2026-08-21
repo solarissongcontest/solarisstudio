@@ -12,12 +12,12 @@ import {
   useContestEntities,
   useCountries,
   useEdition,
-  useParticipants,
   useShows,
 } from "@/lib/data";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { entityDisplayMap, type EntityDisplay } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { usePublicEditionParticipants } from "@/lib/public-participants";
 import { buildShowStories } from "@/lib/stories";
 
 export const Route = createFileRoute("/editions/$slug")({
@@ -31,7 +31,7 @@ function EditionPage() {
   const { slug } = Route.useParams();
   const { data: edition, isLoading } = useEdition(slug);
   const { data: shows } = useShows(edition?.id);
-  const { data: participants } = useParticipants(edition?.id);
+  const { data: participants } = usePublicEditionParticipants(edition?.id);
   const { data: countries } = useCountries();
   const { data: entities } = useContestEntities(edition?.id);
   const { data: allResults } = useAllResults();
@@ -81,17 +81,19 @@ function EditionPage() {
     return Boolean(show && resolveShowPublication(show).participants);
   });
 
-  // Canonical entry metadata can live on a show_id=null row, but it must only
-  // become public once that country's participation is public in at least one
-  // show. This keeps listening links useful without leaking unpublished songs.
+  // The public-safe participant projection already redacts unrevealed artist,
+  // song and listening-link data. Keep the listening section limited to rows
+  // whose song has genuinely cleared that entry-level reveal gate.
   const publicEntryIds = new Set(publishedParticipantRows.map((participant) => participant.country_id));
   const publicEntries = canonicalEditionEntries(
     participantList.filter((participant) => publicEntryIds.has(participant.country_id)),
-  ).sort((a, b) => {
-    const aName = displayMap.get(a.country_id)?.name ?? "";
-    const bName = displayMap.get(b.country_id)?.name ?? "";
-    return aName.localeCompare(bName);
-  });
+  )
+    .filter((entry) => Boolean(entry.song?.trim()))
+    .sort((a, b) => {
+      const aName = displayMap.get(a.country_id)?.name ?? "";
+      const bName = displayMap.get(b.country_id)?.name ?? "";
+      return aName.localeCompare(bName);
+    });
 
   const nationIds = [...new Set(publishedParticipantRows.map((participant) => participant.country_id))];
   const participatingCountries = nationIds
@@ -197,12 +199,12 @@ function EditionPage() {
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Listen to the edition</p>
-                <h2 className="mt-1 font-display text-2xl font-bold">Entries</h2>
+                <h2 className="mt-1 font-display text-2xl font-bold">Revealed entries</h2>
                 <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                  One entry per country. Semi-final and final appearances are the same song, so they are never duplicated here.
+                  Only songs already published by their delegation or whose scheduled reveal has arrived appear here.
                 </p>
               </div>
-              <span className="text-[10px] text-muted-foreground">{publicEntries.length} published entries</span>
+              <span className="text-[10px] text-muted-foreground">{publicEntries.length} revealed {publicEntries.length === 1 ? "entry" : "entries"}</span>
             </div>
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {publicEntries.map((entry) => {
@@ -214,7 +216,7 @@ function EditionPage() {
                       <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{country.name}</p>
-                        <p className="mt-1 truncate text-sm font-semibold text-foreground">{entry.song || "Song TBC"}</p>
+                        <p className="mt-1 truncate text-sm font-semibold text-foreground">{entry.song}</p>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{entry.artist || "Artist TBC"}</p>
                       </div>
                     </div>
