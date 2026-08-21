@@ -1,0 +1,131 @@
+/* Public edition/show pages use the saved edition palette instead of the old generic blue shell. */
+body[data-entity-theme="edition"] .app-background {
+  background:
+    radial-gradient(circle at 82% 12%, rgb(var(--solaris-accent) / calc(var(--edition-hero-glow, .72) * .32)), transparent 31%),
+    radial-gradient(circle at 6% 42%, rgb(var(--solaris-bg-secondary) / .24), transparent 42%),
+    linear-gradient(155deg, rgb(var(--solaris-bg-deep)), rgb(var(--solaris-bg-deep-2)) 48%, rgb(var(--solaris-bg-primary) / .92));
+}
+
+body[data-entity-theme="edition"][data-edition-artwork="true"] .app-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to bottom, rgb(0 0 0 / .28), rgb(0 0 0 / .72)), var(--edition-artwork-image);
+  background-size: cover;
+  background-position: center;
+  opacity: .18;
+  filter: saturate(.92);
+  mask-image: linear-gradient(to bottom, #000 0 52%, transparent 94%);
+}
+
+body[data-entity-theme="edition"] .app-main > .page-header {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(var(--solaris-accent) / .18) !important;
+  border-radius: var(--edition-public-radius, 24px);
+  padding: clamp(1.1rem, 3vw, 2rem) !important;
+  margin-bottom: 1rem !important;
+  background:
+    radial-gradient(circle at 88% 10%, rgb(var(--solaris-accent) / calc(var(--edition-hero-glow, .72) * .22)), transparent 34%),
+    linear-gradient(145deg, rgb(var(--solaris-owner-surface) / .78), rgb(var(--solaris-card-surface) / .58));
+  box-shadow: 0 24px 70px rgb(0 0 0 / .2);
+}
+
+body[data-entity-theme="edition"] .app-main > .page-header::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  bottom: -5rem;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--solaris-accent) / .14);
+  box-shadow: 0 0 0 2.8rem rgb(var(--solaris-accent) / .035), 0 0 0 5.5rem rgb(var(--solaris-bg-secondary) / .028);
+  pointer-events: none;
+}
+
+body[data-entity-theme="edition"] .app-main > .page-header h1 {
+  max-width: 15ch;
+  color: rgb(var(--foreground));
+  text-wrap: balance;
+}
+
+body[data-entity-theme="edition"] .app-main > .page-header > div { position: relative; z-index: 1; }
+body[data-entity-theme="edition"] .app-main > .page-header p:first-child { color: rgb(var(--solaris-accent)); }
+
+body[data-entity-theme="edition"] .data-panel,
+body[data-entity-theme="edition"] .glass {
+  border-color: rgb(var(--solaris-accent) / .14);
+  border-radius: var(--edition-public-radius, 24px);
+  background: rgb(var(--solaris-card-surface) / var(--edition-surface-strength, .82));
+  box-shadow: 0 18px 48px rgb(0 0 0 / .14);
+}
+
+body[data-entity-theme="edition"] .stat-line {
+  border-color: rgb(var(--solaris-accent) / .16);
+}
+
+body[data-entity-theme="edition"] .stat-line p:first-child,
+body[data-entity-theme="edition"] .app-main [class*="uppercase"] {
+  text-decoration: none;
+}
+
+body[data-entity-theme="edition"] .app-main select,
+body[data-entity-theme="edition"] .app-main button,
+body[data-entity-theme="edition"] .app-main a.rounded-xl {
+  border-color: rgb(var(--solaris-accent) / .2);
+}
+
+/* The thin cyan divider belonged to the old generic page header. Edition pages deliberately have no accent rule. */
+body[data-entity-theme="edition"] .page-header,
+body[data-entity-theme="edition"] .page-header + * {
+  --tw-border-opacity: 1;
+}
+body[data-entity-theme="edition"] .page-header::before { display: none !important; }
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header {
+  border-width: 0 0 1px !important;
+  border-radius: 0;
+  padding-inline: .15rem !important;
+  background: transparent;
+  box-shadow: none;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header::after { display: none; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .data-panel,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .glass {
+  box-shadow: none;
+  background: rgb(var(--solaris-card-surface) / .64);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header {
+  border-color: transparent !important;
+  background: transparent;
+  box-shadow: none;
+  padding-inline: .1rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header::after { display: none; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-panel,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass {
+  border-color: rgb(var(--solaris-accent) / .09);
+  box-shadow: none;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main > .page-header,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass {
+  background: linear-gradient(145deg, rgb(var(--solaris-card-raised) / .56), rgb(var(--solaris-card-surface) / .38));
+  backdrop-filter: blur(22px) saturate(1.1);
+  -webkit-backdrop-filter: blur(22px) saturate(1.1);
+  border-color: rgb(255 255 255 / .13);
+}
+
+@media (max-width: 639px) {
+  body[data-entity-theme="edition"] .app-main > .page-header {
+    border-radius: min(var(--edition-public-radius, 24px), 28px);
+    padding: 1.1rem !important;
+  }
+  body[data-entity-theme="edition"] .app-main > .page-header h1 { font-size: clamp(2.25rem, 11vw, 3.35rem); }
+  body[data-entity-theme="edition"] .data-panel,
+  body[data-entity-theme="edition"] .glass { border-radius: min(var(--edition-public-radius, 24px), 28px); }
+}
