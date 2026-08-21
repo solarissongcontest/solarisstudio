@@ -205,10 +205,51 @@
     min-height: 3.25rem;
   }
 
+  /* Review cards need a mobile layout of their own. The desktop two-column
+     label/value rows are what made long usernames and NF entry lists look
+     crushed even after the rest of the form had more breathing room. */
+  .confirmations-theme dl {
+    gap: 0 !important;
+  }
+
+  .confirmations-theme dl > div {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: .4rem !important;
+    padding-block: .9rem !important;
+  }
+
+  .confirmations-theme dl dt {
+    font-size: .78rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .confirmations-theme dl dd {
+    min-width: 0;
+    max-width: 100%;
+    text-align: left !important;
+    line-height: 1.5;
+    word-break: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .confirmations-theme dl > div:last-child {
+    padding-bottom: .25rem !important;
+  }
+
+  .confirmations-theme dl > div:first-child {
+    padding-top: .35rem !important;
+  }
+
+  .confirmations-theme h3 + dl {
+    margin-top: .25rem;
+  }
+
   /* The persistent Solaris nav occupies the bottom of the viewport. Give the
      wizard controls real clearance so Continue never feels trapped under it. */
   .app-main .confirmations-theme {
-    padding-bottom: 5.75rem;
+    padding-bottom: 6.75rem;
   }
 }
 
