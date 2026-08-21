@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 import { Panel } from "@/components/AppShell";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
+import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import {
   buildCountryCharacter,
@@ -142,7 +143,12 @@ export function CountryWorldOverview({
   );
 
   if (!hasWorldContent || !data?.schemaReady) {
-    return entryPanel;
+    return (
+      <div className="space-y-5">
+        {entryPanel}
+        <CountryNationalFinals country={country} />
+      </div>
+    );
   }
 
   const character = buildCountryCharacter({
@@ -165,6 +171,7 @@ export function CountryWorldOverview({
   return (
     <div className="space-y-5">
       {entryPanel}
+      <CountryNationalFinals country={country} />
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,.65fr)]">
         <Panel
