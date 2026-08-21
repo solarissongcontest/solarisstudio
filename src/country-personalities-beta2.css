@@ -8,8 +8,7 @@ body[data-entity-theme="country"] :is(.country-personality-card, .country-person
   border-color: color-mix(in srgb, rgb(var(--solaris-accent)) 22%, rgb(var(--solaris-bg-deep)) 78%);
 }
 
-/* RIBBON: the flag is the ribbon itself. Make it crisp and intentional rather
-   than a low-opacity flag vaguely drifting diagonally behind the copy. */
+/* RIBBON: the flag is the ribbon itself. */
 body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero),
 [data-preview-layout="ribbon"] {
   background:
@@ -59,37 +58,6 @@ body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.count
   mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
 }
 
-/* BROADCAST: move from a generic top banner to an actual on-air composition.
-   The flag becomes a slanted source panel beside a clean lower-third-like copy
-   area, preserving legibility even with very busy flags. */
-body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
-[data-preview-layout="broadcast"] {
-  padding-top: clamp(1.5rem, 4vw, 2.5rem) !important;
-  padding-right: clamp(34%, 39vw, 44%) !important;
-  background:
-    linear-gradient(180deg, rgb(var(--solaris-accent) / .08), transparent 36%),
-    linear-gradient(90deg, color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%) 0 67%, rgb(var(--solaris-bg-deep) / .34) 67% 100%) !important;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / .12),
-    inset 0 -3px 0 rgb(var(--solaris-accent) / .48) !important;
-}
-body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
-[data-preview-layout="broadcast"] .country-hero-background-flag {
-  inset: 0 0 0 64% !important;
-  width: 36% !important;
-  height: 100% !important;
-  opacity: .62 !important;
-  transform: none !important;
-  clip-path: polygon(16% 0, 100% 0, 100% 100%, 0 100%) !important;
-  filter: saturate(.92) contrast(1.08) !important;
-}
-body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
-[data-preview-layout="broadcast"] .country-hero-background-flag::before {
-  background-position: center !important;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
-  mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
-}
-
 /* MONUMENT: restrained luxury. Symmetry, double hairlines and a soft centre
    glow do the work instead of another oversized decorative object. */
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero),
@@ -126,27 +94,104 @@ body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.count
   mask-image: linear-gradient(180deg, transparent 0, #000 34%, #000 100%) !important;
 }
 
+/* BROADCAST correction ------------------------------------------------------
+   Broadcast was accidentally changed into a dark right-hand block during the
+   Beta 2 polish pass. Restore the original broadcast language: the real flag
+   is a wide source strip across the top and dissolves vertically into the
+   page. Country, Wiki and the live editor use the exact same geometry. */
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="broadcast"] {
+  padding-top: clamp(5rem, 10vw, 7rem) !important;
+  padding-right: clamp(1.25rem, 4vw, 2.5rem) !important;
+  padding-bottom: clamp(1.25rem, 4vw, 2.5rem) !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="broadcast"] .country-hero-background-flag {
+  inset: 0 0 auto 0 !important;
+  width: 100% !important;
+  height: clamp(4.2rem, 9vw, 6.4rem) !important;
+  opacity: .5 !important;
+  transform: none !important;
+  clip-path: none !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="broadcast"] .country-hero-background-flag::before {
+  background-position: center 45% !important;
+  -webkit-mask-image: linear-gradient(180deg, #000 0 55%, rgb(0 0 0 / .72) 70%, rgb(0 0 0 / .28) 86%, transparent 100%) !important;
+  mask-image: linear-gradient(180deg, #000 0 55%, rgb(0 0 0 / .72) 70%, rgb(0 0 0 / .28) 86%, transparent 100%) !important;
+}
+
+/* The editor had an extra opaque-ish lower-third block that never existed on
+   the public Country or Wiki page. Neutralise it so preview parity is real. */
+[data-preview-layout="broadcast"] > .relative.z-10 > div {
+  border-left: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Rectangular/field personalities already use the flag as part of the hero.
+   Do not also bolt a circular flag chip onto the Country version, which was a
+   major reason Country and Wiki looked like different interpretations. */
+body[data-entity-theme="country"]:is(
+  [data-country-hero-layout="editorial"],
+  [data-country-hero-layout="flag-focus"],
+  [data-country-hero-layout="poster"],
+  [data-country-hero-layout="split"],
+  [data-country-hero-layout="broadcast"],
+  [data-country-hero-layout="panorama"],
+  [data-country-hero-layout="monument"],
+  [data-country-hero-layout="newspaper"],
+  [data-country-hero-layout="ribbon"],
+  [data-country-hero-layout="duotone"],
+  [data-country-hero-layout="horizon"]
+) .country-public-hero .country-hero-identity > :first-child {
+  display: none !important;
+}
+
+/* Keep the two public profile surfaces on the same visual rhythm. Their
+   content is intentionally different, but the hero should not change scale
+   just because the visitor switched from Country to Wiki. */
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+  width: 100%;
+}
+body[data-entity-theme="country"] .wiki-public-hero > .relative.z-10 {
+  width: 100%;
+  max-width: none;
+}
+
 @media (max-width: 767px) {
-  body[data-entity-theme="country"]:is(
-    [data-country-hero-layout="duotone"],
-    [data-country-hero-layout="broadcast"]
-  ) :is(.country-public-hero, .wiki-public-hero),
-  [data-preview-layout="duotone"],
-  [data-preview-layout="broadcast"] {
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero),
+  [data-preview-layout="duotone"] {
     padding-right: 1.25rem !important;
     padding-bottom: 8rem !important;
   }
 
-  body[data-entity-theme="country"]:is(
-    [data-country-hero-layout="duotone"],
-    [data-country-hero-layout="broadcast"]
-  ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
-  [data-preview-layout="duotone"] .country-hero-background-flag,
-  [data-preview-layout="broadcast"] .country-hero-background-flag {
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  [data-preview-layout="duotone"] .country-hero-background-flag {
     inset: auto 0 0 !important;
     width: 100% !important;
     height: 42% !important;
     clip-path: polygon(0 18%, 100% 0, 100% 100%, 0 100%) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
+  [data-preview-layout="broadcast"] {
+    padding-top: 5.2rem !important;
+    padding-right: 1.25rem !important;
+    padding-bottom: 1.25rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  [data-preview-layout="broadcast"] .country-hero-background-flag {
+    inset: 0 0 auto 0 !important;
+    width: 100% !important;
+    height: 4.5rem !important;
+    clip-path: none !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
