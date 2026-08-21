@@ -111,7 +111,7 @@ describe("Beta 2 hardened rollout contract", () => {
     const entries = source("src/integrations/televoting/entries.server.ts");
     const route = source("src/routes/televoting/index.tsx");
 
-    expect(schema).toContain("entry_type IN ('country', 'custom')");
+    expect(schema).toContain("entry_type in ('country','custom')");
     expect(entries).toContain('entry_type: "country" | "custom"');
     expect(entries).toContain('entry_type: "custom"');
     expect(route).toContain("entry_type: entry.entry_type");
