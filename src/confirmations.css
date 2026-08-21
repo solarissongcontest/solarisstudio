@@ -4,11 +4,8 @@
   color: var(--foreground);
   background: transparent;
   font-family: var(--font-sans);
-  letter-spacing: normal;
 }
 
-/* Confirmations is part of Solaris Studio, not a second website hiding inside
-   it. Keep the workflow on the same canvas, typography and surface language. */
 .confirmations-backdrop {
   display: none;
 }
@@ -43,22 +40,25 @@
   font-weight: 600;
 }
 
+/* Main Solaris-style surface */
 .confirmations-surface,
 .confirmations-theme .surface {
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  border-radius: 1.4rem;
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--surface-strong) 92%, transparent), color-mix(in srgb, var(--surface) 94%, transparent));
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--surface-strong) 90%, transparent),
+      color-mix(in srgb, var(--surface) 94%, transparent));
   box-shadow:
-    0 14px 34px rgba(0, 4, 24, 0.12),
+    0 16px 40px rgba(0, 4, 24, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 .confirmations-theme .surface {
-  padding: 0;
+  padding: 1.5rem;
 }
 
 .confirmations-theme .text-white,
@@ -78,30 +78,30 @@
   color: var(--muted-foreground);
 }
 
+/* Inputs should look like Solaris controls rather than giant embedded panels. */
 .confirmations-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 .confirmations-theme textarea,
 .confirmations-theme select {
+  min-height: 3rem;
+  border-radius: .9rem !important;
+  border-color: color-mix(in srgb, var(--border) 88%, transparent) !important;
+  background: color-mix(in srgb, var(--surface) 86%, #071a32 14%) !important;
   color: var(--foreground) !important;
-  border-color: color-mix(in srgb, var(--border) 85%, transparent) !important;
-  background: color-mix(in srgb, var(--surface) 88%, transparent) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025);
 }
 
 .confirmations-theme input:focus,
 .confirmations-theme textarea:focus,
 .confirmations-theme select:focus {
-  border-color: color-mix(in srgb, var(--primary) 50%, var(--border)) !important;
-}
-
-.confirmations-theme .surface > div,
-.confirmations-theme .surface > section {
-  min-width: 0;
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border)) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 13%, transparent) !important;
 }
 
 .confirmations-theme button {
   max-width: 100%;
 }
 
+/* Keep the feature aligned with the same content width as normal Solaris pages. */
 .app-main .confirmations-theme {
   min-height: 0 !important;
   background: transparent !important;
@@ -110,8 +110,8 @@
 .app-main .confirmations-theme > main {
   min-height: 0 !important;
   width: 100% !important;
-  max-width: 52rem !important;
-  margin: 0 auto !important;
+  max-width: 48rem !important;
+  margin-inline: auto !important;
   padding: 0 !important;
 }
 
@@ -120,8 +120,8 @@
 }
 
 .app-main .confirmations-theme header {
+  margin-block: 1.1rem !important;
   text-align: left !important;
-  margin-block: 1.25rem !important;
 }
 
 .app-main .confirmations-theme header > p:first-child {
@@ -130,7 +130,7 @@
 }
 
 .app-main .confirmations-theme header h1 {
-  font-size: clamp(2rem, 5vw, 3.5rem) !important;
+  font-size: clamp(2rem, 5vw, 3.4rem) !important;
   line-height: 1 !important;
 }
 
@@ -147,45 +147,89 @@
   padding: 0 !important;
 }
 
+/* Review blocks keep hierarchy, but without cards nested three layers deep. */
+.confirmations-theme .surface > div:has(> h3 + dl) {
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent) !important;
+  border-radius: 1rem !important;
+  background: color-mix(in srgb, var(--surface) 62%, transparent) !important;
+  padding: 1rem 1.05rem !important;
+}
+
+.confirmations-theme .surface > div:has(> h3 + dl) > h3 {
+  margin-bottom: .65rem !important;
+  color: var(--muted-foreground);
+  font-size: .72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .14em !important;
+}
+
+.confirmations-theme dl > div {
+  min-width: 0;
+}
+
+.confirmations-theme dl dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal !important;
+}
+
+/* This is the actual spacing system. Tailwind space-y uses margins, not gap,
+   so previous gap overrides never meaningfully changed these screens. */
+.confirmations-theme .surface.space-y-6 > * + * {
+  margin-top: 1.2rem !important;
+}
+
+.confirmations-theme .surface .space-y-6 > * + * {
+  margin-top: 1.15rem !important;
+}
+
+.confirmations-theme .surface .space-y-5 > * + * {
+  margin-top: 1rem !important;
+}
+
+.confirmations-theme .surface .space-y-4 > * + * {
+  margin-top: .9rem !important;
+}
+
+.confirmations-theme .surface .space-y-3 > * + * {
+  margin-top: .7rem !important;
+}
+
+.confirmations-theme .surface .space-y-2 > * + * {
+  margin-top: .45rem !important;
+}
+
 @media (max-width: 639px) {
+  /* Consistent Solaris mobile gutter. */
+  .app-main .confirmations-theme {
+    padding-inline: .15rem;
+    padding-bottom: 6.25rem;
+  }
+
+  .app-main .confirmations-theme > main {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
   .confirmations-theme .surface,
   .confirmations-surface {
+    margin-inline: .15rem;
     border-radius: 1.15rem;
-    overflow: visible;
   }
 
   .confirmations-theme .surface {
-    padding: 1.15rem !important;
+    padding: 1rem !important;
   }
 
-  .confirmations-theme .surface > div,
-  .confirmations-theme .surface > section {
-    padding-inline: 0 !important;
+  .confirmations-theme .surface h2 {
+    font-size: 1.6rem !important;
+    line-height: 1.05 !important;
   }
 
-  .confirmations-theme .surface h2,
-  .confirmations-theme .surface h3 {
-    line-height: 1.08;
-  }
-
-  .confirmations-theme .surface .space-y-6 {
-    gap: 1.75rem;
-  }
-
-  .confirmations-theme .surface .space-y-5 {
-    gap: 1.5rem;
-  }
-
-  .confirmations-theme .surface .space-y-4 {
-    gap: 1.25rem;
-  }
-
-  .confirmations-theme .surface .space-y-3 {
-    gap: 1rem;
-  }
-
-  .confirmations-theme .surface .space-y-2 {
-    gap: .65rem;
+  .confirmations-theme .surface h2 + p {
+    margin-top: .35rem !important;
+    font-size: .94rem;
+    line-height: 1.4;
   }
 
   .confirmations-theme label {
@@ -195,54 +239,95 @@
   .confirmations-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   .confirmations-theme textarea,
   .confirmations-theme select {
-    min-height: 3.25rem;
+    min-height: 3.05rem;
     font-size: 16px;
   }
 
-  .confirmations-theme .surface button {
-    min-height: 3.25rem;
+  /* Choice buttons should feel like controls, not full-width content cards. */
+  .confirmations-theme .grid > button {
+    min-height: 3.05rem;
+    padding: .8rem 1rem !important;
+    border-radius: .9rem !important;
+  }
+
+  /* Moderately compact rhythm across normal form steps. */
+  .confirmations-theme .surface.space-y-6 > * + * {
+    margin-top: 1.05rem !important;
+  }
+
+  .confirmations-theme .surface .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+
+  .confirmations-theme .surface .space-y-5 > * + * {
+    margin-top: .9rem !important;
+  }
+
+  .confirmations-theme .surface .space-y-4 > * + * {
+    margin-top: .8rem !important;
+  }
+
+  .confirmations-theme .surface .space-y-3 > * + * {
+    margin-top: .65rem !important;
+  }
+
+  .confirmations-theme .surface .space-y-2 > * + * {
+    margin-top: .4rem !important;
+  }
+
+  /* Review uses compact stacked rows with proper side padding. */
+  .confirmations-theme .surface > div:has(> h3 + dl) {
+    margin-top: 1rem !important;
+    padding: .9rem 1rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .confirmations-theme .surface > div:has(> h3 + dl) + div:has(> h3 + dl) {
+    margin-top: .8rem !important;
   }
 
   .confirmations-theme dl {
-    gap: 0 !important;
+    margin: 0 !important;
   }
 
   .confirmations-theme dl > div {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) !important;
-    gap: .4rem !important;
-    padding-block: .9rem !important;
+    gap: .2rem !important;
+    padding: .65rem 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .confirmations-theme dl > div + div {
+    border-top: 1px solid color-mix(in srgb, var(--border) 64%, transparent) !important;
+  }
+
+  .confirmations-theme dl > div:first-child {
+    padding-top: .15rem !important;
+  }
+
+  .confirmations-theme dl > div:last-child {
+    padding-bottom: .15rem !important;
   }
 
   .confirmations-theme dl dt {
+    color: var(--muted-foreground);
     font-size: .78rem;
     font-weight: 600;
     line-height: 1.25;
   }
 
   .confirmations-theme dl dd {
-    min-width: 0;
     max-width: 100%;
     text-align: left !important;
-    line-height: 1.5;
-    word-break: normal !important;
-    overflow-wrap: anywhere;
+    font-size: .98rem;
+    line-height: 1.42;
   }
 
-  .confirmations-theme dl > div:last-child {
-    padding-bottom: .25rem !important;
-  }
-
-  .confirmations-theme dl > div:first-child {
-    padding-top: .35rem !important;
-  }
-
-  .confirmations-theme h3 + dl {
-    margin-top: .25rem;
-  }
-
-  .app-main .confirmations-theme {
-    padding-bottom: 6.75rem;
+  /* Bottom form actions stay clearly above Solaris' fixed mobile navigation. */
+  .confirmations-theme .surface > div:last-child:has(button) {
+    margin-top: 1.25rem !important;
+    padding-top: 1rem !important;
   }
 }
 
@@ -252,109 +337,5 @@
 }
 
 .confirmations-theme .animate-rise {
-  animation: confirmations-rise .32s ease-out both;
-}
-
-/* Mobile review is intentionally flatter than desktop. Nested cards were
-   consuming too much width and making the final confirmation feel boxed-in. */
-@media (max-width: 639px) {
-  .confirmations-theme .surface {
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: .5rem 0 0 !important;
-  }
-
-  .confirmations-theme .surface > div:has(> h3 + dl) {
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-  }
-
-  .confirmations-theme .surface > div:has(> h3 + dl) + div:has(> h3 + dl) {
-    margin-top: 2.4rem !important;
-    padding-top: 2rem !important;
-    border-top: 1px solid var(--border) !important;
-  }
-
-  .confirmations-theme .surface > div:has(> h3 + dl) > h3 {
-    margin-bottom: .85rem !important;
-    font-size: .72rem !important;
-    letter-spacing: .16em !important;
-  }
-
-  .confirmations-theme dl > div {
-    padding: 1rem 0 1.2rem !important;
-    border-bottom: 0 !important;
-  }
-
-  .confirmations-theme dl > div + div {
-    border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent) !important;
-  }
-
-  .confirmations-theme dl > div:first-child {
-    padding-top: .4rem !important;
-  }
-
-  .confirmations-theme dl > div:last-child {
-    padding-bottom: .5rem !important;
-  }
-
-  .confirmations-theme dl dt {
-    margin-bottom: .15rem;
-    font-size: .76rem;
-  }
-
-  .confirmations-theme dl dd {
-    font-size: 1rem;
-    line-height: 1.55;
-  }
-}
-
-/* Final mobile density pass: keep breathing room at the edges without wasting
-   vertical space between every control. */
-@media (max-width: 639px) {
-  .app-main .confirmations-theme > main {
-    padding-inline: 1rem !important;
-  }
-
-  .confirmations-theme .surface {
-    padding: .75rem 1rem 0 !important;
-  }
-
-  .confirmations-theme .surface .space-y-6 {
-    gap: 1rem !important;
-  }
-
-  .confirmations-theme .surface .space-y-5 {
-    gap: .9rem !important;
-  }
-
-  .confirmations-theme .surface .space-y-4 {
-    gap: .8rem !important;
-  }
-
-  .confirmations-theme .surface .space-y-3 {
-    gap: .7rem !important;
-  }
-
-  .confirmations-theme .surface .space-y-2 {
-    gap: .45rem !important;
-  }
-
-  .confirmations-theme .surface > div:has(> h3 + dl) {
-    padding-inline: 0 !important;
-  }
-
-  .confirmations-theme .surface > div:has(> h3 + dl) + div:has(> h3 + dl) {
-    margin-top: 1.35rem !important;
-    padding-top: 1.15rem !important;
-  }
-
-  .confirmations-theme dl > div {
-    padding: .72rem 0 .82rem !important;
-  }
+  animation: confirmations-rise .28s ease-out both;
 }
