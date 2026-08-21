@@ -5,6 +5,10 @@ import {
   TelevotingBooth,
   type MergedTelevotingEntry,
 } from "@/components/televoting/TelevotingBooth";
+import {
+  TELEVOTE_SUBMITTED_EVENT,
+  type SubmissionReceiptDetail,
+} from "@/lib/submission-receipts";
 
 const receiptKey = (roundId: string) => `ssc_vote_receipt:${roundId}`;
 
@@ -34,16 +38,16 @@ export function TelevotingBoothWithReceipt({
   const [newReceiptDetected, setNewReceiptDetected] = useState(false);
 
   useEffect(() => {
-    if (startedWithReceipt.current || newReceiptDetected) return;
+    if (startedWithReceipt.current) return;
 
-    const detect = () => {
-      if (hasReceipt(roundId)) setNewReceiptDetected(true);
+    const onSubmitted = (event: Event) => {
+      const detail = (event as CustomEvent<SubmissionReceiptDetail>).detail;
+      if (detail?.id === roundId) setNewReceiptDetected(true);
     };
 
-    detect();
-    const timer = window.setInterval(detect, 200);
-    return () => window.clearInterval(timer);
-  }, [newReceiptDetected, roundId]);
+    window.addEventListener(TELEVOTE_SUBMITTED_EVENT, onSubmitted);
+    return () => window.removeEventListener(TELEVOTE_SUBMITTED_EVENT, onSubmitted);
+  }, [roundId]);
 
   if (newReceiptDetected) {
     return (
