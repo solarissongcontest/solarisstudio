@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess } from "@/lib/country-account";
+import { setSolarisPassword } from "@/lib/country-auth";
 
 export const Route = createFileRoute("/auth/reset")({
   head: () => ({
@@ -55,8 +56,9 @@ function ResetPasswordPage() {
 
     setBusy(true);
     try {
-      const { data, error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      await setSolarisPassword(password);
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) throw error ?? new Error("Your password reset session has expired.");
 
       const access = await getCurrentAccountAccess(data.user.id);
       window.location.assign(access.isOrganizer ? "/admin" : "/country-hub");
@@ -72,7 +74,7 @@ function ResetPasswordPage() {
       <PageHeader
         eyebrow="Account recovery"
         title="Choose a new password"
-        description="The recovery link signs you in temporarily so Solaris Studio can replace your password securely."
+        description="The recovery link signs you in temporarily so Solaris Studio can replace your password securely. Known breached passwords are rejected."
       />
 
       <div className="mx-auto max-w-md">
@@ -114,7 +116,7 @@ function ResetPasswordPage() {
                 disabled={busy}
                 className="bg-aurora w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               >
-                {busy ? "Updating…" : "Set new password"}
+                {busy ? "Checking & updating…" : "Set new password"}
               </button>
             </form>
           ) : (
