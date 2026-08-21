@@ -7,7 +7,6 @@ import {
   Home,
   Menu,
   Sparkles,
-  Trophy,
   User,
   X,
   type LucideIcon,
@@ -34,6 +33,11 @@ const EXPLORE_NAV: PublicNavItem[] = [
   { to: "/wiki", label: "Wiki", description: "Read detailed country pages" },
 ];
 
+const MOBILE_EXPLORE_NAV: PublicNavItem[] = [
+  { to: "/results", label: "Results", description: "Open published scoreboards and result views" },
+  ...EXPLORE_NAV,
+];
+
 const INSIGHTS_NAV: PublicNavItem[] = [
   { to: "/analysis", label: "Analysis", description: "See what the results and votes show" },
   { to: "/pulse", label: "Pulse", description: "See what has changed recently" },
@@ -56,6 +60,7 @@ const INSIGHT_ROUTES = [
 ] as string[];
 
 const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
+const MOBILE_EXPLORE_ROUTES = ["/results", ...EXPLORE_ROUTES];
 const PARTICIPATE_ROUTES = ["/participate", "/confirmations", "/televoting"];
 const ACCOUNT_ROUTES = ["/me", "/auth", "/my-solaris", "/country-hub"];
 
@@ -144,15 +149,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [menuOpen]);
 
-  if (pathname.startsWith("/admin")) {
-    return <>{children}</>;
-  }
+  if (pathname.startsWith("/admin")) return <>{children}</>;
 
   const roleItems: Array<{ to: string; label: string }> = [];
-
-  if (access.isOrganizer) {
-    roleItems.push({ to: "/admin/operations", label: "Organizer workspace" });
-  }
+  if (access.isOrganizer) roleItems.push({ to: "/admin/operations", label: "Organizer workspace" });
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -172,19 +172,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       to: "/editions",
       label: "Explore",
       icon: Compass,
-      active: anyPathMatches(pathname, EXPLORE_ROUTES),
-    },
-    {
-      to: "/results",
-      label: "Results",
-      icon: Trophy,
-      active: resultsActive,
+      active: anyPathMatches(pathname, MOBILE_EXPLORE_ROUTES),
     },
     {
       to: "/analysis",
       label: "Insights",
       icon: BarChart3,
       active: anyPathMatches(pathname, INSIGHT_ROUTES),
+    },
+    {
+      to: "/predictions",
+      label: "Predict",
+      icon: Sparkles,
+      active: pathMatches(pathname, "/predictions"),
     },
     {
       to: accountHref,
@@ -361,10 +361,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <nav className="scroll-slim flex-1 overflow-y-auto p-3" aria-label="Mobile navigation">
-              <Link to="/results" className={mobileDrawerLink(resultsActive)}>
-                Results
-              </Link>
-              <MobileNavSection title="Explore" items={EXPLORE_NAV} pathname={pathname} />
+              <MobileNavSection title="Explore" items={MOBILE_EXPLORE_NAV} pathname={pathname} />
               <MobileNavSection title="Insights" items={INSIGHTS_NAV} pathname={pathname} />
 
               <div className="mb-5">
