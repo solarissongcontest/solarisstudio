@@ -68,7 +68,7 @@ function VotingSystemWorkspace() {
     setBusy(true);
     try {
       const { error } = await (supabase.from("shows") as any)
-        .update({ voting_config: config })
+        .update({ voting_config: config, qualifier_count: config.qualifiers ?? null })
         .eq("id", selectedShow.id);
       if (error) throw error;
       toast.success(`${selectedShow.name} voting system saved`);
