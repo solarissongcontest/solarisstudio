@@ -1,6 +1,7 @@
 /* Ambient Solaris motion ----------------------------------------------------
-   Gradient movement does most of the visual work. Individual stars only drift,
-   rotate, breathe in scale and occasionally shift focus/twinkle. */
+   Performance-first atmosphere. The public background should feel alive when
+   the pointer moves without continuously repainting/filtering the whole
+   viewport while somebody is simply reading a page. */
 
 .solaris-ambient-background {
   --far-x: 0px;
@@ -17,10 +18,11 @@
   background:
     linear-gradient(var(--solaris-bg-angle, 145deg), rgb(var(--solaris-bg-deep)) 0%, rgb(var(--solaris-bg-deep-2)) 58%, #020616 100%);
   isolation: isolate;
+  contain: strict;
 }
 
-/* Disable the old static star wallpaper while retaining AppShell's element as
-   a transparent stacking layer. */
+/* AppShell keeps this element for route/entity background overrides. The
+   generic Solaris ambience is rendered only once by SolarisAmbientBackground. */
 .app-background {
   background: transparent !important;
 }
@@ -31,47 +33,46 @@
   display: none !important;
 }
 
+/* Radial gradients already have soft edges, so giant CSS blur filters are not
+   necessary. Removing the filters avoids three permanently composited blurred
+   viewport-sized layers. */
 .solaris-ambient-glow {
   position: absolute;
-  border-radius: 46% 54% 59% 41% / 54% 40% 60% 46%;
-  filter: blur(46px);
-  opacity: .68;
-  will-change: transform, border-radius;
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .solaris-ambient-glow-a {
-  left: -18%;
-  top: -20%;
-  width: 78vw;
-  height: 68vh;
-  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-secondary) / .40), rgb(var(--solaris-bg-secondary) / .10) 48%, transparent 74%);
-  animation: solaris-glow-a 42s ease-in-out -13s infinite alternate;
+  left: -22%;
+  top: -24%;
+  width: 82vw;
+  height: 72vh;
+  opacity: .62;
+  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-secondary) / .34), rgb(var(--solaris-bg-secondary) / .10) 48%, transparent 75%);
 }
 
 .solaris-ambient-glow-b {
-  right: -24%;
-  top: 7%;
-  width: 72vw;
+  right: -25%;
+  top: 4%;
+  width: 76vw;
   height: 72vh;
-  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-primary) / .38), rgb(var(--solaris-bg-primary) / .08) 51%, transparent 76%);
-  animation: solaris-glow-b 49s ease-in-out -29s infinite alternate;
+  opacity: .58;
+  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-primary) / .32), rgb(var(--solaris-bg-primary) / .08) 51%, transparent 76%);
 }
 
 .solaris-ambient-glow-c {
-  left: 18%;
-  bottom: -34%;
-  width: 70vw;
-  height: 68vh;
-  opacity: .46;
-  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-tertiary) / .30), rgb(var(--solaris-bg-tertiary) / .06) 54%, transparent 77%);
-  animation: solaris-glow-c 55s ease-in-out -38s infinite alternate;
+  left: 16%;
+  bottom: -36%;
+  width: 72vw;
+  height: 66vh;
+  opacity: .40;
+  background: radial-gradient(ellipse at center, rgb(var(--solaris-bg-tertiary) / .26), rgb(var(--solaris-bg-tertiary) / .055) 54%, transparent 78%);
 }
 
 .solaris-star-layer {
   position: absolute;
   inset: -4vmax;
-  transition: transform 550ms cubic-bezier(.2,.8,.2,1);
-  will-change: transform;
+  transition: transform 180ms ease-out;
 }
 
 .solaris-star-layer-far {
@@ -98,94 +99,31 @@
   object-fit: contain;
   user-select: none;
   opacity: var(--star-opacity);
-  filter: blur(var(--star-blur)) saturate(.72) brightness(1.58);
-  mix-blend-mode: screen;
+  transform: rotate(var(--star-rotate));
   transform-origin: 50% 50%;
-  animation: solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate;
-  will-change: transform, opacity;
 }
 
+/* Two small stars breathe in opacity only. No blur/transform animation means
+   the browser can keep the expensive full-screen composition idle. */
 .solaris-star-twinkle {
-  animation:
-    solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate,
-    solaris-star-twinkle var(--star-twinkle-duration) ease-in-out var(--star-twinkle-delay) infinite alternate;
-}
-
-/* Only a small subset changes blur, because continuously filtering every star
-   would turn mobile Safari into a warm hand-warmer. */
-.solaris-star-focus {
-  animation:
-    solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate,
-    solaris-star-focus var(--star-focus-duration) ease-in-out var(--star-focus-delay) infinite alternate;
-  will-change: transform, opacity, filter;
-}
-
-@keyframes solaris-star-drift {
-  0% {
-    transform: translate3d(var(--star-drift-start-x), var(--star-drift-start-y), 0)
-      rotate(calc(var(--star-rotate) - 3deg))
-      scale(var(--star-scale-from));
-  }
-  48% {
-    transform: translate3d(var(--star-drift-mid-x), var(--star-drift-mid-y), 0)
-      rotate(var(--star-rotate))
-      scale(var(--star-scale-mid));
-  }
-  100% {
-    transform: translate3d(var(--star-drift-x), var(--star-drift-y), 0)
-      rotate(calc(var(--star-rotate) + 3deg))
-      scale(var(--star-scale-to));
-  }
+  animation: solaris-star-twinkle 8s ease-in-out infinite alternate;
 }
 
 @keyframes solaris-star-twinkle {
-  0%, 100% { opacity: var(--star-opacity-low); }
-  52% { opacity: var(--star-opacity-high); }
-}
-
-@keyframes solaris-star-focus {
-  0%, 100% {
-    filter: blur(var(--star-blur)) saturate(.72) brightness(1.55);
-    opacity: var(--star-opacity-low);
-  }
-  52% {
-    filter: blur(calc(var(--star-blur) + 2.2px)) saturate(.70) brightness(1.68);
-    opacity: var(--star-focus-opacity);
-  }
-}
-
-@keyframes solaris-glow-a {
-  0% { transform: translate3d(-2vw, -2vh, 0) scale(.96) rotate(-4deg); border-radius: 46% 54% 59% 41% / 54% 40% 60% 46%; }
-  45% { transform: translate3d(10vw, 7vh, 0) scale(1.10) rotate(3deg); border-radius: 58% 42% 48% 52% / 43% 59% 41% 57%; }
-  100% { transform: translate3d(16vw, 15vh, 0) scale(1.03) rotate(7deg); border-radius: 39% 61% 55% 45% / 62% 38% 62% 38%; }
-}
-
-@keyframes solaris-glow-b {
-  0% { transform: translate3d(2vw, -3vh, 0) scale(1.04) rotate(5deg); border-radius: 50% 50% 43% 57% / 59% 43% 57% 41%; }
-  55% { transform: translate3d(-12vw, 9vh, 0) scale(.94) rotate(-3deg); border-radius: 61% 39% 59% 41% / 42% 61% 39% 58%; }
-  100% { transform: translate3d(-17vw, 18vh, 0) scale(1.08) rotate(-8deg); border-radius: 44% 56% 38% 62% / 57% 46% 54% 43%; }
-}
-
-@keyframes solaris-glow-c {
-  0% { transform: translate3d(-10vw, 3vh, 0) scale(.95) rotate(-5deg); }
-  50% { transform: translate3d(8vw, -11vh, 0) scale(1.12) rotate(2deg); }
-  100% { transform: translate3d(15vw, -18vh, 0) scale(1.02) rotate(6deg); }
+  0%, 100% { opacity: calc(var(--star-opacity) * .72); }
+  50% { opacity: var(--star-opacity); }
 }
 
 @media (max-width: 767px) {
-  .solaris-ambient-glow {
-    filter: blur(34px);
-  }
-
   .solaris-ambient-glow-a,
   .solaris-ambient-glow-b {
-    width: 104vw;
-    height: 70vh;
+    width: 108vw;
+    height: 68vh;
   }
 
   .solaris-ambient-glow-c {
-    width: 96vw;
-    height: 58vh;
+    width: 100vw;
+    height: 54vh;
   }
 
   .solaris-star-layer {
@@ -193,32 +131,20 @@
     transition: none;
   }
 
-  /* Cursor/scroll parallax is intentionally removed on phones. Ambient drift
-     and gradient movement remain, but focus-filter animation is disabled. */
   .solaris-star-layer-far,
   .solaris-star-layer-mid,
   .solaris-star-layer-near {
     transform: none;
   }
-
-  .solaris-star-focus {
-    animation: solaris-star-drift var(--star-duration) ease-in-out var(--star-delay) infinite alternate;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .solaris-ambient-glow,
-  .solaris-star {
+  .solaris-star-twinkle {
     animation: none !important;
   }
 
   .solaris-star-layer {
     transform: none !important;
     transition: none !important;
-  }
-
-  .solaris-star {
-    opacity: var(--star-opacity-low);
-    filter: blur(var(--star-blur)) saturate(.7) brightness(1.5);
   }
 }
