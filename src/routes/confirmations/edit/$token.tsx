@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, LockKeyhole } from "lucide-react";
 
-import { ConfirmationForm } from "@/components/ConfirmationForm";
+import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
 import { Button } from "@/components/ui/button";
 import { resolveEditToken } from "@/lib/confirmation-edit.functions";
 
@@ -113,7 +113,7 @@ function EditConfirmationPage() {
           </p>
         </div>
 
-        <ConfirmationForm
+        <ConfirmationFormWithReceipt
           round={result.round}
           editToken={token}
           prefill={result.submission}
