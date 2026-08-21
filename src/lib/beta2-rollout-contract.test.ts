@@ -34,9 +34,11 @@ describe("Beta 2 hardened rollout contract", () => {
   it("keeps the country workspace progressively disclosed", () => {
     const hub = source("src/routes/_authenticated/country-hub/index.tsx");
     expect(hub).toContain('type HubTab = "overview" | "country" | "page" | "entries"');
-    expect(hub).toContain('setTab("country")');
-    expect(hub).toContain('setTab("page")');
-    expect(hub).toContain('setTab("entries")');
+    expect(hub).toContain('useState<HubTab>("overview")');
+    expect(hub).toContain('setActiveTab(tab.id)');
+    expect(hub).toContain('activeTab === "country"');
+    expect(hub).toContain('activeTab === "page"');
+    expect(hub).toContain('activeTab === "entries"');
   });
 
   it("loads the isolated Beta 2 personality polish after the established repair layer", () => {
