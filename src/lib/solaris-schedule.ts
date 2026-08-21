@@ -8,9 +8,20 @@ export type SolarisScheduleState =
 export type ScheduleWindow = {
   opensAt?: string | null;
   closesAt?: string | null;
+  status?: string | null;
 };
 
 const SOON_MS = 48 * 60 * 60 * 1000;
+const CLOSED_STATUSES = new Set([
+  "closed",
+  "auto_closed",
+  "finished",
+  "complete",
+  "completed",
+  "cancelled",
+  "canceled",
+  "locked",
+]);
 
 function timestamp(value?: string | null) {
   if (!value) return null;
@@ -24,12 +35,22 @@ export function resolveScheduleState(
 ): SolarisScheduleState {
   const opens = timestamp(window.opensAt);
   const closes = timestamp(window.closesAt);
+  const status = window.status?.trim().toLowerCase() ?? "";
+
+  // Explicit lifecycle state is authoritative. A closed round with no
+  // closes_at must never be resurrected as "open" just because its opening
+  // timestamp is in the past.
+  if (CLOSED_STATUSES.has(status)) return "closed";
 
   if (closes !== null && now >= closes) return "closed";
 
   if (opens !== null && now < opens) {
     return opens - now <= SOON_MS ? "opening-soon" : "upcoming";
   }
+
+  // Draft content can have a stale/past opens_at while an organizer is still
+  // preparing it. Treat that as upcoming rather than publicly open.
+  if (status === "draft") return "upcoming";
 
   if (closes !== null && closes - now <= SOON_MS) return "closing-soon";
   return "open";
