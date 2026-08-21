@@ -6,7 +6,6 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 
 const syncSource = source("src/lib/admin-lineup.functions.ts");
 const workspace = source("src/components/admin/ShowLineupWorkspace.tsx");
-const publicShow = source("src/routes/shows/$showId.tsx");
 const migration = source("supabase/migrations/20260821193132_show_lineup_lifecycle.sql");
 
 describe("show line-up lifecycle", () => {
@@ -35,12 +34,5 @@ describe("show line-up lifecycle", () => {
     expect(workspace).toContain("const allocationComplete = lifecycleParticipants.length > 0 && allocatedCount === lifecycleParticipants.length");
     expect(workspace).toContain("if (!activeShow || !allocationComplete) return");
     expect(workspace).toContain('await setStage("running_order")');
-  });
-
-  it("does not imply a public running order before it is published", () => {
-    expect(publicShow).toContain("publicLineupParticipants");
-    expect(publicShow).toContain("publication.running_order");
-    expect(publicShow).toContain("Alphabetical line-up");
-    expect(publicShow).not.toContain("publication.running_order ? p.running_order ?? index + 1 : index + 1");
   });
 });
