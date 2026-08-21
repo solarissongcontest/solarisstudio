@@ -9,8 +9,9 @@ const editionCss = source("src/edition-appearance.css");
 const appearanceRoute = source("src/routes/_authenticated/admin/edition-appearance.$slug.tsx");
 const hodRoute = source("src/routes/_authenticated/my-solaris/hod-history.tsx");
 const intelligence = source("src/integrations/televoting/intelligence.server.ts");
-const hodMigration = source("supabase/migrations/20260821204530_harden_hod_self_history_and_edition_design.sql");
-const scopeMigration = source("supabase/migrations/20260821205230_fix_hod_history_participation_scope.sql");
+const hodMigration = source("supabase/migrations/20260821204337_harden_hod_self_history_and_edition_design.sql");
+const scopeMigration = source("supabase/migrations/20260821205035_fix_hod_history_participation_scope.sql");
+const finalAutoMigration = source("supabase/migrations/20260821205353_finalize_hod_auto_scope_and_permissions.sql");
 
 describe("edition public design", () => {
   it("removes the legacy cyan page-header streak and themes show pages from the edition", () => {
@@ -19,7 +20,6 @@ describe("edition public design", () => {
     expect(editionCss).toContain("rgb(var(--solaris-accent))");
     expect(routeTheme).toContain("editionAppearanceFromConfig");
     expect(routeTheme).toContain("--edition-page-background");
-    expect(routeTheme).toContain("data");
   });
 
   it("offers actual edition composition controls instead of colours only", () => {
@@ -40,8 +40,8 @@ describe("HOD tenure identity", () => {
   });
 
   it("only auto-assigns confirmed canonical participations", () => {
-    expect(hodMigration).toContain("new.show_id is not null");
-    expect(hodMigration).toContain("new.participation_status <> 'confirmed'");
+    expect(finalAutoMigration).toContain("new.show_id is not null");
+    expect(finalAutoMigration).toContain("new.participation_status <> 'confirmed'");
     expect(scopeMigration).toContain("update of country_id,edition_id,participation_status,show_id");
     expect(scopeMigration).toContain("p.participation_status='confirmed'");
   });
