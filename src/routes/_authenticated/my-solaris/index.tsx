@@ -18,6 +18,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
@@ -494,6 +495,8 @@ function MySolarisPage() {
             </div>
           )}
         </Panel>
+
+        <MySolarisPasswordPanel />
 
         <Panel title="Your workspace" description="Deeper editing stays organised away from the dashboard">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
