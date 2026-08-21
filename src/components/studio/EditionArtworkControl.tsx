@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, Loader2, Palette } from "lucide-react";
+import { ImagePlus, LayoutTemplate, Loader2, Palette } from "lucide-react";
 
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { editionLabel, useEditions } from "@/lib/data";
@@ -86,6 +86,7 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
               <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.currentTarget.value = ""; }} />
             </label>
             <Link to="/admin/edition-theme/$slug" params={{ slug }} className="admin-action-secondary"><Palette className="size-4" /> Fine-tune colours</Link>
+            <Link to="/admin/edition-appearance/$slug" params={{ slug }} className="admin-action-secondary"><LayoutTemplate className="size-4" /> Page appearance</Link>
           </div>
 
           {message ? <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{message}</p> : null}
