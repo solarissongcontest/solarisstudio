@@ -148,8 +148,6 @@
 }
 
 @media (max-width: 639px) {
-  /* On phones the form should read as a sequence of calm sections, not a
-     desktop panel squeezed between two browser bars. */
   .confirmations-theme .surface,
   .confirmations-surface {
     border-radius: 1.15rem;
@@ -205,9 +203,6 @@
     min-height: 3.25rem;
   }
 
-  /* Review cards need a mobile layout of their own. The desktop two-column
-     label/value rows are what made long usernames and NF entry lists look
-     crushed even after the rest of the form had more breathing room. */
   .confirmations-theme dl {
     gap: 0 !important;
   }
@@ -246,8 +241,6 @@
     margin-top: .25rem;
   }
 
-  /* The persistent Solaris nav occupies the bottom of the viewport. Give the
-     wizard controls real clearance so Continue never feels trapped under it. */
   .app-main .confirmations-theme {
     padding-bottom: 6.75rem;
   }
@@ -260,4 +253,63 @@
 
 .confirmations-theme .animate-rise {
   animation: confirmations-rise .32s ease-out both;
+}
+
+/* Mobile review is intentionally flatter than desktop. Nested cards were
+   consuming too much width and making the final confirmation feel boxed-in. */
+@media (max-width: 639px) {
+  .confirmations-theme .surface {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: .5rem 0 0 !important;
+  }
+
+  .confirmations-theme .surface > div:has(> h3 + dl) {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+
+  .confirmations-theme .surface > div:has(> h3 + dl) + div:has(> h3 + dl) {
+    margin-top: 2.4rem !important;
+    padding-top: 2rem !important;
+    border-top: 1px solid var(--border) !important;
+  }
+
+  .confirmations-theme .surface > div:has(> h3 + dl) > h3 {
+    margin-bottom: .85rem !important;
+    font-size: .72rem !important;
+    letter-spacing: .16em !important;
+  }
+
+  .confirmations-theme dl > div {
+    padding: 1rem 0 1.2rem !important;
+    border-bottom: 0 !important;
+  }
+
+  .confirmations-theme dl > div + div {
+    border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent) !important;
+  }
+
+  .confirmations-theme dl > div:first-child {
+    padding-top: .4rem !important;
+  }
+
+  .confirmations-theme dl > div:last-child {
+    padding-bottom: .5rem !important;
+  }
+
+  .confirmations-theme dl dt {
+    margin-bottom: .15rem;
+    font-size: .76rem;
+  }
+
+  .confirmations-theme dl dd {
+    font-size: 1rem;
+    line-height: 1.55;
+  }
 }
