@@ -83,6 +83,23 @@ body[data-solaris-family]:not([data-entity-theme]) :is(
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .30), 0 7px 20px rgb(var(--solaris-bg-deep) / .13) !important;
 }
 
+/* Glass Card parity guard --------------------------------------------------
+   Country, Wiki and editor preview all use the flag as material inside the
+   glass. The Country page therefore does not add a second circular flag chip
+   or keep a side-by-side action column that the other two surfaces lack. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .country-public-hero .country-hero-identity > :first-child {
+  display: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .country-public-hero > .relative.z-10 {
+  display: block !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .country-public-hero > .relative.z-10 > div:last-child {
+  margin-top: 1rem !important;
+  justify-content: flex-start !important;
+}
+
 /* Keep route chrome calm on phones. The colour is present, but the navigation
    should never compete with the page itself. */
 @media (max-width: 767px) {
