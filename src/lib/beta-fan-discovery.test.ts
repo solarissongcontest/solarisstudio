@@ -102,7 +102,7 @@ describe("beta-informed fan discovery", () => {
 
   it("unifies signed-in navigation under My Solaris", () => {
     const shell = source("src/components/AppShell.tsx");
-    expect(shell).toContain('const accountHref = email ? "/country-hub" : "/auth"');
+    expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
     expect(shell).toContain("Open My Solaris");
     expect(shell).not.toContain("Profile & activity");
     expect(shell).not.toContain('label: "My country"');
