@@ -7,6 +7,7 @@ import {
   Home,
   Menu,
   Sparkles,
+  Trophy,
   User,
   X,
   type LucideIcon,
@@ -159,6 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const accountHref = email ? "/my-solaris" : "/auth";
+  const resultsActive = pathMatches(pathname, "/results");
   const quickNavigation: Array<{
     to: string;
     label: string;
@@ -173,16 +175,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       active: anyPathMatches(pathname, EXPLORE_ROUTES),
     },
     {
+      to: "/results",
+      label: "Results",
+      icon: Trophy,
+      active: resultsActive,
+    },
+    {
       to: "/analysis",
       label: "Insights",
       icon: BarChart3,
       active: anyPathMatches(pathname, INSIGHT_ROUTES),
-    },
-    {
-      to: "/predictions",
-      label: "Predict",
-      icon: Sparkles,
-      active: pathMatches(pathname, "/predictions"),
     },
     {
       to: accountHref,
@@ -216,6 +218,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               className={desktopNavClass(pathname === "/")}
             >
               Home
+            </Link>
+
+            <Link
+              to="/results"
+              aria-current={resultsActive ? "page" : undefined}
+              className={desktopNavClass(resultsActive)}
+            >
+              Results
             </Link>
 
             <DesktopNavMenu
@@ -351,6 +361,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <nav className="scroll-slim flex-1 overflow-y-auto p-3" aria-label="Mobile navigation">
+              <Link to="/results" className={mobileDrawerLink(resultsActive)}>
+                Results
+              </Link>
               <MobileNavSection title="Explore" items={EXPLORE_NAV} pathname={pathname} />
               <MobileNavSection title="Insights" items={INSIGHTS_NAV} pathname={pathname} />
 
