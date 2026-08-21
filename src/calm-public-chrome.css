@@ -60,12 +60,40 @@ body[data-solaris-family]:not([data-entity-theme]) .public-drawer > :is(div, nav
   border-color: rgb(var(--solaris-accent) / .13) !important;
 }
 
-body[data-solaris-family]:not([data-entity-theme]) :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel) :is(a, button, summary)[aria-current="page"],
+/* Active navigation gets a quiet page-family tint. The Solaris Studio brand
+   is deliberately excluded. TanStack marks the Home brand link as current,
+   and treating that like a normal nav pill created the rectangle seen behind
+   the logo on the homepage. */
+body[data-solaris-family]:not([data-entity-theme]) :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel) :is(a, button, summary)[aria-current="page"]:not([aria-label="Solaris Studio home"]),
 body[data-solaris-family]:not([data-entity-theme]) .mobile-quick-nav a[aria-current="page"],
 body[data-solaris-family]:not([data-entity-theme]) .responsive-tabs button[aria-current="page"] {
   background: rgb(var(--solaris-accent) / .12) !important;
   border-color: rgb(var(--solaris-accent) / .20) !important;
   color: var(--foreground) !important;
+}
+
+/* The brand is never a card, including on Home where the router can mark it
+   as the active link. Match the active selector specificity instead of trying
+   to out-shout it later with increasingly tragic CSS. */
+body[data-solaris-family] .site-nav a[aria-label="Solaris Studio home"],
+body[data-entity-theme] .site-nav a[aria-label="Solaris Studio home"],
+.site-nav a[aria-label="Solaris Studio home"] {
+  background: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+body[data-solaris-family] .site-nav a[aria-label="Solaris Studio home"]::before,
+body[data-solaris-family] .site-nav a[aria-label="Solaris Studio home"]::after,
+body[data-entity-theme] .site-nav a[aria-label="Solaris Studio home"]::before,
+body[data-entity-theme] .site-nav a[aria-label="Solaris Studio home"]::after {
+  content: none !important;
+  display: none !important;
 }
 
 body[data-solaris-family]:not([data-entity-theme]) .responsive-tabs .scroll-slim > div,
