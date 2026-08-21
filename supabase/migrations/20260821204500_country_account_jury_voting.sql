@@ -1,4 +1,5 @@
--- Country-account jury voting with organizer-controlled windows and shared integrity preflight support.
+-- Country-account jury voting with organizer-controlled windows and the same
+-- integrity-preflight storage used by public televoting.
 
 alter table televoting.vote_preflight_checks
   alter column round_id drop not null;
@@ -75,6 +76,29 @@ alter table public.jury_votes
 create index if not exists jury_votes_ballot_submission_idx
   on public.jury_votes (ballot_submission_id);
 
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.jury_ballot_submissions'::regclass
+      and conname = 'jury_ballot_submissions_preflight_id_fkey'
+  ) then
+    alter table public.jury_ballot_submissions
+      add constraint jury_ballot_submissions_preflight_id_fkey
+      foreign key (preflight_id) references televoting.vote_preflight_checks(id) on delete restrict;
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'televoting.vote_preflight_checks'::regclass
+      and conname = 'vote_preflight_checks_jury_ballot_submission_id_fkey'
+  ) then
+    alter table televoting.vote_preflight_checks
+      add constraint vote_preflight_checks_jury_ballot_submission_id_fkey
+      foreign key (jury_ballot_submission_id) references public.jury_ballot_submissions(id) on delete set null;
+  end if;
+end $$;
+
 alter table public.jury_voting_windows enable row level security;
 alter table public.jury_ballot_submissions enable row level security;
 
@@ -82,26 +106,26 @@ drop policy if exists "Organizers can view jury voting windows" on public.jury_v
 create policy "Organizers can view jury voting windows"
   on public.jury_voting_windows for select
   to authenticated
-  using (public.has_role(auth.uid(), 'organizer'::public.app_role));
+  using (public.has_role((select auth.uid()), 'organizer'::public.app_role));
 
 drop policy if exists "Organizers can manage jury voting windows" on public.jury_voting_windows;
 create policy "Organizers can manage jury voting windows"
   on public.jury_voting_windows for all
   to authenticated
-  using (public.has_role(auth.uid(), 'organizer'::public.app_role))
-  with check (public.has_role(auth.uid(), 'organizer'::public.app_role));
+  using (public.has_role((select auth.uid()), 'organizer'::public.app_role))
+  with check (public.has_role((select auth.uid()), 'organizer'::public.app_role));
 
 drop policy if exists "Country accounts can view own jury submissions" on public.jury_ballot_submissions;
 create policy "Country accounts can view own jury submissions"
   on public.jury_ballot_submissions for select
   to authenticated
-  using (user_id = auth.uid());
+  using (user_id = (select auth.uid()));
 
 drop policy if exists "Organizers can view jury submissions" on public.jury_ballot_submissions;
 create policy "Organizers can view jury submissions"
   on public.jury_ballot_submissions for select
   to authenticated
-  using (public.has_role(auth.uid(), 'organizer'::public.app_role));
+  using (public.has_role((select auth.uid()), 'organizer'::public.app_role));
 
 create or replace function public.admin_set_jury_voting_status(
   _show_id uuid,
@@ -114,9 +138,11 @@ set search_path = public
 as $$
 declare
   target_show public.shows;
-  target_edition public.editions;
   participant_count integer;
+  point_count integer;
   jury_enabled boolean;
+  allow_self boolean;
+  participating_roster_count integer;
 begin
   if auth.uid() is null or not public.has_role(auth.uid(), 'organizer'::public.app_role) then
     raise exception 'Organizer access required';
@@ -131,12 +157,12 @@ begin
     raise exception 'Show not found';
   end if;
 
-  select * into target_edition from public.editions where id = target_show.edition_id;
-  if target_edition is null then
-    raise exception 'Edition not found';
-  end if;
-
   jury_enabled := coalesce((target_show.voting_config ->> 'juryEnabled')::boolean, true);
+  allow_self := coalesce((target_show.voting_config ->> 'allowSelfVote')::boolean, false);
+  point_count := jsonb_array_length(
+    coalesce(target_show.voting_config -> 'juryPoints', '[12,10,8,7,6,5,4,3,2,1]'::jsonb)
+  );
+
   if _status = 'open' and not jury_enabled then
     raise exception 'Jury voting is disabled for this show';
   end if;
@@ -147,8 +173,28 @@ begin
     where p.show_id = _show_id
       and (p.participation_status is null or p.participation_status = 'confirmed');
 
-    if participant_count < 2 then
-      raise exception 'Add the show entries before opening jury voting';
+    if participant_count < point_count then
+      raise exception 'This show does not have enough entries for the configured jury point scale';
+    end if;
+
+    if not allow_self and participant_count = point_count then
+      if not exists (select 1 from public.voters where show_id = _show_id) then
+        raise exception 'Add one more entry or shorten the jury point scale because participating juries cannot vote for themselves';
+      end if;
+
+      select count(*) into participating_roster_count
+      from public.voters v
+      where v.show_id = _show_id
+        and exists (
+          select 1 from public.participants p
+          where p.show_id = _show_id
+            and p.country_id = v.country_id
+            and (p.participation_status is null or p.participation_status = 'confirmed')
+        );
+
+      if participating_roster_count > 0 then
+        raise exception 'The configured jury scale leaves participating juries too few eligible entries after self-voting is blocked';
+      end if;
     end if;
 
     update public.jury_voting_windows
@@ -172,25 +218,12 @@ begin
   on conflict (show_id) do update set
     edition_id = excluded.edition_id,
     status = excluded.status,
-    opened_at = case
-      when excluded.status = 'open' then now()
-      else public.jury_voting_windows.opened_at
-    end,
-    closed_at = case
-      when excluded.status = 'closed' then now()
-      else null
-    end,
-    opened_by = case
-      when excluded.status = 'open' then auth.uid()
-      else public.jury_voting_windows.opened_by
-    end,
+    opened_at = case when excluded.status = 'open' then now() else jury_voting_windows.opened_at end,
+    closed_at = case when excluded.status = 'closed' then now() else null end,
+    opened_by = case when excluded.status = 'open' then auth.uid() else jury_voting_windows.opened_by end,
     updated_at = now();
 
-  return jsonb_build_object(
-    'ok', true,
-    'show_id', _show_id,
-    'status', _status
-  );
+  return jsonb_build_object('ok', true, 'show_id', _show_id, 'status', _status);
 end;
 $$;
 
@@ -222,9 +255,7 @@ begin
     return jsonb_build_object('ok', false, 'error', 'account_suspended');
   end if;
 
-  select * into country_row
-  from public.countries
-  where id = account_row.country_id;
+  select * into country_row from public.countries where id = account_row.country_id;
 
   select coalesce(jsonb_agg(round_data order by edition_number desc, show_order asc), '[]'::jsonb)
   into rounds
@@ -239,7 +270,7 @@ begin
         'edition_id', e.id,
         'edition_name', e.name,
         'edition_number', e.edition_number,
-        'status', w.status,
+        'status', coalesce(w.status, 'closed'),
         'opened_at', w.opened_at,
         'closed_at', w.closed_at,
         'point_scale', coalesce(s.voting_config -> 'juryPoints', '[12,10,8,7,6,5,4,3,2,1]'::jsonb),
@@ -283,10 +314,11 @@ begin
             and (p.participation_status is null or p.participation_status = 'confirmed')
         )
       ) as round_data
-    from public.jury_voting_windows w
-    join public.shows s on s.id = w.show_id
-    join public.editions e on e.id = w.edition_id
+    from public.shows s
+    join public.editions e on e.id = s.edition_id
+    left join public.jury_voting_windows w on w.show_id = s.id
     where e.status = 'active'
+      and coalesce((s.voting_config ->> 'juryEnabled')::boolean, true)
   ) q;
 
   return jsonb_build_object(
@@ -341,14 +373,9 @@ begin
   end if;
 
   select * into target_show from public.shows where id = _show_id;
-  if target_show is null then
-    raise exception 'Show not found';
-  end if;
+  if target_show is null then raise exception 'Show not found'; end if;
 
-  select * into window_row
-  from public.jury_voting_windows
-  where show_id = _show_id;
-
+  select * into window_row from public.jury_voting_windows where show_id = _show_id;
   if window_row is null or window_row.status <> 'open' then
     raise exception 'Jury voting is not open for this show';
   end if;
@@ -360,14 +387,10 @@ begin
   if exists (select 1 from public.voters where show_id = _show_id) then
     select * into voter_row
     from public.voters
-    where show_id = _show_id
-      and country_id = account_row.country_id
+    where show_id = _show_id and country_id = account_row.country_id
     order by sort_order, created_at
     limit 1;
-
-    if voter_row is null then
-      raise exception 'Your country is not in the jury roster for this show';
-    end if;
+    if voter_row is null then raise exception 'Your country is not in the jury roster for this show'; end if;
   else
     if not exists (
       select 1 from public.participants p
@@ -389,13 +412,13 @@ begin
     raise exception 'A jury ballot for your country is already recorded';
   end if;
 
-  if jsonb_typeof(_entries) <> 'array' then
-    raise exception 'Invalid jury ballot';
-  end if;
+  if jsonb_typeof(_entries) <> 'array' then raise exception 'Invalid jury ballot'; end if;
 
   select array_agg(value::integer order by value::integer desc)
   into expected_points
-  from jsonb_array_elements_text(coalesce(target_show.voting_config -> 'juryPoints', '[12,10,8,7,6,5,4,3,2,1]'::jsonb));
+  from jsonb_array_elements_text(
+    coalesce(target_show.voting_config -> 'juryPoints', '[12,10,8,7,6,5,4,3,2,1]'::jsonb)
+  );
 
   select count(*), array_agg((entry ->> 'points')::integer order by (entry ->> 'points')::integer desc)
   into entry_count, submitted_points
@@ -459,8 +482,7 @@ begin
 
   select ce.id into voter_entity
   from public.contest_entities ce
-  where ce.edition_id = target_show.edition_id
-    and ce.country_id = account_row.country_id
+  where ce.edition_id = target_show.edition_id and ce.country_id = account_row.country_id
   order by ce.created_at
   limit 1;
 
@@ -468,27 +490,13 @@ begin
     edition_id, show_id, user_id, voter_country_id, voter_entity_id, voter_id,
     preflight_id, risk_score, status
   ) values (
-    target_show.edition_id,
-    _show_id,
-    auth.uid(),
-    account_row.country_id,
-    voter_entity,
-    voter_row.id,
-    _preflight_id,
-    preflight_row.risk_score,
-    'submitted'
+    target_show.edition_id, _show_id, auth.uid(), account_row.country_id, voter_entity,
+    voter_row.id, _preflight_id, preflight_row.risk_score, 'submitted'
   ) returning id into ballot_id;
 
   insert into public.jury_votes (
-    edition_id,
-    show_id,
-    voter_id,
-    voter_country_id,
-    voter_entity_id,
-    receiving_country_id,
-    receiving_entity_id,
-    points,
-    ballot_submission_id
+    edition_id, show_id, voter_id, voter_country_id, voter_entity_id,
+    receiving_country_id, receiving_entity_id, points, ballot_submission_id
   )
   select
     target_show.edition_id,
@@ -498,12 +506,10 @@ begin
     voter_entity,
     (entry ->> 'target_country_id')::uuid,
     (
-      select ce.id
-      from public.contest_entities ce
+      select ce.id from public.contest_entities ce
       where ce.edition_id = target_show.edition_id
         and ce.country_id = (entry ->> 'target_country_id')::uuid
-      order by ce.created_at
-      limit 1
+      order by ce.created_at limit 1
     ),
     (entry ->> 'points')::integer,
     ballot_id
@@ -517,10 +523,10 @@ begin
 end;
 $$;
 
+revoke all on function public.admin_set_jury_voting_status(uuid, text) from public, anon;
+revoke all on function public.country_jury_voting_context() from public, anon;
+revoke all on function public.submit_country_jury_ballot(uuid, jsonb, uuid) from public, anon;
+
 grant execute on function public.admin_set_jury_voting_status(uuid, text) to authenticated;
 grant execute on function public.country_jury_voting_context() to authenticated;
 grant execute on function public.submit_country_jury_ballot(uuid, jsonb, uuid) to authenticated;
-
-revoke all on function public.admin_set_jury_voting_status(uuid, text) from anon;
-revoke all on function public.country_jury_voting_context() from anon;
-revoke all on function public.submit_country_jury_ballot(uuid, jsonb, uuid) from anon;
