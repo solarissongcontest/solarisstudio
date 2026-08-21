@@ -111,7 +111,7 @@ function MySolarisPage() {
     return [...rounds]
       .filter((round) => {
         const state = resolveScheduleState(
-          { opensAt: round.opens_at, closesAt: round.closes_at },
+          { status: round.status, opensAt: round.opens_at, closesAt: round.closes_at },
           now,
         );
         return state !== "closed";
@@ -168,7 +168,10 @@ function MySolarisPage() {
   }
 
   const nextRoundState = nextRound
-    ? resolveScheduleState({ opensAt: nextRound.opens_at, closesAt: nextRound.closes_at }, now)
+    ? resolveScheduleState(
+        { status: nextRound.status, opensAt: nextRound.opens_at, closesAt: nextRound.closes_at },
+        now,
+      )
     : null;
   const untilRound = nextRound?.opens_at ? millisecondsUntil(nextRound.opens_at, now) : null;
   const confirmationReveal = confirmationDateToUtc(currentConfirmation?.reveal_exact_date);
