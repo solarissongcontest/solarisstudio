@@ -8,6 +8,7 @@ import {
   ListChecks,
   ListOrdered,
   RadioTower,
+  RefreshCw,
   Scale,
   Trophy,
   Users,
@@ -135,6 +136,7 @@ function EditionHome({ slug }: { slug: string }) {
         statusTone={shows.length && showsWithEntries.length === shows.length ? "ready" : shows.length ? "attention" : "neutral"}
       >
         <WorkspaceLink icon={ListChecks} title="Shows" description="Create stages and manage each show's basic setup." to={`/admin/shows/${slug}`} status={shows.length ? `${shows.length} configured` : "Start here"} />
+        <WorkspaceLink icon={RefreshCw} title="Sync confirmed countries" description="Add confirmed edition countries to any show in one click. Their canonical song and listening links come with them." to={`/admin/lineup-sync/${slug}`} status="Bulk line-ups" />
         <WorkspaceLink icon={ListOrdered} title="Entries & running order" description="Build line-ups, edit songs and reorder entries." to={`/admin/entries/${slug}`} status={shows.length ? `${showsWithEntries.length}/${shows.length} filled` : "Waiting for shows"} />
       </WorkflowGroup>
 
