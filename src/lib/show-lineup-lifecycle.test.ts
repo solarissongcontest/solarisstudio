@@ -6,7 +6,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 
 const syncSource = source("src/lib/admin-lineup.functions.ts");
 const workspace = source("src/components/admin/ShowLineupWorkspace.tsx");
-const migration = source("supabase/migrations/20260821203000_show_lineup_lifecycle.sql");
+const migration = source("supabase/migrations/20260821193132_show_lineup_lifecycle.sql");
 
 describe("show line-up lifecycle", () => {
   it("never invents a running order when syncing confirmed countries", () => {
