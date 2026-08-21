@@ -28,12 +28,13 @@ describe("calm public UI contract", () => {
   });
 
   it("keeps Glass Card country composition aligned with Wiki and preview", () => {
-    const chrome = source("src/calm-public-chrome.css");
-    const personalities = source("src/country-personalities-beta2.css");
-    expect(chrome).toContain('data-country-hero-layout="glass-card"');
-    expect(chrome).toContain('.country-hero-identity > :first-child');
-    expect(chrome).toContain('display: block !important');
-    expect(personalities).toContain('[data-preview-layout="glass-card"] > .relative.z-10');
-    expect(personalities).toContain('width: min(100%, 41rem) !important');
+    const glass = source("src/country-glass-parity.css");
+    expect(glass).toContain('data-country-hero-layout="glass-card"');
+    expect(glass).toContain('[data-preview-layout="glass-card"]');
+    expect(glass).toContain('content: none !important');
+    expect(glass).toContain('display: none !important');
+    expect(glass).toContain('[data-preview-layout="glass-card"] > .relative.z-10');
+    expect(glass).toContain('width: min(100%, 41rem) !important');
+    expect(glass).toContain('.country-glass-panel-flag');
   });
 });
