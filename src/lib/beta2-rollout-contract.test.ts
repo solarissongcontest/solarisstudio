@@ -20,7 +20,7 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(overview).toContain('label="Discover"');
     expect(overview).toContain('label="Deep dive"');
 
-    for (const route of ["analysis", "pulse", "countries", "wiki"]) {
+    for (const route of ["analysis", "pulse", "countries", "wiki", "editions", "records"]) {
       const root = source(`src/routes/${route}.tsx`);
       expect(root).toContain("<PublicOverview");
       expect(root).toContain("<Outlet />");
@@ -56,6 +56,15 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(hub).toContain('activeTab === "entries"');
   });
 
+  it("keeps the expanded personal portal mounted on My Solaris", () => {
+    const authLayout = source("src/routes/_authenticated/route.tsx");
+    const portal = source("src/components/MySolarisPortalExtension.tsx");
+    expect(authLayout).toContain("<MySolarisPortalExtension />");
+    for (const section of ["Saved", "Results dashboard", "Predictions", "Compare", "Activity"]) {
+      expect(portal).toContain(`title="${section}"`);
+    }
+  });
+
   it("loads the isolated Beta 2 personality polish after the established repair layer", () => {
     const visual = source("src/components/RouteVisualTheme.tsx");
     const css = source("src/country-personalities-beta2.css");
@@ -77,6 +86,36 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(css).toContain('[data-preview-layout="broadcast"] > .relative.z-10 > div');
     expect(css).toContain("background: transparent !important");
     expect(css).not.toContain("padding-right: clamp(34%, 39vw, 44%)");
+  });
+
+  it("shows the planned ten-second pending to confirmed receipt for submissions and voting", () => {
+    const receipt = source("src/components/DelayedConfirmationState.tsx");
+    const confirmationRoute = source("src/routes/confirmations/index.tsx");
+    const editRoute = source("src/routes/confirmations/edit/$token.tsx");
+    const televotingRoute = source("src/routes/televoting/index.tsx");
+    const session = source("src/lib/session.ts");
+    const antiAbuse = source("src/integrations/televoting/anti-abuse.ts");
+
+    expect(receipt).toContain("const DEFAULT_SECONDS = 10");
+    expect(receipt).toContain('data-confirmation-stage={confirmed ? "confirmed" : "pending"}');
+    expect(receipt).toContain("Finalising receipt");
+    expect(confirmationRoute).toContain("<ConfirmationFormWithReceipt");
+    expect(editRoute).toContain("<ConfirmationFormWithReceipt");
+    expect(televotingRoute).toContain("<TelevotingBoothWithReceipt");
+    expect(session).toContain("CONFIRMATION_SUBMITTED_EVENT");
+    expect(antiAbuse).toContain("TELEVOTE_SUBMITTED_EVENT");
+  });
+
+  it("keeps custom Televoting entries in the same ballot and receipt path as country songs", () => {
+    const schema = source("supabase/migrations/20260818094000_local_televoting_schema.sql");
+    const entries = source("src/integrations/televoting/entries.server.ts");
+    const route = source("src/routes/televoting/index.tsx");
+
+    expect(schema).toContain("entry_type IN ('country', 'custom')");
+    expect(entries).toContain('entry_type: "country" | "custom"');
+    expect(entries).toContain('entry_type: "custom"');
+    expect(route).toContain("entry_type: entry.entry_type");
+    expect(route).toContain("TelevotingBoothWithReceipt");
   });
 
   it("keeps internal NF trigger helpers off the browser RPC surface", () => {
@@ -112,9 +151,11 @@ describe("Beta 2 hardened rollout contract", () => {
   it("uses explicit confirmation status when deciding whether a round is open", () => {
     const schedule = source("src/lib/solaris-schedule.ts");
     const strip = source("src/components/PulseStrip.tsx");
+    const mySolaris = source("src/routes/_authenticated/my-solaris/index.tsx");
     expect(schedule).toContain("CLOSED_STATUSES");
     expect(schedule).toContain('if (CLOSED_STATUSES.has(status)) return "closed"');
     expect(strip).toContain("status: round.status");
+    expect(mySolaris).toContain("status: round.status");
   });
 
   it("rechecks confirmation editing state when an existing edit token is resolved", () => {
