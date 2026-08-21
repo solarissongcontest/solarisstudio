@@ -17,8 +17,8 @@ type PasswordUpdatePayload = {
 
 type FunctionError = Error & { context?: Response };
 
-async function invokeCountryAuth<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("country-auth", { body });
+async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(name, { body });
   if (!error) return data as T;
 
   let message = error.message || "Authentication request failed.";
@@ -32,6 +32,10 @@ async function invokeCountryAuth<T>(body: Record<string, unknown>): Promise<T> {
     }
   }
   throw new Error(message);
+}
+
+async function invokeCountryAuth<T>(body: Record<string, unknown>): Promise<T> {
+  return invokeFunction<T>("country-auth", body);
 }
 
 async function installSession(payload: SessionPayload) {
@@ -72,4 +76,8 @@ export async function requestSolarisPasswordRecovery(identifier: string) {
 
 export async function setSolarisPassword(password: string) {
   return invokeCountryAuth<PasswordUpdatePayload>({ action: "set-password", password });
+}
+
+export async function adminSetSolarisPassword(userId: string, password: string) {
+  return invokeFunction<PasswordUpdatePayload>("admin-country-password", { userId, password });
 }
