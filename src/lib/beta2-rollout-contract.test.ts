@@ -14,6 +14,21 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(shell).toContain('to="/predictions"');
   });
 
+  it("provides real overview-first roots for the planned public sections", () => {
+    const overview = source("src/components/PublicOverview.tsx");
+    expect(overview).toContain('label="Overview"');
+    expect(overview).toContain('label="Discover"');
+    expect(overview).toContain('label="Deep dive"');
+
+    for (const route of ["analysis", "pulse", "countries", "wiki"]) {
+      const root = source(`src/routes/${route}.tsx`);
+      expect(root).toContain("<PublicOverview");
+      expect(root).toContain("<Outlet />");
+    }
+
+    expect(source("src/routes/results/index.tsx")).toContain('eyebrow="Results overview"');
+  });
+
   it("keeps the phone result-view selector mounted as a native Safari-safe select", () => {
     const tabs = source("src/components/ResponsiveTabs.tsx");
     const show = source("src/routes/shows/$showId.tsx");
@@ -54,6 +69,16 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(css).toContain('@media (max-width: 767px)');
   });
 
+  it("keeps Broadcast as a fading top source strip without the preview-only opaque block", () => {
+    const css = source("src/country-personalities-beta2.css");
+    expect(css).toContain("BROADCAST correction");
+    expect(css).toContain("height: clamp(4.2rem, 9vw, 6.4rem) !important");
+    expect(css).toContain("linear-gradient(180deg, #000 0 55%");
+    expect(css).toContain('[data-preview-layout="broadcast"] > .relative.z-10 > div');
+    expect(css).toContain("background: transparent !important");
+    expect(css).not.toContain("padding-right: clamp(34%, 39vw, 44%)");
+  });
+
   it("keeps internal NF trigger helpers off the browser RPC surface", () => {
     const migration = source(
       "supabase/migrations/20260821174500_harden_beta2_trigger_rpc_surface.sql",
@@ -82,6 +107,14 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(migration).toContain(
       "grant execute on function public.set_owned_country_entry_publication(uuid, text, timestamptz, text) to authenticated",
     );
+  });
+
+  it("uses explicit confirmation status when deciding whether a round is open", () => {
+    const schedule = source("src/lib/solaris-schedule.ts");
+    const strip = source("src/components/PulseStrip.tsx");
+    expect(schedule).toContain("CLOSED_STATUSES");
+    expect(schedule).toContain('if (CLOSED_STATUSES.has(status)) return "closed"');
+    expect(strip).toContain("status: round.status");
   });
 
   it("rechecks confirmation editing state when an existing edit token is resolved", () => {
