@@ -16,6 +16,19 @@ function rgb(hex: string): [number, number, number] {
   ];
 }
 
+function channelHex(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+}
+
+function mixHex(first: string, second: string, secondWeight: number) {
+  const a = rgb(first);
+  const b = rgb(second);
+  const weight = Math.max(0, Math.min(1, secondWeight));
+  return `#${a
+    .map((value, index) => channelHex(value * (1 - weight) + b[index] * weight))
+    .join("")}`;
+}
+
 function luminance(hex: string) {
   const channels = rgb(hex).map((value) => {
     const channel = value / 255;
@@ -36,6 +49,20 @@ export function bestButtonText(buttonColor: string) {
   return contrast(dark, buttonColor) >= contrast(light, buttonColor) ? dark : light;
 }
 
+/**
+ * Builds an action colour that belongs to the page palette but still separates
+ * itself from the page. Bright accents become a deeper version; very dark
+ * accents become lighter. Country owners can override this completely.
+ */
+export function deriveCountryButtonColor(accent: string) {
+  const safe = validHex(accent) ? accent.toLowerCase() : "#86c9d7";
+  const lightness = luminance(safe);
+
+  if (lightness >= 0.55) return mixHex(safe, "#07131f", 0.52);
+  if (lightness >= 0.24) return mixHex(safe, "#07131f", 0.30);
+  return mixHex(safe, "#ffffff", 0.30);
+}
+
 export function resolveCountryButtonTheme(
   row: unknown,
   accentFallback: string,
@@ -43,7 +70,7 @@ export function resolveCountryButtonTheme(
   const record = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
   const saved = validHex(record.button_color) ? record.button_color.toLowerCase() : null;
   const fallback = validHex(accentFallback) ? accentFallback.toLowerCase() : "#86c9d7";
-  const buttonColor = saved ?? fallback;
+  const buttonColor = saved ?? deriveCountryButtonColor(fallback);
   return {
     buttonColor,
     buttonForeground: bestButtonText(buttonColor),
