@@ -12,6 +12,7 @@ import "@/country-button-theme.css";
 import "@/edition-public-design.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
+import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
@@ -212,6 +213,7 @@ export function RouteVisualTheme() {
       <CountryPreviewParityController />
       <CountryButtonThemeController />
       <CountryButtonColourPanel />
+      <CountryHodHistoryPanel />
       <EditionPublicDesignPanel />
       <svg
         aria-hidden="true"
