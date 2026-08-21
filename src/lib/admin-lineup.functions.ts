@@ -120,21 +120,12 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
     const wantedIds = canonicalRows.map((row: any) => row.country_id).filter(Boolean) as string[];
     const existingResult = await db
       .from("participants")
-      .select("id,country_id,running_order")
+      .select("id,country_id,running_order,running_order_allocation")
       .eq("show_id", show.id)
       .in("country_id", wantedIds);
     if (existingResult.error) throw new Error(existingResult.error.message);
 
     const existingByCountry = new Map<string, any>((existingResult.data ?? []).map((row: any) => [row.country_id, row]));
-    const orderResult = await db
-      .from("participants")
-      .select("running_order")
-      .eq("show_id", show.id)
-      .order("running_order", { ascending: false })
-      .limit(1);
-    if (orderResult.error) throw new Error(orderResult.error.message);
-    let nextOrder = Math.max(0, Number(orderResult.data?.[0]?.running_order ?? 0)) + 1;
-
     let added = 0;
     let refreshed = 0;
 
@@ -159,6 +150,8 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
       };
 
       if (existing) {
+        // Refresh entry metadata only. Running-order and allocation work belongs to the
+        // show workflow and must never be overwritten by a confirmation sync.
         const update = await db.from("participants").update(shared).eq("id", existing.id);
         if (update.error) throw new Error(update.error.message);
         refreshed += 1;
@@ -167,10 +160,10 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
           ...shared,
           edition_id: data.editionId,
           show_id: show.id,
-          running_order: nextOrder,
+          running_order: null,
+          running_order_allocation: null,
         });
         if (insert.error) throw new Error(insert.error.message);
-        nextOrder += 1;
         added += 1;
       }
     }
