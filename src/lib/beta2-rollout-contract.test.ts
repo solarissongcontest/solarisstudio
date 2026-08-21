@@ -1,41 +1,50 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const exists = (path: string) => existsSync(resolve(process.cwd(), path));
 
 describe("Beta 2 hardened rollout contract", () => {
-  it("makes Results and My Solaris primary navigation destinations", () => {
+  it("keeps desktop Results direct while the mobile hierarchy stays calm", () => {
     const shell = source("src/components/AppShell.tsx");
-    expect(shell).toContain('to: "/results"');
-    expect(shell).toContain('label: "Results"');
     expect(shell).toContain('to="/results"');
+    expect(shell).toContain('const MOBILE_EXPLORE_NAV');
+    expect(shell).toContain('{ to: "/results", label: "Results"');
+    expect(shell).toContain('label: "Explore"');
+    expect(shell).toContain('label: "Insights"');
+    expect(shell).toContain('label: "Predict"');
     expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
-    expect(shell).toContain('to="/predictions"');
+    expect(shell).not.toContain('label: "Results",\n      icon:');
   });
 
-  it("provides real overview-first roots for the planned public sections", () => {
-    const overview = source("src/components/PublicOverview.tsx");
-    expect(overview).toContain('label="Overview"');
-    expect(overview).toContain('label="Discover"');
-    expect(overview).toContain('label="Deep dive"');
-
+  it("opens public hubs directly instead of inserting generic overview gates", () => {
+    expect(exists("src/components/PublicOverview.tsx")).toBe(false);
     for (const route of ["analysis", "pulse", "countries", "wiki", "editions", "records"]) {
-      const root = source(`src/routes/${route}.tsx`);
-      expect(root).toContain("<PublicOverview");
-      expect(root).toContain("<Outlet />");
+      expect(exists(`src/routes/${route}.tsx`)).toBe(false);
+      expect(exists(`src/routes/${route}/index.tsx`)).toBe(true);
     }
 
-    expect(source("src/routes/results/index.tsx")).toContain('eyebrow="Results overview"');
+    const countries = source("src/routes/countries/index.tsx");
+    const wiki = source("src/routes/wiki/index.tsx");
+    expect(countries).toContain('eyebrow="Delegation directory"');
+    expect(countries).toContain("Most successful delegations");
+    expect(wiki).toContain('eyebrow="Terra Solaris"');
+    expect(wiki).toContain("Browse the Wiki");
+
+    const results = source("src/routes/results/index.tsx");
+    expect(results).toContain("Latest published result");
+    expect(results).not.toContain("01 Overview");
+    expect(results).not.toContain("Deep dive");
   });
 
   it("keeps the phone result-view selector mounted as a native Safari-safe select", () => {
     const tabs = source("src/components/ResponsiveTabs.tsx");
     const show = source("src/routes/shows/$showId.tsx");
-    expect(tabs).toContain('<select');
+    expect(tabs).toContain("<select");
     expect(tabs).toContain('className="md:hidden"');
     expect(tabs).toContain('className="scroll-slim hidden overflow-x-auto md:block"');
-    expect(show).toContain('<ResponsiveTabs');
+    expect(show).toContain("<ResponsiveTabs");
     expect(show).toContain('label="Show view"');
   });
 
@@ -43,14 +52,14 @@ describe("Beta 2 hardened rollout contract", () => {
     const legacy = source("src/routes/results/$slug.tsx");
     expect(legacy).toContain('createFileRoute("/results/$slug")');
     expect(legacy).toContain('to: "/shows/$showId"');
-    expect(legacy).toContain('resolveShowPublication(show).results');
+    expect(legacy).toContain("resolveShowPublication(show).results");
   });
 
   it("keeps the country workspace progressively disclosed", () => {
     const hub = source("src/routes/_authenticated/country-hub/index.tsx");
     expect(hub).toContain('type HubTab = "overview" | "country" | "page" | "entries"');
     expect(hub).toContain('useState<HubTab>("overview")');
-    expect(hub).toContain('setActiveTab(tab.id)');
+    expect(hub).toContain("setActiveTab(tab.id)");
     expect(hub).toContain('activeTab === "country"');
     expect(hub).toContain('activeTab === "page"');
     expect(hub).toContain('activeTab === "entries"');
@@ -68,14 +77,14 @@ describe("Beta 2 hardened rollout contract", () => {
   it("loads the isolated Beta 2 personality polish after the established repair layer", () => {
     const visual = source("src/components/RouteVisualTheme.tsx");
     const css = source("src/country-personalities-beta2.css");
-    expect(visual.indexOf('country-personalities-beta2.css')).toBeGreaterThan(
-      visual.indexOf('country-personalities-v4.css'),
+    expect(visual.indexOf("country-personalities-beta2.css")).toBeGreaterThan(
+      visual.indexOf("country-personalities-v4.css"),
     );
     for (const layout of ["ribbon", "duotone", "broadcast", "monument", "horizon"]) {
       expect(css).toContain(`data-country-hero-layout="${layout}"`);
       expect(css).toContain(`data-preview-layout="${layout}"`);
     }
-    expect(css).toContain('@media (max-width: 767px)');
+    expect(css).toContain("@media (max-width: 767px)");
   });
 
   it("keeps Broadcast as a fading top source strip without the preview-only opaque block", () => {
@@ -86,6 +95,25 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(css).toContain('[data-preview-layout="broadcast"] > .relative.z-10 > div');
     expect(css).toContain("background: transparent !important");
     expect(css).not.toContain("padding-right: clamp(34%, 39vw, 44%)");
+  });
+
+  it("uses one Glass Card surface and matches its preview geometry", () => {
+    const css = source("src/country-personalities-beta2.css");
+    expect(css).toContain("GLASS CARD correction");
+    expect(css).toContain('data-country-hero-layout="glass-card"');
+    expect(css).toContain('[data-preview-layout="glass-card"] > .relative.z-10');
+    expect(css).toContain("background: transparent !important");
+    expect(css).toContain("width: min(100%, 41rem) !important");
+    expect(css).toContain("backdrop-filter: blur(24px) saturate(175%) brightness(1.06) !important");
+  });
+
+  it("lets entity colours reach the page chrome and interactive controls", () => {
+    const css = source("src/country-personalities-beta2.css");
+    expect(css).toContain("body[data-entity-theme] .site-nav");
+    expect(css).toContain("body[data-entity-theme] .mobile-quick-nav");
+    expect(css).toContain(":is(.public-drawer, .nav-menu-panel)");
+    expect(css).toContain("body[data-entity-theme] :is(input:not([type=\"checkbox\"])");
+    expect(css).toContain("body[data-entity-theme] :is(.bg-aurora:is(button, a, [role=\"button\"])");
   });
 
   it("shows the planned ten-second pending to confirmed receipt for submissions and voting", () => {
