@@ -24,6 +24,16 @@ import {
 
 const DEFAULT_CATEGORIES = PULSE_CATEGORY_OPTIONS.map(([value]) => value);
 
+function confirmationState(
+  round: { status?: string | null; opens_at?: string | null; closes_at?: string | null },
+  now: number,
+) {
+  return resolveScheduleState(
+    { status: round.status, opensAt: round.opens_at, closesAt: round.closes_at },
+    now,
+  );
+}
+
 export function PulseStrip() {
   const { data: user } = useFanSession();
   const { data: eventsData } = useContentEvents(12);
@@ -65,12 +75,12 @@ export function PulseStrip() {
     return [...(roundsQuery.data ?? [])]
       .filter((round) =>
         ["upcoming", "opening-soon", "open", "closing-soon"].includes(
-          resolveScheduleState({ opensAt: round.opens_at, closesAt: round.closes_at }, now),
+          confirmationState(round, now),
         ),
       )
       .sort((a, b) => {
-        const aState = resolveScheduleState({ opensAt: a.opens_at, closesAt: a.closes_at }, now);
-        const bState = resolveScheduleState({ opensAt: b.opens_at, closesAt: b.closes_at }, now);
+        const aState = confirmationState(a, now);
+        const bState = confirmationState(b, now);
         const score = (state: string) =>
           state === "open" || state === "closing-soon" ? 0 : state === "opening-soon" ? 1 : 2;
         const difference = score(aState) - score(bState);
@@ -80,9 +90,7 @@ export function PulseStrip() {
       })[0];
   }, [roundsQuery.data, now]);
 
-  const roundState = activeRound
-    ? resolveScheduleState({ opensAt: activeRound.opens_at, closesAt: activeRound.closes_at }, now)
-    : null;
+  const roundState = activeRound ? confirmationState(activeRound, now) : null;
   const untilOpen = activeRound?.opens_at ? millisecondsUntil(activeRound.opens_at, now) : null;
   const untilClose = activeRound?.closes_at ? millisecondsUntil(activeRound.closes_at, now) : null;
 
