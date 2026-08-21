@@ -46,13 +46,14 @@ export function EditionPublicDesignPanel() {
     if (!slug) return;
     const cards = Array.from(document.querySelectorAll<HTMLElement>(".admin-page .admin-card"));
     const paletteCard = cards.find((card) => card.textContent?.includes("Interface palette"));
-    const anchor = paletteCard ?? document.querySelector<HTMLElement>(".admin-page");
-    if (!anchor?.parentElement && !paletteCard) return;
+    const page = document.querySelector<HTMLElement>(".admin-page");
+    if (!paletteCard && !page) return;
+
     const node = document.createElement("div");
     node.dataset.editionPublicDesignPanel = "true";
     node.className = "mb-4";
     if (paletteCard) paletteCard.insertAdjacentElement("afterend", node);
-    else anchor.appendChild(node);
+    else page!.appendChild(node);
     setHost(node);
     return () => {
       node.remove();
