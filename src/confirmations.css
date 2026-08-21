@@ -93,8 +93,6 @@
   border-color: color-mix(in srgb, var(--primary) 50%, var(--border)) !important;
 }
 
-/* The wizard used to become one enormous green slab on mobile. Let the page
-   breathe like the rest of Solaris and keep its controls compact. */
 .confirmations-theme .surface > div,
 .confirmations-theme .surface > section {
   min-width: 0;
@@ -150,15 +148,67 @@
 }
 
 @media (max-width: 639px) {
+  /* On phones the form should read as a sequence of calm sections, not a
+     desktop panel squeezed between two browser bars. */
   .confirmations-theme .surface,
   .confirmations-surface {
     border-radius: 1.15rem;
+    overflow: visible;
+  }
+
+  .confirmations-theme .surface {
+    padding: 1.15rem !important;
+  }
+
+  .confirmations-theme .surface > div,
+  .confirmations-theme .surface > section {
+    padding-inline: 0 !important;
+  }
+
+  .confirmations-theme .surface h2,
+  .confirmations-theme .surface h3 {
+    line-height: 1.08;
+  }
+
+  .confirmations-theme .surface .space-y-6 {
+    gap: 1.75rem;
+  }
+
+  .confirmations-theme .surface .space-y-5 {
+    gap: 1.5rem;
+  }
+
+  .confirmations-theme .surface .space-y-4 {
+    gap: 1.25rem;
+  }
+
+  .confirmations-theme .surface .space-y-3 {
+    gap: 1rem;
+  }
+
+  .confirmations-theme .surface .space-y-2 {
+    gap: .65rem;
+  }
+
+  .confirmations-theme label {
+    line-height: 1.3;
   }
 
   .confirmations-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   .confirmations-theme textarea,
   .confirmations-theme select {
+    min-height: 3.25rem;
     font-size: 16px;
+  }
+
+  .confirmations-theme .surface button {
+    min-height: 3.25rem;
+  }
+
+  /* The persistent Solaris nav occupies the bottom of the viewport. Give the
+     wizard controls real clearance so Continue never feels trapped under it. */
+  .app-main .confirmations-theme {
+    padding-bottom: 5.75rem;
   }
 }
 
