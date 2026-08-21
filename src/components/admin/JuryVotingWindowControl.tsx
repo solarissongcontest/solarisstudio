@@ -26,7 +26,7 @@ export function JuryVotingWindowControl() {
   const match = location.pathname.match(/^\/admin\/jury\/([^/]+)\/?$/i);
   const matchedSlug = match?.[1];
   const slug = matchedSlug ? decodeURIComponent(matchedSlug) : null;
-  const { data: edition } = useEdition(slug ?? undefined);
+  const { data: edition } = useEdition(slug ?? "");
   const { data: shows = [] } = useShows(edition?.id);
   const queryClient = useQueryClient();
 
