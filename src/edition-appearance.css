@@ -1,0 +1,185 @@
+/* Edition-owned public design ------------------------------------------------
+   Edition and show pages share one visual identity. This deliberately replaces
+   the old generic cyan header treatment with edition palette variables. */
+
+body[data-entity-theme="edition"] .app-background {
+  background: var(--edition-page-background) !important;
+  background-size: cover !important;
+  background-position: var(--edition-artwork-position, 50% 50%) !important;
+  background-repeat: no-repeat !important;
+}
+
+/* The legacy cyan streak was hard-coded in unified-design.css. Entity pages
+   must never inherit a blue line that has nothing to do with their palette. */
+body[data-entity-theme="edition"] .page-header::after {
+  content: none !important;
+  display: none !important;
+}
+body[data-entity-theme="edition"] .page-header p:first-child {
+  color: rgb(var(--solaris-accent)) !important;
+}
+
+body[data-entity-theme="edition"] .page-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-bottom: 1.1rem !important;
+  padding: clamp(1.1rem, 3vw, 1.8rem) !important;
+  border: 1px solid rgb(var(--solaris-accent) / .17) !important;
+  border-radius: clamp(1.25rem, 3vw, 1.8rem) !important;
+  background:
+    radial-gradient(circle at 88% 8%, rgb(var(--solaris-accent) / .11), transparent 34%),
+    linear-gradient(145deg, rgb(var(--solaris-bg-deep-2) / .72), rgb(var(--solaris-bg-deep) / .88)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .055), 0 16px 48px rgb(0 0 0 / .12) !important;
+}
+
+body[data-entity-theme="edition"] .page-header h1 {
+  max-width: 16ch;
+}
+
+body[data-entity-theme="edition"] .page-header::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  inset: auto -4rem -6rem auto;
+  width: 14rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--solaris-accent) / .11);
+  box-shadow: 0 0 0 2.7rem rgb(var(--solaris-accent) / .025), 0 0 0 5.4rem rgb(var(--solaris-accent) / .016);
+}
+
+/* The edition detail route has a custom first hero instead of PageHeader. */
+body[data-entity-theme="edition"] .app-main > .space-y-5 > section:first-of-type,
+body[data-entity-theme="edition"] .app-main > .space-y-7 > section:first-of-type,
+body[data-entity-theme="edition"] .app-main > [class*="space-y-"] > section:first-of-type {
+  border-color: rgb(var(--solaris-accent) / .2) !important;
+  background:
+    radial-gradient(circle at 82% 10%, rgb(var(--solaris-accent) / .15), transparent 36%),
+    linear-gradient(145deg, rgb(var(--solaris-bg-deep-2) / .84), rgb(var(--solaris-bg-deep) / .9)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 20px 58px rgb(0 0 0 / .15) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-decoration="none"] .page-header::before { content: none; }
+
+body[data-entity-theme="edition"][data-edition-decoration="stars"] .page-header::before {
+  inset: 0;
+  width: auto;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+  opacity: .36;
+  background-image:
+    radial-gradient(circle, rgb(var(--solaris-accent) / .62) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgb(255 255 255 / .45) 0 .8px, transparent 1.2px);
+  background-size: 53px 53px, 79px 79px;
+  background-position: 7px 11px, 27px 33px;
+}
+
+body[data-entity-theme="edition"][data-edition-decoration="artwork"][data-edition-artwork="true"] .page-header::before {
+  inset: 0 0 0 auto;
+  width: min(48%, 28rem);
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-image:
+    linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .98), transparent 55%),
+    var(--edition-artwork-image);
+  background-size: cover;
+  background-position: var(--edition-artwork-position, 50% 50%);
+  opacity: .24;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 28%);
+  mask-image: linear-gradient(90deg, transparent, #000 28%);
+}
+
+/* Header personality presets. They alter composition, not information. */
+body[data-entity-theme="edition"][data-edition-hero="editorial"] .page-header {
+  min-height: clamp(19rem, 40vw, 29rem);
+  display: flex;
+  align-items: flex-end;
+  border-radius: .9rem 2.1rem 2.1rem .9rem !important;
+  border-left: .32rem solid rgb(var(--solaris-accent)) !important;
+}
+body[data-entity-theme="edition"][data-edition-hero="editorial"] .page-header h1 {
+  max-width: 11ch;
+  font-size: clamp(3.2rem, 8vw, 6.5rem) !important;
+  line-height: .86 !important;
+}
+
+body[data-entity-theme="edition"][data-edition-hero="minimal"] .page-header {
+  padding-inline: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgb(var(--solaris-accent) / .15) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="edition"][data-edition-hero="minimal"] .page-header::before { content: none; }
+
+body[data-entity-theme="edition"][data-edition-hero="broadcast"] .page-header {
+  border-radius: .85rem !important;
+  border-left: .38rem solid rgb(var(--solaris-accent)) !important;
+  background: linear-gradient(120deg, rgb(var(--solaris-bg-deep) / .95), rgb(var(--solaris-bg-secondary) / .16)) !important;
+}
+body[data-entity-theme="edition"][data-edition-hero="broadcast"] .page-header h1 {
+  width: fit-content;
+  padding: .08em .16em .12em;
+  background: rgb(var(--solaris-accent));
+  color: var(--solaris-accent-foreground, #07131f) !important;
+  line-height: .92 !important;
+}
+
+body[data-entity-theme="edition"][data-edition-hero="glass"] .page-header {
+  background: color-mix(in srgb, var(--solaris-card-surface) 55%, transparent) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  backdrop-filter: blur(20px) saturate(145%);
+  border-color: rgb(255 255 255 / .16) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .13), 0 18px 54px rgb(0 0 0 / .13) !important;
+}
+
+/* Card personalities. Keep contrast calculations from visual-theme.ts, then
+   adjust material only. */
+body[data-entity-theme="edition"][data-edition-card-style="soft"] :is(.data-panel,.surface) {
+  border-color: rgb(var(--solaris-accent) / .13) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .035) !important;
+}
+body[data-entity-theme="edition"][data-edition-card-style="glass"] :is(.data-panel,.surface,.glass) {
+  background: color-mix(in srgb, var(--solaris-card-surface) 62%, transparent) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  border-color: rgb(255 255 255 / .13) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .09) !important;
+}
+body[data-entity-theme="edition"][data-edition-card-style="solid"] :is(.data-panel,.surface,.glass) {
+  background: var(--solaris-card-surface) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"] .mobile-quick-nav,
+body[data-entity-theme="edition"] .site-nav,
+body[data-entity-theme="edition"] .public-drawer {
+  border-color: rgb(var(--solaris-accent) / .14) !important;
+}
+
+@media (max-width: 767px) {
+  body[data-entity-theme="edition"] .page-header {
+    padding: 1rem !important;
+    border-radius: 1.1rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-hero="editorial"] .page-header {
+    min-height: 18rem;
+    border-radius: .75rem 1.3rem 1.3rem .75rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-hero="editorial"] .page-header h1 {
+    font-size: clamp(2.8rem, 13vw, 4.7rem) !important;
+  }
+  body[data-entity-theme="edition"][data-edition-decoration="artwork"][data-edition-artwork="true"] .page-header::before {
+    width: 62%;
+    opacity: .18;
+  }
+}
