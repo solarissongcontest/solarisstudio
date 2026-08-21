@@ -1,0 +1,93 @@
+/* Calm public chrome --------------------------------------------------------
+   Route-family colour should carry through the whole public page, not stop at
+   the content edge. Country/edition entity themes have their own stronger
+   overrides, so these rules intentionally apply only when no entity owns the
+   route palette. */
+
+body[data-solaris-family]:not([data-entity-theme]) .site-nav {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 15%, rgb(var(--solaris-bg-deep)) 85%),
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, rgb(var(--solaris-bg-deep-2)) 90%)) !important;
+  border-color: rgb(var(--solaris-accent) / .15) !important;
+  box-shadow: 0 8px 28px rgb(var(--solaris-bg-deep) / .16) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) .mobile-quick-nav {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 14%, rgb(var(--solaris-bg-deep)) 86%),
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 9%, rgb(var(--solaris-bg-deep-2)) 91%)) !important;
+  border-color: rgb(var(--solaris-accent) / .15) !important;
+  box-shadow: 0 -9px 28px rgb(var(--solaris-bg-deep) / .18) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) :is(.public-drawer, .nav-menu-panel) {
+  background:
+    radial-gradient(circle at 88% 7%, rgb(var(--solaris-bg-primary) / .12), transparent 32%),
+    linear-gradient(160deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, rgb(var(--solaris-bg-deep-2)) 90%),
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 7%, rgb(var(--solaris-bg-deep)) 93%)) !important;
+  border-color: rgb(var(--solaris-accent) / .17) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) .public-drawer > :is(div, nav) {
+  border-color: rgb(var(--solaris-accent) / .13) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel) :is(a, button, summary)[aria-current="page"],
+body[data-solaris-family]:not([data-entity-theme]) .mobile-quick-nav a[aria-current="page"] {
+  background: rgb(var(--solaris-accent) / .12) !important;
+  border-color: rgb(var(--solaris-accent) / .20) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) :is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select,
+  [role="combobox"]
+) {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--surface-strong) 90%, rgb(var(--solaris-bg-primary)) 10%),
+      color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%)) !important;
+  border-color: rgb(var(--solaris-accent) / .18) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) :is(
+  button.bg-secondary,
+  button[class*="bg-background"],
+  button.border.border-input,
+  a[class*="bg-background"],
+  a.bg-surface,
+  button.bg-surface
+) {
+  background: color-mix(in srgb, var(--surface-strong) 91%, rgb(var(--solaris-accent)) 9%) !important;
+  border-color: rgb(var(--solaris-accent) / .18) !important;
+  color: var(--foreground) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) :is(
+  .bg-aurora:is(button, a, [role="button"]),
+  button.bg-primary,
+  a.bg-primary,
+  [role="button"].bg-primary
+) {
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, rgb(var(--solaris-accent)) 66%, white 34%) 0%,
+      rgb(var(--solaris-accent)) 54%,
+      color-mix(in srgb, rgb(var(--solaris-accent)) 72%, rgb(var(--solaris-bg-secondary)) 28%) 100%) !important;
+  color: var(--primary-foreground) !important;
+  border-color: color-mix(in srgb, rgb(var(--solaris-accent)) 52%, white 48%) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .30), 0 7px 20px rgb(var(--solaris-bg-deep) / .13) !important;
+}
+
+/* Keep route chrome calm on phones. The colour is present, but the navigation
+   should never compete with the page itself. */
+@media (max-width: 767px) {
+  body[data-solaris-family]:not([data-entity-theme]) :is(.site-nav, .mobile-quick-nav, .public-drawer) {
+    -webkit-backdrop-filter: blur(8px) saturate(125%) !important;
+    backdrop-filter: blur(8px) saturate(125%) !important;
+  }
+}
