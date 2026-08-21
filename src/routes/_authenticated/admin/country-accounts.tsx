@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowLeft, RefreshCw, ShieldCheck, UserRoundCog } from "lucide-react";
 
+import { AdminCountryPasswordPanel } from "@/components/admin/AdminCountryPasswordPanel";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -101,7 +102,7 @@ function CountryAccountsAdminPage() {
       <AdminPageHeader
         eyebrow="Moderation"
         title="Country accounts"
-        description="Review country ownership and temporarily suspend editing when necessary. Public Solaris access remains available while an account is suspended."
+        description="Review country ownership, change account passwords and temporarily suspend editing when necessary. Public Solaris access remains available while an account is suspended."
         actions={<Link to="/admin/more" className="admin-action-secondary"><ArrowLeft className="size-4" /> More</Link>}
       />
 
@@ -117,7 +118,7 @@ function CountryAccountsAdminPage() {
         <AdminCardHeader
           eyebrow="Terra Solaris"
           title="Ownership"
-          description="Search by country, code or owner email. Moderation actions stay inside each claimed account instead of cluttering the list."
+          description="Search by country, code or owner email. Password and moderation controls stay inside each claimed account."
           action={accountsFetching && !accountsLoading ? <AdminStatus tone="neutral">Refreshing…</AdminStatus> : undefined}
         />
 
@@ -162,6 +163,8 @@ function CountryAccountsAdminPage() {
       <AdminSheet open={!!target} onClose={() => !setStatus.isPending && setTarget(null)} title={target ? `${target.country_name} account` : "Country account"} description={target?.email ?? "Account moderation"}>
         {target ? (
           <div className="space-y-4">
+            <AdminCountryPasswordPanel account={target} />
+
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
               <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-foreground">Editing access</p><AdminStatus tone={target.status === "suspended" ? "blocked" : "ready"}>{target.status === "suspended" ? "Suspended" : "Active"}</AdminStatus></div>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Suspending an account blocks country-profile editing at the database level. It does not remove the public country or affect contest results.</p>
