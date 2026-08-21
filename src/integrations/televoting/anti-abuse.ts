@@ -1,3 +1,8 @@
+import {
+  dispatchSubmissionReceipt,
+  TELEVOTE_SUBMITTED_EVENT,
+} from "@/lib/submission-receipts";
+
 const DEVICE_KEY = "solaris.device_token.v1";
 const SUBMITTED_KEY = "solaris.submitted_rounds.v1";
 
@@ -56,6 +61,11 @@ export function markTelevotingRoundSubmitted(roundId: string) {
   } catch {
     // Database-level duplicate checks remain authoritative.
   }
+
+  // This function is only called after the server has accepted the ballot or
+  // confirmed it was already recorded. The receipt event drives the shared
+  // pending → confirmed UI without weakening any database-side protection.
+  dispatchSubmissionReceipt(TELEVOTE_SUBMITTED_EVENT, roundId);
 }
 
 export function hasSubmittedTelevotingRound(roundId: string) {
