@@ -8,6 +8,9 @@ import "@/calm-public-layout.css";
 import "@/calm-public-chrome.css";
 import "@/country-glass-parity.css";
 import "@/beta2-feedback-fixes.css";
+import "@/country-button-theme.css";
+import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
+import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
@@ -156,6 +159,8 @@ export function RouteVisualTheme() {
   return (
     <>
       <CountryPreviewParityController />
+      <CountryButtonThemeController />
+      <CountryButtonColourPanel />
       <svg
         aria-hidden="true"
         focusable="false"
