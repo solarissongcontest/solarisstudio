@@ -66,6 +66,24 @@ describe("Beta 2 hardened rollout contract", () => {
     );
   });
 
+  it("exposes entry publication controls only to signed-in Solaris users", () => {
+    const migration = source(
+      "supabase/migrations/20260821175500_harden_beta2_entry_publication_rpc.sql",
+    );
+    expect(migration).toContain(
+      "revoke all on function public.owned_country_entry_publication(uuid) from public, anon",
+    );
+    expect(migration).toContain(
+      "revoke all on function public.set_owned_country_entry_publication(uuid, text, timestamptz, text) from public, anon",
+    );
+    expect(migration).toContain(
+      "grant execute on function public.owned_country_entry_publication(uuid) to authenticated",
+    );
+    expect(migration).toContain(
+      "grant execute on function public.set_owned_country_entry_publication(uuid, text, timestamptz, text) to authenticated",
+    );
+  });
+
   it("rechecks confirmation editing state when an existing edit token is resolved", () => {
     const sql = source("scripts/confirmations-edit-token-hardening.sql");
     expect(sql).toContain("coalesce(s.editing_allowed, false)");
@@ -73,6 +91,19 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(sql).toContain("coalesce(e.editing_enabled, false)");
     expect(sql).toContain("'reason', 'editing_closed'");
     expect(sql).toContain("update public.edit_tokens set active = false");
+  });
+
+  it("keeps confirmation-only trigger helpers off the public RPC surface", () => {
+    const sql = source("scripts/confirmations-trigger-rpc-hardening.sql");
+    expect(sql).toContain(
+      "keep_submission_editable_after_open_edit() from public, anon, authenticated",
+    );
+    expect(sql).toContain(
+      "sync_submission_editing_from_edition() from public, anon, authenticated",
+    );
+    expect(sql).toContain(
+      "sync_submission_editing_from_round() from public, anon, authenticated",
+    );
   });
 
   it("uses an init-plan-friendly publication RLS policy and indexes NF history lookups", () => {
