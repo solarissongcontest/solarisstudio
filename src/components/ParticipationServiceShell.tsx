@@ -44,6 +44,14 @@ export function ParticipationServiceShell({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const serviceLabel = service === "confirmations" ? "Confirmations" : "Televoting";
 
+  // Legacy confirmation screens used to advertise Next in Line as a
+  // confirmation sub-flow. It is now a separate song competition at
+  // /next-in-line, so never render that stale service-level action even when
+  // an older caller still passes it while old links remain compatible.
+  const visibleActions = actions.filter(
+    (action) => action.to !== "/confirmations/next-in-line" && action.to !== "/next-in-line",
+  );
+
   return (
     <div className={cn("mx-auto min-w-0", maxWidth)}>
       <div className="mb-4 flex min-w-0 items-center gap-1 border-b border-border/55 pb-3 sm:mb-5">
@@ -66,9 +74,9 @@ export function ParticipationServiceShell({
         title={title}
         description={description}
         actions={
-          actions.length ? (
+          visibleActions.length ? (
             <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-              {actions.map((action) => (
+              {visibleActions.map((action) => (
                 <Link
                   key={action.to}
                   to={action.to as any}
