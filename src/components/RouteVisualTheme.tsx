@@ -9,9 +9,11 @@ import "@/calm-public-chrome.css";
 import "@/country-glass-parity.css";
 import "@/beta2-feedback-fixes.css";
 import "@/country-button-theme.css";
+import "@/edition-public-design.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
+import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
@@ -29,17 +31,43 @@ type EditionVisual = {
   artwork_url?: string | null;
 };
 
+type EditionPublicSettings = {
+  style: "cinematic" | "editorial" | "minimal" | "glass";
+  radius: number;
+  surfaceStrength: number;
+  heroGlow: number;
+};
+
 type ResolvedVisual =
-  | { kind: "country"; theme: CountryVisualTheme; artwork: null }
+  | { kind: "country"; theme: CountryVisualTheme; artwork: null; publicSettings: null }
   | {
       kind: "edition";
       theme: ReturnType<typeof editionThemeToVisual> extends infer T ? Exclude<T, null> : never;
       artwork: string | null;
+      publicSettings: EditionPublicSettings;
     };
 
 function segmentAfter(pathname: string, prefix: string) {
   if (!pathname.startsWith(prefix)) return null;
   return decodeURIComponent(pathname.slice(prefix.length).split("/")[0] ?? "");
+}
+
+function editionPublicSettings(raw: unknown): EditionPublicSettings {
+  const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const requested = String(value.publicStyle ?? "cinematic");
+  const style = (["cinematic", "editorial", "minimal", "glass"] as const).includes(requested as any)
+    ? (requested as EditionPublicSettings["style"])
+    : "cinematic";
+  const clamp = (input: unknown, min: number, max: number, fallback: number) => {
+    const number = Number(input);
+    return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+  };
+  return {
+    style,
+    radius: clamp(value.publicRadius, 8, 40, 24),
+    surfaceStrength: clamp(value.publicSurfaceStrength, 45, 100, 82),
+    heroGlow: clamp(value.publicHeroGlow, 0, 100, 72),
+  };
 }
 
 export function RouteVisualTheme() {
@@ -61,7 +89,7 @@ export function RouteVisualTheme() {
         ? (countryThemes ?? []).find((theme) => theme.country_id === country.id)
         : null;
       const theme = countryThemeToVisual(row);
-      if (theme) return { theme, kind: "country", artwork: null };
+      if (theme) return { theme, kind: "country", artwork: null, publicSettings: null };
     }
 
     const visualEditions = (editions ?? []) as EditionVisual[];
@@ -69,7 +97,14 @@ export function RouteVisualTheme() {
     if (editionSlug) {
       const edition = visualEditions.find((item) => item.slug === editionSlug);
       const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) return { theme, kind: "edition", artwork: edition?.artwork_url ?? null };
+      if (theme) {
+        return {
+          theme,
+          kind: "edition",
+          artwork: edition?.artwork_url ?? null,
+          publicSettings: editionPublicSettings(edition?.theme_colors),
+        };
+      }
     }
 
     const showId = segmentAfter(pathname, "/shows/");
@@ -77,7 +112,14 @@ export function RouteVisualTheme() {
       const show = (shows ?? []).find((item) => item.id === showId);
       const edition = visualEditions.find((item) => item.id === show?.edition_id);
       const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) return { theme, kind: "edition", artwork: edition?.artwork_url ?? null };
+      if (theme) {
+        return {
+          theme,
+          kind: "edition",
+          artwork: edition?.artwork_url ?? null,
+          publicSettings: editionPublicSettings(edition?.theme_colors),
+        };
+      }
     }
 
     return null;
@@ -100,6 +142,9 @@ export function RouteVisualTheme() {
       "--muted-foreground",
       "--surface",
       "--edition-artwork-image",
+      "--edition-public-radius",
+      "--edition-surface-strength",
+      "--edition-hero-glow",
       "--country-page-background",
       "--country-page-position",
       "--country-page-blur",
@@ -108,6 +153,7 @@ export function RouteVisualTheme() {
     const clear = () => {
       delete body.dataset.entityTheme;
       delete body.dataset.editionArtwork;
+      delete body.dataset.editionPublicStyle;
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
       delete body.dataset.countryDecoration;
@@ -124,6 +170,7 @@ export function RouteVisualTheme() {
     Object.entries(properties).forEach(([key, value]) => body.style.setProperty(key, value));
 
     if (resolved.kind === "country") {
+      delete body.dataset.editionPublicStyle;
       body.dataset.countryBackgroundMode = resolved.theme.backgroundMode;
       body.dataset.countryHeroLayout = resolved.theme.heroLayout;
       body.dataset.countryDecoration = resolved.theme.decorationStyle;
@@ -140,6 +187,10 @@ export function RouteVisualTheme() {
       body.style.removeProperty("--country-page-background");
       body.style.removeProperty("--country-page-position");
       body.style.removeProperty("--country-page-blur");
+      body.dataset.editionPublicStyle = resolved.publicSettings.style;
+      body.style.setProperty("--edition-public-radius", `${resolved.publicSettings.radius}px`);
+      body.style.setProperty("--edition-surface-strength", String(resolved.publicSettings.surfaceStrength / 100));
+      body.style.setProperty("--edition-hero-glow", String(resolved.publicSettings.heroGlow / 100));
     }
 
     if (resolved.artwork) {
@@ -161,6 +212,7 @@ export function RouteVisualTheme() {
       <CountryPreviewParityController />
       <CountryButtonThemeController />
       <CountryButtonColourPanel />
+      <EditionPublicDesignPanel />
       <svg
         aria-hidden="true"
         focusable="false"
