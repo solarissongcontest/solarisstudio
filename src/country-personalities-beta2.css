@@ -1,0 +1,157 @@
+/* Beta 2 country personality polish ---------------------------------------
+   Final, narrow overrides for personalities that were still too similar or
+   visually weak. Keep this layer small so it can be removed independently. */
+
+/* Shared finish: personality cards should feel related without becoming one
+   giant rounded-card soup. The accent appears as a hairline, not a neon box. */
+body[data-entity-theme="country"] :is(.country-personality-card, .country-personality-inset) {
+  border-color: color-mix(in srgb, rgb(var(--solaris-accent)) 22%, rgb(var(--solaris-bg-deep)) 78%);
+}
+
+/* RIBBON: the flag is the ribbon itself. Make it crisp and intentional rather
+   than a low-opacity flag vaguely drifting diagonally behind the copy. */
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="ribbon"] {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 90%, rgb(var(--solaris-bg-deep)) 10%), rgb(var(--solaris-bg-deep) / .28)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="ribbon"] .country-hero-background-flag {
+  inset: -18% -8% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .72 !important;
+  transform: rotate(-8deg) scale(1.05) !important;
+  clip-path: polygon(0 43%, 100% 43%, 100% 65%, 0 65%) !important;
+  filter: saturate(1.08) contrast(1.06) drop-shadow(0 10px 14px rgb(var(--solaris-bg-deep) / .28)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="ribbon"] .country-hero-background-flag::before {
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* DUOTONE: deliberately unlike Split. Split stays a clean rectangular flag
+   pane; Duotone gets a large angled colour/flag field and graphic contrast. */
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="duotone"] {
+  padding-right: clamp(43%, 48vw, 52%) !important;
+  background:
+    linear-gradient(112deg,
+      color-mix(in srgb, var(--surface) 92%, rgb(var(--solaris-bg-deep)) 8%) 0 56%,
+      color-mix(in srgb, rgb(var(--solaris-accent)) 52%, rgb(var(--solaris-bg-deep)) 48%) 56.3% 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="duotone"] .country-hero-background-flag {
+  inset: 0 0 0 48% !important;
+  width: 52% !important;
+  height: 100% !important;
+  opacity: .68 !important;
+  transform: none !important;
+  clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%) !important;
+  filter: saturate(.62) contrast(1.16) !important;
+  mix-blend-mode: luminosity;
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="duotone"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
+  mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
+}
+
+/* BROADCAST: move from a generic top banner to an actual on-air composition.
+   The flag becomes a slanted source panel beside a clean lower-third-like copy
+   area, preserving legibility even with very busy flags. */
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="broadcast"] {
+  padding-top: clamp(1.5rem, 4vw, 2.5rem) !important;
+  padding-right: clamp(34%, 39vw, 44%) !important;
+  background:
+    linear-gradient(180deg, rgb(var(--solaris-accent) / .08), transparent 36%),
+    linear-gradient(90deg, color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%) 0 67%, rgb(var(--solaris-bg-deep) / .34) 67% 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .12),
+    inset 0 -3px 0 rgb(var(--solaris-accent) / .48) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="broadcast"] .country-hero-background-flag {
+  inset: 0 0 0 64% !important;
+  width: 36% !important;
+  height: 100% !important;
+  opacity: .62 !important;
+  transform: none !important;
+  clip-path: polygon(16% 0, 100% 0, 100% 100%, 0 100%) !important;
+  filter: saturate(.92) contrast(1.08) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="broadcast"] .country-hero-background-flag::before {
+  background-position: center !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
+  mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%) !important;
+}
+
+/* MONUMENT: restrained luxury. Symmetry, double hairlines and a soft centre
+   glow do the work instead of another oversized decorative object. */
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="monument"] {
+  background:
+    radial-gradient(circle at 50% 42%, rgb(var(--solaris-accent) / .13), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%), color-mix(in srgb, var(--surface) 72%, rgb(var(--solaris-bg-deep)) 28%)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / .12),
+    inset 0 0 0 5px rgb(var(--solaris-bg-deep) / .22),
+    inset 0 0 0 6px rgb(var(--solaris-accent) / .18) !important;
+}
+
+/* HORIZON: keep the visual weight low and calm. The flag becomes a landscape
+   band at the base instead of another side panel. */
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="horizon"] {
+  padding-bottom: clamp(6.5rem, 15vw, 9rem) !important;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) 0 62%, rgb(var(--solaris-accent) / .07) 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="horizon"] .country-hero-background-flag {
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 42% !important;
+  opacity: .42 !important;
+  transform: none !important;
+  filter: saturate(.8) contrast(1.06) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+[data-preview-layout="horizon"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 34%, #000 100%) !important;
+  mask-image: linear-gradient(180deg, transparent 0, #000 34%, #000 100%) !important;
+}
+
+@media (max-width: 767px) {
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="duotone"],
+    [data-country-hero-layout="broadcast"]
+  ) :is(.country-public-hero, .wiki-public-hero),
+  [data-preview-layout="duotone"],
+  [data-preview-layout="broadcast"] {
+    padding-right: 1.25rem !important;
+    padding-bottom: 8rem !important;
+  }
+
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="duotone"],
+    [data-country-hero-layout="broadcast"]
+  ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  [data-preview-layout="duotone"] .country-hero-background-flag,
+  [data-preview-layout="broadcast"] .country-hero-background-flag {
+    inset: auto 0 0 !important;
+    width: 100% !important;
+    height: 42% !important;
+    clip-path: polygon(0 18%, 100% 0, 100% 100%, 0 100%) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+  [data-preview-layout="ribbon"] .country-hero-background-flag {
+    inset: -22% -20% !important;
+    clip-path: polygon(0 46%, 100% 46%, 100% 62%, 0 62%) !important;
+  }
+}
