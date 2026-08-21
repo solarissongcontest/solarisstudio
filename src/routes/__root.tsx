@@ -25,8 +25,8 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
-const SOCIAL_PREVIEW_URL =
-  "https://solarisstudio.solaris-song-contest.workers.dev/solaris-studio-social.jpg";
+const SITE_URL = "https://studio.solaris-song-contest.workers.dev";
+const SOCIAL_PREVIEW_URL = `${SITE_URL}/solaris-studio-social.jpg?v=2`;
 
 type BackgroundFamily =
   | "home"
@@ -154,7 +154,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Solaris Studio" },
       { property: "og:description", content: SITE_DESCRIPTION },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: SITE_URL },
       { property: "og:image", content: SOCIAL_PREVIEW_URL },
+      { property: "og:image:secure_url", content: SOCIAL_PREVIEW_URL },
+      { property: "og:image:type", content: "image/jpeg" },
       { property: "og:image:width", content: "1070" },
       { property: "og:image:height", content: "630" },
       { property: "og:image:alt", content: "Solaris Studio" },
