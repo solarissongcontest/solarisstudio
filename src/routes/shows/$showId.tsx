@@ -20,13 +20,13 @@ import {
   useJuryVotes,
   useResults,
   useShow,
-  useShowParticipants,
   useShowVoters,
   useTelevotes,
   useThemes,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { usePublicShowParticipants } from "@/lib/public-participants";
 import { resolveTheme } from "@/lib/theme";
 import { resolveVoting } from "@/lib/voting";
 import type { Standing } from "@/lib/analysis";
@@ -65,7 +65,7 @@ function ShowPage() {
   const { showId } = Route.useParams();
   const search = Route.useSearch();
   const { data: show, isLoading } = useShow(showId);
-  const { data: participants } = useShowParticipants(showId);
+  const { data: participants } = usePublicShowParticipants(showId);
   const { data: archivedResults } = useResults(showId);
   const { data: jury } = useJuryVotes(showId);
   const { data: tele } = useTelevotes(showId);

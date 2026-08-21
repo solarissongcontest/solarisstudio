@@ -27,6 +27,12 @@ type ResponseRow = {
   country: string;
   participating: boolean;
   selection_method: string | null;
+  reveal_date_type: string | null;
+  reveal_exact_date: string | null;
+  reveal_approximate_text: string | null;
+  nf_result_date_type: string | null;
+  nf_result_exact_date: string | null;
+  nf_result_approximate_text: string | null;
   internal_entries: Entry | null;
   national_finals: {
     id: string;
@@ -57,6 +63,12 @@ function snapshotFromRow(row: ResponseRow) {
     country: row.country,
     participating: row.participating,
     selection_method: row.selection_method,
+    reveal_date_type: row.reveal_date_type,
+    reveal_exact_date: row.reveal_exact_date,
+    reveal_approximate_text: row.reveal_approximate_text,
+    nf_result_date_type: row.nf_result_date_type,
+    nf_result_exact_date: row.nf_result_exact_date,
+    nf_result_approximate_text: row.nf_result_approximate_text,
     edition: row.editions,
     internal_entry: row.internal_entries,
     national_final: row.national_finals
@@ -198,7 +210,7 @@ function ConfirmationSyncPage() {
             <AdminCardHeader
               eyebrow="One-click import"
               title={selectedRound ? `${selectedRound.name} → ${targets?.shows.find((show) => show.id === showId)?.name ?? "choose a show"}` : "Choose a round"}
-              description="The country is synced once at edition level. The selected show receives an appearance of that same entry, including artist, song and listening links."
+              description="The country is synced once at edition level. The selected show receives the same entry, but its song stays hidden until the HOD publishes it or its exact reveal time arrives."
               action={<AdminStatus tone={selectedRows.length ? "ready" : "neutral"}>{selectedRows.length} countries</AdminStatus>}
             />
 
@@ -227,7 +239,7 @@ function ConfirmationSyncPage() {
             <AdminCardHeader eyebrow="What comes across" title="One entry, every show" description="Solaris keeps one country participation and one canonical song per edition. Show line-ups only reference that same entry." />
             <div className="grid gap-2 sm:grid-cols-3 text-xs text-muted-foreground">
               <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"><strong className="block text-foreground">Country</strong>Participation and country identity</div>
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"><strong className="block text-foreground">Entry</strong>Artist, song and canonical entry data</div>
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"><strong className="block text-foreground">Entry</strong>Artist, song and reveal state stay linked</div>
               <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"><strong className="block text-foreground">Listening</strong>Valid confirmation YouTube links fill the YouTube listening link automatically</div>
             </div>
           </AdminCard>
