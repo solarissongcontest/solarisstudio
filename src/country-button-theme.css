@@ -1,11 +1,18 @@
 /* Country/Wiki button theming ----------------------------------------------
-   The country owner can choose an explicit action colour. Keep the accent for
-   typography and decoration; use --solaris-button for interactive surfaces. */
+   Country owners can choose an explicit action colour. The page accent keeps
+   handling typography/decorations; --solaris-button owns interaction. */
 
-/* The Solaris Studio brand must never become a selected-nav card. Apply this
-   regardless of router active-state details so Home cannot paint a rectangle
-   behind the logo/name again. */
-.site-nav > div > a[aria-label="Solaris Studio home"] {
+body[data-entity-theme="country"] {
+  --country-button: var(--solaris-button, rgb(var(--solaris-accent)));
+  --country-button-foreground: var(--solaris-button-foreground, var(--foreground));
+  --country-button-rich: color-mix(in srgb, var(--country-button) 76%, rgb(var(--solaris-bg-deep)) 24%);
+  --country-button-soft: color-mix(in srgb, var(--country-button) 58%, rgb(var(--solaris-bg-deep)) 42%);
+}
+
+/* The Solaris Studio brand is identity, never an active-nav pill. */
+body[data-solaris-family] .site-nav a[aria-label="Solaris Studio home"],
+body[data-entity-theme] .site-nav a[aria-label="Solaris Studio home"],
+.site-nav a[aria-label="Solaris Studio home"] {
   background: transparent !important;
   background-image: none !important;
   border: 0 !important;
@@ -17,32 +24,50 @@
   backdrop-filter: none !important;
 }
 
-.site-nav > div > a[aria-label="Solaris Studio home"]::before,
-.site-nav > div > a[aria-label="Solaris Studio home"]::after {
+body[data-solaris-family] .site-nav a[aria-label="Solaris Studio home"]::before,
+body[data-solaris-family] .site-nav a[aria-label="Solaris Studio home"]::after,
+body[data-entity-theme] .site-nav a[aria-label="Solaris Studio home"]::before,
+body[data-entity-theme] .site-nav a[aria-label="Solaris Studio home"]::after {
   content: none !important;
   display: none !important;
 }
 
-.site-nav > div > a[aria-label="Solaris Studio home"] > * {
+.site-nav a[aria-label="Solaris Studio home"] > * {
   background: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
   border-color: transparent !important;
 }
 
-body[data-entity-theme="country"] {
-  --country-button: var(--solaris-button, rgb(var(--solaris-accent)));
-  --country-button-foreground: var(--solaris-button-foreground, var(--foreground));
+/* Entity pages own the whole screen. Keep permanent chrome in the country
+   palette instead of snapping back to generic navy. */
+body[data-entity-theme="country"] .site-nav,
+body[data-entity-theme="country"] .mobile-quick-nav {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 19%, rgb(var(--solaris-bg-deep)) 81%),
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 14%, rgb(var(--solaris-bg-deep-2)) 86%)) !important;
+  border-color: color-mix(in srgb, var(--country-button) 22%, transparent) !important;
 }
 
-/* Hero actions should all belong to the same palette. Primary actions are
-   solid; secondary actions are a clearly visible tint of the chosen colour,
-   not the muddy grey-teal mix that previously looked unrelated to the page. */
+body[data-entity-theme="country"] :is(.public-drawer, .nav-menu-panel) {
+  background:
+    radial-gradient(circle at 88% 8%, rgb(var(--solaris-bg-primary) / .16), transparent 32%),
+    linear-gradient(160deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 15%, rgb(var(--solaris-bg-deep-2)) 85%),
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 10%, rgb(var(--solaris-bg-deep)) 90%)) !important;
+  border-color: color-mix(in srgb, var(--country-button) 22%, transparent) !important;
+}
+
+/* Hero actions share one intentional palette. Secondary actions are a strong
+   related shade, not a mostly-grey surface with a faint tint. */
 body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :is(a, button) {
-  border-color: color-mix(in srgb, var(--country-button) 48%, transparent) !important;
-  background: color-mix(in srgb, var(--country-button) 30%, var(--solaris-card-raised, var(--surface)) 70%) !important;
-  color: var(--foreground) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .10) !important;
+  border-color: color-mix(in srgb, var(--country-button) 72%, white 28%) !important;
+  background: var(--country-button-rich) !important;
+  color: var(--country-button-foreground) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .16),
+    0 7px 18px rgb(var(--solaris-bg-deep) / .11) !important;
 }
 
 body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :is(
@@ -52,33 +77,32 @@ body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :
   [role="button"].bg-primary
 ) {
   background: var(--country-button) !important;
-  border-color: color-mix(in srgb, var(--country-button) 76%, white 24%) !important;
+  border-color: color-mix(in srgb, var(--country-button) 78%, white 22%) !important;
   color: var(--country-button-foreground) !important;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .22),
-    0 7px 18px rgb(var(--solaris-bg-deep) / .11) !important;
+    0 8px 20px rgb(var(--solaris-bg-deep) / .13) !important;
 }
 
-/* Follow states often use Tailwind classes such as bg-primary/15 rather than
-   bg-primary. Theme those explicitly so Follow never falls back to generic
-   blue-grey while Compare/Wiki use the country palette. */
+/* Follow buttons commonly use bg-primary/15 rather than bg-primary. */
 body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) button[class*="bg-primary"] {
-  background: color-mix(in srgb, var(--country-button) 42%, var(--solaris-card-raised, var(--surface)) 58%) !important;
-  border-color: color-mix(in srgb, var(--country-button) 62%, transparent) !important;
-  color: var(--foreground) !important;
+  background: var(--country-button-rich) !important;
+  border-color: color-mix(in srgb, var(--country-button) 72%, white 28%) !important;
+  color: var(--country-button-foreground) !important;
 }
 
-/* Common Country/Wiki page actions outside the hero. */
+/* Common Country/Wiki actions outside the hero. */
 body[data-entity-theme="country"] .app-main :is(
   a.bg-surface,
   button.bg-surface,
   a[class*="bg-background"],
   button[class*="bg-background"],
-  button.bg-secondary
+  button.bg-secondary,
+  .directory-page-action
 ) {
-  background: color-mix(in srgb, var(--country-button) 22%, var(--solaris-card-raised, var(--surface)) 78%) !important;
-  border-color: color-mix(in srgb, var(--country-button) 38%, transparent) !important;
-  color: var(--foreground) !important;
+  background: var(--country-button-soft) !important;
+  border-color: color-mix(in srgb, var(--country-button) 62%, white 10%) !important;
+  color: var(--country-button-foreground) !important;
 }
 
 body[data-entity-theme="country"] .app-main :is(
@@ -87,36 +111,37 @@ body[data-entity-theme="country"] .app-main :is(
   .bg-aurora:is(a, button, [role="button"])
 ) {
   background: var(--country-button) !important;
-  border-color: color-mix(in srgb, var(--country-button) 72%, white 28%) !important;
+  border-color: color-mix(in srgb, var(--country-button) 76%, white 24%) !important;
   color: var(--country-button-foreground) !important;
 }
 
-/* Active tabs/selectors echo the chosen action colour instead of inventing a
-   blue-grey pill unrelated to the country. */
+/* Selectors/tabs belong to the page palette too. */
 body[data-entity-theme="country"] .responsive-tabs .scroll-slim > div {
-  background: color-mix(in srgb, var(--country-button) 12%, var(--solaris-card-surface, var(--surface)) 88%) !important;
-  border-color: color-mix(in srgb, var(--country-button) 30%, transparent) !important;
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 16%, rgb(var(--solaris-bg-deep-2)) 84%),
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 11%, rgb(var(--solaris-bg-deep)) 89%)) !important;
+  border-color: color-mix(in srgb, var(--country-button) 32%, transparent) !important;
 }
 
 body[data-entity-theme="country"] .responsive-tabs button[aria-current="page"] {
-  background: color-mix(in srgb, var(--country-button) 38%, var(--solaris-card-raised, var(--surface)) 62%) !important;
-  border-color: color-mix(in srgb, var(--country-button) 58%, transparent) !important;
-  color: var(--foreground) !important;
+  background: var(--country-button-rich) !important;
+  border-color: color-mix(in srgb, var(--country-button) 72%, white 18%) !important;
+  color: var(--country-button-foreground) !important;
 }
 
 body[data-entity-theme="country"] .responsive-tabs select {
-  background: color-mix(in srgb, var(--country-button) 24%, var(--solaris-card-raised, var(--surface)) 76%) !important;
-  border-color: color-mix(in srgb, var(--country-button) 44%, transparent) !important;
-  color: var(--foreground) !important;
+  background: color-mix(in srgb, var(--country-button-soft) 74%, rgb(var(--solaris-bg-deep)) 26%) !important;
+  border-color: color-mix(in srgb, var(--country-button) 54%, transparent) !important;
+  color: var(--country-button-foreground) !important;
 }
 
-/* Permanent chrome follows the country palette too, but at a restrained
-   strength so it does not compete with the hero. */
+/* Selected permanent navigation echoes the chosen action colour. */
 body[data-entity-theme="country"] :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel) :is(a, button, summary)[aria-current="page"]:not([aria-label="Solaris Studio home"]),
 body[data-entity-theme="country"] .mobile-quick-nav a[aria-current="page"] {
-  background: color-mix(in srgb, var(--country-button) 30%, transparent) !important;
-  border-color: color-mix(in srgb, var(--country-button) 44%, transparent) !important;
-  color: var(--foreground) !important;
+  background: var(--country-button-soft) !important;
+  border-color: color-mix(in srgb, var(--country-button) 56%, transparent) !important;
+  color: var(--country-button-foreground) !important;
 }
 
 @media (max-width: 767px) {
