@@ -30,10 +30,11 @@ describe("country HOD ownership history", () => {
     expect(migration).toContain("participants_auto_assign_country_hod");
   });
 
-  it("feeds the existing HOD resolver used by friendship-voting intelligence", () => {
+  it("feeds only resolved HOD identities into friendship-voting intelligence", () => {
     expect(migration).toContain("delegation_hod_assignments");
     expect(migration).toContain("country-account-self");
     expect(intelligence).toContain("canonical.hod.resolve");
-    expect(intelligence).toContain("unknown:${editionId}:${voterCode}");
+    expect(intelligence).toContain('if (lens === "hod" && !hod) continue;');
+    expect(intelligence).not.toContain("unknown:${editionId}:${voterCode}");
   });
 });
