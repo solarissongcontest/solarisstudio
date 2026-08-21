@@ -1,0 +1,64 @@
+/* Calm public layout --------------------------------------------------------
+   Countries and Wiki established the preferred public rhythm: one readable
+   page identity, restrained surfaces, then content. Apply that rhythm to the
+   other normal public families without inserting extra overview screens. */
+
+body[data-solaris-family]:not([data-entity-theme]) .page-header:not(.directory-page-hero) {
+  overflow: hidden;
+  isolation: isolate;
+  padding: clamp(1.05rem, 2.8vw, 1.7rem) !important;
+  border: 1px solid rgb(var(--solaris-accent) / .17) !important;
+  border-radius: clamp(1.2rem, 2.5vw, 1.65rem) !important;
+  background:
+    radial-gradient(circle at 91% 10%, rgb(var(--solaris-bg-primary) / .14), transparent 36%),
+    linear-gradient(145deg,
+      color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 76%, #071426 24%),
+      color-mix(in srgb, rgb(var(--solaris-bg-deep)) 91%, rgb(var(--solaris-bg-secondary)) 9%)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .05) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) .page-header:not(.directory-page-hero)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: clamp(8rem, 20vw, 15rem);
+  aspect-ratio: 1;
+  right: clamp(-5rem, -4vw, -2rem);
+  top: clamp(-7rem, -7vw, -3rem);
+  border: 1px solid rgb(var(--solaris-accent) / .08);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) .page-header:not(.directory-page-hero)::after {
+  display: none !important;
+}
+
+/* A panel is a grouping aid, not a collectible trading card. Keep the border
+   and route tint, but remove the deep floating-card shadow on ordinary pages. */
+body[data-solaris-family]:not([data-entity-theme]) :is(.data-panel, .surface) {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .035) !important;
+}
+
+body[data-solaris-family]:not([data-entity-theme]) .data-panel {
+  border-color: rgb(var(--solaris-accent) / .14) !important;
+}
+
+/* Nested information should visually belong to its parent instead of reading
+   as another full card stacked inside a card. */
+body[data-solaris-family]:not([data-entity-theme]) :is(.data-panel, .surface) > .bg-surface,
+body[data-solaris-family]:not([data-entity-theme]) :is(.data-panel, .surface) > [class*="bg-surface/"] {
+  box-shadow: none !important;
+}
+
+@media (max-width: 767px) {
+  body[data-solaris-family]:not([data-entity-theme]) .page-header:not(.directory-page-hero) {
+    margin-bottom: 1rem !important;
+    padding: 1rem !important;
+    border-radius: 1.15rem !important;
+  }
+
+  body[data-solaris-family]:not([data-entity-theme]) :is(.data-panel, .surface) {
+    border-radius: 1rem !important;
+  }
+}
