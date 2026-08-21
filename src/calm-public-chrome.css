@@ -12,7 +12,19 @@ body[data-solaris-family]:not([data-entity-theme]) .site-nav {
       color-mix(in srgb, rgb(var(--solaris-bg-primary)) 15%, rgb(var(--solaris-bg-deep)) 85%),
       color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, rgb(var(--solaris-bg-deep-2)) 90%)) !important;
   border-color: rgb(var(--solaris-accent) / .15) !important;
-  box-shadow: 0 8px 28px rgb(var(--solaris-bg-deep) / .16) !important;
+  box-shadow: none !important;
+}
+
+/* The header is one bar. Older surface/shadow rules made the shadow read as a
+   second full-width rectangle directly below the Solaris Studio logo bar. */
+.site-nav {
+  box-shadow: none !important;
+}
+
+.site-nav::before,
+.site-nav::after {
+  content: none !important;
+  display: none !important;
 }
 
 body[data-solaris-family]:not([data-entity-theme]) .mobile-quick-nav {
