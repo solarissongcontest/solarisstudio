@@ -56,7 +56,7 @@ const INSIGHT_ROUTES = [
 
 const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
 const PARTICIPATE_ROUTES = ["/participate", "/confirmations", "/televoting"];
-const ACCOUNT_ROUTES = ["/me", "/auth", "/country-hub"];
+const ACCOUNT_ROUTES = ["/me", "/auth", "/my-solaris", "/country-hub"];
 
 function pathMatches(pathname: string, route: string) {
   return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`);
@@ -126,6 +126,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       !pathname.startsWith("/pulse") &&
       !pathname.startsWith("/auth") &&
       !pathname.startsWith("/me") &&
+      !pathname.startsWith("/my-solaris") &&
       !pathname.startsWith("/admin") &&
       !pathname.startsWith("/country-hub")
     ) {
@@ -142,11 +143,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [menuOpen]);
 
-  /*
-   * Admin routes own their shell in src/components/admin/AdminShell.tsx.
-   * Keeping AppShell as a pass-through here prevents nested public/admin
-   * navigation when an organizer moves between workspaces.
-   */
   if (pathname.startsWith("/admin")) {
     return <>{children}</>;
   }
@@ -162,10 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.location.href = "/";
   };
 
-  // Profile, activity, country ownership and country editing are one workspace.
-  // /me stays as a backwards-compatible redirect, but the navigation no longer
-  // advertises it as a separate product from My Solaris.
-  const accountHref = email ? "/country-hub" : "/auth";
+  const accountHref = email ? "/my-solaris" : "/auth";
   const quickNavigation: Array<{
     to: string;
     label: string;
@@ -289,11 +282,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <p className="truncate text-xs font-semibold text-foreground">My Solaris</p>
                     <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{email}</p>
                   </div>
-                  <Link to="/country-hub" className="nav-menu-item mt-1">
+                  <Link to="/my-solaris" className="nav-menu-item mt-1">
                     <span className="font-semibold">Open My Solaris</span>
                     <span className="text-[10px] text-muted-foreground">
-                      Profile, activity{access.countryId ? " & country" : " & country setup"}
+                      Dashboard, participation{access.countryId ? " & country tools" : " & country setup"}
                     </span>
+                  </Link>
+                  <Link to="/country-hub" className="nav-menu-item">
+                    <span className="font-semibold">Country workspace</span>
+                    <span className="text-[10px] text-muted-foreground">Edit country, entries, page and media</span>
                   </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className="nav-menu-item">
@@ -384,12 +381,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                     My Solaris
                   </p>
                   <Link
-                    to="/country-hub"
+                    to="/my-solaris"
                     className={mobileDrawerLink(
-                      pathMatches(pathname, "/country-hub") || pathMatches(pathname, "/me"),
+                      pathMatches(pathname, "/my-solaris") || pathMatches(pathname, "/me"),
                     )}
                   >
-                    My Solaris
+                    My Solaris dashboard
+                  </Link>
+                  <Link
+                    to="/country-hub"
+                    className={mobileDrawerLink(pathMatches(pathname, "/country-hub"))}
+                  >
+                    Country workspace
                   </Link>
                   {roleItems.map((item) => (
                     <Link
