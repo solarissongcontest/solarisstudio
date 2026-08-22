@@ -18,7 +18,7 @@ import {
   type Country,
   type Participant,
   type Show,
-} from "@/lib/data-live";
+} from "@/lib/data";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 function Fact({ label, value }: { label: string; value?: string | number | null }) {
@@ -49,8 +49,11 @@ export function CountryWorldOverview({
   const { data: editions } = useEditions();
   const { data: rawShows } = useAllShows();
 
-  // Country public UI must stay publication-safe even for a logged-in admin,
-  // whose RLS access can see draft entries and result rows.
+  // The parent country route owns the complete live archive subscriptions.
+  // These ordinary query observers share the same React Query cache keys, so
+  // the overview can reuse that data without mounting a second set of realtime
+  // channels. Re-apply the public gate here because this component must remain
+  // safe even if it is ever rendered outside the country route.
   const archive = useMemo(
     () => buildPublicCountryArchive({
       editions: editions ?? [],
