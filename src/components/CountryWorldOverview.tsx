@@ -11,14 +11,13 @@ import type {
 } from "@/lib/country-wiki";
 import {
   editionLabel,
-  useAllParticipants,
-  useAllResults,
   useAllShows,
   useEditions,
   type Country,
   type Participant,
   type Show,
 } from "@/lib/data";
+import { useAllParticipants, useAllResults } from "@/lib/data-live";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 function Fact({ label, value }: { label: string; value?: string | number | null }) {
@@ -44,16 +43,15 @@ export function CountryWorldOverview({
 }) {
   void _form;
   const { data } = useCountryWorldProfile(country.id);
-  const { data: rawParticipants } = useAllParticipants();
-  const { data: rawResults } = useAllResults();
+  const { data: rawParticipants } = useAllParticipants({ realtime: false });
+  const { data: rawResults } = useAllResults({ realtime: false });
   const { data: editions } = useEditions();
   const { data: rawShows } = useAllShows();
 
-  // The parent country route owns the complete live archive subscriptions.
-  // These ordinary query observers share the same React Query cache keys, so
-  // the overview can reuse that data without mounting a second set of realtime
-  // channels. Re-apply the public gate here because this component must remain
-  // safe even if it is ever rendered outside the country route.
+  // The parent country route owns the live archive subscriptions. Keep using
+  // the complete paginated archive cache here, but do not mount competing
+  // realtime channels in this nested overview. Re-apply the public gate here
+  // because this component must remain safe if it is ever rendered elsewhere.
   const archive = useMemo(
     () => buildPublicCountryArchive({
       editions: editions ?? [],
