@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 
+import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalFinalManager";
 import { MySolarisPortalExtension } from "@/components/MySolarisPortalExtension";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,11 +17,13 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isMySolaris = pathname === "/my-solaris" || pathname === "/my-solaris/";
+  const isCountryHub = pathname === "/country-hub" || pathname === "/country-hub/";
 
   return (
     <>
       <Outlet />
       {isMySolaris && <MySolarisPortalExtension />}
+      {isCountryHub && <HistoricalNationalFinalManager />}
     </>
   );
 }
