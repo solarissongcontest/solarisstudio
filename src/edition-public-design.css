@@ -162,6 +162,115 @@ body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main
   background: var(--edition-accent-gradient) !important;
 }
 
+/* The edition route uses its own hero section rather than the shared .page-header.
+   These rules make the four saved style choices visibly affect that real public page too. */
+body[data-entity-theme="edition"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border-radius: var(--edition-public-radius, 24px) !important;
+  transition: background .25s ease, border-color .25s ease, box-shadow .25s ease, border-radius .25s ease;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border-color: rgb(var(--solaris-accent) / .28) !important;
+  box-shadow: 0 30px 80px rgb(0 0 0 / .3), 0 0 70px rgb(var(--solaris-accent) / calc(var(--edition-hero-glow, .72) * .16));
+  transform: translateZ(0);
+}
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
+  padding-block: clamp(2rem, 7vw, 4.5rem) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border-width: 1px 0 !important;
+  border-color: rgb(var(--solaris-accent) / .22) !important;
+  border-radius: 0 !important;
+  background: rgb(var(--solaris-card-surface) / .34) !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden > div:first-child,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden > div:first-child {
+  background: linear-gradient(90deg, rgb(var(--solaris-accent) / .08), transparent 55%) !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
+  gap: 1.25rem !important;
+  padding: 1.5rem .25rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .glass,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .data-panel {
+  border-radius: min(var(--edition-public-radius, 24px), 14px) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden > div:first-child,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden > div:first-child {
+  opacity: .18;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
+  gap: 1rem !important;
+  padding: 1rem 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-panel {
+  border-radius: min(var(--edition-public-radius, 24px), 12px) !important;
+  background: rgb(var(--solaris-card-surface) / .42) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border-color: rgb(255 255 255 / .18) !important;
+  background: linear-gradient(145deg, rgb(255 255 255 / .075), rgb(var(--solaris-card-surface) / .28)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .09), 0 24px 70px rgb(0 0 0 / .22) !important;
+  backdrop-filter: blur(26px) saturate(1.16);
+  -webkit-backdrop-filter: blur(26px) saturate(1.16);
+}
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 12px 35px rgb(0 0 0 / .16) !important;
+}
+
+/* Compact edition archives: entries and delegation lists stay useful without turning
+   a single edition into a kilometre of cards. */
+body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
+  gap: .5rem !important;
+}
+body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass {
+  padding: .65rem !important;
+}
+body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass > div {
+  gap: .6rem !important;
+}
+body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass [class*="mt-3"] {
+  margin-top: .5rem !important;
+}
+
+body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+  gap: .45rem !important;
+}
+body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass {
+  min-height: 0;
+  gap: .55rem !important;
+  padding: .55rem .65rem !important;
+}
+body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass p:first-child {
+  font-size: .78rem;
+}
+body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass p:last-child {
+  margin-top: .1rem !important;
+  font-size: .56rem;
+}
+
 @media (max-width: 639px) {
   body[data-entity-theme="edition"] .app-main > .page-header {
     border-radius: min(var(--edition-public-radius, 24px), 28px);
@@ -177,5 +286,12 @@ body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main
     background-position: center;
     -webkit-mask-image: linear-gradient(90deg, #000 0 60%, rgb(0 0 0 / .92) 72%, rgb(0 0 0 / .52) 88%, transparent 100%);
     mask-image: linear-gradient(90deg, #000 0 60%, rgb(0 0 0 / .92) 72%, rgb(0 0 0 / .52) 88%, transparent 100%);
+  }
+
+  body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass {
+    padding: .5rem !important;
   }
 }
