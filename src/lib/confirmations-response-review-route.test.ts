@@ -38,7 +38,7 @@ describe("confirmation response review routing", () => {
     expect(listRoute).toContain('type CardState = "review" | "issue" | "ready" | "neutral"');
     expect(listRoute).toContain("Needs review");
     expect(listRoute).toContain("Needs fixing");
-    expect(listRoute).toContain("Waiting for winner");
+    expect(listRoute).toContain("waiting for winner");
     expect(listRoute).toContain("rgba(251,113,133");
     expect(listRoute).toContain("rgba(252,211,77");
     expect(listRoute).toContain("rgba(110,231,183");
