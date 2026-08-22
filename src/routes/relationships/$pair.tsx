@@ -13,9 +13,9 @@ import {
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
+import { useCompleteJuryArchive } from "@/lib/complete-jury";
 import {
   editionLabel,
-  useAllJuryVotes,
   useAllParticipants,
   useAllResults,
   useAllShows,
@@ -37,7 +37,7 @@ function RelationshipPairPage() {
   const { data: countries } = useCountries();
   const { data: editions } = useEditions();
   const { data: participants } = useAllParticipants();
-  const { data: jury } = useAllJuryVotes();
+  const { data: jury } = useCompleteJuryArchive();
   const { data: televote } = useAllTelevotes();
   const { data: results } = useAllResults();
   const { data: shows } = useAllShows();
