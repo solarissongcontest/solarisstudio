@@ -109,4 +109,42 @@ describe("fan discovery story patterns", () => {
     expect(story?.countryId).toBe("a");
     expect(story?.value).toBe("#1 → #3");
   });
+
+  it("does not invent televote stories for a jury-only show", () => {
+    const juryOnlyShow = {
+      ...shows[0],
+      voting_config: {
+        juryEnabled: true,
+        televoteEnabled: false,
+        weighting: { jury: 100, televote: 0 },
+      },
+    } as Show;
+
+    const stories = buildFanDiscovery({
+      countries,
+      editions: editions.slice(0, 1),
+      shows: [juryOnlyShow],
+      participants: participants.filter((row) => row.edition_id === "e1"),
+      jury: [],
+      results: [
+        result("a", "e1", "s1", "a", 120, 0, 120, 1),
+        result("b", "e1", "s1", "b", 100, 0, 100, 2),
+        result("c", "e1", "s1", "c", 90, 0, 90, 3),
+      ],
+    });
+
+    const splitVoteStoryIds = new Set([
+      "televote-rescue",
+      "jury-collapse",
+      "polarising",
+      "jury-darling",
+      "tele-favourite",
+      "consensus-winner",
+      "split-decision-winner",
+      "fallen-jury-winner",
+      "fallen-tele-winner",
+    ]);
+
+    expect(stories.some((story) => splitVoteStoryIds.has(story.id))).toBe(false);
+  });
 });
