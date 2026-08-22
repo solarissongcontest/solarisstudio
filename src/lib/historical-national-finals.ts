@@ -9,6 +9,7 @@ export type HistoricalNationalFinalEntryInput = {
   artist: string;
   song_title: string;
   song_url?: string;
+  next_in_line?: boolean;
 };
 
 export type HistoricalNationalFinalInput = {
