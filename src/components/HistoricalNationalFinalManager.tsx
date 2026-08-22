@@ -15,6 +15,7 @@ const EMPTY_ENTRY: HistoricalNationalFinalEntryInput = {
   artist: "",
   song_title: "",
   song_url: "",
+  next_in_line: false,
 };
 
 export function HistoricalNationalFinalManager() {
@@ -31,11 +32,21 @@ export function HistoricalNationalFinalManager() {
   useEffect(() => {
     const locate = () => {
       const root = document.querySelector(".app-main");
-      if (!root) return setTarget(null);
-      const headings = Array.from(root.querySelectorAll("h1,h2,h3,p"));
+      if (!root) {
+        setTarget(null);
+        return;
+      }
+
+      // Only the real Entries panel owns this editor. The Overview shortcut also
+      // says “SSC entries”, so matching generic <p> text caused the historical NF
+      // form to leak onto the overview page.
+      const headings = Array.from(root.querySelectorAll("h1,h2,h3"));
       const heading = headings.find((node) => node.textContent?.trim() === "SSC entries");
-      const panel = heading?.closest("section") ?? heading?.parentElement?.parentElement ?? null;
-      if (!panel) return setTarget(null);
+      const panel = heading?.closest("section") ?? null;
+      if (!panel) {
+        setTarget(null);
+        return;
+      }
 
       let host = panel.querySelector(":scope > [data-historical-nf-host]");
       if (!host) {
@@ -72,6 +83,7 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
     { ...EMPTY_ENTRY },
   ]);
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
+  const [nextInLineIndex, setNextInLineIndex] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const editionMap = useMemo(
@@ -87,6 +99,7 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
     setResultDate("");
     setEntries([{ ...EMPTY_ENTRY }, { ...EMPTY_ENTRY }]);
     setWinnerIndex(null);
+    setNextInLineIndex(null);
   };
 
   const startEdit = (nf: NonNullable<typeof finalsQuery.data>[number]) => {
@@ -101,20 +114,38 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
           artist: entry.artist ?? "",
           song_title: entry.song_title ?? "",
           song_url: entry.song_url ?? "",
+          next_in_line: Boolean(entry.next_in_line),
         }))
       : [{ ...EMPTY_ENTRY }, { ...EMPTY_ENTRY }];
     setEntries(rows);
     const winner = nf.entries.findIndex((entry) => entry.winner);
+    const nextInLine = nf.entries.findIndex((entry) => entry.next_in_line);
     setWinnerIndex(winner >= 0 ? winner : null);
+    setNextInLineIndex(nextInLine >= 0 ? nextInLine : null);
     setMessage(null);
   };
 
   const saveFinal = async () => {
     setMessage(null);
     try {
-      const cleaned = entries.filter(
-        (entry) => entry.artist.trim() || entry.song_title.trim() || entry.song_url?.trim(),
-      );
+      const indexed = entries
+        .map((entry, index) => ({
+          ...entry,
+          next_in_line: nextInLineIndex === index,
+          sourceIndex: index,
+        }))
+        .filter((entry) => entry.artist.trim() || entry.song_title.trim() || entry.song_url?.trim());
+
+      const winningPosition =
+        winnerIndex == null
+          ? null
+          : (() => {
+              const position = indexed.findIndex((entry) => entry.sourceIndex === winnerIndex);
+              return position >= 0 ? position + 1 : null;
+            })();
+
+      const cleaned = indexed.map(({ sourceIndex: _sourceIndex, ...entry }) => entry);
+
       await save.mutateAsync({
         id: editingId,
         editionId,
@@ -122,7 +153,7 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
         nfDate: nfDate || null,
         resultDate: resultDate || null,
         entries: cleaned,
-        winningPosition: winnerIndex == null ? null : winnerIndex + 1,
+        winningPosition,
       });
       setMessage(editingId ? "Previous national final updated." : "Previous national final added.");
       reset();
@@ -145,58 +176,67 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
 
       {(finalsQuery.data ?? []).length > 0 && (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {(finalsQuery.data ?? []).map((nf) => (
-            <div key={nf.id} className="rounded-xl border border-border bg-background/45 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">
-                    {nf.edition_id && editionMap.get(nf.edition_id)
-                      ? editionLabel(editionMap.get(nf.edition_id)!)
-                      : nf.edition_number
-                        ? `SSC ${nf.edition_number}`
-                        : "Edition unknown"}
-                  </p>
-                  <p className="mt-1 truncate text-sm font-semibold">{nf.name || "National final"}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {nf.entries.length} entr{nf.entries.length === 1 ? "y" : "ies"}
-                    {nf.entries.find((entry) => entry.winner)
-                      ? ` · Winner: ${nf.entries.find((entry) => entry.winner)?.artist || ""}${nf.entries.find((entry) => entry.winner)?.song_title ? ` — ${nf.entries.find((entry) => entry.winner)?.song_title}` : ""}`
-                      : ""}
-                  </p>
+          {(finalsQuery.data ?? []).map((nf) => {
+            const winner = nf.entries.find((entry) => entry.winner);
+            const nextInLine = nf.entries.find((entry) => entry.next_in_line);
+            return (
+              <div key={nf.id} className="rounded-xl border border-border bg-background/45 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">
+                      {nf.edition_id && editionMap.get(nf.edition_id)
+                        ? editionLabel(editionMap.get(nf.edition_id)!)
+                        : nf.edition_number
+                          ? `SSC ${nf.edition_number}`
+                          : "Edition unknown"}
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold">{nf.name || "National final"}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {nf.entries.length} entr{nf.entries.length === 1 ? "y" : "ies"}
+                      {winner
+                        ? ` · Winner: ${winner.artist || ""}${winner.song_title ? ` — ${winner.song_title}` : ""}`
+                        : ""}
+                    </p>
+                    {nextInLine && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Next in Line: {[nextInLine.artist, nextInLine.song_title].filter(Boolean).join(" — ") || "Selected entry"}
+                      </p>
+                    )}
+                  </div>
+                  <span className="shrink-0 rounded-full border border-border px-2 py-1 text-[9px] font-semibold text-muted-foreground">
+                    {nf.source === "manual" ? "Added here" : "Confirmation"}
+                  </span>
                 </div>
-                <span className="shrink-0 rounded-full border border-border px-2 py-1 text-[9px] font-semibold text-muted-foreground">
-                  {nf.source === "manual" ? "Added here" : "Confirmation"}
-                </span>
+                {nf.source === "manual" && (
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startEdit(nf)}
+                      className="min-h-9 rounded-lg border border-border px-3 text-xs font-semibold"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={remove.isPending}
+                      onClick={async () => {
+                        if (!window.confirm(`Delete ${nf.name || "this national final"}?`)) return;
+                        try {
+                          await remove.mutateAsync(nf.id);
+                          if (editingId === nf.id) reset();
+                        } catch (error) {
+                          setMessage(error instanceof Error ? error.message : "The national final could not be deleted.");
+                        }
+                      }}
+                      className="min-h-9 rounded-lg border border-destructive/30 px-3 text-xs font-semibold text-destructive disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
-              {nf.source === "manual" && (
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(nf)}
-                    className="min-h-9 rounded-lg border border-border px-3 text-xs font-semibold"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    disabled={remove.isPending}
-                    onClick={async () => {
-                      if (!window.confirm(`Delete ${nf.name || "this national final"}?`)) return;
-                      try {
-                        await remove.mutateAsync(nf.id);
-                        if (editingId === nf.id) reset();
-                      } catch (error) {
-                        setMessage(error instanceof Error ? error.message : "The national final could not be deleted.");
-                      }
-                    }}
-                    className="min-h-9 rounded-lg border border-destructive/30 px-3 text-xs font-semibold text-destructive disabled:opacity-50"
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -236,7 +276,10 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
 
         <div className="mt-5 space-y-2">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Competing entries</p>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Competing entries</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Mark the winner and, if applicable, the song that later went to Next in Line.</p>
+            </div>
             <button
               type="button"
               onClick={() => setEntries((current) => [...current, { ...EMPTY_ENTRY }])}
@@ -247,16 +290,36 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
           </div>
 
           {entries.map((entry, index) => (
-            <div key={index} className="grid gap-2 rounded-xl border border-border/70 bg-background/45 p-3 sm:grid-cols-[auto_1fr_1fr_auto] sm:items-end">
-              <label className="flex min-h-10 items-center gap-2 text-xs font-semibold">
-                <input
-                  type="radio"
-                  name="historical-nf-winner"
-                  checked={winnerIndex === index}
-                  onChange={() => setWinnerIndex(index)}
-                />
-                Winner
-              </label>
+            <div key={index} className="grid gap-2 rounded-xl border border-border/70 bg-background/45 p-3 sm:grid-cols-[112px_1fr_1fr_auto] sm:items-end">
+              <div className="flex flex-col gap-1.5">
+                <label className="flex min-h-9 items-center gap-2 text-xs font-semibold">
+                  <input
+                    type="radio"
+                    name="historical-nf-winner"
+                    checked={winnerIndex === index}
+                    onChange={() => {
+                      setWinnerIndex(index);
+                      setNextInLineIndex((current) => current === index ? null : current);
+                    }}
+                  />
+                  Winner
+                </label>
+                <button
+                  type="button"
+                  aria-pressed={nextInLineIndex === index}
+                  onClick={() => {
+                    setNextInLineIndex((current) => current === index ? null : index);
+                    if (winnerIndex === index) setWinnerIndex(null);
+                  }}
+                  className={`min-h-9 rounded-lg border px-2 text-left text-[11px] font-semibold transition-colors ${
+                    nextInLineIndex === index
+                      ? "border-primary/40 bg-primary/12 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Next in Line
+                </button>
+              </div>
               <Field
                 label="Artist"
                 value={entry.artist}
@@ -274,6 +337,7 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
                 onClick={() => {
                   setEntries((current) => current.filter((_, i) => i !== index));
                   setWinnerIndex((current) => current == null ? null : current === index ? null : current > index ? current - 1 : current);
+                  setNextInLineIndex((current) => current == null ? null : current === index ? null : current > index ? current - 1 : current);
                 }}
                 className="grid size-10 place-items-center rounded-lg border border-border text-muted-foreground disabled:opacity-30"
               >
