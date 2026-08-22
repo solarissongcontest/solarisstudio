@@ -55,7 +55,16 @@ export function FastJuryEntry({
     };
   }, [voters]);
 
-  const ballot = votes.filter((v) => keyOf(v) === activeVoter);
+  // Only scores that exist in the currently saved jury scale are part of a
+  // ballot. This prevents an old 7/5/3 award from surviving invisibly after
+  // the show changes to e.g. 12/10/8/6/4/2/1 and creating ghost counts.
+  const allowedPoints = useMemo(() => new Set(voting.juryPoints), [voting.juryPoints]);
+  const validVotes = useMemo(
+    () => votes.filter((vote) => allowedPoints.has(vote.points)),
+    [votes, allowedPoints],
+  );
+
+  const ballot = validVotes.filter((v) => keyOf(v) === activeVoter);
   const byPoints = new Map(ballot.map((v) => [v.points, v.receiving_country_id]));
   const activeVoterCountry = vMap.get(activeVoter)?.countryId ?? null;
   const activeDidNotVote = didNotVoteVoterKeys.has(activeVoter);
@@ -64,17 +73,17 @@ export function FastJuryEntry({
     const need = voting.juryPoints.length;
     return voters.map((v) => ({
       id: v.key,
-      given: votes.filter((vote) => keyOf(vote) === v.key).length,
+      given: validVotes.filter((vote) => keyOf(vote) === v.key).length,
       need,
       didNotVote: didNotVoteVoterKeys.has(v.key),
     }));
-  }, [voters, votes, voting.juryPoints.length, keyOf, didNotVoteVoterKeys]);
+  }, [voters, validVotes, voting.juryPoints.length, keyOf, didNotVoteVoterKeys]);
 
   const resolvedCount = completeness.filter((item) => item.didNotVote || item.given >= item.need).length;
-  const totalAwardedPoints = votes.reduce((sum, vote) => sum + vote.points, 0);
+  const totalAwardedPoints = validVotes.reduce((sum, vote) => sum + vote.points, 0);
   const standings = useMemo<JuryStanding[]>(() => {
     const totals = new Map(receivers.map((country) => [country.id, 0]));
-    votes.forEach((vote) => {
+    validVotes.forEach((vote) => {
       totals.set(vote.receiving_country_id, (totals.get(vote.receiving_country_id) ?? 0) + vote.points);
     });
 
@@ -94,7 +103,7 @@ export function FastJuryEntry({
       previousRank = rank;
       return { ...row, rank };
     });
-  }, [receivers, votes]);
+  }, [receivers, validVotes]);
 
   const usedReceivers = new Set(ballot.map((v) => v.receiving_country_id));
 
