@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ExternalLink, ImagePlus, Info, Palette, RotateCcw } from "lucide-react";
 
@@ -225,7 +225,7 @@ function EditionThemePage() {
           </AdminCard>
 
           <AdminCard>
-            <AdminCardHeader eyebrow="2 · Interface palette" title="Fine-tune where colours are used" description="Changing these fields is only a draft until Save. The preview updates immediately so you can see the effect first." />
+            <AdminCardHeader eyebrow="2 · Interface palette" title="Fine-tune where colours are used" description="Changing these fields is only a draft until Save. The preview updates after you finish choosing a colour, which keeps the mobile colour picker open instead of throwing you back to the page." />
             <div className="grid gap-3 sm:grid-cols-2">
               <ColourField label="Background" description="Main page background." value={theme.backgroundPrimary} onChange={(value) => set("backgroundPrimary", value)} />
               <ColourField label="Secondary" description="Gradient and supporting background." value={theme.backgroundSecondary} onChange={(value) => set("backgroundSecondary", value)} />
@@ -263,5 +263,70 @@ function EditionThemePage() {
 }
 
 function ColourField({ label, description, value, onChange }: { label: string; description: string; value: string; onChange: (value: string) => void }) {
-  return <label className="block rounded-xl border border-white/[0.07] bg-white/[0.025] p-3"><span className="admin-section-label">{label}</span><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{description}</p><div className="mt-2 flex items-center gap-3"><input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-14 rounded-lg border border-white/[0.1] bg-transparent p-1" /><span className="numeric text-xs text-muted-foreground">{value}</span></div></label>;
+  const pickerRef = useRef<HTMLInputElement>(null);
+  const [hex, setHex] = useState(value);
+
+  useEffect(() => {
+    setHex(value);
+    const picker = pickerRef.current;
+    if (picker && document.activeElement !== picker) picker.value = value;
+  }, [value]);
+
+  useEffect(() => {
+    const picker = pickerRef.current;
+    if (!picker) return;
+    const commit = () => {
+      const next = picker.value.toLowerCase();
+      setHex(next);
+      onChange(next);
+    };
+    picker.addEventListener("change", commit);
+    return () => picker.removeEventListener("change", commit);
+  }, [onChange]);
+
+  const commitHex = () => {
+    const next = hex.trim().toLowerCase();
+    if (/^#[0-9a-f]{6}$/.test(next)) {
+      if (pickerRef.current) pickerRef.current.value = next;
+      onChange(next);
+    } else {
+      setHex(value);
+    }
+  };
+
+  return (
+    <div className="block rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+      <span className="admin-section-label">{label}</span>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{description}</p>
+      <div className="mt-2 flex items-center gap-3">
+        <input
+          ref={pickerRef}
+          type="color"
+          defaultValue={value}
+          aria-label={`${label} colour`}
+          className="h-12 w-16 shrink-0 cursor-pointer rounded-lg border border-white/[0.1] bg-transparent p-1 touch-manipulation"
+        />
+        <input
+          type="text"
+          inputMode="text"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={hex}
+          aria-label={`${label} hex colour`}
+          onChange={(event) => setHex(event.target.value)}
+          onBlur={commitHex}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitHex();
+              event.currentTarget.blur();
+            }
+          }}
+          className="numeric min-w-0 flex-1 rounded-lg border border-white/[0.1] bg-black/10 px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/45"
+          placeholder="#000000"
+          maxLength={7}
+        />
+      </div>
+    </div>
+  );
 }
