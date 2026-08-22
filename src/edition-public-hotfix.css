@@ -1,9 +1,9 @@
 /* Final public-edition/show overrides. Kept separate so these high-specificity rules win over
    the global design system without changing the normal star background. */
 
-/* Every published show with a winner should use the actual winning flag as the hero-side fade.
-   unified-design.css applies a cyan .page-header::after background with !important, so the
-   winner image must explicitly override it at higher specificity. */
+/* Winner flag treatment: deliberately short, like the original cyan accent strip, rather than
+   turning the whole hero into a flag. A dark veil is composited over the image itself so white
+   hero text stays readable even on bright flags. */
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
   content: "" !important;
   display: block !important;
@@ -11,23 +11,36 @@ body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .pag
   right: auto !important;
   top: 0 !important;
   bottom: 0 !important;
-  width: min(66%, 39rem) !important;
+  width: min(40%, 15rem) !important;
   height: 100% !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   background-color: transparent !important;
-  background-image: var(--show-winner-flag-image) !important;
-  background-repeat: no-repeat !important;
-  background-size: cover !important;
-  background-position: center !important;
-  opacity: .92 !important;
-  filter: saturate(1.03) contrast(1.02) !important;
-  -webkit-mask-image: linear-gradient(90deg, #000 0 64%, rgb(0 0 0 / .96) 72%, rgb(0 0 0 / .62) 86%, transparent 100%) !important;
-  mask-image: linear-gradient(90deg, #000 0 64%, rgb(0 0 0 / .96) 72%, rgb(0 0 0 / .62) 86%, transparent 100%) !important;
+  background-image:
+    linear-gradient(90deg, rgb(0 0 0 / .34) 0%, rgb(0 0 0 / .24) 48%, rgb(0 0 0 / .08) 78%, transparent 100%),
+    var(--show-winner-flag-image) !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-size: 100% 100%, cover !important;
+  background-position: left center, center !important;
+  opacity: .96 !important;
+  filter: saturate(1.02) contrast(1.02) !important;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 58%, rgb(0 0 0 / .94) 70%, rgb(0 0 0 / .52) 86%, transparent 100%) !important;
+  mask-image: linear-gradient(90deg, #000 0 58%, rgb(0 0 0 / .94) 70%, rgb(0 0 0 / .52) 86%, transparent 100%) !important;
   transform: none !important;
   pointer-events: none !important;
   z-index: 0 !important;
+}
+
+/* The flag lives underneath the header copy. Give the copy a restrained shadow so it remains
+   legible on yellow/white/red flags without looking outlined or cartoonish. */
+body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header h1,
+body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header p,
+body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header a,
+body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header button {
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgb(0 0 0 / .82), 0 2px 12px rgb(0 0 0 / .42);
 }
 
 /* Glass material. Keep the border/rim readable, but leave the pane itself almost clear so
@@ -65,11 +78,12 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .
 
 @media (max-width: 639px) {
   body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
-    width: 86% !important;
-    opacity: .9 !important;
-    background-position: center !important;
-    -webkit-mask-image: linear-gradient(90deg, #000 0 58%, rgb(0 0 0 / .94) 69%, rgb(0 0 0 / .56) 86%, transparent 100%) !important;
-    mask-image: linear-gradient(90deg, #000 0 58%, rgb(0 0 0 / .94) 69%, rgb(0 0 0 / .56) 86%, transparent 100%) !important;
+    width: 42% !important;
+    max-width: 11.5rem !important;
+    opacity: .96 !important;
+    background-position: left center, center !important;
+    -webkit-mask-image: linear-gradient(90deg, #000 0 54%, rgb(0 0 0 / .94) 67%, rgb(0 0 0 / .50) 84%, transparent 100%) !important;
+    mask-image: linear-gradient(90deg, #000 0 54%, rgb(0 0 0 / .94) 67%, rgb(0 0 0 / .50) 84%, transparent 100%) !important;
   }
 
   body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
