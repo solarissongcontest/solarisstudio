@@ -1,33 +1,102 @@
 /* Edition public styles v3
-   These overrides intentionally use only the exact edition interface palette tokens
-   (background, secondary, accent) instead of the balancedSurface token that mixes in navy. */
+   Exact edition palette only. Layout presets must change composition, not merely repaint cards. */
 
-/* EDITORIAL: elegant publication layout, not a pile of outlined cards. */
+/* EDITORIAL -----------------------------------------------------------------
+   A magazine / results-book treatment: square geometry, strong rules, asymmetric
+   hierarchy and mostly open sections. Deliberately NOT another rounded-card skin. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main {
+  --editorial-rule: rgb(var(--solaris-accent) / .30);
+  --editorial-hairline: rgb(var(--solaris-accent) / .12);
+}
+
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden {
-  background:
-    linear-gradient(90deg, rgb(var(--solaris-accent) / .09), transparent 34%),
-    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .92), rgb(var(--solaris-bg-secondary) / .22)) !important;
-  border: 1px solid rgb(var(--solaris-accent) / .16) !important;
-  border-radius: 18px !important;
-  box-shadow: 0 16px 42px rgb(0 0 0 / .14) !important;
+  position: relative;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 2px solid var(--editorial-rule) !important;
+  border-bottom: 1px solid var(--editorial-hairline) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header::before,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden::before,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden::before {
+  content: "" !important;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: linear-gradient(180deg, rgb(var(--solaris-accent) / .55), transparent 74%);
+  z-index: 2;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h1 {
+  max-width: 11ch;
+  font-size: clamp(3.25rem, 8vw, 6.8rem) !important;
+  line-height: .82 !important;
+  letter-spacing: -.07em !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h2 {
+  font-size: clamp(1.65rem, 4vw, 2.45rem) !important;
+  line-height: .98 !important;
+  letter-spacing: -.035em !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="uppercase"] {
+  letter-spacing: .22em !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .data-panel,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .glass {
-  background:
-    linear-gradient(145deg, rgb(var(--solaris-bg-secondary) / .18), rgb(var(--solaris-bg-primary) / .72)) !important;
-  border: 1px solid rgb(var(--solaris-accent) / .13) !important;
-  border-radius: 14px !important;
-  box-shadow: 0 9px 24px rgb(0 0 0 / .10) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--editorial-hairline) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid {
+  gap: 0 !important;
+  border-top: 1px solid var(--editorial-hairline);
+  border-left: 1px solid var(--editorial-hairline);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .glass,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel {
+  padding: 1rem !important;
+  border: 0 !important;
+  border-right: 1px solid var(--editorial-hairline) !important;
+  border-bottom: 1px solid var(--editorial-hairline) !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass::after {
-  background: rgb(var(--solaris-accent) / .55) !important;
+  display: none !important;
 }
 
-/* MINIMAL: restrained, premium and compact. It should look intentionally quiet, not unfinished. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
+  padding-top: 1.35rem;
+  border-top: 1px solid var(--editorial-hairline);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main select {
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--editorial-rule) !important;
+  border-bottom: 1px solid var(--editorial-hairline) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main button,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main a.rounded-xl {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+/* MINIMAL ------------------------------------------------------------------ */
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main {
   --minimal-line: rgb(var(--solaris-accent) / .10);
 }
@@ -115,6 +184,17 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
 }
 
 @media (max-width: 639px) {
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden,
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden {
+    padding-inline: .6rem !important;
+  }
+
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .glass,
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel {
+    padding: .78rem !important;
+  }
+
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
