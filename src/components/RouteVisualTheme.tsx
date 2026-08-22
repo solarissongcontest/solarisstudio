@@ -130,7 +130,14 @@ export function RouteVisualTheme() {
 
   useEffect(() => {
     const body = document.body;
-    const keys = ["--solaris-bg-primary","--solaris-bg-secondary","--solaris-bg-tertiary","--solaris-bg-deep","--solaris-bg-deep-2","--solaris-accent","--solaris-accent-foreground","--solaris-owner-surface","--solaris-card-surface","--solaris-card-raised","--foreground","--muted-foreground","--surface","--edition-artwork-image","--show-winner-flag-image","--edition-public-radius","--edition-surface-strength","--edition-hero-glow","--edition-accent-gradient","--edition-surface-gradient","--country-page-background","--country-page-position","--country-page-blur"];
+    const keys = [
+      "--solaris-bg-primary","--solaris-bg-secondary","--solaris-bg-tertiary","--solaris-bg-deep","--solaris-bg-deep-2",
+      "--solaris-accent","--solaris-accent-foreground","--solaris-owner-surface","--solaris-card-surface","--solaris-card-raised",
+      "--foreground","--muted-foreground","--surface","--surface-strong","--primary","--accent","--ring","--jury","--televote",
+      "--chart-1","--chart-2","--chart-3","--edition-artwork-image","--show-winner-flag-image","--edition-public-radius",
+      "--edition-surface-strength","--edition-hero-glow","--edition-accent-gradient","--edition-surface-gradient","--country-page-background",
+      "--country-page-position","--country-page-blur",
+    ];
     const clear = () => {
       delete body.dataset.entityTheme; delete body.dataset.editionArtwork; delete body.dataset.editionPublicStyle;
       delete body.dataset.editionAccentGradient; delete body.dataset.editionSurfaceGradient; delete body.dataset.showWinnerFlag;
@@ -154,10 +161,23 @@ export function RouteVisualTheme() {
     } else {
       delete body.dataset.countryBackgroundMode; delete body.dataset.countryHeroLayout; delete body.dataset.countryDecoration;
       body.style.removeProperty("--country-page-background"); body.style.removeProperty("--country-page-position"); body.style.removeProperty("--country-page-blur");
+
+      /* Edition/show pages use exactly the saved edition palette. Do not fall back to the global
+         Solaris cyan/navy tokens for charts, tabs, labels or surfaces. */
       body.style.setProperty("--surface", resolved.theme.surface);
+      body.style.setProperty("--surface-strong", `color-mix(in oklab, ${resolved.theme.surface} 82%, ${resolved.theme.textPrimary} 18%)`);
       body.style.setProperty("--solaris-owner-surface", resolved.theme.surface);
       body.style.setProperty("--solaris-card-surface", hexTriplet(resolved.theme.surface));
       body.style.setProperty("--solaris-card-raised", hexTriplet(resolved.theme.surface));
+      body.style.setProperty("--primary", resolved.theme.accent);
+      body.style.setProperty("--accent", resolved.theme.accent);
+      body.style.setProperty("--ring", resolved.theme.accent);
+      body.style.setProperty("--jury", resolved.theme.accent);
+      body.style.setProperty("--televote", resolved.theme.backgroundSecondary);
+      body.style.setProperty("--chart-1", resolved.theme.accent);
+      body.style.setProperty("--chart-2", resolved.theme.backgroundSecondary);
+      body.style.setProperty("--chart-3", resolved.theme.backgroundPrimary);
+
       body.dataset.editionPublicStyle = resolved.publicSettings.style;
       body.style.setProperty("--edition-public-radius", `${resolved.publicSettings.radius}px`);
       body.style.setProperty("--edition-surface-strength", String(resolved.publicSettings.surfaceStrength / 100));
