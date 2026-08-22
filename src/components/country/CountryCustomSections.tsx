@@ -36,14 +36,17 @@ export function CountryCustomSections({
   if (!visible.length) return null;
 
   return (
-    <div className="space-y-4" data-country-custom-sections={surface}>
+    <div
+      className="w-full space-y-4"
+      data-country-custom-sections={surface}
+      data-country-media-count={media.length}
+    >
       {visible.map((section) => (
         <CountryCustomSection
           key={section.id}
           country={country}
           profile={profile}
           section={section}
-          media={media}
           surface={surface}
         />
       ))}
@@ -55,16 +58,18 @@ function CountryCustomSection({
   country,
   profile,
   section,
-  media,
   surface,
 }: {
   country: Country;
   profile?: CountryProfile | null;
   section: ReturnType<typeof normalizeCountryPageSection>;
-  media: CountryMedia[];
   surface: "country" | "wiki";
 }) {
   const presentation = countrySectionPresentation(section);
+
+  // Gallery blocks are intentionally retired. Country images remain reusable
+  // as article/feature assets, but there is no separate gallery surface.
+  if (section.section_type === "gallery") return null;
 
   if (section.section_type === "divider") {
     const divider = presentation.dividerStyle === "dots"
@@ -72,14 +77,14 @@ function CountryCustomSection({
       : presentation.dividerStyle === "glow"
         ? <div className="h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent shadow-[0_0_18px_hsl(var(--primary)/0.45)]" />
         : <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />;
-    return <div className={`${widthClass(presentation.width)} ${spacingClass(presentation.spacing, true)}`} aria-hidden="true">{divider}</div>;
+    return <div className={`${widthClass()} ${spacingClass(presentation.spacing, true)}`} aria-hidden="true">{divider}</div>;
   }
 
   const style = section.background_tint
     ? ({ backgroundColor: `${section.background_tint}d9` } as CSSProperties)
     : undefined;
   const wrapperClass = [
-    widthClass(presentation.width),
+    widthClass(),
     panelClass(presentation.panelStyle, surface),
     presentation.panelStyle === "transparent" ? "" : "country-personality-card",
     spacingClass(presentation.spacing),
@@ -106,7 +111,7 @@ function CountryCustomSection({
     return (
       <section className={wrapperClass} style={style}>
         {section.kicker && <Kicker>{section.kicker}</Kicker>}
-        <h2 className="font-display text-xl font-semibold">{section.heading || "Quick facts"}</h2>
+        <h2 className="font-display text-xl font-semibold">{section.heading || "Facts"}</h2>
         {rows.length ? (
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {rows.map((row, index) => (
@@ -116,37 +121,7 @@ function CountryCustomSection({
               </div>
             ))}
           </div>
-        ) : <p className="mt-3 text-sm text-muted-foreground">No facts have been published for this block yet.</p>}
-      </section>
-    );
-  }
-
-  if (section.section_type === "gallery") {
-    const gridClass = presentation.galleryColumns === 4
-      ? "grid-cols-2 sm:grid-cols-4"
-      : presentation.galleryColumns === 2
-        ? "grid-cols-1 sm:grid-cols-2"
-        : "grid-cols-2 sm:grid-cols-3";
-    return (
-      <section className={wrapperClass} style={style}>
-        {section.kicker && <Kicker>{section.kicker}</Kicker>}
-        <h2 className="font-display text-xl font-semibold">{section.heading || "Gallery"}</h2>
-        {media.length ? (
-          <div className={`mt-4 grid gap-2 ${gridClass}`}>
-            {media.map((item) => (
-              <figure key={item.id} className="overflow-hidden rounded-xl bg-background/20">
-                <img
-                  src={item.public_url}
-                  alt={item.alt_text || item.caption || `${country.name} gallery image`}
-                  loading="lazy"
-                  className={`w-full ${aspectClass(presentation.imageAspect, "4:3")} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`}
-                  style={{ objectPosition: `${presentation.focalX}% ${presentation.focalY}%` }}
-                />
-                {item.caption && <figcaption className="p-2 text-[10px] leading-4 text-muted-foreground">{item.caption}</figcaption>}
-              </figure>
-            ))}
-          </div>
-        ) : <p className="mt-3 text-sm text-muted-foreground">No gallery images have been published yet.</p>}
+        ) : <p className="mt-3 text-sm text-muted-foreground">No facts have been added to this block yet.</p>}
       </section>
     );
   }
@@ -164,13 +139,16 @@ function CountryCustomSection({
     </div>
   );
   const image = hasImage ? (
-    <figure className={full ? `${fullBleed} mb-4` : "min-w-0"}>
+    <figure className={full ? `${fullBleed} mb-4` : `${imageSizeClass(presentation.imageSize)} min-w-0 ${sideBySide ? "" : "mx-auto"}`}>
       <img
         src={section.image_url ?? ""}
         alt={section.image_caption || `${country.name} section image`}
         loading="lazy"
-        className={`${full ? "w-full" : section.image_layout === "wide" ? "mt-4 w-full rounded-xl" : "w-full rounded-xl"} ${aspectClass(presentation.imageAspect)} ${presentation.imageAspect === "auto" ? (full ? "max-h-[560px]" : "max-h-[420px]") : ""} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`}
-        style={{ objectPosition: `${presentation.focalX}% ${presentation.focalY}%` }}
+        className={`${full ? "w-full" : section.image_layout === "wide" ? "mt-4 w-full rounded-xl" : "w-full rounded-xl"} ${aspectClass(presentation.imageAspect)} ${presentation.imageAspect === "auto" ? imageHeightClass(presentation.imageSize, full) : ""} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`}
+        style={{
+          objectPosition: `${presentation.focalX}% ${presentation.focalY}%`,
+          ...imageFadeStyle(presentation.imageFade),
+        }}
       />
       {section.image_caption && <figcaption className={`${full ? captionInsetClass(presentation.spacing) : ""} mt-2 text-[10px] leading-4 text-muted-foreground`}>{section.image_caption}</figcaption>}
     </figure>
@@ -194,11 +172,10 @@ function CountryCustomSection({
   );
 }
 
-function widthClass(width: ReturnType<typeof countrySectionPresentation>["width"]) {
-  if (width === "narrow") return "mx-auto w-full max-w-2xl";
-  if (width === "wide") return "mx-auto w-full max-w-6xl";
-  if (width === "full") return "w-full max-w-none";
-  return "mx-auto w-full max-w-4xl";
+function widthClass() {
+  // Cards intentionally share the same outer width. Different text/image sizes
+  // live inside the card so neighbouring sections never leave accidental gaps.
+  return "w-full max-w-none";
 }
 
 function panelClass(panelStyle: ReturnType<typeof countrySectionPresentation>["panelStyle"], surface: "country" | "wiki") {
@@ -220,6 +197,33 @@ function spacingClass(spacing: ReturnType<typeof countrySectionPresentation>["sp
   if (spacing === "compact") return "p-3 sm:p-4";
   if (spacing === "spacious") return "p-5 sm:p-7";
   return "p-4 sm:p-5";
+}
+
+function imageSizeClass(size: ReturnType<typeof countrySectionPresentation>["imageSize"]) {
+  if (size === "small") return "w-full max-w-sm";
+  if (size === "medium") return "w-full max-w-xl";
+  if (size === "large") return "w-full max-w-3xl";
+  return "w-full max-w-none";
+}
+
+function imageHeightClass(size: ReturnType<typeof countrySectionPresentation>["imageSize"], full: boolean) {
+  if (full) return "max-h-[620px]";
+  if (size === "small") return "max-h-[240px]";
+  if (size === "medium") return "max-h-[360px]";
+  if (size === "large") return "max-h-[520px]";
+  return "max-h-[620px]";
+}
+
+function imageFadeStyle(fade: ReturnType<typeof countrySectionPresentation>["imageFade"]): CSSProperties {
+  if (fade === "none") return {};
+  const mask = fade === "top"
+    ? "linear-gradient(to bottom, transparent 0%, #000 30%)"
+    : fade === "bottom"
+      ? "linear-gradient(to bottom, #000 70%, transparent 100%)"
+      : fade === "left"
+        ? "linear-gradient(to right, transparent 0%, #000 30%)"
+        : "linear-gradient(to right, #000 70%, transparent 100%)";
+  return { WebkitMaskImage: mask, maskImage: mask };
 }
 
 function fullBleedClass(spacing: ReturnType<typeof countrySectionPresentation>["spacing"]) {
