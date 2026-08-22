@@ -15,7 +15,7 @@ import { CountryButtonThemeController } from "@/components/CountryButtonThemeCon
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
-import { useAllResults, useAllShows, useCountries, useEditions } from "@/lib/data";
+import { useAllShows, useCountries, useEditions, useResults } from "@/lib/data";
 import {
   countryBackgroundCss,
   countryThemeToVisual,
@@ -90,10 +90,11 @@ function editionPublicSettings(raw: unknown): EditionPublicSettings {
 
 export function RouteVisualTheme() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const currentShowId = segmentAfter(pathname, "/shows/");
   const { data: countries } = useCountries();
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
-  const { data: results } = useAllResults();
+  const { data: currentShowResults } = useResults(currentShowId ?? undefined);
   const { data: countryThemes } = useCountryThemes();
 
   const resolved = useMemo<ResolvedVisual | null>(() => {
@@ -126,9 +127,8 @@ export function RouteVisualTheme() {
       }
     }
 
-    const showId = segmentAfter(pathname, "/shows/");
-    if (showId) {
-      const show = (shows ?? []).find((item) => item.id === showId);
+    if (currentShowId) {
+      const show = (shows ?? []).find((item) => item.id === currentShowId);
       const edition = visualEditions.find((item) => item.id === show?.edition_id);
       const theme = editionThemeToVisual(edition?.theme_colors);
       if (theme) {
@@ -142,17 +142,16 @@ export function RouteVisualTheme() {
     }
 
     return null;
-  }, [pathname, countries, editions, shows, countryThemes]);
+  }, [pathname, currentShowId, countries, editions, shows, countryThemes]);
 
   const showWinnerFlag = useMemo(() => {
-    const showId = segmentAfter(pathname, "/shows/");
-    if (!showId) return null;
-    const winnerRow = (results ?? [])
-      .filter((row) => row.show_id === showId && row.final_rank != null)
+    if (!currentShowId) return null;
+    const winnerRow = (currentShowResults ?? [])
+      .filter((row) => row.final_rank != null)
       .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))[0];
     if (!winnerRow) return null;
     return (countries ?? []).find((country) => country.id === winnerRow.country_id)?.flag_image ?? null;
-  }, [pathname, results, countries]);
+  }, [currentShowId, currentShowResults, countries]);
 
   useEffect(() => {
     const body = document.body;
@@ -256,7 +255,7 @@ export function RouteVisualTheme() {
       body.style.removeProperty("--edition-artwork-image");
     }
 
-    if (segmentAfter(pathname, "/shows/") && showWinnerFlag) {
+    if (currentShowId && showWinnerFlag) {
       body.dataset.showWinnerFlag = "true";
       body.style.setProperty("--show-winner-flag-image", `url(${JSON.stringify(showWinnerFlag)})`);
     } else {
@@ -265,7 +264,7 @@ export function RouteVisualTheme() {
     }
 
     return clear;
-  }, [resolved, pathname, showWinnerFlag]);
+  }, [resolved, currentShowId, showWinnerFlag]);
 
   return (
     <>
