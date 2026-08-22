@@ -11,6 +11,7 @@ export type PublicNationalFinalEntry = {
   song_url: string | null;
   position: number | null;
   winner: boolean;
+  next_in_line: boolean;
 };
 
 export type PublicNationalFinal = {
