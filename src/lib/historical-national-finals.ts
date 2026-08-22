@@ -10,6 +10,7 @@ export type HistoricalNationalFinalEntryInput = {
   song_title: string;
   song_url?: string;
   next_in_line?: boolean;
+  result_position?: number | null;
 };
 
 export type HistoricalNationalFinalInput = {
@@ -27,13 +28,13 @@ export function useCountryHistoricalNationalFinals(countryId?: string) {
     enabled: Boolean(countryId),
     queryKey: ["country-historical-national-finals", countryId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("public_country_national_finals", {
+      const { data, error } = await supabase.rpc("manage_country_national_finals", {
         _country_id: countryId!,
       });
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as Array<PublicNationalFinal & { source?: string }>;
     },
-    staleTime: 30_000,
+    staleTime: 10_000,
   });
 }
 
@@ -54,6 +55,37 @@ export function useSaveCountryHistoricalNationalFinal(countryId?: string) {
       });
       if (error) throw error;
       return data as string;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["country-historical-national-finals", countryId] }),
+        queryClient.invalidateQueries({ queryKey: ["country-national-finals", countryId] }),
+      ]);
+    },
+  });
+}
+
+export function useSetCountryNationalFinalPublication(countryId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      nationalFinalId: string;
+      lineupPublished?: boolean;
+      resultsPublished?: boolean;
+    }) => {
+      if (!countryId) throw new Error("No country is selected.");
+      const { data, error } = await supabase.rpc("set_country_national_final_publication", {
+        _country_id: countryId,
+        _national_final_id: input.nationalFinalId,
+        _lineup_published: input.lineupPublished ?? null,
+        _results_published: input.resultsPublished ?? null,
+      });
+      if (error) throw error;
+      return data as {
+        id: string;
+        lineup_published: boolean;
+        results_published: boolean;
+      };
     },
     onSuccess: async () => {
       await Promise.all([
