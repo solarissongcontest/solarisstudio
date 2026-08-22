@@ -43,10 +43,15 @@ function baseInput() {
         contest_entity_id: null,
         artist: "Artist",
         song: "Song",
+        youtube_url: "https://example.com/video",
+        spotify_url: "https://example.com/spotify",
+        apple_music_url: "https://example.com/apple",
+        publication_status: "published",
+        scheduled_publish_at: null,
         running_order: 4,
         semi_final: "1",
         qualified: true,
-        notes: null,
+        notes: "private note",
       },
     ],
     results: [
@@ -90,12 +95,50 @@ describe("buildPublicCountryArchive", () => {
     expect(archive.participants).toHaveLength(1);
     expect(archive.participants[0]?.artist).toBe("Artist");
     expect(archive.participants[0]?.song).toBe("Song");
+    expect(archive.participants[0]?.youtube_url).toBe("https://example.com/video");
+    expect(archive.participants[0]?.notes).toBeNull();
     expect(archive.participants[0]?.running_order).toBeNull();
     expect(archive.participants[0]?.qualified).toBeNull();
 
     expect(archive.results).toEqual([]);
     expect(archive.jury).toEqual([]);
     expect(archive.televote).toEqual([]);
+  });
+
+  it("redacts a draft entry even when the show's artist and song layers are public", () => {
+    const input = baseInput();
+    input.participants[0].publication_status = "draft";
+
+    const archive = buildPublicCountryArchive(input);
+
+    expect(archive.participants).toHaveLength(1);
+    expect(archive.participants[0]?.artist).toBeNull();
+    expect(archive.participants[0]?.song).toBeNull();
+    expect(archive.participants[0]?.youtube_url).toBeNull();
+    expect(archive.participants[0]?.spotify_url).toBeNull();
+    expect(archive.participants[0]?.apple_music_url).toBeNull();
+  });
+
+  it("redacts a future scheduled entry until its exact reveal time", () => {
+    const input = baseInput();
+    input.participants[0].publication_status = "scheduled";
+    input.participants[0].scheduled_publish_at = "2999-08-29T21:02:00.000Z";
+
+    const archive = buildPublicCountryArchive(input);
+
+    expect(archive.participants[0]?.artist).toBeNull();
+    expect(archive.participants[0]?.song).toBeNull();
+  });
+
+  it("reveals a scheduled entry after its reveal boundary has passed", () => {
+    const input = baseInput();
+    input.participants[0].publication_status = "scheduled";
+    input.participants[0].scheduled_publish_at = "2000-01-01T00:00:00.000Z";
+
+    const archive = buildPublicCountryArchive(input);
+
+    expect(archive.participants[0]?.artist).toBe("Artist");
+    expect(archive.participants[0]?.song).toBe("Song");
   });
 
   it("exposes results only after the result layer is published", () => {
