@@ -1,9 +1,6 @@
 /* Edition public styles v2
-   The old presets mostly touched the hero. These rules deliberately style the entire edition/show
-   experience: page rhythm, panels, cards, headings, tabs and actions. Glass is left to the existing
-   liquid-glass rules because that preset already has its own material system. */
+   Full-page presets for edition + show pages. Glass keeps its dedicated liquid-glass system. */
 
-/* ---------- shared full-page hooks ---------- */
 body[data-entity-theme="edition"] .app-main {
   --edition-style-rule: rgb(var(--solaris-accent) / .24);
 }
@@ -65,10 +62,6 @@ body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .glass 
     inset 0 1px 0 rgb(255 255 255 / .035) !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section:not(.relative) {
-  position: relative;
-}
-
 body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section:not(.relative) > :is(p:first-child, div:first-child p:first-child)[class*="uppercase"] {
   color: rgb(var(--solaris-accent)) !important;
 }
@@ -85,14 +78,14 @@ body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-ma
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .04), 0 8px 22px rgb(0 0 0 / .12);
 }
 
-/* Make archive/content cards feel like a film UI rather than generic rounded boxes. */
 body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section > .grid .glass:hover {
   transform: translateY(-2px);
   border-color: rgb(var(--solaris-accent) / .34) !important;
   box-shadow: 0 22px 52px rgb(0 0 0 / .26), 0 0 30px rgb(var(--solaris-accent) / .06) !important;
 }
 
-/* ---------- EDITORIAL ---------- */
+/* ---------- EDITORIAL ----------
+   Premium magazine rather than stripped borders. Clear hierarchy, asymmetric accents, calm cards. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main {
   --edition-style-rule: rgb(var(--solaris-accent) / .34);
 }
@@ -100,167 +93,174 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-ma
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden {
-  border: 0 !important;
-  border-top: 1px solid var(--edition-style-rule) !important;
-  border-bottom: 1px solid var(--edition-style-rule) !important;
-  border-radius: 0 !important;
+  position: relative;
+  border: 1px solid rgb(var(--solaris-accent) / .18) !important;
+  border-radius: 18px !important;
   background:
-    linear-gradient(90deg, rgb(var(--solaris-accent) / .075), transparent 34%),
-    rgb(var(--solaris-card-surface) / .20) !important;
-  box-shadow: none !important;
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .10) 0 4px, transparent 4px),
+    linear-gradient(145deg, rgb(var(--solaris-card-surface) / .58), rgb(var(--solaris-card-surface) / .30)) !important;
+  box-shadow: 0 14px 38px rgb(0 0 0 / .14) !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
-  padding-left: clamp(.15rem, 2vw, .75rem) !important;
-  padding-right: clamp(.15rem, 2vw, .75rem) !important;
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header::before,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden::before,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  left: 1.2rem;
+  top: 0;
+  width: 5.2rem;
+  height: 2px;
+  background: rgb(var(--solaris-accent));
+  opacity: .85;
+  z-index: 3;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h1,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h1 {
+  letter-spacing: -.045em !important;
+  line-height: .94 !important;
+}
+
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h2,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h3 {
-  letter-spacing: -.025em !important;
+  letter-spacing: -.02em !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
-  padding-top: 1.15rem;
-  border-top: 1px solid rgb(var(--solaris-accent) / .16);
-}
-
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > div:first-child,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > p:first-child {
   position: relative;
+  padding-top: 1.35rem;
+  border-top: 1px solid rgb(var(--solaris-accent) / .12);
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > div:first-child::before,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > p:first-child::before {
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative)::before {
   content: "";
   position: absolute;
   left: 0;
-  top: -.55rem;
-  width: 3.2rem;
+  top: -1px;
+  width: 4.5rem;
   height: 2px;
   background: rgb(var(--solaris-accent));
-  opacity: .8;
+  opacity: .72;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .data-panel,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .glass {
-  border: 1px solid rgb(var(--solaris-accent) / .16) !important;
-  border-radius: 10px !important;
-  background: rgb(var(--solaris-card-surface) / .34) !important;
-  box-shadow: none !important;
+  border: 1px solid rgb(var(--solaris-accent) / .14) !important;
+  border-radius: 14px !important;
+  background:
+    linear-gradient(145deg, rgb(var(--solaris-card-surface) / .52), rgb(var(--solaris-card-surface) / .32)) !important;
+  box-shadow: 0 10px 26px rgb(0 0 0 / .10) !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass {
-  border-left: 3px solid rgb(var(--solaris-accent) / .58) !important;
+  position: relative;
+  overflow: hidden;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .stat-line {
-  border-color: rgb(var(--solaris-accent) / .22) !important;
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgb(var(--solaris-accent) / .58);
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main select {
-  border-radius: 6px !important;
-  border-color: rgb(var(--solaris-accent) / .24) !important;
-  background: rgb(var(--solaris-card-surface) / .34) !important;
+  border-radius: 10px !important;
+  border-color: rgb(var(--solaris-accent) / .20) !important;
+  background: rgb(var(--solaris-card-surface) / .44) !important;
   box-shadow: none !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main button,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main a.rounded-xl {
-  border-radius: 7px !important;
+  border-radius: 10px !important;
   box-shadow: none !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded-[1.75rem]"] {
-  border-radius: 8px !important;
+  border-radius: 16px !important;
 }
 
-/* ---------- MINIMAL ---------- */
+/* ---------- MINIMAL ----------
+   Clean product-design minimalism: subtle soft surfaces, small radius, very low decoration. */
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  border: 1px solid rgb(255 255 255 / .075) !important;
+  border-radius: 16px !important;
+  background: rgb(var(--solaris-card-surface) / .20) !important;
   box-shadow: none !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header::after {
+  opacity: .45;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h1 {
   letter-spacing: -.045em !important;
+  line-height: .95 !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h2 {
-  letter-spacing: -.025em !important;
+  letter-spacing: -.02em !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
-  padding-top: .9rem;
-  border-top: 1px solid rgb(255 255 255 / .07);
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / .055);
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-panel,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass {
-  border: 0 !important;
-  border-bottom: 1px solid rgb(255 255 255 / .075) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  border: 1px solid rgb(255 255 255 / .07) !important;
+  border-radius: 14px !important;
+  background: rgb(var(--solaris-card-surface) / .18) !important;
   box-shadow: none !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass {
-  padding-left: .15rem !important;
-  padding-right: .15rem !important;
-}
-
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass:hover {
-  background: rgb(255 255 255 / .025) !important;
+  background: rgb(var(--solaris-card-surface) / .26) !important;
+  border-color: rgb(var(--solaris-accent) / .14) !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .stat-line {
-  border-color: rgb(255 255 255 / .08) !important;
+  border-color: rgb(255 255 255 / .07) !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main select {
-  border: 0 !important;
-  border-bottom: 1px solid rgb(255 255 255 / .16) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  border: 1px solid rgb(255 255 255 / .08) !important;
+  border-radius: 12px !important;
+  background: rgb(var(--solaris-card-surface) / .16) !important;
   box-shadow: none !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main button,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main a.rounded-xl {
-  border-radius: 999px !important;
+  border-radius: 12px !important;
   box-shadow: none !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="rounded-[1.75rem]"] {
-  border-radius: 0 !important;
-  border-left: 0 !important;
-  border-right: 0 !important;
+  border-radius: 14px !important;
 }
 
-/* Minimal should also be genuinely compact, not "more breathing room" interpreted as giant cards. */
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid {
-  row-gap: .45rem !important;
+  row-gap: .55rem !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass {
-  padding-top: .55rem !important;
-  padding-bottom: .55rem !important;
+  padding-top: .6rem !important;
+  padding-bottom: .6rem !important;
 }
 
-/* ---------- mobile polish ---------- */
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section > :is(p:first-child, div:first-child p:first-child)[class*="uppercase"] {
+  color: rgb(var(--muted-foreground)) !important;
+}
+
 @media (max-width: 639px) {
   body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .data-panel,
   body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .glass {
@@ -268,14 +268,21 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
   }
 
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
-    padding-top: .95rem;
+    padding-top: 1.05rem;
   }
 
-  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass {
-    border-left-width: 2px !important;
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden,
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden {
+    border-radius: 15px !important;
   }
 
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
-    padding-top: .75rem;
+    padding-top: .8rem;
+  }
+
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-panel,
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass {
+    border-radius: 12px !important;
   }
 }
