@@ -11,6 +11,7 @@ import "@/beta2-feedback-fixes.css";
 import "@/country-button-theme.css";
 import "@/edition-public-design.css";
 import "@/edition-public-hotfix.css";
+import "@/edition-public-styles-v2.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
