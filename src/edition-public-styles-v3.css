@@ -1,9 +1,7 @@
 /* Edition public styles v3
    Exact edition palette only. Layout presets must change composition, not merely repaint cards. */
 
-/* EDITORIAL -----------------------------------------------------------------
-   A magazine / results-book treatment: square geometry, strong rules, asymmetric
-   hierarchy and mostly open sections. Deliberately NOT another rounded-card skin. */
+/* EDITORIAL: strict rectangular publication system. No pills, circles or rounded cards in content. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main {
   --editorial-rule: rgb(var(--solaris-accent) / .30);
   --editorial-hairline: rgb(var(--solaris-accent) / .12);
@@ -35,18 +33,18 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-ma
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h1 {
   max-width: 11ch;
   font-size: clamp(3.25rem, 8vw, 6.8rem) !important;
-  line-height: .82 !important;
-  letter-spacing: -.07em !important;
+  line-height: .86 !important;
+  letter-spacing: -.065em !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h2 {
   font-size: clamp(1.65rem, 4vw, 2.45rem) !important;
-  line-height: .98 !important;
-  letter-spacing: -.035em !important;
+  line-height: 1.02 !important;
+  letter-spacing: -.03em !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="uppercase"] {
-  letter-spacing: .22em !important;
+  letter-spacing: .20em !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .data-panel,
@@ -66,19 +64,35 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-ma
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .glass,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel {
-  padding: 1rem !important;
+  padding: 1.15rem !important;
   border: 0 !important;
   border-right: 1px solid var(--editorial-hairline) !important;
   border-bottom: 1px solid var(--editorial-hairline) !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass::after {
-  display: none !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass::after { display: none !important; }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
-  padding-top: 1.35rem;
+  padding-top: 1.6rem;
+  margin-top: 1.35rem;
   border-top: 1px solid var(--editorial-hairline);
+}
+
+/* Enforce the geometry throughout editorial content, including utility-rounded elements
+   emitted by individual pages. Images keep only a tiny print-like corner, never pills. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main :is(
+  .rounded-full,.rounded-3xl,.rounded-2xl,.rounded-xl,.rounded-lg,.rounded-md,.rounded
+) {
+  border-radius: 0 !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main img {
+  border-radius: 0 !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main :is(button,a,[role="button"],select,input,textarea) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main select {
@@ -86,17 +100,9 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-ma
   border: 0 !important;
   border-top: 1px solid var(--editorial-rule) !important;
   border-bottom: 1px solid var(--editorial-hairline) !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main button,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main a.rounded-xl {
-  border-radius: 4px !important;
-  box-shadow: none !important;
-}
-
-/* MINIMAL ------------------------------------------------------------------ */
+/* MINIMAL: quiet and airy rather than compressed. */
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main {
   --minimal-line: rgb(var(--solaris-accent) / .10);
 }
@@ -105,9 +111,7 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
   position: relative;
-  background:
-    linear-gradient(150deg, rgb(var(--solaris-bg-secondary) / .09), transparent 48%),
-    rgb(var(--solaris-bg-primary) / .58) !important;
+  background: linear-gradient(150deg, rgb(var(--solaris-bg-secondary) / .09), transparent 48%), rgb(var(--solaris-bg-primary) / .58) !important;
   border: 1px solid var(--minimal-line) !important;
   border-radius: 20px !important;
   box-shadow: none !important;
@@ -128,81 +132,48 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
   z-index: 3;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h1 {
-  letter-spacing: -.05em !important;
-  line-height: .92 !important;
-}
-
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h2 {
-  font-size: clamp(1.35rem, 3.5vw, 1.9rem) !important;
-  letter-spacing: -.025em !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h1 { letter-spacing: -.045em !important; line-height: .98 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h2 { font-size: clamp(1.35rem, 3.5vw, 1.9rem) !important; letter-spacing: -.02em !important; line-height: 1.12 !important; }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
-  padding-top: 1.05rem;
+  padding-top: 1.4rem;
+  margin-top: 1rem;
   border-top: 1px solid rgb(var(--solaris-accent) / .07);
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-panel,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass {
-  background:
-    linear-gradient(145deg, rgb(var(--solaris-bg-secondary) / .075), rgb(var(--solaris-bg-primary) / .46)) !important;
+  background: linear-gradient(145deg, rgb(var(--solaris-bg-secondary) / .075), rgb(var(--solaris-bg-primary) / .46)) !important;
   border: 1px solid rgb(var(--solaris-accent) / .075) !important;
   border-radius: 16px !important;
   box-shadow: none !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass {
-  padding: .65rem .72rem !important;
-}
-
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass:hover {
-  background:
-    linear-gradient(145deg, rgb(var(--solaris-bg-secondary) / .11), rgb(var(--solaris-bg-primary) / .50)) !important;
-  border-color: rgb(var(--solaris-accent) / .13) !important;
-}
-
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .stat-line {
-  border-color: rgb(var(--solaris-accent) / .075) !important;
-}
-
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main select {
-  background: rgb(var(--solaris-bg-primary) / .58) !important;
-  border: 1px solid rgb(var(--solaris-accent) / .10) !important;
-  border-radius: 12px !important;
-  box-shadow: none !important;
-}
-
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid { gap: .8rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass { padding: .9rem .95rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass:hover { background: linear-gradient(145deg, rgb(var(--solaris-bg-secondary) / .11), rgb(var(--solaris-bg-primary) / .50)) !important; border-color: rgb(var(--solaris-accent) / .13) !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .stat-line { border-color: rgb(var(--solaris-accent) / .075) !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main select { background: rgb(var(--solaris-bg-primary) / .58) !important; border: 1px solid rgb(var(--solaris-accent) / .10) !important; border-radius: 12px !important; box-shadow: none !important; }
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main button,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main a.rounded-xl {
-  border-radius: 12px !important;
-  box-shadow: none !important;
-}
-
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="uppercase"] {
-  letter-spacing: .16em !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main a.rounded-xl { border-radius: 12px !important; box-shadow: none !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="uppercase"] { letter-spacing: .15em !important; }
 
 @media (max-width: 639px) {
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden,
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden {
-    padding-inline: .6rem !important;
+    padding: 1.2rem .9rem 1.35rem !important;
   }
-
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .glass,
-  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel {
-    padding: .78rem !important;
-  }
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel { padding: .95rem !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5,
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 { row-gap: 1.65rem !important; }
 
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
-    border-radius: 16px !important;
-  }
-
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden { border-radius: 16px !important; padding: 1.25rem !important; }
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-panel,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass {
-    border-radius: 13px !important;
-  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass { border-radius: 13px !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5,
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 { row-gap: 1.5rem !important; }
 }
