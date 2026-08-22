@@ -35,6 +35,9 @@
     "noUncheckedSideEffectImports": true,
 
     "paths": {
+      "@/lib/data": [
+        "./src/lib/data-live.ts"
+      ],
       "@/*": [
         "./src/*"
       ]
