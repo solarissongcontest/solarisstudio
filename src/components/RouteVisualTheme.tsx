@@ -23,6 +23,7 @@ import { CountryPreviewParityController } from "@/components/CountryPreviewParit
 import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
 import { useAllShows, useContestEntities, useCountries, useEditions, useResults } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
+import { showPublishesResults } from "@/lib/publication";
 import {
   countryBackgroundCss,
   countryThemeToVisual,
@@ -102,7 +103,7 @@ export function RouteVisualTheme() {
   /* Public result pages used to remain stale even after the database had
      recalculated correctly. Keep the visible page cache fresh and force an
      immediate refresh whenever the user returns to the tab. The database
-     trigger remains the source of truth; this only removes browser-cache lag. */
+     trigger remains authoritative; this only removes browser-cache lag. */
   useEffect(() => {
     if (!currentShowId && !currentEditionSlug) return;
 
@@ -154,12 +155,12 @@ export function RouteVisualTheme() {
   }, [pathname, currentShowId, currentShow, countries, editions, countryThemes]);
 
   const showWinnerFlag = useMemo(() => {
-    if (!currentShowId) return null;
+    if (!currentShowId || !showPublishesResults(currentShow)) return null;
     const winnerRow = (currentShowResults ?? []).filter((row) => row.final_rank != null).sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))[0];
     if (!winnerRow) return null;
     const displayMap = entityDisplayMap(currentShowEntities, countries);
     return displayMap.get(winnerRow.country_id)?.flag_image ?? null;
-  }, [currentShowId, currentShowResults, currentShowEntities, countries]);
+  }, [currentShowId, currentShow, currentShowResults, currentShowEntities, countries]);
 
   useEffect(() => {
     const body = document.body;
