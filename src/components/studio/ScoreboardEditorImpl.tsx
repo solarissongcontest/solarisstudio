@@ -65,12 +65,21 @@ export function ScoreboardEditor({
   const setCard = (patch: Partial<ScoreboardConfig["card"]>) =>
     set({ card: { ...config.card, ...patch } });
 
+  const editionBackground = (type: ScoreboardConfig["background"]["type"] = config.background.type) => ({
+    ...config.background,
+    type,
+    color: theme.background.color,
+    gradientFrom: theme.background.gradientFrom,
+    gradientTo: theme.background.gradientTo,
+    gradientAngle: theme.background.gradientAngle,
+    pattern: "none" as const,
+    patternOpacity: 0,
+  });
+
   const setBackground = (patch: Partial<ScoreboardConfig["background"]>) =>
     set({
       background: {
-        ...config.background,
-        pattern: "none",
-        patternOpacity: 0,
+        ...editionBackground(),
         ...patch,
       },
     });
@@ -88,12 +97,39 @@ export function ScoreboardEditor({
   const zoneVisible = (types: string[]) =>
     config.card.zones.some((zone) => types.includes(zone.type) && zone.visible);
 
+  /* Keep every non-image scoreboard background attached to the edition palette.
+     This repairs old saved configs that still contain preset/background colours from before
+     Artwork & colours became the single source of truth. */
+  useEffect(() => {
+    if (config.background.type === "image") return;
+    const next = editionBackground(config.background.type);
+    const changed =
+      config.background.color !== next.color ||
+      config.background.gradientFrom !== next.gradientFrom ||
+      config.background.gradientTo !== next.gradientTo ||
+      config.background.gradientAngle !== next.gradientAngle ||
+      config.background.pattern !== "none" ||
+      config.background.patternOpacity !== 0;
+    if (changed) onChange({ ...config, background: next });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    theme.background.color,
+    theme.background.gradientFrom,
+    theme.background.gradientTo,
+    theme.background.gradientAngle,
+    config.background.type,
+  ]);
+
   const applyPreset = (presetId: PresetId) => {
     const preset = buildPreset(presetId);
     preset.music = config.music;
     preset.controls = config.controls;
     preset.background = {
       ...preset.background,
+      color: theme.background.color,
+      gradientFrom: theme.background.gradientFrom,
+      gradientTo: theme.background.gradientTo,
+      gradientAngle: theme.background.gradientAngle,
       pattern: "none",
       patternOpacity: 0,
     };
@@ -163,7 +199,7 @@ export function ScoreboardEditor({
 
       <SimpleSection
         title="2. Background"
-        description="This is the actual scoreboard background. Pattern overlays are disabled automatically."
+        description="Uses the colours from Artwork & colours. Choose only how those edition colours are presented here."
       >
         <Field label="Background">
           <SegButtons
@@ -171,9 +207,9 @@ export function ScoreboardEditor({
             onChange={(value) => {
               const next = value as BackgroundChoice;
               if (next === "image") return setBackground({ type: "image" });
-              if (next === "gradient") return setBackground({ type: "gradient" });
-              if (next === "color") return setBackground({ type: "color" });
-              setBackground({ type: "theme" });
+              if (next === "gradient") return setBackground({ type: "gradient", gradientFrom: theme.background.gradientFrom, gradientTo: theme.background.gradientTo, gradientAngle: theme.background.gradientAngle });
+              if (next === "color") return setBackground({ type: "color", color: theme.background.color });
+              setBackground({ type: "theme", color: theme.background.color, gradientFrom: theme.background.gradientFrom, gradientTo: theme.background.gradientTo, gradientAngle: theme.background.gradientAngle });
             }}
             options={[
               { label: "Edition", value: "theme" },
@@ -215,27 +251,14 @@ export function ScoreboardEditor({
         )}
 
         {backgroundChoice === "gradient" && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <ColorField
-              label="Start"
-              value={config.background.gradientFrom}
-              onChange={(value) => setBackground({ gradientFrom: value })}
-            />
-            <ColorField
-              label="End"
-              value={config.background.gradientTo}
-              onChange={(value) => setBackground({ gradientTo: value })}
-            />
+          <div className="mt-4 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 text-xs leading-relaxed text-muted-foreground">
+            Gradient colours are inherited automatically from <strong className="text-foreground">Artwork & colours</strong>: {theme.background.gradientFrom} → {theme.background.gradientTo}.
           </div>
         )}
 
         {backgroundChoice === "color" && (
-          <div className="mt-4">
-            <ColorField
-              label="Colour"
-              value={config.background.color}
-              onChange={(value) => setBackground({ color: value })}
-            />
+          <div className="mt-4 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 text-xs leading-relaxed text-muted-foreground">
+            Solid background uses the edition's saved <strong className="text-foreground">Background</strong> colour: {theme.background.color}.
           </div>
         )}
 
