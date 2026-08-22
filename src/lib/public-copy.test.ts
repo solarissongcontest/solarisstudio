@@ -73,10 +73,16 @@ const FORBIDDEN_PUBLIC_COPY = [
   /workspace\/context/i,
 ];
 
+function visibleSource(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+}
+
 describe("user-facing product copy", () => {
   for (const file of COPY_SURFACES) {
     it(`${file} does not expose implementation language`, () => {
-      const source = readFileSync(resolve(process.cwd(), file), "utf8");
+      const source = visibleSource(file);
 
       for (const pattern of FORBIDDEN_PUBLIC_COPY) {
         expect(source, `${file} contains ${pattern}`).not.toMatch(pattern);

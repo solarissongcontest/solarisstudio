@@ -1,5 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 
+import { CountryFlagLayerController } from "@/components/CountryFlagLayerController";
+
 type StarLayer = "far" | "mid" | "near";
 
 type StarSpec = {
@@ -102,37 +104,40 @@ export function SolarisAmbientBackground() {
   }, []);
 
   return (
-    <div ref={rootRef} aria-hidden="true" className="solaris-ambient-background">
-      <div className="solaris-ambient-glow solaris-ambient-glow-a" />
-      <div className="solaris-ambient-glow solaris-ambient-glow-b" />
-      <div className="solaris-ambient-glow solaris-ambient-glow-c" />
+    <>
+      <CountryFlagLayerController />
+      <div ref={rootRef} aria-hidden="true" className="solaris-ambient-background">
+        <div className="solaris-ambient-glow solaris-ambient-glow-a" />
+        <div className="solaris-ambient-glow solaris-ambient-glow-b" />
+        <div className="solaris-ambient-glow solaris-ambient-glow-c" />
 
-      {layers.map((layer) => (
-        <div key={layer} className={`solaris-star-layer solaris-star-layer-${layer}`}>
-          {STARS.filter((star) => star.layer === layer).map((star) => {
-            const style: StarStyle = {
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              width: `${star.size}vmin`,
-              "--star-opacity": star.opacity,
-              "--star-rotate": `${star.rotate}deg`,
-            };
+        {layers.map((layer) => (
+          <div key={layer} className={`solaris-star-layer solaris-star-layer-${layer}`}>
+            {STARS.filter((star) => star.layer === layer).map((star) => {
+              const style: StarStyle = {
+                left: `${star.x}%`,
+                top: `${star.y}%`,
+                width: `${star.size}vmin`,
+                "--star-opacity": star.opacity,
+                "--star-rotate": `${star.rotate}deg`,
+              };
 
-            return (
-              <span key={star.id} className="solaris-star-anchor" style={style}>
-                <img
-                  src="/IMG_6171.png"
-                  alt=""
-                  draggable={false}
-                  loading="eager"
-                  decoding="async"
-                  className={`solaris-star${star.twinkle ? " solaris-star-twinkle" : ""}`}
-                />
-              </span>
-            );
-          })}
-        </div>
-      ))}
-    </div>
+              return (
+                <span key={star.id} className="solaris-star-anchor" style={style}>
+                  <img
+                    src="/IMG_6171.png"
+                    alt=""
+                    draggable={false}
+                    loading="eager"
+                    decoding="async"
+                    className={`solaris-star${star.twinkle ? " solaris-star-twinkle" : ""}`}
+                  />
+                </span>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }

@@ -127,12 +127,17 @@ function CountryCustomSection({
   }
 
   const hasImage = Boolean(section.image_url);
+  const compactAdaptiveImage = hasImage
+    && section.image_layout === "wide"
+    && (presentation.imageSize === "small" || presentation.imageSize === "medium");
   const imageFirst = section.image_layout === "left";
-  const sideBySide = hasImage && ["split", "left", "right"].includes(section.image_layout);
+  const sideBySide = hasImage && (
+    ["split", "left", "right"].includes(section.image_layout) || compactAdaptiveImage
+  );
   const full = hasImage && section.image_layout === "full";
   const fullBleed = fullBleedClass(presentation.spacing);
   const content = (
-    <div className={sideBySide ? "min-w-0" : ""}>
+    <div className={sideBySide ? "min-w-0 self-center" : ""}>
       {section.kicker && <Kicker>{section.kicker}</Kicker>}
       {section.heading && <h2 className="font-display text-xl font-semibold sm:text-2xl">{section.heading}</h2>}
       {section.body && <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{section.body}</p>}
@@ -144,7 +149,7 @@ function CountryCustomSection({
         src={section.image_url ?? ""}
         alt={section.image_caption || `${country.name} section image`}
         loading="lazy"
-        className={`${full ? "w-full" : section.image_layout === "wide" ? "mt-4 w-full rounded-xl" : "w-full rounded-xl"} ${aspectClass(presentation.imageAspect)} ${presentation.imageAspect === "auto" ? imageHeightClass(presentation.imageSize, full) : ""} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`}
+        className={`${full ? "w-full" : !sideBySide && section.image_layout === "wide" ? "mt-4 w-full rounded-xl" : "w-full rounded-xl"} ${aspectClass(presentation.imageAspect)} ${presentation.imageAspect === "auto" ? imageHeightClass(presentation.imageSize, full) : ""} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`}
         style={{
           objectPosition: `${presentation.focalX}% ${presentation.focalY}%`,
           ...imageFadeStyle(presentation.imageFade),
@@ -154,11 +159,21 @@ function CountryCustomSection({
     </figure>
   ) : null;
 
+  const adaptiveGrid = compactAdaptiveImage
+    ? presentation.imageSize === "small"
+      ? "md:grid-cols-[minmax(0,1fr)_minmax(13rem,20rem)] md:items-center"
+      : "md:grid-cols-[minmax(0,1.15fr)_minmax(18rem,28rem)] md:items-center"
+    : "md:grid-cols-2 md:items-start";
+
   return (
-    <section className={wrapperClass} style={style}>
+    <section
+      className={wrapperClass}
+      style={style}
+      data-country-image-placement={compactAdaptiveImage ? "adaptive" : section.image_layout}
+    >
       {full ? image : null}
       {sideBySide ? (
-        <div className="grid gap-4 md:grid-cols-2 md:items-start">
+        <div className={`grid gap-4 ${adaptiveGrid}`}>
           {imageFirst ? image : content}
           {imageFirst ? content : image}
         </div>
