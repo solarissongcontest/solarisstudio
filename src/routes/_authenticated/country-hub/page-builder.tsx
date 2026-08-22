@@ -9,7 +9,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import {
@@ -137,7 +137,7 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
       <PageHeader
         eyebrow="My Solaris · Page builder"
         title={`${country.name} pages`}
-        description="Build the public country profile and Terra Solaris Wiki from the same modular content. Write everything yourself, let Solaris draft from facts you supplied, decide where each block appears and control how every block looks."
+        description="Build the public country profile and Wiki from the same editable blocks. Text, facts, images, captions and presentation settings remain under your control."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/country-hub" search={targetCountryId ? { country: targetCountryId } : {}} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">← My Solaris</Link>
@@ -153,13 +153,13 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
           <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold">{sections.length} custom block{sections.length === 1 ? "" : "s"}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">Use the large ↑ ↓ controls for reliable phone reordering. No precision finger gymnastics required.</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">Use the large ↑ ↓ controls for reliable phone reordering. Humanity has suffered enough tiny drag handles.</p>
             </div>
             <button type="button" onClick={() => setAdding((value) => !value)} className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"><Plus className="mr-1 inline size-4" /> Add block</button>
           </div>
 
           {adding && (
-            <Panel title="Choose a block" description="Templates are only starting points. Generated content and presentation settings remain editable.">
+            <Panel title="Choose a block" description="Templates are starting points. Their text and presentation remain editable.">
               <div className="grid gap-2 sm:grid-cols-2">
                 {COUNTRY_SECTION_TEMPLATES.map((template) => (
                   <button key={template.id} type="button" onClick={() => void addTemplate(template.id)} disabled={saveSection.isPending} className="min-h-24 rounded-xl border border-border bg-surface p-3 text-left disabled:opacity-50">
@@ -188,13 +188,13 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
               onAddMedia={(file) => run(async () => {
                 const asset = await uploadCountryAsset(country.id, file, "gallery");
                 await addMedia.mutateAsync({ storagePath: asset.storagePath, publicUrl: asset.publicUrl, caption: "", altText: "" });
-              }, "Image uploaded. It is now available to this block and the gallery.")}
+              }, "Image uploaded. It is now available to your article blocks.")}
             />
           )) : (
             <Panel>
               <div className="py-8 text-center">
                 <p className="text-lg font-semibold">Your page is ready for its first custom block</p>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">The standard country and SSC information still works. Add custom blocks when you want the page to become more distinctly yours.</p>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Add editable articles, fun facts, images or statements when you want the page to become more distinctly yours.</p>
                 <button type="button" onClick={() => setAdding(true)} className="mt-4 min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">Add first block</button>
               </div>
             </Panel>
@@ -210,11 +210,11 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
             </div>
           </Panel>
 
-          <Panel title="Presentation controls" description="Every block can have its own visual role instead of looking like the same card copied twelve times.">
+          <Panel title="Presentation controls" description="Cards keep one aligned outer width; the content inside can still vary.">
             <div className="space-y-2 text-xs leading-5 text-muted-foreground">
-              <p>Choose block width, panel treatment, spacing and alignment.</p>
-              <p>Images get their own crop ratio, fit and focal point.</p>
-              <p>Fact grids can use Solaris data or completely custom rows.</p>
+              <p>Choose panel treatment, spacing and text alignment.</p>
+              <p>Images can be small, medium, large or full width and can fade from any edge.</p>
+              <p>Fact grids can use Solaris data or completely custom editable rows.</p>
             </div>
           </Panel>
 
@@ -226,11 +226,11 @@ function CountryPageBuilder({ country, targetCountryId }: { country: Country; ta
           </Panel>
 
           {media.length > 0 && (
-            <Panel title="Media library" description={`${media.length} country image${media.length === 1 ? "" : "s"}`}>
+            <Panel title="Image library" description={`${media.length} reusable country image${media.length === 1 ? "" : "s"}`}>
               <div className="grid grid-cols-3 gap-2">
                 {media.slice(0, 9).map((item) => <img key={item.id} src={item.public_url} alt={item.alt_text || item.caption || "Country media"} className="aspect-square rounded-lg object-cover" />)}
               </div>
-              <p className="mt-3 text-[10px] leading-4 text-muted-foreground">Images remain reusable. Deleting a section does not delete its media.</p>
+              <p className="mt-3 text-[10px] leading-4 text-muted-foreground">This is only an asset library for article images. There is no public image-gallery section anymore.</p>
             </Panel>
           )}
 
@@ -346,7 +346,6 @@ function SectionBuilderCard({
             <p className="truncate text-sm font-semibold">{normalized.section_type === "divider" ? "Visual divider" : normalized.heading || "Untitled section"}</p>
             <span className="rounded-full border border-border bg-background px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground">{String(normalized.section_type).replace("_", " ")}</span>
             {normalized.content_mode === "auto" ? <span className="rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold text-primary">Smart draft</span> : null}
-            <span className="rounded-full border border-border bg-background px-2 py-1 text-[9px] font-semibold text-muted-foreground">{presentation.width}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">{normalized.visible_on_country ? <Eye className="size-3" /> : <EyeOff className="size-3" />} Country</span>
@@ -359,12 +358,17 @@ function SectionBuilderCard({
 
       {open && (
         <div className="border-t border-border p-4">
+          {normalized.section_type === "gallery" && (
+            <p className="mb-4 rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+              Gallery blocks are retired and no longer appear publicly. You can delete this old block; its images stay in the reusable image library.
+            </p>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField label="Block type" value={value.sectionType} onChange={(next) => setValue((current) => ({ ...current, sectionType: next as CountrySectionType }))} options={[
-              ["rich_text", "Text / article"], ["image", "Image feature"], ["quote", "Quote / statement"], ["facts", "Facts / stats"], ["gallery", "Gallery"], ["divider", "Divider"],
+              ["rich_text", "Text / article"], ["image", "Image feature"], ["quote", "Quote / statement"], ["facts", "Facts / stats"], ["divider", "Divider"],
             ]} />
             <SelectField label="Image layout" value={value.imageLayout} onChange={(next) => setValue((current) => ({ ...current, imageLayout: next as CountrySectionImageLayout }))} options={[
-              ["wide", "Wide below text"], ["split", "Split text + image"], ["left", "Image left"], ["right", "Image right"], ["full", "Full bleed"],
+              ["wide", "Below text"], ["split", "Split text + image"], ["left", "Image left"], ["right", "Image right"], ["full", "Full bleed"],
             ]} disabled={!value.imageUrl && value.sectionType !== "image" && value.sectionType !== "rich_text"} />
           </div>
 
@@ -375,11 +379,8 @@ function SectionBuilderCard({
 
           <div className="mt-4 rounded-xl border border-border bg-background p-3">
             <p className="text-xs font-semibold">Block presentation</p>
-            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">These settings apply independently to this block on both the Country and Wiki surfaces.</p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <SelectField label="Width" value={presentation.width} onChange={(next) => setJson({ width: next })} options={[
-                ["narrow", "Narrow article"], ["standard", "Standard"], ["wide", "Wide feature"], ["full", "Full container width"],
-              ]} />
+            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">Every card uses the same outer width so the page stays aligned; these settings change what happens inside it.</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <SelectField label="Panel style" value={presentation.panelStyle} onChange={(next) => setJson({ panelStyle: next })} options={[
                 ["glass", "Glass / page default"], ["solid", "Solid card"], ["outline", "Outline only"], ["transparent", "No card"], ["accent", "Accent highlight"],
               ]} />
@@ -417,7 +418,7 @@ function SectionBuilderCard({
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold">Fact source</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">Use national profile data or write every row yourself.</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Use national profile data or write every row yourself. Fun facts are just normal custom rows now, not mysterious machine prose.</p>
                 </div>
                 <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1">
                   <button type="button" onClick={() => setJson({ factMode: "auto" })} className={`min-h-9 rounded-lg px-3 text-[11px] font-semibold ${presentation.factMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Solaris facts</button>
@@ -445,11 +446,26 @@ function SectionBuilderCard({
 
           {(value.sectionType === "image" || value.sectionType === "rich_text") && (
             <div className="mt-4 rounded-xl border border-border bg-background p-3">
-              <div className="flex items-center justify-between gap-2"><div><p className="text-xs font-semibold">Section image</p><p className="mt-1 text-[10px] text-muted-foreground">For wide images, 1600×900 or larger works best. You can choose the visible crop below.</p></div><label className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-2 text-[11px] font-semibold"><ImagePlus className="mr-1 inline size-3" /> Upload<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => event.target.files?.[0] && void onAddMedia(event.target.files[0])} /></label></div>
+              <div className="flex items-center justify-between gap-2"><div><p className="text-xs font-semibold">Section image</p><p className="mt-1 text-[10px] text-muted-foreground">Pick the visible size and optionally fade the image into the card from one edge.</p></div><label className="cursor-pointer rounded-lg border border-border bg-surface px-3 py-2 text-[11px] font-semibold"><ImagePlus className="mr-1 inline size-3" /> Upload<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => event.target.files?.[0] && void onAddMedia(event.target.files[0])} /></label></div>
               <select value={value.imageUrl} onChange={(event) => setValue((current) => ({ ...current, imageUrl: event.target.value }))} className="mt-3 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"><option value="">No image</option>{media.map((item) => <option key={item.id} value={item.public_url}>{item.caption || item.alt_text || "Country image"}</option>)}</select>
-              {value.imageUrl && <img src={value.imageUrl} alt="Section preview" className={`mt-3 w-full rounded-xl ${presentation.imageAspect === "square" ? "aspect-square" : presentation.imageAspect === "portrait" ? "aspect-[3/4]" : presentation.imageAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`} style={{ objectPosition: `${presentation.focalX}% ${presentation.focalY}%` }} />}
+              {value.imageUrl && (
+                <div className={`mx-auto ${imagePreviewSizeClass(presentation.imageSize)}`}>
+                  <img
+                    src={value.imageUrl}
+                    alt="Section preview"
+                    className={`mt-3 w-full rounded-xl ${presentation.imageAspect === "square" ? "aspect-square" : presentation.imageAspect === "portrait" ? "aspect-[3/4]" : presentation.imageAspect === "4:3" ? "aspect-[4/3]" : "aspect-video"} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`}
+                    style={{ objectPosition: `${presentation.focalX}% ${presentation.focalY}%`, ...imagePreviewFadeStyle(presentation.imageFade) }}
+                  />
+                </div>
+              )}
               <TextField className="mt-3" label="Image caption" value={value.imageCaption} onChange={(imageCaption) => setValue((current) => ({ ...current, imageCaption }))} />
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <SelectField label="Image size" value={presentation.imageSize} onChange={(next) => setJson({ imageSize: next })} options={[
+                  ["small", "Small"], ["medium", "Medium"], ["large", "Large"], ["full", "Full card width"],
+                ]} />
+                <SelectField label="Edge fade" value={presentation.imageFade} onChange={(next) => setJson({ imageFade: next })} options={[
+                  ["none", "No fade"], ["top", "Fade from top"], ["right", "Fade from right"], ["bottom", "Fade from bottom"], ["left", "Fade from left"],
+                ]} />
                 <SelectField label="Image crop" value={presentation.imageAspect} onChange={(next) => setJson({ imageAspect: next })} options={[
                   ["auto", "Automatic"], ["16:9", "16:9 widescreen"], ["4:3", "4:3 landscape"], ["square", "1:1 square"], ["portrait", "3:4 portrait"],
                 ]} />
@@ -458,27 +474,6 @@ function SectionBuilderCard({
                 ]} />
                 <RangeField label={`Focal point X · ${presentation.focalX}%`} min={0} max={100} value={presentation.focalX} onChange={(next) => setJson({ focalX: next })} />
                 <RangeField label={`Focal point Y · ${presentation.focalY}%`} min={0} max={100} value={presentation.focalY} onChange={(next) => setJson({ focalY: next })} />
-              </div>
-            </div>
-          )}
-
-          {value.sectionType === "gallery" && (
-            <div className="mt-4 rounded-xl border border-border bg-background p-3">
-              <p className="text-xs font-semibold">Gallery layout</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <SelectField label="Columns" value={String(presentation.galleryColumns)} onChange={(next) => setJson({ galleryColumns: Number(next) })} options={[
-                  ["2", "2 columns"], ["3", "3 columns"], ["4", "4 columns"],
-                ]} />
-                <SelectField label="Image crop" value={presentation.imageAspect} onChange={(next) => setJson({ imageAspect: next })} options={[
-                  ["auto", "4:3 default"], ["16:9", "16:9 widescreen"], ["4:3", "4:3 landscape"], ["square", "1:1 square"], ["portrait", "3:4 portrait"],
-                ]} />
-                <SelectField label="Image fit" value={presentation.imageFit} onChange={(next) => setJson({ imageFit: next })} options={[
-                  ["cover", "Fill crop"], ["contain", "Show whole image"],
-                ]} />
-                <div className="grid grid-cols-2 gap-2">
-                  <RangeField label={`X · ${presentation.focalX}%`} min={0} max={100} value={presentation.focalX} onChange={(next) => setJson({ focalX: next })} />
-                  <RangeField label={`Y · ${presentation.focalY}%`} min={0} max={100} value={presentation.focalY} onChange={(next) => setJson({ focalY: next })} />
-                </div>
               </div>
             </div>
           )}
@@ -497,12 +492,31 @@ function SectionBuilderCard({
 
           <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
             <button type="button" disabled={busy} onClick={() => void save()} className="min-h-12 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">{busy ? "Saving…" : "Save block"}</button>
-            <button type="button" disabled={busy} onClick={() => { if (window.confirm("Delete this page block? The media library is not deleted.")) void onDelete(); }} className="grid min-h-12 min-w-12 place-items-center rounded-xl border border-destructive/30 text-destructive" aria-label="Delete section"><Trash2 className="size-4" /></button>
+            <button type="button" disabled={busy} onClick={() => { if (window.confirm("Delete this page block? The image library is not deleted.")) void onDelete(); }} className="grid min-h-12 min-w-12 place-items-center rounded-xl border border-destructive/30 text-destructive" aria-label="Delete section"><Trash2 className="size-4" /></button>
           </div>
         </div>
       )}
     </section>
   );
+}
+
+function imagePreviewSizeClass(size: ReturnType<typeof countrySectionPresentation>["imageSize"]) {
+  if (size === "small") return "w-full max-w-sm";
+  if (size === "medium") return "w-full max-w-xl";
+  if (size === "large") return "w-full max-w-3xl";
+  return "w-full max-w-none";
+}
+
+function imagePreviewFadeStyle(fade: ReturnType<typeof countrySectionPresentation>["imageFade"]): CSSProperties {
+  if (fade === "none") return {};
+  const mask = fade === "top"
+    ? "linear-gradient(to bottom, transparent 0%, #000 30%)"
+    : fade === "bottom"
+      ? "linear-gradient(to bottom, #000 70%, transparent 100%)"
+      : fade === "left"
+        ? "linear-gradient(to right, transparent 0%, #000 30%)"
+        : "linear-gradient(to right, #000 70%, transparent 100%)";
+  return { WebkitMaskImage: mask, maskImage: mask };
 }
 
 function VisibilityButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
