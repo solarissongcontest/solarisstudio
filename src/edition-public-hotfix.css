@@ -1,9 +1,9 @@
 /* Final public-edition/show overrides. Kept separate so these high-specificity rules win over
    the global design system without changing the normal star background. */
 
-/* Winner flag treatment: keep the clearly visible flag area compact, then give it a long soft
-   dissolve into the hero. The pseudo-element is wider than the solid flag on purpose: most of
-   that extra width is only the fade tail, not more full-strength flag. */
+/* Winner flag treatment: keep the full-strength flag visible to about 36% of the hero, then
+   fade it smoothly until about 70% of the hero. This matches the intended marked range rather
+   than starting the fade too early or ending it too abruptly. */
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
   content: "" !important;
   display: block !important;
@@ -11,22 +11,23 @@ body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .pag
   right: auto !important;
   top: 0 !important;
   bottom: 0 !important;
-  width: min(58%, 22rem) !important;
+  width: 72% !important;
+  max-width: none !important;
   height: 100% !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   background-color: transparent !important;
   background-image:
-    linear-gradient(90deg, rgb(0 0 0 / .34) 0%, rgb(0 0 0 / .25) 30%, rgb(0 0 0 / .12) 52%, transparent 76%),
+    linear-gradient(90deg, rgb(0 0 0 / .34) 0%, rgb(0 0 0 / .25) 34%, rgb(0 0 0 / .15) 52%, rgb(0 0 0 / .07) 72%, transparent 96%),
     var(--show-winner-flag-image) !important;
   background-repeat: no-repeat, no-repeat !important;
   background-size: 100% 100%, cover !important;
   background-position: left center, center !important;
   opacity: .96 !important;
   filter: saturate(1.02) contrast(1.02) !important;
-  -webkit-mask-image: linear-gradient(90deg, #000 0 38%, rgb(0 0 0 / .98) 44%, rgb(0 0 0 / .88) 54%, rgb(0 0 0 / .64) 68%, rgb(0 0 0 / .32) 82%, transparent 100%) !important;
-  mask-image: linear-gradient(90deg, #000 0 38%, rgb(0 0 0 / .98) 44%, rgb(0 0 0 / .88) 54%, rgb(0 0 0 / .64) 68%, rgb(0 0 0 / .32) 82%, transparent 100%) !important;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 50%, rgb(0 0 0 / .96) 56%, rgb(0 0 0 / .78) 67%, rgb(0 0 0 / .50) 80%, rgb(0 0 0 / .22) 91%, transparent 97%) !important;
+  mask-image: linear-gradient(90deg, #000 0 50%, rgb(0 0 0 / .96) 56%, rgb(0 0 0 / .78) 67%, rgb(0 0 0 / .50) 80%, rgb(0 0 0 / .22) 91%, transparent 97%) !important;
   transform: none !important;
   pointer-events: none !important;
   z-index: 0 !important;
@@ -76,12 +77,12 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .
 
 @media (max-width: 639px) {
   body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
-    width: 62% !important;
+    width: 72% !important;
     max-width: none !important;
     opacity: .96 !important;
     background-position: left center, center !important;
-    -webkit-mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .98) 40%, rgb(0 0 0 / .88) 50%, rgb(0 0 0 / .64) 65%, rgb(0 0 0 / .32) 81%, transparent 100%) !important;
-    mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .98) 40%, rgb(0 0 0 / .88) 50%, rgb(0 0 0 / .64) 65%, rgb(0 0 0 / .32) 81%, transparent 100%) !important;
+    -webkit-mask-image: linear-gradient(90deg, #000 0 50%, rgb(0 0 0 / .96) 56%, rgb(0 0 0 / .78) 67%, rgb(0 0 0 / .50) 80%, rgb(0 0 0 / .22) 91%, transparent 97%) !important;
+    mask-image: linear-gradient(90deg, #000 0 50%, rgb(0 0 0 / .96) 56%, rgb(0 0 0 / .78) 67%, rgb(0 0 0 / .50) 80%, rgb(0 0 0 / .22) 91%, transparent 97%) !important;
   }
 
   body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
