@@ -1,24 +1,22 @@
 import { Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 
+import "@/anniversary-redesign.css";
 import type { AnniversaryRecap, SolarisAnniversary } from "@/lib/anniversary";
 
-const CONFETTI = Array.from({ length: 84 }, (_, index) => ({
-  left: `${(index * 37) % 100}%`,
-  delay: `${-((index * 0.19) % 6.2)}s`,
-  duration: `${4.1 + ((index * 17) % 28) / 10}s`,
-  rotate: `${(index * 71) % 360}deg`,
-  size: `${6 + ((index * 13) % 8)}px`,
+const STAR_COLORS = ["#79e7ff", "#b9a4ff", "#ff8fc7", "#ffe36e", "#7cf6d4", "#ffffff"];
+
+const ANNIVERSARY_STARS = Array.from({ length: 34 }, (_, index) => ({
+  left: `${(index * 29 + 7) % 100}%`,
+  top: `${(index * 43 + 5) % 94}%`,
+  size: `${18 + ((index * 17) % 34)}px`,
+  color: STAR_COLORS[index % STAR_COLORS.length],
+  opacity: 0.16 + ((index * 11) % 36) / 100,
+  rotate: `${(index * 47) % 360}deg`,
+  duration: `${6.5 + ((index * 13) % 42) / 10}s`,
+  delay: `${-((index * 0.31) % 7.5)}s`,
+  drift: `${-18 + ((index * 19) % 36)}px`,
 }));
-
-const FIREWORKS = [
-  { x: "10%", y: "18%", delay: "-0.8s", scale: 0.82 },
-  { x: "84%", y: "15%", delay: "-2.5s", scale: 1.02 },
-  { x: "68%", y: "38%", delay: "-4.1s", scale: 0.78 },
-  { x: "23%", y: "46%", delay: "-5.8s", scale: 0.9 },
-];
-
-const FIREWORK_COLORS = ["#ffffff", "#67e8f9", "#f9a8d4", "#fde047", "#c4b5fd", "#5eead4"];
 
 export function AnniversaryTakeover({
   anniversary,
@@ -30,172 +28,145 @@ export function AnniversaryTakeover({
   if (!anniversary.active) return null;
 
   return (
-    <section className="solaris-birthday relative isolate -mx-3 -mt-5 min-w-0 overflow-hidden border-y border-white/15 px-4 py-8 sm:-mx-5 sm:-mt-7 sm:px-6 sm:py-12 lg:-mx-6 lg:-mt-8 lg:px-8">
-      <div className="solaris-anniversary-sky pointer-events-none fixed inset-0 z-[35] overflow-hidden" aria-hidden="true">
-        {FIREWORKS.map((firework, fireworkIndex) => (
+    <section className="solaris-anniversary-v2 -mx-3 -mt-5 min-w-0 px-4 sm:-mx-5 sm:-mt-7 sm:px-6 lg:-mx-6 lg:-mt-8 lg:px-8">
+      <div className="anniversary-v2-stars" aria-hidden="true">
+        {ANNIVERSARY_STARS.map((star, index) => (
           <span
-            key={fireworkIndex}
-            className="solaris-firework"
+            key={index}
+            className="anniversary-v2-star"
             style={
               {
-                left: firework.x,
-                top: firework.y,
-                animationDelay: firework.delay,
-                "--firework-scale": firework.scale,
+                left: star.left,
+                top: star.top,
+                "--star-size": star.size,
+                "--star-color": star.color,
+                "--star-opacity": star.opacity,
+                "--star-rotate": star.rotate,
+                "--star-duration": star.duration,
+                "--star-delay": star.delay,
+                "--star-drift": star.drift,
               } as CSSProperties
             }
-          >
-            {Array.from({ length: 18 }, (_, sparkIndex) => (
-              <i
-                key={sparkIndex}
-                className="solaris-firework-spark"
-                style={
-                  {
-                    "--spark-angle": `${sparkIndex * 20}deg`,
-                    "--spark-color": FIREWORK_COLORS[(sparkIndex + fireworkIndex) % FIREWORK_COLORS.length],
-                  } as CSSProperties
-                }
-              />
-            ))}
-          </span>
+          />
         ))}
-
-        {CONFETTI.map((piece, index) => {
-          const isSolarisStar = index % 7 === 0;
-          const commonStyle = {
-            left: piece.left,
-            animationDelay: piece.delay,
-            animationDuration: piece.duration,
-            width: isSolarisStar ? `calc(${piece.size} * 2.25)` : piece.size,
-            height: isSolarisStar ? `calc(${piece.size} * 2.1)` : `calc(${piece.size} * 1.8)`,
-            "--confetti-rotate": piece.rotate,
-          } as CSSProperties;
-
-          return isSolarisStar ? (
-            <img
-              key={index}
-              src="/IMG_6171.png"
-              alt=""
-              className="solaris-confetti object-contain"
-              style={commonStyle}
-            />
-          ) : (
-            <span
-              key={index}
-              className={`solaris-confetti solaris-confetti-${index % 6}`}
-              style={commonStyle}
-            />
-          );
-        })}
       </div>
 
-      <div className="solaris-birthday-orb solaris-birthday-orb-a" aria-hidden="true" />
-      <div className="solaris-birthday-orb solaris-birthday-orb-b" aria-hidden="true" />
-      <div className="solaris-birthday-orb solaris-birthday-orb-c" aria-hidden="true" />
-      <div className="solaris-birthday-stars" aria-hidden="true" />
-
       <div className="relative z-10 mx-auto max-w-[1240px]">
-        <div className="grid min-w-0 gap-7 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)] xl:items-end">
+        <div className="anniversary-v2-hero">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="solaris-birthday-pill">17 · 09 · 2022</span>
-              <span className="solaris-birthday-pill">Anniversary Day</span>
-              <span className="solaris-birthday-pill">TSBC Special</span>
+            <div className="anniversary-v2-kicker">
+              <span className="anniversary-v2-chip">17 · 09 · 2022</span>
+              <span className="anniversary-v2-chip">Anniversary Day</span>
+              <span className="anniversary-v2-chip">TSBC Special</span>
             </div>
 
-            <p className="mt-7 text-[10px] font-black uppercase tracking-[0.32em] text-white/65 sm:text-xs">
+            <p className="mt-7 text-[10px] font-black uppercase tracking-[0.32em] text-white/50 sm:text-xs">
               Solaris Song Contest birthday
             </p>
-            <h2 className="mt-2 max-w-5xl break-words font-display text-[clamp(3.4rem,11vw,8.5rem)] font-black leading-[0.82] tracking-[-0.075em] text-white">
-              {anniversary.age} YEARS OF SOLARIS
+            <h2 className="anniversary-v2-title">
+              <span className="accent">{anniversary.age} YEARS</span>
+              <br />
+              OF SOLARIS
             </h2>
-            <p className="mt-5 max-w-3xl text-base font-medium leading-relaxed text-white/78 sm:text-xl">
-              On 17 September 2022, Solaris Song Contest began. Today marks its {anniversary.ordinal} anniversary, and the newsroom is handing the entire front page over to the contest's history, champions, chaos and the year that brought us here.
+            <p className="anniversary-v2-lede">
+              On 17 September 2022, Solaris Song Contest began. Today marks its {anniversary.ordinal} anniversary, with the front page turning into a live archive of champions, records, rivalries and the year that brought us here.
             </p>
 
-            <div className="mt-7 flex flex-wrap gap-2">
-              <Link to="/editions" className="solaris-birthday-action solaris-birthday-action-primary">
+            <div className="anniversary-v2-actions">
+              <Link to="/editions" className="anniversary-v2-action primary">
                 Explore every edition →
               </Link>
-              <Link to="/records" className="solaris-birthday-action">
+              <Link to="/records" className="anniversary-v2-action">
                 Open the record book
               </Link>
-              <Link to="/archive-games" className="solaris-birthday-action">
+              <Link to="/archive-games" className="anniversary-v2-action">
                 Play the archive
               </Link>
             </div>
           </div>
 
-          <div className="min-w-0 rounded-[2rem] border border-white/20 bg-black/20 p-5 backdrop-blur-xl sm:p-6">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">
-              Anniversary year in numbers
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="anniversary-v2-panel">
+            <div className="anniversary-v2-panel-head">
+              <div>
+                <p className="anniversary-v2-panel-label">Anniversary year in numbers</p>
+                <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/55">
+                  The contest year from 17 September {anniversary.previousYear} to today, without the carnival-tent confetti situation.
+                </p>
+              </div>
+              <div className="anniversary-v2-orbit" aria-hidden="true" />
+            </div>
+
+            <div className="anniversary-v2-stats">
               <BirthdayStat label="Contest chapters" value={recap.editionCount} />
               <BirthdayStat label="Public shows" value={recap.showCount} />
               <BirthdayStat label="Countries" value={recap.countryCount} />
               <BirthdayStat label="Entries" value={recap.entryCount} />
             </div>
-            <p className="mt-4 text-xs leading-relaxed text-white/55">
-              A look back at the contest chapters spanning the period from 17 September {anniversary.previousYear} to this anniversary.
-            </p>
           </div>
         </div>
 
-        <div className="mt-10 border-t border-white/18 pt-6">
-          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/55">The birthday edition</p>
-              <h3 className="mt-1 font-display text-2xl font-black text-white sm:text-4xl">
-                One year of Solaris, in headlines
-              </h3>
-            </div>
-            <p className="max-w-lg text-xs leading-relaxed text-white/55 sm:text-right">
-              From the previous birthday to today, these are the numbers and moments that shaped another year of the contest.
-            </p>
-          </div>
+        <div className="anniversary-v2-divider" />
 
-          <div className="mt-5 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {recap.stories.map((story, index) => (
-              <article key={story.id} className={`solaris-birthday-story solaris-birthday-story-${index % 3}`}>
-                <div className="flex min-w-0 items-start justify-between gap-3">
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/55">{story.kicker}</p>
-                  {story.value && <span className="shrink-0 text-xs font-black text-white">{story.value}</span>}
-                </div>
-                <h4 className="mt-4 break-words font-display text-xl font-black leading-tight text-white sm:text-2xl">
-                  {story.headline}
-                </h4>
-                <p className="mt-3 break-words text-xs leading-relaxed text-white/62 sm:text-sm">{story.detail}</p>
-              </article>
-            ))}
+        <div className="anniversary-v2-section-head">
+          <div>
+            <p className="anniversary-v2-eyebrow">The birthday edition</p>
+            <h3 className="anniversary-v2-section-title">One year of Solaris, in headlines</h3>
           </div>
+          <p className="anniversary-v2-section-copy">
+            From the previous birthday to today, these are the numbers and moments that shaped another year of the contest.
+          </p>
         </div>
 
-        <div className="mt-9 grid min-w-0 gap-3 md:grid-cols-3">
+        <div className="anniversary-v2-story-grid">
+          {recap.stories.map((story) => (
+            <article key={story.id} className="anniversary-v2-story">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <p className="anniversary-v2-story-kicker">{story.kicker}</p>
+                {story.value && <span className="anniversary-v2-story-value">{story.value}</span>}
+              </div>
+              <h4 className="anniversary-v2-story-title">{story.headline}</h4>
+              <p className="anniversary-v2-story-copy">{story.detail}</p>
+            </article>
+          ))}
+        </div>
+
+        <div className="anniversary-v2-divider" />
+
+        <div className="anniversary-v2-section-head">
+          <div>
+            <p className="anniversary-v2-eyebrow">Keep exploring</p>
+            <h3 className="anniversary-v2-section-title">The archive is the celebration</h3>
+          </div>
+          <p className="anniversary-v2-section-copy">
+            Anniversary Day should feel like Solaris looking back at itself, not like someone emptied a party-store bag over the website.
+          </p>
+        </div>
+
+        <div className="anniversary-v2-feature-grid">
           <BirthdayFeature
             eyebrow="Born 17 September 2022"
-            title="The archive becomes the party"
-            text="Every published edition, winner and scoreboard remains part of a single growing history. Anniversary Day turns that archive into the centre of the site."
+            title="Walk through the years"
+            text="Every published edition, winner and scoreboard remains part of one growing contest history."
             to="/editions"
-            cta="Walk through the years"
+            cta="Open the archive"
           />
           <BirthdayFeature
             eyebrow="Anniversary challenge"
-            title="How well do you actually know Solaris?"
-            text="Archive Games turns old placements, jury splits and editions into a birthday trivia marathon."
+            title="How well do you know Solaris?"
+            text="Archive Games turns old placements, jury splits and edition history into a birthday challenge."
             to="/archive-games"
             cta="Start playing"
           />
           <BirthdayFeature
             eyebrow="The numbers survived"
             title="Records made to be broken"
-            text="Revisit the wins, point totals, streaks and all-time marks that defined Solaris before another year starts trying to destroy them."
+            text="Revisit the wins, point totals, streaks and all-time marks that defined Solaris before another year tries to destroy them."
             to="/records"
             cta="See the records"
           />
         </div>
 
-        <div className="mt-10 flex flex-col gap-3 border-t border-white/18 pt-5 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
+        <div className="anniversary-v2-footer">
           <p>Solaris Song Contest · Established 17 September 2022</p>
           <p>{anniversary.dateLabel} · {anniversary.ordinal} anniversary</p>
         </div>
@@ -206,9 +177,9 @@ export function AnniversaryTakeover({
 
 function BirthdayStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-white/12 bg-white/[0.07] p-4">
-      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">{label}</p>
-      <p className="mt-1 font-display text-3xl font-black tabular-nums text-white">{value}</p>
+    <div className="anniversary-v2-stat">
+      <p className="anniversary-v2-stat-label">{label}</p>
+      <p className="anniversary-v2-stat-value">{value}</p>
     </div>
   );
 }
@@ -227,11 +198,11 @@ function BirthdayFeature({
   cta: string;
 }) {
   return (
-    <Link to={to} className="group rounded-[1.7rem] border border-white/15 bg-white/[0.065] p-5 backdrop-blur-lg transition-transform hover:-translate-y-1 sm:p-6">
-      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/48">{eyebrow}</p>
-      <h4 className="mt-3 font-display text-xl font-black leading-tight text-white">{title}</h4>
-      <p className="mt-3 text-xs leading-relaxed text-white/58">{text}</p>
-      <p className="mt-5 text-xs font-black text-white">{cta} →</p>
+    <Link to={to} className="anniversary-v2-feature group">
+      <p className="anniversary-v2-eyebrow">{eyebrow}</p>
+      <h4 className="anniversary-v2-feature-title">{title}</h4>
+      <p className="anniversary-v2-feature-copy">{text}</p>
+      <p className="anniversary-v2-feature-cta">{cta} →</p>
     </Link>
   );
 }
