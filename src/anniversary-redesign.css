@@ -1,19 +1,21 @@
 .solaris-anniversary-v2 {
-  --anniv-cyan: #79e7ff;
-  --anniv-lilac: #b9a4ff;
+  --anniv-cyan: #74e7ff;
+  --anniv-lilac: #b7a4ff;
   --anniv-pink: #ff8fc7;
   --anniv-gold: #ffe36e;
-  --anniv-mint: #7cf6d4;
+  --anniv-mint: #78f3d0;
   position: relative;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
   isolation: isolate;
   overflow: hidden;
-  border-block: 1px solid rgba(255,255,255,.12);
+  padding: clamp(1.25rem, 3vw, 2rem) max(1rem, calc((100vw - 1320px) / 2 + 1.5rem)) clamp(3rem, 7vw, 6rem);
   background:
-    radial-gradient(circle at 12% 12%, rgba(255, 83, 154, .34), transparent 28%),
-    radial-gradient(circle at 88% 18%, rgba(77, 164, 255, .34), transparent 30%),
-    radial-gradient(circle at 72% 76%, rgba(153, 79, 255, .28), transparent 34%),
-    linear-gradient(135deg, #0b1028 0%, #28124d 46%, #0b2d57 100%);
-  box-shadow: inset 0 1px rgba(255,255,255,.05), 0 35px 110px rgba(27, 9, 67, .35);
+    radial-gradient(ellipse at 8% 6%, rgba(255, 83, 154, .2), transparent 34%),
+    radial-gradient(ellipse at 92% 12%, rgba(77, 164, 255, .2), transparent 34%),
+    radial-gradient(ellipse at 58% 80%, rgba(153, 79, 255, .12), transparent 42%),
+    linear-gradient(180deg, rgba(8, 8, 35, .08), rgba(8, 8, 35, .22) 68%, rgba(8, 8, 35, 0));
 }
 
 .solaris-anniversary-v2::before {
@@ -21,66 +23,45 @@
   position: absolute;
   inset: 0;
   z-index: -2;
+  pointer-events: none;
   background:
-    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
   background-size: 72px 72px;
-  mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.72) 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.82) 72%, transparent 100%);
 }
 
 .solaris-anniversary-v2::after {
   content: "";
   position: absolute;
-  inset: -30% -10%;
+  inset: -28% -10%;
   z-index: -1;
-  background: conic-gradient(from 200deg at 50% 45%, transparent 0 17%, rgba(255,255,255,.05) 19% 21%, transparent 23% 43%, rgba(121,231,255,.05) 46% 49%, transparent 52% 100%);
-  animation: anniversary-v2-rotate 42s linear infinite;
   pointer-events: none;
-}
-
-.anniversary-v2-stars {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 34;
-  overflow: hidden;
-}
-
-.anniversary-v2-star {
-  position: absolute;
-  display: block;
-  width: var(--star-size);
-  aspect-ratio: 1;
-  background: var(--star-color);
-  opacity: var(--star-opacity);
-  -webkit-mask: url('/IMG_6171.png') center / contain no-repeat;
-  mask: url('/IMG_6171.png') center / contain no-repeat;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--star-color) 45%, transparent));
-  transform: translate3d(0,0,0) rotate(var(--star-rotate));
-  animation: anniversary-v2-float var(--star-duration) ease-in-out infinite alternate;
-  animation-delay: var(--star-delay);
-}
-
-.anniversary-v2-star::after {
-  content: "";
-  position: absolute;
-  inset: 25%;
-  border-radius: 999px;
-  background: rgba(255,255,255,.34);
-  filter: blur(9px);
+  background:
+    conic-gradient(
+      from 195deg at 50% 38%,
+      transparent 0 16%,
+      rgba(255,255,255,.045) 18% 20%,
+      transparent 23% 45%,
+      rgba(116,231,255,.045) 47% 50%,
+      transparent 53% 100%
+    );
+  animation: anniversary-v2-rotate 50s linear infinite;
 }
 
 .anniversary-v2-hero {
   position: relative;
   display: grid;
-  gap: clamp(1.5rem, 4vw, 3rem);
-  min-height: min(760px, calc(100svh - 4rem));
-  padding-block: clamp(2rem, 6vw, 5.25rem);
-  align-items: end;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  min-height: min(720px, calc(100svh - 5rem));
+  padding-block: clamp(2.4rem, 7vw, 6rem);
+  align-items: center;
 }
 
 @media (min-width: 1024px) {
-  .anniversary-v2-hero { grid-template-columns: minmax(0,1.35fr) minmax(300px,.65fr); }
+  .anniversary-v2-hero {
+    grid-template-columns: minmax(0, 1.42fr) minmax(320px, .58fr);
+  }
 }
 
 .anniversary-v2-kicker {
@@ -90,46 +71,54 @@
 }
 
 .anniversary-v2-chip {
-  border: 1px solid rgba(255,255,255,.2);
-  background: rgba(5, 9, 30, .34);
-  padding: .55rem .78rem;
+  display: inline-flex;
+  min-height: 2.15rem;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,.18);
   border-radius: 999px;
+  background: rgba(5, 9, 30, .38);
+  padding: .48rem .76rem;
   color: rgba(255,255,255,.82);
-  font-size: .62rem;
+  font-size: .61rem;
   font-weight: 900;
   letter-spacing: .16em;
   text-transform: uppercase;
-  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+  backdrop-filter: blur(16px) saturate(130%);
 }
 
 .anniversary-v2-title {
   margin-top: 1.4rem;
-  max-width: 9ch;
-  font-family: var(--font-display, inherit);
-  font-size: clamp(4rem, 11vw, 9.6rem);
+  max-width: 8.6ch;
+  font-size: clamp(4.4rem, 10.5vw, 9.4rem);
   font-weight: 950;
   line-height: .78;
-  letter-spacing: -.075em;
+  letter-spacing: -.065em;
   color: white;
-  text-shadow: 0 12px 36px rgba(0,0,0,.28), 0 0 42px rgba(121,231,255,.08);
+  text-shadow: 0 15px 42px rgba(0,0,0,.3), 0 0 46px rgba(121,231,255,.08);
 }
 
 .anniversary-v2-title .accent {
-  background: linear-gradient(100deg, #fff 0%, #bdf6ff 24%, #d3c4ff 52%, #ffc1dd 78%, #fff 100%);
+  background: linear-gradient(100deg, #ffffff 0%, #bcf5ff 24%, #d1c2ff 52%, #ffc0dd 79%, #ffffff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .anniversary-v2-lede {
-  margin-top: 1.5rem;
-  max-width: 50rem;
-  color: rgba(255,255,255,.72);
-  font-size: clamp(1rem, 1.8vw, 1.22rem);
-  line-height: 1.7;
+  margin-top: 1.6rem;
+  max-width: 49rem;
+  color: rgba(255,255,255,.7);
+  font-size: clamp(.98rem, 1.6vw, 1.18rem);
+  line-height: 1.72;
 }
 
-.anniversary-v2-actions { margin-top: 1.8rem; display: flex; flex-wrap: wrap; gap: .7rem; }
+.anniversary-v2-actions {
+  margin-top: 1.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem;
+}
 
 .anniversary-v2-action {
   display: inline-flex;
@@ -138,77 +127,316 @@
   justify-content: center;
   border: 1px solid rgba(255,255,255,.18);
   border-radius: .9rem;
-  background: rgba(255,255,255,.07);
+  background: rgba(255,255,255,.065);
   padding: 0 1rem;
   color: white;
+  font-size: .8rem;
   font-weight: 850;
-  font-size: .82rem;
-  backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+  backdrop-filter: blur(16px) saturate(130%);
   transition: transform .18s ease, background .18s ease, border-color .18s ease;
 }
-.anniversary-v2-action:hover { transform: translateY(-2px); background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); }
-.anniversary-v2-action.primary { background: white; color: #12162a; border-color: white; }
+
+.anniversary-v2-action:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,.3);
+  background: rgba(255,255,255,.11);
+}
+
+.anniversary-v2-action.primary {
+  border-color: white;
+  background: white;
+  color: #12162a;
+  box-shadow: 0 12px 34px rgba(255,255,255,.11);
+}
 
 .anniversary-v2-panel,
 .anniversary-v2-story,
 .anniversary-v2-feature {
-  border: 1px solid rgba(255,255,255,.15);
-  background: linear-gradient(145deg, rgba(10,15,40,.58), rgba(255,255,255,.055));
-  box-shadow: inset 0 1px rgba(255,255,255,.05), 0 18px 48px rgba(5,7,24,.22);
-  backdrop-filter: blur(20px) saturate(130%);
+  border: 1px solid rgba(255,255,255,.14);
+  background:
+    linear-gradient(145deg, rgba(10,15,40,.6), rgba(255,255,255,.05));
+  box-shadow: inset 0 1px rgba(255,255,255,.05), 0 18px 50px rgba(5,7,24,.2);
+  backdrop-filter: blur(22px) saturate(135%);
 }
 
-.anniversary-v2-panel { border-radius: 1.6rem; padding: clamp(1.25rem, 3vw, 1.8rem); }
-.anniversary-v2-panel-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
-.anniversary-v2-panel-label { color: rgba(255,255,255,.5); font-size:.62rem; font-weight:900; letter-spacing:.18em; text-transform:uppercase; }
+.anniversary-v2-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.45rem;
+  padding: clamp(1.25rem, 3vw, 1.8rem);
+}
+
+.anniversary-v2-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--anniv-pink), var(--anniv-cyan), var(--anniv-lilac));
+  opacity: .72;
+}
+
+.anniversary-v2-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.anniversary-v2-panel-label {
+  color: rgba(255,255,255,.48);
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
 .anniversary-v2-orbit {
-  width: 3.2rem; aspect-ratio:1; border:1px solid rgba(255,255,255,.18); border-radius:999px; position:relative;
+  position: relative;
+  width: 3.15rem;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.17);
+  border-radius: 999px;
 }
-.anniversary-v2-orbit::before { content:""; position:absolute; inset:7px; border:1px dashed rgba(121,231,255,.52); border-radius:inherit; animation:anniversary-v2-rotate 14s linear infinite; }
-.anniversary-v2-orbit::after { content:""; position:absolute; width:7px; aspect-ratio:1; border-radius:999px; background:var(--anniv-pink); top:5px; left:50%; box-shadow:0 0 16px var(--anniv-pink); }
 
-.anniversary-v2-stats { margin-top:1rem; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
-.anniversary-v2-stat { min-width:0; border-top:1px solid rgba(255,255,255,.13); padding-top:.8rem; }
-.anniversary-v2-stat-label { color:rgba(255,255,255,.46); font-size:.58rem; font-weight:800; letter-spacing:.13em; text-transform:uppercase; }
-.anniversary-v2-stat-value { margin-top:.18rem; font-family:var(--font-display,inherit); font-size:clamp(1.9rem,4vw,3rem); font-weight:950; color:white; }
-
-.anniversary-v2-divider { height:1px; background:linear-gradient(90deg, rgba(255,255,255,.22), rgba(121,231,255,.4), rgba(255,255,255,.05)); margin:clamp(2.2rem,6vw,4.5rem) 0 1.5rem; }
-
-.anniversary-v2-section-head { display:grid; gap:.55rem; }
-@media (min-width: 800px) { .anniversary-v2-section-head { grid-template-columns:minmax(0,1fr) minmax(260px,.65fr); align-items:end; } }
-.anniversary-v2-eyebrow { color:rgba(255,255,255,.48); font-size:.62rem; font-weight:900; letter-spacing:.18em; text-transform:uppercase; }
-.anniversary-v2-section-title { margin-top:.25rem; font-family:var(--font-display,inherit); font-size:clamp(2rem,4vw,3.6rem); font-weight:950; line-height:.95; color:white; }
-.anniversary-v2-section-copy { color:rgba(255,255,255,.52); font-size:.8rem; line-height:1.65; }
-
-.anniversary-v2-story-grid { margin-top:1rem; display:grid; gap:.8rem; }
-@media (min-width: 760px) { .anniversary-v2-story-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media (min-width: 1180px) { .anniversary-v2-story-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-.anniversary-v2-story { position:relative; overflow:hidden; border-radius:1.25rem; padding:1.2rem; min-height:12rem; }
-.anniversary-v2-story::before { content:""; position:absolute; inset:0 auto 0 0; width:3px; background:linear-gradient(var(--anniv-cyan), var(--anniv-pink)); opacity:.8; }
-.anniversary-v2-story-kicker { color:rgba(255,255,255,.46); font-size:.56rem; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
-.anniversary-v2-story-value { color:white; font-size:.72rem; font-weight:900; }
-.anniversary-v2-story-title { margin-top:.9rem; color:white; font-family:var(--font-display,inherit); font-size:clamp(1.2rem,2.1vw,1.55rem); font-weight:900; line-height:1.1; }
-.anniversary-v2-story-copy { margin-top:.7rem; color:rgba(255,255,255,.58); font-size:.78rem; line-height:1.6; }
-
-.anniversary-v2-feature-grid { margin-top:1rem; display:grid; gap:.8rem; }
-@media (min-width: 800px) { .anniversary-v2-feature-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
-.anniversary-v2-feature { display:block; border-radius:1.2rem; padding:1.25rem; transition:transform .18s ease, background .18s ease; }
-.anniversary-v2-feature:hover { transform:translateY(-3px); background:linear-gradient(145deg, rgba(15,22,58,.72), rgba(255,255,255,.075)); }
-.anniversary-v2-feature-title { margin-top:.65rem; color:white; font-family:var(--font-display,inherit); font-size:1.2rem; font-weight:900; line-height:1.15; }
-.anniversary-v2-feature-copy { margin-top:.65rem; color:rgba(255,255,255,.55); font-size:.75rem; line-height:1.6; }
-.anniversary-v2-feature-cta { margin-top:1rem; color:white; font-size:.72rem; font-weight:900; }
-
-.anniversary-v2-footer { margin-top:2.4rem; border-top:1px solid rgba(255,255,255,.12); padding-top:1rem; display:flex; flex-direction:column; gap:.45rem; color:rgba(255,255,255,.4); font-size:.68rem; }
-@media (min-width: 640px) { .anniversary-v2-footer { flex-direction:row; align-items:center; justify-content:space-between; } }
-
-@keyframes anniversary-v2-float {
-  from { transform: translate3d(0,-5px,0) rotate(var(--star-rotate)) scale(.96); }
-  to { transform: translate3d(var(--star-drift),8px,0) rotate(calc(var(--star-rotate) + 14deg)) scale(1.04); }
+.anniversary-v2-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px dashed rgba(121,231,255,.5);
+  border-radius: inherit;
+  animation: anniversary-v2-rotate 14s linear infinite;
 }
-@keyframes anniversary-v2-rotate { to { transform: rotate(360deg); } }
+
+.anniversary-v2-orbit::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 7px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--anniv-pink);
+  box-shadow: 0 0 16px var(--anniv-pink);
+}
+
+.anniversary-v2-stats {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: .7rem 1rem;
+}
+
+.anniversary-v2-stat {
+  min-width: 0;
+  border-top: 1px solid rgba(255,255,255,.12);
+  padding-top: .82rem;
+}
+
+.anniversary-v2-stat-label {
+  color: rgba(255,255,255,.45);
+  font-size: .57rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.anniversary-v2-stat-value {
+  margin-top: .2rem;
+  color: white;
+  font-size: clamp(1.85rem, 4vw, 2.9rem);
+  font-weight: 950;
+  line-height: .95;
+}
+
+.anniversary-v2-divider {
+  height: 1px;
+  margin: clamp(2.3rem, 6vw, 4.5rem) 0 1.6rem;
+  background: linear-gradient(90deg, rgba(255,255,255,.19), rgba(121,231,255,.4), rgba(255,143,199,.25), rgba(255,255,255,.04));
+}
+
+.anniversary-v2-section-head {
+  display: grid;
+  gap: .7rem;
+}
+
+@media (min-width: 800px) {
+  .anniversary-v2-section-head {
+    grid-template-columns: minmax(0,1fr) minmax(260px,.65fr);
+    align-items: end;
+  }
+}
+
+.anniversary-v2-eyebrow {
+  color: rgba(255,255,255,.46);
+  font-size: .6rem;
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.anniversary-v2-section-title {
+  margin-top: .28rem;
+  color: white;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 950;
+  line-height: .96;
+  letter-spacing: -.025em;
+}
+
+.anniversary-v2-section-copy {
+  max-width: 34rem;
+  color: rgba(255,255,255,.5);
+  font-size: .8rem;
+  line-height: 1.65;
+}
+
+.anniversary-v2-story-grid {
+  margin-top: 1.05rem;
+  display: grid;
+  gap: .85rem;
+}
+
+@media (min-width: 760px) {
+  .anniversary-v2-story-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+@media (min-width: 1180px) {
+  .anniversary-v2-story-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+
+.anniversary-v2-story {
+  position: relative;
+  min-height: 12.2rem;
+  overflow: hidden;
+  border-radius: 1.15rem;
+  padding: 1.25rem;
+}
+
+.anniversary-v2-story::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(var(--anniv-cyan), var(--anniv-pink));
+  opacity: .82;
+}
+
+.anniversary-v2-story-kicker {
+  color: rgba(255,255,255,.44);
+  font-size: .55rem;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.anniversary-v2-story-value {
+  color: white;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.anniversary-v2-story-title {
+  margin-top: .9rem;
+  color: white;
+  font-size: clamp(1.18rem,2.1vw,1.52rem);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.anniversary-v2-story-copy {
+  margin-top: .72rem;
+  color: rgba(255,255,255,.56);
+  font-size: .78rem;
+  line-height: 1.62;
+}
+
+.anniversary-v2-feature-grid {
+  margin-top: 1.05rem;
+  display: grid;
+  gap: .85rem;
+}
+
+@media (min-width: 800px) {
+  .anniversary-v2-feature-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+
+.anniversary-v2-feature {
+  display: block;
+  min-height: 12rem;
+  border-radius: 1.1rem;
+  padding: 1.3rem;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.anniversary-v2-feature:hover {
+  transform: translateY(-3px);
+  border-color: rgba(121,231,255,.24);
+  background: linear-gradient(145deg, rgba(15,22,58,.72), rgba(255,255,255,.072));
+}
+
+.anniversary-v2-feature-title {
+  margin-top: .68rem;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.anniversary-v2-feature-copy {
+  margin-top: .68rem;
+  color: rgba(255,255,255,.54);
+  font-size: .75rem;
+  line-height: 1.62;
+}
+
+.anniversary-v2-feature-cta {
+  margin-top: 1rem;
+  color: white;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.anniversary-v2-footer {
+  margin-top: 2.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  border-top: 1px solid rgba(255,255,255,.11);
+  padding-top: 1rem;
+  color: rgba(255,255,255,.38);
+  font-size: .67rem;
+}
+
+@media (min-width: 640px) {
+  .anniversary-v2-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+@keyframes anniversary-v2-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 639px) {
+  .solaris-anniversary-v2 {
+    padding-inline: 1rem;
+  }
+  .anniversary-v2-hero {
+    min-height: auto;
+    padding-block: 2.25rem 3.2rem;
+  }
+  .anniversary-v2-title {
+    font-size: clamp(3.8rem, 19vw, 6rem);
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .anniversary-v2-star,
   .solaris-anniversary-v2::after,
-  .anniversary-v2-orbit::before { animation: none !important; }
+  .anniversary-v2-orbit::before {
+    animation: none !important;
+  }
 }
