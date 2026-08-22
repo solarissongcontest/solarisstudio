@@ -1,9 +1,9 @@
 /* Final public-edition/show overrides. Kept separate so these high-specificity rules win over
    the global design system without changing the normal star background. */
 
-/* Winner flag treatment: deliberately short, like the original cyan accent strip, rather than
-   turning the whole hero into a flag. A dark veil is composited over the image itself so white
-   hero text stays readable even on bright flags. */
+/* Winner flag treatment: keep the clearly visible flag area compact, then give it a long soft
+   dissolve into the hero. The pseudo-element is wider than the solid flag on purpose: most of
+   that extra width is only the fade tail, not more full-strength flag. */
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
   content: "" !important;
   display: block !important;
@@ -11,29 +11,27 @@ body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .pag
   right: auto !important;
   top: 0 !important;
   bottom: 0 !important;
-  width: min(40%, 15rem) !important;
+  width: min(58%, 22rem) !important;
   height: 100% !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
   background-color: transparent !important;
   background-image:
-    linear-gradient(90deg, rgb(0 0 0 / .34) 0%, rgb(0 0 0 / .24) 48%, rgb(0 0 0 / .08) 78%, transparent 100%),
+    linear-gradient(90deg, rgb(0 0 0 / .34) 0%, rgb(0 0 0 / .25) 30%, rgb(0 0 0 / .12) 52%, transparent 76%),
     var(--show-winner-flag-image) !important;
   background-repeat: no-repeat, no-repeat !important;
   background-size: 100% 100%, cover !important;
   background-position: left center, center !important;
   opacity: .96 !important;
   filter: saturate(1.02) contrast(1.02) !important;
-  -webkit-mask-image: linear-gradient(90deg, #000 0 58%, rgb(0 0 0 / .94) 70%, rgb(0 0 0 / .52) 86%, transparent 100%) !important;
-  mask-image: linear-gradient(90deg, #000 0 58%, rgb(0 0 0 / .94) 70%, rgb(0 0 0 / .52) 86%, transparent 100%) !important;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 38%, rgb(0 0 0 / .98) 44%, rgb(0 0 0 / .88) 54%, rgb(0 0 0 / .64) 68%, rgb(0 0 0 / .32) 82%, transparent 100%) !important;
+  mask-image: linear-gradient(90deg, #000 0 38%, rgb(0 0 0 / .98) 44%, rgb(0 0 0 / .88) 54%, rgb(0 0 0 / .64) 68%, rgb(0 0 0 / .32) 82%, transparent 100%) !important;
   transform: none !important;
   pointer-events: none !important;
   z-index: 0 !important;
 }
 
-/* The flag lives underneath the header copy. Give the copy a restrained shadow so it remains
-   legible on yellow/white/red flags without looking outlined or cartoonish. */
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header h1,
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header p,
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header a,
@@ -78,12 +76,12 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .
 
 @media (max-width: 639px) {
   body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
-    width: 42% !important;
-    max-width: 11.5rem !important;
+    width: 62% !important;
+    max-width: none !important;
     opacity: .96 !important;
     background-position: left center, center !important;
-    -webkit-mask-image: linear-gradient(90deg, #000 0 54%, rgb(0 0 0 / .94) 67%, rgb(0 0 0 / .50) 84%, transparent 100%) !important;
-    mask-image: linear-gradient(90deg, #000 0 54%, rgb(0 0 0 / .94) 67%, rgb(0 0 0 / .50) 84%, transparent 100%) !important;
+    -webkit-mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .98) 40%, rgb(0 0 0 / .88) 50%, rgb(0 0 0 / .64) 65%, rgb(0 0 0 / .32) 81%, transparent 100%) !important;
+    mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .98) 40%, rgb(0 0 0 / .88) 50%, rgb(0 0 0 / .64) 65%, rgb(0 0 0 / .32) 81%, transparent 100%) !important;
   }
 
   body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
