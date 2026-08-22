@@ -1,0 +1,101 @@
+/* Edition public styles v4
+   Last-in-cascade geometry + spacing correction for Editorial and Minimal. */
+
+/* Both non-glass quiet presets must not inherit mystery rounded containers from route markup. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *::before,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *::after,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *::before,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *::after {
+  border-radius: 0 !important;
+}
+
+/* Explicitly catch arbitrary Tailwind radius classes used by the edition route. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded-"],
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded["],
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="rounded-"],
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="rounded["] {
+  border-radius: 0 !important;
+}
+
+/* Stop bg-surface utilities from reintroducing the generic balanced/navy surface. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="bg-surface"],
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="bg-surface"] {
+  background-color: rgb(var(--solaris-card-surface) / .18) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .space-y-5,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .space-y-7 {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2.25rem !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .space-y-5,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .space-y-7 {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2rem !important;
+}
+
+/* Editorial: square publication blocks with real breathing room. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section {
+  margin-block: 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden {
+  padding: 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+  padding: 2rem 1.4rem 2.2rem !important;
+  gap: 2rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
+  padding-top: 1.9rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid {
+  row-gap: 0 !important;
+  column-gap: 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > * {
+  min-height: 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main img {
+  border-radius: 0 !important;
+}
+
+/* Minimal: still clean, but not compressed. */
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+  padding: 1.8rem 1.45rem 2rem !important;
+  gap: 1.75rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
+  padding-top: 1.6rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid {
+  gap: 1.1rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .data-panel {
+  padding: 1.15rem 1.1rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main img {
+  border-radius: 0 !important;
+}
+
+@media (max-width: 639px) {
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .space-y-5,
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .space-y-7 {
+    gap: 2rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .space-y-5,
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .space-y-7 {
+    gap: 1.8rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+    padding: 1.65rem 1.1rem 1.85rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+    padding: 1.6rem 1.2rem 1.8rem !important;
+  }
+}
