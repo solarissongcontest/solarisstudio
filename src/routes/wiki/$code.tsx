@@ -9,6 +9,8 @@ import { CountryCustomSections } from "@/components/country/CountryCustomSection
 import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { useCountryWorldProfile } from "@/lib/country-account";
+import { buildCountryAutoSection, type CountryPageSection } from "@/lib/country-page-builder";
+import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -20,6 +22,7 @@ import {
   useEditions,
 } from "@/lib/data-live";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
+import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 export const Route = createFileRoute("/wiki/$code")({
@@ -30,6 +33,23 @@ export const Route = createFileRoute("/wiki/$code")({
 });
 
 type Qualification = "aq" | true | false | null;
+
+function sectionSystemSlot(section: CountryPageSection) {
+  const json = section.content_json;
+  return json && typeof json === "object" ? String(json.systemSlot ?? "") : "";
+}
+
+function systemFactValues(section?: CountryPageSection | null) {
+  if (!section?.content_json || typeof section.content_json !== "object") return [] as string[];
+  const rows = Array.isArray(section.content_json.customFacts)
+    ? section.content_json.customFacts
+    : [];
+  return rows
+    .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object"))
+    .map((row) => String(row.value ?? "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
 
 function CountryWikiPage() {
   const { code } = Route.useParams();
@@ -65,6 +85,10 @@ function CountryWikiPage() {
     () => (country ? computeCanonicalCountryStats(country.id, opts) : null),
     [country, opts],
   );
+  const form = useMemo(
+    () => (country ? computeCountryForm(country.id, opts) : null),
+    [country, opts],
+  );
 
   if (!country) {
     return (
@@ -78,8 +102,28 @@ function CountryWikiPage() {
   }
 
   const profile = world.data?.profile;
-  const sections = world.data?.sections ?? [];
+  const sections = (world.data?.sections ?? []) as CountryPageSection[];
   const media = world.data?.media ?? [];
+  const funFactsOverride = sections.find((section) => sectionSystemSlot(section) === "fun-facts") ?? null;
+  const contentSections = sections.filter((section) => sectionSystemSlot(section) !== "fun-facts");
+  const character = buildCountryCharacter({
+    country,
+    profile,
+    stats,
+    form,
+    sections: contentSections,
+  });
+  const generatedFacts = buildCountryFunFacts({
+    country,
+    profile,
+    stats,
+    form,
+    sections: contentSections,
+    mediaCount: media.length,
+  });
+  const editedFacts = systemFactValues(funFactsOverride);
+  const facts = editedFacts.length ? editedFacts : generatedFacts;
+
   const editionMap = new Map(opts.editions.map((edition) => [edition.id, edition]));
   const showMap = new Map(opts.shows.map((show) => [show.id, show]));
   const countryParticipants = opts.participants.filter((entry) => entry.country_id === country.id);
@@ -144,7 +188,10 @@ function CountryWikiPage() {
     ["Region", country.region],
   ] as const;
 
-  const authoredOverview = profile?.summary || country.description || null;
+  // Keep Solaris-written default copy. An HOD-written summary or country
+  // description takes priority, so the default is editable rather than removed.
+  const generatedOverview = buildCountryAutoSection("overview", country, profile);
+  const authoredOverview = profile?.summary?.trim() || country.description?.trim() || generatedOverview;
 
   return (
     <AppShell>
@@ -180,27 +227,23 @@ function CountryWikiPage() {
                 {country.native_name && country.native_name !== country.name && <p className="mt-1 text-sm text-muted-foreground">{country.native_name}</p>}
               </div>
             </div>
-            {authoredOverview && (
-              <p className="mt-4 max-w-3xl whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-                {authoredOverview}
-              </p>
-            )}
+            <p className="mt-4 max-w-3xl whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+              {authoredOverview}
+            </p>
           </div>
         </section>
 
         <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_310px] lg:items-start">
           <article className="min-w-0 space-y-6">
-            {(authoredOverview || profile?.motto) && (
-              <WikiSection title="Overview">
-                {authoredOverview && <p className="whitespace-pre-wrap">{authoredOverview}</p>}
-                {profile?.motto && <blockquote className="mt-4 border-l-2 border-primary/50 pl-4 font-display italic text-foreground">“{profile.motto}”</blockquote>}
-              </WikiSection>
-            )}
+            <WikiSection title="Overview">
+              <p className="whitespace-pre-wrap">{authoredOverview}</p>
+              {profile?.motto && <blockquote className="mt-4 border-l-2 border-primary/50 pl-4 font-display italic text-foreground">“{profile.motto}”</blockquote>}
+            </WikiSection>
 
             <CountryCustomSections
               country={country}
               profile={profile}
-              sections={sections}
+              sections={contentSections}
               media={media}
               surface="wiki"
             />
@@ -253,6 +296,41 @@ function CountryWikiPage() {
             </WikiSection>
 
             <CountryNationalFinals country={country} />
+
+            <section className="country-personality-card glass overflow-hidden p-5 sm:p-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Solaris character read</p>
+              <h2 className="mt-2 font-display text-2xl font-semibold">{character.title}</h2>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">{character.summary}</p>
+              {character.tags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {character.tags.map((tag) => (
+                    <span key={tag} className="rounded-full border border-border bg-surface px-3 py-1.5 text-[10px] font-semibold">{tag}</span>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {facts.length > 0 && (
+              <section className="country-personality-card glass p-5 sm:p-6">
+                <div className="mb-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">From the national record</p>
+                  <h2 className="mt-1 font-display text-xl font-semibold">Fun facts</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {editedFacts.length
+                      ? "These facts use the HOD's edited wording."
+                      : "Solaris automatically highlights notable facts from the country's national profile and SSC history."}
+                  </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {facts.map((fact, index) => (
+                    <div key={`${index}-${fact}`} className="rounded-xl bg-surface p-4">
+                      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Fact {String(index + 1).padStart(2, "0")}</p>
+                      <p className="mt-2 text-sm leading-6">{fact}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </article>
 
           <aside className="min-w-0 lg:sticky lg:top-24">

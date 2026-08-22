@@ -12,6 +12,10 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" }).format(parsed);
 }
 
+function humanPosition(value: number | null, fallback: number) {
+  return value != null && Number.isFinite(value) && value >= 1 ? value : fallback;
+}
+
 export function CountryNationalFinals({ country }: { country: Country }) {
   const { data: finals, isLoading } = useCountryNationalFinals(country.id);
 
@@ -33,14 +37,16 @@ export function CountryNationalFinals({ country }: { country: Country }) {
       <div className="space-y-2">
         {finals.map((nationalFinal) => {
           const runningOrder = [...nationalFinal.entries].sort(
-            (a, b) => (a.position ?? 999) - (b.position ?? 999),
+            (a, b) => humanPosition(a.position, 999) - humanPosition(b.position, 999),
           );
           const resultRows = [...nationalFinal.entries].sort((a, b) => {
-            if (a.result_position != null || b.result_position != null) {
-              return (a.result_position ?? 999) - (b.result_position ?? 999);
+            const aResult = a.result_position != null && a.result_position >= 1 ? a.result_position : null;
+            const bResult = b.result_position != null && b.result_position >= 1 ? b.result_position : null;
+            if (aResult != null || bResult != null) {
+              return (aResult ?? 999) - (bResult ?? 999);
             }
             if (a.winner !== b.winner) return a.winner ? -1 : 1;
-            return (a.position ?? 999) - (b.position ?? 999);
+            return humanPosition(a.position, 999) - humanPosition(b.position, 999);
           });
           const lineupDate = formatDate(nationalFinal.nf_date);
           const resultDate = formatDate(nationalFinal.result_date);
@@ -90,7 +96,7 @@ export function CountryNationalFinals({ country }: { country: Country }) {
                     {runningOrder.map((entry, index) => (
                       <div key={entry.id} className="flex min-w-0 items-center gap-3 py-2.5">
                         <span className="numeric w-7 shrink-0 text-center text-xs text-muted-foreground">
-                          {entry.position ?? index + 1}
+                          {humanPosition(entry.position, index + 1)}
                         </span>
                         <Music2 className="size-3.5 shrink-0 text-muted-foreground" />
                         <p className="min-w-0 flex-1 truncate text-sm font-semibold">
@@ -119,7 +125,7 @@ export function CountryNationalFinals({ country }: { country: Country }) {
                       {resultRows.map((entry, index) => (
                         <div key={entry.id} className="flex min-w-0 items-center gap-3 py-2.5">
                           <span className="numeric w-7 shrink-0 text-center text-xs text-muted-foreground">
-                            {entry.result_position ?? (entry.winner ? 1 : index + 1)}
+                            {humanPosition(entry.result_position, entry.winner ? 1 : index + 1)}
                           </span>
                           {entry.winner ? (
                             <Crown className="size-3.5 shrink-0 text-primary" />

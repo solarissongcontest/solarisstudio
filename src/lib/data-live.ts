@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,10 @@ type ArchiveTable =
   | "televote_votes"
   | "results"
   | "participants";
+
+type CompleteArchiveOptions = {
+  realtime?: boolean;
+};
 
 function canonicaliseArchiveRow(table: ArchiveTable, row: any) {
   if (table === "jury_votes") {
@@ -62,12 +66,22 @@ async function fetchCompleteArchive<T>(table: ArchiveTable): Promise<T[]> {
   return rows;
 }
 
-function useArchiveRealtime(table: ArchiveTable, queryKey: string) {
+function useArchiveRealtime(
+  table: ArchiveTable,
+  queryKey: string,
+  enabled = true,
+) {
   const queryClient = useQueryClient();
+  const instanceId = useId().replace(/:/g, "");
 
   useEffect(() => {
+    if (!enabled) return;
+
+    // Supabase channels are stateful. Giving each mounted archive observer its
+    // own topic prevents one consumer from replacing or removing another
+    // consumer's subscription when both need the same archive table.
     const channel = supabase
-      .channel(`solaris-${table}-archive-live`)
+      .channel(`solaris-${table}-archive-live-${instanceId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table },
@@ -80,14 +94,15 @@ function useArchiveRealtime(table: ArchiveTable, queryKey: string) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [queryClient, queryKey, table]);
+  }, [enabled, instanceId, queryClient, queryKey, table]);
 }
 
 function useCompleteArchive<T>(
   table: ArchiveTable,
   queryKey: string,
+  options?: CompleteArchiveOptions,
 ) {
-  useArchiveRealtime(table, queryKey);
+  useArchiveRealtime(table, queryKey, options?.realtime ?? true);
 
   return useQuery({
     queryKey: [queryKey, "all"],
@@ -99,18 +114,18 @@ function useCompleteArchive<T>(
   });
 }
 
-export function useAllJuryVotes() {
-  return useCompleteArchive<JuryVote>("jury_votes", "jury_votes");
+export function useAllJuryVotes(options?: CompleteArchiveOptions) {
+  return useCompleteArchive<JuryVote>("jury_votes", "jury_votes", options);
 }
 
-export function useAllTelevotes() {
-  return useCompleteArchive<Televote>("televote_votes", "televote_votes");
+export function useAllTelevotes(options?: CompleteArchiveOptions) {
+  return useCompleteArchive<Televote>("televote_votes", "televote_votes", options);
 }
 
-export function useAllResults() {
-  return useCompleteArchive<ResultRow>("results", "results");
+export function useAllResults(options?: CompleteArchiveOptions) {
+  return useCompleteArchive<ResultRow>("results", "results", options);
 }
 
-export function useAllParticipants() {
-  return useCompleteArchive<Participant>("participants", "participants");
+export function useAllParticipants(options?: CompleteArchiveOptions) {
+  return useCompleteArchive<Participant>("participants", "participants", options);
 }

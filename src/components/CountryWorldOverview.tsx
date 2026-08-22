@@ -11,14 +11,13 @@ import type {
 } from "@/lib/country-wiki";
 import {
   editionLabel,
-  useAllParticipants,
-  useAllResults,
   useAllShows,
   useEditions,
   type Country,
   type Participant,
   type Show,
-} from "@/lib/data-live";
+} from "@/lib/data";
+import { useAllParticipants, useAllResults } from "@/lib/data-live";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 function Fact({ label, value }: { label: string; value?: string | number | null }) {
@@ -44,13 +43,15 @@ export function CountryWorldOverview({
 }) {
   void _form;
   const { data } = useCountryWorldProfile(country.id);
-  const { data: rawParticipants } = useAllParticipants();
-  const { data: rawResults } = useAllResults();
+  const { data: rawParticipants } = useAllParticipants({ realtime: false });
+  const { data: rawResults } = useAllResults({ realtime: false });
   const { data: editions } = useEditions();
   const { data: rawShows } = useAllShows();
 
-  // Country public UI must stay publication-safe even for a logged-in admin,
-  // whose RLS access can see draft entries and result rows.
+  // The parent country route owns the live archive subscriptions. Keep using
+  // the complete paginated archive cache here, but do not mount competing
+  // realtime channels in this nested overview. Re-apply the public gate here
+  // because this component must remain safe if it is ever rendered elsewhere.
   const archive = useMemo(
     () => buildPublicCountryArchive({
       editions: editions ?? [],
