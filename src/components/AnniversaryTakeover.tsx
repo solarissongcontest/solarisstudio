@@ -90,7 +90,7 @@ export function AnniversaryTakeover({
               <div>
                 <p className="anniversary-v2-panel-label">Anniversary year in numbers</p>
                 <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/55">
-                  The contest year from 17 September {anniversary.previousYear} to today, without the carnival-tent confetti situation.
+                  The contest year from 17 September {anniversary.previousYear} to today, captured through its editions, shows, countries and entries.
                 </p>
               </div>
               <div className="anniversary-v2-orbit" aria-hidden="true" />
@@ -138,7 +138,7 @@ export function AnniversaryTakeover({
             <h3 className="anniversary-v2-section-title">The archive is the celebration</h3>
           </div>
           <p className="anniversary-v2-section-copy">
-            Anniversary Day should feel like Solaris looking back at itself, not like someone emptied a party-store bag over the website.
+            Anniversary Day brings Solaris history, records and interactive archive features together in one place.
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export function AnniversaryTakeover({
           <BirthdayFeature
             eyebrow="The numbers survived"
             title="Records made to be broken"
-            text="Revisit the wins, point totals, streaks and all-time marks that defined Solaris before another year tries to destroy them."
+            text="Revisit the wins, point totals, streaks and all-time marks that defined Solaris before another year begins."
             to="/records"
             cta="See the records"
           />
