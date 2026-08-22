@@ -22,6 +22,7 @@ body[data-entity-theme="edition"][data-edition-artwork="true"] .app-background::
 body[data-entity-theme="edition"] .app-main > .page-header {
   position: relative;
   overflow: hidden;
+  isolation: isolate;
   border: 1px solid rgb(var(--solaris-accent) / .18) !important;
   border-radius: var(--edition-public-radius, 24px);
   padding: clamp(1.1rem, 3vw, 2rem) !important;
@@ -32,6 +33,7 @@ body[data-entity-theme="edition"] .app-main > .page-header {
   box-shadow: 0 24px 70px rgb(0 0 0 / .2);
 }
 
+/* Default edition decoration. Show result pages replace this orb with the winning flag below. */
 body[data-entity-theme="edition"] .app-main > .page-header::after {
   content: "";
   position: absolute;
@@ -43,6 +45,38 @@ body[data-entity-theme="edition"] .app-main > .page-header::after {
   border: 1px solid rgb(var(--solaris-accent) / .14);
   box-shadow: 0 0 0 2.8rem rgb(var(--solaris-accent) / .035), 0 0 0 5.5rem rgb(var(--solaris-bg-secondary) / .028);
   pointer-events: none;
+  z-index: 0;
+}
+
+/* Published show result hero: a rectangular winner flag that softly dissolves into the card. */
+body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
+  left: 0;
+  right: auto;
+  top: 0;
+  bottom: 0;
+  width: min(58%, 34rem);
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgb(var(--solaris-card-surface) / .04) 0%,
+      transparent 46%,
+      rgb(var(--solaris-card-surface) / .42) 76%,
+      rgb(var(--solaris-card-surface) / .96) 100%
+    ),
+    var(--show-winner-flag-image);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: .62;
+  filter: saturate(.9) blur(.35px);
+  -webkit-mask-image: linear-gradient(90deg, #000 0 48%, rgb(0 0 0 / .88) 64%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0 48%, rgb(0 0 0 / .88) 64%, transparent 100%);
+  transform: scale(1.015);
+  transform-origin: left center;
 }
 
 body[data-entity-theme="edition"] .app-main > .page-header h1 {
@@ -128,4 +162,12 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass {
   body[data-entity-theme="edition"] .app-main > .page-header h1 { font-size: clamp(2.25rem, 11vw, 3.35rem); }
   body[data-entity-theme="edition"] .data-panel,
   body[data-entity-theme="edition"] .glass { border-radius: min(var(--edition-public-radius, 24px), 28px); }
+
+  body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
+    width: 76%;
+    opacity: .5;
+    background-position: center;
+    -webkit-mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .7) 58%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .7) 58%, transparent 100%);
+  }
 }
