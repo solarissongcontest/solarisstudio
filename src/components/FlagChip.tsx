@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -16,10 +16,33 @@ export function FlagChip({
   className?: string;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
+  const chipRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     setImageFailed(false);
   }, [image]);
+
+  /*
+   * FlagChip is used inside several public edition surfaces. Editorial had a
+   * generic `.glass > :first-child` rule that added large horizontal padding
+   * to the first child of a card. When the flag chip itself was that first
+   * child, the global border-box sizing left its content box at effectively
+   * zero width, so the image was loaded but there was literally no drawable
+   * width left for it. That is why the Participating countries grid showed
+   * blank rectangles while the same flags still appeared elsewhere.
+   *
+   * These are structural media thumbnails, not card content. Lock their box
+   * model here with inline !important declarations so no design preset can
+   * collapse the image again.
+   */
+  useEffect(() => {
+    const node = chipRef.current;
+    if (!node) return;
+    node.style.setProperty("padding", "0", "important");
+    node.style.setProperty("padding-inline", "0", "important");
+    node.style.setProperty("box-sizing", "border-box", "important");
+    node.style.setProperty("min-width", "0", "important");
+  }, [image, imageFailed, size]);
 
   const dims = {
     xs: "h-5 w-7.5 text-[8px]",
@@ -32,6 +55,7 @@ export function FlagChip({
   if (image && !imageFailed) {
     return (
       <span
+        ref={chipRef}
         data-flag-chip="true"
         data-flag-has-image="true"
         className={cn(
@@ -59,6 +83,7 @@ export function FlagChip({
             zIndex: 2,
             width: "100%",
             height: "100%",
+            minWidth: "100%",
             opacity: 1,
             visibility: "visible",
             filter: "none",
@@ -71,6 +96,7 @@ export function FlagChip({
 
   return (
     <span
+      ref={chipRef}
       data-flag-chip="true"
       data-flag-fallback="true"
       className={cn(
