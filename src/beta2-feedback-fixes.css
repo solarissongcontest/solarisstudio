@@ -10,6 +10,25 @@ body {
   background-attachment: scroll !important;
 }
 
+/* Native select popups are painted by the browser/OS, so a white inherited
+   foreground can otherwise end up on a white popup even though the closed
+   control itself is dark. Give both the control and its popup an explicit dark
+   scheme and readable option colours. */
+select {
+  color-scheme: dark;
+  color: var(--foreground) !important;
+}
+
+select option,
+select optgroup {
+  background: #07142b !important;
+  color: #f7fbff !important;
+}
+
+[role="listbox"] [role="option"] {
+  color: var(--popover-foreground, #f7fbff) !important;
+}
+
 /* Analysis desktop edition picker is absolutely positioned below a sticky
    glass filter bar. The glass utility globally clips overflow, which made the
    picker appear and then vanish at the bar edge on Safari/Edge. */
