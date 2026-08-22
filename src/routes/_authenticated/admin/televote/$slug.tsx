@@ -101,13 +101,13 @@ function TelevoteTotalsWorkspace() {
   const changes = useMemo(() => participants.flatMap((participant) => {
     const key = participant.country_id;
     const saved = voteFor(key)?.points ?? 0;
-    const parsed = Math.max(0, Math.round(Number(draft[key] ?? 0) || 0));
+    const parsed = Math.round(Number(draft[key] ?? 0) || 0);
     return parsed === saved ? [] : [{ key, points: parsed, saved }];
   // voteFor intentionally derives from the current entity/vote snapshot.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [participants, draft, televotes, entities]);
 
-  const totalPoints = participants.reduce((sum, participant) => sum + Math.max(0, Math.round(Number(draft[participant.country_id] ?? 0) || 0)), 0);
+  const totalPoints = participants.reduce((sum, participant) => sum + Math.round(Number(draft[participant.country_id] ?? 0) || 0), 0);
   const hasExistingTotals = televotes.some((vote) => vote.points !== 0);
   const requiresConfirmation = hasExistingTotals || publishedResults;
 
@@ -167,7 +167,7 @@ function TelevoteTotalsWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Televote totals"
-        description="Review or enter the aggregate televote points that feed this show's standings. Public voting rounds and integrity review remain in the Televoting service."
+        description="Review or enter the aggregate televote points that feed this show's standings. Negative totals are allowed for sanctions or point deductions. Public voting rounds and integrity review remain in the Televoting service."
         actions={<button type="button" disabled={busy || !changes.length} onClick={requestSave} className="admin-action-primary"><Save className="size-4" /> {busy ? "Saving…" : changes.length ? `Save ${changes.length}` : "Saved"}</button>}
       />
 
@@ -216,7 +216,7 @@ function TelevoteTotalsWorkspace() {
             {participants.map((participant, index) => {
               const display = displays.get(participant.country_id);
               const saved = voteFor(participant.country_id)?.points ?? 0;
-              const current = Math.max(0, Math.round(Number(draft[participant.country_id] ?? 0) || 0));
+              const current = Math.round(Number(draft[participant.country_id] ?? 0) || 0);
               const changed = current !== saved;
               return (
                 <label key={participant.id} className="flex min-w-0 items-center gap-3 px-3 py-3 sm:px-4">
@@ -226,12 +226,11 @@ function TelevoteTotalsWorkspace() {
                     <span className="block truncate text-sm font-semibold text-foreground">{display?.name ?? participant.country_id}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{participant.artist || participant.song ? [participant.artist, participant.song].filter(Boolean).join(" · ") : "Entry"}</span>
                   </span>
-                  {changed ? <AdminStatus tone="attention">Edited</AdminStatus> : null}
+                  {current < 0 ? <AdminStatus tone="attention">Sanction</AdminStatus> : changed ? <AdminStatus tone="attention">Edited</AdminStatus> : null}
                   <input
                     aria-label={`${display?.name ?? participant.country_id} televote points`}
                     inputMode="numeric"
                     type="number"
-                    min={0}
                     step={1}
                     value={draft[participant.country_id] ?? "0"}
                     onChange={(event) => setDraft((currentDraft) => ({ ...currentDraft, [participant.country_id]: event.target.value }))}
@@ -244,7 +243,7 @@ function TelevoteTotalsWorkspace() {
         </AdminCard>
       )}
 
-      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">These are aggregate show totals, not individual public ballots. Editing here never deletes public-voting submissions or integrity records.</p>
+      <p className="mt-3 text-xs leading-relaxed text-muted-foreground">These are aggregate show totals, not individual public ballots. You can enter a negative value when an official sanction or penalty deducts points. Editing here never deletes public-voting submissions or integrity records.</p>
 
       <AdminConfirmSheet
         open={confirmOpen}
