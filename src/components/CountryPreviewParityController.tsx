@@ -9,6 +9,7 @@ import {
   useMyCountryAccount,
 } from "@/lib/country-account";
 import { useCountries, type Country } from "@/lib/data";
+import { appRoutePath } from "@/lib/route-path";
 
 type PreviewSurface = "country" | "wiki";
 type PreviewDecoration =
@@ -32,6 +33,7 @@ export function CountryPreviewParityController() {
   const location = useRouterState({
     select: (state) => ({ pathname: state.location.pathname, search: state.location.search }),
   });
+  const routePath = appRoutePath(location.pathname);
   const { data: accountData } = useMyCountryAccount();
   const { data: countries } = useCountries();
   const [targets, setTargets] = useState<HTMLElement[]>([]);
@@ -52,7 +54,7 @@ export function CountryPreviewParityController() {
   const world = useCountryWorldProfile(country?.id);
 
   useEffect(() => {
-    if (location.pathname !== "/country-hub/theme") {
+    if (routePath !== "/country-hub/theme") {
       setTargets([]);
       return;
     }
@@ -68,9 +70,9 @@ export function CountryPreviewParityController() {
     const observer = new MutationObserver(refresh);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [location.pathname]);
+  }, [routePath]);
 
-  if (location.pathname !== "/country-hub/theme" || !country || targets.length === 0) {
+  if (routePath !== "/country-hub/theme" || !country || targets.length === 0) {
     return null;
   }
 

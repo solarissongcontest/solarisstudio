@@ -23,6 +23,7 @@ import { CountryPreviewParityController } from "@/components/CountryPreviewParit
 import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
 import { useAllShows, useContestEntities, useCountries, useEditions, useResults } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
+import { appRoutePath } from "@/lib/route-path";
 import {
   countryBackgroundCss,
   countryThemeToVisual,
@@ -47,8 +48,9 @@ type ResolvedVisual =
   | { kind: "edition"; theme: EditionThemeVisual; artwork: string | null; publicSettings: EditionPublicSettings };
 
 function segmentAfter(pathname: string, prefix: string) {
-  if (!pathname.startsWith(prefix)) return null;
-  return decodeURIComponent(pathname.slice(prefix.length).split("/")[0] ?? "");
+  const routePath = appRoutePath(pathname);
+  if (!routePath.startsWith(prefix)) return null;
+  return decodeURIComponent(routePath.slice(prefix.length).split("/")[0] ?? "");
 }
 
 function gradientFromRaw(input: unknown, first: string, second: string) {
@@ -102,7 +104,7 @@ export function RouteVisualTheme() {
   /* Public result pages used to remain stale even after the database had
      recalculated correctly. Keep the visible page cache fresh and force an
      immediate refresh whenever the user returns to the tab. The database
-     trigger remains the source of truth; this only removes browser-cache lag. */
+     trigger remains authoritative; this only removes browser-cache lag. */
   useEffect(() => {
     if (!currentShowId && !currentEditionSlug) return;
 

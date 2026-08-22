@@ -62,11 +62,30 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.co
   backdrop-filter: blur(22px) saturate(165%) brightness(1.04) !important;
 }
 
-/* Public Country has an action group after the text. Keep it visually inside
-   the same glass material without creating a second card or a separate column. */
+/* The full-width material must still preserve the actual hero layout. Earlier
+   glass CSS forced the inner hero to block layout, which made desktop actions
+   drop underneath the identity and made the card look unfinished. */
+@media (min-width: 1024px) {
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+    .country-public-hero > .relative.z-10,
+  [data-preview-layout="glass-card"] > .parity-preview-content.grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: end !important;
+    gap: 1.25rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+    .country-public-hero > .relative.z-10 > div:last-child,
+  [data-preview-layout="glass-card"] > .parity-preview-content.grid > div:last-child {
+    margin-top: 0 !important;
+    justify-content: flex-end !important;
+  }
+}
+
+/* On narrower screens the same material remains one clean full-width card. */
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .country-public-hero > .relative.z-10 > div:last-child {
-  margin-top: 1rem !important;
-  justify-content: flex-start !important;
+  margin-top: 1rem;
 }
 
 /* The flag is material inside the glass, never an extra rectangle behind it. */

@@ -85,6 +85,7 @@ describe("country page customization", () => {
     expect(builder).toContain("contentMode");
     expect(builder).toContain("imageLayout");
     expect(builder).toContain("useReorderCountryPageSections");
-    expect(builder).toContain("Write everything yourself, let Solaris draft from facts you supplied");
+    expect(builder).toContain("Build the public country profile and Wiki from the same editable blocks");
+    expect(builder).toContain("Text, facts, images, captions and presentation settings remain under your control");
   });
 });

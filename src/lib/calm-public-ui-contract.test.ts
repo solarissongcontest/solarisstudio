@@ -34,7 +34,9 @@ describe("calm public UI contract", () => {
     expect(glass).toContain('content: none !important');
     expect(glass).toContain('display: none !important');
     expect(glass).toContain('[data-preview-layout="glass-card"] > .relative.z-10');
-    expect(glass).toContain('width: min(100%, 41rem) !important');
+    expect(glass).toContain('width: 100% !important');
+    expect(glass).toContain('max-width: none !important');
+    expect(glass).toContain('grid-template-columns: minmax(0, 1fr) auto !important');
     expect(glass).toContain('.country-glass-panel-flag');
   });
 });

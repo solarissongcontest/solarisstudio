@@ -18,7 +18,7 @@ type Patch = (theme: ThemeConfig) => ThemeConfig;
  * Edition broadcast editor.
  *
  * Edition colours are NOT edited here. They come from the single
- * Artwork & colours source of truth and are synced into linked themes.
+ * Artwork & colours editor and are synced into linked themes.
  * This editor only controls presentation settings that are not owned by
  * the edition palette, such as backdrop treatment, logo and typography.
  */
