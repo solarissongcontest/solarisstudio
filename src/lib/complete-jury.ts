@@ -1,9 +1,9 @@
-import { useAllJuryVotes } from "@/lib/data";
+import { useAllJuryVotes } from "@/lib/data-live";
 
 /**
- * Compatibility alias for relationship pages. The canonical all-jury hook now
- * performs the complete paginated archive fetch itself, keeps the cache shared
- * across analytics surfaces, and invalidates/refetches when votes change.
+ * Compatibility alias for relationship pages. This deliberately uses the
+ * paginated live archive hook so relationship analytics are never limited to
+ * Supabase/PostgREST's first page of jury rows and refresh when votes change.
  */
 export function useCompleteJuryArchive() {
   return useAllJuryVotes();
