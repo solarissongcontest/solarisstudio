@@ -65,6 +65,28 @@ export function useSaveCountryHistoricalNationalFinal(countryId?: string) {
   });
 }
 
+export function useSaveCountryNationalFinalResultOrder(countryId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { nationalFinalId: string; orderedEntryIds: string[] }) => {
+      if (!countryId) throw new Error("No country is selected.");
+      const { data, error } = await supabase.rpc("set_country_national_final_result_order", {
+        _country_id: countryId,
+        _national_final_id: input.nationalFinalId,
+        _ordered_entry_ids: input.orderedEntryIds,
+      });
+      if (error) throw error;
+      return data as { id: string; entry_count: number; winning_entry_id: string | null };
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["country-historical-national-finals", countryId] }),
+        queryClient.invalidateQueries({ queryKey: ["country-national-finals", countryId] }),
+      ]);
+    },
+  });
+}
+
 export function useSetCountryNationalFinalPublication(countryId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
