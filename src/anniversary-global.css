@@ -123,6 +123,17 @@ body.solaris-anniversary-day .app-background {
   filter: saturate(1.12) brightness(1.03);
 }
 
+/* The legacy birthday stylesheet removed AppShell spacing because it used to
+   control only the home takeover. Anniversary mode is now site-wide, so keep
+   ordinary pages in their normal layout while the celebration sits above it. */
+body.solaris-anniversary-day .app-main {
+  padding-top: 1rem !important;
+}
+
+body.solaris-anniversary-day .app-main > :not(.solaris-birthday):not(.solaris-anniversary-v2) {
+  margin-inline: 0 !important;
+}
+
 body.solaris-anniversary-day .app-main section.glass,
 body.solaris-anniversary-day .app-main article.glass,
 body.solaris-anniversary-day .app-main .solaris-family-card {
@@ -165,7 +176,22 @@ body.solaris-anniversary-day .app-main .solaris-family-card {
   }
 }
 
+@media (min-width: 640px) {
+  body.solaris-anniversary-day .app-main {
+    padding-top: 1.5rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  body.solaris-anniversary-day .app-main {
+    padding-top: 2rem !important;
+  }
+}
+
 @media (max-width: 639px) {
+  body.solaris-anniversary-day .app-main {
+    padding-inline: .75rem !important;
+  }
   .solaris-anniversary-global-badge {
     top: 4.35rem;
     right: .5rem;
@@ -175,6 +201,18 @@ body.solaris-anniversary-day .app-main .solaris-family-card {
     padding-inline: .55rem;
   }
   .solaris-anniversary-falling-star:nth-child(3n) { display: none; }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  body.solaris-anniversary-day .app-main {
+    padding-inline: 1.25rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  body.solaris-anniversary-day .app-main {
+    padding-inline: 1.5rem !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
