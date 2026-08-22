@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { useCompleteJuryArchive } from "@/lib/complete-jury";
 import {
-  useAllJuryVotes,
   useAllParticipants,
   useAllResults,
   useAllShows,
@@ -38,7 +38,7 @@ function pairParam(a: Country, b: Country) {
 function RelationshipsPage() {
   const { data: countries } = useCountries();
   const { data: participants } = useAllParticipants();
-  const { data: jury } = useAllJuryVotes();
+  const { data: jury } = useCompleteJuryArchive();
   const { data: results } = useAllResults();
   const { data: shows } = useAllShows();
   const { data: editions } = useEditions();
