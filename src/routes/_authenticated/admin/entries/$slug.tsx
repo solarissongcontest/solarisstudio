@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import { ShowLineupWorkspace } from "@/components/admin/ShowLineupWorkspace";
 
@@ -20,5 +21,19 @@ export const Route = createFileRoute("/_authenticated/admin/entries/$slug")({
 function EntriesRoute() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+
+  // `show` is only an entry point. ShowLineupWorkspace already seeds its local
+  // state from it, so leaving the query parameter in the URL would make the
+  // workspace effect keep forcing the user back to that show after every
+  // selector click. Consume it once, then release the selector.
+  useEffect(() => {
+    if (!search.show) return;
+    void navigate({
+      search: (previous) => ({ ...previous, show: undefined }),
+      replace: true,
+    });
+  }, [navigate, search.show]);
+
   return <ShowLineupWorkspace slug={slug} initialShow={search.show} />;
 }
