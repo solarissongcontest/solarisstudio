@@ -8,9 +8,7 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-ma
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *::after,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *::before,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *::after {
-  border-radius: 0 !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *::after { border-radius: 0 !important; }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .page-header,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .page-header::before,
@@ -20,10 +18,7 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .page-hea
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .page-header::after,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section[class*="rounded"],
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section[class*="rounded"] {
-  border-radius: 0 !important;
-  clip-path: none !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
+  border-radius: 0 !important; clip-path: none !important; -webkit-mask-image: none !important; mask-image: none !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] [data-flag-chip="true"],
@@ -31,125 +26,90 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] [data-f
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] [data-flag-chip="true"],
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] [data-flag-chip="true"] img,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded"],
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="rounded"] {
-  border-radius: 0 !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="rounded"] { border-radius: 0 !important; }
 
-/* Stop generic global surfaces from reintroducing the default Solaris blue/navy material. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="bg-surface"],
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="bg-surface"] {
-  background-color: color-mix(in oklab, var(--surface) 76%, transparent) !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="bg-surface"] { background-color: color-mix(in oklab, var(--surface) 76%, transparent) !important; }
 
-/* Moderate top-level spacing: visibly separated cards/sections, but not the huge gaps from the
-   previous attempt. The edition route's direct children live inside this space-y wrapper. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 1.55rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 { display:flex !important; flex-direction:column !important; gap:1.55rem !important; }
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 1.9rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 { display:flex !important; flex-direction:column !important; gap:1.9rem !important; }
 
-/* Editorial: square publication blocks with comfortable internal padding. */
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section { margin-block: 0 !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden { padding: 0 !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 {
-  padding: 2.25rem 1.65rem 2.4rem !important;
-  gap: 1.8rem !important;
-}
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
-  padding-top: 1.5rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section { margin-block:0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden { padding:0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:2.25rem 1.65rem 2.4rem !important; gap:1.8rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) { padding-top:1.5rem !important; }
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .data-panel,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .glass {
-  padding: 1.45rem 1.3rem !important;
-}
-
-/* Editorial entry/result grids stay connected as a publication grid. */
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid {
-  row-gap: 0 !important;
-  column-gap: 0 !important;
-}
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > * { min-height: 0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .glass { padding:1.45rem 1.3rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid { row-gap:0 !important; column-gap:0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > * { min-height:0 !important; }
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .glass,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel {
-  padding: 1.2rem 1.1rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel { padding:1.2rem 1.1rem !important; }
 
-/* Stat panels: space the content away from dividers without separating the four cells. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line {
-  padding: .45rem 1rem .65rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line { padding:.45rem 1rem .65rem !important; }
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line:first-child,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line:first-child {
-  padding-left: 1rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line:first-child { padding-left:1rem !important; }
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line p + p,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line p + p {
-  margin-top: .65rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line p + p { margin-top:.65rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main img { border-radius:0 !important; }
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main img { border-radius: 0 !important; }
-
-/* Minimal: compact and quiet, with modest card gaps instead of either extreme. */
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 {
-  padding: 2.1rem 1.55rem 2.25rem !important;
-  gap: 1.65rem !important;
-}
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
-  padding-top: 1.4rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:2.1rem 1.55rem 2.25rem !important; gap:1.65rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) { padding-top:1.4rem !important; }
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .data-panel,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass {
-  padding: 1.35rem 1.2rem !important;
-}
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid {
-  gap: .85rem !important;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass { padding:1.35rem 1.2rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid { gap:.85rem !important; }
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .data-panel {
-  padding: 1.15rem 1.05rem !important;
-}
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main img { border-radius: 0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .data-panel { padding:1.15rem 1.05rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main img { border-radius:0 !important; }
 
-/* Show controls and result comparison had their own radius utilities. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main :is(button,a,[role="button"],select,input,textarea,.rounded-full,.rounded-lg,.rounded-xl,.rounded-2xl),
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main :is(button,a,[role="button"],select,input,textarea,.rounded-full,.rounded-lg,.rounded-xl,.rounded-2xl) {
-  border-radius: 0 !important;
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main :is(button,a,[role="button"],select,input,textarea,.rounded-full,.rounded-lg,.rounded-xl,.rounded-2xl) { border-radius:0 !important; }
+
+/* GLASS: this file loads last, so it is the final authority. The previous glass looked like
+   translucent purple plastic because blur + saturation were too strong and several nested
+   surfaces still painted opaque theme colour. Keep colour as a faint tint, not a fill. */
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel),
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  background-color: transparent !important;
+  background-image: linear-gradient(145deg, rgb(255 255 255 / .014), rgb(var(--solaris-card-surface) / .018) 52%, rgb(255 255 255 / .006)) !important;
+  border-color: rgb(255 255 255 / .20) !important;
+  -webkit-backdrop-filter: blur(7px) saturate(125%) brightness(1.04) !important;
+  backdrop-filter: blur(7px) saturate(125%) brightness(1.04) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .28), inset 1px 0 0 rgb(255 255 255 / .06), 0 10px 26px rgb(0 0 0 / .12) !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel) :is(.glass,.data-panel,[class*="bg-surface"]) {
+  background-color: transparent !important;
+  background-image: linear-gradient(145deg, rgb(255 255 255 / .010), rgb(var(--solaris-card-surface) / .012)) !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel)::before {
+  opacity:.32 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel)::after {
+  opacity:.55 !important;
 }
 
-@media (max-width: 639px) {
+@media (max-width:639px) {
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 {
-    gap: 1.35rem !important;
-  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 { gap:1.35rem !important; }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 {
-    gap: 1.6rem !important;
-  }
-  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 {
-    padding: 1.8rem 1.2rem 2rem !important;
-    gap: 1.55rem !important;
-  }
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 {
-    padding: 1.75rem 1.2rem 1.95rem !important;
-    gap: 1.5rem !important;
-  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 { gap:1.6rem !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:1.8rem 1.2rem 2rem !important; gap:1.55rem !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:1.75rem 1.2rem 1.95rem !important; gap:1.5rem !important; }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .data-panel,
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .glass,
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .data-panel,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass {
-    padding: 1.2rem 1rem !important;
-  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass { padding:1.2rem 1rem !important; }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line {
-    padding: .6rem .9rem .8rem !important;
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line { padding:.6rem .9rem .8rem !important; }
+
+  body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel),
+  body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-5 > section.relative.overflow-hidden,
+  body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-7 > section.relative.overflow-hidden {
+    background-image: linear-gradient(145deg, rgb(255 255 255 / .012), rgb(var(--solaris-card-surface) / .014) 52%, rgb(255 255 255 / .004)) !important;
+    -webkit-backdrop-filter: blur(5px) saturate(118%) brightness(1.035) !important;
+    backdrop-filter: blur(5px) saturate(118%) brightness(1.035) !important;
   }
 }
