@@ -1,4 +1,3 @@
-import "@/anniversary-global-runtime";
 import { useId } from "react";
 import type { CSSProperties } from "react";
 
