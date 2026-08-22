@@ -150,7 +150,7 @@ export function RouteVisualTheme() {
     if (currentShowId) {
       const edition = visualEditions.find((item) => item.id === currentShow?.edition_id);
       const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) return { theme, kind: "edition", artwork: null, publicSettings: editionPublicSettings(edition?.theme_colors, theme) };
+      if (theme) return { theme, kind: "edition", artwork: edition?.artwork_url ?? null, publicSettings: editionPublicSettings(edition?.theme_colors, theme) };
     }
     return null;
   }, [pathname, currentShowId, currentShow, countries, editions, countryThemes]);
