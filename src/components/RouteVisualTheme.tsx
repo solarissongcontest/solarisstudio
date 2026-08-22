@@ -10,6 +10,7 @@ import "@/country-glass-parity.css";
 import "@/beta2-feedback-fixes.css";
 import "@/country-button-theme.css";
 import "@/edition-public-design.css";
+import "@/edition-public-hotfix.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
