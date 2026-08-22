@@ -12,48 +12,24 @@ import {
   type ThemeConfig,
 } from "@/lib/theme";
 
-type Patch =
-  (
-    theme:
-      ThemeConfig,
-  ) =>
-    ThemeConfig;
+type Patch = (theme: ThemeConfig) => ThemeConfig;
 
 /**
- * Edition branding editor.
+ * Edition broadcast editor.
  *
- * IMPORTANT:
- * Country cards, row text, flags, states, scoreboard layout,
- * jury panels and scoreboard backgrounds are NOT edited here.
- *
- * Those are owned by ScoreboardEditor / ScoreboardConfig so there
- * keeps one shared configuration for every country row/card used by
- * the edition's scoreboards, running-order boards and broadcasts.
+ * Edition colours are NOT edited here. They come from the single
+ * Artwork & colours source of truth and are synced into linked themes.
+ * This editor only controls presentation settings that are not owned by
+ * the edition palette, such as backdrop treatment, logo and typography.
  */
 export function ThemeEditor({
   theme,
   onChange,
 }: {
-  theme:
-    ThemeConfig;
-
-  onChange:
-    (
-      next:
-        ThemeConfig,
-    ) =>
-      void;
+  theme: ThemeConfig;
+  onChange: (next: ThemeConfig) => void;
 }) {
-  const set =
-    (
-      patch:
-        Patch,
-    ) =>
-      onChange(
-        patch(
-          theme,
-        ),
-      );
+  const set = (patch: Patch) => onChange(patch(theme));
 
   return (
     <div className="space-y-6">
@@ -64,11 +40,11 @@ export function ThemeEditor({
           </p>
           <h3 className="mt-1 font-display text-lg font-bold">Background</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            The shared backdrop behind edition broadcast surfaces. Country rows and cards are controlled separately in the custom scoreboard editor.
+            Controls how the shared edition backdrop is presented. Its colours come automatically from Artwork & colours.
           </p>
         </div>
 
-        <Field label="Background type" hint="Choose the base edition backdrop.">
+        <Field label="Background type" hint="Choose how the saved edition palette is presented behind broadcast surfaces.">
           <SegButtons
             value={theme.background.type}
             onChange={(value) =>
@@ -86,66 +62,37 @@ export function ThemeEditor({
         </Field>
 
         {theme.background.type === "gradient" && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <ColorField
-              label="Gradient start"
-              description="First colour of the edition backdrop."
-              value={theme.background.gradientFrom}
-              onChange={(value) =>
-                set((current) => ({
-                  ...current,
-                  background: { ...current.background, gradientFrom: value },
-                }))
-              }
-            />
-            <ColorField
-              label="Gradient end"
-              description="Second colour of the edition backdrop."
-              value={theme.background.gradientTo}
-              onChange={(value) =>
-                set((current) => ({
-                  ...current,
-                  background: { ...current.background, gradientTo: value },
-                }))
-              }
-            />
-            <Field label="Gradient angle" hint="Direction of the gradient.">
-              <Slider
-                min={0}
-                max={360}
-                step={1}
-                value={theme.background.gradientAngle}
-                onChange={(value) =>
-                  set((current) => ({
-                    ...current,
-                    background: { ...current.background, gradientAngle: value },
-                  }))
-                }
-                suffix="°"
-              />
-            </Field>
+          <div className="mt-4 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 text-xs leading-relaxed text-muted-foreground">
+            Gradient colours are inherited from <strong className="text-foreground">Artwork & colours</strong>. Only the direction is adjusted here.
+            <div className="mt-3">
+              <Field label="Gradient angle" hint="Direction of the edition gradient.">
+                <Slider
+                  min={0}
+                  max={360}
+                  step={1}
+                  value={theme.background.gradientAngle}
+                  onChange={(value) =>
+                    set((current) => ({
+                      ...current,
+                      background: { ...current.background, gradientAngle: value },
+                    }))
+                  }
+                  suffix="°"
+                />
+              </Field>
+            </div>
           </div>
         )}
 
         {theme.background.type === "color" && (
-          <div className="mt-4">
-            <ColorField
-              label="Background colour"
-              description="Flat colour used behind the edition."
-              value={theme.background.color}
-              onChange={(value) =>
-                set((current) => ({
-                  ...current,
-                  background: { ...current.background, color: value },
-                }))
-              }
-            />
+          <div className="mt-4 rounded-xl border border-primary/15 bg-primary/[0.04] p-3 text-xs leading-relaxed text-muted-foreground">
+            Solid background colour is inherited from the edition's saved <strong className="text-foreground">Background</strong> colour.
           </div>
         )}
 
         {theme.background.type === "image" && (
           <div className="mt-4">
-            <Field label="Background image URL" hint="Public image or animated GIF.">
+            <Field label="Background image URL" hint="Optional broadcast-only image or animated GIF.">
               <TextInput
                 value={theme.background.imageUrl ?? ""}
                 placeholder="https://…"
@@ -195,36 +142,20 @@ export function ThemeEditor({
             />
           </Field>
         </div>
-      </section>
 
-      <section className="rounded-2xl border border-border bg-surface/35 p-4 sm:p-5">
-        <div className="mb-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Edition identity</p>
-          <h3 className="mt-1 font-display text-lg font-bold">Branding</h3>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Logo and colours shared across the edition.</p>
-        </div>
-
-        <Field label="Logo URL" hint="Used on edition broadcast surfaces that display a logo.">
-          <TextInput
-            value={theme.logoUrl ?? ""}
-            placeholder="https://…"
-            onChange={(event) =>
-              set((current) => ({
-                ...current,
-                logoUrl: event.target.value || null,
-              }))
-            }
-          />
-        </Field>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <ColorField label="Primary" description="Main edition accent." value={theme.colors.primary} onChange={(value) => set((current) => ({ ...current, colors: { ...current.colors, primary: value } }))} />
-          <ColorField label="Secondary" description="Secondary edition accent." value={theme.colors.secondary} onChange={(value) => set((current) => ({ ...current, colors: { ...current.colors, secondary: value } }))} />
-          <ColorField label="Accent" description="Extra accent used by custom surfaces." value={theme.colors.accent} onChange={(value) => set((current) => ({ ...current, colors: { ...current.colors, accent: value } }))} />
-          <ColorField label="Base text" description="Fallback edition text colour." value={theme.colors.text} onChange={(value) => set((current) => ({ ...current, colors: { ...current.colors, text: value } }))} />
-          <ColorField label="Jury" description="Shared jury accent colour." value={theme.colors.jury} onChange={(value) => set((current) => ({ ...current, colors: { ...current.colors, jury: value } }))} />
-          <ColorField label="Televote" description="Shared televote accent colour." value={theme.colors.televote} onChange={(value) => set((current) => ({ ...current, colors: { ...current.colors, televote: value } }))} />
-          <ColorField label="Winner gold" description="Edition winner / gold accent." value={theme.colors.gold} onChange={(value) => set((current) => ({ ...current, colors: { ...current.colors, gold: value } }))} />
+        <div className="mt-4 border-t border-border pt-4">
+          <Field label="Logo URL" hint="Optional logo used on edition broadcast surfaces that display one.">
+            <TextInput
+              value={theme.logoUrl ?? ""}
+              placeholder="https://…"
+              onChange={(event) =>
+                set((current) => ({
+                  ...current,
+                  logoUrl: event.target.value || null,
+                }))
+              }
+            />
+          </Field>
         </div>
       </section>
 
@@ -267,8 +198,8 @@ export function ThemeEditor({
       </section>
 
       <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
-        <strong className="text-foreground">Country-card styling is intentionally not available here.</strong>{" "}
-        Use the Scoreboard & Country Cards editor above. Its settings apply to country rows on the scoreboard and in the running order.
+        <strong className="text-foreground">Colours are controlled only in Artwork & colours.</strong>{" "}
+        Saving the edition palette there automatically syncs it to linked scoreboards and broadcast surfaces. Country-card styling remains in the Scoreboard & Country Cards editor.
       </div>
     </div>
   );
