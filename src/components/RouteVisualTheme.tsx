@@ -13,6 +13,7 @@ import "@/edition-public-design.css";
 import "@/edition-public-hotfix.css";
 import "@/edition-public-styles-v2.css";
 import "@/edition-public-styles-v3.css";
+import "@/edition-public-styles-v4.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
@@ -65,10 +66,6 @@ function gradientFromRaw(input: unknown, first: string, second: string) {
   if (!input || typeof input !== "object") return null;
   const value = input as Record<string, unknown>;
   if (value.enabled === false) return null;
-
-  /* Public-layout gradients never own colours. They only decide whether a gradient is used and
-     its direction. The actual colours always come from the edition Interface palette. This stops
-     old saved pink/blue/custom stops from surviving after the organizer changes the palette. */
   const number = Number(value.angle);
   const angle = Number.isFinite(number) ? Math.max(0, Math.min(360, number)) : 135;
   return `linear-gradient(${angle}deg, ${first}, ${second})`;
@@ -94,6 +91,11 @@ function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): Edition
   };
 }
 
+function hexTriplet(hex: string) {
+  const clean = hex.replace("#", "");
+  return `${parseInt(clean.slice(0, 2), 16)} ${parseInt(clean.slice(2, 4), 16)} ${parseInt(clean.slice(4, 6), 16)}`;
+}
+
 export function RouteVisualTheme() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const currentShowId = segmentAfter(pathname, "/shows/");
@@ -109,16 +111,10 @@ export function RouteVisualTheme() {
   const { data: countryThemes } = useCountryThemes();
 
   const resolved = useMemo<ResolvedVisual | null>(() => {
-    const countryCode =
-      segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
-
+    const countryCode = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
     if (countryCode) {
-      const country = (countries ?? []).find(
-        (item) => item.short_code.toLowerCase() === countryCode.toLowerCase(),
-      );
-      const row = country
-        ? (countryThemes ?? []).find((theme) => theme.country_id === country.id)
-        : null;
+      const country = (countries ?? []).find((item) => item.short_code.toLowerCase() === countryCode.toLowerCase());
+      const row = country ? (countryThemes ?? []).find((theme) => theme.country_id === country.id) : null;
       const theme = countryThemeToVisual(row);
       if (theme) return { theme, kind: "country", artwork: null, publicSettings: null };
     }
@@ -128,39 +124,21 @@ export function RouteVisualTheme() {
     if (editionSlug) {
       const edition = visualEditions.find((item) => item.slug === editionSlug);
       const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) {
-        return {
-          theme,
-          kind: "edition",
-          artwork: edition?.artwork_url ?? null,
-          publicSettings: editionPublicSettings(edition?.theme_colors, theme),
-        };
-      }
+      if (theme) return { theme, kind: "edition", artwork: edition?.artwork_url ?? null, publicSettings: editionPublicSettings(edition?.theme_colors, theme) };
     }
 
     if (currentShowId) {
       const edition = visualEditions.find((item) => item.id === currentShow?.edition_id);
       const theme = editionThemeToVisual(edition?.theme_colors);
-      if (theme) {
-        return {
-          theme,
-          kind: "edition",
-          artwork: edition?.artwork_url ?? null,
-          publicSettings: editionPublicSettings(edition?.theme_colors, theme),
-        };
-      }
+      if (theme) return { theme, kind: "edition", artwork: edition?.artwork_url ?? null, publicSettings: editionPublicSettings(edition?.theme_colors, theme) };
     }
-
     return null;
   }, [pathname, currentShowId, currentShow, countries, editions, countryThemes]);
 
   const showWinnerFlag = useMemo(() => {
     if (!currentShowId) return null;
-    const winnerRow = (currentShowResults ?? [])
-      .filter((row) => row.final_rank != null)
-      .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))[0];
+    const winnerRow = (currentShowResults ?? []).filter((row) => row.final_rank != null).sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))[0];
     if (!winnerRow) return null;
-
     const displayMap = entityDisplayMap(currentShowEntities, countries);
     return displayMap.get(winnerRow.country_id)?.flag_image ?? null;
   }, [currentShowId, currentShowResults, currentShowEntities, countries]);
@@ -168,73 +146,46 @@ export function RouteVisualTheme() {
   useEffect(() => {
     const body = document.body;
     const keys = [
-      "--solaris-bg-primary",
-      "--solaris-bg-secondary",
-      "--solaris-bg-tertiary",
-      "--solaris-bg-deep",
-      "--solaris-bg-deep-2",
-      "--solaris-accent",
-      "--solaris-accent-foreground",
-      "--solaris-owner-surface",
-      "--solaris-card-surface",
-      "--solaris-card-raised",
-      "--foreground",
-      "--muted-foreground",
-      "--surface",
-      "--edition-artwork-image",
-      "--show-winner-flag-image",
-      "--edition-public-radius",
-      "--edition-surface-strength",
-      "--edition-hero-glow",
-      "--edition-accent-gradient",
-      "--edition-surface-gradient",
-      "--country-page-background",
-      "--country-page-position",
-      "--country-page-blur",
+      "--solaris-bg-primary", "--solaris-bg-secondary", "--solaris-bg-tertiary", "--solaris-bg-deep", "--solaris-bg-deep-2",
+      "--solaris-accent", "--solaris-accent-foreground", "--solaris-owner-surface", "--solaris-card-surface", "--solaris-card-raised",
+      "--foreground", "--muted-foreground", "--surface", "--edition-artwork-image", "--show-winner-flag-image", "--edition-public-radius",
+      "--edition-surface-strength", "--edition-hero-glow", "--edition-accent-gradient", "--edition-surface-gradient", "--country-page-background",
+      "--country-page-position", "--country-page-blur",
     ];
 
     const clear = () => {
-      delete body.dataset.entityTheme;
-      delete body.dataset.editionArtwork;
-      delete body.dataset.editionPublicStyle;
-      delete body.dataset.editionAccentGradient;
-      delete body.dataset.editionSurfaceGradient;
-      delete body.dataset.showWinnerFlag;
-      delete body.dataset.countryBackgroundMode;
-      delete body.dataset.countryHeroLayout;
-      delete body.dataset.countryDecoration;
+      delete body.dataset.entityTheme; delete body.dataset.editionArtwork; delete body.dataset.editionPublicStyle;
+      delete body.dataset.editionAccentGradient; delete body.dataset.editionSurfaceGradient; delete body.dataset.showWinnerFlag;
+      delete body.dataset.countryBackgroundMode; delete body.dataset.countryHeroLayout; delete body.dataset.countryDecoration;
       keys.forEach((key) => body.style.removeProperty(key));
     };
 
-    if (!resolved) {
-      clear();
-      return;
-    }
+    if (!resolved) { clear(); return; }
 
     body.dataset.entityTheme = resolved.kind;
     const properties = themeStyleProperties(resolved.theme);
     Object.entries(properties).forEach(([key, value]) => body.style.setProperty(key, value));
 
     if (resolved.kind === "country") {
-      delete body.dataset.editionPublicStyle;
-      delete body.dataset.editionAccentGradient;
-      delete body.dataset.editionSurfaceGradient;
+      delete body.dataset.editionPublicStyle; delete body.dataset.editionAccentGradient; delete body.dataset.editionSurfaceGradient;
       body.dataset.countryBackgroundMode = resolved.theme.backgroundMode;
       body.dataset.countryHeroLayout = resolved.theme.heroLayout;
       body.dataset.countryDecoration = resolved.theme.decorationStyle;
       body.style.setProperty("--country-page-background", countryBackgroundCss(resolved.theme));
-      body.style.setProperty(
-        "--country-page-position",
-        `${resolved.theme.backgroundPositionX}% ${resolved.theme.backgroundPositionY}%`,
-      );
+      body.style.setProperty("--country-page-position", `${resolved.theme.backgroundPositionX}% ${resolved.theme.backgroundPositionY}%`);
       body.style.setProperty("--country-page-blur", `${resolved.theme.backgroundBlur}px`);
     } else {
-      delete body.dataset.countryBackgroundMode;
-      delete body.dataset.countryHeroLayout;
-      delete body.dataset.countryDecoration;
-      body.style.removeProperty("--country-page-background");
-      body.style.removeProperty("--country-page-position");
-      body.style.removeProperty("--country-page-blur");
+      delete body.dataset.countryBackgroundMode; delete body.dataset.countryHeroLayout; delete body.dataset.countryDecoration;
+      body.style.removeProperty("--country-page-background"); body.style.removeProperty("--country-page-position"); body.style.removeProperty("--country-page-blur");
+
+      /* Critical: edition pages must use exactly the colours saved in the edition editor.
+         themeStyleProperties intentionally balances generic surfaces toward #07131f for country/wiki
+         readability. That was the mystery navy. Override those generic derived tokens here. */
+      body.style.setProperty("--surface", resolved.theme.surface);
+      body.style.setProperty("--solaris-owner-surface", resolved.theme.surface);
+      body.style.setProperty("--solaris-card-surface", hexTriplet(resolved.theme.surface));
+      body.style.setProperty("--solaris-card-raised", hexTriplet(resolved.theme.surface));
+
       body.dataset.editionPublicStyle = resolved.publicSettings.style;
       body.style.setProperty("--edition-public-radius", `${resolved.publicSettings.radius}px`);
       body.style.setProperty("--edition-surface-strength", String(resolved.publicSettings.surfaceStrength / 100));
@@ -243,37 +194,22 @@ export function RouteVisualTheme() {
       if (resolved.publicSettings.accentGradient) {
         body.dataset.editionAccentGradient = "true";
         body.style.setProperty("--edition-accent-gradient", resolved.publicSettings.accentGradient);
-      } else {
-        delete body.dataset.editionAccentGradient;
-        body.style.removeProperty("--edition-accent-gradient");
-      }
+      } else { delete body.dataset.editionAccentGradient; body.style.removeProperty("--edition-accent-gradient"); }
       if (resolved.publicSettings.surfaceGradient) {
         body.dataset.editionSurfaceGradient = "true";
         body.style.setProperty("--edition-surface-gradient", resolved.publicSettings.surfaceGradient);
-      } else {
-        delete body.dataset.editionSurfaceGradient;
-        body.style.removeProperty("--edition-surface-gradient");
-      }
+      } else { delete body.dataset.editionSurfaceGradient; body.style.removeProperty("--edition-surface-gradient"); }
     }
 
     if (resolved.artwork) {
       body.dataset.editionArtwork = "true";
-      body.style.setProperty(
-        "--edition-artwork-image",
-        `url(${JSON.stringify(resolved.artwork)})`,
-      );
-    } else {
-      delete body.dataset.editionArtwork;
-      body.style.removeProperty("--edition-artwork-image");
-    }
+      body.style.setProperty("--edition-artwork-image", `url(${JSON.stringify(resolved.artwork)})`);
+    } else { delete body.dataset.editionArtwork; body.style.removeProperty("--edition-artwork-image"); }
 
     if (currentShowId && showWinnerFlag) {
       body.dataset.showWinnerFlag = "true";
       body.style.setProperty("--show-winner-flag-image", `url(${JSON.stringify(showWinnerFlag)})`);
-    } else {
-      delete body.dataset.showWinnerFlag;
-      body.style.removeProperty("--show-winner-flag-image");
-    }
+    } else { delete body.dataset.showWinnerFlag; body.style.removeProperty("--show-winner-flag-image"); }
 
     return clear;
   }, [resolved, currentShowId, showWinnerFlag]);
@@ -285,37 +221,12 @@ export function RouteVisualTheme() {
       <CountryButtonColourPanel />
       <CountryHodHistoryPanel />
       <EditionPublicDesignPanel />
-      <svg
-        aria-hidden="true"
-        focusable="false"
-        width="0"
-        height="0"
-        className="pointer-events-none absolute"
-      >
+      <svg aria-hidden="true" focusable="false" width="0" height="0" className="pointer-events-none absolute">
         <defs>
-          <filter
-            id="solaris-liquid-glass"
-            x="-12%"
-            y="-12%"
-            width="124%"
-            height="124%"
-            colorInterpolationFilters="sRGB"
-          >
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.012 0.018"
-              numOctaves="2"
-              seed="17"
-              result="glassNoise"
-            />
+          <filter id="solaris-liquid-glass" x="-12%" y="-12%" width="124%" height="124%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="17" result="glassNoise" />
             <feGaussianBlur in="glassNoise" stdDeviation="0.8" result="softGlassNoise" />
-            <feDisplacementMap
-              in="SourceGraphic"
-              in2="softGlassNoise"
-              scale="5"
-              xChannelSelector="R"
-              yChannelSelector="G"
-            />
+            <feDisplacementMap in="SourceGraphic" in2="softGlassNoise" scale="5" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
       </svg>
