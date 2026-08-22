@@ -22,13 +22,12 @@ export function CountryFlagLayerController() {
     );
     if (!country) return null;
     const row = (themes ?? []).find((item) => item.country_id === country.id) as
-      | ({ flag_enabled?: boolean | null; decoration_style?: string | null })
+      | ({ flag_enabled?: boolean | null })
       | undefined;
 
-    // The old single decoration setting used "flag" as the flag switch. Keep
-    // that value working while the new independent flag_enabled field takes
-    // over for current themes.
-    return row?.decoration_style === "flag" || row?.flag_enabled !== false;
+    // The flag now has its own switch. Decorative objects never force the flag
+    // on or off, so a delegation can combine both layers or use either alone.
+    return row?.flag_enabled !== false;
   }, [code, countries, themes]);
 
   useEffect(() => {
@@ -54,11 +53,11 @@ export function CountryFlagLayerController() {
         display: block !important;
       }
 
-      body[data-entity-theme="country"][data-country-flag="off"]:not([data-country-decoration="flag"])
+      body[data-entity-theme="country"][data-country-flag="off"]
         :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
-      body[data-entity-theme="country"][data-country-flag="off"]:not([data-country-decoration="flag"])
+      body[data-entity-theme="country"][data-country-flag="off"]
         .country-theme-live-preview .country-hero-background-flag,
-      body[data-entity-theme="country"][data-country-flag="off"]:not([data-country-decoration="flag"])
+      body[data-entity-theme="country"][data-country-flag="off"]
         :is(.country-public-hero, .wiki-public-hero, .country-theme-live-preview) .country-glass-panel-flag {
         display: none !important;
       }
