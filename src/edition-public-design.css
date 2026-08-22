@@ -33,7 +33,6 @@ body[data-entity-theme="edition"] .app-main > .page-header {
   box-shadow: 0 24px 70px rgb(0 0 0 / .2);
 }
 
-/* Default edition decoration. Show result pages replace this orb with the winning flag below. */
 body[data-entity-theme="edition"] .app-main > .page-header::after {
   content: "";
   position: absolute;
@@ -48,35 +47,24 @@ body[data-entity-theme="edition"] .app-main > .page-header::after {
   z-index: 0;
 }
 
-/* Published show result hero: a rectangular winner flag that softly dissolves into the card. */
+/* Result pages show the actual winning flag. Keep the flag crisp over most of the panel,
+   then dissolve only its far edge into the card so it still reads as a flag rather than a colour wash. */
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
   left: 0;
   right: auto;
   top: 0;
   bottom: 0;
-  width: min(58%, 34rem);
+  width: min(64%, 38rem);
   height: 100%;
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  background-image:
-    linear-gradient(
-      90deg,
-      rgb(var(--solaris-card-surface) / .04) 0%,
-      transparent 46%,
-      rgb(var(--solaris-card-surface) / .42) 76%,
-      rgb(var(--solaris-card-surface) / .96) 100%
-    ),
-    var(--show-winner-flag-image);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
-  opacity: .62;
-  filter: saturate(.9) blur(.35px);
-  -webkit-mask-image: linear-gradient(90deg, #000 0 48%, rgb(0 0 0 / .88) 64%, transparent 100%);
-  mask-image: linear-gradient(90deg, #000 0 48%, rgb(0 0 0 / .88) 64%, transparent 100%);
-  transform: scale(1.015);
-  transform-origin: left center;
+  background: var(--show-winner-flag-image) center / cover no-repeat;
+  opacity: .92;
+  filter: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 68%, rgb(0 0 0 / .95) 76%, rgb(0 0 0 / .58) 88%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0 68%, rgb(0 0 0 / .95) 76%, rgb(0 0 0 / .58) 88%, transparent 100%);
+  transform: none;
 }
 
 body[data-entity-theme="edition"] .app-main > .page-header h1 {
@@ -111,7 +99,6 @@ body[data-entity-theme="edition"] .app-main a.rounded-xl {
   border-color: rgb(var(--solaris-accent) / .2);
 }
 
-/* The thin cyan divider belonged to the old generic page header. Edition pages deliberately have no accent rule. */
 body[data-entity-theme="edition"] .page-header,
 body[data-entity-theme="edition"] .page-header + * {
   --tw-border-opacity: 1;
@@ -164,10 +151,10 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass {
   body[data-entity-theme="edition"] .glass { border-radius: min(var(--edition-public-radius, 24px), 28px); }
 
   body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
-    width: 76%;
-    opacity: .5;
+    width: 82%;
+    opacity: .88;
     background-position: center;
-    -webkit-mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .7) 58%, transparent 100%);
-    mask-image: linear-gradient(90deg, #000 0 34%, rgb(0 0 0 / .7) 58%, transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, #000 0 60%, rgb(0 0 0 / .92) 72%, rgb(0 0 0 / .52) 88%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 0 60%, rgb(0 0 0 / .92) 72%, rgb(0 0 0 / .52) 88%, transparent 100%);
   }
 }
