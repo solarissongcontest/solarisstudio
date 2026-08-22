@@ -70,10 +70,6 @@ export function ScoreboardStage({
       rowCount: rows.length,
     });
 
-  // Both Classic Live Reveal and Clean Pill Results are shipped as Solaris defaults.
-  // If either is still in use, its public presentation should inherit the edition page
-  // personality instead of looking like a detached preset. More deliberate/custom
-  // presets keep their saved design.
   const inheritsEditionStyle =
     !theme.scoreboardConfig || EDITION_LINKED_DEFAULT_PRESETS.has(baseResolved.card.preset);
 
@@ -199,7 +195,7 @@ function matchDefaultScoreboardToEditionStyle(
   style: EditionPublicStyle,
 ): ScoreboardConfig {
   const config = structuredClone(source) as ScoreboardConfig;
-  const flagRadius = style === "editorial" || style === "minimal" ? 0 : style === "glass" ? 10 : 10;
+  const flagRadius = style === "editorial" || style === "minimal" ? 0 : 10;
 
   config.card.zones = config.card.zones.map((zone) =>
     zone.type === "flag"
@@ -215,29 +211,31 @@ function matchDefaultScoreboardToEditionStyle(
   );
 
   if (style === "glass") {
-    // Mirror the public edition's liquid-glass language: very low tint, visible
-    // background, restrained saturation and a bright glass edge rather than an
-    // opaque black/pill row.
     config.card.radius = 22;
     config.card.opacity = 1;
     config.card.background = {
       ...config.card.background,
       fill: "color",
-      color: theme.chrome.panelBackground,
-      color2: theme.chrome.panelBackground,
-      opacity: 0.055,
+      color: "#ffffff",
+      color2: "#ffffff",
+      opacity: 0.018,
       blur: 7,
     };
-    config.card.border = { width: 1, color: "#ffffff", style: "solid" };
+    config.card.border = {
+      width: 1,
+      color: "rgba(255,255,255,0.20)",
+      style: "solid",
+    };
     config.card.shadow = {
       ...config.card.shadow,
       enabled: true,
+      inset: true,
       x: 0,
-      y: 9,
-      blur: 24,
-      spread: -16,
-      color: "#000000",
-      opacity: 0.16,
+      y: 1,
+      blur: 0,
+      spread: 0,
+      color: "#ffffff",
+      opacity: 0.28,
     };
     config.card.glow = { ...config.card.glow, enabled: false };
     config.layout.rowGap = 9;
@@ -284,6 +282,7 @@ function matchDefaultScoreboardToEditionStyle(
     config.card.shadow = {
       ...config.card.shadow,
       enabled: true,
+      inset: false,
       x: 0,
       y: 10,
       blur: 30,
@@ -308,11 +307,11 @@ function matchDefaultScoreboardToEditionStyle(
       ...(config.card.stateOverrides.leader ?? {}),
       background: style === "glass"
         ? {
-            fill: "color",
-            color: theme.colors.primary,
+            fill: "gradient",
+            color: "#ffffff",
             color2: theme.colors.primary,
-            angle: 0,
-            opacity: 0.11,
+            angle: 145,
+            opacity: 0.035,
             blur: 7,
           }
         : {
@@ -329,10 +328,10 @@ function matchDefaultScoreboardToEditionStyle(
       background: style === "glass"
         ? {
             fill: "gradient",
-            color: theme.colors.primary,
+            color: "#ffffff",
             color2: theme.colors.secondary,
-            angle: 110,
-            opacity: 0.14,
+            angle: 145,
+            opacity: 0.045,
             blur: 7,
           }
         : {
