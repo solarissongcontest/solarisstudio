@@ -1,5 +1,6 @@
 import { editionLabel, type Country, type Edition, type JuryVote, type Participant, type ResultRow, type Show } from "./data";
 import { canonicalEntryFor } from "./entry-utils";
+import { resolveVoting } from "./voting";
 
 export type DiscoveryStory = {
   id: string;
@@ -65,8 +66,16 @@ function countryName(id: string, countries: Country[]) {
 }
 
 export function buildFanDiscovery(input: Input): DiscoveryStory[] {
-  const { countries, editions, participants, results, jury } = input;
+  const { countries, editions, shows, participants, results, jury } = input;
   const byShow = new Map<string, ResultRow[]>();
+  const splitVoteShowIds = new Set(
+    shows
+      .filter((show) => {
+        const voting = resolveVoting(show.voting_config);
+        return voting.juryEnabled && voting.televoteEnabled;
+      })
+      .map((show) => show.id),
+  );
 
   for (const row of results) {
     if (!row.show_id) continue;
@@ -80,17 +89,25 @@ export function buildFanDiscovery(input: Input): DiscoveryStory[] {
 
   for (const [showId, rows] of byShow) {
     if (rows.length < 2) continue;
-    const juryRanks = competitionRanks(rows, "jury_points");
-    const teleRanks = competitionRanks(rows, "televote_points");
+
     const totalRanks = competitionRanks(rows, "total_points");
-    for (const result of rows) {
-      ranked.push({
-        result,
-        juryRank: juryRanks.get(result.country_id) ?? rows.length,
-        teleRank: teleRanks.get(result.country_id) ?? rows.length,
-        finalRank: result.final_rank ?? totalRanks.get(result.country_id) ?? rows.length,
-      });
+
+    // Jury-vs-televote stories only make sense when the show actually used both
+    // voting components. A disabled televote is absence of data, not a field of
+    // zeroes that can be ranked as a fictional public vote.
+    if (splitVoteShowIds.has(showId)) {
+      const juryRanks = competitionRanks(rows, "jury_points");
+      const teleRanks = competitionRanks(rows, "televote_points");
+      for (const result of rows) {
+        ranked.push({
+          result,
+          juryRank: juryRanks.get(result.country_id) ?? rows.length,
+          teleRank: teleRanks.get(result.country_id) ?? rows.length,
+          finalRank: result.final_rank ?? totalRanks.get(result.country_id) ?? rows.length,
+        });
+      }
     }
+
     const sorted = [...rows].sort((a, b) => b.total_points - a.total_points);
     if (sorted[0] && sorted[1]) {
       margins.push({
