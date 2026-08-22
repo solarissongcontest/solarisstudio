@@ -24,6 +24,7 @@ export function FlagChip({
   if (image) {
     return (
       <span
+        data-flag-chip="true"
         className={cn(
           "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface shadow-lg",
           dims,
@@ -43,6 +44,7 @@ export function FlagChip({
 
   return (
     <span
+      data-flag-chip="true"
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-md font-semibold tracking-widest text-background shadow-lg",
         dims,
