@@ -24,9 +24,20 @@ export function CountryFlagLayerEditorAddon() {
       const root = document.querySelector(".app-main");
       if (!root) return setTarget(null);
       const headings = Array.from(root.querySelectorAll("h1,h2,h3"));
-      const heading = headings.find((node) => node.textContent?.trim() === "Decoration");
+      const heading = headings.find((node) => ["Decoration", "Extra decoration"].includes(node.textContent?.trim() ?? ""));
       const panel = heading?.closest("section") ?? null;
       if (!panel) return setTarget(null);
+
+      // The old editor treated the flag as one decoration choice. The flag now
+      // has its own switch, so keep that legacy option out of the object picker.
+      if (heading && heading.textContent?.trim() === "Decoration") heading.textContent = "Extra decoration";
+      panel.querySelectorAll<HTMLSelectElement>("select").forEach((select) => {
+        const flagOption = Array.from(select.options).find((option) => option.value === "flag");
+        if (flagOption) {
+          flagOption.disabled = true;
+          flagOption.hidden = true;
+        }
+      });
 
       let host = panel.querySelector(":scope > [data-country-flag-layer-host]");
       if (!host) {
@@ -56,17 +67,17 @@ function FlagLayerToggle({ countryId, hasFlag }: { countryId: string; hasFlag: b
     queryFn: async () => {
       const { data, error } = await supabase
         .from("country_themes")
-        .select("flag_enabled,decoration_style")
+        .select("flag_enabled")
         .eq("country_id", countryId)
         .maybeSingle();
       if (error) throw error;
-      return (data as { flag_enabled?: boolean | null; decoration_style?: string | null } | null) ?? null;
+      return (data as { flag_enabled?: boolean | null } | null) ?? null;
     },
     staleTime: 10_000,
   });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const enabled = data?.decoration_style === "flag" || data?.flag_enabled !== false;
+  const enabled = data?.flag_enabled !== false;
 
   useEffect(() => {
     document.body.dataset.countryFlag = enabled ? "on" : "off";
@@ -102,7 +113,7 @@ function FlagLayerToggle({ countryId, hasFlag }: { countryId: string; hasFlag: b
         <div className="min-w-0">
           <p className="text-sm font-semibold">Flag layer</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            The flag is separate from the decoration below. Keep it on with Orbits, Grid, Aurora or another object, or turn it off completely.
+            The flag is independent. You can keep it on and still choose Orbits, Grid, Aurora or another object below, or turn the flag off completely.
           </p>
         </div>
         <button
