@@ -41,14 +41,19 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
   background-color: color-mix(in oklab, var(--surface) 76%, transparent) !important;
 }
 
-/* Important: breathing room belongs INSIDE the sections. Do not create giant gaps between cards. */
+/* Moderate top-level spacing: visibly separated cards/sections, but not the huge gaps from the
+   previous attempt. The edition route's direct children live inside this space-y wrapper. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 {
-  gap: 1.25rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.55rem !important;
 }
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 {
-  gap: 1.75rem !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.9rem !important;
 }
 
 /* Editorial: square publication blocks with comfortable internal padding. */
@@ -66,7 +71,7 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-ma
   padding: 1.45rem 1.3rem !important;
 }
 
-/* Keep editorial grids visually connected. Space the CONTENT, not the cards themselves. */
+/* Editorial entry/result grids stay connected as a publication grid. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid {
   row-gap: 0 !important;
   column-gap: 0 !important;
@@ -77,7 +82,7 @@ body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-ma
   padding: 1.2rem 1.1rem !important;
 }
 
-/* Stat panels were the real cramped bit. Preserve the joined grid but move text away from dividers. */
+/* Stat panels: space the content away from dividers without separating the four cells. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line {
   padding: .45rem 1rem .65rem !important;
@@ -93,7 +98,7 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main img { border-radius: 0 !important; }
 
-/* Minimal: quieter than editorial, but with the same principle: padding inside, not giant outer gaps. */
+/* Minimal: compact and quiet, with modest card gaps instead of either extreme. */
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 {
   padding: 2.1rem 1.55rem 2.25rem !important;
   gap: 1.65rem !important;
@@ -106,7 +111,7 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
   padding: 1.35rem 1.2rem !important;
 }
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid {
-  gap: .65rem !important;
+  gap: .85rem !important;
 }
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .data-panel {
@@ -123,11 +128,11 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
 @media (max-width: 639px) {
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5,
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 {
-    gap: 1.1rem !important;
+    gap: 1.35rem !important;
   }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7,
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 {
-    gap: 1.45rem !important;
+    gap: 1.6rem !important;
   }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 {
     padding: 1.8rem 1.2rem 2rem !important;
