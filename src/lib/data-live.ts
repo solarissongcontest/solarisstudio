@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -64,10 +64,14 @@ async function fetchCompleteArchive<T>(table: ArchiveTable): Promise<T[]> {
 
 function useArchiveRealtime(table: ArchiveTable, queryKey: string) {
   const queryClient = useQueryClient();
+  const instanceId = useId().replace(/:/g, "");
 
   useEffect(() => {
+    // Supabase channels are stateful. Giving each mounted archive observer its
+    // own topic prevents one consumer from replacing or removing another
+    // consumer's subscription when both need the same archive table.
     const channel = supabase
-      .channel(`solaris-${table}-archive-live`)
+      .channel(`solaris-${table}-archive-live-${instanceId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table },
@@ -80,7 +84,7 @@ function useArchiveRealtime(table: ArchiveTable, queryKey: string) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [queryClient, queryKey, table]);
+  }, [instanceId, queryClient, queryKey, table]);
 }
 
 function useCompleteArchive<T>(
