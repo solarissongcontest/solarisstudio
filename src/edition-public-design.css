@@ -196,19 +196,7 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-pan
   background: rgb(var(--solaris-card-surface) / .42) !important;
 }
 
-/* Glass has to beat the global .data-panel/.glass !important rules. */
-body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-background {
-  background:
-    radial-gradient(ellipse at 12% 18%, rgb(var(--solaris-accent) / .22), transparent 30%),
-    radial-gradient(ellipse at 84% 38%, rgb(var(--solaris-bg-secondary) / .30), transparent 34%),
-    radial-gradient(ellipse at 48% 78%, rgb(var(--solaris-accent) / .10), transparent 36%),
-    linear-gradient(160deg, rgb(var(--solaris-bg-deep)), rgb(var(--solaris-bg-deep-2)) 46%, rgb(var(--solaris-bg-primary) / .94)) !important;
-}
-body[data-entity-theme="edition"][data-edition-public-style="glass"][data-edition-artwork="true"] .app-background::after {
-  opacity: .32 !important;
-  filter: saturate(1.18) contrast(1.03) !important;
-}
-
+/* Glass has to beat the global .data-panel/.glass !important rules without replacing the site background. */
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel,
 body[data-entity-theme="edition"][data-edition-public-style="glass"][data-edition-surface-gradient="true"] .glass,
