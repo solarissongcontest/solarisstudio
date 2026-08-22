@@ -21,6 +21,7 @@ import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdmin
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
+import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
@@ -249,6 +250,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SolarisAnniversaryCelebration />
       <RouteVisualTheme />
       {!fullAdmin ? <SolarisAmbientBackground /> : null}
       {content}
