@@ -183,11 +183,6 @@ export function ScoreboardStage({
   );
 }
 
-/**
- * Give the Classic preset the same visual language as the selected public
- * edition layout. This affects only Classic/fallback scoreboards. Any other
- * chosen/custom preset keeps its own design.
- */
 function matchClassicToEditionStyle(
   source: ScoreboardConfig,
   theme: ThemeConfig,
@@ -214,8 +209,8 @@ function matchClassicToEditionStyle(
     config.card.background = {
       ...config.card.background,
       fill: "color",
-      color: theme.surface ?? theme.colors.primary,
-      color2: theme.surface ?? theme.colors.primary,
+      color: theme.chrome.panelBackground,
+      color2: theme.chrome.panelBackground,
       opacity: 0.12,
       blur: 8,
     };
@@ -293,7 +288,6 @@ function matchClassicToEditionStyle(
     config.layout.rowGap = 8;
   }
 
-  // Classic should inherit the edition, not each country's loud fill colour.
   config.card.stateOverrides = {
     ...config.card.stateOverrides,
     leader: {
@@ -323,9 +317,6 @@ function matchClassicToEditionStyle(
   return config;
 }
 
-/**
- * The edition shares one card style, while density adapts to each show.
- */
 export function resolveShowColumns(
   rowCount: number,
   config: ScoreboardConfig,
@@ -340,11 +331,6 @@ export function resolveShowColumns(
   return 4;
 }
 
-/**
- * Public pages are responsive. Classic can stay genuinely glassy when the
- * edition itself is Glass; custom scoreboard presets preserve the historical
- * stronger opacity rule so their edited appearance is not silently changed.
- */
 function prepareCardForPublicSurface(
   card: CardTemplateConfig,
   theme: ThemeConfig,
@@ -403,7 +389,6 @@ function prepareCardForPublicSurface(
   };
 }
 
-/** Retained because a few older helpers import hexA from this module. */
 export function hexA(hex: string, alpha: number) {
   const match = /^#?([a-f\d]{3}|[a-f\d]{6})$/i.exec(hex.trim());
   if (!match) return hex;
