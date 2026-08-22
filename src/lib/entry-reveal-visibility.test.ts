@@ -7,8 +7,11 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 const sync = source("src/integrations/confirmations/sync.functions.ts");
 const bulkSync = source("src/routes/confirmations/admin/sync.tsx");
 const publicParticipants = source("src/lib/public-participants.ts");
+const publicCountryArchive = source("src/lib/public-country-archive.ts");
 const showRoute = source("src/routes/shows/$showId.tsx");
 const editionRoute = source("src/routes/editions/$slug.tsx");
+const countryRoute = source("src/routes/countries/$code.tsx");
+const wikiRoute = source("src/routes/wiki/$code.tsx");
 const protectionMigration = source("supabase/migrations/20260821201357_protect_confirmation_entry_reveals.sql");
 const projectionMigration = source("supabase/migrations/20260821201620_public_safe_participant_projection.sql");
 const confirmationsRpc = source("scripts/confirmations-admin-response-reveal-fields.sql");
@@ -64,5 +67,15 @@ describe("entry reveal visibility", () => {
     expect(editionRoute).toContain("usePublicEditionParticipants(edition?.id)");
     expect(editionRoute).not.toContain("useParticipants(edition?.id)");
     expect(editionRoute).toContain(".filter((entry) => Boolean(entry.song?.trim()))");
+  });
+
+  it("forces public Country and Wiki history through entry-level reveal gates too", () => {
+    expect(publicCountryArchive).toContain("isEntryRevealed");
+    expect(publicCountryArchive).toContain('participant.publication_status === "published"');
+    expect(publicCountryArchive).toContain('participant.publication_status === "scheduled"');
+    expect(publicCountryArchive).toContain("scheduledMs <= nowMs");
+    expect(countryRoute).toContain("buildPublicCountryArchive");
+    expect(wikiRoute).toContain("buildPublicCountryArchive");
+    expect(wikiRoute).toContain('"Entry not revealed yet"');
   });
 });
