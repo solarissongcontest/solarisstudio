@@ -23,6 +23,13 @@ type PublicCountryArchiveInput = {
 };
 
 type EditionPublication = PublicationConfig;
+type RevealAwareParticipant = Participant & {
+  publication_status?: "draft" | "scheduled" | "published" | string | null;
+  scheduled_publish_at?: string | null;
+  youtube_url?: string | null;
+  spotify_url?: string | null;
+  apple_music_url?: string | null;
+};
 
 const EMPTY_PUBLICATION: EditionPublication = {
   participants: false,
@@ -63,7 +70,7 @@ function mergePublication(
  * wiki pages must respect both gates, especially for organizers who can read
  * the raw participant row through RLS.
  */
-function isEntryRevealed(participant: Participant, nowMs = Date.now()): boolean {
+function isEntryRevealed(participant: RevealAwareParticipant, nowMs = Date.now()): boolean {
   if (participant.publication_status === "published") return true;
   if (
     participant.publication_status === "scheduled" &&
@@ -79,7 +86,8 @@ function sanitiseParticipant(
   participant: Participant,
   publication: PublicationConfig,
 ): Participant {
-  const entryRevealed = isEntryRevealed(participant);
+  const source = participant as RevealAwareParticipant;
+  const entryRevealed = isEntryRevealed(source);
   const artistVisible = entryRevealed && publication.artists;
   const songVisible = entryRevealed && publication.songs;
 
@@ -87,14 +95,14 @@ function sanitiseParticipant(
     ...participant,
     artist: artistVisible ? participant.artist : null,
     song: songVisible ? participant.song : null,
-    youtube_url: songVisible ? participant.youtube_url : null,
-    spotify_url: songVisible ? participant.spotify_url : null,
-    apple_music_url: songVisible ? participant.apple_music_url : null,
+    youtube_url: songVisible ? source.youtube_url ?? null : null,
+    spotify_url: songVisible ? source.spotify_url ?? null : null,
+    apple_music_url: songVisible ? source.apple_music_url ?? null : null,
     notes: null,
     running_order: publication.running_order ? participant.running_order : null,
     semi_final: publication.semi_split ? participant.semi_final : "",
     qualified: publication.qualifiers ? participant.qualified : null,
-  };
+  } as Participant;
 }
 
 /**
