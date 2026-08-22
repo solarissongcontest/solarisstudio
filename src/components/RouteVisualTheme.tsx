@@ -37,6 +37,8 @@ type EditionPublicSettings = {
   radius: number;
   surfaceStrength: number;
   heroGlow: number;
+  accentGradient: string | null;
+  surfaceGradient: string | null;
 };
 
 type ResolvedVisual =
@@ -51,6 +53,19 @@ type ResolvedVisual =
 function segmentAfter(pathname: string, prefix: string) {
   if (!pathname.startsWith(prefix)) return null;
   return decodeURIComponent(pathname.slice(prefix.length).split("/")[0] ?? "");
+}
+
+function gradientFromRaw(input: unknown) {
+  if (!input || typeof input !== "object") return null;
+  const value = input as Record<string, unknown>;
+  if (value.enabled === false || !Array.isArray(value.colors)) return null;
+  const colors = value.colors
+    .filter((color): color is string => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color))
+    .slice(0, 3);
+  if (colors.length < 2) return null;
+  const number = Number(value.angle);
+  const angle = Number.isFinite(number) ? Math.max(0, Math.min(360, number)) : 135;
+  return `linear-gradient(${angle}deg, ${colors.join(", ")})`;
 }
 
 function editionPublicSettings(raw: unknown): EditionPublicSettings {
@@ -68,6 +83,8 @@ function editionPublicSettings(raw: unknown): EditionPublicSettings {
     radius: clamp(value.publicRadius, 8, 40, 24),
     surfaceStrength: clamp(value.publicSurfaceStrength, 45, 100, 82),
     heroGlow: clamp(value.publicHeroGlow, 0, 100, 72),
+    accentGradient: gradientFromRaw(value.publicAccentGradient),
+    surfaceGradient: gradientFromRaw(value.publicSurfaceGradient),
   };
 }
 
@@ -158,6 +175,8 @@ export function RouteVisualTheme() {
       "--edition-public-radius",
       "--edition-surface-strength",
       "--edition-hero-glow",
+      "--edition-accent-gradient",
+      "--edition-surface-gradient",
       "--country-page-background",
       "--country-page-position",
       "--country-page-blur",
@@ -167,6 +186,8 @@ export function RouteVisualTheme() {
       delete body.dataset.entityTheme;
       delete body.dataset.editionArtwork;
       delete body.dataset.editionPublicStyle;
+      delete body.dataset.editionAccentGradient;
+      delete body.dataset.editionSurfaceGradient;
       delete body.dataset.showWinnerFlag;
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
@@ -185,6 +206,8 @@ export function RouteVisualTheme() {
 
     if (resolved.kind === "country") {
       delete body.dataset.editionPublicStyle;
+      delete body.dataset.editionAccentGradient;
+      delete body.dataset.editionSurfaceGradient;
       body.dataset.countryBackgroundMode = resolved.theme.backgroundMode;
       body.dataset.countryHeroLayout = resolved.theme.heroLayout;
       body.dataset.countryDecoration = resolved.theme.decorationStyle;
@@ -205,6 +228,21 @@ export function RouteVisualTheme() {
       body.style.setProperty("--edition-public-radius", `${resolved.publicSettings.radius}px`);
       body.style.setProperty("--edition-surface-strength", String(resolved.publicSettings.surfaceStrength / 100));
       body.style.setProperty("--edition-hero-glow", String(resolved.publicSettings.heroGlow / 100));
+
+      if (resolved.publicSettings.accentGradient) {
+        body.dataset.editionAccentGradient = "true";
+        body.style.setProperty("--edition-accent-gradient", resolved.publicSettings.accentGradient);
+      } else {
+        delete body.dataset.editionAccentGradient;
+        body.style.removeProperty("--edition-accent-gradient");
+      }
+      if (resolved.publicSettings.surfaceGradient) {
+        body.dataset.editionSurfaceGradient = "true";
+        body.style.setProperty("--edition-surface-gradient", resolved.publicSettings.surfaceGradient);
+      } else {
+        delete body.dataset.editionSurfaceGradient;
+        body.style.removeProperty("--edition-surface-gradient");
+      }
     }
 
     if (resolved.artwork) {
