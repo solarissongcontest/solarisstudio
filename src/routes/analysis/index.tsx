@@ -27,6 +27,7 @@ import {
 } from "@/lib/data";
 import { buildFanDiscovery, type DiscoveryStory } from "@/lib/fan-discovery";
 import { computeRelationship, computeVotingIntelligence } from "@/lib/stats";
+import { resolveVoting } from "@/lib/voting";
 
 export const Route = createFileRoute("/analysis/")({
   head: () => ({ meta: [{ title: "Analysis — Solaris Studio" }] }),
@@ -97,6 +98,27 @@ function AnalysisPage() {
           : filters.editionIds.length === 0 && filters.showKind === "all",
       ),
     [results, allowedShowIds, filters],
+  );
+
+  const splitVoteShowIds = useMemo(
+    () =>
+      new Set(
+        filteredShows
+          .filter((show) => {
+            const voting = resolveVoting(show.voting_config);
+            return voting.juryEnabled && voting.televoteEnabled;
+          })
+          .map((show) => show.id),
+      ),
+    [filteredShows],
+  );
+
+  const splitVoteResults = useMemo(
+    () =>
+      filteredResults.filter(
+        (row) => row.show_id != null && splitVoteShowIds.has(row.show_id),
+      ),
+    [filteredResults, splitVoteShowIds],
   );
 
   const intelligence = useMemo(
@@ -178,7 +200,7 @@ function AnalysisPage() {
   const supporters = activeCountryId ? topSupporters(filteredJury, activeCountryId, 8) : [];
   const recipients = activeCountryId ? topRecipients(filteredJury, activeCountryId, 8) : [];
 
-  const juryTeleRows = useMemo(() => buildJuryTeleRows(filteredResults, cMap), [filteredResults, cMap]);
+  const juryTeleRows = useMemo(() => buildJuryTeleRows(splitVoteResults, cMap), [splitVoteResults, cMap]);
   const juryFavoured = juryTeleRows.filter((row) => row.difference > 0).sort((a, b) => b.difference - a.difference).slice(0, 6);
   const teleFavoured = juryTeleRows.filter((row) => row.difference < 0).sort((a, b) => a.difference - b.difference).slice(0, 6);
   const historyRows = useMemo(() => buildHistoryRows(filteredResults, cMap), [filteredResults, cMap]);
@@ -244,7 +266,7 @@ function AnalysisPage() {
               How these stories are calculated ▾
             </summary>
             <div className="border-t border-border/60 px-4 py-4 text-xs leading-6 text-muted-foreground">
-              Jury and televote positions are ranked inside each show, then compared with the final combined position. Winning margins compare first and second place inside the same show. Pair stories add archived jury points in each direction. Filters above change the sample used for every card.
+              Jury-vs-televote stories only use shows where both voting components were actually enabled. Jury-only and televote-only shows still count for overall-result stories such as winning margins, but a missing vote component is never ranked as a field of zeroes. Pair stories add archived jury points in each direction. Filters above change the sample used for every card.
             </div>
           </details>
         </div>
@@ -255,14 +277,14 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="Split vote"
             title="Where jury and televote disagreed"
-            description="A country can be adored by one side and merely tolerated by the other. The chart compares average support; the lists show the largest raw point gaps in the selected archive."
+            description="Only shows that actually used both jury and televote are included here. Jury-only or televote-only shows are excluded instead of treating the missing side as zero points."
           />
           <Panel title="Jury vs televote" description="Each dot is a country. Move right for more jury support and upward for more televote support.">
-            {filteredResults.length ? <JuryVsTelevote countries={cs} results={filteredResults} /> : <Empty />}
+            {splitVoteResults.length ? <JuryVsTelevote countries={cs} results={splitVoteResults} /> : <Empty />}
           </Panel>
           <div className="grid gap-5 lg:grid-cols-2">
-            <DifferencePanel title="Most jury-favoured" description="Jury points most exceeded televote points." rows={juryFavoured} />
-            <DifferencePanel title="Most televote-favoured" description="Televote points most exceeded jury points." rows={teleFavoured} />
+            <DifferencePanel title="Most jury-favoured" description="Jury points most exceeded televote points in shows that used both components." rows={juryFavoured} />
+            <DifferencePanel title="Most televote-favoured" description="Televote points most exceeded jury points in shows that used both components." rows={teleFavoured} />
           </div>
         </div>
       )}
