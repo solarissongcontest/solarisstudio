@@ -1,75 +1,148 @@
 /* Edition public styles v4
-   Last-in-cascade geometry + spacing correction for Editorial and Minimal. */
+   Last-in-cascade geometry + spacing correction for edition/show presets. */
 
-/* These two presets are rectilinear. No rounded cards, flags, badges, artwork,
-   comparison rows, buttons or hero edges anywhere in edition/show content. */
+/* EDITORIAL is the strict rectilinear preset. Nothing in edition/show content is
+   allowed to sneak rounded geometry back in through page-local utility classes. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *::before,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *::after,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *::before,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main *::after { border-radius: 0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *::after {
+  border-radius: 0 !important;
+}
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .page-header,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .page-header::before,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .page-header::after,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .page-header,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .page-header::before,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .page-header::after,
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section[class*="rounded"],
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section[class*="rounded"] {
-  border-radius: 0 !important; clip-path: none !important; -webkit-mask-image: none !important; mask-image: none !important;
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section {
+  border-radius: 0 !important;
+  clip-path: inset(0) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
 }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] [data-flag-chip="true"],
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] [data-flag-chip="true"] img,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] [data-flag-chip="true"],
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] [data-flag-chip="true"] img,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded"],
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="rounded"] { border-radius: 0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded"] {
+  border-radius: 0 !important;
+}
+
+/* Minimal is deliberately NOT a square-corner design. Give it restrained soft
+   geometry even when an older saved config contains publicRadius: 0. */
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border-radius: max(16px, var(--edition-public-radius)) !important;
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main :is(.data-panel,.glass) {
+  border-radius: max(13px, calc(var(--edition-public-radius) * .72)) !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main :is(button,a.rounded-xl,[role="button"],select,input,textarea) {
+  border-radius: 12px !important;
+}
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="bg-surface"],
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="bg-surface"] { background-color: color-mix(in oklab, var(--surface) 76%, transparent) !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="bg-surface"] {
+  background-color: color-mix(in oklab, var(--surface) 76%, transparent) !important;
+}
 
+/* Keep visible breathing room between major blocks without turning the archive
+   into a collection of unrelated floating islands. */
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 { display:flex !important; flex-direction:column !important; gap:1.55rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.55rem !important;
+}
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 { display:flex !important; flex-direction:column !important; gap:1.9rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.9rem !important;
+}
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section { margin-block:0 !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden { padding:0 !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:2.25rem 1.65rem 2.4rem !important; gap:1.8rem !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) { padding-top:1.5rem !important; }
+/* Editorial headers previously sat almost on the rule/edge on wide screens.
+   Increase INTERNAL gutters on hero headers, artwork headers and publication panels.
+   This applies to edition and show pages because both share the edition theme shell. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section {
+  margin-block: 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden {
+  padding: 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+  padding: 2.5rem clamp(2rem, 2.7vw, 3rem) 2.65rem !important;
+  gap: 1.9rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.overflow-hidden:not(.relative) > .flex.items-center.justify-between {
+  padding: 1.35rem clamp(1.75rem, 2.2vw, 2.25rem) !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
+  padding-top: 1.65rem !important;
+}
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .data-panel,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .glass { padding:1.45rem 1.3rem !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid { row-gap:0 !important; column-gap:0 !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > * { min-height:0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .glass {
+  padding: 1.55rem 1.5rem !important;
+}
+
+/* Editorial entry/result grids stay connected like a publication grid. The cells
+   get their own padding so labels do not touch the dividers. */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid {
+  row-gap: 0 !important;
+  column-gap: 0 !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > * {
+  min-height: 0 !important;
+}
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .glass,
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel { padding:1.2rem 1.1rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid > .data-panel {
+  padding: 1.3rem 1.25rem !important;
+}
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line { padding:.45rem 1rem .65rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line {
+  padding: .45rem 1rem .65rem !important;
+}
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line:first-child,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line:first-child { padding-left:1rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line:first-child {
+  padding-left: 1rem !important;
+}
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line p + p,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line p + p { margin-top:.65rem !important; }
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main img { border-radius:0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line p + p {
+  margin-top: .65rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main img {
+  border-radius: 0 !important;
+}
 
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:2.1rem 1.55rem 2.25rem !important; gap:1.65rem !important; }
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) { padding-top:1.4rem !important; }
+/* Minimal remains compact and calm, with soft corners and modest card gaps. */
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+  padding: 2.1rem 1.55rem 2.25rem !important;
+  gap: 1.65rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
+  padding-top: 1.4rem !important;
+}
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .data-panel,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass { padding:1.35rem 1.2rem !important; }
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid { gap:.85rem !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass {
+  padding: 1.35rem 1.2rem !important;
+}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid {
+  gap: .85rem !important;
+}
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .data-panel { padding:1.15rem 1.05rem !important; }
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main img { border-radius:0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .data-panel {
+  padding: 1.15rem 1.05rem !important;
+}
 
-body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main :is(button,a,[role="button"],select,input,textarea,.rounded-full,.rounded-lg,.rounded-xl,.rounded-2xl),
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main :is(button,a,[role="button"],select,input,textarea,.rounded-full,.rounded-lg,.rounded-xl,.rounded-2xl) { border-radius:0 !important; }
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main :is(button,a,[role="button"],select,input,textarea,.rounded-full,.rounded-lg,.rounded-xl,.rounded-2xl) {
+  border-radius: 0 !important;
+}
 
-/* GLASS: this file loads last, so it is the final authority. The previous glass looked like
-   translucent purple plastic because blur + saturation were too strong and several nested
-   surfaces still painted opaque theme colour. Keep colour as a faint tint, not a fill. */
+/* GLASS: final authority. Keep colour as a faint tint rather than an opaque fill. */
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel),
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-5 > section.relative.overflow-hidden,
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-7 > section.relative.overflow-hidden {
@@ -85,25 +158,51 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :
   background-image: linear-gradient(145deg, rgb(255 255 255 / .010), rgb(var(--solaris-card-surface) / .012)) !important;
 }
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel)::before {
-  opacity:.32 !important;
+  opacity: .32 !important;
 }
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel)::after {
-  opacity:.55 !important;
+  opacity: .55 !important;
 }
 
-@media (max-width:639px) {
+@media (max-width: 639px) {
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 { gap:1.35rem !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 {
+    gap: 1.35rem !important;
+  }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 { gap:1.6rem !important; }
-  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:1.8rem 1.2rem 2rem !important; gap:1.55rem !important; }
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 { padding:1.75rem 1.2rem 1.95rem !important; gap:1.5rem !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 {
+    gap: 1.6rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+    padding: 1.9rem 1.45rem 2.05rem !important;
+    gap: 1.55rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section.overflow-hidden:not(.relative) > .flex.items-center.justify-between {
+    padding: 1.15rem 1.4rem !important;
+  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section.relative.overflow-hidden > .relative.z-20 {
+    padding: 1.75rem 1.2rem 1.95rem !important;
+    gap: 1.5rem !important;
+  }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .data-panel,
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .glass,
   body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .data-panel,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass { padding:1.2rem 1rem !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .glass {
+    padding: 1.2rem 1rem !important;
+  }
   body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .stat-line,
-  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line { padding:.6rem .9rem .8rem !important; }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .stat-line {
+    padding: .6rem .9rem .8rem !important;
+  }
+
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
+    border-radius: max(15px, var(--edition-public-radius)) !important;
+  }
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main :is(.data-panel,.glass) {
+    border-radius: max(12px, calc(var(--edition-public-radius) * .7)) !important;
+  }
 
   body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main :is(.glass,.data-panel),
   body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-5 > section.relative.overflow-hidden,
