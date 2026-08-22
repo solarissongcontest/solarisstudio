@@ -25,6 +25,8 @@ export type CountrySectionTextAlign = "left" | "center";
 export type CountrySectionSpacing = "compact" | "normal" | "spacious";
 export type CountrySectionImageAspect = "auto" | "16:9" | "4:3" | "square" | "portrait";
 export type CountrySectionImageFit = "cover" | "contain";
+export type CountrySectionImageSize = "small" | "medium" | "large" | "full";
+export type CountrySectionImageFade = "none" | "top" | "right" | "bottom" | "left";
 export type CountrySectionDividerStyle = "line" | "glow" | "dots";
 
 export type CountryCustomFactRow = {
@@ -39,6 +41,8 @@ export type CountrySectionPresentation = {
   spacing: CountrySectionSpacing;
   imageAspect: CountrySectionImageAspect;
   imageFit: CountrySectionImageFit;
+  imageSize: CountrySectionImageSize;
+  imageFade: CountrySectionImageFade;
   focalX: number;
   focalY: number;
   galleryColumns: 2 | 3 | 4;
@@ -140,24 +144,25 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
   },
   {
     id: "custom-facts",
-    label: "Custom stats / facts",
-    description: "Build your own label-and-value grid for lore, geography, rankings or anything else.",
+    label: "Editable fun facts / stats",
+    description: "Write every label and value yourself for fun facts, lore, geography, rankings or statistics.",
     sectionType: "facts",
-    heading: "At a glance",
+    heading: "Fun facts",
     contentJson: {
       factMode: "manual",
       customFacts: [
-        { label: "Fact", value: "Value" },
-        { label: "Fact", value: "Value" },
+        { label: "Fact 01", value: "Write a fun fact" },
+        { label: "Fact 02", value: "Write another fun fact" },
       ],
     },
   },
   {
     id: "image",
     label: "Image feature",
-    description: "A large image with optional heading, caption and supporting text.",
+    description: "An image with optional heading, caption, text, size and directional fade.",
     sectionType: "image",
     heading: "Featured image",
+    contentJson: { imageSize: "medium", imageFade: "none" },
   },
   {
     id: "editorial-feature",
@@ -170,6 +175,8 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
       panelStyle: "transparent",
       spacing: "spacious",
       imageAspect: "16:9",
+      imageSize: "large",
+      imageFade: "none",
     },
   },
   {
@@ -179,14 +186,6 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     sectionType: "quote",
     heading: "Statement",
     contentJson: { width: "narrow", textAlign: "center" },
-  },
-  {
-    id: "gallery",
-    label: "Gallery block",
-    description: "Place your country gallery inside the article wherever you want it.",
-    sectionType: "gallery",
-    heading: "Gallery",
-    contentJson: { width: "wide", galleryColumns: 3, imageAspect: "4:3" },
   },
   {
     id: "divider",
@@ -234,6 +233,8 @@ export function countrySectionPresentation(
     spacing: enumValue(json.spacing, ["compact", "normal", "spacious"] as const, "normal"),
     imageAspect: enumValue(json.imageAspect, ["auto", "16:9", "4:3", "square", "portrait"] as const, "auto"),
     imageFit: enumValue(json.imageFit, ["cover", "contain"] as const, "cover"),
+    imageSize: enumValue(json.imageSize, ["small", "medium", "large", "full"] as const, "large"),
+    imageFade: enumValue(json.imageFade, ["none", "top", "right", "bottom", "left"] as const, "none"),
     focalX: Math.round(boundedNumber(json.focalX, 0, 100, 50)),
     focalY: Math.round(boundedNumber(json.focalY, 0, 100, 50)),
     galleryColumns: (columns === 2 || columns === 4 ? columns : 3) as 2 | 3 | 4,
