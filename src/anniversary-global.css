@@ -9,7 +9,7 @@ body.solaris-anniversary-day {
 .solaris-anniversary-global {
   position: fixed;
   inset: 0;
-  z-index: 72;
+  z-index: 96;
   pointer-events: none;
   overflow: hidden;
   isolation: isolate;
@@ -20,25 +20,25 @@ body.solaris-anniversary-day {
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(ellipse at -8% 18%, rgba(255, 77, 157, .34), transparent 43%),
-    radial-gradient(ellipse at 108% 20%, rgba(74, 174, 255, .34), transparent 42%),
-    radial-gradient(ellipse at 16% 94%, rgba(110, 238, 214, .22), transparent 44%),
-    radial-gradient(ellipse at 88% 92%, rgba(171, 104, 255, .27), transparent 46%),
-    linear-gradient(112deg, rgba(98, 28, 156, .1), rgba(12, 73, 150, .08) 48%, rgba(219, 52, 132, .08));
-  opacity: .62;
+    radial-gradient(ellipse at -8% 18%, rgba(255, 77, 157, .38), transparent 43%),
+    radial-gradient(ellipse at 108% 20%, rgba(74, 174, 255, .39), transparent 42%),
+    radial-gradient(ellipse at 16% 94%, rgba(110, 238, 214, .24), transparent 44%),
+    radial-gradient(ellipse at 88% 92%, rgba(171, 104, 255, .31), transparent 46%),
+    linear-gradient(112deg, rgba(98, 28, 156, .12), rgba(12, 73, 150, .1) 48%, rgba(219, 52, 132, .1));
+  opacity: .82;
   mix-blend-mode: screen;
 }
 
 .solaris-anniversary-global-stars {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 3;
   overflow: hidden;
 }
 
 .solaris-anniversary-falling-star {
   position: absolute;
-  top: -12vh;
+  top: -14vh;
   display: block;
   width: var(--star-size);
   aspect-ratio: 1;
@@ -46,7 +46,9 @@ body.solaris-anniversary-day {
   opacity: 0;
   -webkit-mask: url('/IMG_6171.png') center / contain no-repeat;
   mask: url('/IMG_6171.png') center / contain no-repeat;
-  filter: drop-shadow(0 0 9px color-mix(in srgb, var(--star-color) 55%, transparent));
+  filter:
+    drop-shadow(0 0 5px rgba(255,255,255,.34))
+    drop-shadow(0 0 12px color-mix(in srgb, var(--star-color) 72%, transparent));
   transform: translate3d(0, -14vh, 0) rotate(var(--star-rotate)) scale(var(--star-scale));
   animation: solaris-anniversary-starfall var(--star-duration) linear infinite;
   animation-delay: var(--star-delay);
@@ -57,18 +59,21 @@ body.solaris-anniversary-day {
   position: fixed;
   top: 4.75rem;
   right: .85rem;
-  z-index: 4;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: .45rem;
   min-height: 2rem;
-  border: 1px solid rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.23);
   border-radius: 999px;
-  background: rgba(5, 9, 31, .66);
+  background: rgba(5, 9, 31, .72);
   padding: .4rem .68rem;
-  color: rgba(255,255,255,.78);
-  box-shadow: inset 0 1px rgba(255,255,255,.08), 0 10px 30px rgba(9,6,35,.22);
-  backdrop-filter: blur(16px) saturate(140%);
+  color: rgba(255,255,255,.82);
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.1),
+    0 10px 30px rgba(9,6,35,.25),
+    0 0 24px rgba(116,231,255,.08);
+  backdrop-filter: blur(18px) saturate(150%);
   font-size: .58rem;
   font-weight: 750;
   letter-spacing: .08em;
@@ -81,20 +86,20 @@ body.solaris-anniversary-day {
 }
 
 .solaris-anniversary-badge-star {
-  width: .85rem;
+  width: .9rem;
   aspect-ratio: 1;
   flex: 0 0 auto;
   background: var(--anniv-gold);
   -webkit-mask: url('/IMG_6171.png') center / contain no-repeat;
   mask: url('/IMG_6171.png') center / contain no-repeat;
-  filter: drop-shadow(0 0 8px rgba(255,227,110,.45));
+  filter: drop-shadow(0 0 9px rgba(255,227,110,.55));
 }
 
 .solaris-anniversary-badge-divider { opacity: .42; }
 
 .solaris-anniversary-star-burst {
   position: fixed;
-  z-index: 120;
+  z-index: 140;
   width: 1px;
   height: 1px;
   pointer-events: none;
@@ -109,23 +114,27 @@ body.solaris-anniversary-day {
   background: var(--burst-color);
   -webkit-mask: url('/IMG_6171.png') center / contain no-repeat;
   mask: url('/IMG_6171.png') center / contain no-repeat;
-  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--burst-color) 60%, transparent));
-  animation: solaris-anniversary-burst .76s cubic-bezier(.15,.82,.25,1) forwards;
+  filter:
+    drop-shadow(0 0 5px rgba(255,255,255,.38))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--burst-color) 72%, transparent));
+  animation: solaris-anniversary-burst .88s cubic-bezier(.12,.8,.2,1) forwards;
+  animation-delay: var(--burst-delay, 0ms);
 }
 
 body.solaris-anniversary-day .site-nav,
 body.solaris-anniversary-day header.sticky {
-  border-bottom-color: color-mix(in srgb, var(--anniv-cyan) 30%, transparent) !important;
-  box-shadow: 0 12px 42px rgba(91, 47, 177, .13), 0 0 30px rgba(74,174,255,.06) !important;
+  border-bottom-color: color-mix(in srgb, var(--anniv-cyan) 34%, transparent) !important;
+  box-shadow:
+    0 12px 42px rgba(91, 47, 177, .15),
+    0 0 34px rgba(74,174,255,.08) !important;
 }
 
 body.solaris-anniversary-day .app-background {
-  filter: saturate(1.12) brightness(1.03);
+  filter: saturate(1.16) brightness(1.04);
 }
 
-/* The legacy birthday stylesheet removed AppShell spacing because it used to
-   control only the home takeover. Anniversary mode is now site-wide, so keep
-   ordinary pages in their normal layout while the celebration sits above it. */
+/* Anniversary mode is site-wide. Keep normal page geometry intact while the
+   celebration layer sits above the whole application. */
 body.solaris-anniversary-day .app-main {
   padding-top: 1rem !important;
 }
@@ -138,40 +147,39 @@ body.solaris-anniversary-day .app-main section.glass,
 body.solaris-anniversary-day .app-main article.glass,
 body.solaris-anniversary-day .app-main .solaris-family-card {
   box-shadow:
-    0 18px 52px rgba(30, 16, 79, .22),
-    0 0 0 1px rgba(121,231,255,.035) inset !important;
+    0 18px 52px rgba(30, 16, 79, .24),
+    0 0 0 1px rgba(121,231,255,.045) inset !important;
 }
 
 @keyframes solaris-anniversary-starfall {
   0% {
-    transform: translate3d(0, -16vh, 0) rotate(var(--star-rotate)) scale(calc(var(--star-scale) * .82));
+    transform: translate3d(0, -18vh, 0) rotate(var(--star-rotate)) scale(calc(var(--star-scale) * .72));
     opacity: 0;
   }
-  8% {
-    opacity: var(--star-opacity);
-  }
-  86% {
-    opacity: var(--star-opacity);
-  }
+  5% { opacity: var(--star-opacity); }
+  90% { opacity: var(--star-opacity); }
   100% {
-    transform: translate3d(var(--star-drift), 118vh, 0) rotate(calc(var(--star-rotate) + 760deg)) scale(var(--star-scale));
+    transform: translate3d(var(--star-drift), 120vh, 0) rotate(calc(var(--star-rotate) + 860deg)) scale(var(--star-scale));
     opacity: 0;
   }
 }
 
 @keyframes solaris-anniversary-burst {
   0% {
-    transform: translate(-50%, -50%) rotate(var(--burst-rotate)) scale(.45);
+    transform: translate(-50%, -50%) rotate(var(--burst-rotate)) scale(.32);
     opacity: 0;
   }
-  12% { opacity: 1; }
+  9% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--burst-rotate)) scale(1.15);
+  }
   100% {
     transform:
       translate(-50%, -50%)
       rotate(var(--burst-angle))
       translateX(var(--burst-distance))
-      rotate(calc(var(--burst-rotate) + 220deg))
-      scale(.2);
+      rotate(calc(var(--burst-rotate) + 320deg))
+      scale(.12);
     opacity: 0;
   }
 }
@@ -192,6 +200,7 @@ body.solaris-anniversary-day .app-main .solaris-family-card {
   body.solaris-anniversary-day .app-main {
     padding-inline: .75rem !important;
   }
+
   .solaris-anniversary-global-badge {
     top: 4.35rem;
     right: .5rem;
@@ -200,7 +209,8 @@ body.solaris-anniversary-day .app-main .solaris-family-card {
     gap: .32rem;
     padding-inline: .55rem;
   }
-  .solaris-anniversary-falling-star:nth-child(3n) { display: none; }
+
+  .solaris-anniversary-falling-star:nth-child(4n) { display: none; }
 }
 
 @media (min-width: 640px) and (max-width: 1023px) {
@@ -220,5 +230,6 @@ body.solaris-anniversary-day .app-main .solaris-family-card {
   .solaris-anniversary-burst-star {
     animation: none !important;
   }
+
   .solaris-anniversary-falling-star { display: none; }
 }
