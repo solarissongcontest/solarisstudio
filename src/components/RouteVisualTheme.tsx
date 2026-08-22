@@ -14,6 +14,7 @@ import "@/edition-public-hotfix.css";
 import "@/edition-public-styles-v2.css";
 import "@/edition-public-styles-v3.css";
 import "@/edition-public-styles-v4.css";
+import "@/edition-show-parity.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
