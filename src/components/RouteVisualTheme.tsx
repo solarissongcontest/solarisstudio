@@ -15,7 +15,7 @@ import { CountryButtonThemeController } from "@/components/CountryButtonThemeCon
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
-import { useAllShows, useCountries, useEditions } from "@/lib/data";
+import { useAllResults, useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   countryBackgroundCss,
   countryThemeToVisual,
@@ -76,6 +76,7 @@ export function RouteVisualTheme() {
   const { data: countries } = useCountries();
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
+  const { data: results } = useAllResults();
   const { data: countryThemes } = useCountryThemes();
 
   const resolved = useMemo<ResolvedVisual | null>(() => {
@@ -126,6 +127,16 @@ export function RouteVisualTheme() {
     return null;
   }, [pathname, countries, editions, shows, countryThemes]);
 
+  const showWinnerFlag = useMemo(() => {
+    const showId = segmentAfter(pathname, "/shows/");
+    if (!showId) return null;
+    const winnerRow = (results ?? [])
+      .filter((row) => row.show_id === showId && row.final_rank != null)
+      .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))[0];
+    if (!winnerRow) return null;
+    return (countries ?? []).find((country) => country.id === winnerRow.country_id)?.flag_image ?? null;
+  }, [pathname, results, countries]);
+
   useEffect(() => {
     const body = document.body;
     const keys = [
@@ -143,6 +154,7 @@ export function RouteVisualTheme() {
       "--muted-foreground",
       "--surface",
       "--edition-artwork-image",
+      "--show-winner-flag-image",
       "--edition-public-radius",
       "--edition-surface-strength",
       "--edition-hero-glow",
@@ -155,6 +167,7 @@ export function RouteVisualTheme() {
       delete body.dataset.entityTheme;
       delete body.dataset.editionArtwork;
       delete body.dataset.editionPublicStyle;
+      delete body.dataset.showWinnerFlag;
       delete body.dataset.countryBackgroundMode;
       delete body.dataset.countryHeroLayout;
       delete body.dataset.countryDecoration;
@@ -205,8 +218,16 @@ export function RouteVisualTheme() {
       body.style.removeProperty("--edition-artwork-image");
     }
 
+    if (segmentAfter(pathname, "/shows/") && showWinnerFlag) {
+      body.dataset.showWinnerFlag = "true";
+      body.style.setProperty("--show-winner-flag-image", `url(${JSON.stringify(showWinnerFlag)})`);
+    } else {
+      delete body.dataset.showWinnerFlag;
+      body.style.removeProperty("--show-winner-flag-image");
+    }
+
     return clear;
-  }, [resolved]);
+  }, [resolved, pathname, showWinnerFlag]);
 
   return (
     <>
