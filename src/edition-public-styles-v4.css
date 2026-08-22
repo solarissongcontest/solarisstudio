@@ -4,10 +4,7 @@
 
 /* --------------------------------------------------------------------------
    EDITORIAL
-   Strict rectilinear publication system. The previous selectors were too tied
-   to one DOM shape, so the hero could still inherit the page's rounded card.
-   These rules intentionally target edition/show content broadly and force a
-   square clipping box as well as border-radius: 0.
+   Strict rectilinear publication system.
    -------------------------------------------------------------------------- */
 
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main *,
@@ -18,7 +15,7 @@ html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .a
 
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .page-header,
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section,
-html body[data-entity-theme="edition"][data-edition-public-style="editorial"] section.relative.overflow-hidden,
+html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden,
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main :is(.glass,.data-panel),
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded"] {
   border-radius: 0 !important;
@@ -26,12 +23,15 @@ html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .a
   mask-image: none !important;
 }
 
-/* A square clip-path makes the hero physically rectangular even if an older
-   utility or compositing layer tries to paint rounded corners underneath. */
-html body[data-entity-theme="edition"][data-edition-public-style="editorial"] section.relative.overflow-hidden,
+/* Force the actual painted box to be rectangular. This is intentionally broader
+   than the old hero selector so neither the section nor its overlay can keep a
+   rounded compositing layer. */
+html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden,
+html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden > .absolute.inset-0,
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .page-header {
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%) !important;
-  overflow: hidden !important;
+  border-radius: 0 !important;
+  clip-path: inset(0 round 0) !important;
+  overflow: clip !important;
 }
 
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] [data-flag-chip="true"],
@@ -41,48 +41,55 @@ html body[data-entity-theme="edition"][data-edition-public-style="editorial"] .a
   border-radius: 0 !important;
 }
 
-/* Editorial hero: generous INTERNAL gutter. This targets both edition and show
-   heroes instead of depending on the exact space-y wrapper class. */
+/* Put the gutter on the hero itself instead of relying on one child class.
+   That makes the spacing survive route/layout changes and prevents the content
+   from ever sitting on the border. */
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden {
+  box-sizing: border-box !important;
+  padding-top: 2.55rem !important;
+  padding-right: clamp(2.5rem, 4vw, 4rem) !important;
+  padding-bottom: 2.75rem !important;
+  padding-left: clamp(2.5rem, 4vw, 4rem) !important;
+}
+
+html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden > div.relative {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  margin: 0 !important;
   padding: 0 !important;
 }
 
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden > div.relative.z-20 {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding-top: 2.65rem !important;
-  padding-right: clamp(2.35rem, 3.6vw, 3.6rem) !important;
-  padding-bottom: 2.8rem !important;
-  padding-left: clamp(2.35rem, 3.6vw, 3.6rem) !important;
   gap: 2rem !important;
 }
 
-/* Artwork headers and other card headers need the same breathing room. */
+/* Artwork and other large framed sections stay square and get a proper content gutter. */
+html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.overflow-hidden:not(.relative) {
+  border-radius: 0 !important;
+}
+
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.overflow-hidden:not(.relative) > .flex.items-center.justify-between,
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .data-panel > :first-child,
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .glass > :first-child {
-  padding-left: clamp(1.7rem, 2.6vw, 2.5rem) !important;
-  padding-right: clamp(1.7rem, 2.6vw, 2.5rem) !important;
+  padding-left: clamp(1.8rem, 2.8vw, 2.7rem) !important;
+  padding-right: clamp(1.8rem, 2.8vw, 2.7rem) !important;
 }
 
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .data-panel,
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .glass {
-  padding: 1.6rem 1.55rem !important;
+  padding: 1.7rem 1.65rem !important;
 }
 
-/* Avoid double-padding when a panel already contains a normal padded header/body. */
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.overflow-hidden:not(.relative) > .flex.items-center.justify-between {
-  padding-top: 1.4rem !important;
-  padding-bottom: 1.4rem !important;
+  padding-top: 1.5rem !important;
+  padding-bottom: 1.5rem !important;
 }
 
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section {
   margin-block: 0 !important;
 }
 
-/* Connected editorial grids. Keep dividers tight, but pad the content away from
-   those dividers so it does not feel cramped. */
+/* Connected editorial grids. Keep dividers tight, but pad content away from them. */
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .grid {
   row-gap: 0 !important;
   column-gap: 0 !important;
@@ -91,11 +98,11 @@ html body[data-entity-theme="edition"][data-edition-public-style="editorial"] ma
   min-height: 0 !important;
 }
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .grid > :is(.glass,.data-panel) {
-  padding: 1.35rem 1.3rem !important;
+  padding: 1.45rem 1.4rem !important;
 }
 
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .stat-line {
-  padding: .55rem 1.05rem .75rem !important;
+  padding: .65rem 1.15rem .85rem !important;
 }
 html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .stat-line p + p {
   margin-top: .65rem !important;
@@ -184,18 +191,25 @@ html body[data-entity-theme="edition"][data-edition-public-style="glass"] main.a
 }
 
 @media (max-width: 639px) {
-  html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden > div.relative.z-20 {
+  html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden {
     padding: 1.9rem 1.7rem 2.05rem !important;
+  }
+
+  html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden > div.relative {
+    padding: 0 !important;
+  }
+
+  html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.relative.overflow-hidden > div.relative.z-20 {
     gap: 1.55rem !important;
   }
 
   html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main section.overflow-hidden:not(.relative) > .flex.items-center.justify-between {
-    padding: 1.2rem 1.55rem !important;
+    padding: 1.25rem 1.6rem !important;
   }
 
   html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .data-panel,
   html body[data-entity-theme="edition"][data-edition-public-style="editorial"] main.app-main .glass {
-    padding: 1.3rem 1.2rem !important;
+    padding: 1.35rem 1.25rem !important;
   }
 
   html body[data-entity-theme="edition"][data-edition-public-style="minimal"] main.app-main section.relative.overflow-hidden > div.relative.z-20 {
