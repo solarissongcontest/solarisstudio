@@ -29,10 +29,7 @@ function EntriesRoute() {
   // selector click. Consume it once, then release the selector.
   useEffect(() => {
     if (!search.show) return;
-    void navigate({
-      search: (previous) => ({ ...previous, show: undefined }),
-      replace: true,
-    });
+    void navigate({ search: { show: undefined }, replace: true });
   }, [navigate, search.show]);
 
   return <ShowLineupWorkspace slug={slug} initialShow={search.show} />;
