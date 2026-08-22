@@ -79,12 +79,14 @@ describe("country page customization", () => {
     expect(appearance).toContain("Background blur");
   });
 
-  it("keeps modular country/wiki blocks, visibility and ordering controls", () => {
+  it("keeps modular country/wiki blocks, editable generated writing, visibility and ordering controls", () => {
     expect(builder).toContain("visibleOnCountry");
     expect(builder).toContain("visibleOnWiki");
     expect(builder).toContain("contentMode");
     expect(builder).toContain("imageLayout");
     expect(builder).toContain("useReorderCountryPageSections");
-    expect(builder).toContain("Write everything yourself, let Solaris draft from facts you supplied");
+    expect(builder).toContain("System-assisted writing");
+    expect(builder).toContain("Fact source");
+    expect(builder).toContain("Custom facts");
   });
 });
