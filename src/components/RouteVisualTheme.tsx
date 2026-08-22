@@ -30,15 +30,8 @@ import {
   type CountryVisualTheme,
 } from "@/lib/visual-theme";
 
-type EditionVisual = {
-  id: string;
-  slug: string;
-  theme_colors?: unknown;
-  artwork_url?: string | null;
-};
-
+type EditionVisual = { id: string; slug: string; theme_colors?: unknown; artwork_url?: string | null };
 type EditionThemeVisual = Exclude<ReturnType<typeof editionThemeToVisual>, null>;
-
 type EditionPublicSettings = {
   style: "cinematic" | "editorial" | "minimal" | "glass";
   radius: number;
@@ -47,15 +40,9 @@ type EditionPublicSettings = {
   accentGradient: string | null;
   surfaceGradient: string | null;
 };
-
 type ResolvedVisual =
   | { kind: "country"; theme: CountryVisualTheme; artwork: null; publicSettings: null }
-  | {
-      kind: "edition";
-      theme: EditionThemeVisual;
-      artwork: string | null;
-      publicSettings: EditionPublicSettings;
-    };
+  | { kind: "edition"; theme: EditionThemeVisual; artwork: string | null; publicSettings: EditionPublicSettings };
 
 function segmentAfter(pathname: string, prefix: string) {
   if (!pathname.startsWith(prefix)) return null;
@@ -81,9 +68,10 @@ function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): Edition
     const number = Number(input);
     return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
   };
+  const squareLocked = style === "editorial" || style === "minimal";
   return {
     style,
-    radius: clamp(value.publicRadius, 8, 40, 24),
+    radius: squareLocked ? 0 : clamp(value.publicRadius, 0, 40, 24),
     surfaceStrength: clamp(value.publicSurfaceStrength, 45, 100, 82),
     heroGlow: clamp(value.publicHeroGlow, 0, 100, 72),
     accentGradient: gradientFromRaw(value.publicAccentGradient, theme.accent, theme.backgroundSecondary),
@@ -102,10 +90,7 @@ export function RouteVisualTheme() {
   const { data: countries } = useCountries();
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
-  const currentShow = useMemo(
-    () => (shows ?? []).find((item) => item.id === currentShowId) ?? null,
-    [shows, currentShowId],
-  );
+  const currentShow = useMemo(() => (shows ?? []).find((item) => item.id === currentShowId) ?? null, [shows, currentShowId]);
   const { data: currentShowEntities } = useContestEntities(currentShow?.edition_id);
   const { data: currentShowResults } = useResults(currentShowId ?? undefined);
   const { data: countryThemes } = useCountryThemes();
@@ -145,21 +130,13 @@ export function RouteVisualTheme() {
 
   useEffect(() => {
     const body = document.body;
-    const keys = [
-      "--solaris-bg-primary", "--solaris-bg-secondary", "--solaris-bg-tertiary", "--solaris-bg-deep", "--solaris-bg-deep-2",
-      "--solaris-accent", "--solaris-accent-foreground", "--solaris-owner-surface", "--solaris-card-surface", "--solaris-card-raised",
-      "--foreground", "--muted-foreground", "--surface", "--edition-artwork-image", "--show-winner-flag-image", "--edition-public-radius",
-      "--edition-surface-strength", "--edition-hero-glow", "--edition-accent-gradient", "--edition-surface-gradient", "--country-page-background",
-      "--country-page-position", "--country-page-blur",
-    ];
-
+    const keys = ["--solaris-bg-primary","--solaris-bg-secondary","--solaris-bg-tertiary","--solaris-bg-deep","--solaris-bg-deep-2","--solaris-accent","--solaris-accent-foreground","--solaris-owner-surface","--solaris-card-surface","--solaris-card-raised","--foreground","--muted-foreground","--surface","--edition-artwork-image","--show-winner-flag-image","--edition-public-radius","--edition-surface-strength","--edition-hero-glow","--edition-accent-gradient","--edition-surface-gradient","--country-page-background","--country-page-position","--country-page-blur"];
     const clear = () => {
       delete body.dataset.entityTheme; delete body.dataset.editionArtwork; delete body.dataset.editionPublicStyle;
       delete body.dataset.editionAccentGradient; delete body.dataset.editionSurfaceGradient; delete body.dataset.showWinnerFlag;
       delete body.dataset.countryBackgroundMode; delete body.dataset.countryHeroLayout; delete body.dataset.countryDecoration;
       keys.forEach((key) => body.style.removeProperty(key));
     };
-
     if (!resolved) { clear(); return; }
 
     body.dataset.entityTheme = resolved.kind;
@@ -177,20 +154,14 @@ export function RouteVisualTheme() {
     } else {
       delete body.dataset.countryBackgroundMode; delete body.dataset.countryHeroLayout; delete body.dataset.countryDecoration;
       body.style.removeProperty("--country-page-background"); body.style.removeProperty("--country-page-position"); body.style.removeProperty("--country-page-blur");
-
-      /* Critical: edition pages must use exactly the colours saved in the edition editor.
-         themeStyleProperties intentionally balances generic surfaces toward #07131f for country/wiki
-         readability. That was the mystery navy. Override those generic derived tokens here. */
       body.style.setProperty("--surface", resolved.theme.surface);
       body.style.setProperty("--solaris-owner-surface", resolved.theme.surface);
       body.style.setProperty("--solaris-card-surface", hexTriplet(resolved.theme.surface));
       body.style.setProperty("--solaris-card-raised", hexTriplet(resolved.theme.surface));
-
       body.dataset.editionPublicStyle = resolved.publicSettings.style;
       body.style.setProperty("--edition-public-radius", `${resolved.publicSettings.radius}px`);
       body.style.setProperty("--edition-surface-strength", String(resolved.publicSettings.surfaceStrength / 100));
       body.style.setProperty("--edition-hero-glow", String(resolved.publicSettings.heroGlow / 100));
-
       if (resolved.publicSettings.accentGradient) {
         body.dataset.editionAccentGradient = "true";
         body.style.setProperty("--edition-accent-gradient", resolved.publicSettings.accentGradient);
