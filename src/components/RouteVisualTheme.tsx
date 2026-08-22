@@ -16,7 +16,8 @@ import { CountryButtonThemeController } from "@/components/CountryButtonThemeCon
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
-import { useAllShows, useCountries, useEditions, useResults } from "@/lib/data";
+import { useAllShows, useContestEntities, useCountries, useEditions, useResults } from "@/lib/data";
+import { entityDisplayMap } from "@/lib/entities";
 import {
   countryBackgroundCss,
   countryThemeToVisual,
@@ -95,6 +96,11 @@ export function RouteVisualTheme() {
   const { data: countries } = useCountries();
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
+  const currentShow = useMemo(
+    () => (shows ?? []).find((item) => item.id === currentShowId) ?? null,
+    [shows, currentShowId],
+  );
+  const { data: currentShowEntities } = useContestEntities(currentShow?.edition_id);
   const { data: currentShowResults } = useResults(currentShowId ?? undefined);
   const { data: countryThemes } = useCountryThemes();
 
@@ -129,8 +135,7 @@ export function RouteVisualTheme() {
     }
 
     if (currentShowId) {
-      const show = (shows ?? []).find((item) => item.id === currentShowId);
-      const edition = visualEditions.find((item) => item.id === show?.edition_id);
+      const edition = visualEditions.find((item) => item.id === currentShow?.edition_id);
       const theme = editionThemeToVisual(edition?.theme_colors);
       if (theme) {
         return {
@@ -143,7 +148,7 @@ export function RouteVisualTheme() {
     }
 
     return null;
-  }, [pathname, currentShowId, countries, editions, shows, countryThemes]);
+  }, [pathname, currentShowId, currentShow, countries, editions, countryThemes]);
 
   const showWinnerFlag = useMemo(() => {
     if (!currentShowId) return null;
@@ -151,8 +156,10 @@ export function RouteVisualTheme() {
       .filter((row) => row.final_rank != null)
       .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))[0];
     if (!winnerRow) return null;
-    return (countries ?? []).find((country) => country.id === winnerRow.country_id)?.flag_image ?? null;
-  }, [currentShowId, currentShowResults, countries]);
+
+    const displayMap = entityDisplayMap(currentShowEntities, countries);
+    return displayMap.get(winnerRow.country_id)?.flag_image ?? null;
+  }, [currentShowId, currentShowResults, currentShowEntities, countries]);
 
   useEffect(() => {
     const body = document.body;
