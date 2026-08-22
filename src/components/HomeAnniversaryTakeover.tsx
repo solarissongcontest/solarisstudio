@@ -15,15 +15,12 @@ import {
   useEditions,
 } from "@/lib/data";
 
-const PREVIEW_KEY = "solaris:anniversary-preview";
-
 export function HomeAnniversaryTakeover() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const [clock, setClock] = useState(() => new Date());
-  const [previewSticky, setPreviewSticky] = useState(false);
 
-  const previewParam = useMemo(
-    () => new URLSearchParams(searchStr).get("anniversary"),
+  const preview = useMemo(
+    () => new URLSearchParams(searchStr).get("anniversary") === "preview",
     [searchStr],
   );
 
@@ -32,22 +29,8 @@ export function HomeAnniversaryTakeover() {
     return () => window.clearInterval(tick);
   }, []);
 
-  useEffect(() => {
-    if (previewParam === "preview") {
-      window.sessionStorage.setItem(PREVIEW_KEY, "1");
-      setPreviewSticky(true);
-      return;
-    }
-    if (previewParam === "off") {
-      window.sessionStorage.removeItem(PREVIEW_KEY);
-      setPreviewSticky(false);
-      return;
-    }
-    setPreviewSticky(window.sessionStorage.getItem(PREVIEW_KEY) === "1");
-  }, [previewParam]);
-
   const baseAnniversary = useMemo(() => getSolarisAnniversary(clock), [clock]);
-  const active = baseAnniversary.active || previewParam === "preview" || previewSticky;
+  const active = baseAnniversary.active || preview;
 
   if (!active) return null;
 
