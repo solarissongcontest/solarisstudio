@@ -1,0 +1,281 @@
+/* Edition public styles v2
+   The old presets mostly touched the hero. These rules deliberately style the entire edition/show
+   experience: page rhythm, panels, cards, headings, tabs and actions. Glass is left to the existing
+   liquid-glass rules because that preset already has its own material system. */
+
+/* ---------- shared full-page hooks ---------- */
+body[data-entity-theme="edition"] .app-main {
+  --edition-style-rule: rgb(var(--solaris-accent) / .24);
+}
+
+body[data-entity-theme="edition"] .app-main > * {
+  transition: border-color .22s ease, background .22s ease, box-shadow .22s ease, border-radius .22s ease, transform .22s ease;
+}
+
+body[data-entity-theme="edition"] .app-main section > h2,
+body[data-entity-theme="edition"] .app-main section > div > h2 {
+  text-wrap: balance;
+}
+
+/* ---------- CINEMATIC ---------- */
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main {
+  position: relative;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main::before {
+  content: "";
+  position: fixed;
+  inset: 5rem 0 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    radial-gradient(70% 36% at 50% 12%, rgb(var(--solaris-accent) / .09), transparent 68%),
+    radial-gradient(42% 28% at 88% 52%, rgb(var(--solaris-bg-secondary) / .08), transparent 72%);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main > .page-header,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border: 1px solid rgb(var(--solaris-accent) / .28) !important;
+  border-radius: min(var(--edition-public-radius, 28px), 34px) !important;
+  background:
+    radial-gradient(120% 100% at 8% -12%, rgb(var(--solaris-accent) / .17), transparent 44%),
+    linear-gradient(150deg, rgb(var(--solaris-card-raised) / .78), rgb(var(--solaris-card-surface) / .56)) !important;
+  box-shadow:
+    0 28px 80px rgb(0 0 0 / .30),
+    0 0 72px rgb(var(--solaris-accent) / .07),
+    inset 0 1px 0 rgb(255 255 255 / .05) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main > .page-header h1,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-5 > section.relative.overflow-hidden h1,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main .space-y-7 > section.relative.overflow-hidden h1 {
+  letter-spacing: -.055em !important;
+  text-shadow: 0 8px 34px rgb(0 0 0 / .38);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .data-panel,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .glass {
+  border: 1px solid rgb(var(--solaris-accent) / .18) !important;
+  border-radius: min(var(--edition-public-radius, 24px), 28px) !important;
+  background:
+    linear-gradient(150deg, rgb(var(--solaris-card-raised) / .72), rgb(var(--solaris-card-surface) / .52)) !important;
+  box-shadow:
+    0 18px 48px rgb(0 0 0 / .22),
+    inset 0 1px 0 rgb(255 255 255 / .035) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section:not(.relative) {
+  position: relative;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section:not(.relative) > :is(p:first-child, div:first-child p:first-child)[class*="uppercase"] {
+  color: rgb(var(--solaris-accent)) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section:not(.relative) > h2,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section:not(.relative) > div:first-child h2 {
+  font-size: clamp(1.55rem, 4vw, 2.35rem) !important;
+  letter-spacing: -.035em !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main select,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main button,
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main a.rounded-xl {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .04), 0 8px 22px rgb(0 0 0 / .12);
+}
+
+/* Make archive/content cards feel like a film UI rather than generic rounded boxes. */
+body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .app-main section > .grid .glass:hover {
+  transform: translateY(-2px);
+  border-color: rgb(var(--solaris-accent) / .34) !important;
+  box-shadow: 0 22px 52px rgb(0 0 0 / .26), 0 0 30px rgb(var(--solaris-accent) / .06) !important;
+}
+
+/* ---------- EDITORIAL ---------- */
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main {
+  --edition-style-rule: rgb(var(--solaris-accent) / .34);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border: 0 !important;
+  border-top: 1px solid var(--edition-style-rule) !important;
+  border-bottom: 1px solid var(--edition-style-rule) !important;
+  border-radius: 0 !important;
+  background:
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .075), transparent 34%),
+    rgb(var(--solaris-card-surface) / .20) !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
+  padding-left: clamp(.15rem, 2vw, .75rem) !important;
+  padding-right: clamp(.15rem, 2vw, .75rem) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h1,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h2,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main h3 {
+  letter-spacing: -.025em !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
+  padding-top: 1.15rem;
+  border-top: 1px solid rgb(var(--solaris-accent) / .16);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > div:first-child,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > p:first-child {
+  position: relative;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > div:first-child::before,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) > p:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -.55rem;
+  width: 3.2rem;
+  height: 2px;
+  background: rgb(var(--solaris-accent));
+  opacity: .8;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .data-panel,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .glass {
+  border: 1px solid rgb(var(--solaris-accent) / .16) !important;
+  border-radius: 10px !important;
+  background: rgb(var(--solaris-card-surface) / .34) !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass {
+  border-left: 3px solid rgb(var(--solaris-accent) / .58) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .stat-line {
+  border-color: rgb(var(--solaris-accent) / .22) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main select {
+  border-radius: 6px !important;
+  border-color: rgb(var(--solaris-accent) / .24) !important;
+  background: rgb(var(--solaris-card-surface) / .34) !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main button,
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main a.rounded-xl {
+  border-radius: 7px !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main [class*="rounded-[1.75rem]"] {
+  border-radius: 8px !important;
+}
+
+/* ---------- MINIMAL ---------- */
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main > .page-header,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h1 {
+  letter-spacing: -.045em !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main h2 {
+  letter-spacing: -.025em !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
+  padding-top: .9rem;
+  border-top: 1px solid rgb(255 255 255 / .07);
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-panel,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass {
+  border: 0 !important;
+  border-bottom: 1px solid rgb(255 255 255 / .075) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass {
+  padding-left: .15rem !important;
+  padding-right: .15rem !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass:hover {
+  background: rgb(255 255 255 / .025) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .stat-line {
+  border-color: rgb(255 255 255 / .08) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main select {
+  border: 0 !important;
+  border-bottom: 1px solid rgb(255 255 255 / .16) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main button,
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main a.rounded-xl {
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main [class*="rounded-[1.75rem]"] {
+  border-radius: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+
+/* Minimal should also be genuinely compact, not "more breathing room" interpreted as giant cards. */
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid {
+  row-gap: .45rem !important;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .grid .glass {
+  padding-top: .55rem !important;
+  padding-bottom: .55rem !important;
+}
+
+/* ---------- mobile polish ---------- */
+@media (max-width: 639px) {
+  body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .data-panel,
+  body[data-entity-theme="edition"][data-edition-public-style="cinematic"] .glass {
+    border-radius: min(var(--edition-public-radius, 24px), 24px) !important;
+  }
+
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main section:not(.relative) {
+    padding-top: .95rem;
+  }
+
+  body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main .grid .glass {
+    border-left-width: 2px !important;
+  }
+
+  body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main section:not(.relative) {
+    padding-top: .75rem;
+  }
+}
