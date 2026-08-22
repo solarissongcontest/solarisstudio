@@ -16,13 +16,11 @@ import { cn } from "@/lib/utils";
 
 type EditionPublicStyle = "cinematic" | "editorial" | "minimal" | "glass";
 
-/**
- * Public / embedded scoreboard renderer.
- *
- * The built-in Classic scoreboard should feel like part of the edition page,
- * not like a separate neon widget dropped on top of it. Custom scoreboard
- * presets remain untouched; organizers can still replace Classic completely.
- */
+const EDITION_LINKED_DEFAULT_PRESETS = new Set([
+  "classic-live-reveal",
+  "clean-pill-results",
+]);
+
 export function ScoreboardStage({
   theme,
   standings,
@@ -72,13 +70,25 @@ export function ScoreboardStage({
       rowCount: rows.length,
     });
 
-  const isClassic = baseResolved.card.preset === "classic-live-reveal" || !theme.scoreboardConfig;
-  const resolved = isClassic && editionStyle
-    ? matchClassicToEditionStyle(baseResolved, theme, editionStyle)
+  // Both Classic Live Reveal and Clean Pill Results are shipped as Solaris defaults.
+  // If either is still in use, its public presentation should inherit the edition page
+  // personality instead of looking like a detached preset. More deliberate/custom
+  // presets keep their saved design.
+  const inheritsEditionStyle =
+    !theme.scoreboardConfig || EDITION_LINKED_DEFAULT_PRESETS.has(baseResolved.card.preset);
+
+  const resolved = inheritsEditionStyle && editionStyle
+    ? matchDefaultScoreboardToEditionStyle(baseResolved, theme, editionStyle)
     : baseResolved;
 
   const columns = resolveShowColumns(rows.length, resolved);
-  const card = prepareCardForPublicSurface(resolved.card, theme, compact, editionStyle, isClassic);
+  const card = prepareCardForPublicSurface(
+    resolved.card,
+    theme,
+    compact,
+    editionStyle,
+    inheritsEditionStyle,
+  );
   const topAward = Math.max(0, ...Object.values(awarded ?? {}));
 
   const broadcastRows = rows.map<BroadcastRowData>((standing, index) => {
@@ -151,7 +161,7 @@ export function ScoreboardStage({
         columns === 4 && "sm:grid-cols-2 xl:grid-cols-4",
         className,
       )}
-      data-scoreboard-edition-style={isClassic ? editionStyle ?? undefined : undefined}
+      data-scoreboard-edition-style={inheritsEditionStyle ? editionStyle ?? undefined : undefined}
     >
       {columnRows.map((column, columnIndex) => (
         <ol
@@ -183,13 +193,13 @@ export function ScoreboardStage({
   );
 }
 
-function matchClassicToEditionStyle(
+function matchDefaultScoreboardToEditionStyle(
   source: ScoreboardConfig,
   theme: ThemeConfig,
   style: EditionPublicStyle,
 ): ScoreboardConfig {
   const config = structuredClone(source) as ScoreboardConfig;
-  const flagRadius = style === "editorial" || style === "minimal" ? 0 : style === "glass" ? 8 : 10;
+  const flagRadius = style === "editorial" || style === "minimal" ? 0 : style === "glass" ? 10 : 10;
 
   config.card.zones = config.card.zones.map((zone) =>
     zone.type === "flag"
@@ -205,28 +215,32 @@ function matchClassicToEditionStyle(
   );
 
   if (style === "glass") {
+    // Mirror the public edition's liquid-glass language: very low tint, visible
+    // background, restrained saturation and a bright glass edge rather than an
+    // opaque black/pill row.
     config.card.radius = 22;
+    config.card.opacity = 1;
     config.card.background = {
       ...config.card.background,
       fill: "color",
       color: theme.chrome.panelBackground,
       color2: theme.chrome.panelBackground,
-      opacity: 0.12,
-      blur: 8,
+      opacity: 0.055,
+      blur: 7,
     };
     config.card.border = { width: 1, color: "#ffffff", style: "solid" };
     config.card.shadow = {
       ...config.card.shadow,
       enabled: true,
       x: 0,
-      y: 10,
-      blur: 28,
+      y: 9,
+      blur: 24,
       spread: -16,
       color: "#000000",
-      opacity: 0.22,
+      opacity: 0.16,
     };
     config.card.glow = { ...config.card.glow, enabled: false };
-    config.layout.rowGap = Math.max(8, Math.min(12, config.layout.rowGap));
+    config.layout.rowGap = 9;
   } else if (style === "editorial") {
     config.card.radius = 0;
     config.card.background = {
@@ -292,25 +306,43 @@ function matchClassicToEditionStyle(
     ...config.card.stateOverrides,
     leader: {
       ...(config.card.stateOverrides.leader ?? {}),
-      background: {
-        fill: "gradient",
-        color: theme.colors.primary,
-        color2: theme.colors.secondary,
-        angle: 110,
-        opacity: style === "glass" ? 0.20 : 0.34,
-        blur: style === "glass" ? 8 : 0,
-      },
+      background: style === "glass"
+        ? {
+            fill: "color",
+            color: theme.colors.primary,
+            color2: theme.colors.primary,
+            angle: 0,
+            opacity: 0.11,
+            blur: 7,
+          }
+        : {
+            fill: "gradient",
+            color: theme.colors.primary,
+            color2: theme.colors.secondary,
+            angle: 110,
+            opacity: 0.34,
+            blur: 0,
+          },
     },
     winner: {
       ...(config.card.stateOverrides.winner ?? {}),
-      background: {
-        fill: "gradient",
-        color: theme.colors.primary,
-        color2: theme.colors.secondary,
-        angle: 110,
-        opacity: style === "glass" ? 0.24 : 0.40,
-        blur: style === "glass" ? 8 : 0,
-      },
+      background: style === "glass"
+        ? {
+            fill: "gradient",
+            color: theme.colors.primary,
+            color2: theme.colors.secondary,
+            angle: 110,
+            opacity: 0.14,
+            blur: 7,
+          }
+        : {
+            fill: "gradient",
+            color: theme.colors.primary,
+            color2: theme.colors.secondary,
+            angle: 110,
+            opacity: 0.40,
+            blur: 0,
+          },
     },
   };
 
@@ -336,7 +368,7 @@ function prepareCardForPublicSurface(
   theme: ThemeConfig,
   compact: boolean | undefined,
   editionStyle: EditionPublicStyle | null,
-  isClassic: boolean,
+  inheritsEditionStyle: boolean,
 ): CardTemplateConfig {
   const zones = card.zones.map((zone) => {
     if (zone.type === "jury-score" || zone.type === "televote-score") {
@@ -348,7 +380,7 @@ function prepareCardForPublicSurface(
     return zone;
   });
 
-  const preserveTransparency = isClassic && editionStyle === "glass";
+  const preserveTransparency = inheritsEditionStyle && editionStyle === "glass";
   const stateOverrides = Object.fromEntries(
     Object.entries(card.stateOverrides ?? {}).map(([state, override]) => [
       state,
