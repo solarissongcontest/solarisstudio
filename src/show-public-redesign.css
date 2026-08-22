@@ -1,0 +1,216 @@
+/* Show detail pages ---------------------------------------------------------
+   Show pages are dense result/workspace pages, not promo cards. Keep the
+   edition palette and artwork, but give the information a stable editorial
+   frame with real desktop gutters and restrained corner radii. */
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main {
+  --show-detail-gutter: clamp(1.75rem, 3vw, 3rem);
+  --show-detail-radius: 0.45rem;
+}
+
+/* Hero: integrated with the page instead of being one giant rounded card. */
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header {
+  box-sizing: border-box !important;
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+  min-height: clamp(17rem, 24vw, 21rem) !important;
+  margin: 0 0 1.75rem !important;
+  padding: clamp(2.35rem, 4vw, 3.6rem) var(--show-detail-gutter) clamp(2.2rem, 3.5vw, 3.1rem) !important;
+  border: 0 !important;
+  border-top: 1px solid rgb(var(--solaris-accent) / .20) !important;
+  border-bottom: 1px solid rgb(var(--solaris-accent) / .24) !important;
+  border-radius: 0 !important;
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  background:
+    linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .91) 0%, rgb(var(--solaris-bg-deep-2) / .74) 46%, rgb(var(--solaris-card-surface) / .24) 100%) !important;
+  box-shadow: none !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header > div {
+  position: relative !important;
+  z-index: 2 !important;
+  width: 100% !important;
+  min-height: 100% !important;
+  gap: clamp(1.5rem, 3vw, 3rem) !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header > div > div:first-child {
+  max-width: min(46rem, 68%) !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header h1 {
+  max-width: 12ch !important;
+  margin: 0 !important;
+  font-size: clamp(3.2rem, 6vw, 5.65rem) !important;
+  line-height: .9 !important;
+  text-wrap: balance !important;
+  text-shadow: 0 2px 22px rgb(0 0 0 / .34);
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header p:first-child {
+  margin-bottom: .85rem !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header h1 + p {
+  max-width: 42rem !important;
+  margin-top: 1.15rem !important;
+  font-size: .95rem !important;
+  line-height: 1.55 !important;
+  color: rgb(var(--foreground) / .68) !important;
+}
+
+/* The winner flag belongs on the visual side of the hero, not underneath the
+   title. This also removes the impression that the content is glued to the
+   rounded edge. */
+html body[data-solaris-family="shows"][data-entity-theme="edition"][data-show-winner-flag="true"] main.app-main > .page-header::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  z-index: 0 !important;
+  left: auto !important;
+  right: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: min(47%, 38rem) !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--show-winner-flag-image) center / cover no-repeat !important;
+  opacity: .56 !important;
+  filter: saturate(.92) contrast(.96) !important;
+  box-shadow: none !important;
+  transform: none !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / .28) 20%, #000 62%, #000 100%) !important;
+  mask-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / .28) 20%, #000 62%, #000 100%) !important;
+  pointer-events: none !important;
+}
+
+/* Stats are a data band, not another floating card. */
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header + .data-panel {
+  margin: 0 0 1.85rem !important;
+  padding: 1.35rem var(--show-detail-gutter) 1.45rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgb(var(--solaris-accent) / .18) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header + .data-panel .grid {
+  gap: 0 !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header + .data-panel .stat-line {
+  min-height: 4.25rem !important;
+  padding: .45rem clamp(1rem, 2vw, 1.6rem) .55rem !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header + .data-panel .stat-line:first-child {
+  padding-left: 0 !important;
+}
+
+/* Ordinary result sections keep structure but stop looking like nested rounded
+   trading cards. More internal padding fixes the laptop/desktop edge issue. */
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main :is(.data-panel, .glass):not(.page-header + .data-panel) {
+  border-radius: var(--show-detail-radius) !important;
+  padding: clamp(1.35rem, 2.15vw, 1.9rem) clamp(1.4rem, 2.4vw, 2.1rem) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .035) !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main :is(.data-panel, .glass) > div {
+  min-width: 0;
+}
+
+/* Keep the view selector and its explanation aligned with the new content
+   gutter instead of floating against the outer boundary. */
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .mb-5.space-y-3 {
+  padding-inline: clamp(.4rem, 1.1vw, .9rem) !important;
+}
+
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main [role="tab"],
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main a.rounded-xl,
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main button.rounded-xl {
+  border-radius: .5rem !important;
+}
+
+/* Scoreboards need air around their outermost rows on desktop, while keeping
+   enough width for two-column result layouts. */
+html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > [data-scoreboard-edition-style] {
+  padding-inline: clamp(.35rem, 1vw, .85rem) !important;
+}
+
+@media (max-width: 900px) {
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main {
+    --show-detail-gutter: clamp(1.25rem, 4vw, 2rem);
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header {
+    min-height: 15.5rem !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header > div > div:first-child {
+    max-width: 76% !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"][data-show-winner-flag="true"] main.app-main > .page-header::after {
+    width: 55% !important;
+    opacity: .42 !important;
+  }
+}
+
+@media (max-width: 639px) {
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main {
+    --show-detail-gutter: 1rem;
+    --show-detail-radius: .6rem;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header {
+    min-height: 0 !important;
+    margin-bottom: 1.15rem !important;
+    padding: 1.65rem var(--show-detail-gutter) 1.55rem !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header > div > div:first-child {
+    max-width: 100% !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header h1 {
+    max-width: 10ch !important;
+    font-size: clamp(2.55rem, 12vw, 3.7rem) !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"][data-show-winner-flag="true"] main.app-main > .page-header::after {
+    width: 72% !important;
+    opacity: .22 !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header + .data-panel {
+    padding: 1rem var(--show-detail-gutter) 1.1rem !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header + .data-panel .stat-line {
+    min-height: 3.9rem !important;
+    padding: .5rem .8rem !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > .page-header + .data-panel .stat-line:nth-child(odd) {
+    border-left: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main :is(.data-panel, .glass):not(.page-header + .data-panel) {
+    padding: 1.15rem 1rem !important;
+  }
+
+  html body[data-solaris-family="shows"][data-entity-theme="edition"] main.app-main > [data-scoreboard-edition-style] {
+    padding-inline: 0 !important;
+  }
+}
