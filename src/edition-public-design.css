@@ -141,6 +141,27 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass {
   border-color: rgb(255 255 255 / .13);
 }
 
+/* Optional multi-colour edition gradients. The first saved colour remains the compatibility
+   fallback for charts/scoreboards, while public UI can use the richer two/three-colour fill. */
+body[data-entity-theme="edition"][data-edition-surface-gradient="true"] .data-panel,
+body[data-entity-theme="edition"][data-edition-surface-gradient="true"] .glass {
+  background: var(--edition-surface-gradient) !important;
+}
+
+body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main > .page-header p:first-child,
+body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main .text-primary {
+  background: var(--edition-accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main .bg-primary,
+body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main button.bg-primary,
+body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main a.bg-primary {
+  background: var(--edition-accent-gradient) !important;
+}
+
 @media (max-width: 639px) {
   body[data-entity-theme="edition"] .app-main > .page-header {
     border-radius: min(var(--edition-public-radius, 24px), 28px);
