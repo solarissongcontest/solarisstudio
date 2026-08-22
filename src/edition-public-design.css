@@ -47,8 +47,6 @@ body[data-entity-theme="edition"] .app-main > .page-header::after {
   z-index: 0;
 }
 
-/* Result pages show the actual winning flag. Keep the flag crisp over most of the panel,
-   then dissolve only its far edge into the card so it still reads as a flag rather than a colour wash. */
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
   left: 0;
   right: auto;
@@ -84,25 +82,14 @@ body[data-entity-theme="edition"] .glass {
   box-shadow: 0 18px 48px rgb(0 0 0 / .14);
 }
 
-body[data-entity-theme="edition"] .stat-line {
-  border-color: rgb(var(--solaris-accent) / .16);
-}
-
+body[data-entity-theme="edition"] .stat-line { border-color: rgb(var(--solaris-accent) / .16); }
 body[data-entity-theme="edition"] .stat-line p:first-child,
-body[data-entity-theme="edition"] .app-main [class*="uppercase"] {
-  text-decoration: none;
-}
-
+body[data-entity-theme="edition"] .app-main [class*="uppercase"] { text-decoration: none; }
 body[data-entity-theme="edition"] .app-main select,
 body[data-entity-theme="edition"] .app-main button,
-body[data-entity-theme="edition"] .app-main a.rounded-xl {
-  border-color: rgb(var(--solaris-accent) / .2);
-}
-
+body[data-entity-theme="edition"] .app-main a.rounded-xl { border-color: rgb(var(--solaris-accent) / .2); }
 body[data-entity-theme="edition"] .page-header,
-body[data-entity-theme="edition"] .page-header + * {
-  --tw-border-opacity: 1;
-}
+body[data-entity-theme="edition"] .page-header + * { --tw-border-opacity: 1; }
 body[data-entity-theme="edition"] .page-header::before { display: none !important; }
 
 body[data-entity-theme="edition"][data-edition-public-style="editorial"] .app-main > .page-header {
@@ -132,17 +119,7 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .glass {
   box-shadow: none;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main > .page-header,
-body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel,
-body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass {
-  background: linear-gradient(145deg, rgb(var(--solaris-card-raised) / .56), rgb(var(--solaris-card-surface) / .38));
-  backdrop-filter: blur(22px) saturate(1.1);
-  -webkit-backdrop-filter: blur(22px) saturate(1.1);
-  border-color: rgb(255 255 255 / .13);
-}
-
-/* Optional multi-colour edition gradients. The first saved colour remains the compatibility
-   fallback for charts/scoreboards, while public UI can use the richer two/three-colour fill. */
+/* Optional multi-colour edition gradients. */
 body[data-entity-theme="edition"][data-edition-surface-gradient="true"] .data-panel,
 body[data-entity-theme="edition"][data-edition-surface-gradient="true"] .glass {
   background: var(--edition-surface-gradient) !important;
@@ -155,15 +132,13 @@ body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main
   background-clip: text;
   color: transparent !important;
 }
-
 body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main .bg-primary,
 body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main button.bg-primary,
 body[data-entity-theme="edition"][data-edition-accent-gradient="true"] .app-main a.bg-primary {
   background: var(--edition-accent-gradient) !important;
 }
 
-/* The edition route uses its own hero section rather than the shared .page-header.
-   These rules make the four saved style choices visibly affect that real public page too. */
+/* The edition route uses its own hero section rather than the shared .page-header. */
 body[data-entity-theme="edition"] .app-main .space-y-5 > section.relative.overflow-hidden,
 body[data-entity-theme="edition"] .app-main .space-y-7 > section.relative.overflow-hidden {
   border-radius: var(--edition-public-radius, 24px) !important;
@@ -211,9 +186,7 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main
   box-shadow: none !important;
 }
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden > div:first-child,
-body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden > div:first-child {
-  opacity: .18;
-}
+body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden > div:first-child { opacity: .18; }
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-5 > section.relative.overflow-hidden > .relative.z-20,
 body[data-entity-theme="edition"][data-edition-public-style="minimal"] .app-main .space-y-7 > section.relative.overflow-hidden > .relative.z-20 {
   gap: 1rem !important;
@@ -225,34 +198,81 @@ body[data-entity-theme="edition"][data-edition-public-style="minimal"] .data-pan
   background: rgb(var(--solaris-card-surface) / .42) !important;
 }
 
-body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-5 > section.relative.overflow-hidden,
-body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-7 > section.relative.overflow-hidden {
-  border-color: rgb(255 255 255 / .18) !important;
-  background: linear-gradient(145deg, rgb(255 255 255 / .075), rgb(var(--solaris-card-surface) / .28)) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .09), 0 24px 70px rgb(0 0 0 / .22) !important;
-  backdrop-filter: blur(26px) saturate(1.16);
-  -webkit-backdrop-filter: blur(26px) saturate(1.16);
-}
+/* Liquid glass. The previous version used an opaque surface gradient, which cancelled the
+   backdrop effect and produced grey slabs. This follows the layered glass recipe: a very
+   light translucent tint, backdrop frost, bright refractive rim and specular sheen. */
 body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
-body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .07), 0 12px 35px rgb(0 0 0 / .16) !important;
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel,
+body[data-entity-theme="edition"][data-edition-public-style="glass"][data-edition-surface-gradient="true"] .glass,
+body[data-entity-theme="edition"][data-edition-public-style="glass"][data-edition-surface-gradient="true"] .data-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / .105) 0%, rgb(255 255 255 / .035) 42%, rgb(var(--solaris-card-surface) / .10) 100%) !important;
+  border: 1px solid rgb(255 255 255 / .20) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(180%) brightness(1.08) contrast(1.03);
+  backdrop-filter: blur(10px) saturate(180%) brightness(1.08) contrast(1.03);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .38),
+    inset 1px 0 0 rgb(255 255 255 / .12),
+    inset 0 -1px 0 rgb(255 255 255 / .055),
+    0 12px 34px rgb(0 0 0 / .20),
+    0 2px 8px rgb(var(--solaris-accent) / .055) !important;
 }
 
-/* Compact edition archives: entries and delegation lists stay useful without turning
-   a single edition into a kilometre of cards. */
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass::before,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 80% at 14% -10%, rgb(255 255 255 / .24), transparent 36%),
+    radial-gradient(90% 70% at 96% 108%, rgb(var(--solaris-accent) / .09), transparent 48%),
+    linear-gradient(115deg, transparent 28%, rgb(255 255 255 / .035) 48%, transparent 66%);
+  mix-blend-mode: screen;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass > *,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-5 > section.relative.overflow-hidden,
+body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .space-y-7 > section.relative.overflow-hidden {
+  border: 1px solid rgb(255 255 255 / .22) !important;
+  background:
+    radial-gradient(100% 85% at 10% 0%, rgb(255 255 255 / .12), transparent 38%),
+    linear-gradient(145deg, rgb(255 255 255 / .075), rgb(var(--solaris-card-surface) / .09)) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .34),
+    inset 1px 0 0 rgb(255 255 255 / .09),
+    0 24px 70px rgb(0 0 0 / .22) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(185%) brightness(1.08);
+  backdrop-filter: blur(12px) saturate(185%) brightness(1.08);
+}
+
+/* Chromium can additionally bend the live backdrop with the existing SVG displacement filter.
+   Safari/Firefox ignore this path and keep the polished frosted fallback above. */
+@supports (backdrop-filter: url(#solaris-liquid-glass)) {
+  body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
+  body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel {
+    backdrop-filter: blur(3px) saturate(180%) brightness(1.08) contrast(1.03) url(#solaris-liquid-glass);
+  }
+}
+
+/* Compact edition archives. */
 body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
   gap: .5rem !important;
 }
-body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass {
-  padding: .65rem !important;
-}
-body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass > div {
-  gap: .6rem !important;
-}
-body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass [class*="mt-3"] {
-  margin-top: .5rem !important;
-}
+body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass { padding: .65rem !important; }
+body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass > div { gap: .6rem !important; }
+body[data-entity-theme="edition"] .app-main section > .grid.gap-2.md\:grid-cols-2.xl\:grid-cols-3 .glass [class*="mt-3"] { margin-top: .5rem !important; }
 
 body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
@@ -263,9 +283,7 @@ body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-
   gap: .55rem !important;
   padding: .55rem .65rem !important;
 }
-body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass p:first-child {
-  font-size: .78rem;
-}
+body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass p:first-child { font-size: .78rem; }
 body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass p:last-child {
   margin-top: .1rem !important;
   font-size: .56rem;
@@ -291,7 +309,11 @@ body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-
   body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass {
-    padding: .5rem !important;
+  body[data-entity-theme="edition"] .app-main section > .mt-3.grid.gap-2.sm\:grid-cols-2.lg\:grid-cols-3 .glass { padding: .5rem !important; }
+
+  body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
+  body[data-entity-theme="edition"][data-edition-public-style="glass"] .data-panel {
+    -webkit-backdrop-filter: blur(8px) saturate(175%) brightness(1.07);
+    backdrop-filter: blur(8px) saturate(175%) brightness(1.07);
   }
 }
