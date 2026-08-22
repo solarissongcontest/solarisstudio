@@ -10,6 +10,7 @@ export type PublicNationalFinalEntry = {
   song_title: string | null;
   song_url: string | null;
   position: number | null;
+  result_position: number | null;
   winner: boolean;
   next_in_line: boolean;
 };
@@ -25,6 +26,9 @@ export type PublicNationalFinal = {
   edition_slug: string | null;
   nf_date: string | null;
   result_date: string | null;
+  lineup_published: boolean;
+  results_published: boolean;
+  source?: string;
   entries: PublicNationalFinalEntry[];
 };
 
@@ -39,6 +43,6 @@ export function useCountryNationalFinals(countryId?: string) {
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as PublicNationalFinal[];
     },
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
 }
