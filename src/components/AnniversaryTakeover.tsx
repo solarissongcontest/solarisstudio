@@ -1,22 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import type { CSSProperties } from "react";
 
 import "@/anniversary-redesign.css";
 import type { AnniversaryRecap, SolarisAnniversary } from "@/lib/anniversary";
-
-const STAR_COLORS = ["#79e7ff", "#b9a4ff", "#ff8fc7", "#ffe36e", "#7cf6d4", "#ffffff"];
-
-const ANNIVERSARY_STARS = Array.from({ length: 34 }, (_, index) => ({
-  left: `${(index * 29 + 7) % 100}%`,
-  top: `${(index * 43 + 5) % 94}%`,
-  size: `${18 + ((index * 17) % 34)}px`,
-  color: STAR_COLORS[index % STAR_COLORS.length],
-  opacity: 0.16 + ((index * 11) % 36) / 100,
-  rotate: `${(index * 47) % 360}deg`,
-  duration: `${6.5 + ((index * 13) % 42) / 10}s`,
-  delay: `${-((index * 0.31) % 7.5)}s`,
-  drift: `${-18 + ((index * 19) % 36)}px`,
-}));
 
 export function AnniversaryTakeover({
   anniversary,
@@ -28,29 +13,7 @@ export function AnniversaryTakeover({
   if (!anniversary.active) return null;
 
   return (
-    <section className="solaris-anniversary-v2 -mx-3 -mt-5 min-w-0 px-4 sm:-mx-5 sm:-mt-7 sm:px-6 lg:-mx-6 lg:-mt-8 lg:px-8">
-      <div className="anniversary-v2-stars" aria-hidden="true">
-        {ANNIVERSARY_STARS.map((star, index) => (
-          <span
-            key={index}
-            className="anniversary-v2-star"
-            style={
-              {
-                left: star.left,
-                top: star.top,
-                "--star-size": star.size,
-                "--star-color": star.color,
-                "--star-opacity": star.opacity,
-                "--star-rotate": star.rotate,
-                "--star-duration": star.duration,
-                "--star-delay": star.delay,
-                "--star-drift": star.drift,
-              } as CSSProperties
-            }
-          />
-        ))}
-      </div>
-
+    <section className="solaris-anniversary-v2">
       <div className="relative z-10 mx-auto max-w-[1240px]">
         <div className="anniversary-v2-hero">
           <div className="min-w-0">
@@ -63,7 +26,7 @@ export function AnniversaryTakeover({
             <p className="mt-7 text-[10px] font-black uppercase tracking-[0.32em] text-white/50 sm:text-xs">
               Solaris Song Contest birthday
             </p>
-            <h2 className="anniversary-v2-title">
+            <h2 className="anniversary-v2-title font-display">
               <span className="accent">{anniversary.age} YEARS</span>
               <br />
               OF SOLARIS
@@ -110,7 +73,7 @@ export function AnniversaryTakeover({
         <div className="anniversary-v2-section-head">
           <div>
             <p className="anniversary-v2-eyebrow">The birthday edition</p>
-            <h3 className="anniversary-v2-section-title">One year of Solaris, in headlines</h3>
+            <h3 className="anniversary-v2-section-title font-display">One year of Solaris, in headlines</h3>
           </div>
           <p className="anniversary-v2-section-copy">
             From the previous birthday to today, these are the numbers and moments that shaped another year of the contest.
@@ -124,7 +87,7 @@ export function AnniversaryTakeover({
                 <p className="anniversary-v2-story-kicker">{story.kicker}</p>
                 {story.value && <span className="anniversary-v2-story-value">{story.value}</span>}
               </div>
-              <h4 className="anniversary-v2-story-title">{story.headline}</h4>
+              <h4 className="anniversary-v2-story-title font-display">{story.headline}</h4>
               <p className="anniversary-v2-story-copy">{story.detail}</p>
             </article>
           ))}
@@ -135,7 +98,7 @@ export function AnniversaryTakeover({
         <div className="anniversary-v2-section-head">
           <div>
             <p className="anniversary-v2-eyebrow">Keep exploring</p>
-            <h3 className="anniversary-v2-section-title">The archive is the celebration</h3>
+            <h3 className="anniversary-v2-section-title font-display">The archive is the celebration</h3>
           </div>
           <p className="anniversary-v2-section-copy">
             Anniversary Day brings Solaris history, records and interactive archive features together in one place.
@@ -160,7 +123,7 @@ export function AnniversaryTakeover({
           <BirthdayFeature
             eyebrow="The numbers survived"
             title="Records made to be broken"
-            text="Revisit the wins, point totals, streaks and all-time marks that defined Solaris before another year begins."
+            text="Revisit the wins, point totals, streaks and all-time marks that defined Solaris before another year begins trying to destroy them."
             to="/records"
             cta="See the records"
           />
@@ -179,7 +142,7 @@ function BirthdayStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="anniversary-v2-stat">
       <p className="anniversary-v2-stat-label">{label}</p>
-      <p className="anniversary-v2-stat-value">{value}</p>
+      <p className="anniversary-v2-stat-value font-display">{value}</p>
     </div>
   );
 }
@@ -200,7 +163,7 @@ function BirthdayFeature({
   return (
     <Link to={to} className="anniversary-v2-feature group">
       <p className="anniversary-v2-eyebrow">{eyebrow}</p>
-      <h4 className="anniversary-v2-feature-title">{title}</h4>
+      <h4 className="anniversary-v2-feature-title font-display">{title}</h4>
       <p className="anniversary-v2-feature-copy">{text}</p>
       <p className="anniversary-v2-feature-cta">{cta} →</p>
     </Link>
