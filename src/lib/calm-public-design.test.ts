@@ -28,13 +28,14 @@ describe("calm public design contract", () => {
     }
   });
 
-  it("renders Glass Card as one surface on public pages and preview", () => {
+  it("renders Glass Card as one full-width surface on public pages and preview", () => {
     const css = source("src/country-glass-parity.css");
     expect(css).toContain('[data-country-hero-layout="glass-card"]');
     expect(css).toContain('[data-preview-layout="glass-card"]');
     expect(css).toContain("content: none !important");
     expect(css).toContain("display: none !important");
-    expect(css).toContain("width: min(100%, 41rem) !important");
+    expect(css).toContain("width: 100% !important");
+    expect(css).toContain("max-width: none !important");
     expect(css).toContain(".country-glass-panel-flag");
   });
 
