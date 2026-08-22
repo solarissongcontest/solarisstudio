@@ -29,9 +29,10 @@ import {
   useAllTelevotes,
   useCountries,
   useEditions,
-} from "@/lib/data";
+} from "@/lib/data-live";
 import { canonicalEntryFor } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
+import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import { computeRelationship } from "@/lib/stats";
 
 export const Route = createFileRoute("/countries/$code")({
@@ -67,17 +68,20 @@ function CountryProfilePage() {
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
   );
 
-  const opts = useMemo(
-    () => ({
-      editions: editions ?? [],
-      shows: shows ?? [],
-      participants: participants ?? [],
-      results: results ?? [],
-      jury: jury ?? [],
-      televote: televote ?? [],
-    }),
+  const publicArchive = useMemo(
+    () =>
+      buildPublicCountryArchive({
+        editions: editions ?? [],
+        shows: shows ?? [],
+        participants: participants ?? [],
+        results: results ?? [],
+        jury: jury ?? [],
+        televote: televote ?? [],
+      }),
     [editions, shows, participants, results, jury, televote],
   );
+
+  const opts = publicArchive;
 
   const stats = useMemo(
     () => (country ? computeCanonicalCountryStats(country.id, opts) : null),
@@ -102,19 +106,19 @@ function CountryProfilePage() {
   }
 
   const countryMap = new Map((countries ?? []).map((item) => [item.id, item]));
-  const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
-  const showMap = new Map((shows ?? []).map((show) => [show.id, show]));
+  const editionMap = new Map(publicArchive.editions.map((edition) => [edition.id, edition]));
+  const showMap = new Map(publicArchive.shows.map((show) => [show.id, show]));
   const semiEditionIds = new Set(
-    (shows ?? [])
+    publicArchive.shows
       .filter((show) => show.kind === "semi-final" || show.kind === "semi")
       .map((show) => show.edition_id),
   );
   const hasContestData = Boolean(stats && stats.participations > 0);
 
-  const myParticipants = (participants ?? []).filter(
+  const myParticipants = publicArchive.participants.filter(
     (participant) => participant.country_id === country.id,
   );
-  const myResults = (results ?? [])
+  const myResults = publicArchive.results
     .filter((result) => result.country_id === country.id)
     .sort(
       (a, b) =>
@@ -151,7 +155,7 @@ function CountryProfilePage() {
 
   const qualificationFor = (participant: Participant | undefined): QualificationStatus => {
     if (!participant) return null;
-    if (participant.qualified === true || finalPresence.has(participant.edition_id)) return true;
+    if (participant.qualified === true) return true;
     if (participant.qualified === false) return false;
     return null;
   };
@@ -176,12 +180,14 @@ function CountryProfilePage() {
   );
 
   const qualificationRows = [
-    ...[...semiParticipantByEdition.values()].map((participant) => ({
-      editionId: participant.edition_id,
-      edition: editionMap.get(participant.edition_id),
-      entry: canonicalEntryFor(myParticipants, participant.edition_id, country.id) ?? participant,
-      status: qualificationFor(participant),
-    })),
+    ...[...semiParticipantByEdition.values()]
+      .map((participant) => ({
+        editionId: participant.edition_id,
+        edition: editionMap.get(participant.edition_id),
+        entry: canonicalEntryFor(myParticipants, participant.edition_id, country.id) ?? participant,
+        status: qualificationFor(participant),
+      }))
+      .filter((row) => row.status != null),
     ...[...autoQualifiedEditionIds].map((editionId) => ({
       editionId,
       edition: editionMap.get(editionId),
@@ -204,18 +210,16 @@ function CountryProfilePage() {
           participant,
           qualification: autoQualifiedEditionIds.has(point.editionId)
             ? ("aq" as const)
-            : finalPresence.has(point.editionId)
-              ? true
-              : qualificationFor(semiParticipant),
+            : qualificationFor(semiParticipant),
         };
       }) ?? [];
 
-  const hostedEditions = (editions ?? [])
+  const hostedEditions = publicArchive.editions
     .filter((edition) => edition.host_country_id === country.id)
     .sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1));
 
-  const given = (jury ?? []).filter((vote) => vote.voter_country_id === country.id);
-  const received = (jury ?? []).filter((vote) => vote.receiving_country_id === country.id);
+  const given = publicArchive.jury.filter((vote) => vote.voter_country_id === country.id);
+  const received = publicArchive.jury.filter((vote) => vote.receiving_country_id === country.id);
 
   const aggregate = (
     rows: typeof given,
@@ -242,7 +246,7 @@ function CountryProfilePage() {
 
   const myEditionIds = new Set(myResults.map((result) => result.edition_id));
   const sharedIds = new Set<string>();
-  for (const result of results ?? []) {
+  for (const result of publicArchive.results) {
     if (result.country_id !== country.id && myEditionIds.has(result.edition_id)) {
       sharedIds.add(result.country_id);
     }
@@ -255,10 +259,10 @@ function CountryProfilePage() {
       return {
         other,
         relationship: computeRelationship(country.id, id, {
-          editions: editions ?? [],
-          jury: jury ?? [],
-          results: results ?? [],
-          shows: shows ?? [],
+          editions: publicArchive.editions,
+          jury: publicArchive.jury,
+          results: publicArchive.results,
+          shows: publicArchive.shows,
         }),
         headToHead: computeCanonicalHeadToHead(country.id, id, opts),
       };
@@ -488,7 +492,7 @@ function CountryProfilePage() {
               </Panel>
               <Panel
                 title="Qualification history"
-                description="Semi-finalists are marked Qualified or Eliminated from archived results. A country that appears in the Grand Final of an edition with semi-finals but never appears in a semi-final is marked AQ (Autoqualifier)."
+                description="Semi-finalists are marked Qualified or Eliminated from published qualification results. A country that appears in the Grand Final of an edition with semi-finals but never appears in a semi-final is marked AQ (Autoqualifier)."
               >
                 {qualificationRows.length ? (
                   <div className="divide-y divide-border/60">
@@ -511,7 +515,7 @@ function CountryProfilePage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No qualification history recorded.</p>
+                  <p className="text-sm text-muted-foreground">No published qualification history recorded.</p>
                 )}
               </Panel>
             </div>
@@ -542,7 +546,7 @@ function CountryProfilePage() {
         hasContestData ? (
           <Panel
             title="Closest relationships"
-            description="Countries with the strongest repeated two-way support in the available archive."
+            description="Countries with the strongest repeated two-way support in the published archive."
           >
             {relationshipRows.length ? (
               <div className="grid gap-2 sm:grid-cols-2">
