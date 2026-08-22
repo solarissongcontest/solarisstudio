@@ -68,7 +68,7 @@ function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): Edition
     const number = Number(input);
     return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
   };
-  const squareLocked = style === "editorial" || style === "minimal";
+  const squareLocked = style === "editorial";
   return {
     style,
     radius: squareLocked ? 0 : clamp(value.publicRadius, 0, 40, 24),
