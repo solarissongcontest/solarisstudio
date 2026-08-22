@@ -12,6 +12,7 @@ import "@/country-button-theme.css";
 import "@/edition-public-design.css";
 import "@/edition-public-hotfix.css";
 import "@/edition-public-styles-v2.css";
+import "@/edition-public-styles-v3.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
 import { CountryButtonThemeController } from "@/components/CountryButtonThemeController";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
@@ -64,20 +65,13 @@ function gradientFromRaw(input: unknown, first: string, second: string) {
   if (!input || typeof input !== "object") return null;
   const value = input as Record<string, unknown>;
   if (value.enabled === false) return null;
-  const rawColors = Array.isArray(value.colors)
-    ? value.colors.filter((color): color is string => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color))
-    : [];
-  if (rawColors.length < 2) return null;
 
-  /* The public-style gradients belong to the edition palette. Older saved public gradients could
-     otherwise keep stale colours after the organizer changes the Interface palette. Always anchor
-     the first two stops to the current palette; an optional third custom stop is still preserved. */
-  const colors = [first, second];
-  if (rawColors[2]) colors.push(rawColors[2]);
-
+  /* Public-layout gradients never own colours. They only decide whether a gradient is used and
+     its direction. The actual colours always come from the edition Interface palette. This stops
+     old saved pink/blue/custom stops from surviving after the organizer changes the palette. */
   const number = Number(value.angle);
   const angle = Number.isFinite(number) ? Math.max(0, Math.min(360, number)) : 135;
-  return `linear-gradient(${angle}deg, ${colors.join(", ")})`;
+  return `linear-gradient(${angle}deg, ${first}, ${second})`;
 }
 
 function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): EditionPublicSettings {
@@ -96,7 +90,7 @@ function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): Edition
     surfaceStrength: clamp(value.publicSurfaceStrength, 45, 100, 82),
     heroGlow: clamp(value.publicHeroGlow, 0, 100, 72),
     accentGradient: gradientFromRaw(value.publicAccentGradient, theme.accent, theme.backgroundSecondary),
-    surfaceGradient: gradientFromRaw(value.publicSurfaceGradient, theme.surface, theme.backgroundSecondary),
+    surfaceGradient: gradientFromRaw(value.publicSurfaceGradient, theme.backgroundPrimary, theme.backgroundSecondary),
   };
 }
 
