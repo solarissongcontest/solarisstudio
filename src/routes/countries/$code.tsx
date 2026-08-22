@@ -50,7 +50,7 @@ const TABS = [
 ] as const;
 
 type Tab = (typeof TABS)[number]["value"];
-type QualificationStatus = true | false | null;
+type QualificationStatus = "aq" | true | false | null;
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
@@ -104,6 +104,11 @@ function CountryProfilePage() {
   const countryMap = new Map((countries ?? []).map((item) => [item.id, item]));
   const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
   const showMap = new Map((shows ?? []).map((show) => [show.id, show]));
+  const semiEditionIds = new Set(
+    (shows ?? [])
+      .filter((show) => show.kind === "semi-final" || show.kind === "semi")
+      .map((show) => show.edition_id),
+  );
   const hasContestData = Boolean(stats && stats.participations > 0);
 
   const myParticipants = (participants ?? []).filter(
@@ -164,14 +169,26 @@ function CountryProfilePage() {
     }
   }
 
-  const semiRows = [...semiParticipantByEdition.values()]
-    .map((participant) => ({
-      participant,
+  const autoQualifiedEditionIds = new Set(
+    [...finalPresence].filter(
+      (editionId) => semiEditionIds.has(editionId) && !semiParticipantByEdition.has(editionId),
+    ),
+  );
+
+  const qualificationRows = [
+    ...[...semiParticipantByEdition.values()].map((participant) => ({
+      editionId: participant.edition_id,
       edition: editionMap.get(participant.edition_id),
       entry: canonicalEntryFor(myParticipants, participant.edition_id, country.id) ?? participant,
       status: qualificationFor(participant),
-    }))
-    .sort((a, b) => (b.edition?.edition_number ?? -1) - (a.edition?.edition_number ?? -1));
+    })),
+    ...[...autoQualifiedEditionIds].map((editionId) => ({
+      editionId,
+      edition: editionMap.get(editionId),
+      entry: canonicalEntryFor(myParticipants, editionId, country.id) ?? undefined,
+      status: "aq" as const,
+    })),
+  ].sort((a, b) => (b.edition?.edition_number ?? -1) - (a.edition?.edition_number ?? -1));
 
   const recentHistory =
     stats?.timeline
@@ -185,9 +202,11 @@ function CountryProfilePage() {
           point,
           edition: editionMap.get(point.editionId),
           participant,
-          qualification: finalPresence.has(point.editionId)
-            ? true
-            : qualificationFor(semiParticipant),
+          qualification: autoQualifiedEditionIds.has(point.editionId)
+            ? ("aq" as const)
+            : finalPresence.has(point.editionId)
+              ? true
+              : qualificationFor(semiParticipant),
         };
       }) ?? [];
 
@@ -398,11 +417,13 @@ function CountryProfilePage() {
                               {point.rank != null ? `#${point.rank}` : "—"}
                             </p>
                             <p className="mt-1 text-[10px] text-muted-foreground">
-                              {qualification === false
-                                ? "Did not qualify"
-                                : qualification === true
-                                  ? "Reached final"
-                                  : "Qualification is not available"}
+                              {qualification === "aq"
+                                ? "AQ · Autoqualifier"
+                                : qualification === false
+                                  ? "Did not qualify"
+                                  : qualification === true
+                                    ? "Reached final"
+                                    : "Qualification is not available"}
                             </p>
                           </div>
                         </div>
@@ -467,20 +488,20 @@ function CountryProfilePage() {
               </Panel>
               <Panel
                 title="Qualification history"
-                description="A country is labelled as eliminated only when the saved results confirm it. If older qualification details are missing, Solaris says so instead of guessing."
+                description="Semi-finalists are marked Qualified or Eliminated from archived results. A country that appears in the Grand Final of an edition with semi-finals but never appears in a semi-final is marked AQ (Autoqualifier)."
               >
-                {semiRows.length ? (
+                {qualificationRows.length ? (
                   <div className="divide-y divide-border/60">
-                    {semiRows.map(({ participant, entry, edition, status }) => (
-                      <div key={participant.edition_id} className="py-3 first:pt-0 last:pb-0">
+                    {qualificationRows.map(({ editionId, entry, edition, status }) => (
+                      <div key={editionId} className="py-3 first:pt-0 last:pb-0">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">
                               {edition ? editionLabel(edition) : "Edition"}
                             </p>
                             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                              {[entry.artist, entry.song].filter(Boolean).join(" · ") ||
-                                "Semi-final entry details not archived"}
+                              {[entry?.artist, entry?.song].filter(Boolean).join(" · ") ||
+                                (status === "aq" ? "Direct Grand Final entry" : "Semi-final entry details not archived")}
                             </p>
                             <EntryListenLinks entry={entry} compact className="mt-2" />
                           </div>
@@ -490,7 +511,7 @@ function CountryProfilePage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No semi-final history recorded.</p>
+                  <p className="text-sm text-muted-foreground">No qualification history recorded.</p>
                 )}
               </Panel>
             </div>
@@ -640,6 +661,13 @@ function CountryProfilePage() {
 }
 
 function QualificationBadge({ status }: { status: QualificationStatus }) {
+  if (status === "aq") {
+    return (
+      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+        AQ · Autoqualifier
+      </span>
+    );
+  }
   if (status === true) {
     return (
       <span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
