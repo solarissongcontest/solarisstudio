@@ -47,6 +47,20 @@ function rankChannel(rows: ResultRow[], key: "jury_points" | "televote_points") 
     }));
 }
 
+function activeVotingChannels(show: Show) {
+  const raw = (show.voting_config ?? {}) as Record<string, unknown>;
+  const weighting = raw.weighting && typeof raw.weighting === "object"
+    ? raw.weighting as Record<string, unknown>
+    : {};
+  const juryWeight = Number(weighting.jury ?? 50);
+  const televoteWeight = Number(weighting.televote ?? 50);
+
+  return {
+    jury: raw.juryEnabled !== false && (!Number.isFinite(juryWeight) || juryWeight > 0),
+    televote: raw.televoteEnabled !== false && (!Number.isFinite(televoteWeight) || televoteWeight > 0),
+  };
+}
+
 function storyHref(showId: string, storyId: string) {
   return `/shows/${showId}?tab=stories&story=${encodeURIComponent(storyId)}`;
 }
@@ -59,6 +73,7 @@ export function buildShowStories(options: StoryOptions): ResultStory[] {
 
   if (rows.length < 2) return [];
 
+  const channels = activeVotingChannels(options.show);
   const stories: ResultStory[] = [];
   const closest = rows
     .slice(1)
@@ -88,14 +103,16 @@ export function buildShowStories(options: StoryOptions): ResultStory[] {
   const runnerUp = rows[1];
   const winningMargin = winner.total_points - runnerUp.total_points;
   const ballots = new Map<string, JuryVote[]>();
-  options.jury
-    .filter((vote) => vote.show_id === options.show.id)
-    .forEach((vote) => {
-      ballots.set(vote.voter_country_id, [...(ballots.get(vote.voter_country_id) ?? []), vote]);
-    });
+  if (channels.jury) {
+    options.jury
+      .filter((vote) => vote.show_id === options.show.id)
+      .forEach((vote) => {
+        ballots.set(vote.voter_country_id, [...(ballots.get(vote.voter_country_id) ?? []), vote]);
+      });
+  }
 
   const decisive =
-    winningMargin > 0
+    channels.jury && winningMargin > 0
       ? [...ballots.entries()]
           .map(([voterId, votes]) => {
             const winnerPoints =
@@ -123,8 +140,8 @@ export function buildShowStories(options: StoryOptions): ResultStory[] {
     });
   }
 
-  const juryRanks = rankChannel(rows, "jury_points");
-  const televoteRanks = rankChannel(rows, "televote_points");
+  const juryRanks = channels.jury ? rankChannel(rows, "jury_points") : [];
+  const televoteRanks = channels.televote ? rankChannel(rows, "televote_points") : [];
   const juryWinner = juryRanks[0];
   const televoteWinner = televoteRanks[0];
   const juryLeaderCount = juryWinner
@@ -180,32 +197,34 @@ export function buildShowStories(options: StoryOptions): ResultStory[] {
     });
   }
 
-  const juryRankMap = new Map(juryRanks.map((row) => [row.country_id, row.channelRank]));
-  const teleRankMap = new Map(televoteRanks.map((row) => [row.country_id, row.channelRank]));
-  const polarizing = rows
-    .map((row) => ({
-      row,
-      juryRank: juryRankMap.get(row.country_id) ?? 0,
-      teleRank: teleRankMap.get(row.country_id) ?? 0,
-      gap: Math.abs(
-        (juryRankMap.get(row.country_id) ?? 0) - (teleRankMap.get(row.country_id) ?? 0),
-      ),
-    }))
-    .sort((a, b) => b.gap - a.gap)[0];
+  if (channels.jury && channels.televote) {
+    const juryRankMap = new Map(juryRanks.map((row) => [row.country_id, row.channelRank]));
+    const teleRankMap = new Map(televoteRanks.map((row) => [row.country_id, row.channelRank]));
+    const polarizing = rows
+      .map((row) => ({
+        row,
+        juryRank: juryRankMap.get(row.country_id) ?? 0,
+        teleRank: teleRankMap.get(row.country_id) ?? 0,
+        gap: Math.abs(
+          (juryRankMap.get(row.country_id) ?? 0) - (teleRankMap.get(row.country_id) ?? 0),
+        ),
+      }))
+      .sort((a, b) => b.gap - a.gap)[0];
 
-  if (polarizing && polarizing.gap > 0) {
-    const id = "polarizing";
-    stories.push({
-      id,
-      kind: id,
-      priority: 80,
-      headline: `${label(options.labels, polarizing.row.country_id)} split jury and televote opinion most`,
-      explanation: `It ranked #${polarizing.juryRank} with juries and #${polarizing.teleRank} with the televote.`,
-      metricLabel: "Rank difference",
-      metricValue: `${polarizing.gap} places`,
-      countryIds: [polarizing.row.country_id],
-      href: storyHref(options.show.id, id),
-    });
+    if (polarizing && polarizing.gap > 0) {
+      const id = "polarizing";
+      stories.push({
+        id,
+        kind: id,
+        priority: 80,
+        headline: `${label(options.labels, polarizing.row.country_id)} split jury and televote opinion most`,
+        explanation: `It ranked #${polarizing.juryRank} with juries and #${polarizing.teleRank} with the televote.`,
+        metricLabel: "Rank difference",
+        metricValue: `${polarizing.gap} places`,
+        countryIds: [polarizing.row.country_id],
+        href: storyHref(options.show.id, id),
+      });
+    }
   }
 
   const showById = new Map((options.allShows ?? []).map((show) => [show.id, show]));
