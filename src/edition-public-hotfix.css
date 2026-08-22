@@ -1,9 +1,9 @@
 /* Final public-edition/show overrides. Kept separate so these high-specificity rules win over
    the global design system without changing the normal star background. */
 
-/* Winner flag treatment: start dissolving almost immediately, while keeping the same endpoint.
-   The previous mask held the flag fully opaque until nearly halfway across its layer, which is
-   why moving the 'start' visually did almost nothing. */
+/* Winner flag treatment: the fade must be visually obvious from near the left edge, not merely
+   mathematically present. The mask now loses opacity aggressively through the middle while
+   preserving the same far-right endpoint. */
 body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .page-header::after {
   content: "" !important;
   display: block !important;
@@ -19,15 +19,33 @@ body[data-entity-theme="edition"][data-show-winner-flag="true"] .app-main > .pag
   box-shadow: none !important;
   background-color: transparent !important;
   background-image:
-    linear-gradient(90deg, rgb(0 0 0 / .34) 0%, rgb(0 0 0 / .26) 18%, rgb(0 0 0 / .18) 42%, rgb(0 0 0 / .09) 70%, transparent 97%),
+    linear-gradient(90deg, rgb(0 0 0 / .28) 0%, rgb(0 0 0 / .38) 18%, rgb(0 0 0 / .52) 38%, rgb(0 0 0 / .66) 60%, rgb(0 0 0 / .80) 80%, rgb(0 0 0 / .94) 97%),
     var(--show-winner-flag-image) !important;
   background-repeat: no-repeat, no-repeat !important;
   background-size: 100% 100%, cover !important;
   background-position: left center, center !important;
   opacity: .96 !important;
   filter: saturate(1.02) contrast(1.02) !important;
-  -webkit-mask-image: linear-gradient(90deg, #000 0%, rgb(0 0 0 / .98) 8%, rgb(0 0 0 / .90) 20%, rgb(0 0 0 / .76) 38%, rgb(0 0 0 / .58) 57%, rgb(0 0 0 / .36) 76%, rgb(0 0 0 / .16) 90%, transparent 97%) !important;
-  mask-image: linear-gradient(90deg, #000 0%, rgb(0 0 0 / .98) 8%, rgb(0 0 0 / .90) 20%, rgb(0 0 0 / .76) 38%, rgb(0 0 0 / .58) 57%, rgb(0 0 0 / .36) 76%, rgb(0 0 0 / .16) 90%, transparent 97%) !important;
+  -webkit-mask-image: linear-gradient(90deg,
+    #000 0%,
+    rgb(0 0 0 / .92) 7%,
+    rgb(0 0 0 / .72) 18%,
+    rgb(0 0 0 / .52) 32%,
+    rgb(0 0 0 / .34) 48%,
+    rgb(0 0 0 / .20) 64%,
+    rgb(0 0 0 / .10) 80%,
+    rgb(0 0 0 / .04) 91%,
+    transparent 97%) !important;
+  mask-image: linear-gradient(90deg,
+    #000 0%,
+    rgb(0 0 0 / .92) 7%,
+    rgb(0 0 0 / .72) 18%,
+    rgb(0 0 0 / .52) 32%,
+    rgb(0 0 0 / .34) 48%,
+    rgb(0 0 0 / .20) 64%,
+    rgb(0 0 0 / .10) 80%,
+    rgb(0 0 0 / .04) 91%,
+    transparent 97%) !important;
   transform: none !important;
   pointer-events: none !important;
   z-index: 0 !important;
@@ -81,8 +99,26 @@ body[data-entity-theme="edition"][data-edition-public-style="glass"] .app-main .
     max-width: none !important;
     opacity: .96 !important;
     background-position: left center, center !important;
-    -webkit-mask-image: linear-gradient(90deg, #000 0%, rgb(0 0 0 / .98) 8%, rgb(0 0 0 / .90) 20%, rgb(0 0 0 / .76) 38%, rgb(0 0 0 / .58) 57%, rgb(0 0 0 / .36) 76%, rgb(0 0 0 / .16) 90%, transparent 97%) !important;
-    mask-image: linear-gradient(90deg, #000 0%, rgb(0 0 0 / .98) 8%, rgb(0 0 0 / .90) 20%, rgb(0 0 0 / .76) 38%, rgb(0 0 0 / .58) 57%, rgb(0 0 0 / .36) 76%, rgb(0 0 0 / .16) 90%, transparent 97%) !important;
+    -webkit-mask-image: linear-gradient(90deg,
+      #000 0%,
+      rgb(0 0 0 / .92) 7%,
+      rgb(0 0 0 / .72) 18%,
+      rgb(0 0 0 / .52) 32%,
+      rgb(0 0 0 / .34) 48%,
+      rgb(0 0 0 / .20) 64%,
+      rgb(0 0 0 / .10) 80%,
+      rgb(0 0 0 / .04) 91%,
+      transparent 97%) !important;
+    mask-image: linear-gradient(90deg,
+      #000 0%,
+      rgb(0 0 0 / .92) 7%,
+      rgb(0 0 0 / .72) 18%,
+      rgb(0 0 0 / .52) 32%,
+      rgb(0 0 0 / .34) 48%,
+      rgb(0 0 0 / .20) 64%,
+      rgb(0 0 0 / .10) 80%,
+      rgb(0 0 0 / .04) 91%,
+      transparent 97%) !important;
   }
 
   body[data-entity-theme="edition"][data-edition-public-style="glass"] .glass,
