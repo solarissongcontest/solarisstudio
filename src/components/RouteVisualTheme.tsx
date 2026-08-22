@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
@@ -87,7 +88,9 @@ function hexTriplet(hex: string) {
 
 export function RouteVisualTheme() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const queryClient = useQueryClient();
   const currentShowId = segmentAfter(pathname, "/shows/");
+  const currentEditionSlug = segmentAfter(pathname, "/editions/");
   const { data: countries } = useCountries();
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
@@ -95,6 +98,35 @@ export function RouteVisualTheme() {
   const { data: currentShowEntities } = useContestEntities(currentShow?.edition_id);
   const { data: currentShowResults } = useResults(currentShowId ?? undefined);
   const { data: countryThemes } = useCountryThemes();
+
+  /* Public result pages used to remain stale even after the database had
+     recalculated correctly. Keep the visible page cache fresh and force an
+     immediate refresh whenever the user returns to the tab. The database
+     trigger remains the source of truth; this only removes browser-cache lag. */
+  useEffect(() => {
+    if (!currentShowId && !currentEditionSlug) return;
+
+    const refresh = () => {
+      if (document.hidden) return;
+      if (currentShowId) {
+        void queryClient.invalidateQueries({ queryKey: ["results", "show", currentShowId] });
+      }
+      if (currentEditionSlug) {
+        void queryClient.invalidateQueries({ queryKey: ["results", "all"] });
+      }
+    };
+
+    refresh();
+    const interval = window.setInterval(refresh, currentShowId ? 3000 : 8000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [currentShowId, currentEditionSlug, queryClient]);
 
   const resolved = useMemo<ResolvedVisual | null>(() => {
     const countryCode = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
