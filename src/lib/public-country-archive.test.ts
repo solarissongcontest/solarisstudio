@@ -91,14 +91,15 @@ function baseInput() {
 describe("buildPublicCountryArchive", () => {
   it("keeps released entries but hides draft results and qualification state", () => {
     const archive = buildPublicCountryArchive(baseInput());
+    const publicEntry = archive.participants[0] as any;
 
     expect(archive.participants).toHaveLength(1);
-    expect(archive.participants[0]?.artist).toBe("Artist");
-    expect(archive.participants[0]?.song).toBe("Song");
-    expect(archive.participants[0]?.youtube_url).toBe("https://example.com/video");
-    expect(archive.participants[0]?.notes).toBeNull();
-    expect(archive.participants[0]?.running_order).toBeNull();
-    expect(archive.participants[0]?.qualified).toBeNull();
+    expect(publicEntry?.artist).toBe("Artist");
+    expect(publicEntry?.song).toBe("Song");
+    expect(publicEntry?.youtube_url).toBe("https://example.com/video");
+    expect(publicEntry?.notes).toBeNull();
+    expect(publicEntry?.running_order).toBeNull();
+    expect(publicEntry?.qualified).toBeNull();
 
     expect(archive.results).toEqual([]);
     expect(archive.jury).toEqual([]);
@@ -110,13 +111,14 @@ describe("buildPublicCountryArchive", () => {
     input.participants[0].publication_status = "draft";
 
     const archive = buildPublicCountryArchive(input);
+    const publicEntry = archive.participants[0] as any;
 
     expect(archive.participants).toHaveLength(1);
-    expect(archive.participants[0]?.artist).toBeNull();
-    expect(archive.participants[0]?.song).toBeNull();
-    expect(archive.participants[0]?.youtube_url).toBeNull();
-    expect(archive.participants[0]?.spotify_url).toBeNull();
-    expect(archive.participants[0]?.apple_music_url).toBeNull();
+    expect(publicEntry?.artist).toBeNull();
+    expect(publicEntry?.song).toBeNull();
+    expect(publicEntry?.youtube_url).toBeNull();
+    expect(publicEntry?.spotify_url).toBeNull();
+    expect(publicEntry?.apple_music_url).toBeNull();
   });
 
   it("redacts a future scheduled entry until its exact reveal time", () => {
@@ -125,9 +127,10 @@ describe("buildPublicCountryArchive", () => {
     input.participants[0].scheduled_publish_at = "2999-08-29T21:02:00.000Z";
 
     const archive = buildPublicCountryArchive(input);
+    const publicEntry = archive.participants[0] as any;
 
-    expect(archive.participants[0]?.artist).toBeNull();
-    expect(archive.participants[0]?.song).toBeNull();
+    expect(publicEntry?.artist).toBeNull();
+    expect(publicEntry?.song).toBeNull();
   });
 
   it("reveals a scheduled entry after its reveal boundary has passed", () => {
