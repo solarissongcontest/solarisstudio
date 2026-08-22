@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { CountryCard } from "@/components/broadcast/CountryCard";
 import type { Country, Participant } from "@/lib/data";
 import type { Standing } from "@/lib/analysis";
@@ -12,13 +14,14 @@ import {
 import type { ThemeConfig } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
+type EditionPublicStyle = "cinematic" | "editorial" | "minimal" | "glass";
+
 /**
  * Public / embedded scoreboard renderer.
  *
- * This uses the same CountryCard engine as the live broadcast. Public result
- * pages additionally make global-country rows navigable to their country
- * profile. The admin edition editor is excluded so editing a preview cannot
- * unexpectedly navigate away from the studio.
+ * The built-in Classic scoreboard should feel like part of the edition page,
+ * not like a separate neon widget dropped on top of it. Custom scoreboard
+ * presets remain untouched; organizers can still replace Classic completely.
  */
 export function ScoreboardStage({
   theme,
@@ -44,16 +47,38 @@ export function ScoreboardStage({
   compact?: boolean;
 }) {
   const rows = standings.slice(0, standings.length);
+  const [editionStyle, setEditionStyle] = useState<EditionPublicStyle | null>(null);
 
-  const resolved =
+  useEffect(() => {
+    const read = () => {
+      const value = document.body.dataset.editionPublicStyle;
+      setEditionStyle(
+        value === "cinematic" || value === "editorial" || value === "minimal" || value === "glass"
+          ? value
+          : null,
+      );
+    };
+
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["data-edition-public-style"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const baseResolved =
     theme.scoreboardConfig ??
     resolveScoreboard(null, {
       theme,
       rowCount: rows.length,
     });
 
+  const isClassic = baseResolved.card.preset === "classic-live-reveal" || !theme.scoreboardConfig;
+  const resolved = isClassic && editionStyle
+    ? matchClassicToEditionStyle(baseResolved, theme, editionStyle)
+    : baseResolved;
+
   const columns = resolveShowColumns(rows.length, resolved);
-  const card = prepareCardForPublicSurface(resolved.card, theme, compact);
+  const card = prepareCardForPublicSurface(resolved.card, theme, compact, editionStyle, isClassic);
   const topAward = Math.max(0, ...Object.values(awarded ?? {}));
 
   const broadcastRows = rows.map<BroadcastRowData>((standing, index) => {
@@ -126,6 +151,7 @@ export function ScoreboardStage({
         columns === 4 && "sm:grid-cols-2 xl:grid-cols-4",
         className,
       )}
+      data-scoreboard-edition-style={isClassic ? editionStyle ?? undefined : undefined}
     >
       {columnRows.map((column, columnIndex) => (
         <ol
@@ -158,6 +184,146 @@ export function ScoreboardStage({
 }
 
 /**
+ * Give the Classic preset the same visual language as the selected public
+ * edition layout. This affects only Classic/fallback scoreboards. Any other
+ * chosen/custom preset keeps its own design.
+ */
+function matchClassicToEditionStyle(
+  source: ScoreboardConfig,
+  theme: ThemeConfig,
+  style: EditionPublicStyle,
+): ScoreboardConfig {
+  const config = structuredClone(source) as ScoreboardConfig;
+  const flagRadius = style === "editorial" || style === "minimal" ? 0 : style === "glass" ? 8 : 10;
+
+  config.card.zones = config.card.zones.map((zone) =>
+    zone.type === "flag"
+      ? {
+          ...zone,
+          shape: {
+            ...zone.shape,
+            kind: flagRadius === 0 ? "rect" : "rounded",
+            radius: flagRadius,
+          },
+        }
+      : zone,
+  );
+
+  if (style === "glass") {
+    config.card.radius = 22;
+    config.card.background = {
+      ...config.card.background,
+      fill: "color",
+      color: theme.surface ?? theme.colors.primary,
+      color2: theme.surface ?? theme.colors.primary,
+      opacity: 0.12,
+      blur: 8,
+    };
+    config.card.border = { width: 1, color: "#ffffff", style: "solid" };
+    config.card.shadow = {
+      ...config.card.shadow,
+      enabled: true,
+      x: 0,
+      y: 10,
+      blur: 28,
+      spread: -16,
+      color: "#000000",
+      opacity: 0.22,
+    };
+    config.card.glow = { ...config.card.glow, enabled: false };
+    config.layout.rowGap = Math.max(8, Math.min(12, config.layout.rowGap));
+  } else if (style === "editorial") {
+    config.card.radius = 0;
+    config.card.background = {
+      ...config.card.background,
+      fill: "color",
+      color: theme.colors.primary,
+      color2: theme.colors.primary,
+      opacity: 0.08,
+      blur: 0,
+    };
+    config.card.border = { width: 1, color: theme.colors.accent, style: "solid" };
+    config.card.shadow = { ...config.card.shadow, enabled: false };
+    config.card.glow = { ...config.card.glow, enabled: false };
+    config.layout.rowGap = 6;
+  } else if (style === "minimal") {
+    config.card.radius = 0;
+    config.card.background = {
+      ...config.card.background,
+      fill: "color",
+      color: theme.colors.primary,
+      color2: theme.colors.primary,
+      opacity: 0.045,
+      blur: 0,
+    };
+    config.card.border = { width: 1, color: theme.colors.primary, style: "solid" };
+    config.card.shadow = { ...config.card.shadow, enabled: false };
+    config.card.glow = { ...config.card.glow, enabled: false };
+    config.layout.rowGap = 7;
+  } else {
+    config.card.radius = 18;
+    config.card.background = {
+      ...config.card.background,
+      fill: "gradient",
+      color: theme.colors.primary,
+      color2: theme.colors.secondary,
+      angle: 120,
+      opacity: 0.22,
+      blur: 0,
+    };
+    config.card.border = { width: 1, color: theme.colors.accent, style: "solid" };
+    config.card.shadow = {
+      ...config.card.shadow,
+      enabled: true,
+      x: 0,
+      y: 10,
+      blur: 30,
+      spread: -16,
+      color: "#000000",
+      opacity: 0.26,
+    };
+    config.card.glow = {
+      ...config.card.glow,
+      enabled: true,
+      color: theme.colors.accent,
+      blur: 30,
+      spread: -18,
+      opacity: 0.24,
+    };
+    config.layout.rowGap = 8;
+  }
+
+  // Classic should inherit the edition, not each country's loud fill colour.
+  config.card.stateOverrides = {
+    ...config.card.stateOverrides,
+    leader: {
+      ...(config.card.stateOverrides.leader ?? {}),
+      background: {
+        fill: "gradient",
+        color: theme.colors.primary,
+        color2: theme.colors.secondary,
+        angle: 110,
+        opacity: style === "glass" ? 0.20 : 0.34,
+        blur: style === "glass" ? 8 : 0,
+      },
+    },
+    winner: {
+      ...(config.card.stateOverrides.winner ?? {}),
+      background: {
+        fill: "gradient",
+        color: theme.colors.primary,
+        color2: theme.colors.secondary,
+        angle: 110,
+        opacity: style === "glass" ? 0.24 : 0.40,
+        blur: style === "glass" ? 8 : 0,
+      },
+    },
+  };
+
+  return config;
+}
+
+/**
  * The edition shares one card style, while density adapts to each show.
  */
 export function resolveShowColumns(
@@ -175,13 +341,16 @@ export function resolveShowColumns(
 }
 
 /**
- * Public pages are responsive. The custom design itself is preserved, but a
- * fixed broadcast-only width is released so the row can fit the website.
+ * Public pages are responsive. Classic can stay genuinely glassy when the
+ * edition itself is Glass; custom scoreboard presets preserve the historical
+ * stronger opacity rule so their edited appearance is not silently changed.
  */
 function prepareCardForPublicSurface(
   card: CardTemplateConfig,
   theme: ThemeConfig,
   compact: boolean | undefined,
+  editionStyle: EditionPublicStyle | null,
+  isClassic: boolean,
 ): CardTemplateConfig {
   const zones = card.zones.map((zone) => {
     if (zone.type === "jury-score" || zone.type === "televote-score") {
@@ -190,22 +359,27 @@ function prepareCardForPublicSurface(
         visible: zone.visible && theme.layout.showSplit,
       };
     }
-
     return zone;
   });
 
+  const preserveTransparency = isClassic && editionStyle === "glass";
   const stateOverrides = Object.fromEntries(
     Object.entries(card.stateOverrides ?? {}).map(([state, override]) => [
       state,
       override
         ? {
             ...override,
-            opacity:
-              override.opacity == null ? override.opacity : Math.max(0.97, override.opacity),
+            opacity: preserveTransparency
+              ? override.opacity
+              : override.opacity == null
+                ? override.opacity
+                : Math.max(0.97, override.opacity),
             background: override.background
               ? {
                   ...override.background,
-                  opacity: Math.max(0.9, override.background.opacity),
+                  opacity: preserveTransparency
+                    ? override.background.opacity
+                    : Math.max(0.9, override.background.opacity),
                 }
               : override.background,
           }
@@ -218,10 +392,10 @@ function prepareCardForPublicSurface(
     width: null,
     minWidth: null,
     maxWidth: null,
-    opacity: Math.max(0.98, card.opacity),
+    opacity: preserveTransparency ? card.opacity : Math.max(0.98, card.opacity),
     background: {
       ...card.background,
-      opacity: Math.max(0.92, card.background.opacity),
+      opacity: preserveTransparency ? card.background.opacity : Math.max(0.92, card.background.opacity),
     },
     stateOverrides,
     height: compact ? Math.max(28, card.height * 0.82) : card.height,
@@ -236,10 +410,7 @@ export function hexA(hex: string, alpha: number) {
 
   let value = match[1];
   if (value.length === 3) {
-    value = value
-      .split("")
-      .map((character) => character + character)
-      .join("");
+    value = value.split("").map((character) => character + character).join("");
   }
 
   const number = parseInt(value, 16);
