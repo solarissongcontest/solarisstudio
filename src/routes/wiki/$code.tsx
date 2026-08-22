@@ -22,6 +22,7 @@ import {
 } from "@/lib/data";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
+import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 export const Route = createFileRoute("/wiki/$code")({
   head: ({ params }) => ({
@@ -45,15 +46,20 @@ function CountryWikiPage() {
   );
   const world = useCountryWorldProfile(country?.id);
 
+  // Wiki is public UI even when an organizer is authenticated. Always derive
+  // its contest history from the publication-safe archive rather than from raw
+  // participant/result rows, otherwise draft or future-scheduled entries can
+  // leak through an admin's broader RLS access.
   const opts = useMemo(
-    () => ({
-      editions: editions ?? [],
-      shows: shows ?? [],
-      participants: participants ?? [],
-      results: results ?? [],
-      jury: jury ?? [],
-      televote: televote ?? [],
-    }),
+    () =>
+      buildPublicCountryArchive({
+        editions: editions ?? [],
+        shows: shows ?? [],
+        participants: participants ?? [],
+        results: results ?? [],
+        jury: jury ?? [],
+        televote: televote ?? [],
+      }),
     [editions, shows, participants, results, jury, televote],
   );
 
@@ -90,8 +96,8 @@ function CountryWikiPage() {
     mediaCount: media.length,
   });
 
-  const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
-  const countryParticipants = (participants ?? []).filter((entry) => entry.country_id === country.id);
+  const editionMap = new Map(opts.editions.map((edition) => [edition.id, edition]));
+  const countryParticipants = opts.participants.filter((entry) => entry.country_id === country.id);
   const latestEntries = canonicalEditionEntries(countryParticipants)
     .sort(
       (a, b) =>
@@ -188,16 +194,21 @@ function CountryWikiPage() {
                     <div className="mt-5 overflow-hidden rounded-xl border border-border/70">
                       {latestEntries.map((entry) => {
                         const edition = editionMap.get(entry.edition_id);
+                        const revealed = Boolean(entry.artist?.trim() || entry.song?.trim());
                         return (
                           <div key={entry.edition_id} className="border-b border-border/50 px-3 py-3 last:border-b-0">
                             <div className="grid min-w-0 grid-cols-[1fr_auto] gap-3">
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold">{entry.artist || "Artist TBC"} · {entry.song || "Song TBC"}</p>
+                                <p className="truncate text-sm font-semibold">
+                                  {revealed
+                                    ? `${entry.artist || "Artist TBC"} · ${entry.song || "Song TBC"}`
+                                    : "Entry not revealed yet"}
+                                </p>
                                 <p className="mt-0.5 text-[10px] text-muted-foreground">{edition ? editionLabel(edition) : "Edition"}</p>
                               </div>
                               {edition ? <Link to="/editions/$slug" params={{ slug: edition.slug }} className="self-center text-[10px] font-semibold text-primary">View →</Link> : null}
                             </div>
-                            <EntryListenLinks entry={entry} compact className="mt-2" />
+                            {revealed ? <EntryListenLinks entry={entry} compact className="mt-2" /> : null}
                           </div>
                         );
                       })}
