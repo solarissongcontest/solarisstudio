@@ -56,14 +56,41 @@ function mergePublication(
   };
 }
 
+/**
+ * Entry visibility is independent from show-layer visibility. A show can have
+ * its participant/artist/song layers enabled while an individual delegation's
+ * entry is still a draft or scheduled for a future reveal. Public country and
+ * wiki pages must respect both gates, especially for organizers who can read
+ * the raw participant row through RLS.
+ */
+function isEntryRevealed(participant: Participant, nowMs = Date.now()): boolean {
+  if (participant.publication_status === "published") return true;
+  if (
+    participant.publication_status === "scheduled" &&
+    participant.scheduled_publish_at
+  ) {
+    const scheduledMs = Date.parse(participant.scheduled_publish_at);
+    return Number.isFinite(scheduledMs) && scheduledMs <= nowMs;
+  }
+  return false;
+}
+
 function sanitiseParticipant(
   participant: Participant,
   publication: PublicationConfig,
 ): Participant {
+  const entryRevealed = isEntryRevealed(participant);
+  const artistVisible = entryRevealed && publication.artists;
+  const songVisible = entryRevealed && publication.songs;
+
   return {
     ...participant,
-    artist: publication.artists ? participant.artist : null,
-    song: publication.songs ? participant.song : null,
+    artist: artistVisible ? participant.artist : null,
+    song: songVisible ? participant.song : null,
+    youtube_url: songVisible ? participant.youtube_url : null,
+    spotify_url: songVisible ? participant.spotify_url : null,
+    apple_music_url: songVisible ? participant.apple_music_url : null,
+    notes: null,
     running_order: publication.running_order ? participant.running_order : null,
     semi_final: publication.semi_split ? participant.semi_final : "",
     qualified: publication.qualifiers ? participant.qualified : null,
@@ -74,11 +101,13 @@ function sanitiseParticipant(
  * Public country profiles must never infer history from operational rows that
  * have not been published yet. Admins often open the public site while still
  * authenticated, so RLS alone is not enough: organizer SELECT access would
- * otherwise expose draft ranks/zero-point placeholders through public UI.
+ * otherwise expose draft ranks/zero-point placeholders or unrevealed entries
+ * through public UI.
  *
  * This creates a publication-safe archive for country profile statistics and
- * lists. A show can be publicly visible for entries while its result rows stay
- * completely invisible until the Results layer is enabled.
+ * lists. A show can be publicly visible for participants while an individual
+ * entry or its result rows stay completely invisible until their own release
+ * gates are enabled.
  */
 export function buildPublicCountryArchive(
   input: PublicCountryArchiveInput,
@@ -116,7 +145,8 @@ export function buildPublicCountryArchive(
 
     // Canonical edition-level participant rows are useful for keeping one
     // entry identity across semi/final stages. They may only expose fields that
-    // at least one public show in that edition has actually revealed.
+    // at least one public show in that edition has actually revealed, and the
+    // delegation's own entry reveal gate must have opened too.
     const publication = publicationByEdition.get(participant.edition_id);
     if (!publication?.participants) return [];
     return [sanitiseParticipant(participant, publication)];
