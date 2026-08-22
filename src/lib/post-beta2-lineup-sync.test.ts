@@ -31,9 +31,10 @@ describe("post-Beta2 lineup sync", () => {
     expect(migration).toContain("youtu\\.be");
   });
 
-  it("shows national-final running orders as one-based", () => {
+  it("shows national-final running orders as one-based after sorting", () => {
     const component = source("src/components/country/CountryNationalFinals.tsx");
-    expect(component).toContain("nationalFinal.entries.map((entry, index)");
+    expect(component).toContain("const runningOrder = [...nationalFinal.entries]");
+    expect(component).toContain("runningOrder.map((entry, index)");
     expect(component).toContain("{index + 1}");
     expect(component).not.toContain('{entry.position ?? "·"}');
   });
