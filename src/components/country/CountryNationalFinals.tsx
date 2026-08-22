@@ -86,10 +86,19 @@ export function CountryNationalFinals({ country }: { country: Country }) {
                         {[entry.artist, entry.song_title].filter(Boolean).join(" — ") || "Entry"}
                       </p>
                     </div>
-                    {entry.winner && (
-                      <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-primary">
-                        Winner
-                      </span>
+                    {(entry.winner || entry.next_in_line) && (
+                      <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                        {entry.winner && (
+                          <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-primary">
+                            Winner
+                          </span>
+                        )}
+                        {entry.next_in_line && (
+                          <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-sky-200">
+                            Next in Line
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
