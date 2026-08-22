@@ -1,4 +1,5 @@
 import type { Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
+import { buildPublicCountryArchive } from "./public-country-archive";
 import { computeCountryStats, type CountryStats } from "./stats";
 
 type Options = {
@@ -58,14 +59,20 @@ function currentEditionStreak(points: EditionFlag[]) {
  * Public country statistics must treat one delegation in one edition as one
  * participation. Show-level participant/result rows remain useful operational
  * data, but may never inflate public history, percentages or streaks.
+ *
+ * The function also applies the public publication gates itself. That matters
+ * because several analytics/directory surfaces call it with the raw live query
+ * result. Draft placeholder ranks must never become a public "winner" simply
+ * because an organizer has already prepared a running order or result row.
  */
 export function computeCanonicalCountryStats(countryId: string, options: Options): CountryStats {
-  const base = computeCountryStats(countryId, options);
-  const showById = new Map(options.shows.map((show) => [show.id, show]));
-  const editionNumber = new Map(options.editions.map((edition) => [edition.id, edition.edition_number]));
+  const publicOptions = buildPublicCountryArchive(options);
+  const base = computeCountryStats(countryId, publicOptions);
+  const showById = new Map(publicOptions.shows.map((show) => [show.id, show]));
+  const editionNumber = new Map(publicOptions.editions.map((edition) => [edition.id, edition.edition_number]));
 
-  const participants = options.participants.filter((participant) => participant.country_id === countryId);
-  const results = options.results.filter((result) => result.country_id === countryId);
+  const participants = publicOptions.participants.filter((participant) => participant.country_id === countryId);
+  const results = publicOptions.results.filter((result) => result.country_id === countryId);
 
   const participationEditionIds = new Set<string>();
   participants.forEach((participant) => participationEditionIds.add(participant.edition_id));
