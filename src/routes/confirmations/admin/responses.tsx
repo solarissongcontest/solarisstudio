@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Search, ShieldAlert } from "lucide-react";
 
@@ -93,6 +93,19 @@ function StateBadge({ state }: { state: string }) {
 }
 
 function ConfirmationResponsesPage() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  // `responses/$id.tsx` is a child of this file route. Without an Outlet the
+  // URL changes when an organiser taps Review response, but React has nowhere
+  // to mount the detail screen, so the list appears to ignore the tap.
+  if (pathname.startsWith(`${Route.fullPath}/`)) {
+    return <Outlet />;
+  }
+
+  return <ConfirmationResponsesList />;
+}
+
+function ConfirmationResponsesList() {
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
