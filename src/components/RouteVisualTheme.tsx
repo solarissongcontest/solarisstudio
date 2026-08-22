@@ -35,6 +35,8 @@ type EditionVisual = {
   artwork_url?: string | null;
 };
 
+type EditionThemeVisual = Exclude<ReturnType<typeof editionThemeToVisual>, null>;
+
 type EditionPublicSettings = {
   style: "cinematic" | "editorial" | "minimal" | "glass";
   radius: number;
@@ -48,7 +50,7 @@ type ResolvedVisual =
   | { kind: "country"; theme: CountryVisualTheme; artwork: null; publicSettings: null }
   | {
       kind: "edition";
-      theme: ReturnType<typeof editionThemeToVisual> extends infer T ? Exclude<T, null> : never;
+      theme: EditionThemeVisual;
       artwork: string | null;
       publicSettings: EditionPublicSettings;
     };
@@ -58,20 +60,27 @@ function segmentAfter(pathname: string, prefix: string) {
   return decodeURIComponent(pathname.slice(prefix.length).split("/")[0] ?? "");
 }
 
-function gradientFromRaw(input: unknown) {
+function gradientFromRaw(input: unknown, first: string, second: string) {
   if (!input || typeof input !== "object") return null;
   const value = input as Record<string, unknown>;
-  if (value.enabled === false || !Array.isArray(value.colors)) return null;
-  const colors = value.colors
-    .filter((color): color is string => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color))
-    .slice(0, 3);
-  if (colors.length < 2) return null;
+  if (value.enabled === false) return null;
+  const rawColors = Array.isArray(value.colors)
+    ? value.colors.filter((color): color is string => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color))
+    : [];
+  if (rawColors.length < 2) return null;
+
+  /* The public-style gradients belong to the edition palette. Older saved public gradients could
+     otherwise keep stale colours after the organizer changes the Interface palette. Always anchor
+     the first two stops to the current palette; an optional third custom stop is still preserved. */
+  const colors = [first, second];
+  if (rawColors[2]) colors.push(rawColors[2]);
+
   const number = Number(value.angle);
   const angle = Number.isFinite(number) ? Math.max(0, Math.min(360, number)) : 135;
   return `linear-gradient(${angle}deg, ${colors.join(", ")})`;
 }
 
-function editionPublicSettings(raw: unknown): EditionPublicSettings {
+function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): EditionPublicSettings {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const requested = String(value.publicStyle ?? "cinematic");
   const style = (["cinematic", "editorial", "minimal", "glass"] as const).includes(requested as any)
@@ -86,8 +95,8 @@ function editionPublicSettings(raw: unknown): EditionPublicSettings {
     radius: clamp(value.publicRadius, 8, 40, 24),
     surfaceStrength: clamp(value.publicSurfaceStrength, 45, 100, 82),
     heroGlow: clamp(value.publicHeroGlow, 0, 100, 72),
-    accentGradient: gradientFromRaw(value.publicAccentGradient),
-    surfaceGradient: gradientFromRaw(value.publicSurfaceGradient),
+    accentGradient: gradientFromRaw(value.publicAccentGradient, theme.accent, theme.backgroundSecondary),
+    surfaceGradient: gradientFromRaw(value.publicSurfaceGradient, theme.surface, theme.backgroundSecondary),
   };
 }
 
@@ -130,7 +139,7 @@ export function RouteVisualTheme() {
           theme,
           kind: "edition",
           artwork: edition?.artwork_url ?? null,
-          publicSettings: editionPublicSettings(edition?.theme_colors),
+          publicSettings: editionPublicSettings(edition?.theme_colors, theme),
         };
       }
     }
@@ -143,7 +152,7 @@ export function RouteVisualTheme() {
           theme,
           kind: "edition",
           artwork: edition?.artwork_url ?? null,
-          publicSettings: editionPublicSettings(edition?.theme_colors),
+          publicSettings: editionPublicSettings(edition?.theme_colors, theme),
         };
       }
     }
