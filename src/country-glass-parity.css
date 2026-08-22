@@ -40,8 +40,8 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.co
   isolation: isolate !important;
   z-index: 1 !important;
   display: block !important;
-  width: min(100%, 41rem) !important;
-  max-width: 41rem !important;
+  width: 100% !important;
+  max-width: none !important;
   min-height: 0 !important;
   margin: 0 !important;
   padding: clamp(1.35rem, 3vw, 2.1rem) !important;
@@ -75,6 +75,7 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .countr
   position: absolute !important;
   inset: 0 !important;
   z-index: -1 !important;
+  display: block !important;
   border-radius: inherit !important;
   background-size: cover !important;
   background-position: center !important;
@@ -89,6 +90,15 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .countr
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .country-hero-background-flag,
 [data-preview-layout="glass-card"] > .country-hero-background-flag {
   display: none !important;
+}
+
+/* Decorations are an extra layer, not a replacement for the flag. Earlier
+   personality CSS hid the flag whenever a motif such as rays/orbits/grid was
+   selected. Force it back for every non-glass design so a country can have its
+   actual flag and a decorative object at the same time. */
+body[data-entity-theme="country"]:not([data-country-hero-layout="glass-card"])
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: block !important;
 }
 
 @media (max-width: 767px) {
