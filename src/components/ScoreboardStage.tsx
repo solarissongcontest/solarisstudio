@@ -241,44 +241,47 @@ function matchDefaultScoreboardToEditionStyle(
     config.layout.rowGap = 9;
   } else if (style === "editorial") {
     config.card.radius = 0;
+    config.card.opacity = 1;
     config.card.background = {
       ...config.card.background,
       fill: "color",
       color: theme.colors.primary,
       color2: theme.colors.primary,
-      opacity: 0.08,
+      opacity: 0.065,
       blur: 0,
     };
-    config.card.border = { width: 1, color: theme.colors.accent, style: "solid" };
+    config.card.border = { width: 1, color: "rgba(255,255,255,0.14)", style: "solid" };
     config.card.shadow = { ...config.card.shadow, enabled: false };
     config.card.glow = { ...config.card.glow, enabled: false };
     config.layout.rowGap = 6;
   } else if (style === "minimal") {
     config.card.radius = 0;
+    config.card.opacity = 1;
     config.card.background = {
       ...config.card.background,
       fill: "color",
-      color: theme.colors.primary,
-      color2: theme.colors.primary,
-      opacity: 0.045,
+      color: "#ffffff",
+      color2: "#ffffff",
+      opacity: 0.018,
       blur: 0,
     };
-    config.card.border = { width: 1, color: theme.colors.primary, style: "solid" };
+    config.card.border = { width: 1, color: "rgba(255,255,255,0.10)", style: "solid" };
     config.card.shadow = { ...config.card.shadow, enabled: false };
     config.card.glow = { ...config.card.glow, enabled: false };
     config.layout.rowGap = 7;
   } else {
     config.card.radius = 18;
+    config.card.opacity = 1;
     config.card.background = {
       ...config.card.background,
       fill: "gradient",
       color: theme.colors.primary,
       color2: theme.colors.secondary,
       angle: 120,
-      opacity: 0.22,
+      opacity: 0.14,
       blur: 0,
     };
-    config.card.border = { width: 1, color: theme.colors.accent, style: "solid" };
+    config.card.border = { width: 1, color: "rgba(255,255,255,0.16)", style: "solid" };
     config.card.shadow = {
       ...config.card.shadow,
       enabled: true,
@@ -296,52 +299,40 @@ function matchDefaultScoreboardToEditionStyle(
       color: theme.colors.accent,
       blur: 30,
       spread: -18,
-      opacity: 0.24,
+      opacity: 0.18,
     };
     config.layout.rowGap = 8;
   }
+
+  const stateOpacity =
+    style === "glass" ? 0.045 :
+    style === "minimal" ? 0.055 :
+    style === "editorial" ? 0.12 :
+    0.22;
 
   config.card.stateOverrides = {
     ...config.card.stateOverrides,
     leader: {
       ...(config.card.stateOverrides.leader ?? {}),
-      background: style === "glass"
-        ? {
-            fill: "gradient",
-            color: "#ffffff",
-            color2: theme.colors.primary,
-            angle: 145,
-            opacity: 0.035,
-            blur: 7,
-          }
-        : {
-            fill: "gradient",
-            color: theme.colors.primary,
-            color2: theme.colors.secondary,
-            angle: 110,
-            opacity: 0.34,
-            blur: 0,
-          },
+      background: {
+        fill: "gradient",
+        color: style === "glass" || style === "minimal" ? "#ffffff" : theme.colors.primary,
+        color2: style === "glass" || style === "minimal" ? theme.colors.primary : theme.colors.secondary,
+        angle: style === "glass" ? 145 : 110,
+        opacity: stateOpacity,
+        blur: style === "glass" ? 7 : 0,
+      },
     },
     winner: {
       ...(config.card.stateOverrides.winner ?? {}),
-      background: style === "glass"
-        ? {
-            fill: "gradient",
-            color: "#ffffff",
-            color2: theme.colors.secondary,
-            angle: 145,
-            opacity: 0.045,
-            blur: 7,
-          }
-        : {
-            fill: "gradient",
-            color: theme.colors.primary,
-            color2: theme.colors.secondary,
-            angle: 110,
-            opacity: 0.40,
-            blur: 0,
-          },
+      background: {
+        fill: "gradient",
+        color: style === "glass" || style === "minimal" ? "#ffffff" : theme.colors.primary,
+        color2: theme.colors.secondary,
+        angle: style === "glass" ? 145 : 110,
+        opacity: style === "cinematic" ? 0.28 : stateOpacity,
+        blur: style === "glass" ? 7 : 0,
+      },
     },
   };
 
@@ -379,14 +370,18 @@ function prepareCardForPublicSurface(
     return zone;
   });
 
-  const preserveTransparency = inheritsEditionStyle && editionStyle === "glass";
+  // Edition-linked defaults have already been deliberately styled above.
+  // Do not run the legacy public-surface "make everything opaque" safety pass on
+  // them, otherwise Cinematic/Editorial/Minimal get flattened into the same dark
+  // pill treatment. That was the bug that Glass happened to escape.
+  const preserveEditionStyling = inheritsEditionStyle && editionStyle != null;
   const stateOverrides = Object.fromEntries(
     Object.entries(card.stateOverrides ?? {}).map(([state, override]) => [
       state,
       override
         ? {
             ...override,
-            opacity: preserveTransparency
+            opacity: preserveEditionStyling
               ? override.opacity
               : override.opacity == null
                 ? override.opacity
@@ -394,7 +389,7 @@ function prepareCardForPublicSurface(
             background: override.background
               ? {
                   ...override.background,
-                  opacity: preserveTransparency
+                  opacity: preserveEditionStyling
                     ? override.background.opacity
                     : Math.max(0.9, override.background.opacity),
                 }
@@ -409,10 +404,10 @@ function prepareCardForPublicSurface(
     width: null,
     minWidth: null,
     maxWidth: null,
-    opacity: preserveTransparency ? card.opacity : Math.max(0.98, card.opacity),
+    opacity: preserveEditionStyling ? card.opacity : Math.max(0.98, card.opacity),
     background: {
       ...card.background,
-      opacity: preserveTransparency ? card.background.opacity : Math.max(0.92, card.background.opacity),
+      opacity: preserveEditionStyling ? card.background.opacity : Math.max(0.92, card.background.opacity),
     },
     stateOverrides,
     height: compact ? Math.max(28, card.height * 0.82) : card.height,
