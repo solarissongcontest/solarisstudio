@@ -121,29 +121,32 @@ export function televoteRoundSummary(config: VotingConfig) {
 
 export function parseTelevoteComponents(raw: unknown): TelevoteComponentResult[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((value, index) => {
-      if (!value || typeof value !== "object") return null;
-      const row = value as Record<string, unknown>;
-      const points = Number(row.points);
-      if (!Number.isFinite(points)) return null;
-      const rawVotes = row.raw_votes == null ? null : Number(row.raw_votes);
-      const percentage = row.percentage == null ? null : Number(row.percentage);
-      return {
-        round_id:
-          typeof row.round_id === "string" && row.round_id.trim()
-            ? row.round_id.trim()
-            : `televote-${index + 1}`,
-        label:
-          typeof row.label === "string" && row.label.trim()
-            ? row.label.trim()
-            : `Televote round ${index + 1}`,
-        points,
-        raw_votes: Number.isFinite(rawVotes) ? rawVotes : null,
-        percentage: Number.isFinite(percentage) ? percentage : null,
-      } satisfies TelevoteComponentResult;
-    })
-    .filter((row): row is TelevoteComponentResult => row != null);
+
+  const components: TelevoteComponentResult[] = [];
+  raw.forEach((value, index) => {
+    if (!value || typeof value !== "object") return;
+    const row = value as Record<string, unknown>;
+    const points = Number(row.points);
+    if (!Number.isFinite(points)) return;
+
+    const rawVotes = row.raw_votes == null ? null : Number(row.raw_votes);
+    const percentage = row.percentage == null ? null : Number(row.percentage);
+    components.push({
+      round_id:
+        typeof row.round_id === "string" && row.round_id.trim()
+          ? row.round_id.trim()
+          : `televote-${index + 1}`,
+      label:
+        typeof row.label === "string" && row.label.trim()
+          ? row.label.trim()
+          : `Televote round ${index + 1}`,
+      points,
+      raw_votes: Number.isFinite(rawVotes) ? rawVotes : null,
+      percentage: Number.isFinite(percentage) ? percentage : null,
+    });
+  });
+
+  return components;
 }
 
 export function televoteComponentTotal(raw: unknown) {
