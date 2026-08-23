@@ -1,3 +1,7 @@
+import type {
+  ConfirmationReviewEntry,
+  ConfirmationReviewNationalFinal,
+} from "@/components/ConfirmationReviewStatus";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 
 const confirmations = confirmationsSupabase as any;
@@ -21,6 +25,8 @@ export type CountryConfirmationResponse = {
   nf_exact_date?: string | null;
   nf_result_date_type?: string | null;
   nf_result_exact_date?: string | null;
+  internal_entry?: ConfirmationReviewEntry | null;
+  national_final?: ConfirmationReviewNationalFinal | null;
   can_edit: boolean;
   reason: "open" | "editing_closed" | "locked" | string;
 };
