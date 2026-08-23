@@ -8,6 +8,7 @@ const authPage = source("src/routes/auth/index.tsx");
 const resetPage = source("src/routes/auth/reset.tsx");
 const authClient = source("src/lib/country-auth.ts");
 const authFunction = source("supabase/functions/country-auth/index.ts");
+const mySolarisAccount = source("src/components/MySolarisAccountPanel.tsx");
 const migration = source("supabase/migrations/20260820144500_country_account_username_auth.sql");
 
 describe("country account username authentication", () => {
@@ -41,5 +42,17 @@ describe("country account username authentication", () => {
     expect(authClient).toContain('action: "set-password"');
     expect(resetPage).toContain("setSolarisPassword(password)");
     expect(resetPage).not.toContain("updateUser({ password })");
+  });
+
+  it("lets a signed-in country account add or change its recovery email from MySolaris", () => {
+    expect(authClient).toContain('action: "profile"');
+    expect(authClient).toContain('action: "set-email"');
+    expect(authFunction).toContain('action === "profile"');
+    expect(authFunction).toContain('action === "set-email"');
+    expect(authFunction).toContain("email_confirm: true");
+    expect(authFunction).toContain("has_recovery_email: true");
+    expect(mySolarisAccount).toContain("Add a recovery email");
+    expect(mySolarisAccount).toContain("Change email");
+    expect(mySolarisAccount).toContain("does not show it on your public country or Wiki pages");
   });
 });
