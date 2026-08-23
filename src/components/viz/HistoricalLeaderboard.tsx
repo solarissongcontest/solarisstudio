@@ -10,22 +10,25 @@ import {
   YAxis,
 } from "recharts";
 
-import { editionLabel, type Country, type Edition, type ResultRow } from "@/lib/data";
+import { editionLabel, type Country, type Edition, type ResultRow, type Show } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export function HistoricalLeaderboard({
   countries,
   editions,
   results,
+  shows,
   limit = 8,
 }: {
   countries: Country[];
   editions: Edition[];
   results: ResultRow[];
+  shows: Show[];
   limit?: number;
 }) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const countryMap = new Map(countries.map((country) => [country.id, country]));
+  const showMap = useMemo(() => new Map(shows.map((show) => [show.id, show])), [shows]);
 
   const sortedEditions = useMemo(
     () =>
@@ -35,7 +38,36 @@ export function HistoricalLeaderboard({
     [editions],
   );
 
-  const rankedResults = results.filter((result) => result.final_rank != null);
+  // One public historical point per country per edition. If both a semi-final
+  // and Grand Final result exist, the Grand Final is the edition result.
+  const rankedResults = useMemo(() => {
+    const canonical = new Map<string, ResultRow>();
+    for (const result of results) {
+      if (result.final_rank == null) continue;
+      const key = `${result.country_id}:${result.edition_id}`;
+      const current = canonical.get(key);
+      if (!current) {
+        canonical.set(key, result);
+        continue;
+      }
+
+      const currentKind = showMap.get(current.show_id ?? "")?.kind;
+      const resultKind = showMap.get(result.show_id ?? "")?.kind;
+      const currentFinal = currentKind === "grand-final" || currentKind === "final";
+      const resultFinal = resultKind === "grand-final" || resultKind === "final";
+
+      if (resultFinal && !currentFinal) {
+        canonical.set(key, result);
+      } else if (
+        resultFinal === currentFinal &&
+        (result.final_rank ?? Number.MAX_SAFE_INTEGER) <
+          (current.final_rank ?? Number.MAX_SAFE_INTEGER)
+      ) {
+        canonical.set(key, result);
+      }
+    }
+    return [...canonical.values()];
+  }, [results, showMap]);
 
   const topIds = useMemo(() => {
     const appearances = new Map<string, number>();
@@ -97,8 +129,8 @@ export function HistoricalLeaderboard({
         />
         <GuideItem
           number="03"
-          title="Gaps mean no result"
-          text="If a country has no archived ranked result in an edition, that edition is left blank rather than treated as last place."
+          title="One result per edition"
+          text="A finalist uses its Grand Final result, not a second semi-final result. Missing editions remain blank."
         />
       </div>
 
