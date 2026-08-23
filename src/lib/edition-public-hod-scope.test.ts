@@ -30,6 +30,13 @@ describe("country HOD ownership history", () => {
     expect(migration).toContain("participants_auto_assign_country_hod");
   });
 
+  it("keeps the HOD and historical-country controls mountable on My Solaris", () => {
+    expect(hodPanel).toContain('location.pathname === "/my-solaris"');
+    expect(hodPanel).toContain("Historical country names & flags");
+    expect(hodPanel).toContain("MutationObserver");
+    expect(hodPanel).toContain('document.querySelector<HTMLElement>(".app-main")');
+  });
+
   it("feeds only resolved HOD identities into friendship-voting intelligence", () => {
     expect(migration).toContain("delegation_hod_assignments");
     expect(migration).toContain("country-account-self");
