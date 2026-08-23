@@ -4,6 +4,10 @@ import type { ResultRow } from "@/lib/data";
 import type { EntityDisplay } from "@/lib/entities";
 import { parseTelevoteComponents, type TelevoteRound } from "@/lib/voting";
 
+type MultiRoundResult = ResultRow & {
+  televote_components?: unknown;
+};
+
 type RoundStanding = {
   countryId: string;
   points: number;
@@ -13,7 +17,7 @@ type RoundStanding = {
   finalRank: number | null;
 };
 
-function standingsForRound(results: ResultRow[], round: TelevoteRound): RoundStanding[] {
+function standingsForRound(results: MultiRoundResult[], round: TelevoteRound): RoundStanding[] {
   const sorted = results
     .map((result) => {
       const component = parseTelevoteComponents(result.televote_components).find(
@@ -46,7 +50,7 @@ export function TelevoteRoundsComparison({
   rounds,
   countries,
 }: {
-  results: ResultRow[];
+  results: MultiRoundResult[];
   rounds: TelevoteRound[];
   countries: Map<string, EntityDisplay>;
 }) {
