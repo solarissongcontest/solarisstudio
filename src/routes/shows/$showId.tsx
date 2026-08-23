@@ -26,6 +26,12 @@ import {
   useThemes,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
+import {
+  filterResultsToCompetingParticipants,
+  participationStatus,
+  participationStatusLabel,
+  type ParticipationAwareParticipant,
+} from "@/lib/participation-status";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { usePublicShowParticipants } from "@/lib/public-participants";
 import { resolveTheme } from "@/lib/theme";
@@ -89,6 +95,11 @@ function ShowPage() {
 
   const showIsPublic = isShowPublic(show);
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
+  const participantRows = (participants ?? []) as ParticipationAwareParticipant[];
+  const scoreableResults = useMemo(
+    () => filterResultsToCompetingParticipants(archivedResults ?? [], participantRows),
+    [archivedResults, participants],
+  );
   const participantMap = useMemo(
     () => new Map((participants ?? []).map((participant) => [participant.country_id, participant])),
     [participants],
@@ -115,19 +126,19 @@ function ShowPage() {
       show
         ? buildShowStories({
             show,
-            results: archivedResults ?? [],
+            results: scoreableResults,
             jury: jury ?? [],
             labels: new Map([...displayMap.entries()].map(([id, display]) => [id, display.name])),
             allResults: allResults ?? [],
             allShows: allShows ?? [],
           })
         : [],
-    [show, archivedResults, jury, displayMap, allResults, allShows],
+    [show, scoreableResults, jury, displayMap, allResults, allShows],
   );
 
   const standings = useMemo<Standing[]>(
     () =>
-      (archivedResults ?? [])
+      scoreableResults
         .filter((result) => result.final_rank != null)
         .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))
         .map((result) => ({
@@ -138,7 +149,7 @@ function ShowPage() {
           rank: result.final_rank ?? 0,
           topPoints: 0,
         })),
-    [archivedResults, publication.results, showJuryResults, showTelevoteResults],
+    [scoreableResults, publication.results, showJuryResults, showTelevoteResults],
   );
 
   const televoteRoundTotals = useMemo(() => {
@@ -146,16 +157,16 @@ function ShowPage() {
 
     return voting.televoteRounds.map((round) => ({
       round,
-      total: (archivedResults ?? []).reduce((sum, result) => {
+      total: scoreableResults.reduce((sum, result) => {
         const raw = (result as typeof result & { televote_components?: unknown }).televote_components;
         const component = parseTelevoteComponents(raw).find((item) => item.round_id === round.id);
         return sum + (component?.points ?? 0);
       }, 0),
     }));
-  }, [archivedResults, multiRoundTelevote, voting.televoteRounds]);
+  }, [scoreableResults, multiRoundTelevote, voting.televoteRounds]);
 
   const publicLineupParticipants = useMemo(() => {
-    const rows = [...(participants ?? [])];
+    const rows = [...participantRows];
     const byCountryName = (a: (typeof rows)[number], b: (typeof rows)[number]) =>
       (displayMap.get(a.country_id)?.name ?? a.country_id).localeCompare(
         displayMap.get(b.country_id)?.name ?? b.country_id,
@@ -434,7 +445,7 @@ function ShowPage() {
       {tab === "split" && (showJuryResults || showTelevoteResults) && (
         multiRoundTelevote ? (
           <TelevoteRoundsComparison
-            results={archivedResults ?? []}
+            results={scoreableResults}
             rounds={voting.televoteRounds}
             countries={displayMap}
           />
@@ -493,6 +504,8 @@ function ShowPage() {
             {publicLineupParticipants.map((participant) => {
               const country = displayMap.get(participant.country_id);
               if (!country) return null;
+              const status = participationStatus(participant);
+              const inactive = status !== "confirmed";
 
               return (
                 <div
@@ -513,7 +526,17 @@ function ShowPage() {
                     size="sm"
                   />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{country.name}</p>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-medium">{country.name}</p>
+                      {inactive && (
+                        <span className={status === "disqualified"
+                          ? "rounded-full border border-rose-300/20 bg-rose-300/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-rose-100"
+                          : "rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100"}
+                        >
+                          {participationStatusLabel(status)}
+                        </span>
+                      )}
+                    </div>
                     {(publication.artists || publication.songs) && (
                       <p className="mt-1 truncate text-[11px] text-muted-foreground">
                         {[
@@ -531,7 +554,7 @@ function ShowPage() {
                     )}
                   </div>
 
-                  {publication.qualifiers && participant.qualified != null && (
+                  {!inactive && publication.qualifiers && participant.qualified != null && (
                     <span
                       className={
                         participant.qualified
