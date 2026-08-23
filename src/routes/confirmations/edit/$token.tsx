@@ -6,6 +6,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, LockKeyhole } from "lucide-react";
 
 import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
+import {
+  ConfirmationReviewStatus,
+  type ConfirmationReviewEntry,
+} from "@/components/ConfirmationReviewStatus";
 import { Button } from "@/components/ui/button";
 import { resolveEditToken } from "@/lib/confirmation-edit.functions";
 
@@ -18,6 +22,18 @@ export const Route = createFileRoute("/confirmations/edit/$token")({
   }),
   component: EditConfirmationPage,
 });
+
+type EditableSubmission = Record<string, unknown> & {
+  country?: string | null;
+  selection_method?: string | null;
+  internal_entries?: ConfirmationReviewEntry | null;
+  national_finals?: {
+    id?: string | null;
+    nf_name?: string | null;
+    winning_entry_id?: string | null;
+    national_final_entries?: ConfirmationReviewEntry[] | null;
+  } | null;
+};
 
 function EditConfirmationPage() {
   const { token } = Route.useParams();
@@ -46,7 +62,7 @@ function EditConfirmationPage() {
     | {
         valid?: boolean;
         reason?: string;
-        submission?: Record<string, unknown> | null;
+        submission?: EditableSubmission | null;
         round?: any;
       }
     | undefined;
@@ -80,6 +96,7 @@ function EditConfirmationPage() {
   }
 
   const country = typeof result.submission.country === "string" ? result.submission.country : "Your country";
+  const nf = result.submission.national_finals;
 
   return (
     <div className="confirmations-theme min-h-screen">
@@ -111,6 +128,23 @@ function EditConfirmationPage() {
           <p className="mt-1 text-xs leading-relaxed text-white/45">
             Saving changes updates the same response stored by the original Confirmations site.
           </p>
+        </div>
+
+        <div className="mb-5">
+          <ConfirmationReviewStatus
+            selectionMethod={result.submission.selection_method}
+            internalEntry={result.submission.internal_entries}
+            nationalFinal={
+              nf
+                ? {
+                    id: nf.id,
+                    nf_name: nf.nf_name,
+                    winning_entry_id: nf.winning_entry_id,
+                    entries: nf.national_final_entries ?? [],
+                  }
+                : null
+            }
+          />
         </div>
 
         <ConfirmationFormWithReceipt
