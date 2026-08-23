@@ -20,6 +20,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { showPublishesResults } from "@/lib/publication";
 import { computeCountryStats } from "@/lib/stats";
 
 export const Route = createFileRoute("/confirmations/admin/countries")({
@@ -190,6 +191,27 @@ function CountriesPage() {
 
   const selectedConfirmationEdition = editions.find((edition) => edition.id === editionId) ?? null;
 
+  const publishedResults = useMemo(() => {
+    const showById = new Map(shows.map((show) => [show.id, show]));
+    return results.filter(
+      (result) => Boolean(result.show_id) && showPublishesResults(showById.get(result.show_id ?? "")),
+    );
+  }, [results, shows]);
+
+  const selectedCanonicalEdition = selectedConfirmationEdition
+    ? canonicalEditions.find(
+        (edition) => edition.edition_number === selectedConfirmationEdition.edition_number,
+      ) ?? null
+    : null;
+
+  const selectedEditionResultsPublished = useMemo(() => {
+    if (!selectedCanonicalEdition) return false;
+    return shows.some(
+      (show) =>
+        show.edition_id === selectedCanonicalEdition.id && showPublishesResults(show),
+    );
+  }, [selectedCanonicalEdition, shows]);
+
   const contestRecords = useMemo(() => {
     const recordMap = new Map<string, ContestRecord>();
     if (!canonicalEditions.length) return recordMap;
@@ -199,12 +221,20 @@ function CountriesPage() {
         editions: canonicalEditions,
         shows,
         participants,
-        results,
+        results: publishedResults,
         jury: [],
         televote: [],
       });
       const timeline = stats.timeline;
-      const selected = selectedConfirmationEdition
+      const hasSelectedResult = Boolean(
+        selectedCanonicalEdition &&
+          publishedResults.some(
+            (result) =>
+              result.edition_id === selectedCanonicalEdition.id &&
+              (result.country_id === country.id || result.contest_entity_id === country.id),
+          ),
+      );
+      const selected = selectedConfirmationEdition && hasSelectedResult
         ? timeline.find((point) => point.editionNumber === selectedConfirmationEdition.edition_number) ?? null
         : null;
       const ranks = timeline
@@ -229,7 +259,7 @@ function CountriesPage() {
     }
 
     return recordMap;
-  }, [canonicalCountries, canonicalEditions, shows, participants, results, selectedConfirmationEdition]);
+  }, [canonicalCountries, canonicalEditions, shows, participants, publishedResults, selectedCanonicalEdition, selectedConfirmationEdition]);
 
   const participatingStatuses = useMemo(
     () =>
@@ -345,7 +375,13 @@ function CountriesPage() {
                         <p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">{selectedConfirmationEdition ? `SSC ${selectedConfirmationEdition.edition_number}` : "Selected edition"}</p>
                         {record.selectedResult ? (
                           <p className="numeric mt-1 text-sm font-bold text-foreground">{record.selectedResult.rank != null ? `#${record.selectedResult.rank}` : "Rank pending"} · {record.selectedResult.total.toLocaleString()} pts</p>
-                        ) : <p className="mt-1 text-xs text-muted-foreground">No official result is recorded for this edition.</p>}
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {selectedEditionResultsPublished
+                              ? "No official result is recorded for this edition."
+                              : "Results have not been published for this edition yet."}
+                          </p>
+                        )}
                       </div>
                       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                         <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground"><Trophy className="size-3" /> All-time archive</p>
