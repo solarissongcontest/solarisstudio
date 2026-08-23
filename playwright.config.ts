@@ -18,9 +18,12 @@ export default defineConfig({
     : "list",
   use: {
     baseURL,
-    trace: "retain-on-failure",
-    screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    // auditPage attaches a route-specific screenshot on failure. Whole-test
+    // traces and videos become enormous when one test intentionally audits a
+    // large route set, so keep the durable report focused and lightweight.
+    trace: "off",
+    screenshot: "off",
+    video: "off",
     reducedMotion: "reduce",
     colorScheme: "dark",
     ...devices["Desktop Chrome"],
