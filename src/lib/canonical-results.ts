@@ -54,12 +54,15 @@ function betterResult(
  * country never reached the final, its strongest semi-final row is kept. This
  * is the result set that career/all-time analytics should use whenever the
  * question is about editions or participations rather than individual shows.
+ * Entity-only result rows without a country identity are intentionally omitted
+ * from country analytics and country ranking denominators.
  */
 export function canonicalEditionResults(results: ResultRow[], shows: Show[]) {
   const showById = new Map(shows.map((show) => [show.id, show]));
   const byCountryEdition = new Map<string, ResultRow>();
 
   for (const row of results) {
+    if (!row.country_id) continue;
     const key = `${row.country_id}:${row.edition_id}`;
     const current = byCountryEdition.get(key);
     if (!current || betterResult(row, current, showById)) {
