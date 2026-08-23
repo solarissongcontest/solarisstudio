@@ -5,6 +5,7 @@ import type {
   CountryProfile,
   CountryProfileSection,
 } from "@/lib/country-account";
+import { usePublicCountryIdentityHistory } from "@/lib/country-history";
 import {
   countrySectionPresentation,
   factRowsForSection,
@@ -28,12 +29,45 @@ export function CountryCustomSections({
   media: CountryMedia[];
   surface: "country" | "wiki";
 }) {
+  const identityHistory = usePublicCountryIdentityHistory(country.id);
   const visible = (sections as CountryPageSection[])
     .map(normalizeCountryPageSection)
     .filter((section) => sectionVisibleOn(section, surface))
     .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at));
 
-  if (!visible.length) return null;
+  const formerIdentities = (() => {
+    if (surface !== "wiki") return [];
+    const grouped = new Map<string, {
+      name: string;
+      flag: string | null;
+      editions: Array<{ id: string; number: number | null; name: string }>;
+    }>();
+
+    for (const row of identityHistory.data ?? []) {
+      const name = row.display_name?.trim();
+      if (!name || name === country.name) continue;
+      const flag = row.flag_image ?? country.flag_image ?? null;
+      const key = `${name}\u0000${flag ?? ""}`;
+      const current = grouped.get(key) ?? { name, flag, editions: [] };
+      current.editions.push({
+        id: row.edition_id,
+        number: row.edition_number,
+        name: row.edition_name,
+      });
+      grouped.set(key, current);
+    }
+
+    return [...grouped.values()].map((identity) => ({
+      ...identity,
+      editions: [...identity.editions].sort(
+        (a, b) =>
+          (a.number ?? Number.MAX_SAFE_INTEGER) - (b.number ?? Number.MAX_SAFE_INTEGER) ||
+          a.name.localeCompare(b.name),
+      ),
+    }));
+  })();
+
+  if (!visible.length && !formerIdentities.length) return null;
 
   return (
     <div
@@ -41,6 +75,45 @@ export function CountryCustomSections({
       data-country-custom-sections={surface}
       data-country-media-count={media.length}
     >
+      {surface === "wiki" && formerIdentities.length > 0 ? (
+        <section className="country-personality-card w-full max-w-none rounded-2xl border border-border/70 bg-surface/60 p-4 sm:p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-primary">Country history</p>
+          <h2 className="mt-1 font-display text-xl font-semibold">Former names & flags</h2>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            These identities were used by the same country in earlier Solaris Song Contest editions.
+          </p>
+          <div className="mt-4 space-y-2">
+            {formerIdentities.map((identity) => (
+              <div
+                key={`${identity.name}-${identity.flag ?? "flag"}`}
+                className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background/20 p-3 sm:flex-row sm:items-center"
+              >
+                {identity.flag ? (
+                  <img
+                    src={identity.flag}
+                    alt={`${identity.name} flag`}
+                    loading="lazy"
+                    className="h-10 w-16 shrink-0 rounded-md object-cover"
+                  />
+                ) : (
+                  <span className="grid h-10 w-16 shrink-0 place-items-center rounded-md border border-border bg-surface text-[10px] font-bold text-muted-foreground">
+                    {country.short_code}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="font-display text-base font-semibold">{identity.name}</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    {identity.editions
+                      .map((edition) => edition.number != null ? `SSC ${edition.number}` : edition.name)
+                      .join(" · ")}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {visible.map((section) => (
         <CountryCustomSection
           key={section.id}

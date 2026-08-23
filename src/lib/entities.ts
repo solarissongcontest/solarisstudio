@@ -22,6 +22,8 @@ export type ContestEntityRow = {
   abbreviation: string;
   flag_image: string | null;
   region: string | null;
+  /** Display-only snapshot for an edition in which the global country used an older identity. */
+  historical_identity_override?: boolean;
 };
 
 export type GlobalContestEntity = ContestEntityRow & { entity_type: "global"; country_id: string };
@@ -78,18 +80,22 @@ export function displayFromEntity(
   countries?: Map<string, Country>,
 ): EntityDisplay {
   const c = entity.country_id ? countries?.get(entity.country_id) : undefined;
+  const historical =
+    entity.entity_type === "global" && entity.historical_identity_override === true;
+
   return {
+    // Historical names and flags are presentation only. These identity fields stay
+    // canonical so voting, HOD history and integrity analytics never split one country.
     id: entity.country_id ?? entity.id,
     entityId: entity.id,
     entityType: entity.entity_type,
     countryId: entity.country_id,
-    name: c?.name ?? entity.display_name,
+    name: historical ? entity.display_name : c?.name ?? entity.display_name,
     native_name: c?.native_name ?? null,
     short_code: c?.short_code ?? entity.abbreviation,
-    // Global countries are live identities. Their current flag/region must win over
-    // an edition snapshot so owner edits propagate everywhere. Custom entities still
-    // use their own stored artwork because they have no global country row.
-    flag_image: c?.flag_image ?? entity.flag_image ?? null,
+    flag_image: historical
+      ? entity.flag_image ?? c?.flag_image ?? null
+      : c?.flag_image ?? entity.flag_image ?? null,
     region: c?.region ?? entity.region ?? "Terra Solaris",
     accent_color: c?.accent_color ?? DEFAULT_ACCENT,
     description: c?.description ?? null,
@@ -115,21 +121,30 @@ export function displayFromCountry(c: Country): EntityDisplay {
 }
 
 /**
- * Lookup used by every show-scoped view. Entities are indexed by their own id and,
- * for global entities, additionally by their country id so legacy rows that only
- * carry `country_id` still resolve to a name and flag.
+ * Lookup used by show/edition views. A historical global entity may override the
+ * country-id display only when the supplied entity set belongs to a single edition.
+ * Archive-wide callers still keep the current global identity on country-id keys,
+ * while they can resolve a historical snapshot explicitly through its entity id.
  */
 export function entityDisplayMap(
   entities: ContestEntityRow[] | undefined,
   countries: Country[] | undefined,
 ): Map<string, EntityDisplay> {
+  const rows = entities ?? [];
   const cMap = new Map((countries ?? []).map((c) => [c.id, c]));
   const map = new Map<string, EntityDisplay>();
+  const singleEdition = new Set(rows.map((row) => row.edition_id)).size <= 1;
+
   (countries ?? []).forEach((c) => map.set(c.id, displayFromCountry(c)));
-  (entities ?? []).forEach((e) => {
+  rows.forEach((e) => {
     const d = displayFromEntity(e, cMap);
     map.set(e.id, d);
-    if (e.country_id) map.set(e.country_id, d);
+    if (
+      e.country_id &&
+      (singleEdition || e.historical_identity_override !== true)
+    ) {
+      map.set(e.country_id, d);
+    }
   });
   return map;
 }
