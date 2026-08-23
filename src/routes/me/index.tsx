@@ -5,7 +5,7 @@ import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { useFanSession } from "@/lib/prediction-data";
 
 export const Route = createFileRoute("/me/")({
-  head: () => ({ meta: [{ title: "My Solaris — Solaris Studio" }] }),
+  head: () => ({ meta: [{ title: "MySolaris — Solaris Studio" }] }),
   component: MySolarisRedirect,
 });
 
@@ -22,7 +22,7 @@ function MySolarisRedirect() {
   if (isLoading || user) {
     return (
       <AppShell>
-        <p className="text-sm text-muted-foreground">Opening My Solaris…</p>
+        <p className="text-sm text-muted-foreground">Opening MySolaris…</p>
       </AppShell>
     );
   }
@@ -31,10 +31,10 @@ function MySolarisRedirect() {
     <AppShell>
       <PageHeader
         eyebrow="Your private workspace"
-        title="My Solaris"
+        title="MySolaris"
         description="Your country, entry, participation and personal Solaris updates live together after sign-in."
       />
-      <Panel title="Sign in to open My Solaris">
+      <Panel title="Sign in to open MySolaris">
         <Link
           to="/auth"
           search={{ redirect: "/my-solaris" }}
