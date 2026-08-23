@@ -28,7 +28,11 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "bun run preview --host 127.0.0.1 --port 4173",
+        // CI's production target is Cloudflare/Nitro (`.output`), while Vite's
+        // preview plugin currently looks for the local Node target (`dist`).
+        // The workflow still performs the production build first; use Vite's
+        // app server here so the browser matrix exercises the actual routes.
+        command: "bun run dev --host 127.0.0.1 --port 4173",
         url: "http://127.0.0.1:4173",
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
