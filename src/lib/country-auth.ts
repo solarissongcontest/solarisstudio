@@ -15,6 +15,20 @@ type PasswordUpdatePayload = {
   ok: boolean;
 };
 
+export type SolarisAccountProfile = {
+  instagramUsername: string | null;
+  displayName: string | null;
+  email: string | null;
+  hasRecoveryEmail: boolean;
+  countryId: string | null;
+  status: "active" | "suspended" | null;
+};
+
+type EmailUpdatePayload = {
+  ok: boolean;
+  email: string;
+};
+
 type FunctionError = Error & { context?: Response };
 
 async function invokeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
@@ -72,6 +86,14 @@ export async function createCountryAccount(input: {
 
 export async function requestSolarisPasswordRecovery(identifier: string) {
   return invokeCountryAuth<RecoveryPayload>({ action: "recover", identifier });
+}
+
+export async function getSolarisAccountProfile() {
+  return invokeCountryAuth<SolarisAccountProfile>({ action: "profile" });
+}
+
+export async function setSolarisRecoveryEmail(email: string) {
+  return invokeCountryAuth<EmailUpdatePayload>({ action: "set-email", email });
 }
 
 export async function setSolarisPassword(password: string) {

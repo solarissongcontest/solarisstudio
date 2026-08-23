@@ -100,10 +100,11 @@ describe("beta-informed fan discovery", () => {
     expect(analysis).toContain('value: "connections", label: "Connections map"');
   });
 
-  it("unifies signed-in navigation under My Solaris", () => {
+  it("unifies signed-in navigation under MySolaris", () => {
     const shell = source("src/components/AppShell.tsx");
     expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
-    expect(shell).toContain("Open My Solaris");
+    expect(shell).toContain("Open MySolaris");
+    expect(shell).not.toContain("Open My Solaris");
     expect(shell).not.toContain("Profile & activity");
     expect(shell).not.toContain('label: "My country"');
   });

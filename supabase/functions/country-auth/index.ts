@@ -156,6 +156,14 @@ Deno.serve(async (req) => {
     };
   }
 
+  async function currentUser() {
+    const authorization = req.headers.get("authorization") ?? "";
+    const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    if (!token) return null;
+    const { data, error } = await publicAuth.auth.getUser(token);
+    return error ? null : data.user ?? null;
+  }
+
   if (action === "signup") {
     const countryId = String(body.countryId ?? "").trim();
     const instagramUsername = normalizeInstagram(body.instagramUsername);
@@ -269,21 +277,81 @@ Deno.serve(async (req) => {
     return json({ ok: true, recoveryAvailable: true });
   }
 
+  if (action === "profile") {
+    const user = await currentUser();
+    if (!user) return json({ error: "Sign in again to manage your MySolaris account." }, 401);
+
+    const { data: account, error } = await service
+      .from("country_accounts")
+      .select("country_id,status,instagram_username,display_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (error || !account) return json({ error: "Country account details could not be loaded." }, 403);
+
+    const recoveryEmail = user.email && !user.email.toLowerCase().endsWith(internalEmailSuffix)
+      ? user.email
+      : null;
+
+    return json({
+      instagramUsername: account.instagram_username ?? null,
+      displayName: account.display_name ?? null,
+      email: recoveryEmail,
+      hasRecoveryEmail: Boolean(recoveryEmail),
+      countryId: account.country_id ?? null,
+      status: account.status ?? null,
+    });
+  }
+
+  if (action === "set-email") {
+    const recoveryEmail = String(body.email ?? "").trim().toLowerCase();
+    if (!validEmail(recoveryEmail) || recoveryEmail.endsWith(internalEmailSuffix)) {
+      return json({ error: "Enter a valid email address." }, 400);
+    }
+
+    const user = await currentUser();
+    if (!user) return json({ error: "Sign in again before changing your email." }, 401);
+
+    const { data: account, error: accountError } = await service
+      .from("country_accounts")
+      .select("status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (accountError || !account) return json({ error: "Country account not found." }, 403);
+    if (account.status === "suspended") return json({ error: "This country account is suspended." }, 403);
+
+    if (user.email?.toLowerCase() === recoveryEmail) {
+      return json({ ok: true, email: recoveryEmail });
+    }
+
+    const { error: updateError } = await service.auth.admin.updateUserById(user.id, {
+      email: recoveryEmail,
+      email_confirm: true,
+      user_metadata: {
+        ...(user.user_metadata ?? {}),
+        has_recovery_email: true,
+      },
+    });
+
+    if (updateError) {
+      const message = updateError.message.toLowerCase();
+      if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
+        return json({ error: "That email is already used by another account." }, 409);
+      }
+      return json({ error: "Email could not be changed. Try again." }, 400);
+    }
+
+    return json({ ok: true, email: recoveryEmail });
+  }
+
   if (action === "set-password") {
     const password = String(body.password ?? "");
     const passwordError = await passwordSafetyError(password);
     if (passwordError) return json({ error: passwordError }, password.length < 6 ? 400 : 422);
 
-    const authorization = req.headers.get("authorization") ?? "";
-    const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-    if (!token) return json({ error: "Your password reset session has expired. Request a new recovery link." }, 401);
+    const user = await currentUser();
+    if (!user) return json({ error: "Your password reset session has expired. Request a new recovery link." }, 401);
 
-    const { data: userData, error: userError } = await publicAuth.auth.getUser(token);
-    if (userError || !userData.user) {
-      return json({ error: "Your password reset session has expired. Request a new recovery link." }, 401);
-    }
-
-    const { error: updateError } = await service.auth.admin.updateUserById(userData.user.id, { password });
+    const { error: updateError } = await service.auth.admin.updateUserById(user.id, { password });
     if (updateError) return json({ error: "Password could not be changed. Try again." }, 400);
     return json({ ok: true });
   }

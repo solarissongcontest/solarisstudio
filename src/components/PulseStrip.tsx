@@ -146,7 +146,7 @@ export function PulseStrip() {
           </h2>
           {user && (
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Your personal country feed also lives in My Solaris.
+              Your personal country feed also lives in MySolaris.
             </p>
           )}
         </div>

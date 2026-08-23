@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -16,12 +16,19 @@ import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
 export function MySolarisPortalExtension() {
   const [target, setTarget] = useState<Element | null>(null);
+  const search = useRouterState({ select: (state) => state.location.search });
+  const activeTab =
+    search && typeof search === "object" && "tab" in search
+      ? (search as Record<string, unknown>).tab
+      : undefined;
 
   useEffect(() => {
     setTarget(document.querySelector(".app-main"));
   }, []);
 
-  if (!target) return null;
+  // The rebuilt MySolaris owns its main dashboard. These older personal features
+  // now belong to Activity instead of being appended underneath every section.
+  if (!target || activeTab !== "activity") return null;
   return createPortal(<MySolarisPortalContent />, target);
 }
 
@@ -84,10 +91,10 @@ function MySolarisPortalContent() {
   return (
     <section className="mt-6 space-y-5 border-t border-border/60 pt-6" data-my-solaris-portal>
       <div className="border-b border-border/60 pb-3">
-        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Personal portal</p>
-        <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.035em]">Your Solaris, beyond country admin</h2>
+        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">More for you</p>
+        <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.035em]">Your wider Solaris activity</h2>
         <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-          Saved places, recent results, predictions, comparison shortcuts and activity stay together here instead of being scattered across the site.
+          Saved places, recent published results, predictions, comparisons and followed activity live here inside Activity rather than as a second dashboard.
         </p>
       </div>
 

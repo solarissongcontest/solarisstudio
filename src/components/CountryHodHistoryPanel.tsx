@@ -27,7 +27,7 @@ function editionLabel(edition: { edition_number: number | null; edition_name: st
   return edition.edition_number != null ? `SSC ${edition.edition_number}` : edition.edition_name;
 }
 
-export function CountryHodHistoryPanel() {
+export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } = {}) {
   const location = useRouterState({ select: (state) => ({ pathname: state.location.pathname, search: state.location.search }) });
   const onCountryHub = location.pathname === "/country-hub" || location.pathname === "/country-hub/";
   const onMySolaris = location.pathname === "/my-solaris" || location.pathname === "/my-solaris/";
@@ -36,9 +36,9 @@ export function CountryHodHistoryPanel() {
     ? (location.search as Record<string, unknown>).country
     : null;
   const ownCountry = accountData?.country ?? null;
-  const eligible = Boolean((onCountryHub || onMySolaris) && ownCountry && !targetCountry);
+  const eligible = Boolean((inline ? onMySolaris : onCountryHub) && ownCountry && !targetCountry);
   const history = useOwnedHodHistory(eligible);
-  const identityHistory = useOwnedCountryIdentityHistory(Boolean(eligible && onMySolaris));
+  const identityHistory = useOwnedCountryIdentityHistory(Boolean(eligible && inline));
   const setStatus = useSetOwnedHodEditionStatus();
   const setAuto = useSetOwnedHodAutoAssign();
   const setIdentity = useSetOwnedCountryEditionIdentity();
@@ -52,7 +52,7 @@ export function CountryHodHistoryPanel() {
   const [identityBusy, setIdentityBusy] = useState(false);
 
   useEffect(() => {
-    if (!eligible) {
+    if (inline || !eligible) {
       setHost(null);
       return;
     }
@@ -88,9 +88,6 @@ export function CountryHodHistoryPanel() {
 
     attach();
 
-    // Keep watching for the whole route lifetime. React can replace the route
-    // shell after the first successful attachment; if that happens, reattach
-    // the HOD/history controls instead of leaving the portal in a detached node.
     const observer = new MutationObserver(() => {
       if (!node?.isConnected) attach();
     });
@@ -101,14 +98,14 @@ export function CountryHodHistoryPanel() {
       node?.remove();
       setHost(null);
     };
-  }, [eligible, location.pathname]);
+  }, [eligible, inline, location.pathname]);
 
   const historicalEditions = useMemo(
     () => (identityHistory.data?.editions ?? []).filter((edition) => Boolean(edition.display_name?.trim())),
     [identityHistory.data?.editions],
   );
 
-  if (!eligible || !ownCountry || !host) return null;
+  if (!eligible || !ownCountry || (!inline && !host)) return null;
 
   const updateStatus = async (editionId: string, status: OwnedHodEditionStatus) => {
     setMessage(null);
@@ -246,7 +243,7 @@ export function CountryHodHistoryPanel() {
     </Panel>
   );
 
-  const historicalIdentityPanel = onMySolaris ? (
+  const historicalIdentityPanel = inline ? (
     <Panel
       title="Historical country names & flags"
       description="If your country used another name or flag in older SSC editions, select those editions here. Solaris will show that historical identity in those edition pages while keeping the same country underneath for statistics and voting security."
@@ -385,11 +382,13 @@ export function CountryHodHistoryPanel() {
     </Panel>
   ) : null;
 
-  return createPortal(
+  const content = (
     <div className="space-y-5">
       {hodPanel}
       {historicalIdentityPanel}
-    </div>,
-    host,
+    </div>
   );
+
+  if (inline) return content;
+  return host ? createPortal(content, host) : null;
 }
