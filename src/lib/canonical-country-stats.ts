@@ -1,5 +1,11 @@
 import type { Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
-import { buildEditionProgressionPlacements, isFinalShow, isSemiShow } from "./edition-progression";
+import {
+  buildEditionProgressionPlacements,
+  isFinalShow,
+  isHeatShow,
+  isSecondChanceShow,
+  isSemiShow,
+} from "./edition-progression";
 import { buildPublicCountryArchive } from "./public-country-archive";
 import {
   qualificationCountsAsQualified,
@@ -113,6 +119,19 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
   const showById = new Map(publicOptions.shows.map((show) => [show.id, show]));
   const editionNumber = new Map(publicOptions.editions.map((edition) => [edition.id, edition.edition_number]));
 
+  const directFinalEditionIds = new Set(
+    options.editions
+      .filter((edition) => {
+        const editionShows = options.shows.filter((show) => show.edition_id === edition.id);
+        const hasFinal = editionShows.some((show) => isFinalShow(show));
+        const hasQualificationStage = editionShows.some(
+          (show) => isSemiShow(show) || isHeatShow(show) || isSecondChanceShow(show),
+        );
+        return hasFinal && !hasQualificationStage;
+      })
+      .map((edition) => edition.id),
+  );
+
   const participants = publicOptions.participants.filter((participant) => participant.country_id === countryId);
   const results = publicOptions.results.filter((result) => result.country_id === countryId);
 
@@ -154,6 +173,25 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     })
     .filter((row): row is EditionFlag => row != null);
 
+  // A direct-final edition has no qualification event to count in Q/NQ totals,
+  // but appearing in that edition's only competitive stage must preserve a
+  // qualification streak. Otherwise a historical final-only edition would
+  // arbitrarily break a country's streak between two normal qualifying editions.
+  const qualificationStreakOutcomes = [...participationEditionIds]
+    .map((editionId) => {
+      const number = editionNumber.get(editionId);
+      if (number == null) return null;
+      const status = qualificationByEdition.get(editionId) ?? null;
+      if (status != null) {
+        return { editionNumber: number, value: qualificationCountsAsQualified(status) };
+      }
+      if (directFinalEditionIds.has(editionId) && finalEditionIds.has(editionId)) {
+        return { editionNumber: number, value: true };
+      }
+      return null;
+    })
+    .filter((row): row is EditionFlag => row != null);
+
   const qualifications = qualificationOutcomes.filter((row) => row.value).length;
 
   const progressionPlacements = buildEditionProgressionPlacements(publicOptions.results, publicOptions.shows);
@@ -166,11 +204,13 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     const status = qualificationByEdition.get(edition.id) ?? null;
     const qualified = status != null
       ? qualificationCountsAsQualified(status)
-      : placement.source === "final"
-        ? true
-        : placement.source === "semi" || placement.source === "heat"
-          ? false
-          : null;
+      : directFinalEditionIds.has(edition.id)
+        ? null
+        : placement.source === "final"
+          ? true
+          : placement.source === "semi" || placement.source === "heat"
+            ? false
+            : null;
 
     canonicalTimeline.push({
       editionId: edition.id,
@@ -263,7 +303,7 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     worstPlacementStreak: longestEditionStreak(
       qualificationOutcomes.map((point) => ({ ...point, value: !point.value })),
     ),
-    consecutiveQualifications: currentEditionStreak(qualificationOutcomes),
+    consecutiveQualifications: currentEditionStreak(qualificationStreakOutcomes),
     consecutiveFinals: currentEditionStreak(finalOutcomes),
     consecutiveTop10: currentEditionStreak(
       placementFlags.map((point) => ({ editionNumber: point.editionNumber, value: point.top10 })),
