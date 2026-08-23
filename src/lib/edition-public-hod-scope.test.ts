@@ -37,6 +37,13 @@ describe("country HOD ownership history", () => {
     expect(hodPanel).toContain('document.querySelector<HTMLElement>(".app-main")');
   });
 
+  it("keeps watching after the first portal attach so React cannot discard the controls", () => {
+    expect(hodPanel).toContain("Keep watching for the whole route lifetime");
+    expect(hodPanel).toContain("if (!node?.isConnected) attach()");
+    expect(hodPanel).toContain("observer.observe(document.body, { childList: true, subtree: true })");
+    expect(hodPanel).not.toContain("observer?.disconnect();\n        observer = null");
+  });
+
   it("feeds only resolved HOD identities into friendship-voting intelligence", () => {
     expect(migration).toContain("delegation_hod_assignments");
     expect(migration).toContain("country-account-self");
