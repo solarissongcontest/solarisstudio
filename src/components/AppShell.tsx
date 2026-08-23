@@ -160,6 +160,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const accountHref = email ? "/my-solaris" : "/auth";
+  const visibleAccountEmail =
+    email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const resultsActive = pathMatches(pathname, "/results");
   const quickNavigation: Array<{
     to: string;
@@ -289,11 +291,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </summary>
                 <div className="nav-menu-panel absolute right-0 top-[calc(100%+.6rem)] w-64 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
                   <div className="border-b border-border/55 px-3 py-2.5">
-                    <p className="truncate text-xs font-semibold text-foreground">My Solaris</p>
-                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{email}</p>
+                    <p className="truncate text-xs font-semibold text-foreground">MySolaris</p>
+                    <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                      {visibleAccountEmail ?? "Country account"}
+                    </p>
                   </div>
                   <Link to="/my-solaris" className="nav-menu-item mt-1">
-                    <span className="font-semibold">Open My Solaris</span>
+                    <span className="font-semibold">Open MySolaris</span>
                     <span className="text-[10px] text-muted-foreground">
                       Dashboard, participation{access.countryId ? " & country tools" : " & country setup"}
                     </span>
@@ -388,7 +392,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               {email && (
                 <div className="mb-5 border-t border-border/55 pt-4">
                   <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
-                    My Solaris
+                    MySolaris
                   </p>
                   <Link
                     to="/my-solaris"
@@ -396,7 +400,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       pathMatches(pathname, "/my-solaris") || pathMatches(pathname, "/me"),
                     )}
                   >
-                    My Solaris dashboard
+                    MySolaris dashboard
                   </Link>
                   <Link
                     to="/country-hub"
@@ -423,7 +427,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {email ? (
                 <div className="space-y-3">
-                  <p className="truncate text-[10px] text-muted-foreground">{email}</p>
+                  <p className="truncate text-[10px] text-muted-foreground">
+                    {visibleAccountEmail ?? "Country account"}
+                  </p>
                   <button
                     type="button"
                     onClick={signOut}
