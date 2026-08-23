@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { AtSign, Mail, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { Panel } from "@/components/AppShell";
 import {
@@ -23,7 +23,7 @@ export function MySolarisAccountPanel() {
     setEmail(profile.data?.email ?? "");
   }, [profile.data?.email]);
 
-  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
     const next = email.trim().toLowerCase();
