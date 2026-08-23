@@ -32,12 +32,13 @@ export function MySolarisAccountPanel() {
       return;
     }
 
+    const hadRecoveryEmail = Boolean(profile.data?.hasRecoveryEmail);
     setBusy(true);
     try {
       await setSolarisRecoveryEmail(next);
       await profile.refetch();
       setMessage(
-        profile.data?.hasRecoveryEmail
+        hadRecoveryEmail
           ? "Email changed successfully. You can use it for sign-in and password recovery."
           : "Email added successfully. Password recovery is now available for this account.",
       );
