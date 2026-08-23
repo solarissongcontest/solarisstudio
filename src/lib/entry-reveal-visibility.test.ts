@@ -14,6 +14,7 @@ const countryRoute = source("src/routes/countries/$code.tsx");
 const wikiRoute = source("src/routes/wiki/$code.tsx");
 const protectionMigration = source("supabase/migrations/20260821201357_protect_confirmation_entry_reveals.sql");
 const projectionMigration = source("supabase/migrations/20260821201620_public_safe_participant_projection.sql");
+const historicalVisibilityMigration = source("supabase/migrations/20260823141500_historical_entry_visibility_guard.sql");
 const confirmationsRpc = source("scripts/confirmations-admin-response-reveal-fields.sql");
 
 describe("entry reveal visibility", () => {
@@ -67,6 +68,19 @@ describe("entry reveal visibility", () => {
     expect(editionRoute).toContain("usePublicEditionParticipants(edition?.id)");
     expect(editionRoute).not.toContain("useParticipants(edition?.id)");
     expect(editionRoute).toContain(".filter((entry) => Boolean(entry.song?.trim()))");
+  });
+
+  it("normalizes edition-only contest entities for public Show and Edition routes", () => {
+    expect(publicParticipants).toContain("row.country_id ?? row.contest_entity_id ?? \"\"");
+    expect(publicParticipants).toContain("data.map(normalisePublicParticipant)");
+  });
+
+  it("keeps populated historical entries public while leaving the newest edition reveal-controlled", () => {
+    expect(historicalVisibilityMigration).toContain("keep_historical_entry_public");
+    expect(historicalVisibilityMigration).toContain("v_edition_number < v_newest_edition_number");
+    expect(historicalVisibilityMigration).toContain("new.publication_status = 'draft'");
+    expect(historicalVisibilityMigration).toContain("new.scheduled_publish_at is null");
+    expect(historicalVisibilityMigration).toContain("p.publication_status = 'draft'");
   });
 
   it("forces public Country and Wiki history through entry-level reveal gates too", () => {
