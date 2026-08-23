@@ -12,6 +12,10 @@ import {
   showPublishesResults,
   type PublicationConfig,
 } from "./publication";
+import {
+  filterResultsToCompetingParticipants,
+  type ParticipationAwareParticipant,
+} from "./participation-status";
 
 type PublicCountryArchiveInput = {
   editions: Edition[];
@@ -160,7 +164,11 @@ export function buildPublicCountryArchive(
     return [sanitiseParticipant(participant, publication)];
   });
 
-  const results = input.results.filter((result) => {
+  const competingResults = filterResultsToCompetingParticipants(
+    input.results,
+    input.participants as ParticipationAwareParticipant[],
+  );
+  const results = competingResults.filter((result) => {
     if (!publishedEditionIds.has(result.edition_id) || !result.show_id) return false;
     return showPublishesResults(showById.get(result.show_id));
   });
