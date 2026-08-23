@@ -33,6 +33,10 @@ import {
 import { canonicalEntryFor } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
+import {
+  resolveCountryEditionQualification,
+  type QualificationStatus,
+} from "@/lib/qualification";
 import { computeRelationship } from "@/lib/stats";
 
 export const Route = createFileRoute("/countries/$code")({
@@ -51,7 +55,6 @@ const TABS = [
 ] as const;
 
 type Tab = (typeof TABS)[number]["value"];
-type QualificationStatus = "aq" | true | false | null;
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
@@ -108,11 +111,6 @@ function CountryProfilePage() {
   const countryMap = new Map((countries ?? []).map((item) => [item.id, item]));
   const editionMap = new Map(publicArchive.editions.map((edition) => [edition.id, edition]));
   const showMap = new Map(publicArchive.shows.map((show) => [show.id, show]));
-  const semiEditionIds = new Set(
-    publicArchive.shows
-      .filter((show) => show.kind === "semi-final" || show.kind === "semi")
-      .map((show) => show.edition_id),
-  );
   const hasContestData = Boolean(stats && stats.participations > 0);
 
   const myParticipants = publicArchive.participants.filter(
@@ -128,7 +126,8 @@ function CountryProfilePage() {
 
   const finalResultByEdition = new Map<string, (typeof myResults)[number]>();
   for (const result of myResults) {
-    if (showMap.get(result.show_id ?? "")?.kind !== "grand-final") continue;
+    const kind = showMap.get(result.show_id ?? "")?.kind;
+    if (kind !== "grand-final" && kind !== "final") continue;
     const current = finalResultByEdition.get(result.edition_id);
     if (
       !current ||
@@ -145,56 +144,25 @@ function CountryProfilePage() {
       (editionMap.get(a.edition_id)?.edition_number ?? -1),
   );
 
-  const finalPresence = new Set<string>();
-  for (const participant of myParticipants) {
-    if (showMap.get(participant.show_id ?? "")?.kind === "grand-final") {
-      finalPresence.add(participant.edition_id);
-    }
-  }
-  for (const result of finalResults) finalPresence.add(result.edition_id);
+  const qualificationFor = (editionId: string) =>
+    resolveCountryEditionQualification(country.id, editionId, publicArchive);
 
-  const qualificationFor = (participant: Participant | undefined): QualificationStatus => {
-    if (!participant) return null;
-    if (participant.qualified === true) return true;
-    if (participant.qualified === false) return false;
-    return null;
-  };
+  const qualificationEditionIds = new Set<string>();
+  myParticipants.forEach((participant) => qualificationEditionIds.add(participant.edition_id));
+  myResults.forEach((result) => qualificationEditionIds.add(result.edition_id));
 
-  const semiParticipantByEdition = new Map<string, Participant>();
-  for (const participant of myParticipants) {
-    if (showMap.get(participant.show_id ?? "")?.kind !== "semi-final") continue;
-    const current = semiParticipantByEdition.get(participant.edition_id);
-    if (
-      !current ||
-      participant.qualified === true ||
-      (current.qualified == null && participant.qualified != null)
-    ) {
-      semiParticipantByEdition.set(participant.edition_id, participant);
-    }
-  }
-
-  const autoQualifiedEditionIds = new Set(
-    [...finalPresence].filter(
-      (editionId) => semiEditionIds.has(editionId) && !semiParticipantByEdition.has(editionId),
-    ),
-  );
-
-  const qualificationRows = [
-    ...[...semiParticipantByEdition.values()]
-      .map((participant) => ({
-        editionId: participant.edition_id,
-        edition: editionMap.get(participant.edition_id),
-        entry: canonicalEntryFor(myParticipants, participant.edition_id, country.id) ?? participant,
-        status: qualificationFor(participant),
-      }))
-      .filter((row) => row.status != null),
-    ...[...autoQualifiedEditionIds].map((editionId) => ({
+  const qualificationRows = [...qualificationEditionIds]
+    .map((editionId) => ({
       editionId,
       edition: editionMap.get(editionId),
       entry: canonicalEntryFor(myParticipants, editionId, country.id) ?? undefined,
-      status: "aq" as const,
-    })),
-  ].sort((a, b) => (b.edition?.edition_number ?? -1) - (a.edition?.edition_number ?? -1));
+      status: qualificationFor(editionId),
+    }))
+    .filter(
+      (row): row is typeof row & { status: Exclude<QualificationStatus, null> } =>
+        row.status != null,
+    )
+    .sort((a, b) => (b.edition?.edition_number ?? -1) - (a.edition?.edition_number ?? -1));
 
   const recentHistory =
     stats?.timeline
@@ -203,14 +171,11 @@ function CountryProfilePage() {
       .slice(0, 6)
       .map((point) => {
         const participant = canonicalEntryFor(myParticipants, point.editionId, country.id) ?? undefined;
-        const semiParticipant = semiParticipantByEdition.get(point.editionId);
         return {
           point,
           edition: editionMap.get(point.editionId),
           participant,
-          qualification: autoQualifiedEditionIds.has(point.editionId)
-            ? ("aq" as const)
-            : qualificationFor(semiParticipant),
+          qualification: qualificationFor(point.editionId),
         };
       }) ?? [];
 
@@ -423,11 +388,13 @@ function CountryProfilePage() {
                             <p className="mt-1 text-[10px] text-muted-foreground">
                               {qualification === "aq"
                                 ? "AQ · Autoqualifier"
-                                : qualification === false
-                                  ? "Did not qualify"
-                                  : qualification === true
-                                    ? "Reached final"
-                                    : "Qualification is not available"}
+                                : qualification === "wildcard"
+                                  ? "Wildcard · Reached final"
+                                  : qualification === "nq"
+                                    ? "Did not qualify"
+                                    : qualification === "q"
+                                      ? "Reached final"
+                                      : "Qualification is not available"}
                             </p>
                           </div>
                         </div>
@@ -492,7 +459,7 @@ function CountryProfilePage() {
               </Panel>
               <Panel
                 title="Qualification history"
-                description="Semi-finalists are marked Qualified or Eliminated from published qualification results. A country that appears in the Grand Final of an edition with semi-finals but never appears in a semi-final is marked AQ (Autoqualifier)."
+                description="Q means a top-N semi-final qualification. AQ means a direct Grand Final place. Wildcard means the country finished outside the semi-final top N but still reached the Grand Final through the wildcard route."
               >
                 {qualificationRows.length ? (
                   <div className="divide-y divide-border/60">
@@ -672,14 +639,21 @@ function QualificationBadge({ status }: { status: QualificationStatus }) {
       </span>
     );
   }
-  if (status === true) {
+  if (status === "wildcard") {
+    return (
+      <span className="shrink-0 rounded-full bg-amber-300/[0.12] px-2 py-1 text-[10px] font-semibold text-amber-200">
+        Wildcard
+      </span>
+    );
+  }
+  if (status === "q") {
     return (
       <span className="shrink-0 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
         Qualified
       </span>
     );
   }
-  if (status === false) {
+  if (status === "nq") {
     return (
       <span className="shrink-0 rounded-full bg-surface px-2 py-1 text-[10px] text-muted-foreground">
         Eliminated
