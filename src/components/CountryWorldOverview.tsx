@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Panel } from "@/components/AppShell";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
+import { buildAllTimeScoreRanking } from "@/lib/canonical-results";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import type {
   CountryContestSnapshot,
@@ -99,14 +100,14 @@ export function CountryWorldOverview({
       (editionMap.get(a.edition_id)?.edition_number ?? -1),
   );
 
-  const allTimeScore = archive.results
-    .filter((result) => {
-      if (result.country_id !== country.id) return false;
-      const kind = showMap.get(result.show_id ?? "")?.kind;
-      return kind === "grand-final" || kind === "final";
-    })
-    .reduce((total, result) => total + result.total_points, 0);
-  const allTimePosition = stats?.avgCombinedPlacement ?? null;
+  const allTimeRanking = useMemo(
+    () => buildAllTimeScoreRanking(archive.results, archive.shows),
+    [archive.results, archive.shows],
+  );
+  const allTimeRow = allTimeRanking.find((row) => row.countryId === country.id) ?? null;
+  const allTimeScore = allTimeRow?.totalPoints ?? 0;
+  const allTimePosition = allTimeRow?.rank ?? null;
+  const averagePlacement = stats?.avgCombinedPlacement ?? null;
 
   const profile = data?.profile;
   const hasWorldContent = Boolean(
@@ -184,11 +185,22 @@ export function CountryWorldOverview({
   const allTimePanel = stats ? (
     <Panel
       title="All-time record"
-      description="Only published contest results are counted. All-time position uses the combined edition ranking where finalists keep their final place and NQs follow them by semi-final performance."
+      description="One score is counted per edition: the Grand Final score if the country reached the final, otherwise its semi-final score. The all-time rank uses that exact same score total."
     >
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Fact label="All-time score" value={allTimeScore} />
-        <Fact label="All-time position" value={allTimePosition != null ? allTimePosition.toFixed(1) : "—"} />
+        <Fact
+          label="All-time rank"
+          value={
+            allTimePosition != null
+              ? `#${allTimePosition} of ${allTimeRanking.length}`
+              : "—"
+          }
+        />
+        <Fact
+          label="Avg. placement"
+          value={averagePlacement != null ? `#${averagePlacement.toFixed(1)}` : "—"}
+        />
       </div>
     </Panel>
   ) : null;
