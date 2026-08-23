@@ -5,6 +5,7 @@ const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
 
 export default defineConfig({
   testDir: "./e2e",
+  testMatch: /.*\.e2e\.ts/,
   outputDir: "test-results/playwright",
   timeout: 5 * 60_000,
   expect: { timeout: 10_000 },
@@ -35,12 +36,12 @@ export default defineConfig({
   projects: [
     ...widths.map((width) => ({
       name: `public-${width}`,
-      testMatch: /public-routes\.spec\.ts/,
+      testMatch: /public-routes\.e2e\.ts/,
       use: { viewport: { width, height: width < 768 ? 844 : 1000 } },
     })),
     {
       name: "account-states",
-      testMatch: /account-states\.spec\.ts/,
+      testMatch: /account-states\.e2e\.ts/,
       use: { viewport: { width: 1440, height: 1000 } },
     },
   ],
