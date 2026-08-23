@@ -270,11 +270,12 @@ const SECTIONS = [
         ),
       },
       {
-        question: "What is My Solaris?",
+        question: "What is MySolaris?",
         answer: (
           <>
-            My Solaris is your personal area. Depending on your account, it can show your profile, activity and
-            country controls.
+            <Link to="/my-solaris" className="font-semibold text-primary">MySolaris</Link> is your HOD home base.
+            It has separate sections for the current edition, entries, country tools, HOD and country history,
+            personal activity and your account settings.
           </>
         ),
       },
@@ -282,8 +283,17 @@ const SECTIONS = [
         question: "How do I edit my country page?",
         answer: (
           <>
-            Sign in to the country account, open My Solaris, then open the country page editor. Change the section
-            you want and save it. Appearance changes how the public country and Wiki pages look.
+            Sign in to the country account, open MySolaris, then open Country. From there you can open the public
+            page, Wiki, country workspace, page and media editor or Appearance.
+          </>
+        ),
+      },
+      {
+        question: "Can I add or change my email later?",
+        answer: (
+          <>
+            Yes. Open MySolaris and choose Account. You can add a recovery email to an account that does not have
+            one, or replace the existing recovery email. Your Instagram username still works for sign-in.
           </>
         ),
       },
@@ -292,8 +302,8 @@ const SECTIONS = [
         answer: (
           <>
             If your country account has a recovery email, use Forgot password on the sign-in page. Solaris Studio
-            sends a link so you can choose a new password. If no recovery email was added, you cannot reset it
-            yourself.
+            sends a link so you can choose a new password. If you did not add an email when creating the account,
+            you can add one later from MySolaris → Account while you are signed in.
           </>
         ),
       },
