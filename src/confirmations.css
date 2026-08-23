@@ -3,7 +3,9 @@
   min-width: 0;
   color: var(--foreground);
   background: transparent;
-  font-family: var(--font-sans);
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.012em;
 }
 
 .confirmations-backdrop {
@@ -13,17 +15,25 @@
 .confirmations-theme h1,
 .confirmations-theme h2,
 .confirmations-theme h3,
+.confirmations-display {
+  font-family: "Classica Crastao", Georgia, serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1;
+}
+
 .confirmations-theme h4,
 .confirmations-theme h5,
-.confirmations-theme h6,
-.confirmations-display {
-  font-family: var(--font-display);
-  letter-spacing: -0.035em;
+.confirmations-theme h6 {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.015em;
 }
 
 .confirmations-display {
-  font-weight: 800;
-  text-transform: none;
+  font-weight: 400;
+  text-transform: uppercase;
 }
 
 .confirmations-theme p,
@@ -32,12 +42,13 @@
 .confirmations-theme button,
 .confirmations-theme input,
 .confirmations-theme textarea,
-.confirmations-theme select {
-  font-family: var(--font-sans);
+.confirmations-theme select,
+.confirmations-theme a {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
 }
 
 .confirmations-theme .font-semibold {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Main Solaris-style surface */
