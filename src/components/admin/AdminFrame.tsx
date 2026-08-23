@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { AdminNav } from "./AdminNav";
@@ -89,7 +90,10 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="admin-page admin-main min-w-0">{children}</main>
+      <main className="admin-page admin-main min-w-0">
+        {children}
+        {pathname === "/confirmations/admin/countries" ? <DelegationColourOverview /> : null}
+      </main>
 
       <nav
         className="admin-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.08] px-2 pt-2"
