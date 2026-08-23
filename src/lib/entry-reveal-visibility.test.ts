@@ -61,11 +61,18 @@ describe("entry reveal visibility", () => {
     expect(projectionMigration).toContain("'notes', null");
   });
 
+  it("forces public Show and Edition routes through the sanitized participant projection", () => {
+    expect(publicParticipants).toContain('supabase.rpc("public_safe_participants"');
+    expect(showRoute).toContain("usePublicShowParticipants(showId)");
+    expect(showRoute).not.toContain("useShowParticipants(showId)");
+    expect(editionRoute).toContain("usePublicEditionParticipants(edition?.id)");
+    expect(editionRoute).not.toContain("useParticipants(edition?.id)");
+    expect(editionRoute).toContain(".filter((entry) => Boolean(entry.song?.trim()))");
+  });
+
   it("normalizes edition-only contest entities for public Show and Edition routes", () => {
     expect(publicParticipants).toContain("row.country_id ?? row.contest_entity_id ?? \"\"");
     expect(publicParticipants).toContain("data.map(normalisePublicParticipant)");
-    expect(showRoute).toContain("usePublicShowParticipants(showId)");
-    expect(editionRoute).toContain("usePublicEditionParticipants(edition?.id)");
   });
 
   it("keeps populated historical entries public while leaving the newest edition reveal-controlled", () => {
