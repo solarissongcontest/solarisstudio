@@ -60,7 +60,7 @@ function ParticipantStatusWorkspace() {
 
     return [...byIdentity.entries()]
       .map(([key, rows]) => {
-        const status = rows.some((row) => participationStatus(row) === "disqualified")
+        const status: ParticipationStatus = rows.some((row) => participationStatus(row) === "disqualified")
           ? "disqualified"
           : rows.some((row) => participationStatus(row) === "withdrawn")
             ? "withdrawn"
