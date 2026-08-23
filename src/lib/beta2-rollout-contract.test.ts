@@ -75,7 +75,7 @@ describe("Beta 2 hardened rollout contract", () => {
   });
 
   it("loads the isolated Beta 2 personality polish after the established repair layer", () => {
-    const visual = source("src/components/RouteVisualTheme.tsx");
+    const visual = source("src/components/CountryPersonalityStyles.tsx");
     const css = source("src/country-personalities-beta2.css");
     expect(visual.indexOf("country-personalities-beta2.css")).toBeGreaterThan(
       visual.indexOf("country-personalities-v4.css"),

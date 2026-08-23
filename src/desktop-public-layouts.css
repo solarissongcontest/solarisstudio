@@ -1,0 +1,77 @@
+/* Route-aware desktop canvases ------------------------------------------------
+   Wide screens are useful for data, directories and secondary context, not for
+   turning paragraphs into one-line train journeys. AppShell assigns one of the
+   shared layout families while every route keeps a logical mobile-first DOM. */
+
+:root {
+  --public-grid-columns: 12;
+  --public-grid-gap: clamp(1rem, 1.45vw, 1.65rem);
+  --public-reading-measure: 72ch;
+}
+
+.app-main[data-public-layout="reading"] :is(.page-header, article, .reading-column) {
+  max-width: var(--public-reading-measure);
+}
+
+body[data-solaris-route="pulse"] .app-main .text-\[9px\],
+body[data-solaris-route="pulse"] .app-main .text-\[10px\] {
+  font-size: .75rem !important;
+  line-height: 1.05rem !important;
+}
+
+@media (min-width: 1280px) {
+  .app-main[data-public-layout] {
+    --public-gutter: clamp(2rem, 3vw, 3.5rem);
+  }
+
+  .app-main[data-public-layout="home"] > *,
+  .app-main[data-public-layout="directory"] > *,
+  .app-main[data-public-layout="data"] > *,
+  .app-main[data-public-layout="workspace"] > * {
+    min-width: 0;
+  }
+
+  .wiki-library-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .75rem;
+  }
+
+  .country-directory-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .75rem;
+  }
+
+  body[data-solaris-family="editions"] .app-main[data-public-layout="directory"] .grid.xl\:grid-cols-3,
+  body[data-solaris-family="shows"] .app-main[data-public-layout="directory"] .grid.xl\:grid-cols-3 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .app-main[data-public-layout="data"] :is(canvas, svg[role="img"], table) {
+    max-width: none;
+  }
+
+  .app-main[data-public-layout="detail"] .page-header p,
+  .app-main[data-public-layout="home"] header p,
+  .app-main[data-public-layout="directory"] .page-header p {
+    max-width: var(--public-reading-measure);
+  }
+}
+
+@media (min-width: 1600px) {
+  .wiki-library-grid,
+  .country-directory-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  body[data-solaris-route="pulse"] .app-main .text-xs {
+    font-size: .875rem !important;
+    line-height: 1.35rem !important;
+  }
+
+  body[data-solaris-route="pulse"] .app-main .text-sm {
+    font-size: .95rem !important;
+    line-height: 1.4rem !important;
+  }
+}

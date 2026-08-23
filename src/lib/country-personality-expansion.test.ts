@@ -9,6 +9,7 @@ const editor = source("src/routes/_authenticated/country-hub/theme.tsx");
 const css = source("src/country-personalities.css");
 const backgroundFlag = source("src/components/BackgroundFlag.tsx");
 const routeVisualTheme = source("src/components/RouteVisualTheme.tsx");
+const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
 const countryRoute = source("src/routes/countries/$code.tsx");
 const wikiRoute = source("src/routes/wiki/$code.tsx");
 const customSections = source("src/components/country/CountryCustomSections.tsx");
@@ -88,11 +89,31 @@ describe("expanded country page personalities", () => {
     expect(routeVisualTheme).toContain("feTurbulence");
   });
 
-  it("loads only the base personality system and the isolated final repair", () => {
-    expect(routeVisualTheme).toContain('import "@/country-personalities.css"');
-    expect(routeVisualTheme).toContain('import "@/country-personalities-v4.css"');
+  it("loads the complete personality system only on country routes", () => {
+    expect(personalityStyles).toContain('import baseStyles from "@/country-personalities.css?inline"');
+    expect(personalityStyles).toContain('import repairStyles from "@/country-personalities-v4.css?inline"');
+    expect(personalityStyles).toContain('import betaStyles from "@/country-personalities-beta2.css?inline"');
+    expect(personalityStyles).toContain('import glassParityStyles from "@/country-glass-parity.css?inline"');
+    expect(personalityStyles).toContain('import buttonStyles from "@/country-button-theme.css?inline"');
+    expect(countryRoute).toContain("<CountryPersonalityStyles />");
+    expect(wikiRoute).toContain("<CountryPersonalityStyles />");
+    expect(editor).toContain("<CountryPersonalityStyles />");
+    expect(routeVisualTheme).not.toContain("country-personalities.css");
+    expect(routeVisualTheme).not.toContain("country-personalities-v4.css");
     expect(routeVisualTheme).not.toContain("country-personalities-v2.css");
     expect(routeVisualTheme).not.toContain("country-personalities-v3.css");
+  });
+
+  it("loads entity-theme data only on routes that can display it", () => {
+    expect(routeVisualTheme).not.toContain("useAllShows");
+    expect(routeVisualTheme).not.toContain("useEditions");
+    expect(routeVisualTheme).not.toContain("useCountryThemes");
+    expect(routeVisualTheme).toContain("function CountryRouteVisual");
+    expect(routeVisualTheme).toContain("useCountryTheme(country?.id)");
+    expect(routeVisualTheme).toContain("function EditionRouteVisual");
+    expect(routeVisualTheme).toContain("useEdition(slug)");
+    expect(routeVisualTheme).toContain("function ShowRouteVisual");
+    expect(routeVisualTheme).toContain("useEditionById(show?.edition_id)");
   });
 
   it("keeps optional motifs crisp and opt-in instead of assigning them automatically", () => {

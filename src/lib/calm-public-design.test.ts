@@ -7,9 +7,10 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("calm public design contract", () => {
   it("actually loads the calm public layout and chrome layers", () => {
     const visual = source("src/components/RouteVisualTheme.tsx");
+    const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
     expect(visual).toContain('import "@/calm-public-layout.css"');
     expect(visual).toContain('import "@/calm-public-chrome.css"');
-    expect(visual).toContain('import "@/country-glass-parity.css"');
+    expect(personalityStyles).toContain('import glassParityStyles from "@/country-glass-parity.css?inline"');
   });
 
   it("lets route colours reach navigation, selectors and controls", () => {

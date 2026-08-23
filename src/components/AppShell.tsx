@@ -11,14 +11,23 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
-import { CountryProfileExtension } from "@/components/CountryProfileExtension";
-import { EditionHostingExtension } from "@/components/EditionHostingExtension";
-import { HomeAnniversaryTakeover } from "@/components/HomeAnniversaryTakeover";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { cn } from "@/lib/utils";
+
+const LazyHomeAnniversaryTakeover = lazy(() =>
+  import("@/components/HomeAnniversaryTakeover").then((module) => ({
+    default: module.HomeAnniversaryTakeover,
+  })),
+);
+
+const LazyEditionHostingExtension = lazy(() =>
+  import("@/components/EditionHostingExtension").then((module) => ({
+    default: module.EditionHostingExtension,
+  })),
+);
 
 type PublicNavItem = {
   to: string;
@@ -63,6 +72,39 @@ const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
 const MOBILE_EXPLORE_ROUTES = ["/results", ...EXPLORE_ROUTES];
 const PARTICIPATE_ROUTES = ["/participate", "/confirmations", "/televoting"];
 const ACCOUNT_ROUTES = ["/me", "/auth", "/my-solaris", "/country-hub"];
+
+type PublicLayout = "home" | "reading" | "directory" | "detail" | "data" | "workspace" | "core";
+
+const PUBLIC_CANVAS_CLASS: Record<PublicLayout, string> = {
+  home: "max-w-[1680px]",
+  reading: "max-w-[1180px]",
+  directory: "max-w-[1680px]",
+  detail: "max-w-[1520px]",
+  data: "max-w-[1680px]",
+  workspace: "max-w-[1600px]",
+  core: "max-w-[1440px]",
+};
+
+function publicLayoutForPath(pathname: string): PublicLayout {
+  if (pathname === "/") return "home";
+
+  if (/^\/(guide|auth|reset|recover)(\/|$)/.test(pathname)) return "reading";
+
+  if (/^\/(analysis|relationships|records|scorecharts|broadcast-intelligence)(\/|$)/.test(pathname)) {
+    return "data";
+  }
+
+  if (/^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|televoting|my-solaris|country-hub)(\/|$)/.test(pathname)) {
+    return "workspace";
+  }
+
+  const directory = pathname.match(/^\/(countries|wiki|editions|shows|results|tools)\/?$/);
+  if (directory) return "directory";
+
+  if (/^\/(countries|wiki|editions|shows|results)\/.+/.test(pathname)) return "detail";
+
+  return "core";
+}
 
 function pathMatches(pathname: string, route: string) {
   return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`);
@@ -160,6 +202,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   };
 
   const accountHref = email ? "/my-solaris" : "/auth";
+  const publicLayout = publicLayoutForPath(pathname);
   const visibleAccountEmail =
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const resultsActive = pathMatches(pathname, "/results");
@@ -196,7 +239,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     },
   ];
 
-  const isCountryPage = /^\/countries\/[^/]+\/?$/i.test(pathname);
   const isEditionPage = /^\/editions\/[^/]+\/?$/i.test(pathname);
   const isHomePage = pathname === "/";
   const exploreActive = anyPathMatches(pathname, EXPLORE_ROUTES);
@@ -210,7 +252,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div aria-hidden="true" className="app-background" />
 
       <header className="site-nav sticky top-0 z-40 border-b border-border/60">
-        <div className="mx-auto flex h-16 max-w-[1320px] items-center gap-4 px-3 sm:px-5 lg:px-6">
+        <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-4 px-3 sm:px-5 lg:px-8 2xl:px-10">
           <Brand />
 
           <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
@@ -451,11 +493,24 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <main className="app-main relative z-10 mx-auto min-w-0 max-w-[1320px] px-3 py-4 sm:px-5 sm:py-6 lg:px-6 lg:py-8">
-        {isHomePage && <HomeAnniversaryTakeover />}
+      <main
+        data-public-layout={publicLayout}
+        className={cn(
+          "app-main relative z-10 mx-auto w-full min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:px-8 lg:py-8 2xl:px-10",
+          PUBLIC_CANVAS_CLASS[publicLayout],
+        )}
+      >
+        {isHomePage && (
+          <Suspense fallback={null}>
+            <LazyHomeAnniversaryTakeover />
+          </Suspense>
+        )}
         {children}
-        {isEditionPage && <EditionHostingExtension pathname={pathname} />}
-        {isCountryPage && <CountryProfileExtension pathname={pathname} />}
+        {isEditionPage && (
+          <Suspense fallback={null}>
+            <LazyEditionHostingExtension pathname={pathname} />
+          </Suspense>
+        )}
       </main>
 
       <nav
@@ -600,9 +655,11 @@ function Brand({ compact = false }: { compact?: boolean }) {
         )}
       >
         <img
-          src="/IMG_9177.png"
+          src="/solaris-studio-mark.png"
           alt=""
           aria-hidden="true"
+          width={256}
+          height={256}
           className="h-full w-full object-contain"
         />
       </div>

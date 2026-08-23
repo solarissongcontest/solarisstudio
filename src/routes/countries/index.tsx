@@ -264,7 +264,7 @@ function CountriesPage() {
           </p>
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="country-directory-grid mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map((row) => (
             <CountryCard key={row.country.id} row={row} />
           ))}

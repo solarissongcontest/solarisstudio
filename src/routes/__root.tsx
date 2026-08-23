@@ -188,25 +188,6 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        <style>{`
-          body[data-solaris-route="pulse"] .app-main .text-\\[9px\\],
-          body[data-solaris-route="pulse"] .app-main .text-\\[10px\\] {
-            font-size: .75rem !important;
-            line-height: 1.05rem !important;
-          }
-
-          @media (max-width: 639px) {
-            body[data-solaris-route="pulse"] .app-main .text-xs {
-              font-size: .875rem !important;
-              line-height: 1.35rem !important;
-            }
-
-            body[data-solaris-route="pulse"] .app-main .text-sm {
-              font-size: .95rem !important;
-              line-height: 1.4rem !important;
-            }
-          }
-        `}</style>
       </head>
       <body>
         {children}

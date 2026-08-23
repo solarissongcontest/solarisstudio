@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
+import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { uploadCountryBackground } from "@/lib/country-background";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useCountries } from "@/lib/data";
@@ -26,8 +27,17 @@ export const Route = createFileRoute("/_authenticated/country-hub/theme")({
     country: typeof search.country === "string" ? search.country : undefined,
   }),
   head: () => ({ meta: [{ title: "Country appearance — Solaris Studio" }] }),
-  component: CountryThemePage,
+  component: CountryThemeRoute,
 });
+
+function CountryThemeRoute() {
+  return (
+    <>
+      <CountryPersonalityStyles />
+      <CountryThemePage />
+    </>
+  );
+}
 
 const PERSONALITIES: Array<{ value: CountryHeroLayout; label: string; description: string }> = [
   { value: "classic", label: "Classic", description: "Balanced and familiar, with a clear country identity." },

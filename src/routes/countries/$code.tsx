@@ -12,6 +12,7 @@ import {
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
+import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { CountryWorldOverview } from "@/components/CountryWorldOverview";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
@@ -43,8 +44,17 @@ export const Route = createFileRoute("/countries/$code")({
   head: ({ params }) => ({
     meta: [{ title: `${params.code} — Country profile — Solaris Studio` }],
   }),
-  component: CountryProfilePage,
+  component: CountryProfileRoute,
 });
+
+function CountryProfileRoute() {
+  return (
+    <>
+      <CountryPersonalityStyles />
+      <CountryProfilePage />
+    </>
+  );
+}
 
 const TABS = [
   { value: "overview", label: "Overview" },
