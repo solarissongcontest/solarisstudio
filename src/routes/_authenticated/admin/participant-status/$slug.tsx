@@ -15,7 +15,6 @@ import {
   useEdition,
   useParticipants,
   useShows,
-  type Participant,
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import {
@@ -148,7 +147,7 @@ function ParticipantStatusWorkspace() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate text-sm font-semibold text-foreground">{display?.name ?? "Unknown country"}</p>
-                        <AdminStatus tone={group.status === "confirmed" ? "ready" : group.status === "withdrawn" ? "attention" : "danger" as any}>
+                        <AdminStatus tone={group.status === "confirmed" ? "ready" : "attention"}>
                           {participationStatusLabel(group.status)}
                         </AdminStatus>
                       </div>
