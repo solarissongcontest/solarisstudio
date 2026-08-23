@@ -157,37 +157,39 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
   const qualifications = qualificationOutcomes.filter((row) => row.value).length;
 
   const progressionPlacements = buildEditionProgressionPlacements(publicOptions.results, publicOptions.shows);
-  const canonicalTimeline: CountryTimelinePoint[] = publicOptions.editions
-    .map((edition) => {
-      const placement = progressionPlacements.get(edition.id)?.get(countryId);
-      if (!placement) return null;
-      const status = qualificationByEdition.get(edition.id) ?? null;
-      const qualified = status != null
-        ? qualificationCountsAsQualified(status)
-        : placement.source === "final"
-          ? true
-          : placement.source === "semi" || placement.source === "heat"
-            ? false
-            : null;
+  const canonicalTimeline: CountryTimelinePoint[] = [];
 
-      return {
-        editionId: edition.id,
-        editionNumber: edition.edition_number,
-        label: edition.edition_number != null ? `SSC ${edition.edition_number}` : edition.name,
-        showId: placement.row.show_id,
-        jury: placement.row.jury_points,
-        televote: placement.row.televote_points,
-        total: placement.row.total_points,
-        rank: placement.rank,
-        qualified,
-      } satisfies CountryTimelinePoint;
-    })
-    .filter((point): point is CountryTimelinePoint => point != null)
-    .sort(
-      (a, b) =>
-        (a.editionNumber ?? Number.MAX_SAFE_INTEGER) -
-        (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
-    );
+  for (const edition of publicOptions.editions) {
+    const placement = progressionPlacements.get(edition.id)?.get(countryId);
+    if (!placement) continue;
+
+    const status = qualificationByEdition.get(edition.id) ?? null;
+    const qualified = status != null
+      ? qualificationCountsAsQualified(status)
+      : placement.source === "final"
+        ? true
+        : placement.source === "semi" || placement.source === "heat"
+          ? false
+          : null;
+
+    canonicalTimeline.push({
+      editionId: edition.id,
+      editionNumber: edition.edition_number,
+      label: edition.edition_number != null ? `SSC ${edition.edition_number}` : edition.name,
+      showId: placement.row.show_id,
+      jury: placement.row.jury_points,
+      televote: placement.row.televote_points,
+      total: placement.row.total_points,
+      rank: placement.rank,
+      qualified,
+    });
+  }
+
+  canonicalTimeline.sort(
+    (a, b) =>
+      (a.editionNumber ?? Number.MAX_SAFE_INTEGER) -
+      (b.editionNumber ?? Number.MAX_SAFE_INTEGER),
+  );
 
   const placementFlags = canonicalTimeline
     .filter((point): point is typeof point & { editionNumber: number } => point.editionNumber != null)
