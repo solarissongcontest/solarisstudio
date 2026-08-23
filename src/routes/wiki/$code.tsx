@@ -137,13 +137,12 @@ function CountryWikiPage() {
   const editionMap = new Map(opts.editions.map((edition) => [edition.id, edition]));
   const showMap = new Map(opts.shows.map((show) => [show.id, show]));
   const countryParticipants = opts.participants.filter((entry) => entry.country_id === country.id);
-  const latestEntries = canonicalEditionEntries(countryParticipants)
-    .sort(
-      (a, b) =>
-        (editionMap.get(b.edition_id)?.edition_number ?? -1) -
-        (editionMap.get(a.edition_id)?.edition_number ?? -1),
-    )
-    .slice(0, 8);
+  // Wiki is archival: show every published canonical entry, not only the newest handful.
+  const latestEntries = canonicalEditionEntries(countryParticipants).sort(
+    (a, b) =>
+      (editionMap.get(b.edition_id)?.edition_number ?? -1) -
+      (editionMap.get(a.edition_id)?.edition_number ?? -1),
+  );
 
   const qualificationFor = (editionId: string) =>
     resolveCountryEditionQualification(country.id, editionId, opts);
