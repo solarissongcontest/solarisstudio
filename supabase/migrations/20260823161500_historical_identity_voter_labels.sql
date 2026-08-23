@@ -57,16 +57,20 @@ security definer
 set search_path to 'public','pg_temp'
 as $$
 declare
-  v_country uuid := coalesce(new.country_id, old.country_id);
-  v_edition uuid := coalesce(new.edition_id, old.edition_id);
+  v_country uuid;
+  v_edition uuid;
   v_name text;
   v_flag text;
 begin
   if tg_op = 'DELETE' then
+    v_country := old.country_id;
+    v_edition := old.edition_id;
     select c.name, c.flag_image into v_name, v_flag
     from public.countries c
     where c.id = v_country;
   else
+    v_country := new.country_id;
+    v_edition := new.edition_id;
     select new.display_name, coalesce(new.flag_image, c.flag_image)
       into v_name, v_flag
     from public.countries c
@@ -88,7 +92,10 @@ begin
       )
     );
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end;
 $$;
 
