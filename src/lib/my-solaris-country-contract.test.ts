@@ -47,14 +47,20 @@ describe("country claims and unified account workspace", () => {
     expect(account).toContain("if (!rpc.error && rpcAccounts.length > 0)");
   });
 
-  it("has one My Solaris destination instead of duplicate profile/country destinations", () => {
-    expect(shell).toContain("Open My Solaris");
+  it("has one MySolaris destination instead of duplicate profile/country destinations", () => {
+    expect(shell).toContain("Open MySolaris");
+    expect(shell).toContain("MySolaris dashboard");
     expect(shell).not.toContain('label: "My country"');
     expect(shell).not.toContain('label: "Country setup"');
     expect(shell).not.toContain('>Profile & activity<');
   });
 
-  it("keeps My Solaris focused instead of rendering every editor at once", () => {
+  it("does not expose the internal no-email auth address in navigation", () => {
+    expect(shell).toContain('@country.solaris.invalid');
+    expect(shell).toContain('visibleAccountEmail ?? "Country account"');
+  });
+
+  it("keeps the country workspace focused instead of rendering every editor at once", () => {
     expect(hub).toContain('type HubTab = "overview" | "country" | "page" | "entries"');
     expect(hub).toContain('label: "Overview"');
     expect(hub).toContain('label: "Country"');
