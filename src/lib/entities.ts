@@ -121,21 +121,30 @@ export function displayFromCountry(c: Country): EntityDisplay {
 }
 
 /**
- * Lookup used by every show-scoped view. Entities are indexed by their own id and,
- * for global entities, additionally by their country id so legacy rows that only
- * carry `country_id` still resolve to a name and flag.
+ * Lookup used by show/edition views. A historical global entity may override the
+ * country-id display only when the supplied entity set belongs to a single edition.
+ * Archive-wide callers still keep the current global identity on country-id keys,
+ * while they can resolve a historical snapshot explicitly through its entity id.
  */
 export function entityDisplayMap(
   entities: ContestEntityRow[] | undefined,
   countries: Country[] | undefined,
 ): Map<string, EntityDisplay> {
+  const rows = entities ?? [];
   const cMap = new Map((countries ?? []).map((c) => [c.id, c]));
   const map = new Map<string, EntityDisplay>();
+  const singleEdition = new Set(rows.map((row) => row.edition_id)).size <= 1;
+
   (countries ?? []).forEach((c) => map.set(c.id, displayFromCountry(c)));
-  (entities ?? []).forEach((e) => {
+  rows.forEach((e) => {
     const d = displayFromEntity(e, cMap);
     map.set(e.id, d);
-    if (e.country_id) map.set(e.country_id, d);
+    if (
+      e.country_id &&
+      (singleEdition || e.historical_identity_override !== true)
+    ) {
+      map.set(e.country_id, d);
+    }
   });
   return map;
 }
