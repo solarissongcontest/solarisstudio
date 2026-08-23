@@ -7,12 +7,17 @@ import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
   useAllContestEntities,
+  useAllParticipants,
   useAllResults,
   useAllShows,
   useCountries,
   useEditions,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
+import {
+  filterResultsToCompetingParticipants,
+  type ParticipationAwareParticipant,
+} from "@/lib/participation-status";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
 export const Route = createFileRoute("/results/")({
@@ -32,6 +37,7 @@ function ResultsOverviewPage() {
   const { data: editions } = useEditions();
   const { data: shows } = useAllShows();
   const { data: results } = useAllResults();
+  const { data: participants } = useAllParticipants();
   const { data: countries } = useCountries();
   const { data: entities } = useAllContestEntities();
 
@@ -42,6 +48,13 @@ function ResultsOverviewPage() {
   const editionMap = useMemo(
     () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
     [editions],
+  );
+  const competingResults = useMemo(
+    () => filterResultsToCompetingParticipants(
+      results ?? [],
+      (participants ?? []) as ParticipationAwareParticipant[],
+    ),
+    [results, participants],
   );
 
   const resultShows = useMemo(
@@ -62,7 +75,7 @@ function ResultsOverviewPage() {
   const latestShow = resultShows[0] ?? null;
   const latestEdition = latestShow ? editionMap.get(latestShow.edition_id) ?? null : null;
   const latestRows = latestShow
-    ? (results ?? [])
+    ? competingResults
         .filter((row) => row.show_id === latestShow.id && row.final_rank != null)
         .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))
     : [];
