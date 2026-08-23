@@ -1,12 +1,11 @@
-/* Country personality v2 ---------------------------------------------------
-   Second-pass composition layer. The first expansion stopped the circular
-   flag from being forced everywhere, but too many layouts still read as a
-   card with a flag image dropped into it. This file makes the flag part of
-   each personality's structure instead. */
+/* Country personality composition layer v3 ----------------------------------
+   Flags are structural design surfaces, never floating stickers. This file is
+   intentionally isolated to public country/Wiki heroes and editor previews. */
 
 body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
   position: relative;
   isolation: isolate;
+  overflow: hidden;
 }
 
 body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
@@ -14,77 +13,64 @@ body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) >
   z-index: 3;
 }
 
-/* Hide the original circular SVG anywhere the personality uses a custom
-   structural flag treatment. Classic and Spotlight intentionally keep it. */
-body[data-entity-theme="country"]:is(
-    [data-country-hero-layout="editorial"],
-    [data-country-hero-layout="flag-focus"],
-    [data-country-hero-layout="poster"],
-    [data-country-hero-layout="split"],
-    [data-country-hero-layout="broadcast"],
-    [data-country-hero-layout="panorama"],
-    [data-country-hero-layout="monument"],
-    [data-country-hero-layout="glass-card"],
-    [data-country-hero-layout="newspaper"],
-    [data-country-hero-layout="ribbon"],
-    [data-country-hero-layout="duotone"],
-    [data-country-hero-layout="passport"],
-    [data-country-hero-layout="horizon"]
-  ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag > svg {
+/* Reset the old universal flag-card treatment. */
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  position: absolute !important;
+  margin: 0 !important;
+  aspect-ratio: auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag > svg {
   display: none !important;
 }
 
-body[data-entity-theme="country"]:is(
-    [data-country-hero-layout="editorial"],
-    [data-country-hero-layout="flag-focus"],
-    [data-country-hero-layout="poster"],
-    [data-country-hero-layout="split"],
-    [data-country-hero-layout="broadcast"],
-    [data-country-hero-layout="panorama"],
-    [data-country-hero-layout="monument"],
-    [data-country-hero-layout="glass-card"],
-    [data-country-hero-layout="newspaper"],
-    [data-country-hero-layout="ribbon"],
-    [data-country-hero-layout="duotone"],
-    [data-country-hero-layout="passport"],
-    [data-country-hero-layout="horizon"]
-  ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
   content: "";
   position: absolute;
   inset: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   background-image: var(--background-flag-image);
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
+  image-rendering: auto;
 }
 
-/* CLASSIC ------------------------------------------------------------------
-   Familiar Solaris composition. The flag remains an emblem-like glow, but it
-   sits partly behind the title block instead of floating in an empty corner. */
+/* CLASSIC: flag is a soft right-hand identity field, not an emblem pasted on. */
 body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(17rem, 27vw, 21rem) !important;
+  min-height: clamp(18rem, 29vw, 23rem) !important;
   display: flex;
   align-items: center;
-  padding-right: clamp(7rem, 19vw, 14rem) !important;
+  padding-right: clamp(7rem, 20vw, 15rem) !important;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface) 88%, transparent) 0 52%, color-mix(in srgb, var(--surface) 72%, transparent) 68%, transparent 100%) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  top: 50% !important;
-  right: clamp(-5rem, -6vw, -2rem) !important;
-  width: clamp(15rem, 29vw, 22rem) !important;
-  height: clamp(15rem, 29vw, 22rem) !important;
-  opacity: .13 !important;
-  transform: translateY(-50%) !important;
+  inset: 0 0 0 42% !important;
+  width: 58% !important;
+  height: 100% !important;
+  opacity: .26 !important;
+  transform: none !important;
 }
 
-/* EDITORIAL ----------------------------------------------------------------
-   Magazine cover. The flag is the printed right-hand edge of the page, with a
-   soft ink fade into the copy rather than a separate thumbnail. */
+body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 34%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 34%, #000 100%);
+}
+
+/* EDITORIAL: a printed edge column integrated into the page. */
 body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(19rem, 32vw, 25rem) !important;
-  padding-right: clamp(8rem, 25vw, 20rem) !important;
+  min-height: clamp(20rem, 32vw, 26rem) !important;
+  padding-right: clamp(9rem, 28vw, 22rem) !important;
   border-radius: .7rem !important;
-  background: color-mix(in srgb, var(--surface) 72%, transparent) !important;
+  background: color-mix(in srgb, var(--surface) 70%, transparent) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero)::after {
@@ -92,31 +78,26 @@ body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.cou
   position: absolute;
   z-index: 2;
   inset-block: 0;
-  right: clamp(7rem, 24vw, 19rem);
+  right: clamp(8rem, 26vw, 20rem);
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgb(var(--solaris-accent) / .38), transparent);
+  background: linear-gradient(180deg, transparent, rgb(var(--solaris-accent) / .48), transparent);
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
   inset: 0 0 0 auto !important;
-  width: clamp(8rem, 26vw, 20rem) !important;
+  width: clamp(9rem, 29vw, 23rem) !important;
   height: 100% !important;
-  opacity: .62 !important;
+  opacity: .64 !important;
   transform: none !important;
-  overflow: hidden;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
   background-position: center;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 24%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 24%, #000 100%);
 }
 
-/* MINIMAL ------------------------------------------------------------------
-   Intentionally no decorative flag. Minimal gets its identity from typography,
-   spacing and the chosen colours rather than inventing decoration it does not
-   need. */
+/* MINIMAL: intentionally no decorative flag. */
 body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) {
   min-height: 0 !important;
   padding-block: clamp(1.25rem, 3vw, 2rem) !important;
@@ -130,15 +111,21 @@ body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.count
   display: none !important;
 }
 
-/* FLAG FOCUS ---------------------------------------------------------------
-   The flag is the hero surface itself. It is cropped as a full-bleed graphic
-   field and darkened/tinted behind the copy, not presented as an inserted box. */
+/* FLAG FOCUS: the flag literally is the hero surface. */
 body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(20rem, 35vw, 28rem) !important;
+  min-height: clamp(21rem, 36vw, 29rem) !important;
   display: flex;
   align-items: flex-end;
   padding-right: clamp(1.25rem, 5vw, 4rem) !important;
   background: rgb(var(--solaris-bg-deep)) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .82 !important;
+  transform: none !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero)::after {
@@ -147,36 +134,21 @@ body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.co
   z-index: 1;
   inset: 0;
   background:
-    linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .86) 0 35%, rgb(var(--solaris-bg-deep) / .38) 68%, rgb(var(--solaris-bg-deep) / .12)),
-    linear-gradient(180deg, transparent 38%, rgb(var(--solaris-bg-deep) / .66) 100%);
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  opacity: .76 !important;
-  transform: none !important;
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: center;
-  filter: saturate(.88) contrast(1.04);
+    linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .9) 0 30%, rgb(var(--solaris-bg-deep) / .48) 60%, rgb(var(--solaris-bg-deep) / .15)),
+    linear-gradient(180deg, transparent 35%, rgb(var(--solaris-bg-deep) / .72) 100%);
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
-  max-width: min(41rem, 74%);
-  padding: clamp(1rem, 2vw, 1.6rem);
-  border-left: .22rem solid rgb(var(--solaris-accent));
-  background: linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .36), transparent);
+  max-width: min(42rem, 78%);
+  padding-left: 1rem;
+  border-left: .2rem solid rgb(var(--solaris-accent));
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-/* POSTER -------------------------------------------------------------------
-   Graphic poster. The flag becomes oversized print texture bleeding off the
-   page, so it behaves like artwork rather than a plaque above the headline. */
+/* POSTER: oversized flag print texture bleeds off the canvas. */
 body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(22rem, 39vw, 30rem) !important;
+  min-height: clamp(23rem, 40vw, 31rem) !important;
   display: grid;
   place-items: center;
   padding: clamp(2rem, 5vw, 4rem) !important;
@@ -185,106 +157,92 @@ body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.countr
   background: color-mix(in srgb, var(--surface) 78%, rgb(var(--solaris-bg-deep)) 22%) !important;
 }
 
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: -18% -20% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .2 !important;
+  transform: rotate(-7deg) scale(1.08) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  filter: saturate(.72) contrast(1.22);
+}
+
 body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero)::after {
   content: "";
   position: absolute;
   z-index: 1;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 50%, transparent 0 34%, rgb(var(--solaris-bg-deep) / .18) 72%, rgb(var(--solaris-bg-deep) / .52) 100%),
-    linear-gradient(180deg, rgb(var(--solaris-accent) / .05), transparent 45%, rgb(var(--solaris-bg-deep) / .24));
+    radial-gradient(circle at 50% 46%, transparent 0 28%, rgb(var(--solaris-bg-deep) / .18) 68%, rgb(var(--solaris-bg-deep) / .58) 100%),
+    linear-gradient(180deg, rgb(var(--solaris-accent) / .06), transparent 45%, rgb(var(--solaris-bg-deep) / .24));
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: -12% -18% !important;
-  width: auto !important;
-  height: auto !important;
-  opacity: .18 !important;
-  transform: rotate(-6deg) scale(1.08) !important;
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  filter: saturate(.75) contrast(1.18);
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
-  max-width: 46rem;
-  padding: clamp(1rem, 3vw, 2rem);
-}
-
-/* SPLIT --------------------------------------------------------------------
-   True split composition. The right half literally is the flag field, blended
-   at the seam. There is no inner card, frame or floating image. */
+/* SPLIT: the right pane itself is the flag. */
 body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(19rem, 33vw, 26rem) !important;
-  padding-right: clamp(44%, 46vw, 48%) !important;
+  min-height: clamp(20rem, 33vw, 27rem) !important;
+  padding-right: 48% !important;
   background: color-mix(in srgb, var(--surface) 86%, transparent) !important;
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero)::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 16%;
-  transform: translateX(-50%);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--surface) 86%, transparent), transparent);
-  pointer-events: none;
-}
-
 body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: 0 0 0 50% !important;
-  width: 50% !important;
+  inset: 0 0 0 52% !important;
+  width: 48% !important;
   height: 100% !important;
   opacity: 1 !important;
   transform: none !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: center;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 18%, #000 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 16%, #000 100%);
 }
 
-/* SPOTLIGHT ----------------------------------------------------------------
-   Stage-like identity. Circular dissolve is intentional here, but it is placed
-   behind the name as the light source rather than floating above the content. */
+/* SPOTLIGHT: the flag is a diffuse light source across the whole hero. */
 body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(20rem, 34vw, 27rem) !important;
+  min-height: clamp(21rem, 35vw, 28rem) !important;
   display: grid;
   place-items: center;
   text-align: center;
-  background:
-    radial-gradient(circle at 50% 47%, rgb(var(--solaris-accent) / .14), transparent 34%),
-    color-mix(in srgb, var(--surface) 78%, rgb(var(--solaris-bg-deep)) 22%) !important;
+  background: color-mix(in srgb, var(--surface) 80%, rgb(var(--solaris-bg-deep)) 20%) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  top: 50% !important;
-  right: 50% !important;
-  width: clamp(18rem, 39vw, 28rem) !important;
-  height: clamp(18rem, 39vw, 28rem) !important;
-  opacity: .10 !important;
-  transform: translate(50%, -50%) !important;
+  inset: -15% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .18 !important;
+  transform: none !important;
 }
 
-/* BROADCAST ----------------------------------------------------------------
-   On-air graphics. The flag becomes the moving visual band behind the lower
-   third, while the identity block remains crisp in front. */
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  filter: blur(1px) saturate(.9);
+  -webkit-mask-image: radial-gradient(circle at 50% 48%, #000 0 30%, rgb(0 0 0 / .72) 48%, transparent 75%);
+  mask-image: radial-gradient(circle at 50% 48%, #000 0 30%, rgb(0 0 0 / .72) 48%, transparent 75%);
+}
+
+/* BROADCAST: full-width on-air band, never a corner thumbnail. */
 body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(18rem, 30vw, 23rem) !important;
+  min-height: clamp(19rem, 31vw, 24rem) !important;
   display: flex;
   align-items: flex-end;
-  padding-right: clamp(1.25rem, 4vw, 3rem) !important;
   border-left: .28rem solid rgb(var(--solaris-accent)) !important;
   background: rgb(var(--solaris-bg-deep)) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 56% !important;
+  opacity: .38 !important;
+  transform: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  background-position: center 55%;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 100%);
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero)::after {
@@ -292,163 +250,130 @@ body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.cou
   position: absolute;
   z-index: 2;
   inset: auto 0 0;
-  height: 48%;
-  background: linear-gradient(180deg, transparent, rgb(var(--solaris-bg-deep) / .8) 55%, rgb(var(--solaris-bg-deep) / .94));
+  height: 60%;
+  background: linear-gradient(180deg, transparent, rgb(var(--solaris-bg-deep) / .78) 62%, rgb(var(--solaris-bg-deep) / .94));
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: auto 0 0 !important;
-  width: 100% !important;
-  height: 48% !important;
-  opacity: .28 !important;
-  transform: none !important;
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: 50% 55%;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 26%, #000 100%);
-  mask-image: linear-gradient(180deg, transparent 0, #000 26%, #000 100%);
-}
-
-/* PANORAMA -----------------------------------------------------------------
-   Cinematic landscape. The flag is flattened into a low horizon ribbon and
-   fades naturally upward into the page. */
+/* PANORAMA: flag is a cinematic full-width landscape field. */
 body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(18rem, 29vw, 23rem) !important;
+  min-height: clamp(19rem, 31vw, 24rem) !important;
   display: flex;
   align-items: flex-end;
-  padding-bottom: clamp(2.1rem, 4vw, 3.6rem) !important;
-  border-radius: 1.3rem !important;
-  background: color-mix(in srgb, var(--surface) 82%, transparent) !important;
+  background: rgb(var(--solaris-bg-deep)) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: auto -4% 0 !important;
-  width: 108% !important;
-  height: 46% !important;
-  opacity: .44 !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .54 !important;
   transform: none !important;
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: center;
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 35%, #000 100%);
-  mask-image: linear-gradient(180deg, transparent, #000 35%, #000 100%);
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero)::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .82) 0 34%, rgb(var(--solaris-bg-deep) / .3) 72%, transparent),
+    linear-gradient(180deg, transparent 45%, rgb(var(--solaris-bg-deep) / .72) 100%);
 }
 
-/* MONUMENT -----------------------------------------------------------------
-   Ceremonial symmetry. Two translucent flag banners frame the text like a
-   formal hall instead of one tiny flag floating above it. */
+/* MONUMENT: mirrored ceremonial flag banners frame the identity. */
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(20rem, 34vw, 27rem) !important;
+  min-height: clamp(22rem, 36vw, 29rem) !important;
   display: grid;
   place-items: center;
-  padding-inline: clamp(6rem, 17vw, 14rem) !important;
+  padding-inline: clamp(5rem, 13vw, 9rem) !important;
   text-align: center;
+  border-radius: .8rem !important;
   background:
-    radial-gradient(circle at 50% 40%, rgb(var(--solaris-accent) / .08), transparent 42%),
-    color-mix(in srgb, var(--surface) 84%, rgb(var(--solaris-bg-deep)) 16%) !important;
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .08) 0 1px, transparent 1px calc(100% - 1px), rgb(var(--solaris-accent) / .08) calc(100% - 1px)) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  opacity: .19 !important;
+  opacity: .24 !important;
   transform: none !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
   background-image: var(--background-flag-image), var(--background-flag-image);
   background-repeat: no-repeat, no-repeat;
-  background-size: clamp(5rem, 13vw, 10rem) auto, clamp(5rem, 13vw, 10rem) auto;
-  background-position: left 1.3rem center, right 1.3rem center;
-  -webkit-mask-image: linear-gradient(90deg, #000, transparent 32%, transparent 68%, #000);
-  mask-image: linear-gradient(90deg, #000, transparent 32%, transparent 68%, #000);
+  background-size: 18% 100%, 18% 100%;
+  background-position: left center, right center;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 13%, transparent 24% 76%, #000 87% 100%);
+  mask-image: linear-gradient(90deg, #000 0 13%, transparent 24% 76%, #000 87% 100%);
 }
 
-/* GLASS CARD ---------------------------------------------------------------
-   Liquid glass. The flag is a blurred/refracted atmosphere behind the glass,
-   while the copy sits on the optical surface. */
+/* GLASS CARD: the hero itself is the glass. No card inside a card. */
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(19rem, 33vw, 26rem) !important;
+  min-height: clamp(20rem, 34vw, 27rem) !important;
   display: flex;
   align-items: center;
-  padding: clamp(1rem, 3vw, 2rem) !important;
+  padding: clamp(1.5rem, 4vw, 3rem) !important;
+  border: 1px solid rgb(255 255 255 / .2) !important;
+  border-radius: 2rem !important;
   background:
-    radial-gradient(circle at 18% 18%, rgb(255 255 255 / .12), transparent 24%),
-    radial-gradient(circle at 82% 82%, rgb(var(--solaris-accent) / .16), transparent 32%),
-    rgb(var(--solaris-bg-deep) / .28) !important;
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: -12% !important;
-  width: auto !important;
-  height: auto !important;
-  opacity: .33 !important;
-  transform: scale(1.06) !important;
-  filter: blur(18px) saturate(1.18) contrast(1.06);
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: center;
+    linear-gradient(135deg, rgb(255 255 255 / .11), rgb(255 255 255 / .035) 48%, rgb(var(--solaris-accent) / .07) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .42),
+    inset 1px 0 0 rgb(255 255 255 / .1),
+    inset 0 -1px 0 rgb(var(--solaris-accent) / .13),
+    0 22px 65px -38px rgb(var(--solaris-bg-deep) / .84) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.05);
+  backdrop-filter: blur(22px) saturate(175%) brightness(1.05);
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
-  width: min(100%, 43rem);
-  padding: clamp(1.25rem, 3vw, 2.2rem);
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / .24);
-  border-radius: 2rem;
-  background:
-    linear-gradient(135deg, rgb(255 255 255 / .16), rgb(255 255 255 / .05) 44%, rgb(var(--solaris-accent) / .08)) !important;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / .48),
-    inset 1px 0 0 rgb(255 255 255 / .12),
-    inset 0 -1px 0 rgb(var(--solaris-accent) / .16),
-    0 26px 70px -40px rgb(var(--solaris-bg-deep) / .9);
-  -webkit-backdrop-filter: blur(24px) saturate(175%) brightness(1.06);
-  backdrop-filter: blur(24px) saturate(175%) brightness(1.06);
+  width: min(100%, 44rem);
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: -36% -18% 55% -18%;
-  transform: rotate(-8deg);
-  background: linear-gradient(115deg, rgb(255 255 255 / .38), rgb(255 255 255 / .06) 45%, transparent 70%);
-  filter: blur(8px);
-  opacity: .78;
-}
-
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::before,
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10::after {
+  content: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: -8% -6% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .2 !important;
+  transform: none !important;
+  filter: blur(2px) saturate(1.25);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 34%, #000 82%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 34%, #000 82%, transparent 100%);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero)::after {
   content: "";
   position: absolute;
-  z-index: -1;
-  inset: 1px;
-  border-radius: calc(2rem - 1px);
-  box-shadow:
-    inset 18px 12px 34px -30px rgb(255 255 255 / .75),
-    inset -18px -12px 34px -29px rgb(var(--solaris-accent) / .5);
+  z-index: 1;
+  inset: -35% -8% 56% -14%;
+  transform: rotate(-8deg);
+  background: linear-gradient(115deg, rgb(255 255 255 / .32), rgb(255 255 255 / .055) 45%, transparent 70%);
+  filter: blur(8px);
+  opacity: .75;
   pointer-events: none;
 }
 
-@supports (backdrop-filter: url("#solaris-liquid-glass")) {
-  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
-    backdrop-filter: url("#solaris-liquid-glass") blur(15px) saturate(180%) brightness(1.06);
-  }
-}
-
-/* NEWSPAPER ----------------------------------------------------------------
-   Newspaper masthead. The flag becomes the printed top rule across the page,
-   cropped into a narrow strip rather than tucked into a corner. */
+/* NEWSPAPER: flag is the masthead strip. */
 body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(16rem, 26vw, 20rem) !important;
-  padding-top: clamp(4.4rem, 8vw, 5.8rem) !important;
+  min-height: clamp(17rem, 27vw, 21rem) !important;
+  padding-top: clamp(4.6rem, 8vw, 6rem) !important;
   border-radius: 0 !important;
   border-inline: 0 !important;
   border-bottom: 1px solid rgb(var(--solaris-accent) / .34) !important;
@@ -456,295 +381,289 @@ body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.cou
   box-shadow: none !important;
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero)::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  left: 1.25rem;
-  right: 1.25rem;
-  top: clamp(3.55rem, 6vw, 4.7rem);
-  height: 1px;
-  background: rgb(var(--solaris-accent) / .34);
-}
-
 body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
   inset: 0 0 auto !important;
   width: 100% !important;
-  height: clamp(3rem, 6vw, 4.2rem) !important;
-  opacity: .5 !important;
+  height: clamp(3.2rem, 6vw, 4.4rem) !important;
+  opacity: .62 !important;
   transform: none !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: center;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
 }
 
-/* RIBBON -------------------------------------------------------------------
-   The flag is the ribbon. It cuts diagonally through the hero and the content
-   is arranged around it instead of an independent horizontal picture strip. */
+/* RIBBON: the flag is the diagonal ribbon itself. */
 body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(18rem, 30vw, 23rem) !important;
+  min-height: clamp(19rem, 31vw, 24rem) !important;
   display: flex;
   align-items: center;
-  padding-right: clamp(7rem, 20vw, 15rem) !important;
+  padding-right: clamp(6rem, 17vw, 13rem) !important;
   background: color-mix(in srgb, var(--surface) 82%, transparent) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
   top: 50% !important;
-  right: -14% !important;
+  right: -18% !important;
   bottom: auto !important;
-  left: 38% !important;
-  width: 82% !important;
-  height: clamp(5.2rem, 11vw, 8rem) !important;
-  opacity: .34 !important;
-  transform: translateY(-50%) rotate(-10deg) !important;
+  left: 32% !important;
+  width: 92% !important;
+  height: clamp(5.5rem, 12vw, 8.5rem) !important;
+  opacity: .42 !important;
+  transform: translateY(-50%) rotate(-9deg) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 11%, #000 89%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 11%, #000 89%, transparent 100%);
 }
 
-/* DUOTONE ------------------------------------------------------------------
-   Screen-print composition. The flag owns the right colour field and is muted
-   into the palette so it feels printed into the geometry. */
+/* DUOTONE: the right colour plane is the flag, screen-printed into it. */
 body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(19rem, 32vw, 25rem) !important;
-  padding-right: clamp(10rem, 31vw, 24rem) !important;
+  min-height: clamp(20rem, 33vw, 26rem) !important;
+  padding-right: 45% !important;
   background:
-    linear-gradient(112deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 60%, rgb(var(--solaris-accent) / .18) 60.3% 100%) !important;
+    linear-gradient(112deg, color-mix(in srgb, var(--surface) 92%, transparent) 0 57%, rgb(var(--solaris-accent) / .22) 57.3% 100%) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: 0 0 0 56% !important;
-  width: 44% !important;
+  inset: 0 0 0 55% !important;
+  width: 45% !important;
   height: 100% !important;
-  opacity: .3 !important;
+  opacity: .38 !important;
   transform: none !important;
   mix-blend-mode: luminosity;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: center;
-  filter: grayscale(1) contrast(1.25);
-  -webkit-mask-image: linear-gradient(112deg, transparent 0 13%, #000 30% 100%);
-  mask-image: linear-gradient(112deg, transparent 0 13%, #000 30% 100%);
+  filter: grayscale(1) contrast(1.3);
+  -webkit-mask-image: linear-gradient(112deg, transparent 0 10%, #000 26% 100%);
+  mask-image: linear-gradient(112deg, transparent 0 10%, #000 26% 100%);
 }
 
-/* PASSPORT -----------------------------------------------------------------
-   Official document. The flag is treated like a security watermark embedded
-   in the paper, with a small accent seal rather than a separate photo panel. */
+/* PASSPORT: flag is a security watermark embedded in the document. */
 body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) {
   min-height: clamp(18rem, 29vw, 23rem) !important;
-  padding: clamp(1.7rem, 4vw, 3rem) !important;
+  padding: clamp(1.6rem, 4vw, 3rem) !important;
   border: 1px solid rgb(var(--solaris-accent) / .28) !important;
   border-radius: .55rem !important;
   background:
-    linear-gradient(135deg, rgb(var(--solaris-accent) / .035), transparent 38%),
-    color-mix(in srgb, var(--surface) 84%, rgb(var(--solaris-bg-deep)) 16%) !important;
-  box-shadow: inset 0 0 0 .35rem rgb(var(--solaris-bg-deep) / .08) !important;
-}
-
-body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero)::after {
-  content: "SSC · TERRA SOLARIS";
-  position: absolute;
-  z-index: 2;
-  right: 1.4rem;
-  bottom: 1rem;
-  font-size: .58rem;
-  font-weight: 800;
-  letter-spacing: .24em;
-  color: rgb(var(--solaris-accent) / .55);
+    repeating-linear-gradient(135deg, transparent 0 16px, rgb(var(--solaris-accent) / .025) 16px 17px),
+    color-mix(in srgb, var(--surface) 86%, rgb(var(--solaris-bg-deep)) 14%) !important;
+  box-shadow: inset 0 0 0 .35rem rgb(var(--solaris-bg-deep) / .07) !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: 50% auto auto 68% !important;
-  width: clamp(12rem, 25vw, 18rem) !important;
-  height: clamp(12rem, 25vw, 18rem) !important;
-  opacity: .105 !important;
-  transform: translate(-50%, -50%) rotate(-7deg) !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .12 !important;
+  transform: none !important;
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: contain;
-  background-position: center;
-  -webkit-mask-image: radial-gradient(circle, #000 0 54%, transparent 76%);
-  mask-image: radial-gradient(circle, #000 0 54%, transparent 76%);
+  background-size: min(44%, 22rem) auto;
+  background-position: 78% 50%;
+  -webkit-mask-image: radial-gradient(circle at 78% 50%, #000 0 18%, rgb(0 0 0 / .82) 34%, transparent 56%);
+  mask-image: radial-gradient(circle at 78% 50%, #000 0 18%, rgb(0 0 0 / .82) 34%, transparent 56%);
 }
 
-/* HORIZON ------------------------------------------------------------------
-   Calm landscape composition. The lower field is made from the flag and fades
-   into open space above; the identity sits just above the horizon line. */
+/* HORIZON: lower landscape field is made from the flag. */
 body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) {
-  min-height: clamp(19rem, 31vw, 24rem) !important;
+  min-height: clamp(20rem, 32vw, 25rem) !important;
   display: flex;
   align-items: flex-end;
-  padding-bottom: clamp(3rem, 7vw, 5rem) !important;
+  padding-bottom: clamp(3.1rem, 7vw, 5.2rem) !important;
   background: color-mix(in srgb, var(--surface) 78%, transparent) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 44% !important;
+  opacity: .42 !important;
+  transform: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 100%);
 }
 
 body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero)::after {
   content: "";
   position: absolute;
   z-index: 2;
-  left: 6%;
-  right: 6%;
-  bottom: 34%;
+  left: 5%;
+  right: 5%;
+  bottom: 39%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(var(--solaris-accent) / .6), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--solaris-accent) / .64), transparent);
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-  inset: auto 0 0 !important;
+/* Editor preview: remove the old sticker language where PreviewFlag exists. */
+[data-preview-layout] > [class*="aspect-"] {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+[data-preview-layout="flag-focus"] > [class*="aspect-"] {
+  inset: 0 !important;
   width: 100% !important;
-  height: 39% !important;
+  height: 100% !important;
   opacity: .34 !important;
   transform: none !important;
 }
 
-body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-  background-size: cover;
-  background-position: center;
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 30%, #000 100%);
-  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 100%);
+[data-preview-layout="split"] > [class*="aspect-"] {
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 42% !important;
+  height: 100% !important;
+  transform: none !important;
 }
 
-/* MOBILE ------------------------------------------------------------------- */
+[data-preview-layout="passport"] > [class*="aspect-"] {
+  top: 50% !important;
+  right: 5% !important;
+  width: 46% !important;
+  height: 62% !important;
+  opacity: .13 !important;
+  transform: translateY(-50%) rotate(-5deg) !important;
+}
+
+[data-preview-layout="glass-card"] {
+  border-color: rgb(255 255 255 / .2) !important;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / .11), rgb(255 255 255 / .035) 48%, transparent) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+}
+
+[data-preview-layout="glass-card"] > .relative.z-10 > div {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Mobile: structural fields stay structural instead of collapsing into cards. */
 @media (max-width: 720px) {
   body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
     min-height: 0 !important;
+    border-radius: 1.25rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) {
-    padding-right: 5.5rem !important;
+    min-height: 18rem !important;
+    padding-right: 4.8rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-    width: 12rem !important;
-    height: 12rem !important;
-    right: -4rem !important;
+    left: 46% !important;
+    width: 54% !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) {
-    padding-right: 5.6rem !important;
-    min-height: 16.5rem !important;
-  }
-
-  body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero)::after {
-    right: 5rem;
+    min-height: 18rem !important;
+    padding-right: 5.1rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-    width: 6.4rem !important;
+    width: 5.8rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 19rem !important;
+    min-height: 20rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
-    max-width: 92%;
+    max-width: 94%;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 20rem !important;
+    min-height: 21rem !important;
     padding: 1.5rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 18rem !important;
+    min-height: 19rem !important;
     padding-right: 1.25rem !important;
-    padding-bottom: 7.4rem !important;
-  }
-
-  body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero)::after {
-    top: auto;
-    bottom: 5.8rem;
-    left: 0;
-    width: 100%;
-    height: 2rem;
-    transform: none;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 86%, transparent), transparent);
+    padding-bottom: 7.8rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
     inset: auto 0 0 !important;
     width: 100% !important;
-    height: 7.5rem !important;
+    height: 8rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-    -webkit-mask-image: linear-gradient(180deg, transparent, #000 26%, #000 100%);
-    mask-image: linear-gradient(180deg, transparent, #000 26%, #000 100%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 25%, #000 100%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 25%, #000 100%);
   }
 
+  body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero),
   body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
   body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero),
   body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 17rem !important;
+    min-height: 18rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 18rem !important;
-    padding-inline: 4rem !important;
+    min-height: 20rem !important;
+    padding-inline: 3.8rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
-    background-size: 5.2rem auto, 5.2rem auto;
-    background-position: left .5rem center, right .5rem center;
+    background-size: 20% 100%, 20% 100%;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 18rem !important;
-    padding: .8rem !important;
-  }
-
-  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
-    padding: 1.25rem;
-    border-radius: 1.45rem;
+    min-height: 19rem !important;
+    padding: 1.35rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 15rem !important;
-    padding-top: 4.4rem !important;
+    min-height: 16rem !important;
+    padding-top: 4.5rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 17rem !important;
-    padding-right: 4rem !important;
+    min-height: 18rem !important;
+    padding-right: 3.4rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-    left: 28% !important;
-    right: -34% !important;
-    width: 106% !important;
+    left: 20% !important;
+    right: -42% !important;
+    width: 122% !important;
     height: 5.2rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 17rem !important;
-    padding-right: 6rem !important;
+    min-height: 18rem !important;
+    padding-right: 5.4rem !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-    left: 62% !important;
-    width: 38% !important;
+    left: 60% !important;
+    width: 40% !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) {
-    min-height: 16rem !important;
+    min-height: 17rem !important;
     padding: 1.4rem !important;
   }
 
-  body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
-    left: 78% !important;
-    width: 9rem !important;
-    height: 9rem !important;
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
+    background-size: 54% auto;
+    background-position: 86% 52%;
   }
 }
