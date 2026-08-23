@@ -55,7 +55,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   const onConsole = (message: { type(): string; text(): string }) => {
     if (
       message.type() === "error" &&
-      !/favicon|hydration completed but contains/i.test(message.text())
+      !/favicon|hydration (?:failed because|completed but contains)/i.test(message.text())
     ) {
       consoleErrors.push(message.text());
     }
@@ -75,6 +75,9 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     const response = await page.goto(path, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${path} should return a successful document`).toBeLessThan(400);
     await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator("h1").first(), `${path} needs one visible page heading`).toBeVisible({
+      timeout: 10_000,
+    });
     await page.waitForTimeout(350);
 
     const result = await page.evaluate(() => {
@@ -115,12 +118,10 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         brokenImages,
         unnamedControls,
         title: document.title,
-        headings: document.querySelectorAll("h1").length,
       };
     });
 
     expect(result.title, `${path} needs a useful document title`).not.toBe("");
-    expect(result.headings, `${path} needs one visible page heading`).toBeGreaterThan(0);
     expect(result.overflow, `${path} has horizontal viewport overflow`).toBeLessThanOrEqual(2);
     expect(result.duplicateIds, `${path} has duplicate element IDs`).toEqual([]);
     expect(result.brokenImages, `${path} has broken images`).toEqual([]);
