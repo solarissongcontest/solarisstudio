@@ -15,7 +15,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
-import { SHOW_KINDS, editionLabel, useEdition, useParticipants, useShows, type Show } from "@/lib/data";
+import { editionLabel, useEdition, useParticipants, useShows, type Show } from "@/lib/data";
 import { DEFAULT_PUBLICATION_CONFIG, hasAnyPublicInformation, resolveShowPublication } from "@/lib/publication";
 
 export const Route = createFileRoute("/_authenticated/admin/shows/$slug")({
@@ -23,10 +23,19 @@ export const Route = createFileRoute("/_authenticated/admin/shows/$slug")({
   component: ShowsWorkspace,
 });
 
+const SHOW_KIND_OPTIONS = [
+  "heat",
+  "semi-final",
+  "second-chance",
+  "grand-final",
+  "special",
+  "other",
+] as const;
+
 type ShowDraft = {
   id?: string;
   name: string;
-  kind: (typeof SHOW_KINDS)[number];
+  kind: (typeof SHOW_KIND_OPTIONS)[number];
   sort_order: number;
 };
 
@@ -139,7 +148,7 @@ function ShowsWorkspace() {
       <AdminPageHeader
         eyebrow={editionLabel(edition)}
         title="Shows"
-        description="Create the contest stages and keep their basic identity clear. Every detailed workflow now has its own organizer workspace."
+        description="Create the contest stages and keep their basic identity clear. Heat → Semi-Final → Grand Final progression is supported, and Second Chance can feed eliminated heat entries back into the semi-final."
         actions={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> New show</button>}
       />
 
@@ -153,7 +162,7 @@ function ShowsWorkspace() {
 
       {!orderedShows.length ? (
         <AdminCard>
-          <AdminEmptyState icon={ListChecks} title="Create the first show" description="Start with a semi-final, Grand Final or another stage. You can build its line-up immediately afterwards." action={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> Create show</button>} />
+          <AdminEmptyState icon={ListChecks} title="Create the first show" description="Start with a heat, semi-final, Grand Final or another stage. You can build its line-up immediately afterwards." action={<button type="button" className="admin-action-primary" onClick={openCreate}><Plus className="size-4" /> Create show</button>} />
         </AdminCard>
       ) : (
         <div className="space-y-3">
@@ -185,10 +194,10 @@ function ShowsWorkspace() {
         </div>
       )}
 
-      <AdminSheet open={sheetOpen} onClose={() => !busy && setSheetOpen(false)} title={draft.id ? "Edit show" : "Create show"} description="Keep the basic show identity simple here. Voting, publication and broadcast controls live in their dedicated workspaces.">
+      <AdminSheet open={sheetOpen} onClose={() => !busy && setSheetOpen(false)} title={draft.id ? "Edit show" : "Create show"} description="Choose the real role of the show. Qualifier counts are configured separately in Voting system, including for heats and Second Chance.">
         <div className="space-y-4">
           <label className="block"><span className="admin-section-label">Show name</span><input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Grand Final" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
-          <label className="block"><span className="admin-section-label">Type</span><select value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as ShowDraft["kind"] }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">{SHOW_KINDS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll("-", " ")}</option>)}</select></label>
+          <label className="block"><span className="admin-section-label">Type</span><select value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as ShowDraft["kind"] }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">{SHOW_KIND_OPTIONS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll("-", " ")}</option>)}</select></label>
           <label className="block"><span className="admin-section-label">Show order</span><input type="number" min={1} value={draft.sort_order} onChange={(event) => setDraft((current) => ({ ...current, sort_order: Number(event.target.value) || 1 }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
           <button type="button" disabled={busy || !draft.name.trim()} onClick={() => void saveShow()} className="admin-action-primary w-full">{busy ? "Saving…" : draft.id ? "Save changes" : "Create show"}</button>
         </div>
