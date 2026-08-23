@@ -58,38 +58,46 @@ export function CountryHodHistoryPanel() {
     }
 
     let node: HTMLDivElement | null = null;
-    let observer: MutationObserver | null = null;
 
     const attach = () => {
-      if (node?.isConnected) return true;
+      if (node?.isConnected) return;
 
       const header = document.querySelector<HTMLElement>(".app-main > .page-header");
       const main = document.querySelector<HTMLElement>(".app-main");
       const parent = header?.parentElement ?? main;
-      if (!parent) return false;
+      if (!parent) {
+        setHost(null);
+        return;
+      }
 
-      node = document.createElement("div");
-      node.dataset.countryHodHistoryPanel = "true";
-      node.className = "mb-5";
-
-      if (header?.parentElement) header.insertAdjacentElement("afterend", node);
-      else parent.prepend(node);
+      const existing = parent.querySelector<HTMLElement>(
+        ":scope > [data-country-hod-history-panel='true']",
+      );
+      if (existing) {
+        node = existing as HTMLDivElement;
+      } else {
+        node = document.createElement("div");
+        node.dataset.countryHodHistoryPanel = "true";
+        node.className = "mb-5";
+        if (header?.parentElement === parent) header.insertAdjacentElement("afterend", node);
+        else parent.prepend(node);
+      }
 
       setHost(node);
-      return true;
     };
 
-    if (!attach()) {
-      observer = new MutationObserver(() => {
-        if (!attach()) return;
-        observer?.disconnect();
-        observer = null;
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
+    attach();
+
+    // Keep watching for the whole route lifetime. React can replace the route
+    // shell after the first successful attachment; if that happens, reattach
+    // the HOD/history controls instead of leaving the portal in a detached node.
+    const observer = new MutationObserver(() => {
+      if (!node?.isConnected) attach();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-      observer?.disconnect();
+      observer.disconnect();
       node?.remove();
       setHost(null);
     };
@@ -149,12 +157,11 @@ export function CountryHodHistoryPanel() {
       for (const editionId of selectedEditionIds) {
         await setIdentity.mutateAsync({ editionId, displayName: name, flagImage });
       }
+      const count = selectedEditionIds.length;
       setOldName("");
       setOldFlagFile(null);
       setSelectedEditionIds([]);
-      setIdentityMessage(
-        `Saved ${name} for ${selectedEditionIds.length} edition${selectedEditionIds.length === 1 ? "" : "s"}.`,
-      );
+      setIdentityMessage(`Saved ${name} for ${count} edition${count === 1 ? "" : "s"}.`);
     } catch (error) {
       setIdentityMessage(error instanceof Error ? error.message : "Historical identity could not be saved.");
     } finally {
