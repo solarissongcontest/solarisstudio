@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
+  CheckCircle2,
+  CircleAlert,
+  Clock3,
   FileText,
   Flag,
   Globe2,
@@ -11,6 +14,7 @@ import {
   RefreshCw,
   Settings2,
   SlidersHorizontal,
+  XCircle,
 } from "lucide-react";
 
 import {
@@ -24,6 +28,7 @@ import {
   loadConfirmationEditions,
   type ConfirmationEdition,
 } from "@/integrations/confirmations/admin";
+import { confirmationsSupabase } from "@/integrations/confirmations/client";
 
 export const Route = createFileRoute("/confirmations/admin/")({
   head: () => ({
@@ -35,8 +40,64 @@ export const Route = createFileRoute("/confirmations/admin/")({
   component: DelegationsAdminOverview,
 });
 
+type Entry = {
+  id: string;
+  song_title: string | null;
+  review_status: string | null;
+  removed?: boolean | null;
+};
+
+type ResponseRow = {
+  id: string;
+  country: string;
+  participating: boolean;
+  selection_method: string | null;
+  entry_unknown: boolean;
+  nf_entries_unknown: boolean;
+  internal_entries: Entry | null;
+  national_finals: {
+    id: string;
+    winning_entry_id: string | null;
+    national_final_entries: Entry[];
+  } | null;
+  editions: { id: string } | null;
+};
+
+type CardState = "review" | "issue" | "ready" | "neutral";
+
+function activeNfEntries(row: ResponseRow) {
+  return (row.national_finals?.national_final_entries ?? []).filter(
+    (entry) => !entry.removed && entry.review_status !== "removed",
+  );
+}
+
+function responseCardState(row: ResponseRow): CardState {
+  if (!row.participating) return "neutral";
+
+  if (row.selection_method === "internal") {
+    const entry = row.internal_entries;
+    if (!entry?.song_title || row.entry_unknown) return "neutral";
+    if (entry.review_status === "declined" || entry.review_status === "removed") return "issue";
+    if (!entry.review_status || entry.review_status === "pending") return "review";
+    if (entry.review_status === "accepted") return "ready";
+    return "neutral";
+  }
+
+  if (row.selection_method === "national_final") {
+    const entries = activeNfEntries(row);
+    if (!entries.length || row.nf_entries_unknown) return "neutral";
+    if (entries.some((entry) => entry.review_status === "declined")) return "issue";
+    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
+    if (!row.national_finals?.winning_entry_id) return "neutral";
+    return "ready";
+  }
+
+  return "neutral";
+}
+
 function DelegationsAdminOverview() {
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
+  const [responses, setResponses] = useState<ResponseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,8 +106,19 @@ function DelegationsAdminOverview() {
 
     void (async () => {
       try {
-        const rows = await loadConfirmationEditions();
-        if (alive) setEditions(rows);
+        const [editionRows, responsesResult] = await Promise.all([
+          loadConfirmationEditions(),
+          confirmationsSupabase.rpc("admin_confirmation_responses"),
+        ]);
+        if (responsesResult.error) throw responsesResult.error;
+        if (alive) {
+          setEditions(editionRows);
+          setResponses(
+            Array.isArray(responsesResult.data)
+              ? (responsesResult.data as unknown as ResponseRow[])
+              : [],
+          );
+        }
       } catch (caught) {
         if (alive) {
           setError(caught instanceof Error ? caught.message : "Could not load delegation data.");
@@ -65,6 +137,19 @@ function DelegationsAdminOverview() {
     () => editions.find((edition) => edition.status === "active") ?? editions[0] ?? null,
     [editions],
   );
+
+  const activeResponses = useMemo(
+    () => responses.filter((response) => response.editions?.id === activeEdition?.id),
+    [activeEdition?.id, responses],
+  );
+
+  const triageCounts = useMemo(() => {
+    const counts = { review: 0, issue: 0, ready: 0, neutral: 0 };
+    activeResponses.forEach((response) => {
+      counts[responseCardState(response)] += 1;
+    });
+    return counts;
+  }, [activeResponses]);
 
   const totals = useMemo(() => {
     const responseCount = editions.reduce(
@@ -87,33 +172,47 @@ function DelegationsAdminOverview() {
         to: "/confirmations/admin/editions",
         label: "Configure edition",
       }
-    : activeEdition.rounds.length === 0
+    : triageCounts.review > 0
       ? {
-          title: "Create the first submission round",
-          description: "Add a confirmation wave before delegations can submit responses.",
-          to: "/confirmations/admin/rounds",
-          label: "Create round",
+          title: `Review ${triageCounts.review} ${triageCounts.review === 1 ? "submission" : "submissions"}`,
+          description: "Red submissions contain song information that still needs an organizer decision.",
+          to: "/confirmations/admin/responses",
+          label: "Review responses",
         }
-      : activeOpenRounds.length > 0
+      : triageCounts.issue > 0
         ? {
-            title: "Review incoming responses",
-            description: `${activeOpenRounds.length} ${activeOpenRounds.length === 1 ? "round is" : "rounds are"} open and accepting submissions.`,
+            title: `${triageCounts.issue} ${triageCounts.issue === 1 ? "submission needs" : "submissions need"} fixing`,
+            description: "Yellow submissions contain at least one declined song and need delegation attention.",
             to: "/confirmations/admin/responses",
-            label: "Review responses",
+            label: "Open responses",
           }
-        : activeEdition.response_count > 0
+        : activeEdition.rounds.length === 0
           ? {
-              title: "Review submitted delegations",
-              description: `${activeEdition.response_count} responses are currently attached to ${formatEdition(activeEdition)}.`,
-              to: "/confirmations/admin/responses",
-              label: "Open responses",
-            }
-          : {
-              title: "Open or schedule a submission round",
-              description: "Rounds exist, but none are currently accepting new responses.",
+              title: "Create the first submission round",
+              description: "Add a confirmation wave before delegations can submit responses.",
               to: "/confirmations/admin/rounds",
-              label: "Manage rounds",
-            };
+              label: "Create round",
+            }
+          : activeOpenRounds.length > 0
+            ? {
+                title: "Review incoming responses",
+                description: `${activeOpenRounds.length} ${activeOpenRounds.length === 1 ? "round is" : "rounds are"} open and accepting submissions.`,
+                to: "/confirmations/admin/responses",
+                label: "Review responses",
+              }
+            : activeEdition.response_count > 0
+              ? {
+                  title: "Review submitted delegations",
+                  description: `${activeEdition.response_count} responses are currently attached to ${formatEdition(activeEdition)}.`,
+                  to: "/confirmations/admin/responses",
+                  label: "Open responses",
+                }
+              : {
+                  title: "Open or schedule a submission round",
+                  description: "Rounds exist, but none are currently accepting new responses.",
+                  to: "/confirmations/admin/rounds",
+                  label: "Manage rounds",
+                };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -184,6 +283,51 @@ function DelegationsAdminOverview() {
               />
             </AdminCard>
           )}
+
+          {activeEdition ? (
+            <AdminCard className="mb-4">
+              <AdminCardHeader
+                eyebrow="Submission status"
+                title="What the colours mean"
+                description={`Live counts for ${formatEdition(activeEdition)}. These use the same rules as the full Responses page.`}
+                action={
+                  <Link to="/confirmations/admin/responses" className="admin-action-secondary !min-h-9">
+                    View responses <ArrowRight className="size-3.5" />
+                  </Link>
+                }
+              />
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <TriageMetric
+                  state="review"
+                  icon={CircleAlert}
+                  label="Red · Needs review"
+                  value={triageCounts.review}
+                  description="Organizer still needs to review submitted song information."
+                />
+                <TriageMetric
+                  state="issue"
+                  icon={XCircle}
+                  label="Yellow · Needs fixing"
+                  value={triageCounts.issue}
+                  description="A submitted song was declined and the delegation needs to fix or replace it."
+                />
+                <TriageMetric
+                  state="ready"
+                  icon={CheckCircle2}
+                  label="Green · Ready"
+                  value={triageCounts.ready}
+                  description="Entry is accepted, or the NF is fully accepted and has a winner."
+                />
+                <TriageMetric
+                  state="neutral"
+                  icon={Clock3}
+                  label="No glow · Waiting"
+                  value={triageCounts.neutral}
+                  description="Nothing is wrong, but the entry or NF winner is not decided yet, or the country is not participating."
+                />
+              </div>
+            </AdminCard>
+          ) : null}
 
           <AdminCard className="mb-4">
             <AdminCardHeader
@@ -294,6 +438,40 @@ function CompactMetric({ label, value }: { label: string; value: number }) {
     <div className="admin-card px-3 py-3 text-center">
       <p className="numeric text-xl font-bold">{value}</p>
       <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function TriageMetric({
+  state,
+  icon: Icon,
+  label,
+  value,
+  description,
+}: {
+  state: CardState;
+  icon: typeof CircleAlert;
+  label: string;
+  value: number;
+  description: string;
+}) {
+  const className =
+    state === "review"
+      ? "border-rose-400/60 bg-rose-400/[0.055] shadow-[0_0_18px_rgba(251,113,133,0.25),0_0_38px_rgba(244,63,94,0.11)]"
+      : state === "issue"
+        ? "border-amber-300/55 bg-amber-300/[0.05] shadow-[0_0_18px_rgba(252,211,77,0.22),0_0_38px_rgba(245,158,11,0.1)]"
+        : state === "ready"
+          ? "border-emerald-300/50 bg-emerald-300/[0.045] shadow-[0_0_18px_rgba(110,231,183,0.2),0_0_38px_rgba(16,185,129,0.09)]"
+          : "border-white/[0.08] bg-white/[0.018]";
+
+  return (
+    <div className={`rounded-xl border p-3 ${className}`}>
+      <div className="flex items-center justify-between gap-2">
+        <Icon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="numeric text-2xl font-black">{value}</span>
+      </div>
+      <p className="mt-2 text-xs font-bold text-foreground">{label}</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{description}</p>
     </div>
   );
 }
