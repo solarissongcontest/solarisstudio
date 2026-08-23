@@ -8,6 +8,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
+import { buildAllTimeScoreRanking } from "@/lib/canonical-results";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import { buildCountryAutoSection, type CountryPageSection } from "@/lib/country-page-builder";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
@@ -148,13 +149,10 @@ function CountryWikiPage() {
   const qualificationFor = (editionId: string) =>
     resolveCountryEditionQualification(country.id, editionId, opts);
 
-  const allTimeScore = opts.results
-    .filter((result) => {
-      if (result.country_id !== country.id) return false;
-      const kind = showMap.get(result.show_id ?? "")?.kind;
-      return kind === "grand-final" || kind === "final";
-    })
-    .reduce((sum, result) => sum + result.total_points, 0);
+  const allTimeRanking = buildAllTimeScoreRanking(opts.results, opts.shows);
+  const allTimeRow = allTimeRanking.find((row) => row.countryId === country.id) ?? null;
+  const allTimeScore = allTimeRow?.totalPoints ?? 0;
+  const allTimeRank = allTimeRow?.rank ?? null;
 
   const infoRows = [
     ["Capital", profile?.capital],
@@ -237,7 +235,7 @@ function CountryWikiPage() {
                     <MiniStat label="Podiums" value={stats.podiums} />
                     <MiniStat label="Best score" value={stats.highestScore ?? "—"} />
                     <MiniStat label="All-time score" value={allTimeScore} />
-                    <MiniStat label="All-time position" value={stats.avgCombinedPlacement != null ? stats.avgCombinedPlacement.toFixed(1) : "—"} />
+                    <MiniStat label="All-time rank" value={allTimeRank != null ? `#${allTimeRank} of ${allTimeRanking.length}` : "—"} />
                   </div>
                   {latestEntries.length > 0 && (
                     <div className="mt-5 overflow-hidden rounded-xl border border-border/70">

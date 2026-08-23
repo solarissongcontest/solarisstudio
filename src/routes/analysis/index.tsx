@@ -15,6 +15,7 @@ import { JuryVsTelevote } from "@/components/viz/JuryVsTelevote";
 import { NetworkGraph } from "@/components/viz/NetworkGraph";
 import { VotingHeatmap } from "@/components/viz/VotingHeatmap";
 import { regionalBias, topRecipients, topSupporters, votingSimilarity } from "@/lib/analysis";
+import { canonicalEditionResults } from "@/lib/canonical-results";
 import {
   type Country,
   type ResultRow,
@@ -26,6 +27,7 @@ import {
   useEditions,
 } from "@/lib/data";
 import { buildFanDiscovery, type DiscoveryStory } from "@/lib/fan-discovery";
+import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import { computeRelationship, computeVotingIntelligence } from "@/lib/stats";
 import { resolveVoting } from "@/lib/voting";
 
@@ -58,9 +60,23 @@ function AnalysisPage() {
   const [selectedCountryId, setSelectedCountryId] = useState("");
 
   const cs = countries ?? [];
-  const es = editions ?? [];
-  const showsList = shows ?? [];
-  const participantList = participants ?? [];
+  const publicArchive = useMemo(
+    () =>
+      buildPublicCountryArchive({
+        editions: editions ?? [],
+        shows: shows ?? [],
+        participants: participants ?? [],
+        results: results ?? [],
+        jury: jury ?? [],
+        televote: [],
+      }),
+    [editions, shows, participants, results, jury],
+  );
+  const es = publicArchive.editions;
+  const showsList = publicArchive.shows;
+  const participantList = publicArchive.participants;
+  const publicResults = publicArchive.results;
+  const publicJury = publicArchive.jury;
 
   const allowedShowIds = useMemo(
     () =>
@@ -81,23 +97,21 @@ function AnalysisPage() {
   );
 
   const filteredJury = useMemo(
-    () =>
-      (jury ?? []).filter((vote) =>
-        vote.show_id
-          ? allowedShowIds.has(vote.show_id)
-          : filters.editionIds.length === 0 && filters.showKind === "all",
-      ),
-    [jury, allowedShowIds, filters],
+    () => publicJury.filter((vote) => Boolean(vote.show_id && allowedShowIds.has(vote.show_id))),
+    [publicJury, allowedShowIds],
   );
 
   const filteredResults = useMemo(
-    () =>
-      (results ?? []).filter((row) =>
-        row.show_id
-          ? allowedShowIds.has(row.show_id)
-          : filters.editionIds.length === 0 && filters.showKind === "all",
-      ),
-    [results, allowedShowIds, filters],
+    () => publicResults.filter((row) => Boolean(row.show_id && allowedShowIds.has(row.show_id))),
+    [publicResults, allowedShowIds],
+  );
+
+  // Career/history views are edition-based. A semi-final and Grand Final row
+  // belong to the same entry and must not be counted as two historical results.
+  // Show-level voting analysis below intentionally keeps every actual show.
+  const canonicalFilteredResults = useMemo(
+    () => canonicalEditionResults(filteredResults, filteredShows),
+    [filteredResults, filteredShows],
   );
 
   const splitVoteShowIds = useMemo(
@@ -203,7 +217,10 @@ function AnalysisPage() {
   const juryTeleRows = useMemo(() => buildJuryTeleRows(splitVoteResults, cMap), [splitVoteResults, cMap]);
   const juryFavoured = juryTeleRows.filter((row) => row.difference > 0).sort((a, b) => b.difference - a.difference).slice(0, 6);
   const teleFavoured = juryTeleRows.filter((row) => row.difference < 0).sort((a, b) => a.difference - b.difference).slice(0, 6);
-  const historyRows = useMemo(() => buildHistoryRows(filteredResults, cMap), [filteredResults, cMap]);
+  const historyRows = useMemo(
+    () => buildHistoryRows(canonicalFilteredResults, cMap),
+    [canonicalFilteredResults, cMap],
+  );
 
   const winnerRadar = intelligence.kingmakers[0]
     ? cMap.get(intelligence.kingmakers[0].countryId)
@@ -218,7 +235,7 @@ function AnalysisPage() {
       <PageHeader
         eyebrow="Results intelligence"
         title="Analysis"
-        description="Start with the stories hidden inside the results, then dig into the deeper voting tools if you want to."
+        description="Start with the stories hidden inside the published results, then dig into the deeper voting tools if you want to."
       />
 
       <Filters editions={es} value={filters} onChange={setFilters} />
@@ -254,7 +271,7 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="What you might have missed"
             title="Discover"
-            description="These are result stories calculated from the selected archive: dramatic climbs, collapses, disagreements and voting relationships. No mystery score required."
+            description="These are result stories calculated from the selected published archive: dramatic climbs, collapses, disagreements and voting relationships. No mystery score required."
           />
           {discovery.length ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -332,7 +349,7 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="Country support profile"
             title="Who gives points to whom?"
-            description="Choose a country for a readable ranking first. The heat map is kept below as an advanced archive view."
+            description="Choose a country for a readable ranking first. Every published ballot is counted here, so semi-final and final votes remain separate real voting events rather than being mistaken for duplicate participations."
           />
           {countryOptions.length ? (
             <>
@@ -374,10 +391,10 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="All-time performance"
             title="History"
-            description="Follow placements over time and see which countries accumulated the most points in the selected archive."
+            description="Follow one canonical placement per edition and see which countries accumulated the most points without counting a semi-final and final as two participations."
           />
           <Panel title="Historical leaderboard">
-            {filteredResults.length ? <HistoricalLeaderboard countries={cs} editions={es} results={filteredResults} /> : <Empty />}
+            {canonicalFilteredResults.length ? <HistoricalLeaderboard countries={cs} editions={es} results={canonicalFilteredResults} /> : <Empty />}
           </Panel>
           <Panel title="Most points in this filter">
             {historyRows.length ? (
@@ -386,7 +403,7 @@ function AnalysisPage() {
                   <Link key={row.country.id} to="/countries/$code" params={{ code: row.country.short_code }} className="flex items-center gap-3 rounded-xl bg-surface p-3">
                     <span className="numeric w-6 shrink-0 text-xs text-muted-foreground">#{index + 1}</span>
                     <FlagChip code={row.country.short_code} color={row.country.accent_color} image={row.country.flag_image} size="sm" />
-                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{row.country.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{row.appearances} results{row.averageRank != null ? ` · avg #${row.averageRank.toFixed(1)}` : ""}</p></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{row.country.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{row.appearances} edition{row.appearances === 1 ? "" : "s"}{row.averageRank != null ? ` · avg #${row.averageRank.toFixed(1)}` : ""}</p></div>
                     <span className="numeric text-sm font-bold">{row.totalPoints}</span>
                   </Link>
                 ))}
