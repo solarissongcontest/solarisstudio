@@ -15,9 +15,7 @@ import {
   Newspaper,
   Palette,
   PencilLine,
-  Radio,
   Send,
-  Settings2,
   Sparkles,
   Vote,
   type LucideIcon,
@@ -58,7 +56,7 @@ import {
 type MySolarisTab = "home" | "entry" | "country" | "history" | "activity" | "account";
 
 type MySolarisSearch = {
-  tab: MySolarisTab;
+  tab?: MySolarisTab;
 };
 
 const TAB_IDS: MySolarisTab[] = ["home", "entry", "country", "history", "activity", "account"];
@@ -75,7 +73,7 @@ const TABS: Array<{ id: MySolarisTab; label: string; icon: LucideIcon }> = [
 export const Route = createFileRoute("/_authenticated/my-solaris/")({
   head: () => ({ meta: [{ title: "MySolaris — Solaris Studio" }] }),
   validateSearch: (search: Record<string, unknown>): MySolarisSearch => ({
-    tab: TAB_IDS.includes(search.tab as MySolarisTab) ? (search.tab as MySolarisTab) : "home",
+    tab: TAB_IDS.includes(search.tab as MySolarisTab) ? (search.tab as MySolarisTab) : undefined,
   }),
   component: MySolarisPage,
 });
@@ -98,7 +96,8 @@ function payloadCountryId(payload: unknown) {
 
 function MySolarisPage() {
   const now = useNow();
-  const { tab } = Route.useSearch();
+  const { tab: requestedTab } = Route.useSearch();
+  const tab = requestedTab ?? "home";
   const navigate = Route.useNavigate();
   const { data: accountData, isLoading } = useMyCountryAccount();
   const country = accountData?.country;
@@ -620,7 +619,7 @@ function HomeTab({
                 <span className="rounded-full border border-border px-2.5 py-1">
                   {publication?.publication_status === "published" ? "Public" : publication?.publication_status === "scheduled" ? "Scheduled" : currentEntry ? "Draft" : "No entry"}
                 </span>
-                {currentPlacement ? <span className="rounded-full border border-border px-2.5 py-1">Overall #{currentPlacement.rank}</span> : null}
+                {currentPlacement ? <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">Overall #{currentPlacement.rank}</span> : null}
                 {currentNationalFinal ? <span className="rounded-full border border-border px-2.5 py-1">NF: {currentNationalFinal.name || "National final"}</span> : null}
               </div>
             </div>
