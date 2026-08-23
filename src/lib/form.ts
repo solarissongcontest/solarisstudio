@@ -1,6 +1,5 @@
+import { computeCanonicalCountryStats } from "./canonical-country-stats";
 import type { Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
-
-import { computeCountryStats } from "./stats";
 
 export type FormBand = "elite" | "strong" | "steady" | "building" | "unrated";
 
@@ -116,7 +115,10 @@ function bestAndWorstEra(timeline: FormTimelinePoint[]) {
  * like a fifth place in a thirty-entry show.
  */
 export function computeCountryForm(countryId: string, options: CountryFormOptions): CountryForm {
-  const stats = computeCountryStats(countryId, options);
+  // Form is edition-based history, so use the same canonical one-entry-per-
+  // edition model as the public country profile. A semi-final and final can
+  // never become two separate form observations for the same entry.
+  const stats = computeCanonicalCountryStats(countryId, options);
   const showById = new Map(options.shows.map((show) => [show.id, show]));
 
   const timeline = stats.timeline
@@ -176,12 +178,16 @@ export function computeCountryForm(countryId: string, options: CountryFormOption
         ? vote.edition_id === key.slice("edition:".length)
         : vote.show_id === key,
     );
-    const voters = new Set(ballots.map((vote) => vote.voter_country_id).filter(Boolean));
+    const voters = new Set(
+      ballots
+        .map((vote) => vote.voter_country_id)
+        .filter((voterId): voterId is string => Boolean(voterId && voterId !== countryId)),
+    );
     const supporters = new Set(
       ballots
         .filter((vote) => vote.receiving_country_id === countryId && vote.points > 0)
         .map((vote) => vote.voter_country_id)
-        .filter(Boolean),
+        .filter((voterId): voterId is string => Boolean(voterId && voterId !== countryId)),
     );
     voterOpportunities += voters.size;
     votersReached += supporters.size;
@@ -191,7 +197,7 @@ export function computeCountryForm(countryId: string, options: CountryFormOption
 
   const supporterTotals = new Map<string, number>();
   options.jury
-    .filter((vote) => vote.receiving_country_id === countryId)
+    .filter((vote) => vote.receiving_country_id === countryId && vote.voter_country_id !== countryId)
     .forEach((vote) => {
       supporterTotals.set(
         vote.voter_country_id,
@@ -247,7 +253,7 @@ export function computeCountryForm(countryId: string, options: CountryFormOption
     droughtEra: eras.droughtEra,
     sampleSize: Math.min(ratedSample, timeline.length),
     methodology:
-      "Form is a recency-weighted average of field-normalized placements. It describes competitive results, not entry quality.",
+      "Form is a recency-weighted average of field-normalized edition placements. Semi-final and final rows for the same entry count once.",
     timeline,
   };
 }
