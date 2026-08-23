@@ -52,19 +52,48 @@ export function CountryHodHistoryPanel() {
   const [identityBusy, setIdentityBusy] = useState(false);
 
   useEffect(() => {
-    if (!eligible) return;
-    const header = document.querySelector<HTMLElement>(".app-main > .page-header");
-    if (!header?.parentElement) return;
-    const node = document.createElement("div");
-    node.dataset.countryHodHistoryPanel = "true";
-    node.className = "mb-5";
-    header.insertAdjacentElement("afterend", node);
-    setHost(node);
+    if (!eligible) {
+      setHost(null);
+      return;
+    }
+
+    let node: HTMLDivElement | null = null;
+    let observer: MutationObserver | null = null;
+
+    const attach = () => {
+      if (node?.isConnected) return true;
+
+      const header = document.querySelector<HTMLElement>(".app-main > .page-header");
+      const main = document.querySelector<HTMLElement>(".app-main");
+      const parent = header?.parentElement ?? main;
+      if (!parent) return false;
+
+      node = document.createElement("div");
+      node.dataset.countryHodHistoryPanel = "true";
+      node.className = "mb-5";
+
+      if (header?.parentElement) header.insertAdjacentElement("afterend", node);
+      else parent.prepend(node);
+
+      setHost(node);
+      return true;
+    };
+
+    if (!attach()) {
+      observer = new MutationObserver(() => {
+        if (!attach()) return;
+        observer?.disconnect();
+        observer = null;
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+
     return () => {
-      node.remove();
+      observer?.disconnect();
+      node?.remove();
       setHost(null);
     };
-  }, [eligible]);
+  }, [eligible, location.pathname]);
 
   const historicalEditions = useMemo(
     () => (identityHistory.data?.editions ?? []).filter((edition) => Boolean(edition.display_name?.trim())),
