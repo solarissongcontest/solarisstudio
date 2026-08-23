@@ -24,6 +24,12 @@ import {
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
+import {
+  qualificationCountsAsQualified,
+  qualificationLabel,
+  resolveCountryEditionQualification,
+  type QualificationStatus,
+} from "@/lib/qualification";
 
 export const Route = createFileRoute("/wiki/$code")({
   head: ({ params }) => ({
@@ -31,8 +37,6 @@ export const Route = createFileRoute("/wiki/$code")({
   }),
   component: CountryWikiPage,
 });
-
-type Qualification = "aq" | true | false | null;
 
 function sectionSystemSlot(section: CountryPageSection) {
   const json = section.content_json;
@@ -49,6 +53,12 @@ function systemFactValues(section?: CountryPageSection | null) {
     .map((row) => String(row.value ?? "").trim())
     .filter(Boolean)
     .slice(0, 8);
+}
+
+function qualificationBadgeClass(status: QualificationStatus) {
+  if (status === "wildcard") return "bg-amber-300/12 text-amber-200";
+  if (qualificationCountsAsQualified(status)) return "bg-primary/10 text-primary";
+  return "bg-surface text-muted-foreground";
 }
 
 function CountryWikiPage() {
@@ -135,38 +145,8 @@ function CountryWikiPage() {
     )
     .slice(0, 8);
 
-  const semiEditionIds = new Set(
-    opts.shows
-      .filter((show) => show.kind === "semi-final" || show.kind === "semi")
-      .map((show) => show.edition_id),
-  );
-  const semiPresence = new Set(
-    countryParticipants
-      .filter((entry) => {
-        const kind = showMap.get(entry.show_id ?? "")?.kind;
-        return kind === "semi-final" || kind === "semi";
-      })
-      .map((entry) => entry.edition_id),
-  );
-  const finalPresence = new Set(
-    countryParticipants
-      .filter((entry) => {
-        const kind = showMap.get(entry.show_id ?? "")?.kind;
-        return kind === "grand-final" || kind === "final";
-      })
-      .map((entry) => entry.edition_id),
-  );
-  const qualificationFor = (editionId: string): Qualification => {
-    if (finalPresence.has(editionId) && semiEditionIds.has(editionId) && !semiPresence.has(editionId)) return "aq";
-    const semiRows = countryParticipants.filter((entry) => {
-      if (entry.edition_id !== editionId) return false;
-      const kind = showMap.get(entry.show_id ?? "")?.kind;
-      return kind === "semi-final" || kind === "semi";
-    });
-    if (semiRows.some((entry) => entry.qualified === true)) return true;
-    if (semiRows.some((entry) => entry.qualified === false)) return false;
-    return null;
-  };
+  const qualificationFor = (editionId: string) =>
+    resolveCountryEditionQualification(country.id, editionId, opts);
 
   const allTimeScore = opts.results
     .filter((result) => {
@@ -265,6 +245,7 @@ function CountryWikiPage() {
                         const edition = editionMap.get(entry.edition_id);
                         const revealed = Boolean(entry.artist?.trim() || entry.song?.trim());
                         const qualification = qualificationFor(entry.edition_id);
+                        const label = qualificationLabel(qualification);
                         return (
                           <div key={entry.edition_id} className="border-b border-border/50 px-3 py-3 last:border-b-0">
                             <div className="grid min-w-0 grid-cols-[1fr_auto] gap-3">
@@ -277,9 +258,9 @@ function CountryWikiPage() {
                                 <p className="mt-0.5 text-[10px] text-muted-foreground">{edition ? editionLabel(edition) : "Edition"}</p>
                               </div>
                               <div className="flex items-center gap-2">
-                                {qualification != null && (
-                                  <span className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase ${qualification === false ? "bg-surface text-muted-foreground" : "bg-primary/10 text-primary"}`}>
-                                    {qualification === "aq" ? "AQ" : qualification ? "Q" : "NQ"}
+                                {label && (
+                                  <span className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase ${qualificationBadgeClass(qualification)}`}>
+                                    {label}
                                   </span>
                                 )}
                                 {edition ? <Link to="/editions/$slug" params={{ slug: edition.slug }} className="self-center text-[10px] font-semibold text-primary">View →</Link> : null}
