@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { HeatProgressionSyncPanel } from "@/components/admin/HeatProgressionSyncPanel";
 import { ShowLineupWorkspace } from "@/components/admin/ShowLineupWorkspace";
 
 type EntriesSearch = { show?: string };
@@ -32,5 +33,10 @@ function EntriesRoute() {
     void navigate({ search: { show: undefined }, replace: true });
   }, [navigate, search.show]);
 
-  return <ShowLineupWorkspace slug={slug} initialShow={search.show} />;
+  return (
+    <div className="space-y-4 sm:space-y-5">
+      <HeatProgressionSyncPanel slug={slug} />
+      <ShowLineupWorkspace slug={slug} initialShow={search.show} />
+    </div>
+  );
 }
