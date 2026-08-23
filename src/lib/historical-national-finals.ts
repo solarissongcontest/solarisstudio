@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { PublicNationalFinal } from "@/lib/national-finals";
 
@@ -55,6 +56,65 @@ export function useSaveCountryHistoricalNationalFinal(countryId?: string) {
       });
       if (error) throw error;
       return data as string;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["country-historical-national-finals", countryId] }),
+        queryClient.invalidateQueries({ queryKey: ["country-national-finals", countryId] }),
+      ]);
+    },
+  });
+}
+
+export function useSetCountryNationalFinalWinner(countryId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      nationalFinalId: string;
+      winnerEntryId: string | null;
+      previousWinnerEntryId: string | null;
+      source?: string;
+    }) => {
+      if (!countryId) throw new Error("No country is selected.");
+
+      const saveSolarisWinner = async (winnerEntryId: string | null) => {
+        const { data, error } = await supabase.rpc("set_country_national_final_winner", {
+          _country_id: countryId,
+          _national_final_id: input.nationalFinalId,
+          _winning_entry_id: winnerEntryId,
+        });
+        if (error) throw error;
+        return data as {
+          id: string;
+          winning_entry_id: string | null;
+        };
+      };
+
+      const localResult = await saveSolarisWinner(input.winnerEntryId);
+
+      if (input.source === "confirmation") {
+        const confirmationResult = await confirmationsSupabase.rpc(
+          "set_confirmation_national_final_winner_from_solaris",
+          {
+            _national_final_id: input.nationalFinalId,
+            _winning_entry_id: input.winnerEntryId,
+          },
+        );
+
+        if (confirmationResult.error) {
+          // Keep the two databases from drifting apart if the remote write
+          // fails after Solaris has already accepted the change.
+          try {
+            await saveSolarisWinner(input.previousWinnerEntryId);
+          } catch (rollbackError) {
+            console.error("NF winner rollback failed", rollbackError);
+          }
+          throw new Error(`Winner was not synced to Confirmations: ${confirmationResult.error.message}`);
+        }
+      }
+
+      return localResult;
     },
     onSuccess: async () => {
       await Promise.all([
