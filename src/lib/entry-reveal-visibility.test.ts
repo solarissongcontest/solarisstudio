@@ -83,6 +83,11 @@ describe("entry reveal visibility", () => {
     expect(historicalVisibilityMigration).toContain("p.publication_status = 'draft'");
   });
 
+  it("shows the full published entry archive on Wiki pages instead of only eight editions", () => {
+    expect(wikiRoute).toContain("Wiki is archival: show every published canonical entry");
+    expect(wikiRoute).toContain("const latestEntries = canonicalEditionEntries(countryParticipants).sort(");
+  });
+
   it("forces public Country and Wiki history through entry-level reveal gates too", () => {
     expect(publicCountryArchive).toContain("isEntryRevealed");
     expect(publicCountryArchive).toContain('participant.publication_status === "published"');
