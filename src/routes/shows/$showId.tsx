@@ -10,6 +10,7 @@ import { RadialPointsView } from "@/components/RadialPointsView";
 import { ResponsiveTabs, type ResponsiveTabOption } from "@/components/ResponsiveTabs";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { StoryCards } from "@/components/StoryCards";
+import { TelevoteRoundsComparison } from "@/components/TelevoteRoundsComparison";
 import { VotingMatrix } from "@/components/VotingMatrix";
 
 import {
@@ -28,7 +29,7 @@ import { entityDisplayMap } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { usePublicShowParticipants } from "@/lib/public-participants";
 import { resolveTheme } from "@/lib/theme";
-import { resolveVoting } from "@/lib/voting";
+import { hasMultipleTelevoteRounds, parseTelevoteComponents, resolveVoting } from "@/lib/voting";
 import type { Standing } from "@/lib/analysis";
 import { buildShowStories } from "@/lib/stories";
 
@@ -80,6 +81,11 @@ function ShowPage() {
     () => resolveShowPublication(show),
     [show?.published, show?.publication_config],
   );
+  const voting = useMemo(() => resolveVoting(show?.voting_config), [show?.voting_config]);
+  const showJuryResults = voting.juryEnabled && publication.jury_results;
+  const showTelevoteResults = voting.televoteEnabled && publication.televote_results;
+  const multiRoundTelevote =
+    showTelevoteResults && !voting.juryEnabled && hasMultipleTelevoteRounds(voting);
 
   const showIsPublic = isShowPublic(show);
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
@@ -98,19 +104,11 @@ function ShowPage() {
       layout: {
         ...theme.layout,
         showArtist: theme.layout.showArtist && (publication.artists || publication.songs),
-        showSplit: theme.layout.showSplit && publication.jury_results && publication.televote_results,
+        showSplit: theme.layout.showSplit && showJuryResults && showTelevoteResults,
       },
     }),
-    [
-      theme,
-      publication.artists,
-      publication.songs,
-      publication.jury_results,
-      publication.televote_results,
-    ],
+    [theme, publication.artists, publication.songs, showJuryResults, showTelevoteResults],
   );
-
-  const voting = useMemo(() => resolveVoting(show?.voting_config), [show?.voting_config]);
 
   const stories = useMemo(
     () =>
@@ -134,14 +132,27 @@ function ShowPage() {
         .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))
         .map((result) => ({
           countryId: result.country_id,
-          jury: publication.jury_results ? result.jury_points : 0,
-          televote: publication.televote_results ? result.televote_points : 0,
+          jury: showJuryResults ? result.jury_points : 0,
+          televote: showTelevoteResults ? result.televote_points : 0,
           total: publication.results ? result.total_points : 0,
           rank: result.final_rank ?? 0,
           topPoints: 0,
         })),
-    [archivedResults, publication.results, publication.jury_results, publication.televote_results],
+    [archivedResults, publication.results, showJuryResults, showTelevoteResults],
   );
+
+  const televoteRoundTotals = useMemo(() => {
+    if (!multiRoundTelevote) return [];
+
+    return voting.televoteRounds.map((round) => ({
+      round,
+      total: (archivedResults ?? []).reduce((sum, result) => {
+        const raw = (result as typeof result & { televote_components?: unknown }).televote_components;
+        const component = parseTelevoteComponents(raw).find((item) => item.round_id === round.id);
+        return sum + (component?.points ?? 0);
+      }, 0),
+    }));
+  }, [archivedResults, multiRoundTelevote, voting.televoteRounds]);
 
   const publicLineupParticipants = useMemo(() => {
     const rows = [...(participants ?? [])];
@@ -168,12 +179,24 @@ function ShowPage() {
       options.push({ value: "scoreboard", label: "Overall" });
     }
 
-    if (publication.jury_results || publication.televote_results) {
-      options.push({ value: "split", label: "Jury vs televote" });
+    if (showJuryResults || showTelevoteResults) {
+      options.push({
+        value: "split",
+        label: multiRoundTelevote
+          ? "Televote rounds"
+          : showJuryResults && showTelevoteResults
+            ? "Jury vs televote"
+            : showJuryResults
+              ? "Jury results"
+              : "Televote results",
+      });
     }
 
-    if (publication.detailed_voting) {
+    if (publication.detailed_voting && showJuryResults) {
       options.push({ value: "matrix", label: "Full scorechart" });
+    }
+
+    if (publication.detailed_voting && (showJuryResults || showTelevoteResults)) {
       options.push({ value: "points", label: "Points explorer" });
     }
 
@@ -189,7 +212,16 @@ function ShowPage() {
     }
 
     return options;
-  }, [publication, stories.length]);
+  }, [
+    publication.results,
+    publication.detailed_voting,
+    publication.participants,
+    publication.running_order,
+    showJuryResults,
+    showTelevoteResults,
+    multiRoundTelevote,
+    stories.length,
+  ]);
 
   const defaultTab: Tab = publication.results ? "scoreboard" : "lineup";
   const [tab, setTab] = useState<Tab>(search.story ? "stories" : (search.tab ?? defaultTab));
@@ -263,12 +295,34 @@ function ShowPage() {
     ? (standings.find((standing) => standing.rank === 1) ?? standings[0] ?? null)
     : null;
   const winner = winnerStanding ? (displayMap.get(winnerStanding.countryId) ?? null) : null;
-  const juryTotal = publication.jury_results
+  const juryTotal = showJuryResults
     ? standings.reduce((total, row) => total + row.jury, 0)
     : null;
-  const televoteTotal = publication.televote_results
+  const televoteTotal = showTelevoteResults
     ? standings.reduce((total, row) => total + row.televote, 0)
     : null;
+  const roundNames = voting.televoteRounds.map((round) => round.label).join(" and ");
+  const resultViewsDescription = multiRoundTelevote
+    ? `Overall is the final ranking. Televote rounds compares ${roundNames}.`
+    : showJuryResults && showTelevoteResults
+      ? "Overall is the final ranking. Jury vs televote compares the two halves. Full scorechart shows who gave jury points to whom."
+      : showJuryResults
+        ? "Overall is the final ranking. Jury results shows the jury component, and Full scorechart shows who gave points to whom."
+        : "Overall is the final ranking. Televote results shows the published public-vote component.";
+  const overallDescription = multiRoundTelevote
+    ? `The final combined ranking from ${roundNames}.`
+    : showJuryResults && showTelevoteResults
+      ? "The final combined ranking after jury and televote points."
+      : showJuryResults
+        ? "The final ranking from the jury vote."
+        : "The final ranking from the public vote.";
+  const overallHelp = multiRoundTelevote
+    ? `Use Televote rounds to compare ${roundNames} separately.`
+    : showJuryResults && showTelevoteResults
+      ? "Use Jury vs televote to compare the two voting components, or Full scorechart to inspect individual jury voting where it is available."
+      : showJuryResults
+        ? "Use Jury results for the jury ranking, or Full scorechart to inspect individual jury voting where it is available."
+        : "Use Televote results to inspect the published public-vote score.";
 
   return (
     <AppShell>
@@ -296,8 +350,12 @@ function ShowPage() {
         <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
           {publication.participants && <StatTile label="Entries" value={participants?.length ?? 0} />}
           {publication.results && <StatTile label="Results" value={standings.length} />}
-          {publication.jury_results && <StatTile label="Jury points" value={juryTotal ?? 0} />}
-          {publication.televote_results && <StatTile label="Televote points" value={televoteTotal ?? 0} />}
+          {showJuryResults && <StatTile label="Jury points" value={juryTotal ?? 0} />}
+          {multiRoundTelevote
+            ? televoteRoundTotals.map(({ round, total }) => (
+                <StatTile key={round.id} label={`${round.label} · ${round.weight}%`} value={total} />
+              ))
+            : showTelevoteResults && <StatTile label="Televote points" value={televoteTotal ?? 0} />}
         </div>
       </Panel>
 
@@ -311,13 +369,13 @@ function ShowPage() {
 
       {!!tabOptions.length && (
         <div className="mb-5 space-y-3">
-          {(publication.results || publication.jury_results || publication.televote_results) && (
+          {(publication.results || showJuryResults || showTelevoteResults) && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 Result views
               </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Overall is the final ranking. Jury vs televote compares the two halves. Full scorechart shows who gave points to whom.
+                {resultViewsDescription}
               </p>
             </div>
           )}
@@ -345,11 +403,9 @@ function ShowPage() {
           <Panel
             className="mb-4"
             title="Overall results"
-            description="The final combined ranking after jury and televote points."
+            description={overallDescription}
           >
-            <p className="text-xs text-muted-foreground">
-              Use Jury vs televote to compare the two voting components, or Full scorechart to inspect individual jury voting where it is available.
-            </p>
+            <p className="text-xs text-muted-foreground">{overallHelp}</p>
           </Panel>
           {standings.length ? (
             <ScoreboardStage
@@ -365,51 +421,55 @@ function ShowPage() {
         </>
       )}
 
-      {tab === "points" && publication.detailed_voting && (
+      {tab === "points" && publication.detailed_voting && (showJuryResults || showTelevoteResults) && (
         <RadialPointsView
           participants={participants ?? []}
           countries={displayMap}
-          jury={jury ?? []}
-          televote={tele ?? []}
+          jury={showJuryResults ? (jury ?? []) : []}
+          televote={showTelevoteResults ? (tele ?? []) : []}
           voters={voters}
         />
       )}
 
-      {tab === "split" && (publication.jury_results || publication.televote_results) && (
-        <>
-          {publication.jury_results && publication.televote_results ? (
-            <JuryTelevoteComparison standings={standings} countries={displayMap} />
-          ) : (
-            <Panel title={publication.jury_results ? "Jury results" : "Televote results"}>
-              <div className="divide-y divide-border/60">
-                {standings.map((standing) => {
-                  const country = displayMap.get(standing.countryId);
-                  if (!country) return null;
+      {tab === "split" && (showJuryResults || showTelevoteResults) && (
+        multiRoundTelevote ? (
+          <TelevoteRoundsComparison
+            results={archivedResults ?? []}
+            rounds={voting.televoteRounds}
+            countries={displayMap}
+          />
+        ) : showJuryResults && showTelevoteResults ? (
+          <JuryTelevoteComparison standings={standings} countries={displayMap} />
+        ) : (
+          <Panel title={showJuryResults ? "Jury results" : "Televote results"}>
+            <div className="divide-y divide-border/60">
+              {standings.map((standing) => {
+                const country = displayMap.get(standing.countryId);
+                if (!country) return null;
 
-                  const points = publication.jury_results ? standing.jury : standing.televote;
-                  return (
-                    <div
-                      key={standing.countryId}
-                      className="grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3"
-                    >
-                      <FlagChip
-                        code={country.short_code}
-                        color={country.accent_color}
-                        image={country.flag_image}
-                        size="sm"
-                      />
-                      <span className="truncate text-sm font-semibold">{country.name}</span>
-                      <span className="numeric text-sm font-bold">{points}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </Panel>
-          )}
-        </>
+                const points = showJuryResults ? standing.jury : standing.televote;
+                return (
+                  <div
+                    key={standing.countryId}
+                    className="grid grid-cols-[42px_1fr_auto] items-center gap-3 py-3"
+                  >
+                    <FlagChip
+                      code={country.short_code}
+                      color={country.accent_color}
+                      image={country.flag_image}
+                      size="sm"
+                    />
+                    <span className="truncate text-sm font-semibold">{country.name}</span>
+                    <span className="numeric text-sm font-bold">{points}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+        )
       )}
 
-      {tab === "matrix" && publication.detailed_voting && (
+      {tab === "matrix" && publication.detailed_voting && showJuryResults && (
         <Panel
           title="Full scorechart"
           description="Each row is an entry receiving points. Each column is a jury giving points. Tap or hover cells to inspect the vote."
