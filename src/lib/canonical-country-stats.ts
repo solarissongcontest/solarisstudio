@@ -1,4 +1,5 @@
 import type { Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
+import { canonicalEditionResults } from "./canonical-results";
 import { buildPublicCountryArchive } from "./public-country-archive";
 import {
   qualificationCountsAsQualified,
@@ -23,6 +24,10 @@ function isFinal(kind?: string | null) {
 
 function isSemi(kind?: string | null) {
   return kind === "semi-final" || kind === "semi";
+}
+
+function average(values: number[]) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
 function longestEditionStreak(points: EditionFlag[]) {
@@ -59,6 +64,131 @@ function currentEditionStreak(points: EditionFlag[]) {
   return current;
 }
 
+function voteGroupKey(vote: JuryVote) {
+  return vote.show_id ?? `edition:${vote.edition_id}`;
+}
+
+function resultMatchesVoteGroup(result: ResultRow, vote: JuryVote) {
+  return vote.show_id
+    ? result.show_id === vote.show_id
+    : result.edition_id === vote.edition_id;
+}
+
+function votingMetrics(countryId: string, options: Options) {
+  const jury = options.jury.filter(
+    (vote): vote is JuryVote & { voter_country_id: string } => Boolean(vote.voter_country_id),
+  );
+  const given = jury.filter((vote) => vote.voter_country_id === countryId);
+  const received = jury.filter((vote) => vote.receiving_country_id === countryId);
+
+  const givenTotals = new Map<string, number>();
+  for (const vote of given) {
+    givenTotals.set(
+      vote.receiving_country_id,
+      (givenTotals.get(vote.receiving_country_id) ?? 0) + vote.points,
+    );
+  }
+
+  const receivedTotals = new Map<string, number>();
+  for (const vote of received) {
+    receivedTotals.set(
+      vote.voter_country_id,
+      (receivedTotals.get(vote.voter_country_id) ?? 0) + vote.points,
+    );
+  }
+
+  const groups = new Map<string, Array<JuryVote & { voter_country_id: string }>>();
+  for (const vote of jury) {
+    const key = voteGroupKey(vote);
+    groups.set(key, [...(groups.get(key) ?? []), vote]);
+  }
+
+  const receivedOpportunityEditions = new Set<string>();
+  const recipientOpportunities = new Set<string>();
+  const giverOpportunities = new Set<string>();
+  const voterOpportunityTotals: number[] = [];
+
+  for (const votes of groups.values()) {
+    const first = votes[0];
+    if (!first) continue;
+    const eligibleResults = options.results.filter((result) => resultMatchesVoteGroup(result, first));
+    const eligibleCountryIds = new Set(eligibleResults.map((result) => result.country_id));
+    const countryWasEligible = eligibleCountryIds.has(countryId);
+
+    if (votes.some((vote) => vote.voter_country_id === countryId)) {
+      eligibleCountryIds.forEach((id) => {
+        if (id !== countryId) recipientOpportunities.add(id);
+      });
+    }
+
+    if (countryWasEligible) {
+      receivedOpportunityEditions.add(first.edition_id);
+      const voterIds = new Set(votes.map((vote) => vote.voter_country_id));
+      voterIds.forEach((voterId) => {
+        if (voterId === countryId) return;
+        giverOpportunities.add(voterId);
+        const points = votes
+          .filter(
+            (vote) =>
+              vote.voter_country_id === voterId && vote.receiving_country_id === countryId,
+          )
+          .reduce((sum, vote) => sum + vote.points, 0);
+        voterOpportunityTotals.push(points);
+      });
+    }
+  }
+
+  const givenByEdition = new Map<string, number>();
+  for (const vote of given) {
+    givenByEdition.set(vote.edition_id, (givenByEdition.get(vote.edition_id) ?? 0) + vote.points);
+  }
+
+  const receivedByEdition = new Map<string, number>();
+  for (const vote of received) {
+    receivedByEdition.set(
+      vote.edition_id,
+      (receivedByEdition.get(vote.edition_id) ?? 0) + vote.points,
+    );
+  }
+
+  const givenOpportunityEditions = new Set(given.map((vote) => vote.edition_id));
+  const avgGivenPerContest = average(
+    [...givenOpportunityEditions].map((editionId) => givenByEdition.get(editionId) ?? 0),
+  );
+  const avgReceivedPerContest = average(
+    [...receivedOpportunityEditions].map((editionId) => receivedByEdition.get(editionId) ?? 0),
+  );
+
+  const sortedGiven = [...recipientOpportunities]
+    .map((id) => [id, givenTotals.get(id) ?? 0] as const)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const sortedGivenAscending = [...sortedGiven].sort(
+    (a, b) => a[1] - b[1] || a[0].localeCompare(b[0]),
+  );
+
+  return {
+    avgGivenPerContest,
+    avgReceivedPerContest,
+    avgPointsPerVoter: average(voterOpportunityTotals),
+    favouriteRecipient: sortedGiven[0]
+      ? { countryId: sortedGiven[0][0], points: sortedGiven[0][1] }
+      : null,
+    mostGenerousTowards: sortedGiven[0]
+      ? { countryId: sortedGiven[0][0], points: sortedGiven[0][1] }
+      : null,
+    harshestTowards: sortedGivenAscending[0]
+      ? { countryId: sortedGivenAscending[0][0], points: sortedGivenAscending[0][1] }
+      : null,
+    distinctCountriesAwarded: givenTotals.size,
+    neverAwarded: [...recipientOpportunities]
+      .filter((id) => !givenTotals.has(id))
+      .sort(),
+    neverVotedForThem: [...giverOpportunities]
+      .filter((id) => !receivedTotals.has(id))
+      .sort(),
+  };
+}
+
 /**
  * Public country statistics must treat one delegation in one edition as one
  * participation. Show-level participant/result rows remain useful operational
@@ -77,6 +207,8 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
 
   const participants = publicOptions.participants.filter((participant) => participant.country_id === countryId);
   const results = publicOptions.results.filter((result) => result.country_id === countryId);
+  const canonicalResults = canonicalEditionResults(publicOptions.results, publicOptions.shows)
+    .filter((result) => result.country_id === countryId);
 
   const participationEditionIds = new Set<string>();
   participants.forEach((participant) => participationEditionIds.add(participant.edition_id));
@@ -122,6 +254,22 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
   const knownQualifications = qualificationOutcomes;
   const qualifications = knownQualifications.filter((row) => row.value).length;
 
+  const qualificationRanks = [...participationEditionIds]
+    .map((editionId) => {
+      const status = resolveCountryEditionQualification(countryId, editionId, publicOptions);
+      if (status !== "q" && status !== "wildcard") return null;
+      const semiRanks = results
+        .filter(
+          (result) =>
+            result.edition_id === editionId &&
+            isSemi(showById.get(result.show_id ?? "")?.kind) &&
+            result.final_rank != null,
+        )
+        .map((result) => result.final_rank as number);
+      return semiRanks.length ? Math.min(...semiRanks) : null;
+    })
+    .filter((rank): rank is number => rank != null);
+
   const placementFlags = base.timeline
     .filter((point): point is typeof point & { editionNumber: number } => point.editionNumber != null)
     .map((point) => ({
@@ -130,14 +278,13 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
       podium: point.rank != null && point.rank <= 3,
     }));
 
-  const editionScores = base.timeline.map((point) => point.total);
-  const averageEditionScore = editionScores.length
-    ? editionScores.reduce((sum, score) => sum + score, 0) / editionScores.length
-    : null;
+  const editionScores = canonicalResults.map((result) => result.total_points);
+  const averageEditionScore = average(editionScores);
 
   const participations = participationEditionIds.size;
   const finals = finalEditionIds.size;
   const semis = semiByEdition.size;
+  const voting = votingMetrics(countryId, publicOptions);
 
   return {
     ...base,
@@ -151,9 +298,19 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     grandFinalAppearancePct: participations ? (finals / participations) * 100 : null,
     nilPointers: editionScores.filter((score) => score === 0).length,
     avgPointsPerParticipation: averageEditionScore,
-    avgReceivedPerContest: averageEditionScore,
+    avgPointsPerVoter: voting.avgPointsPerVoter,
+    avgReceivedPerContest: voting.avgReceivedPerContest,
+    avgGivenPerContest: voting.avgGivenPerContest,
+    avgQualificationRank: average(qualificationRanks),
     highestScore: editionScores.length ? Math.max(...editionScores) : null,
     lowestScore: editionScores.length ? Math.min(...editionScores) : null,
+    favouriteRecipient: voting.favouriteRecipient,
+    mostGenerousTowards: voting.mostGenerousTowards,
+    harshestTowards: voting.harshestTowards,
+    distinctCountriesAwarded: voting.distinctCountriesAwarded,
+    neverAwarded: voting.neverAwarded,
+    neverVotedForThem: voting.neverVotedForThem,
+    neverVotedFor: voting.neverVotedForThem,
     bestPlacementStreak: longestEditionStreak(
       placementFlags.map((point) => ({ editionNumber: point.editionNumber, value: point.top10 })),
     ),
