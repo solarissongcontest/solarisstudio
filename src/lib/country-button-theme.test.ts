@@ -59,8 +59,10 @@ describe("country button theme", () => {
 
   it("wires the button control into Country Appearance and public pages", () => {
     const routeTheme = source("src/components/RouteVisualTheme.tsx");
+    const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
     expect(routeTheme).toContain("CountryButtonColourPanel");
-    expect(routeTheme).toContain("CountryButtonThemeController");
-    expect(routeTheme).toContain('import "@/country-button-theme.css"');
+    expect(routeTheme).toContain("resolveCountryButtonTheme");
+    expect(routeTheme).toContain('document.body.style.setProperty("--solaris-button"');
+    expect(personalityStyles).toContain('import buttonStyles from "@/country-button-theme.css?inline"');
   });
 });

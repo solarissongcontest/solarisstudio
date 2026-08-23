@@ -3,6 +3,7 @@ import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
+import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/wiki/$code")({
   head: ({ params }) => ({
     meta: [{ title: `${params.code} — Terra Solaris Wiki` }],
   }),
-  component: CountryWikiPage,
+  component: CountryWikiRoute,
 });
 
 function sectionSystemSlot(section: CountryPageSection) {
@@ -59,6 +60,15 @@ function qualificationBadgeClass(status: QualificationStatus) {
   if (status === "wildcard") return "bg-amber-300/12 text-amber-200";
   if (qualificationCountsAsQualified(status)) return "bg-primary/10 text-primary";
   return "bg-surface text-muted-foreground";
+}
+
+function CountryWikiRoute() {
+  return (
+    <>
+      <CountryPersonalityStyles />
+      <CountryWikiPage />
+    </>
+  );
 }
 
 function CountryWikiPage() {

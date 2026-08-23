@@ -641,6 +641,45 @@ export function useEdition(
   });
 }
 
+export function useEditionById(
+  editionId?: string | null,
+) {
+  return useQuery({
+    enabled: Boolean(editionId),
+    queryKey: [
+      "edition-by-id",
+      editionId,
+    ],
+    queryFn:
+      async () => {
+        const {
+          data,
+          error,
+        } =
+          await supabase
+            .from(
+              "editions",
+            )
+            .select(
+              "*",
+            )
+            .eq(
+              "id",
+              editionId!,
+            )
+            .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        return (
+          data as Edition
+        ) ?? null;
+      },
+  });
+}
+
 /* ============================================================
    SHOWS
    ============================================================ */
