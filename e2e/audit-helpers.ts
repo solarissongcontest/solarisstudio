@@ -91,10 +91,18 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
           if (node.closest("[inert], [aria-hidden='true']")) return false;
           const style = getComputedStyle(node);
           if (style.display === "none" || style.visibility === "hidden") return false;
+          const nestedLabel = node.closest("label")?.textContent?.trim();
+          const explicitLabel = node.id
+            ? document
+                .querySelector<HTMLLabelElement>(`label[for="${CSS.escape(node.id)}"]`)
+                ?.textContent?.trim()
+            : undefined;
           return !(
             node.getAttribute("aria-label") ||
             node.getAttribute("aria-labelledby") ||
             node.textContent?.trim() ||
+            nestedLabel ||
+            explicitLabel ||
             (node as HTMLInputElement).title
           );
         })
