@@ -46,16 +46,20 @@ export function BetaQuestionCard({
   value: BetaAnswer | undefined;
   onChange: (value: BetaAnswer) => void;
 }) {
+  const controlId = `beta-question-${question.id}`;
   const options = question.optionsFrom
     ? ((answers[question.optionsFrom] as string[] | undefined) ?? []).filter(
         (option) => option !== "None of these",
       )
-    : question.options ?? [];
+    : (question.options ?? []);
 
   return (
     <section className="rounded-2xl border border-border/70 bg-surface/72 p-4 shadow-sm sm:p-5">
       <div className="mb-3">
-        <label className="text-sm font-bold leading-5 text-foreground">
+        <label
+          htmlFor={question.type === "text" || question.type === "textarea" ? controlId : undefined}
+          className="text-sm font-bold leading-5 text-foreground"
+        >
           {question.label} {question.required ? <span className="text-primary">*</span> : null}
         </label>
         {question.helper ? (
@@ -65,6 +69,7 @@ export function BetaQuestionCard({
 
       {question.type === "text" ? (
         <input
+          id={controlId}
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder={question.placeholder}
@@ -74,6 +79,7 @@ export function BetaQuestionCard({
 
       {question.type === "textarea" ? (
         <textarea
+          id={controlId}
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder={question.placeholder}
@@ -236,10 +242,26 @@ export function BetaBugReports({
           </div>
 
           <div className="grid gap-3">
-            <BugField label="PAGE — where were you?" value={bug.page} onChange={(value) => patch(bug.id, { page: value })} />
-            <BugField label="I DID — what did you click / change / open?" value={bug.did} onChange={(value) => patch(bug.id, { did: value })} />
-            <BugField label="I EXPECTED — what should have happened?" value={bug.expected} onChange={(value) => patch(bug.id, { expected: value })} />
-            <BugField label="INSTEAD — what actually happened?" value={bug.instead} onChange={(value) => patch(bug.id, { instead: value })} />
+            <BugField
+              label="PAGE — where were you?"
+              value={bug.page}
+              onChange={(value) => patch(bug.id, { page: value })}
+            />
+            <BugField
+              label="I DID — what did you click / change / open?"
+              value={bug.did}
+              onChange={(value) => patch(bug.id, { did: value })}
+            />
+            <BugField
+              label="I EXPECTED — what should have happened?"
+              value={bug.expected}
+              onChange={(value) => patch(bug.id, { expected: value })}
+            />
+            <BugField
+              label="INSTEAD — what actually happened?"
+              value={bug.instead}
+              onChange={(value) => patch(bug.id, { instead: value })}
+            />
 
             <div className="grid gap-3 sm:grid-cols-2">
               <BugSelect
@@ -277,7 +299,8 @@ export function BetaBugReports({
             </label>
             {bug.file ? (
               <p className="text-[10px] text-muted-foreground">
-                Screenshots cannot survive a browser refresh, so reattach it if you refresh before submitting.
+                Screenshots cannot survive a browser refresh, so reattach it if you refresh before
+                submitting.
               </p>
             ) : null}
           </div>
@@ -307,12 +330,18 @@ export function BetaReviewScreen({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border/70 bg-surface/70 p-4 text-sm text-muted-foreground">
-        Check the important bits. Optional unanswered questions are left alone rather than being treated like a moral failure.
+        Check the important bits. Optional unanswered questions are left alone rather than being
+        treated like a moral failure.
       </div>
       {betaSections.map((section, index) => {
-        const visible = section.questions.filter((question) => isBetaQuestionVisible(question, answers));
+        const visible = section.questions.filter((question) =>
+          isBetaQuestionVisible(question, answers),
+        );
         return (
-          <section key={section.id} className="rounded-2xl border border-border/70 bg-surface/72 p-4 sm:p-5">
+          <section
+            key={section.id}
+            className="rounded-2xl border border-border/70 bg-surface/72 p-4 sm:p-5"
+          >
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-base font-black">{section.title}</h2>
               <button
@@ -359,7 +388,15 @@ function ReviewRow({ label, value }: { label: string; value: BetaAnswer | string
   );
 }
 
-function BugField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function BugField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-bold">{label}</span>
