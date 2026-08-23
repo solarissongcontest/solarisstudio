@@ -34,7 +34,18 @@ function show(id: string, editionId: string, kind: string) {
     theme_id: null,
     voting_config: { juryPoints: [12, 10, 8, 7, 6, 5, 4, 3, 2, 1] },
     broadcast_config: {},
-    publication_config: null,
+    publication_config: {
+      participants: true,
+      artists: true,
+      songs: true,
+      semi_split: true,
+      running_order: true,
+      qualifiers: true,
+      results: true,
+      jury_results: true,
+      televote_results: true,
+      detailed_voting: true,
+    },
   } as any;
 }
 
@@ -51,6 +62,8 @@ function participant(id: string, editionId: string, showId: string) {
     semi_final: "",
     qualified: true,
     notes: null,
+    publication_status: "published",
+    scheduled_publish_at: null,
   } as any;
 }
 
