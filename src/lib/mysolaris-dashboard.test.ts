@@ -12,7 +12,7 @@ describe("MySolaris dashboard", () => {
   it("uses the MySolaris brand and six focused sections", () => {
     expect(route).toContain('title: "MySolaris — Solaris Studio"');
     for (const tab of ["home", "entry", "country", "history", "activity", "account"]) {
-      expect(route).toContain(`\"${tab}\"`);
+      expect(route).toContain(`"${tab}"`);
     }
     expect(route).toContain('aria-label="MySolaris sections"');
   });
