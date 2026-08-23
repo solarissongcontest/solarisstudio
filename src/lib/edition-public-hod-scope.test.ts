@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 const routeTheme = source("src/components/RouteVisualTheme.tsx");
 const editionCss = source("src/edition-public-design.css");
 const hodPanel = source("src/components/CountryHodHistoryPanel.tsx");
+const mySolaris = source("src/routes/_authenticated/my-solaris/index.tsx");
 const migration = source("supabase/migrations/20260821234500_country_hod_self_history.sql");
 const intelligence = source("src/integrations/televoting/intelligence.server.ts");
 
@@ -30,18 +31,19 @@ describe("country HOD ownership history", () => {
     expect(migration).toContain("participants_auto_assign_country_hod");
   });
 
-  it("keeps the HOD and historical-country controls mountable on My Solaris", () => {
-    expect(hodPanel).toContain('location.pathname === "/my-solaris"');
+  it("renders HOD and historical-country controls directly inside MySolaris", () => {
+    expect(hodPanel).toContain("CountryHodHistoryPanel({ inline = false }");
+    expect(hodPanel).toContain("inline ? onMySolaris : onCountryHub");
     expect(hodPanel).toContain("Historical country names & flags");
-    expect(hodPanel).toContain("MutationObserver");
-    expect(hodPanel).toContain('document.querySelector<HTMLElement>(".app-main")');
+    expect(hodPanel).toContain("if (inline) return content");
+    expect(mySolaris).toContain("<CountryHodHistoryPanel inline />");
   });
 
-  it("keeps watching after the first portal attach so React cannot discard the controls", () => {
-    expect(hodPanel).toContain("Keep watching for the whole route lifetime");
+  it("keeps the Country Hub portal resilient while MySolaris no longer depends on it", () => {
+    expect(hodPanel).toContain("MutationObserver");
+    expect(hodPanel).toContain('document.querySelector<HTMLElement>(".app-main")');
     expect(hodPanel).toContain("if (!node?.isConnected) attach()");
     expect(hodPanel).toContain("observer.observe(document.body, { childList: true, subtree: true })");
-    expect(hodPanel).not.toContain("observer?.disconnect();\n        observer = null");
   });
 
   it("feeds only resolved HOD identities into friendship-voting intelligence", () => {
