@@ -92,7 +92,7 @@ function buildQualificationRecordOverrides(
     shows: input.shows,
     participants: input.participants,
     results: input.results,
-    jury: [],
+    jury: input.jury,
     televote: [],
   });
   const histories = new Map<string, Map<number, boolean>>();
@@ -207,10 +207,29 @@ function buildQualificationRecordOverrides(
 export function buildCanonicalFanRecords(
   input: Parameters<typeof buildFanRecords>[0],
 ): FanRecord[] {
+  // Records are public analytics too. Apply the same publication gates used by
+  // country history so draft/prepared rows never become public records.
+  const archive = buildPublicCountryArchive({
+    editions: input.editions,
+    shows: input.shows,
+    participants: input.participants,
+    results: input.results,
+    jury: input.jury,
+    televote: [],
+  });
+  const safeInput: Parameters<typeof buildFanRecords>[0] = {
+    ...input,
+    editions: archive.editions,
+    shows: archive.shows,
+    participants: archive.participants,
+    results: archive.results,
+    jury: archive.jury,
+  };
+
   const overrides = new Map(
-    buildQualificationRecordOverrides(input).map((record) => [record.id, record]),
+    buildQualificationRecordOverrides(safeInput).map((record) => [record.id, record]),
   );
-  const base = buildFanRecords(input);
+  const base = buildFanRecords(safeInput);
   const seen = new Set<string>();
   const records = base.map((record) => {
     seen.add(record.id);

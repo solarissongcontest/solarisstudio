@@ -5,6 +5,7 @@ import {
   resolveCountryEditionQualification,
 } from "./qualification";
 import { computeCountryStats, type CountryStats } from "./stats";
+import { isTopScore, makeTopScoreResolver } from "./voting";
 
 type Options = {
   editions: Edition[];
@@ -63,11 +64,6 @@ function currentEditionStreak(points: EditionFlag[]) {
  * Public country statistics must treat one delegation in one edition as one
  * participation. Show-level participant/result rows remain useful operational
  * data, but may never inflate public history, percentages or streaks.
- *
- * The function also applies the public publication gates itself. That matters
- * because several analytics/directory surfaces call it with the raw live query
- * result. Draft placeholder ranks must never become a public "winner" simply
- * because an organizer has already prepared a running order or result row.
  */
 export function computeCanonicalCountryStats(countryId: string, options: Options): CountryStats {
   const publicOptions = buildPublicCountryArchive(options);
@@ -84,14 +80,10 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
 
   const finalEditionIds = new Set<string>();
   participants.forEach((participant) => {
-    if (isFinal(showById.get(participant.show_id ?? "")?.kind)) {
-      finalEditionIds.add(participant.edition_id);
-    }
+    if (isFinal(showById.get(participant.show_id ?? "")?.kind)) finalEditionIds.add(participant.edition_id);
   });
   results.forEach((result) => {
-    if (isFinal(showById.get(result.show_id ?? "")?.kind)) {
-      finalEditionIds.add(result.edition_id);
-    }
+    if (isFinal(showById.get(result.show_id ?? "")?.kind)) finalEditionIds.add(result.edition_id);
   });
 
   const semiByEdition = new Map<string, Participant[]>();
@@ -103,24 +95,17 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     ]);
   });
 
-  // Qualification history is an edition outcome, not merely the semi-final
-  // top-N boolean. AQ and Wildcard both reached the final and therefore count
-  // as successful qualifications for totals, rates and streaks.
   const qualificationOutcomes = [...participationEditionIds]
     .map((editionId) => {
       const number = editionNumber.get(editionId);
       if (number == null) return null;
       const status = resolveCountryEditionQualification(countryId, editionId, publicOptions);
       if (status == null) return null;
-      return {
-        editionNumber: number,
-        value: qualificationCountsAsQualified(status),
-      };
+      return { editionNumber: number, value: qualificationCountsAsQualified(status) };
     })
     .filter((row): row is EditionFlag => row != null);
 
-  const knownQualifications = qualificationOutcomes;
-  const qualifications = knownQualifications.filter((row) => row.value).length;
+  const qualifications = qualificationOutcomes.filter((row) => row.value).length;
 
   const placementFlags = base.timeline
     .filter((point): point is typeof point & { editionNumber: number } => point.editionNumber != null)
@@ -135,6 +120,27 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     ? editionScores.reduce((sum, score) => sum + score, 0) / editionScores.length
     : null;
 
+  // "Per contest" means per edition, not per show. A delegation can vote in a
+  // semi and a final in the same edition; averaging those as separate contests
+  // made the old statistic drift depending on format.
+  const givenByEdition = new Map<string, number>();
+  publicOptions.jury
+    .filter((vote) => vote.voter_country_id === countryId)
+    .forEach((vote) => {
+      givenByEdition.set(vote.edition_id, (givenByEdition.get(vote.edition_id) ?? 0) + vote.points);
+    });
+  const givenEditionTotals = [...givenByEdition.values()];
+  const averageGivenPerEdition = givenEditionTotals.length
+    ? givenEditionTotals.reduce((sum, points) => sum + points, 0) / givenEditionTotals.length
+    : null;
+
+  // Received top-score counts must include every published jury/voter identity,
+  // including custom/external voters that do not map to a Solaris country.
+  const resolveTop = makeTopScoreResolver(publicOptions.shows);
+  const topScoresReceived = publicOptions.jury.filter(
+    (vote) => vote.receiving_country_id === countryId && isTopScore(vote, resolveTop),
+  ).length;
+
   const participations = participationEditionIds.size;
   const finals = finalEditionIds.size;
   const semis = semiByEdition.size;
@@ -145,22 +151,24 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     finals,
     semis,
     qualifications,
-    qualificationPct: knownQualifications.length
-      ? (qualifications / knownQualifications.length) * 100
+    qualificationPct: qualificationOutcomes.length
+      ? (qualifications / qualificationOutcomes.length) * 100
       : null,
     grandFinalAppearancePct: participations ? (finals / participations) * 100 : null,
     nilPointers: editionScores.filter((score) => score === 0).length,
     avgPointsPerParticipation: averageEditionScore,
     avgReceivedPerContest: averageEditionScore,
+    avgGivenPerContest: averageGivenPerEdition,
+    topScoresReceived,
     highestScore: editionScores.length ? Math.max(...editionScores) : null,
     lowestScore: editionScores.length ? Math.min(...editionScores) : null,
     bestPlacementStreak: longestEditionStreak(
       placementFlags.map((point) => ({ editionNumber: point.editionNumber, value: point.top10 })),
     ),
     worstPlacementStreak: longestEditionStreak(
-      knownQualifications.map((point) => ({ ...point, value: !point.value })),
+      qualificationOutcomes.map((point) => ({ ...point, value: !point.value })),
     ),
-    consecutiveQualifications: currentEditionStreak(knownQualifications),
+    consecutiveQualifications: currentEditionStreak(qualificationOutcomes),
     consecutiveTop10: currentEditionStreak(
       placementFlags.map((point) => ({ editionNumber: point.editionNumber, value: point.top10 })),
     ),

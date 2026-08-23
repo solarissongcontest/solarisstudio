@@ -26,6 +26,7 @@ import {
   useEditions,
 } from "@/lib/data";
 import { buildFanDiscovery, type DiscoveryStory } from "@/lib/fan-discovery";
+import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import { computeRelationship, computeVotingIntelligence } from "@/lib/stats";
 import { resolveVoting } from "@/lib/voting";
 
@@ -47,20 +48,37 @@ type Tab = (typeof ANALYSIS_TABS)[number]["value"];
 
 function AnalysisPage() {
   const { data: countries } = useCountries();
-  const { data: jury } = useAllJuryVotes();
-  const { data: results } = useAllResults();
-  const { data: shows } = useAllShows();
-  const { data: editions } = useEditions();
-  const { data: participants } = useAllParticipants();
+  const { data: rawJury } = useAllJuryVotes();
+  const { data: rawResults } = useAllResults();
+  const { data: rawShows } = useAllShows();
+  const { data: rawEditions } = useEditions();
+  const { data: rawParticipants } = useAllParticipants();
 
   const [filters, setFilters] = useState<AnalysisFiltersState>(DEFAULT_ANALYSIS_FILTERS);
   const [tab, setTab] = useState<Tab>("discover");
   const [selectedCountryId, setSelectedCountryId] = useState("");
 
+  // Analysis is public UI. Always apply the same publication gates used by
+  // country history so prepared/draft results cannot leak into statistics.
+  const archive = useMemo(
+    () =>
+      buildPublicCountryArchive({
+        editions: rawEditions ?? [],
+        shows: rawShows ?? [],
+        participants: rawParticipants ?? [],
+        results: rawResults ?? [],
+        jury: rawJury ?? [],
+        televote: [],
+      }),
+    [rawEditions, rawShows, rawParticipants, rawResults, rawJury],
+  );
+
   const cs = countries ?? [];
-  const es = editions ?? [];
-  const showsList = shows ?? [];
-  const participantList = participants ?? [];
+  const es = archive.editions;
+  const showsList = archive.shows;
+  const participantList = archive.participants;
+  const juryList = archive.jury;
+  const resultList = archive.results;
 
   const allowedShowIds = useMemo(
     () =>
@@ -82,22 +100,22 @@ function AnalysisPage() {
 
   const filteredJury = useMemo(
     () =>
-      (jury ?? []).filter((vote) =>
+      juryList.filter((vote) =>
         vote.show_id
           ? allowedShowIds.has(vote.show_id)
           : filters.editionIds.length === 0 && filters.showKind === "all",
       ),
-    [jury, allowedShowIds, filters],
+    [juryList, allowedShowIds, filters],
   );
 
   const filteredResults = useMemo(
     () =>
-      (results ?? []).filter((row) =>
+      resultList.filter((row) =>
         row.show_id
           ? allowedShowIds.has(row.show_id)
           : filters.editionIds.length === 0 && filters.showKind === "all",
       ),
-    [results, allowedShowIds, filters],
+    [resultList, allowedShowIds, filters],
   );
 
   const splitVoteShowIds = useMemo(
@@ -203,7 +221,7 @@ function AnalysisPage() {
   const juryTeleRows = useMemo(() => buildJuryTeleRows(splitVoteResults, cMap), [splitVoteResults, cMap]);
   const juryFavoured = juryTeleRows.filter((row) => row.difference > 0).sort((a, b) => b.difference - a.difference).slice(0, 6);
   const teleFavoured = juryTeleRows.filter((row) => row.difference < 0).sort((a, b) => a.difference - b.difference).slice(0, 6);
-  const historyRows = useMemo(() => buildHistoryRows(filteredResults, cMap), [filteredResults, cMap]);
+  const historyRows = useMemo(() => buildHistoryRows(filteredResults, filteredShows, cMap), [filteredResults, filteredShows, cMap]);
 
   const winnerRadar = intelligence.kingmakers[0]
     ? cMap.get(intelligence.kingmakers[0].countryId)
@@ -218,7 +236,7 @@ function AnalysisPage() {
       <PageHeader
         eyebrow="Results intelligence"
         title="Analysis"
-        description="Start with the stories hidden inside the results, then dig into the deeper voting tools if you want to."
+        description="Start with the stories hidden inside the published results, then dig into the deeper voting tools if you want to."
       />
 
       <Filters editions={es} value={filters} onChange={setFilters} />
@@ -254,7 +272,7 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="What you might have missed"
             title="Discover"
-            description="These are result stories calculated from the selected archive: dramatic climbs, collapses, disagreements and voting relationships. No mystery score required."
+            description="These are result stories calculated from the selected published archive: dramatic climbs, collapses, disagreements and voting relationships."
           />
           {discovery.length ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -266,7 +284,7 @@ function AnalysisPage() {
               How these stories are calculated ▾
             </summary>
             <div className="border-t border-border/60 px-4 py-4 text-xs leading-6 text-muted-foreground">
-              Jury-vs-televote stories only use shows where both voting components were actually enabled. Jury-only and televote-only shows still count for overall-result stories such as winning margins, but a missing vote component is never ranked as a field of zeroes. Pair stories add archived jury points in each direction. Filters above change the sample used for every card.
+              Only published result and voting layers are used. Jury-vs-televote stories only use shows where both voting components were actually enabled. Jury-only and televote-only shows can still count for overall-result stories, but a missing component is never treated as zero.
             </div>
           </details>
         </div>
@@ -277,7 +295,7 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="Split vote"
             title="Where jury and televote disagreed"
-            description="Only shows that actually used both jury and televote are included here. Jury-only or televote-only shows are excluded instead of treating the missing side as zero points."
+            description="Only published shows that actually used both jury and televote are included here."
           />
           <Panel title="Jury vs televote" description="Each dot is a country. Move right for more jury support and upward for more televote support.">
             {splitVoteResults.length ? <JuryVsTelevote countries={cs} results={splitVoteResults} /> : <Empty />}
@@ -294,24 +312,24 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="Voting relationships"
             title="Who keeps finding each other?"
-            description="Repeated two-way support and similar voting patterns. These are statistical patterns, not claims that delegations coordinate their votes."
+            description="Repeated two-way jury support and similar voting patterns. These are statistical patterns, not claims that delegations coordinate their votes."
           />
           <div className="grid gap-5 lg:grid-cols-2">
-            <Panel title="Strongest mutual support" description="Pairs with the strongest opportunity-normalized support in both directions.">
+            <Panel title="Strongest mutual support" description="Pairs with the strongest opportunity-normalized jury support in both directions.">
               {relationData.friendships.length ? (
                 <div className="divide-y divide-border/60">
                   {relationData.friendships.slice(0, 10).map((row, index) => <RelationshipRow key={`${row.a}-${row.b}`} rank={index + 1} row={row} cMap={cMap} />)}
                 </div>
               ) : <Empty compact />}
             </Panel>
-            <Panel title="Most one-sided" description="The biggest difference between support given and support returned.">
+            <Panel title="Most one-sided" description="The biggest difference between jury support given and support returned.">
               {relationData.oneSided.length ? (
                 <div className="divide-y divide-border/60">
                   {relationData.oneSided.slice(0, 10).map((row, index) => <OneSidedRow key={`${row.a}-${row.b}`} rank={index + 1} row={row} cMap={cMap} />)}
                 </div>
               ) : <Empty compact />}
             </Panel>
-            <Panel title="Voting twins" description="Pairs whose jury voting patterns are most similar.">
+            <Panel title="Voting twins" description="Pairs whose published jury voting patterns are most similar.">
               {similarity.length ? (
                 <div className="divide-y divide-border/60">
                   {similarity.slice(0, 10).map((row, index) => (
@@ -320,7 +338,7 @@ function AnalysisPage() {
                 </div>
               ) : <Empty compact />}
             </Panel>
-            <Panel title="Chord view" description="An optional visual summary of the strongest two-way flows. The ranked lists above are the easier way to read the same idea.">
+            <Panel title="Chord view" description="An optional visual summary of the strongest two-way jury flows.">
               {filteredJury.length ? <ChordDiagram countries={cs} jury={filteredJury} /> : <Empty />}
             </Panel>
           </div>
@@ -331,8 +349,8 @@ function AnalysisPage() {
         <div className="space-y-5">
           <SectionIntro
             eyebrow="Country support profile"
-            title="Who gives points to whom?"
-            description="Choose a country for a readable ranking first. The heat map is kept below as an advanced archive view."
+            title="Who gives jury points to whom?"
+            description="Country-to-country support uses jury votes because televote rows do not identify a giving country."
           />
           {countryOptions.length ? (
             <>
@@ -341,11 +359,11 @@ function AnalysisPage() {
                 <select id="analysis-country" value={activeCountryId} onChange={(event) => setSelectedCountryId(event.target.value)} className="min-h-12 w-full max-w-md rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none">
                   {countryOptions.map((country) => <option key={country.id} value={country.id}>{country.name}</option>)}
                 </select>
-                {activeCountry && <div className="mt-4 flex items-center gap-3"><FlagChip code={activeCountry.short_code} color={activeCountry.accent_color} image={activeCountry.flag_image} size="md" /><div><p className="text-sm font-semibold">{activeCountry.name}</p><p className="text-[11px] text-muted-foreground">Selected archive support profile</p></div></div>}
+                {activeCountry && <div className="mt-4 flex items-center gap-3"><FlagChip code={activeCountry.short_code} color={activeCountry.accent_color} image={activeCountry.flag_image} size="md" /><div><p className="text-sm font-semibold">{activeCountry.name}</p><p className="text-[11px] text-muted-foreground">Selected published jury support profile</p></div></div>}
               </Panel>
               <div className="grid gap-5 lg:grid-cols-2">
-                <RankingPanel title="Receives most from" rows={supporters} cMap={cMap} />
-                <RankingPanel title="Gives most to" rows={recipients} cMap={cMap} />
+                <RankingPanel title="Receives most jury points from" rows={supporters} cMap={cMap} />
+                <RankingPanel title="Gives most jury points to" rows={recipients} cMap={cMap} />
               </div>
               <details className="glass overflow-hidden">
                 <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">Advanced heat map ▾</summary>
@@ -361,7 +379,7 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="Advanced visual"
             title="Connections map"
-            description="Each dot is a country and each arrow is jury points flowing from giver to receiver. Thicker lines mean more accumulated support. If the map feels busy, the Relationships tab gives the same idea as ranked lists."
+            description="Each dot is a country and each arrow is published jury points flowing from giver to receiver."
           />
           <Panel>
             {filteredJury.length ? <NetworkGraph countries={cs} jury={filteredJury} /> : <Empty />}
@@ -374,10 +392,10 @@ function AnalysisPage() {
           <SectionIntro
             eyebrow="All-time performance"
             title="History"
-            description="Follow placements over time and see which countries accumulated the most points in the selected archive."
+            description="Follow published placements over time and see which countries accumulated the most points in the selected archive. When all show types are selected, each country contributes only one result per edition, preferring its Grand Final result."
           />
           <Panel title="Historical leaderboard">
-            {filteredResults.length ? <HistoricalLeaderboard countries={cs} editions={es} results={filteredResults} /> : <Empty />}
+            {filteredResults.length ? <HistoricalLeaderboard countries={cs} editions={es} results={filteredResults} shows={filteredShows} /> : <Empty />}
           </Panel>
           <Panel title="Most points in this filter">
             {historyRows.length ? (
@@ -386,7 +404,7 @@ function AnalysisPage() {
                   <Link key={row.country.id} to="/countries/$code" params={{ code: row.country.short_code }} className="flex items-center gap-3 rounded-xl bg-surface p-3">
                     <span className="numeric w-6 shrink-0 text-xs text-muted-foreground">#{index + 1}</span>
                     <FlagChip code={row.country.short_code} color={row.country.accent_color} image={row.country.flag_image} size="sm" />
-                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{row.country.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{row.appearances} results{row.averageRank != null ? ` · avg #${row.averageRank.toFixed(1)}` : ""}</p></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{row.country.name}</p><p className="mt-0.5 text-[10px] text-muted-foreground">{row.appearances} edition{row.appearances === 1 ? "" : "s"}{row.averageRank != null ? ` · avg #${row.averageRank.toFixed(1)}` : ""}</p></div>
                     <span className="numeric text-sm font-bold">{row.totalPoints}</span>
                   </Link>
                 ))}
@@ -471,8 +489,31 @@ function buildJuryTeleRows(results: ResultRow[], cMap: Map<string, Country>): Ju
 }
 
 type HistoryRow = { country: Country; totalPoints: number; appearances: number; averageRank: number | null };
-function buildHistoryRows(results: ResultRow[], cMap: Map<string, Country>): HistoryRow[] {
+function buildHistoryRows(results: ResultRow[], shows: Array<{ id: string; kind: string }>, cMap: Map<string, Country>): HistoryRow[] {
+  const showMap = new Map(shows.map((show) => [show.id, show]));
+  const canonical = new Map<string, ResultRow>();
+  for (const row of results) {
+    const key = `${row.country_id}:${row.edition_id}`;
+    const current = canonical.get(key);
+    if (!current) {
+      canonical.set(key, row);
+      continue;
+    }
+    const currentKind = showMap.get(current.show_id ?? "")?.kind;
+    const rowKind = showMap.get(row.show_id ?? "")?.kind;
+    const currentFinal = currentKind === "grand-final" || currentKind === "final";
+    const rowFinal = rowKind === "grand-final" || rowKind === "final";
+    if (rowFinal && !currentFinal) canonical.set(key, row);
+    else if (rowFinal === currentFinal && (row.final_rank ?? 999) < (current.final_rank ?? 999)) canonical.set(key, row);
+  }
+
   const totals = new Map<string, { totalPoints: number; appearances: number; ranks: number[] }>();
-  results.forEach((row) => { const current = totals.get(row.country_id) ?? { totalPoints: 0, appearances: 0, ranks: [] }; current.totalPoints += row.total_points; current.appearances += 1; if (row.final_rank != null) current.ranks.push(row.final_rank); totals.set(row.country_id, current); });
+  canonical.forEach((row) => {
+    const current = totals.get(row.country_id) ?? { totalPoints: 0, appearances: 0, ranks: [] };
+    current.totalPoints += row.total_points;
+    current.appearances += 1;
+    if (row.final_rank != null) current.ranks.push(row.final_rank);
+    totals.set(row.country_id, current);
+  });
   return [...totals.entries()].map(([id, values]) => { const country = cMap.get(id); if (!country) return null; return { country, totalPoints: values.totalPoints, appearances: values.appearances, averageRank: values.ranks.length ? values.ranks.reduce((sum, rank) => sum + rank, 0) / values.ranks.length : null }; }).filter((row): row is HistoryRow => Boolean(row)).sort((a, b) => b.totalPoints - a.totalPoints);
 }
