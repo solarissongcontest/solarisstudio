@@ -1,5 +1,9 @@
 import type { Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
 import { buildPublicCountryArchive } from "./public-country-archive";
+import {
+  qualificationCountsAsQualified,
+  resolveCountryEditionQualification,
+} from "./qualification";
 import { computeCountryStats, type CountryStats } from "./stats";
 
 type Options = {
@@ -78,11 +82,17 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
   participants.forEach((participant) => participationEditionIds.add(participant.edition_id));
   results.forEach((result) => participationEditionIds.add(result.edition_id));
 
-  const finalEditionIds = new Set(
-    results
-      .filter((result) => isFinal(showById.get(result.show_id ?? "")?.kind))
-      .map((result) => result.edition_id),
-  );
+  const finalEditionIds = new Set<string>();
+  participants.forEach((participant) => {
+    if (isFinal(showById.get(participant.show_id ?? "")?.kind)) {
+      finalEditionIds.add(participant.edition_id);
+    }
+  });
+  results.forEach((result) => {
+    if (isFinal(showById.get(result.show_id ?? "")?.kind)) {
+      finalEditionIds.add(result.edition_id);
+    }
+  });
 
   const semiByEdition = new Map<string, Participant[]>();
   participants.forEach((participant) => {
@@ -93,16 +103,21 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     ]);
   });
 
-  const qualificationOutcomes = [...semiByEdition.entries()].map(([editionId, rows]) => {
-    const number = editionNumber.get(editionId);
-    if (number == null) return null;
-    const value = finalEditionIds.has(editionId) || rows.some((row) => row.qualified === true)
-      ? true
-      : rows.some((row) => row.qualified === false)
-        ? false
-        : null;
-    return value == null ? null : { editionNumber: number, value };
-  }).filter((row): row is EditionFlag => row != null);
+  // Qualification history is an edition outcome, not merely the semi-final
+  // top-N boolean. AQ and Wildcard both reached the final and therefore count
+  // as successful qualifications for totals, rates and streaks.
+  const qualificationOutcomes = [...participationEditionIds]
+    .map((editionId) => {
+      const number = editionNumber.get(editionId);
+      if (number == null) return null;
+      const status = resolveCountryEditionQualification(countryId, editionId, publicOptions);
+      if (status == null) return null;
+      return {
+        editionNumber: number,
+        value: qualificationCountsAsQualified(status),
+      };
+    })
+    .filter((row): row is EditionFlag => row != null);
 
   const knownQualifications = qualificationOutcomes;
   const qualifications = knownQualifications.filter((row) => row.value).length;
