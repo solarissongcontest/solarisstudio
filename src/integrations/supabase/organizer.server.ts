@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getRequestHeader } from "@tanstack/react-start/server";
 
 import type { Database } from "./types";
+import { getSolarisSupabasePublishableKey, getSolarisSupabaseUrl } from "./public-config";
 
 export type SolarisOrganizer = {
   id: string;
@@ -9,15 +10,8 @@ export type SolarisOrganizer = {
 };
 
 export function getSolarisPublicConfig() {
-  const url =
-    process.env["SUPABASE_URL"] ||
-    process.env["VITE_SUPABASE_URL"] ||
-    import.meta.env.VITE_SUPABASE_URL;
-
-  const publishableKey =
-    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = getSolarisSupabaseUrl();
+  const publishableKey = getSolarisSupabasePublishableKey();
 
   if (!url || !publishableKey) {
     throw new Error("Solaris authentication is not configured on this deployment.");

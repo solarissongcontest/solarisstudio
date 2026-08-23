@@ -2,10 +2,6 @@
    Let each public route family own the whole screen, not only the content
    canvas. Country/edition entity themes keep their stronger per-entity theme. */
 
-body[data-solaris-family]:not([data-entity-theme]) {
-  --solaris-accent: var(--solaris-bg-primary);
-}
-
 /* Permanent sticky/fixed chrome should not continuously blur the entire page
    behind it. The themed gradients are already opaque enough to preserve the
    same visual hierarchy without forcing GPU backdrop recomposition on scroll. */
@@ -17,12 +13,23 @@ body[data-solaris-family]:not([data-entity-theme]) {
   backdrop-filter: none !important;
 }
 
+/* Ordinary route cards are visually opaque after the palette pass. Keeping a
+   live backdrop filter on dozens of them only forces GPU recomposition while
+   scrolling. Entity themes are excluded because Glass intentionally uses the
+   flag behind a translucent panel. */
+body[data-solaris-family]:not([data-entity-theme])
+  :is(.glass, .glass-strong, .data-panel, .surface) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
 body[data-solaris-family]:not([data-entity-theme]) .site-nav {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 15%, rgb(var(--solaris-bg-deep)) 85%),
-      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, rgb(var(--solaris-bg-deep-2)) 90%)) !important;
-  border-color: rgb(var(--solaris-accent) / .15) !important;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--solaris-bg-primary)) 15%, rgb(var(--solaris-bg-deep)) 85%),
+    color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, rgb(var(--solaris-bg-deep-2)) 90%)
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.15) !important;
   box-shadow: none !important;
 }
 
@@ -39,36 +46,41 @@ body[data-solaris-family]:not([data-entity-theme]) .site-nav {
 }
 
 body[data-solaris-family]:not([data-entity-theme]) .mobile-quick-nav {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 14%, rgb(var(--solaris-bg-deep)) 86%),
-      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 9%, rgb(var(--solaris-bg-deep-2)) 91%)) !important;
-  border-color: rgb(var(--solaris-accent) / .15) !important;
-  box-shadow: 0 -9px 28px rgb(var(--solaris-bg-deep) / .18) !important;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--solaris-bg-primary)) 14%, rgb(var(--solaris-bg-deep)) 86%),
+    color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 9%, rgb(var(--solaris-bg-deep-2)) 91%)
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.15) !important;
+  box-shadow: 0 -9px 28px rgb(var(--solaris-bg-deep) / 0.18) !important;
 }
 
 body[data-solaris-family]:not([data-entity-theme]) :is(.public-drawer, .nav-menu-panel) {
   background:
-    radial-gradient(circle at 88% 7%, rgb(var(--solaris-bg-primary) / .12), transparent 32%),
-    linear-gradient(160deg,
+    radial-gradient(circle at 88% 7%, rgb(var(--solaris-bg-primary) / 0.12), transparent 32%),
+    linear-gradient(
+      160deg,
       color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 10%, rgb(var(--solaris-bg-deep-2)) 90%),
-      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 7%, rgb(var(--solaris-bg-deep)) 93%)) !important;
-  border-color: rgb(var(--solaris-accent) / .17) !important;
+      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 7%, rgb(var(--solaris-bg-deep)) 93%)
+    ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.17) !important;
 }
 
 body[data-solaris-family]:not([data-entity-theme]) .public-drawer > :is(div, nav) {
-  border-color: rgb(var(--solaris-accent) / .13) !important;
+  border-color: rgb(var(--solaris-accent) / 0.13) !important;
 }
 
 /* Active navigation gets a quiet page-family tint. The Solaris Studio brand
    is deliberately excluded. TanStack marks the Home brand link as current,
    and treating that like a normal nav pill created the rectangle seen behind
    the logo on the homepage. */
-body[data-solaris-family]:not([data-entity-theme]) :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel) :is(a, button, summary)[aria-current="page"]:not([aria-label="Solaris Studio home"]),
+body[data-solaris-family]:not([data-entity-theme])
+  :is(.site-nav, .mobile-quick-nav, .public-drawer, .nav-menu-panel)
+  :is(a, button, summary)[aria-current="page"]:not([aria-label="Solaris Studio home"]),
 body[data-solaris-family]:not([data-entity-theme]) .mobile-quick-nav a[aria-current="page"],
 body[data-solaris-family]:not([data-entity-theme]) .responsive-tabs button[aria-current="page"] {
-  background: rgb(var(--solaris-accent) / .12) !important;
-  border-color: rgb(var(--solaris-accent) / .20) !important;
+  background: rgb(var(--solaris-accent) / 0.12) !important;
+  border-color: rgb(var(--solaris-accent) / 0.2) !important;
   color: var(--foreground) !important;
 }
 
@@ -98,71 +110,95 @@ body[data-entity-theme] .site-nav a[aria-label="Solaris Studio home"]::after {
 
 body[data-solaris-family]:not([data-entity-theme]) .responsive-tabs .scroll-slim > div,
 body[data-solaris-family]:not([data-entity-theme]) .directory-page-filter {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 9%, rgb(var(--solaris-bg-deep-2)) 91%),
-      color-mix(in srgb, rgb(var(--solaris-bg-primary)) 5%, rgb(var(--solaris-bg-deep)) 95%)) !important;
-  border-color: rgb(var(--solaris-accent) / .15) !important;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--solaris-bg-secondary)) 9%, rgb(var(--solaris-bg-deep-2)) 91%),
+    color-mix(in srgb, rgb(var(--solaris-bg-primary)) 5%, rgb(var(--solaris-bg-deep)) 95%)
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.15) !important;
 }
 
-body[data-solaris-family]:not([data-entity-theme]) :is(
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
-  textarea,
-  select,
-  [role="combobox"]
-) {
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--surface-strong) 90%, rgb(var(--solaris-bg-primary)) 10%),
-      color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%)) !important;
-  border-color: rgb(var(--solaris-accent) / .18) !important;
+body[data-solaris-family]:not([data-entity-theme])
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    textarea,
+    select,
+    [role="combobox"]
+  ) {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-strong) 90%, rgb(var(--solaris-bg-primary)) 10%),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%)
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.18) !important;
 }
 
-body[data-solaris-family]:not([data-entity-theme]) :is(
-  button.bg-secondary,
-  button[class*="bg-background"],
-  button.border.border-input,
-  a[class*="bg-background"],
-  a.bg-surface,
-  button.bg-surface,
-  .directory-page-action,
-  .directory-country-card
-) {
-  background: color-mix(in srgb, var(--surface-strong) 91%, rgb(var(--solaris-accent)) 9%) !important;
-  border-color: rgb(var(--solaris-accent) / .18) !important;
+body[data-solaris-family]:not([data-entity-theme])
+  :is(
+    button.bg-secondary,
+    button[class*="bg-background"],
+    button.border.border-input,
+    a[class*="bg-background"],
+    a.bg-surface,
+    button.bg-surface,
+    .directory-page-action,
+    .directory-country-card
+  ) {
+  background: color-mix(
+    in srgb,
+    var(--surface-strong) 91%,
+    rgb(var(--solaris-accent)) 9%
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.18) !important;
   color: var(--foreground) !important;
 }
 
-body[data-solaris-family]:not([data-entity-theme]) :is(
-  .bg-aurora:is(button, a, [role="button"]),
-  button.bg-primary,
-  a.bg-primary,
-  [role="button"].bg-primary
-) {
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, rgb(var(--solaris-accent)) 66%, white 34%) 0%,
-      rgb(var(--solaris-accent)) 54%,
-      color-mix(in srgb, rgb(var(--solaris-accent)) 72%, rgb(var(--solaris-bg-secondary)) 28%) 100%) !important;
+body[data-solaris-family]:not([data-entity-theme])
+  :is(
+    .bg-aurora:is(button, a, [role="button"]),
+    button.bg-primary,
+    a.bg-primary,
+    [role="button"].bg-primary
+  ) {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, rgb(var(--solaris-accent)) 66%, white 34%) 0%,
+    rgb(var(--solaris-accent)) 54%,
+    color-mix(in srgb, rgb(var(--solaris-accent)) 72%, rgb(var(--solaris-bg-secondary)) 28%) 100%
+  ) !important;
   color: var(--primary-foreground) !important;
   border-color: color-mix(in srgb, rgb(var(--solaris-accent)) 52%, white 48%) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / .30), 0 7px 20px rgb(var(--solaris-bg-deep) / .13) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    0 7px 20px rgb(var(--solaris-bg-deep) / 0.13) !important;
 }
 
 /* Country/edition entity pages already own their palette. Make every piece of
    app chrome and every common control follow that palette too. */
 body[data-entity-theme] .responsive-tabs .scroll-slim > div {
-  background: color-mix(in srgb, var(--solaris-card-surface, var(--surface)) 91%, rgb(var(--solaris-accent)) 9%) !important;
-  border-color: rgb(var(--solaris-accent) / .18) !important;
+  background: color-mix(
+    in srgb,
+    var(--solaris-card-surface, var(--surface)) 91%,
+    rgb(var(--solaris-accent)) 9%
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.18) !important;
 }
 
 body[data-entity-theme] .responsive-tabs button[aria-current="page"] {
-  background: color-mix(in srgb, var(--solaris-card-raised, var(--surface)) 82%, rgb(var(--solaris-accent)) 18%) !important;
-  border-color: rgb(var(--solaris-accent) / .28) !important;
+  background: color-mix(
+    in srgb,
+    var(--solaris-card-raised, var(--surface)) 82%,
+    rgb(var(--solaris-accent)) 18%
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.28) !important;
   color: var(--foreground) !important;
 }
 
 body[data-entity-theme] .responsive-tabs select {
-  background: color-mix(in srgb, var(--solaris-card-raised, var(--surface)) 90%, rgb(var(--solaris-accent)) 10%) !important;
-  border-color: rgb(var(--solaris-accent) / .22) !important;
+  background: color-mix(
+    in srgb,
+    var(--solaris-card-raised, var(--surface)) 90%,
+    rgb(var(--solaris-accent)) 10%
+  ) !important;
+  border-color: rgb(var(--solaris-accent) / 0.22) !important;
 }

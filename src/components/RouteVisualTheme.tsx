@@ -1,16 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 
 import "@/calm-public-layout.css";
 import "@/calm-public-chrome.css";
 import "@/beta2-feedback-fixes.css";
 import "@/desktop-public-layouts.css";
-import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
-import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
-import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
-import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
-import { EditionPublicStyles } from "@/components/EditionPublicStyles";
 import { resolveCountryButtonTheme } from "@/lib/country-button-theme";
 import {
   useContestEntities,
@@ -30,6 +25,32 @@ import {
   useCountryTheme,
   type CountryVisualTheme,
 } from "@/lib/visual-theme";
+
+const LazyCountryButtonColourPanel = lazy(() =>
+  import("@/components/CountryButtonColourPanel").then((module) => ({
+    default: module.CountryButtonColourPanel,
+  })),
+);
+const LazyCountryHodHistoryPanel = lazy(() =>
+  import("@/components/CountryHodHistoryPanel").then((module) => ({
+    default: module.CountryHodHistoryPanel,
+  })),
+);
+const LazyCountryPreviewParityController = lazy(() =>
+  import("@/components/CountryPreviewParityController").then((module) => ({
+    default: module.CountryPreviewParityController,
+  })),
+);
+const LazyEditionPublicDesignPanel = lazy(() =>
+  import("@/components/EditionPublicDesignPanel").then((module) => ({
+    default: module.EditionPublicDesignPanel,
+  })),
+);
+const LazyEditionPublicStyles = lazy(() =>
+  import("@/components/EditionPublicStyles").then((module) => ({
+    default: module.EditionPublicStyles,
+  })),
+);
 
 type EditionVisual = {
   id: string;
@@ -73,18 +94,10 @@ function gradientFromRaw(input: unknown, first: string, second: string) {
   return `linear-gradient(${angle}deg, ${first}, ${second})`;
 }
 
-function editionPublicSettings(
-  raw: unknown,
-  theme: EditionThemeVisual,
-): EditionPublicSettings {
+function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): EditionPublicSettings {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const requested = String(value.publicStyle ?? "cinematic");
-  const styles: EditionPublicSettings["style"][] = [
-    "cinematic",
-    "editorial",
-    "minimal",
-    "glass",
-  ];
+  const styles: EditionPublicSettings["style"][] = ["cinematic", "editorial", "minimal", "glass"];
   const style = styles.includes(requested as EditionPublicSettings["style"])
     ? (requested as EditionPublicSettings["style"])
     : "cinematic";
@@ -129,8 +142,7 @@ function isLiveResultContext(status?: string | null) {
 
 export function RouteVisualTheme() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const countryCode =
-    segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
+  const countryCode = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
   const editionSlug = segmentAfter(pathname, "/editions/");
   const showId = segmentAfter(pathname, "/shows/");
 
@@ -152,9 +164,8 @@ function CountryRouteVisual({ code }: { code: string }) {
   const { data: countries } = useCountries();
   const country = useMemo(
     () =>
-      (countries ?? []).find(
-        (item) => item.short_code.toLowerCase() === code.toLowerCase(),
-      ) ?? null,
+      (countries ?? []).find((item) => item.short_code.toLowerCase() === code.toLowerCase()) ??
+      null,
     [code, countries],
   );
   const { data: row } = useCountryTheme(country?.id);
@@ -189,7 +200,9 @@ function EditionRouteVisual({ slug }: { slug: string }) {
 
   return (
     <>
-      <EditionPublicStyles />
+      <Suspense fallback={null}>
+        <LazyEditionPublicStyles />
+      </Suspense>
       <BodyVisualTheme resolved={editionVisual(edition as EditionVisual | null)} />
     </>
   );
@@ -217,7 +230,9 @@ function ShowRouteVisual({ showId }: { showId: string }) {
 
   return (
     <>
-      <EditionPublicStyles />
+      <Suspense fallback={null}>
+        <LazyEditionPublicStyles />
+      </Suspense>
       <BodyVisualTheme
         resolved={editionVisual(edition as EditionVisual | null)}
         currentShowId={showId}
@@ -250,9 +265,7 @@ function useResultRefresh({
     };
 
     refresh();
-    const interval = live
-      ? window.setInterval(refresh, showId ? 3_000 : 12_000)
-      : null;
+    const interval = live ? window.setInterval(refresh, showId ? 3_000 : 12_000) : null;
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
 
@@ -273,13 +286,21 @@ function RouteAddons({ pathname }: { pathname: string }) {
   return (
     <>
       {countryThemeEditor ? (
-        <>
-          <CountryPreviewParityController />
-          <CountryButtonColourPanel />
-        </>
+        <Suspense fallback={null}>
+          <LazyCountryPreviewParityController />
+          <LazyCountryButtonColourPanel />
+        </Suspense>
       ) : null}
-      {countryHub ? <CountryHodHistoryPanel /> : null}
-      {editionThemeEditor ? <EditionPublicDesignPanel /> : null}
+      {countryHub ? (
+        <Suspense fallback={null}>
+          <LazyCountryHodHistoryPanel />
+        </Suspense>
+      ) : null}
+      {editionThemeEditor ? (
+        <Suspense fallback={null}>
+          <LazyEditionPublicDesignPanel />
+        </Suspense>
+      ) : null}
     </>
   );
 }
@@ -400,16 +421,10 @@ function BodyVisualTheme({
         "--edition-surface-strength",
         String(resolved.publicSettings.surfaceStrength / 100),
       );
-      body.style.setProperty(
-        "--edition-hero-glow",
-        String(resolved.publicSettings.heroGlow / 100),
-      );
+      body.style.setProperty("--edition-hero-glow", String(resolved.publicSettings.heroGlow / 100));
       if (resolved.publicSettings.accentGradient) {
         body.dataset.editionAccentGradient = "true";
-        body.style.setProperty(
-          "--edition-accent-gradient",
-          resolved.publicSettings.accentGradient,
-        );
+        body.style.setProperty("--edition-accent-gradient", resolved.publicSettings.accentGradient);
       } else {
         delete body.dataset.editionAccentGradient;
         body.style.removeProperty("--edition-accent-gradient");
@@ -428,10 +443,7 @@ function BodyVisualTheme({
 
     if (resolved.artwork) {
       body.dataset.editionArtwork = "true";
-      body.style.setProperty(
-        "--edition-artwork-image",
-        `url(${JSON.stringify(resolved.artwork)})`,
-      );
+      body.style.setProperty("--edition-artwork-image", `url(${JSON.stringify(resolved.artwork)})`);
     } else {
       delete body.dataset.editionArtwork;
       body.style.removeProperty("--edition-artwork-image");
@@ -439,10 +451,7 @@ function BodyVisualTheme({
 
     if (currentShowId && showWinnerFlag) {
       body.dataset.showWinnerFlag = "true";
-      body.style.setProperty(
-        "--show-winner-flag-image",
-        `url(${JSON.stringify(showWinnerFlag)})`,
-      );
+      body.style.setProperty("--show-winner-flag-image", `url(${JSON.stringify(showWinnerFlag)})`);
     } else {
       delete body.dataset.showWinnerFlag;
       body.style.removeProperty("--show-winner-flag-image");

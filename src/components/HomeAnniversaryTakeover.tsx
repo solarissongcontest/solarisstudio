@@ -1,5 +1,5 @@
 import { useLocation } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { AnniversaryTakeover } from "@/components/AnniversaryTakeover";
 import {
@@ -14,20 +14,16 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { useDailyClock } from "@/lib/use-daily-clock";
 
 export function HomeAnniversaryTakeover() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
-  const [clock, setClock] = useState(() => new Date());
+  const clock = useDailyClock();
 
   const preview = useMemo(
     () => new URLSearchParams(searchStr).get("anniversary") === "preview",
     [searchStr],
   );
-
-  useEffect(() => {
-    const tick = window.setInterval(() => setClock(new Date()), 1000);
-    return () => window.clearInterval(tick);
-  }, []);
 
   const baseAnniversary = useMemo(() => getSolarisAnniversary(clock), [clock]);
   const active = baseAnniversary.active || preview;

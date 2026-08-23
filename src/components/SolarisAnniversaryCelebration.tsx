@@ -1,8 +1,9 @@
 import { useLocation } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, type CSSProperties } from "react";
 
 import "@/anniversary-global.css";
 import { getSolarisAnniversary } from "@/lib/anniversary";
+import { useDailyClock } from "@/lib/use-daily-clock";
 
 const LEGACY_PREVIEW_KEY = "solaris:anniversary-preview";
 const STAR_COLORS = ["#74e7ff", "#b7a4ff", "#ff8fc7", "#ffe36e", "#78f3d0", "#ffffff"];
@@ -29,7 +30,7 @@ function createStarBurst(x: number, y: number) {
     const star = document.createElement("span");
     star.className = "solaris-anniversary-burst-star";
     star.style.setProperty("--burst-color", STAR_COLORS[index % STAR_COLORS.length]);
-    star.style.setProperty("--burst-angle", `${(360 / 26) * index + ((index % 3) * 5)}deg`);
+    star.style.setProperty("--burst-angle", `${(360 / 26) * index + (index % 3) * 5}deg`);
     star.style.setProperty("--burst-distance", `${54 + ((index * 19) % 105)}px`);
     star.style.setProperty("--burst-size", `${10 + ((index * 7) % 18)}px`);
     star.style.setProperty("--burst-rotate", `${(index * 83) % 360}deg`);
@@ -43,7 +44,7 @@ function createStarBurst(x: number, y: number) {
 
 export function SolarisAnniversaryCelebration() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
-  const [clock, setClock] = useState(() => new Date());
+  const clock = useDailyClock();
 
   const preview = useMemo(
     () => new URLSearchParams(searchStr).get("anniversary") === "preview",
@@ -55,9 +56,6 @@ export function SolarisAnniversaryCelebration() {
     // deliberately URL-scoped now so Anniversary Day can never remain enabled
     // accidentally on an ordinary date.
     window.sessionStorage.removeItem(LEGACY_PREVIEW_KEY);
-
-    const tick = window.setInterval(() => setClock(new Date()), 1000);
-    return () => window.clearInterval(tick);
   }, []);
 
   const anniversary = useMemo(() => getSolarisAnniversary(clock), [clock]);
@@ -76,7 +74,8 @@ export function SolarisAnniversaryCelebration() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const handleClick = (event: MouseEvent) => {
-      const target = event.target instanceof Element ? event.target.closest("a[href], button") : null;
+      const target =
+        event.target instanceof Element ? event.target.closest("a[href], button") : null;
       if (!target || reducedMotion.matches) return;
 
       createStarBurst(event.clientX, event.clientY);
