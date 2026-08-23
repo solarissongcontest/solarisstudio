@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Panel } from "@/components/AppShell";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
+import { allTimeScoreForCountry } from "@/lib/all-time-ranking";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import type {
   CountryContestSnapshot,
@@ -99,14 +100,7 @@ export function CountryWorldOverview({
       (editionMap.get(a.edition_id)?.edition_number ?? -1),
   );
 
-  const allTimeScore = archive.results
-    .filter((result) => {
-      if (result.country_id !== country.id) return false;
-      const kind = showMap.get(result.show_id ?? "")?.kind;
-      return kind === "grand-final" || kind === "final";
-    })
-    .reduce((total, result) => total + result.total_points, 0);
-  const allTimePosition = stats?.avgCombinedPlacement ?? null;
+  const allTime = allTimeScoreForCountry(country.id, archive.shows, archive.results);
 
   const profile = data?.profile;
   const hasWorldContent = Boolean(
@@ -184,11 +178,11 @@ export function CountryWorldOverview({
   const allTimePanel = stats ? (
     <Panel
       title="All-time record"
-      description="Only published contest results are counted. All-time position uses the combined edition ranking where finalists keep their final place and NQs follow them by semi-final performance."
+      description="The all-time score is the country's cumulative published Grand Final score. The position ranks every country by that same score, with equal scores sharing a place."
     >
       <div className="grid grid-cols-2 gap-2">
-        <Fact label="All-time score" value={allTimeScore} />
-        <Fact label="All-time position" value={allTimePosition != null ? allTimePosition.toFixed(1) : "—"} />
+        <Fact label="All-time score" value={allTime?.score ?? 0} />
+        <Fact label="All-time ranking" value={allTime ? `#${allTime.rank}` : "—"} />
       </div>
     </Panel>
   ) : null;
