@@ -18,6 +18,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ConfirmationReviewStatus } from "@/components/ConfirmationReviewStatus";
 import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds } from "@/lib/confirmation-rounds.functions";
@@ -437,6 +438,12 @@ function MySolarisPage() {
                     }).format(new Date(currentConfirmation.updated_at))}
                   </p>
                 </div>
+                <ConfirmationReviewStatus
+                  selectionMethod={currentConfirmation.selection_method}
+                  internalEntry={currentConfirmation.internal_entry}
+                  nationalFinal={currentConfirmation.national_final}
+                  compact
+                />
                 <Link
                   to="/confirmations"
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
