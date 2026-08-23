@@ -104,6 +104,7 @@ describe("beta-informed fan discovery", () => {
     const shell = source("src/components/AppShell.tsx");
     expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
     expect(shell).toContain("Open MySolaris");
+    expect(shell).not.toContain("Open My Solaris");
     expect(shell).not.toContain("Profile & activity");
     expect(shell).not.toContain('label: "My country"');
   });
