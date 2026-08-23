@@ -19,6 +19,12 @@ import {
 } from "@/lib/data";
 import { useAllParticipants, useAllResults } from "@/lib/data-live";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
+import {
+  qualificationCountsAsQualified,
+  qualificationLabel,
+  resolveCountryEditionQualification,
+  type QualificationStatus,
+} from "@/lib/qualification";
 
 function Fact({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
@@ -30,7 +36,15 @@ function Fact({ label, value }: { label: string; value?: string | number | null 
   );
 }
 
-type Qualification = "aq" | true | false | null;
+function qualificationBadgeClass(status: QualificationStatus) {
+  if (status === "wildcard") {
+    return "rounded-full bg-amber-300/12 px-2 py-1 text-[9px] font-semibold uppercase text-amber-200";
+  }
+  if (qualificationCountsAsQualified(status)) {
+    return "rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold uppercase text-primary";
+  }
+  return "rounded-full bg-surface px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground";
+}
 
 export function CountryWorldOverview({
   country,
@@ -76,41 +90,8 @@ export function CountryWorldOverview({
     }
   });
 
-  const semiEditionIds = new Set(
-    archive.shows
-      .filter((show) => show.kind === "semi-final" || show.kind === "semi")
-      .map((show) => show.edition_id),
-  );
-  const semiPresence = new Set(
-    myParticipants
-      .filter((participant) => {
-        const kind = showMap.get(participant.show_id ?? "")?.kind;
-        return kind === "semi-final" || kind === "semi";
-      })
-      .map((participant) => participant.edition_id),
-  );
-  const finalPresence = new Set(
-    myParticipants
-      .filter((participant) => {
-        const kind = showMap.get(participant.show_id ?? "")?.kind;
-        return kind === "grand-final" || kind === "final";
-      })
-      .map((participant) => participant.edition_id),
-  );
-
-  const qualificationForEdition = (editionId: string): Qualification => {
-    if (finalPresence.has(editionId) && semiEditionIds.has(editionId) && !semiPresence.has(editionId)) {
-      return "aq";
-    }
-    const semiRows = myParticipants.filter((participant) => {
-      if (participant.edition_id !== editionId) return false;
-      const kind = showMap.get(participant.show_id ?? "")?.kind;
-      return kind === "semi-final" || kind === "semi";
-    });
-    if (semiRows.some((participant) => participant.qualified === true)) return true;
-    if (semiRows.some((participant) => participant.qualified === false)) return false;
-    return null;
-  };
+  const qualificationForEdition = (editionId: string) =>
+    resolveCountryEditionQualification(country.id, editionId, archive);
 
   const entryRows = [...entryByEdition.values()].sort(
     (a, b) =>
@@ -166,6 +147,7 @@ export function CountryWorldOverview({
             const show = showMap.get(participant.show_id ?? "");
             const entry = [participant.artist, participant.song].filter(Boolean).join(" · ");
             const qualification = qualificationForEdition(participant.edition_id);
+            const label = qualificationLabel(qualification);
 
             return (
               <div
@@ -181,16 +163,8 @@ export function CountryWorldOverview({
                     {show?.name ? ` · latest stored appearance: ${show.name}` : ""}
                   </p>
                 </div>
-                {qualification != null && (
-                  <span
-                    className={
-                      qualification === "aq" || qualification === true
-                        ? "rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold uppercase text-primary"
-                        : "rounded-full bg-surface px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground"
-                    }
-                  >
-                    {qualification === "aq" ? "AQ" : qualification ? "Q" : "NQ"}
-                  </span>
+                {label && (
+                  <span className={qualificationBadgeClass(qualification)}>{label}</span>
                 )}
               </div>
             );
