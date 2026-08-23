@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Field, SegButtons, Slider, TextInput, Toggle } from "./Controls";
-import { POINT_PRESETS, parsePointList, type TieBreak, type VotingConfig } from "@/lib/voting";
+import {
+  POINT_PRESETS,
+  parsePointList,
+  type TelevoteRound,
+  type TieBreak,
+  type VotingConfig,
+} from "@/lib/voting";
 import { cn } from "@/lib/utils";
 
 const TIE_LABELS: Record<TieBreak, string> = {
@@ -21,6 +27,36 @@ export function VotingEditor({
   const set = (patch: Partial<VotingConfig>) => onChange({ ...voting, ...patch });
   const [juryText, setJuryText] = useState(voting.juryPoints.join(", "));
   const [teleText, setTeleText] = useState(voting.televotePoints.join(", "));
+
+  const updateTelevoteRound = (index: number, patch: Partial<TelevoteRound>) => {
+    const rounds = voting.televoteRounds.map((round, roundIndex) =>
+      roundIndex === index ? { ...round, ...patch } : round,
+    );
+    set({ televoteRounds: rounds });
+  };
+
+  const setTelevoteRoundCount = (count: "1" | "2") => {
+    if (count === "1") {
+      set({
+        televoteRounds: [{ id: "televote", label: "Televote", weight: 100 }],
+      });
+      return;
+    }
+
+    const existing = voting.televoteRounds;
+    const firstLabel = existing[0]?.label === "Televote" ? "Televote round 1" : existing[0]?.label;
+    set({
+      televoteMode: "total",
+      televoteRounds: [
+        {
+          id: existing[0]?.id && existing[0].id !== "televote" ? existing[0].id : "televote-1",
+          label: firstLabel || "Televote round 1",
+          weight: existing.length > 1 ? existing[0].weight : 50,
+        },
+        existing[1] ?? { id: "televote-2", label: "Televote round 2", weight: 50 },
+      ],
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -67,8 +103,61 @@ export function VotingEditor({
       )}
 
       {voting.televoteEnabled && (
-        <section className="space-y-3">
+        <section className="space-y-4">
           <h4 className="text-xs uppercase tracking-widest text-muted-foreground">Televote</h4>
+
+          <Field
+            label="Public voting rounds"
+            hint="Use two rounds when the final public vote came from separate sources, such as web voting and Instagram voting."
+          >
+            <SegButtons
+              value={voting.televoteRounds.length > 1 ? "2" : "1"}
+              onChange={setTelevoteRoundCount}
+              options={[
+                { label: "1 round", value: "1" },
+                { label: "2 rounds", value: "2" },
+              ] as const}
+            />
+          </Field>
+
+          {voting.televoteRounds.length > 1 && (
+            <div className="space-y-3 rounded-xl border border-border bg-surface/35 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {voting.televoteRounds.map((round, index) => (
+                  <Field key={round.id} label={`Round ${index + 1} name`}>
+                    <TextInput
+                      value={round.label}
+                      onChange={(event) => updateTelevoteRound(index, { label: event.target.value })}
+                      placeholder={`Televote round ${index + 1}`}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <Field
+                label="Round weighting"
+                hint="The two public-vote rounds always add to 100%. Stored round points represent each round's final contribution to the overall result."
+              >
+                <Slider
+                  min={0}
+                  max={100}
+                  value={voting.televoteRounds[0]?.weight ?? 50}
+                  onChange={(value) =>
+                    set({
+                      televoteRounds: [
+                        { ...voting.televoteRounds[0], weight: value },
+                        { ...voting.televoteRounds[1], weight: 100 - value },
+                      ],
+                    })
+                  }
+                  suffix={`% ${voting.televoteRounds[0]?.label || "round 1"}`}
+                />
+              </Field>
+              <p className="numeric text-xs text-muted-foreground">
+                {voting.televoteRounds[0]?.label || "Round 1"} {voting.televoteRounds[0]?.weight ?? 50}% · {voting.televoteRounds[1]?.label || "Round 2"} {voting.televoteRounds[1]?.weight ?? 50}%
+              </p>
+            </div>
+          )}
+
           <SegButtons
             value={voting.televoteMode}
             onChange={(v) => set({ televoteMode: v })}
@@ -94,7 +183,7 @@ export function VotingEditor({
       {voting.juryEnabled && voting.televoteEnabled && (
         <section className="space-y-2">
           <h4 className="text-xs uppercase tracking-widest text-muted-foreground">
-            Weighting <span className="normal-case text-muted-foreground/70">(display split)</span>
+            Jury / public vote weighting <span className="normal-case text-muted-foreground/70">(display split)</span>
           </h4>
           <Slider
             min={0}
@@ -104,7 +193,7 @@ export function VotingEditor({
             suffix="% jury"
           />
           <p className="numeric text-xs text-muted-foreground">
-            Jury {voting.weighting.jury}% · Televote {100 - voting.weighting.jury}%
+            Jury {voting.weighting.jury}% · Public vote {100 - voting.weighting.jury}%
           </p>
           <Toggle
             label="Use these percentages to calculate results (weighted scoring)"
@@ -113,8 +202,8 @@ export function VotingEditor({
           />
           <p className="text-[11px] text-muted-foreground">
             {voting.weightedScoring
-              ? "Results are calculated using this split — changing it will change rankings."
-              : "By default this split only changes what's shown on screen. Totals remain the plain sum of jury + televote points until weighted scoring is enabled."}
+              ? "Results are calculated using this jury/public-vote split — changing it will change rankings."
+              : "By default this split only changes what's shown on screen. Totals remain the plain sum of jury + public-vote points until weighted scoring is enabled."}
           </p>
         </section>
       )}
