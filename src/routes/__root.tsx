@@ -8,12 +8,11 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import unifiedCss from "../unified-design.css?url";
 import accessibilityCss from "../accessibility.css?url";
-import anniversaryCss from "../anniversary.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
@@ -21,13 +20,19 @@ import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdmin
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
-import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
+import { getSolarisAnniversary } from "../lib/anniversary";
+import { useDailyClock } from "../lib/use-daily-clock";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
 const SITE_URL = "https://studio.solaris-song-contest.workers.dev";
 const SOCIAL_PREVIEW_URL = `${SITE_URL}/solaris-studio-social.jpg?v=2`;
+const LazySolarisAnniversaryCelebration = lazy(() =>
+  import("../components/SolarisAnniversaryCelebration").then((module) => ({
+    default: module.SolarisAnniversaryCelebration,
+  })),
+);
 
 type BackgroundFamily =
   | "home"
@@ -171,7 +176,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: unifiedCss },
       { rel: "stylesheet", href: accessibilityCss },
-      { rel: "stylesheet", href: anniversaryCss },
       { rel: "stylesheet", href: solarisBackgroundCss },
       { rel: "stylesheet", href: cardTypographyCss },
       { rel: "stylesheet", href: solarisMotionCss },
@@ -204,8 +208,7 @@ function RootComponent() {
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
   const fullAdmin = pathname.startsWith("/admin") || serviceAdmin;
   const publicParticipation =
-    !serviceAdmin &&
-    (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
+    !serviceAdmin && (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
 
   useEffect(() => {
     const route = pathname.startsWith("/pulse") ? "pulse" : "";
@@ -231,12 +234,24 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SolarisAnniversaryCelebration />
+      <AnniversaryCelebrationGate />
       <RouteVisualTheme />
       {!fullAdmin ? <SolarisAmbientBackground /> : null}
       {content}
       <ToolQuickGuide pathname={pathname} />
     </QueryClientProvider>
+  );
+}
+
+function AnniversaryCelebrationGate() {
+  const clock = useDailyClock();
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const preview = new URLSearchParams(searchStr).get("anniversary") === "preview";
+  if (!preview && !getSolarisAnniversary(clock).active) return null;
+  return (
+    <Suspense fallback={null}>
+      <LazySolarisAnniversaryCelebration />
+    </Suspense>
   );
 }
 
@@ -255,7 +270,8 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
     : pathname.startsWith("/taste-dna")
       ? {
           title: "What Taste DNA means",
-          intro: "It measures how similar your personal ranking is to different groups, not whether your taste is ‘good’ or ‘bad’.",
+          intro:
+            "It measures how similar your personal ranking is to different groups, not whether your taste is ‘good’ or ‘bad’.",
           steps: [
             "Choose a published show and reorder the entries into your own ranking.",
             "A high Jury match means your order resembles the jury ranking; a high Televote match means it resembles the public ranking.",
@@ -263,10 +279,12 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
             "Official/Jury/Televote are starting presets only. Saving your ballot is optional.",
           ],
         }
-      : pathname.startsWith("/broadcast-intelligence") && !pathname.startsWith("/broadcast-intelligence/jury")
+      : pathname.startsWith("/broadcast-intelligence") &&
+          !pathname.startsWith("/broadcast-intelligence/jury")
         ? {
             title: "What Broadcast Intelligence means",
-            intro: "It explains how the official result changed when jury and televote scores came together. It is not another result table.",
+            intro:
+              "It explains how the official result changed when jury and televote scores came together. It is not another result table.",
             steps: [
               "The replay starts with every country's jury total already on the scoreboard.",
               "Televote scores are then revealed from the lowest jury-ranked entry upward so you can watch countries rise, fall or take the lead.",
@@ -279,10 +297,7 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
   if (!guide) return null;
 
   return (
-    <details
-      open
-      className="fixed bottom-[5.6rem] right-3 z-[80] max-h-[52vh] w-[min(23rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-primary/25 bg-popover/95 shadow-2xl backdrop-blur-xl lg:bottom-5 lg:right-5"
-    >
+    <details className="fixed bottom-[5.6rem] right-3 z-[80] max-h-[52vh] w-[min(23rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-primary/25 bg-popover shadow-2xl lg:bottom-5 lg:right-5">
       <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-foreground [&::-webkit-details-marker]:hidden">
         {guide.title} <span className="float-right text-muted-foreground">▾</span>
       </summary>

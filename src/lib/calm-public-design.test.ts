@@ -10,16 +10,19 @@ describe("calm public design contract", () => {
     const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
     expect(visual).toContain('import "@/calm-public-layout.css"');
     expect(visual).toContain('import "@/calm-public-chrome.css"');
-    expect(personalityStyles).toContain('import glassParityStyles from "@/country-glass-parity.css?inline"');
+    expect(personalityStyles).toContain(
+      'import glassParityStyles from "@/country-glass-parity.css?inline"',
+    );
   });
 
   it("lets route colours reach navigation, selectors and controls", () => {
     const chrome = source("src/calm-public-chrome.css");
-    expect(chrome).toContain("--solaris-accent: var(--solaris-bg-primary)");
+    expect(chrome).not.toContain("--solaris-accent: var(--solaris-bg-primary)");
+    expect(source("src/colour-harmony.css")).toContain("--solaris-accent:");
     expect(chrome).toContain(".site-nav");
     expect(chrome).toContain(".mobile-quick-nav");
     expect(chrome).toContain(":is(.public-drawer, .nav-menu-panel)");
-    expect(chrome).toContain(".responsive-tabs button[aria-current=\"page\"]");
+    expect(chrome).toContain('.responsive-tabs button[aria-current="page"]');
     expect(chrome).toContain(".directory-page-filter");
   });
 

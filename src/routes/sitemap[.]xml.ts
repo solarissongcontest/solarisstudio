@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
+import {
+  getSolarisSupabasePublishableKey,
+  getSolarisSupabaseUrl,
+} from "@/integrations/supabase/public-config";
 
 interface SitemapEntry {
   path: string;
@@ -15,7 +19,10 @@ export const Route = createFileRoute("/sitemap.xml")({
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/editions", changefreq: "weekly", priority: "0.9" },
+          { path: "/results", changefreq: "weekly", priority: "0.9" },
+          { path: "/shows", changefreq: "weekly", priority: "0.8" },
           { path: "/countries", changefreq: "weekly", priority: "0.8" },
+          { path: "/wiki", changefreq: "weekly", priority: "0.8" },
           { path: "/pulse", changefreq: "daily", priority: "0.8" },
           { path: "/predictions", changefreq: "daily", priority: "0.8" },
           { path: "/tools", changefreq: "monthly", priority: "0.8" },
@@ -27,12 +34,15 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/relationships", changefreq: "monthly", priority: "0.7" },
           { path: "/compare", changefreq: "monthly", priority: "0.7" },
           { path: "/records", changefreq: "monthly", priority: "0.7" },
+          { path: "/scorecharts", changefreq: "monthly", priority: "0.7" },
+          { path: "/guide", changefreq: "monthly", priority: "0.6" },
+          { path: "/participate", changefreq: "weekly", priority: "0.6" },
           { path: "/auth", changefreq: "yearly", priority: "0.2" },
         ];
 
         try {
-          const supabaseUrl = process.env.SUPABASE_URL;
-          const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+          const supabaseUrl = getSolarisSupabaseUrl();
+          const key = getSolarisSupabasePublishableKey();
           if (supabaseUrl && key) {
             const { createClient } = await import("@supabase/supabase-js");
             const client = createClient(supabaseUrl, key, {

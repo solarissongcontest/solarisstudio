@@ -9,14 +9,13 @@
   --public-reading-measure: 72ch;
 }
 
-.app-main[data-public-layout="reading"] :is(.page-header, article, .reading-column) {
-  max-width: var(--public-reading-measure);
+.public-layout-frame {
+  width: 100%;
+  min-width: 0;
 }
 
-body[data-solaris-route="pulse"] .app-main .text-\[9px\],
-body[data-solaris-route="pulse"] .app-main .text-\[10px\] {
-  font-size: .75rem !important;
-  line-height: 1.05rem !important;
+.app-main[data-public-layout="reading"] :is(.page-header, article, .reading-column) {
+  max-width: var(--public-reading-measure);
 }
 
 @media (min-width: 1280px) {
@@ -31,23 +30,56 @@ body[data-solaris-route="pulse"] .app-main .text-\[10px\] {
     min-width: 0;
   }
 
+  .public-layout-frame {
+    display: grid;
+    grid-template-columns: repeat(var(--public-grid-columns), minmax(0, 1fr));
+    gap: var(--public-grid-gap);
+    align-items: start;
+  }
+
+  .public-layout-frame > * {
+    min-width: 0;
+    grid-column: 1 / -1;
+  }
+
+  .app-main[data-public-layout="reading"] .public-layout-frame > * {
+    grid-column: 2 / 12;
+  }
+
+  body[data-solaris-family="wiki"] .app-main[data-public-layout="detail"] article {
+    max-width: var(--public-reading-measure);
+  }
+
+  .app-main[data-public-layout="workspace"] [class*="xl:grid-cols-[3"] {
+    column-gap: clamp(1.25rem, 2vw, 2rem);
+  }
+
   .wiki-library-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: .75rem;
+    gap: 0.75rem;
   }
 
   .country-directory-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: .75rem;
+    gap: 0.75rem;
   }
 
-  body[data-solaris-family="editions"] .app-main[data-public-layout="directory"] .grid.xl\:grid-cols-3,
-  body[data-solaris-family="shows"] .app-main[data-public-layout="directory"] .grid.xl\:grid-cols-3 {
+  body[data-solaris-family="editions"]
+    .app-main[data-public-layout="directory"]
+    .grid.xl\:grid-cols-3,
+  body[data-solaris-family="shows"]
+    .app-main[data-public-layout="directory"]
+    .grid.xl\:grid-cols-3 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .app-main[data-public-layout="data"] :is(canvas, svg[role="img"], table) {
     max-width: none;
+  }
+
+  .app-main[data-public-layout="data"] .recharts-responsive-container,
+  .app-main[data-public-layout="data"] [data-chart] {
+    min-height: 22rem;
   }
 
   .app-main[data-public-layout="detail"] .page-header p,
@@ -58,20 +90,16 @@ body[data-solaris-route="pulse"] .app-main .text-\[10px\] {
 }
 
 @media (min-width: 1600px) {
+  .app-main[data-public-layout="reading"] .public-layout-frame > * {
+    grid-column: 3 / 11;
+  }
+
   .wiki-library-grid,
   .country-directory-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
-}
 
-@media (max-width: 639px) {
-  body[data-solaris-route="pulse"] .app-main .text-xs {
-    font-size: .875rem !important;
-    line-height: 1.35rem !important;
-  }
-
-  body[data-solaris-route="pulse"] .app-main .text-sm {
-    font-size: .95rem !important;
-    line-height: 1.4rem !important;
+  body[data-solaris-family="tools"] .app-main[data-public-layout="directory"] .xl\:grid-cols-3 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

@@ -1,0 +1,46 @@
+name: Browser audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e
+        env:
+          E2E_COUNTRY_EMAIL: ${{ secrets.E2E_COUNTRY_EMAIL }}
+          E2E_COUNTRY_PASSWORD: ${{ secrets.E2E_COUNTRY_PASSWORD }}
+          E2E_ORGANIZER_EMAIL: ${{ secrets.E2E_ORGANIZER_EMAIL }}
+          E2E_ORGANIZER_PASSWORD: ${{ secrets.E2E_ORGANIZER_PASSWORD }}
+          E2E_SUSPENDED_EMAIL: ${{ secrets.E2E_SUSPENDED_EMAIL }}
+          E2E_SUSPENDED_PASSWORD: ${{ secrets.E2E_SUSPENDED_PASSWORD }}
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-audit
+          path: |
+            playwright-report
+            test-results/playwright
+          retention-days: 14

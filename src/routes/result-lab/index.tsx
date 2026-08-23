@@ -77,9 +77,9 @@ function ResultLabPage() {
         const publication = resolveShowPublication(show);
         return Boolean(
           show.published &&
-            publication.results &&
-            publication.jury_results &&
-            publication.televote_results,
+          publication.results &&
+          publication.jury_results &&
+          publication.televote_results,
         );
       }),
     [editionShows],
@@ -112,7 +112,9 @@ function ResultLabPage() {
   );
 
   const participantIds = useMemo(
-    () => [...new Set((participants ?? []).map((participant) => participant.country_id).filter(Boolean))],
+    () => [
+      ...new Set((participants ?? []).map((participant) => participant.country_id).filter(Boolean)),
+    ],
     [participants],
   );
 
@@ -127,11 +129,13 @@ function ResultLabPage() {
 
   const labJuryVotes = useMemo(
     () =>
-      (juryVotes ?? []).map((vote) => ({
-        voterKey: matchVoterKey(vote, voterOptions),
-        recipientId: vote.receiving_country_id,
-        points: vote.points,
-      })).filter((vote) => vote.voterKey && vote.recipientId),
+      (juryVotes ?? [])
+        .map((vote) => ({
+          voterKey: matchVoterKey(vote, voterOptions),
+          recipientId: vote.receiving_country_id,
+          points: vote.points,
+        }))
+        .filter((vote) => vote.voterKey && vote.recipientId),
     [juryVotes, voterOptions],
   );
 
@@ -230,8 +234,14 @@ function ResultLabPage() {
 
   const exportCsv = () => {
     if (!selectedShow || !simulation.rows.length) return;
-    const safeName = selectedShow.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    downloadText(`solaris-result-lab-${safeName || "simulation"}.csv`, resultLabCsv(simulation.rows));
+    const safeName = selectedShow.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    downloadText(
+      `solaris-result-lab-${safeName || "simulation"}.csv`,
+      resultLabCsv(simulation.rows),
+    );
   };
 
   return (
@@ -252,9 +262,18 @@ function ResultLabPage() {
 
       <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4 sm:space-y-5">
-          <Panel title="1. Pick a result" description="Only shows with public jury and televote totals appear">
-            <label className="block text-xs font-semibold text-muted-foreground">Edition</label>
+          <Panel
+            title="1. Pick a result"
+            description="Only shows with public jury and televote totals appear"
+          >
+            <label
+              htmlFor="result-lab-edition"
+              className="block text-xs font-semibold text-muted-foreground"
+            >
+              Edition
+            </label>
             <select
+              id="result-lab-edition"
               value={editionId}
               onChange={(event) => {
                 setEditionId(event.target.value);
@@ -262,15 +281,23 @@ function ResultLabPage() {
               }}
               className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
-              {(editions ?? []).filter((edition) => edition.published).map((edition) => (
-                <option key={edition.id} value={edition.id}>
-                  {editionLabel(edition)}
-                </option>
-              ))}
+              {(editions ?? [])
+                .filter((edition) => edition.published)
+                .map((edition) => (
+                  <option key={edition.id} value={edition.id}>
+                    {editionLabel(edition)}
+                  </option>
+                ))}
             </select>
 
-            <label className="mt-4 block text-xs font-semibold text-muted-foreground">Show</label>
+            <label
+              htmlFor="result-lab-show"
+              className="mt-4 block text-xs font-semibold text-muted-foreground"
+            >
+              Show
+            </label>
             <select
+              id="result-lab-show"
               value={showId}
               onChange={(event) => setShowId(event.target.value)}
               disabled={!eligibleShows.length}
@@ -286,7 +313,8 @@ function ResultLabPage() {
 
             {!eligibleShows.length && selectedEdition && (
               <p className="mt-3 break-words text-xs leading-relaxed text-muted-foreground">
-                This edition does not have a fully public jury and televote result available for simulation yet.
+                This edition does not have a fully public jury and televote result available for
+                simulation yet.
               </p>
             )}
           </Panel>
@@ -294,15 +322,20 @@ function ResultLabPage() {
           <Panel title="2. Voting balance" description="The two channels always add up to 100%">
             <div className="flex min-w-0 items-end justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Jury</p>
+                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Jury
+                </p>
                 <p className="font-display text-2xl font-semibold">{juryWeight}%</p>
               </div>
               <div className="min-w-0 text-right">
-                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Televote</p>
+                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Televote
+                </p>
                 <p className="font-display text-2xl font-semibold">{100 - juryWeight}%</p>
               </div>
             </div>
             <input
+              aria-label="Jury voting weight"
               type="range"
               min={0}
               max={100}
@@ -330,21 +363,27 @@ function ResultLabPage() {
           </Panel>
 
           <Panel title="3. Calculation model">
-            <label className="block text-xs font-semibold text-muted-foreground">Blend method</label>
+            <label className="block text-xs font-semibold text-muted-foreground">
+              Blend method
+            </label>
             <select
               value={blendMode}
               onChange={(event) => setBlendMode(event.target.value as ResultLabBlendMode)}
               className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
               {RESULT_LAB_BLEND_MODES.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
             <p className="mt-2 break-words text-xs leading-relaxed text-muted-foreground">
               {RESULT_LAB_BLEND_MODES.find(([value]) => value === blendMode)?.[2]}
             </p>
 
-            <label className="mt-4 block text-xs font-semibold text-muted-foreground">Jury scoring</label>
+            <label className="mt-4 block text-xs font-semibold text-muted-foreground">
+              Jury scoring
+            </label>
             <select
               value={juryScheme}
               onChange={(event) => setJuryScheme(event.target.value as ResultLabJuryScheme)}
@@ -352,7 +391,9 @@ function ResultLabPage() {
               className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm disabled:opacity-60"
             >
               {RESULT_LAB_JURY_SCHEMES.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
             <p className="mt-2 break-words text-xs leading-relaxed text-muted-foreground">
@@ -361,14 +402,18 @@ function ResultLabPage() {
                 : "Alternative jury scoring needs detailed voting to be public."}
             </p>
 
-            <label className="mt-4 block text-xs font-semibold text-muted-foreground">Tie-break</label>
+            <label className="mt-4 block text-xs font-semibold text-muted-foreground">
+              Tie-break
+            </label>
             <select
               value={tieBreak}
               onChange={(event) => setTieBreak(event.target.value as ResultLabTieBreak)}
               className="mt-2 min-h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-background px-3 text-sm"
             >
               {RESULT_LAB_TIE_BREAKS.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>
+                  {label}
+                </option>
               ))}
             </select>
           </Panel>
@@ -393,7 +438,10 @@ function ResultLabPage() {
                   {filteredVoters.map((voter) => {
                     const included = !excludedVoters.has(voter.key);
                     return (
-                      <label key={voter.key} className="flex min-h-10 min-w-0 items-center gap-2 rounded-xl bg-surface px-3 text-xs">
+                      <label
+                        key={voter.key}
+                        className="flex min-h-10 min-w-0 items-center gap-2 rounded-xl bg-surface px-3 text-xs"
+                      >
                         <input
                           type="checkbox"
                           checked={included}
@@ -415,7 +463,9 @@ function ResultLabPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setExcludedVoters(new Set(selectableVoters.map((voter) => voter.key)))}
+                    onClick={() =>
+                      setExcludedVoters(new Set(selectableVoters.map((voter) => voter.key)))
+                    }
                     className="min-h-10 min-w-0 rounded-xl border border-border bg-surface px-2 text-xs font-semibold"
                   >
                     Remove all
@@ -424,7 +474,8 @@ function ResultLabPage() {
               </>
             ) : (
               <p className="break-words text-xs leading-relaxed text-muted-foreground">
-                Result Lab can still change jury/televote weighting from public totals. Removing individual juries becomes available when detailed voting is published.
+                Result Lab can still change jury/televote weighting from public totals. Removing
+                individual juries becomes available when detailed voting is published.
               </p>
             )}
           </Panel>
@@ -450,7 +501,10 @@ function ResultLabPage() {
 
         <div className="min-w-0 space-y-4 sm:space-y-5">
           {winner ? (
-            <Panel title="Simulated winner" description={`${selectedShow?.name ?? "Selected show"} · ${juryWeight}/${100 - juryWeight} jury/televote`}>
+            <Panel
+              title="Simulated winner"
+              description={`${selectedShow?.name ?? "Selected show"} · ${juryWeight}/${100 - juryWeight} jury/televote`}
+            >
               <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
                 {(() => {
                   const display = displayMap.get(winner.id);
@@ -464,7 +518,9 @@ function ResultLabPage() {
                   ) : null;
                 })()}
                 <div className="min-w-0 max-w-full">
-                  <p className="break-words font-display text-xl font-semibold sm:text-2xl">{winner.name}</p>
+                  <p className="break-words font-display text-xl font-semibold sm:text-2xl">
+                    {winner.name}
+                  </p>
                   <p className="mt-1 break-words text-sm text-muted-foreground">
                     {winner.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)} simulated score
                     {winner.officialRank != null && ` · officially #${winner.officialRank}`}
@@ -474,33 +530,56 @@ function ResultLabPage() {
             </Panel>
           ) : (
             <Panel title="Result Lab">
-              <p className="break-words text-sm text-muted-foreground">Choose a published show with jury and televote results to start.</p>
+              <p className="break-words text-sm text-muted-foreground">
+                Choose a published show with jury and televote results to start.
+              </p>
             </Panel>
           )}
 
           {simulation.rows.length > 0 && (
-            <Panel title="Biggest changes" description="Movement compared with the official ranking">
+            <Panel
+              title="Biggest changes"
+              description="Movement compared with the official ranking"
+            >
               <div className="grid min-w-0 gap-3 md:grid-cols-2">
                 <div className="min-w-0 rounded-xl bg-surface p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Gainers</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+                    Gainers
+                  </p>
                   <div className="mt-2 min-w-0 space-y-2">
-                    {biggestGainers.length ? biggestGainers.map((row) => (
-                      <div key={row.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
-                        <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                        <strong className="shrink-0">+{row.rankDelta}</strong>
-                      </div>
-                    )) : <p className="text-xs text-muted-foreground">Nobody moves up.</p>}
+                    {biggestGainers.length ? (
+                      biggestGainers.map((row) => (
+                        <div
+                          key={row.id}
+                          className="flex min-w-0 items-center justify-between gap-3 text-sm"
+                        >
+                          <span className="min-w-0 flex-1 truncate">{row.name}</span>
+                          <strong className="shrink-0">+{row.rankDelta}</strong>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Nobody moves up.</p>
+                    )}
                   </div>
                 </div>
                 <div className="min-w-0 rounded-xl bg-surface p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Losers</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+                    Losers
+                  </p>
                   <div className="mt-2 min-w-0 space-y-2">
-                    {biggestLosers.length ? biggestLosers.map((row) => (
-                      <div key={row.id} className="flex min-w-0 items-center justify-between gap-3 text-sm">
-                        <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                        <strong className="shrink-0">{row.rankDelta}</strong>
-                      </div>
-                    )) : <p className="text-xs text-muted-foreground">Nobody moves down.</p>}
+                    {biggestLosers.length ? (
+                      biggestLosers.map((row) => (
+                        <div
+                          key={row.id}
+                          className="flex min-w-0 items-center justify-between gap-3 text-sm"
+                        >
+                          <span className="min-w-0 flex-1 truncate">{row.name}</span>
+                          <strong className="shrink-0">{row.rankDelta}</strong>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Nobody moves down.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -515,7 +594,9 @@ function ResultLabPage() {
                   return (
                     <div key={row.id} className="min-w-0 rounded-xl bg-surface p-3">
                       <div className="flex min-w-0 items-center gap-2">
-                        <span className="w-7 shrink-0 font-display text-lg font-semibold">{row.simulatedRank}</span>
+                        <span className="w-7 shrink-0 font-display text-lg font-semibold">
+                          {row.simulatedRank}
+                        </span>
                         {display && (
                           <FlagChip
                             code={display.short_code}
@@ -524,26 +605,42 @@ function ResultLabPage() {
                             size="sm"
                           />
                         )}
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{row.name}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                          {row.name}
+                        </span>
                         <span className="shrink-0 text-xs font-semibold tabular-nums">
-                          {row.rankDelta == null ? "" : row.rankDelta > 0 ? `+${row.rankDelta}` : row.rankDelta}
+                          {row.rankDelta == null
+                            ? ""
+                            : row.rankDelta > 0
+                              ? `+${row.rankDelta}`
+                              : row.rankDelta}
                         </span>
                       </div>
                       <div className="mt-3 grid min-w-0 grid-cols-2 gap-x-3 gap-y-2 text-xs">
                         <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Jury</span>
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Jury
+                          </span>
                           <strong className="tabular-nums">{row.simulatedJuryPoints}</strong>
                         </div>
                         <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Televote</span>
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Televote
+                          </span>
                           <strong className="tabular-nums">{row.simulatedTelevotePoints}</strong>
                         </div>
                         <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Score</span>
-                          <strong className="tabular-nums">{row.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)}</strong>
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Score
+                          </span>
+                          <strong className="tabular-nums">
+                            {row.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)}
+                          </strong>
                         </div>
                         <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Official rank</span>
+                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                            Official rank
+                          </span>
                           <strong className="tabular-nums">{row.officialRank ?? "—"}</strong>
                         </div>
                       </div>
@@ -570,7 +667,9 @@ function ResultLabPage() {
                       const display = displayMap.get(row.id);
                       return (
                         <tr key={row.id} className="border-b border-border/50 last:border-0">
-                          <td className="py-3 pr-3 font-display text-lg font-semibold">{row.simulatedRank}</td>
+                          <td className="py-3 pr-3 font-display text-lg font-semibold">
+                            {row.simulatedRank}
+                          </td>
                           <td className="py-3 pr-3">
                             <div className="flex min-w-0 items-center gap-2">
                               {display && (
@@ -584,14 +683,24 @@ function ResultLabPage() {
                               <span className="font-semibold">{row.name}</span>
                             </div>
                           </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{row.simulatedJuryPoints}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{row.simulatedTelevotePoints}</td>
+                          <td className="py-3 pr-3 text-right tabular-nums">
+                            {row.simulatedJuryPoints}
+                          </td>
+                          <td className="py-3 pr-3 text-right tabular-nums">
+                            {row.simulatedTelevotePoints}
+                          </td>
                           <td className="py-3 pr-3 text-right font-semibold tabular-nums">
                             {row.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)}
                           </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{row.officialRank ?? "—"}</td>
+                          <td className="py-3 pr-3 text-right tabular-nums">
+                            {row.officialRank ?? "—"}
+                          </td>
                           <td className="py-3 text-right font-semibold tabular-nums">
-                            {row.rankDelta == null ? "—" : row.rankDelta > 0 ? `+${row.rankDelta}` : row.rankDelta}
+                            {row.rankDelta == null
+                              ? "—"
+                              : row.rankDelta > 0
+                                ? `+${row.rankDelta}`
+                                : row.rankDelta}
                           </td>
                         </tr>
                       );

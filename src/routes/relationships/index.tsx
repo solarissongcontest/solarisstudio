@@ -165,6 +165,7 @@ function RelationshipsPage() {
       <Panel className="mb-5">
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
           <input
+            aria-label="Search countries"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search a country…"

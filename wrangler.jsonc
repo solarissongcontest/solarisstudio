@@ -5,9 +5,13 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": ".output/server/index.mjs",
   "assets": {
-    "directory": ".output/public"
+    "directory": ".output/public",
+  },
+  "vars": {
+    "SUPABASE_URL": "https://oxtbskojiexkaspputvo.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_HlFRpOFUHzotkO609JPXgQ_ZWi8DSCj",
   },
   "observability": {
-    "enabled": true
-  }
+    "enabled": true,
+  },
 }

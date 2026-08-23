@@ -50,7 +50,11 @@ const MOBILE_EXPLORE_NAV: PublicNavItem[] = [
 const INSIGHTS_NAV: PublicNavItem[] = [
   { to: "/analysis", label: "Analysis", description: "See what the results and votes show" },
   { to: "/pulse", label: "Pulse", description: "See what has changed recently" },
-  { to: "/relationships", label: "Relationships", description: "See which countries often vote alike" },
+  {
+    to: "/relationships",
+    label: "Relationships",
+    description: "See which countries often vote alike",
+  },
   { to: "/records", label: "Records", description: "See all-time records and milestones" },
 ];
 
@@ -63,10 +67,7 @@ const TOOL_ROUTES = [
   "/compare",
 ] as const;
 
-const INSIGHT_ROUTES = [
-  ...INSIGHTS_NAV.map((item) => item.to),
-  ...TOOL_ROUTES,
-] as string[];
+const INSIGHT_ROUTES = [...INSIGHTS_NAV.map((item) => item.to), ...TOOL_ROUTES] as string[];
 
 const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
 const MOBILE_EXPLORE_ROUTES = ["/results", ...EXPLORE_ROUTES];
@@ -90,11 +91,17 @@ function publicLayoutForPath(pathname: string): PublicLayout {
 
   if (/^\/(guide|auth|reset|recover)(\/|$)/.test(pathname)) return "reading";
 
-  if (/^\/(analysis|relationships|records|scorecharts|broadcast-intelligence)(\/|$)/.test(pathname)) {
+  if (
+    /^\/(analysis|relationships|records|scorecharts|broadcast-intelligence)(\/|$)/.test(pathname)
+  ) {
     return "data";
   }
 
-  if (/^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|televoting|my-solaris|country-hub)(\/|$)/.test(pathname)) {
+  if (
+    /^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|televoting|my-solaris|country-hub)(\/|$)/.test(
+      pathname,
+    )
+  ) {
     return "workspace";
   }
 
@@ -149,9 +156,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (alive) setAccess(next);
     };
 
-    void supabase.auth.getUser().then(({ data }) =>
-      refresh(data.user?.id ?? null, data.user?.email ?? null),
-    );
+    void supabase.auth
+      .getUser()
+      .then(({ data }) => refresh(data.user?.id ?? null, data.user?.email ?? null));
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       window.setTimeout(
@@ -341,12 +348,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link to="/my-solaris" className="nav-menu-item mt-1">
                     <span className="font-semibold">Open MySolaris</span>
                     <span className="text-[10px] text-muted-foreground">
-                      Dashboard, participation{access.countryId ? " & country tools" : " & country setup"}
+                      Dashboard, participation
+                      {access.countryId ? " & country tools" : " & country setup"}
                     </span>
                   </Link>
                   <Link to="/country-hub" className="nav-menu-item">
                     <span className="font-semibold">Country workspace</span>
-                    <span className="text-[10px] text-muted-foreground">Edit country, entries, page and media</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Edit country, entries, page and media
+                    </span>
                   </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className="nav-menu-item">
@@ -420,7 +430,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 >
                   Predictions
                 </Link>
-                <Link to="/tools" className={mobileDrawerLink(anyPathMatches(pathname, TOOL_ROUTES))}>
+                <Link
+                  to="/tools"
+                  className={mobileDrawerLink(anyPathMatches(pathname, TOOL_ROUTES))}
+                >
                   Tools
                 </Link>
                 <Link to="/participate" className={mobileDrawerLink(participateActive)}>
@@ -505,7 +518,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <LazyHomeAnniversaryTakeover />
           </Suspense>
         )}
-        {children}
+        <div className="public-layout-frame">{children}</div>
         {isEditionPage && (
           <Suspense fallback={null}>
             <LazyEditionHostingExtension pathname={pathname} />
@@ -711,7 +724,9 @@ export function PageHeader({
             </p>
           )}
         </div>
-        {actions && <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">{actions}</div>}
+        {actions && (
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">{actions}</div>
+        )}
       </div>
     </header>
   );
@@ -785,8 +800,12 @@ export function StatTile({
 }) {
   return (
     <div className="stat-line min-w-0 border-l border-border/60 pl-3 first:border-l-0 first:pl-0">
-      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
-      <p className="numeric mt-1 break-words text-2xl font-semibold leading-none sm:text-3xl">{value}</p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="numeric mt-1 break-words text-2xl font-semibold leading-none sm:text-3xl">
+        {value}
+      </p>
       {hint && <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
     </div>
   );
