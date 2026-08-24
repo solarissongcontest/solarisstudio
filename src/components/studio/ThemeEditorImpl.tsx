@@ -1,26 +1,27 @@
 import {
-  ColorField,
   Field,
   SegButtons,
-  Select,
   Slider,
   TextInput,
 } from "./Controls";
 
 import {
-  FONT_OPTIONS,
   type ThemeConfig,
 } from "@/lib/theme";
 
 type Patch = (theme: ThemeConfig) => ThemeConfig;
+
+const SOLARIS_DISPLAY_FONT = "Classica Crastao";
+const SOLARIS_BODY_FONT = "Gotham";
 
 /**
  * Edition broadcast editor.
  *
  * Edition colours are NOT edited here. They come from the single
  * Artwork & colours source of truth and are synced into linked themes.
- * This editor only controls presentation settings that are not owned by
- * the edition palette, such as backdrop treatment, logo and typography.
+ * Typography is also a Solaris-wide design-system choice rather than an
+ * edition-level setting: Classica Crastao for major display headlines and
+ * Gotham for body/UI text.
  */
 export function ThemeEditor({
   theme,
@@ -29,7 +30,14 @@ export function ThemeEditor({
   theme: ThemeConfig;
   onChange: (next: ThemeConfig) => void;
 }) {
-  const set = (patch: Patch) => onChange(patch(theme));
+  const set = (patch: Patch) => {
+    const next = patch(theme);
+    onChange({
+      ...next,
+      fontDisplay: SOLARIS_DISPLAY_FONT,
+      fontBody: SOLARIS_BODY_FONT,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -161,39 +169,22 @@ export function ThemeEditor({
 
       <section className="rounded-2xl border border-border bg-surface/35 p-4 sm:p-5">
         <div className="mb-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Edition identity</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">Solaris design system</p>
           <h3 className="mt-1 font-display text-lg font-bold">Typography</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Base fonts available to the edition. Individual country-row typography still comes from the custom card editor.
+            Typography is fixed across Solaris Studio so edition screens still belong to the same product.
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Display font" hint="Titles and display typography.">
-            <Select
-              value={theme.fontDisplay}
-              onChange={(event) => set((current) => ({ ...current, fontDisplay: event.target.value }))}
-            >
-              {FONT_OPTIONS.map((font) => (
-                <option key={font.value} value={font.value} className="bg-background">
-                  {font.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Body font" hint="Supporting text typography.">
-            <Select
-              value={theme.fontBody}
-              onChange={(event) => set((current) => ({ ...current, fontBody: event.target.value }))}
-            >
-              {FONT_OPTIONS.map((font) => (
-                <option key={font.value} value={font.value} className="bg-background">
-                  {font.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          <div className="rounded-xl border border-border/70 bg-background/20 p-3">
+            <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Major headlines</p>
+            <p className="display-headline mt-2 text-2xl">Classica Crastao</p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-background/20 p-3">
+            <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">UI, body & data</p>
+            <p className="mt-2 text-base font-semibold text-foreground">Gotham</p>
+          </div>
         </div>
       </section>
 
