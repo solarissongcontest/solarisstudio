@@ -11,23 +11,31 @@ describe("mobile Wiki encyclopedia layout", () => {
   });
 
   it("keeps the mobile masthead compact instead of poster-sized", () => {
-    expect(mobile).toContain(".country-wiki-header {");
+    expect(mobile).toContain('.wiki-canvas .country-wiki-header {');
     expect(mobile).toContain("min-height: 0 !important;");
-    expect(mobile).toContain('width: 4.5rem !important;');
+    expect(mobile).toContain("width: 4rem !important;");
+    expect(mobile).toContain(".country-personality-signature,");
+    expect(mobile).toContain("display: none !important;");
   });
 
-  it("uses one mobile article sheet with divider sections rather than stacked giant cards", () => {
-    expect(mobile).toContain(".wiki-article-surface {");
-    expect(mobile).toContain("overflow: hidden !important;");
-    expect(mobile).toContain(".wiki-introduction,\n  .wiki-article-section,");
+  it("neutralises personality card geometry with a selector strong enough to win on mobile", () => {
+    expect(mobile).toContain('body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas :is(.wiki-introduction, .wiki-article-section)');
+    expect(mobile).toContain("border: 0 !important;");
     expect(mobile).toContain("border-radius: 0 !important;");
-    expect(mobile).toContain(".wiki-article-section {\n    border-top: 1px solid");
+    expect(mobile).toContain("background: transparent !important;");
+    expect(mobile).toContain("box-shadow: none !important;");
   });
 
-  it("keeps mobile article headings in Gotham and reserves the big country headline for Classica", () => {
-    expect(mobile).toContain('.wiki-article-section > summary h2');
+  it("renders sections as compact article dividers rather than stacked cards", () => {
+    expect(mobile).toContain('.wiki-canvas .wiki-article-section {\n    border-top: 1px solid');
+    expect(mobile).toContain("min-height: 3rem !important;");
+    expect(mobile).toContain("padding: .62rem .08rem !important;");
+  });
+
+  it("keeps mobile article headings and reading UI in Gotham", () => {
+    expect(mobile).toContain('.wiki-canvas .wiki-article-section > summary h2');
     expect(mobile).toContain('font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;');
-    expect(mobile).toContain(".country-wiki-header .country-hero-title {");
+    expect(mobile).toContain("font-size: .98rem !important;");
   });
 
   it("makes Contents and Quick facts inline article utilities rather than a floating card", () => {
