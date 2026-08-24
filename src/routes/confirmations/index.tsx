@@ -361,7 +361,7 @@ function ConfirmationsPage() {
                           {canOpen ? (
                             <>Open confirmation <ArrowRight className="size-4" /></>
                           ) : (
-                            <><LockKeyhole className="size-4" /> {reason === "SCHEDULED" ? "Upcoming" : reason === "RESPONSE_LIMIT_REACHED" ? "Full" : "Closed"}</>
+                            <><LockKeyhole className="size-4" /> {reason === "NOT_OPEN_YET" ? "Upcoming" : reason === "RESPONSE_LIMIT_REACHED" ? "Full" : "Closed"}</>
                           )}
                         </Button>
                       )}

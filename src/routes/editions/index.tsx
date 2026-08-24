@@ -154,7 +154,7 @@ function EditionsPage() {
         </section>
       )}
 
-      {!isLoading && cards.length === 0 && (
+      {cards.length === 0 && (
         <div className="glass p-5 text-sm text-muted-foreground">No editions are public yet.</div>
       )}
     </AppShell>
