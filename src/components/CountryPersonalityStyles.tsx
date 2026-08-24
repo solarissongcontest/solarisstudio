@@ -6,11 +6,12 @@ import buttonStyles from "@/country-button-theme.css?inline";
 import wikiStyles from "@/country-wiki.css?inline";
 import wikiRestorationStyles from "@/wiki-card-restoration.css?inline";
 import wikiMobileStyles from "@/wiki-mobile-encyclopedia.css?inline";
+import feedbackStyles from "@/country-personality-feedback.css?inline";
 
 /**
  * Country personalities are intentionally route-scoped. Keeping the CSS as an
- * inline route asset prevents the bundler from promoting 100 KB of specialist
- * selectors into the stylesheet downloaded by every Solaris page.
+ * inline route asset prevents the bundler from promoting specialist selectors
+ * into the stylesheet downloaded by every Solaris page.
  */
 export function CountryPersonalityStyles() {
   return (
@@ -23,6 +24,7 @@ export function CountryPersonalityStyles() {
       {wikiStyles}
       {wikiRestorationStyles}
       {wikiMobileStyles}
+      {feedbackStyles}
     </style>
   );
 }
