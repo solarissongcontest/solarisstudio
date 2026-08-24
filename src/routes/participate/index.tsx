@@ -125,7 +125,7 @@ function ParticipationCard({
         <h2 className="display-headline mt-1 text-3xl leading-[0.95] text-white sm:text-4xl">{title}</h2>
         <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">{description}</p>
 
-        <div className="mt-5 space-y-2 border-t border-border/55 pt-4">
+        <div className="participation-card-details mt-5 space-y-2 border-t border-border/55 pt-4">
           {details.map((detail) => (
             <div key={detail} className="flex items-center gap-2 text-xs text-muted-foreground">
               {detail.toLowerCase().includes("integrity") ? (

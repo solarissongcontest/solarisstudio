@@ -73,7 +73,7 @@ export function FlagChip({
         <img
           src={image}
           alt={`Flag of ${code}`}
-          loading="eager"
+          loading="lazy"
           decoding="async"
           onError={() => setImageFailed(true)}
           className="block h-full w-full object-cover"

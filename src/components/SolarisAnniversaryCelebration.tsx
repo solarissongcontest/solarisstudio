@@ -56,7 +56,10 @@ export function SolarisAnniversaryCelebration() {
     // accidentally on an ordinary date.
     window.sessionStorage.removeItem(LEGACY_PREVIEW_KEY);
 
-    const tick = window.setInterval(() => setClock(new Date()), 1000);
+    // The anniversary state only changes at a date boundary. Checking once a
+    // minute keeps the page accurate without re-rendering the application
+    // every second on the other 364 days of the year.
+    const tick = window.setInterval(() => setClock(new Date()), 60_000);
     return () => window.clearInterval(tick);
   }, []);
 

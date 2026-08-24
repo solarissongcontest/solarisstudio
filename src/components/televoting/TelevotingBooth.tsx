@@ -514,7 +514,7 @@ export function TelevotingBooth({
             <article key={entry.id} className={cn("glass grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center", ownEntry && "opacity-45")}>
               <div className="flex min-w-0 items-center gap-3">
                 <div className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
-                  {entry.image ? <img src={entry.image} alt="" className="h-full w-full object-cover" /> : <span className="text-lg">{entry.flag || "✦"}</span>}
+                  {entry.image ? <img src={entry.image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span className="text-lg">{entry.flag || "✦"}</span>}
                 </div>
                 <div className="min-w-0"><p className="truncate font-medium">{entry.display_name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{entry.display_code}{entry.subtitle ? ` · ${entry.subtitle}` : ""}{ownEntry ? " · your entry" : ""}</p></div>
               </div>
@@ -528,9 +528,9 @@ export function TelevotingBooth({
         })}
       </div>
 
-      <div className="glass-strong flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="televote-submit-bar glass-strong flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="outline" onClick={() => { clearIntegrityState(); setPoints({}); }} disabled={!used || checking}><RotateCcw className="size-4" /> Reset ballot</Button>
-        <div className="text-xs leading-5 text-muted-foreground sm:text-right">Exactly 20 points · at least 5 entries · max 10 per entry<br /><span className="text-sky-100/65">Every ballot is automatically checked against HOD, country, jury and televote history before submission.</span></div>
+        <div className="televote-submit-help text-xs leading-5 text-muted-foreground sm:text-right">Exactly 20 points · at least 5 entries · max 10 per entry<br /><span className="text-sky-100/65">Every ballot is automatically checked against HOD, country, jury and televote history before submission.</span></div>
         <Button disabled={!canSubmit || checking} onClick={() => preflightMutation.mutate()}><ShieldAlert className="size-4" /> {checking ? "Checking ballot…" : "Review & submit"}</Button>
       </div>
     </section>

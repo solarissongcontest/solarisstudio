@@ -6,16 +6,15 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 const exists = (path: string) => existsSync(resolve(process.cwd(), path));
 
 describe("Beta 2 hardened rollout contract", () => {
-  it("keeps desktop Results direct while the mobile hierarchy stays calm", () => {
+  it("keeps Results direct and gives mobile users the five primary journeys", () => {
     const shell = source("src/components/AppShell.tsx");
     expect(shell).toContain('to="/results"');
     expect(shell).toContain('const MOBILE_EXPLORE_NAV');
-    expect(shell).toContain('{ to: "/results", label: "Results"');
+    expect(shell).toContain('to: "/results",\n      label: "Results"');
+    expect(shell).toContain('to: "/participate",\n      label: "Participate"');
     expect(shell).toContain('label: "Explore"');
-    expect(shell).toContain('label: "Insights"');
-    expect(shell).toContain('label: "Predict"');
+    expect(shell).toContain('label: "Me"');
     expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
-    expect(shell).not.toContain('label: "Results",\n      icon:');
   });
 
   it("opens public hubs directly instead of inserting generic overview gates", () => {

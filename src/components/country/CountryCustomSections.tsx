@@ -222,6 +222,7 @@ function CountryCustomSection({
         src={section.image_url ?? ""}
         alt={section.image_caption || `${country.name} section image`}
         loading="lazy"
+        decoding="async"
         className={`${full ? "w-full" : !sideBySide && section.image_layout === "wide" ? "mt-4 w-full rounded-xl" : "w-full rounded-xl"} ${aspectClass(presentation.imageAspect)} ${presentation.imageAspect === "auto" ? imageHeightClass(presentation.imageSize, full) : ""} ${presentation.imageFit === "contain" ? "object-contain" : "object-cover"}`}
         style={{
           objectPosition: `${presentation.focalX}% ${presentation.focalY}%`,

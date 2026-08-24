@@ -307,7 +307,7 @@ function BroadcastIntelligencePage() {
       <PageHeader
         eyebrow="Broadcast analytics"
         title="Broadcast Intelligence"
-        description="Replay an official result, inspect the biggest jury-to-televote swings and surface the moments that made the scoreboard dramatic. The live show remains on YouTube; Solaris Studio becomes the analytics and replay companion."
+        description="Replay an official result, inspect the biggest jury-to-televote swings and see the moments that made the scoreboard dramatic. The live show remains on YouTube; Solaris Studio explains how the result changed."
         actions={
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
             <Link

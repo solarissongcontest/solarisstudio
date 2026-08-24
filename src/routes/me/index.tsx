@@ -30,7 +30,7 @@ function MySolarisRedirect() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Your private workspace"
+        eyebrow="Your account"
         title="MySolaris"
         description="Your country, entry, participation and personal Solaris updates live together after sign-in."
       />

@@ -223,11 +223,11 @@ body[data-solaris-family="shows"] {
 }
 
 body[data-solaris-family="wiki"] {
-  --solaris-bg-primary: 224 171 72;
-  --solaris-bg-secondary: 151 92 44;
-  --solaris-bg-tertiary: 57 168 153;
-  --solaris-bg-deep: 19 11 4;
-  --solaris-bg-deep-2: 49 27 7;
+  --solaris-bg-primary: 112 214 198;
+  --solaris-bg-secondary: 67 106 185;
+  --solaris-bg-tertiary: 220 171 91;
+  --solaris-bg-deep: 3 13 27;
+  --solaris-bg-deep-2: 10 30 49;
   --solaris-glow-a-x: 7%; --solaris-glow-a-y: 8%;
   --solaris-glow-b-x: 93%; --solaris-glow-b-y: 76%;
   --solaris-bg-angle: 151deg;

@@ -55,7 +55,9 @@ describe("archive readiness", () => {
     const wiki = source("routes/wiki/$code.tsx");
     expect(wiki).toContain('aria-label="Article contents"');
     expect(wiki).toContain("<details id={id}");
-    expect(wiki).toContain('<WikiSection id="overview" title="Overview" defaultOpen>');
+    expect(wiki).toContain('id="overview" className="wiki-article-lead');
+    expect(wiki).toContain('<WikiSection id="culture" title="Country, culture and media">');
     expect(wiki).toContain('<WikiSection id="contest" title="Solaris Song Contest">');
+    expect(wiki).toContain("Quick facts about {country.name}");
   });
 });

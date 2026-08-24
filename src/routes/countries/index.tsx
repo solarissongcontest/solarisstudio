@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search, SlidersHorizontal, Trophy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
@@ -36,6 +36,8 @@ type CountryRow = {
   stats: ReturnType<typeof computeCanonicalCountryStats>;
 };
 
+const DIRECTORY_PAGE_SIZE = 18;
+
 function CountriesPage() {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
@@ -55,6 +57,7 @@ function CountriesPage() {
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
   const [sort, setSort] = useState<SortKey>("name");
+  const [visibleCount, setVisibleCount] = useState(DIRECTORY_PAGE_SIZE);
 
   const opts = useMemo(
     () => ({
@@ -155,6 +158,9 @@ function CountriesPage() {
     (search.trim() ? 1 : 0) +
     (region !== "all" ? 1 : 0) +
     (sort !== "name" ? 1 : 0);
+  const visibleRows = rows.slice(0, visibleCount);
+
+  useEffect(() => setVisibleCount(DIRECTORY_PAGE_SIZE), [search, region, sort]);
 
   const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
   if (archiveIsLoading(...archiveQueries)) {
@@ -189,7 +195,12 @@ function CountriesPage() {
       </section>
 
       {leaders.length > 0 && (
-        <section className="mb-8">
+        <details className="directory-secondary group mb-5 sm:mb-8">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between rounded-2xl border border-border/60 bg-surface/35 px-4 text-sm font-semibold lg:hidden [&::-webkit-details-marker]:hidden">
+            Most successful delegations
+            <span className="text-xs text-primary"><span className="group-open:hidden">Show ↓</span><span className="hidden group-open:inline">Hide ↑</span></span>
+          </summary>
+          <section className="directory-secondary-content mt-3 lg:mt-0">
           <div className="flex items-end justify-between gap-4 border-b border-border/60 pb-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Record desk</p>
@@ -210,7 +221,8 @@ function CountriesPage() {
               <LeaderCard key={row.country.id} row={row} rank={index + 1} />
             ))}
           </div>
-        </section>
+          </section>
+        </details>
       )}
 
       <section>
@@ -281,7 +293,7 @@ function CountriesPage() {
         </div>
 
         <div className="country-directory-grid mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {rows.map((row) => (
+          {visibleRows.map((row) => (
             <CountryCard key={row.country.id} row={row} />
           ))}
 
@@ -291,6 +303,18 @@ function CountriesPage() {
             </div>
           )}
         </div>
+
+        {visibleRows.length < rows.length && (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((count) => count + DIRECTORY_PAGE_SIZE)}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-5 text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              Show {DIRECTORY_PAGE_SIZE} more · {rows.length - visibleRows.length} remaining
+            </button>
+          </div>
+        )}
       </section>
     </AppShell>
   );

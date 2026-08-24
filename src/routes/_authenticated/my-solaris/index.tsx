@@ -66,7 +66,7 @@ const TABS: Array<{ id: MySolarisTab; label: string; icon: LucideIcon }> = [
   { id: "entry", label: "Entry", icon: Sparkles },
   { id: "country", label: "Country", icon: Flag },
   { id: "history", label: "History", icon: History },
-  { id: "activity", label: "Activity", icon: Activity },
+  { id: "activity", label: "Pulse", icon: Activity },
   { id: "account", label: "Account", icon: CircleUserRound },
 ];
 
@@ -481,27 +481,42 @@ function MySolarisTabs({
   onChange: (tab: MySolarisTab) => void;
 }) {
   return (
-    <nav
-      className="scroll-slim flex gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-surface/55 p-1.5"
-      aria-label="MySolaris sections"
-    >
-      {TABS.map(({ id, label, icon: Icon }) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onChange(id)}
-          aria-current={active === id ? "page" : undefined}
-          className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition ${
-            active === id
-              ? "bg-primary/12 text-primary ring-1 ring-primary/20"
-              : "text-muted-foreground hover:bg-surface-strong hover:text-foreground"
-          }`}
+    <>
+      <label className="block rounded-2xl border border-border/70 bg-surface/55 p-2 md:hidden">
+        <span className="mb-1.5 block px-1 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+          MySolaris section
+        </span>
+        <select
+          value={active}
+          onChange={(event) => onChange(event.target.value as MySolarisTab)}
+          className="min-h-12 w-full rounded-xl border border-border bg-background/70 px-3 text-sm font-semibold text-foreground outline-none focus:border-primary"
         >
-          <Icon className="size-3.5" />
-          {label}
-        </button>
-      ))}
-    </nav>
+          {TABS.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
+        </select>
+      </label>
+
+      <nav
+        className="scroll-slim hidden gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-surface/55 p-1.5 md:flex"
+        aria-label="MySolaris sections"
+      >
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            aria-current={active === id ? "page" : undefined}
+            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition ${
+              active === id
+                ? "bg-primary/12 text-primary ring-1 ring-primary/20"
+                : "text-muted-foreground hover:bg-surface-strong hover:text-foreground"
+            }`}
+          >
+            <Icon className="size-3.5" />
+            {label}
+          </button>
+        ))}
+      </nav>
+    </>
   );
 }
 

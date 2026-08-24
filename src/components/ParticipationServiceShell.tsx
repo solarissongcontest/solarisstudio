@@ -61,7 +61,7 @@ export function ParticipationServiceShell({
     <div className={cn("mx-auto min-w-0", maxWidth)}>
       <nav
         aria-label="Participation services"
-        className="-mx-1 mb-4 flex min-w-0 items-center gap-1 overflow-x-auto border-b border-border/55 px-1 pb-3 [scrollbar-width:none] sm:mb-5"
+        className="mb-4 grid min-w-0 grid-cols-2 gap-1.5 rounded-2xl border border-border/60 bg-surface/35 p-1.5 sm:mb-5 sm:flex"
       >
         <ServiceTab
           to="/confirmations"
@@ -135,7 +135,7 @@ function ServiceTab({
       to={to as any}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold transition sm:text-xs",
+        "inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2.5 text-[11px] font-semibold transition sm:min-h-10 sm:flex-1 sm:text-xs",
         active
           ? "bg-primary/[0.09] text-primary"
           : "text-muted-foreground hover:bg-surface hover:text-foreground",
