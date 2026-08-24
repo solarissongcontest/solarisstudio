@@ -12,10 +12,14 @@ const routeVisualTheme = source("src/components/RouteVisualTheme.tsx");
 const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
 const countryRoute = source("src/routes/countries/$code.tsx");
 const wikiRoute = source("src/routes/wiki/$code.tsx");
+const wikiExperience = source("src/components/wiki/CountryWikiExperience.tsx");
 const customSections = source("src/components/country/CountryCustomSections.tsx");
 const migration = source("supabase/migrations/20260820160000_expand_country_page_personalities.sql");
 const decorationMigration = source(
   "supabase/migrations/20260820190000_expand_country_decoration_styles.sql",
+);
+const heritageMigration = source(
+  "supabase/migrations/20260824165000_add_heritage_country_personality.sql",
 );
 
 const newLayouts = [
@@ -27,6 +31,7 @@ const newLayouts = [
   "duotone",
   "passport",
   "horizon",
+  "heritage",
 ];
 
 const rectangularLayouts = [
@@ -43,14 +48,15 @@ const rectangularLayouts = [
   "duotone",
   "passport",
   "horizon",
+  "heritage",
 ];
 
 describe("expanded country page personalities", () => {
-  it("registers sixteen supported hero layouts in the client and database", () => {
+  it("registers every supported hero layout in the client and database", () => {
     for (const layout of newLayouts) {
       expect(visualTheme).toContain(`| "${layout}"`);
       expect(visualTheme).toContain(`"${layout}",`);
-      expect(migration).toContain(`'${layout}'`);
+      expect(`${migration}\n${heritageMigration}`).toContain(`'${layout}'`);
       expect(editor).toContain(`value: "${layout}"`);
     }
   });
@@ -142,7 +148,7 @@ describe("expanded country page personalities", () => {
 
   it("uses the same motif renderer in the editor preview and public heroes", () => {
     const repairCss = source("src/country-personalities-v4.css");
-    expect(editor).toContain("country-public-hero glass");
+    expect(editor).toContain('mode === "wiki" ? "wiki-public-hero" : "country-public-hero"');
     expect(editor).toContain("<BackgroundFlag");
     expect(editor).toContain("themeStyleProperties(theme)");
     expect(editor).not.toContain("function PreviewDecoration");
@@ -163,7 +169,7 @@ describe("expanded country page personalities", () => {
     expect(repairCss).toContain("visibility: hidden !important");
     expect(repairCss).toContain(':not([data-country-decoration="none"])');
     expect(countryRoute).toContain('className="country-glass-panel-flag"');
-    expect(wikiRoute).toContain('className="country-glass-panel-flag"');
+    expect(wikiExperience).toContain('className="country-glass-panel-flag"');
     expect(css).toContain('[data-preview-layout="glass-card"] > div.relative.z-10 {');
     expect(css).not.toContain(
       '[data-preview-layout="glass-card"] > div.relative.z-10 > div',
@@ -188,6 +194,7 @@ describe("expanded country page personalities", () => {
       "duotone",
       "passport",
       "horizon",
+      "heritage",
     ]) {
       expect(repairCss).toContain(`[data-preview-layout="${layout}"]`);
     }
@@ -200,13 +207,13 @@ describe("expanded country page personalities", () => {
     expect(repairCss).toContain(".country-hero-identity");
     expect(repairCss).toContain("word-break: normal !important");
     expect(countryRoute).toContain("country-hero-title");
-    expect(wikiRoute).toContain("country-hero-title");
+    expect(wikiExperience).toContain("country-hero-title");
   });
 
-  it("continues each personality through country and Wiki content cards", () => {
+  it("continues each personality through country cards and the Wiki article surface", () => {
     const repairCss = source("src/country-personalities-v4.css");
-    expect(wikiRoute).toContain("country-personality-card");
-    expect(wikiRoute).toContain("country-personality-inset");
+    expect(wikiExperience).toContain("wiki-article-surface");
+    expect(wikiExperience).toContain("CountryCustomSectionContent");
     expect(customSections).toContain(
       'presentation.panelStyle === "transparent" ? "" : "country-personality-card"',
     );
@@ -228,6 +235,7 @@ describe("expanded country page personalities", () => {
       "duotone",
       "passport",
       "horizon",
+      "heritage",
     ]) {
       expect(repairCss).toContain(`[data-country-hero-layout="${layout}"]`);
     }
@@ -236,7 +244,7 @@ describe("expanded country page personalities", () => {
   it("gives every personality its own scalable signature layer", () => {
     const repairCss = source("src/country-personalities-v4.css");
     expect(countryRoute).toContain("country-personality-signature");
-    expect(wikiRoute).toContain("country-personality-signature");
+    expect(wikiExperience).toContain("country-personality-signature");
     expect(editor).toContain("country-personality-signature");
     expect(repairCss).toContain("Personality signatures");
     for (const layout of [

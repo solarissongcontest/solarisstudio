@@ -5,7 +5,10 @@ import type {
   CountryProfile,
   CountryProfileSection,
 } from "@/lib/country-account";
-import { usePublicCountryIdentityHistory } from "@/lib/country-history";
+import {
+  usePublicCountryIdentityHistory,
+  type PublicCountryIdentityHistoryRow,
+} from "@/lib/country-history";
 import {
   countrySectionPresentation,
   factRowsForSection,
@@ -15,6 +18,72 @@ import {
   type CountrySectionImageAspect,
 } from "@/lib/country-page-builder";
 import type { Country } from "@/lib/data";
+
+type NormalizedCountrySection = ReturnType<typeof normalizeCountryPageSection>;
+
+export type CountryWikiCustomSection = {
+  id: string;
+  title: string;
+  section: NormalizedCountrySection;
+};
+
+export type FormerCountryIdentity = {
+  name: string;
+  flag: string | null;
+  editions: Array<{ id: string; number: number | null; name: string }>;
+};
+
+function fallbackSectionTitle(section: NormalizedCountrySection) {
+  if (section.section_type === "quote") return "In their own words";
+  if (section.section_type === "facts") return "Country facts";
+  if (section.section_type === "image") return "Country feature";
+  return "Country and culture";
+}
+
+export function buildCountryWikiCustomSections(
+  sections: CountryProfileSection[] | CountryPageSection[],
+): CountryWikiCustomSection[] {
+  return (sections as CountryPageSection[])
+    .map(normalizeCountryPageSection)
+    .filter((section) => sectionVisibleOn(section, "wiki"))
+    .filter((section) => section.section_type !== "gallery" && section.section_type !== "divider")
+    .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at))
+    .map((section) => ({
+      id: `country-article-${section.id}`,
+      title: section.heading?.trim() || fallbackSectionTitle(section),
+      section,
+    }));
+}
+
+export function groupFormerCountryIdentities(
+  rows: PublicCountryIdentityHistoryRow[],
+  country: Country,
+): FormerCountryIdentity[] {
+  const grouped = new Map<string, FormerCountryIdentity>();
+
+  for (const row of rows) {
+    const name = row.display_name?.trim();
+    if (!name || name === country.name) continue;
+    const flag = row.flag_image ?? country.flag_image ?? null;
+    const key = `${name}\u0000${flag ?? ""}`;
+    const current = grouped.get(key) ?? { name, flag, editions: [] };
+    current.editions.push({
+      id: row.edition_id,
+      number: row.edition_number,
+      name: row.edition_name,
+    });
+    grouped.set(key, current);
+  }
+
+  return [...grouped.values()].map((identity) => ({
+    ...identity,
+    editions: [...identity.editions].sort(
+      (a, b) =>
+        (a.number ?? Number.MAX_SAFE_INTEGER) - (b.number ?? Number.MAX_SAFE_INTEGER) ||
+        a.name.localeCompare(b.name),
+    ),
+  }));
+}
 
 export function CountryCustomSections({
   country,
@@ -35,37 +104,9 @@ export function CountryCustomSections({
     .filter((section) => sectionVisibleOn(section, surface))
     .sort((a, b) => a.sort_order - b.sort_order || a.created_at.localeCompare(b.created_at));
 
-  const formerIdentities = (() => {
-    if (surface !== "wiki") return [];
-    const grouped = new Map<string, {
-      name: string;
-      flag: string | null;
-      editions: Array<{ id: string; number: number | null; name: string }>;
-    }>();
-
-    for (const row of identityHistory.data ?? []) {
-      const name = row.display_name?.trim();
-      if (!name || name === country.name) continue;
-      const flag = row.flag_image ?? country.flag_image ?? null;
-      const key = `${name}\u0000${flag ?? ""}`;
-      const current = grouped.get(key) ?? { name, flag, editions: [] };
-      current.editions.push({
-        id: row.edition_id,
-        number: row.edition_number,
-        name: row.edition_name,
-      });
-      grouped.set(key, current);
-    }
-
-    return [...grouped.values()].map((identity) => ({
-      ...identity,
-      editions: [...identity.editions].sort(
-        (a, b) =>
-          (a.number ?? Number.MAX_SAFE_INTEGER) - (b.number ?? Number.MAX_SAFE_INTEGER) ||
-          a.name.localeCompare(b.name),
-      ),
-    }));
-  })();
+  const formerIdentities = surface === "wiki"
+    ? groupFormerCountryIdentities(identityHistory.data ?? [], country)
+    : [];
 
   if (!visible.length && !formerIdentities.length) return null;
 
@@ -76,46 +117,11 @@ export function CountryCustomSections({
       data-country-media-count={media.length}
     >
       {surface === "wiki" && formerIdentities.length > 0 ? (
-        <section className="country-personality-card w-full max-w-none rounded-2xl border border-border/70 bg-surface/60 p-4 sm:p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-primary">Country history</p>
-          <h2 className="mt-1 font-display text-xl font-semibold">Former names & flags</h2>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            These identities were used by the same country in earlier Solaris Song Contest editions.
-          </p>
-          <div className="mt-4 space-y-2">
-            {formerIdentities.map((identity) => (
-              <div
-                key={`${identity.name}-${identity.flag ?? "flag"}`}
-                className="flex flex-col gap-3 rounded-xl border border-border/60 bg-background/20 p-3 sm:flex-row sm:items-center"
-              >
-                {identity.flag ? (
-                  <img
-                    src={identity.flag}
-                    alt={`${identity.name} flag`}
-                    loading="lazy"
-                    className="h-10 w-16 shrink-0 rounded-md object-cover"
-                  />
-                ) : (
-                  <span className="grid h-10 w-16 shrink-0 place-items-center rounded-md border border-border bg-surface text-[10px] font-bold text-muted-foreground">
-                    {country.short_code}
-                  </span>
-                )}
-                <div className="min-w-0">
-                  <p className="font-display text-base font-semibold">{identity.name}</p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                    {identity.editions
-                      .map((edition) => edition.number != null ? `SSC ${edition.number}` : edition.name)
-                      .join(" · ")}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <FormerCountryIdentities country={country} identities={formerIdentities} />
       ) : null}
 
       {visible.map((section) => (
-        <CountryCustomSection
+        <CountryCustomSectionContent
           key={section.id}
           country={country}
           profile={profile}
@@ -127,16 +133,79 @@ export function CountryCustomSections({
   );
 }
 
-function CountryCustomSection({
+export function FormerCountryIdentities({
+  country,
+  identities,
+  article = false,
+}: {
+  country: Country;
+  identities: FormerCountryIdentity[];
+  article?: boolean;
+}) {
+  if (!identities.length) return null;
+
+  return (
+    <section className={article ? "min-w-0" : "country-personality-card w-full max-w-none rounded-2xl border border-border/70 bg-surface/60 p-4 sm:p-5"}>
+      {!article && (
+        <>
+          <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-primary">Country history</p>
+          <h2 className="mt-1 font-display text-xl font-semibold">Former names & flags</h2>
+        </>
+      )}
+      <p className={article ? "max-w-[72ch] text-sm leading-7 text-muted-foreground" : "mt-2 text-xs leading-relaxed text-muted-foreground"}>
+        These identities were used by the same country in earlier Solaris Song Contest editions.
+      </p>
+      <div className="mt-4 divide-y divide-border/55 border-y border-border/55">
+        {identities.map((identity) => (
+          <div
+            key={`${identity.name}-${identity.flag ?? "flag"}`}
+            className="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-4 py-3 sm:grid-cols-[7rem_minmax(0,1fr)_auto]"
+          >
+            {identity.flag ? (
+              <img
+                src={identity.flag}
+                alt={`${identity.name} flag`}
+                loading="lazy"
+                decoding="async"
+                className="max-h-16 w-full rounded-md border border-border/55 bg-background/20 object-contain"
+              />
+            ) : (
+              <span className="grid h-12 w-full place-items-center rounded-md border border-border bg-surface text-[10px] font-bold text-muted-foreground">
+                {country.short_code}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="font-display text-base font-semibold">{identity.name}</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground sm:hidden">
+                {identity.editions
+                  .map((edition) => edition.number != null ? `SSC ${edition.number}` : edition.name)
+                  .join(" · ")}
+              </p>
+            </div>
+            <p className="hidden text-right text-[11px] leading-relaxed text-muted-foreground sm:block">
+              {identity.editions
+                .map((edition) => edition.number != null ? `SSC ${edition.number}` : edition.name)
+                .join(" · ")}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function CountryCustomSectionContent({
   country,
   profile,
   section,
   surface,
+  article = false,
 }: {
   country: Country;
   profile?: CountryProfile | null;
-  section: ReturnType<typeof normalizeCountryPageSection>;
+  section: NormalizedCountrySection;
   surface: "country" | "wiki";
+  article?: boolean;
 }) {
   const presentation = countrySectionPresentation(section);
 
@@ -156,20 +225,22 @@ function CountryCustomSection({
   const style = section.background_tint
     ? ({ backgroundColor: `${section.background_tint}d9` } as CSSProperties)
     : undefined;
-  const wrapperClass = [
-    widthClass(),
-    panelClass(presentation.panelStyle, surface),
-    presentation.panelStyle === "transparent" ? "" : "country-personality-card",
-    spacingClass(presentation.spacing),
-    presentation.textAlign === "center" ? "text-center" : "text-left",
-    "min-w-0 overflow-hidden",
-  ].join(" ");
+  const wrapperClass = article
+    ? `wiki-custom-section-content min-w-0 ${presentation.textAlign === "center" ? "text-center" : "text-left"}`
+    : [
+        widthClass(),
+        panelClass(presentation.panelStyle, surface),
+        presentation.panelStyle === "transparent" ? "" : "country-personality-card",
+        spacingClass(presentation.spacing),
+        presentation.textAlign === "center" ? "text-center" : "text-left",
+        "min-w-0 overflow-hidden",
+      ].join(" ");
 
   if (section.section_type === "quote") {
     return (
       <section className={wrapperClass} style={style}>
         {section.kicker && <Kicker>{section.kicker}</Kicker>}
-        {section.heading && <h2 className="font-display text-xl font-semibold">{section.heading}</h2>}
+        {!article && section.heading && <h2 className="font-display text-xl font-semibold">{section.heading}</h2>}
         <blockquote className={presentation.textAlign === "center"
           ? "mx-auto mt-3 max-w-3xl font-display text-lg italic leading-8 text-foreground sm:text-xl"
           : "mt-3 border-l-2 border-primary/50 pl-4 font-display text-lg italic leading-8 text-foreground sm:text-xl"}>
@@ -184,7 +255,7 @@ function CountryCustomSection({
     return (
       <section className={wrapperClass} style={style}>
         {section.kicker && <Kicker>{section.kicker}</Kicker>}
-        <h2 className="font-display text-xl font-semibold">{section.heading || "Facts"}</h2>
+        {!article && <h2 className="font-display text-xl font-semibold">{section.heading || "Facts"}</h2>}
         {rows.length ? (
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {rows.map((row, index) => (
@@ -212,7 +283,7 @@ function CountryCustomSection({
   const content = (
     <div className={sideBySide ? "min-w-0 self-center" : ""}>
       {section.kicker && <Kicker>{section.kicker}</Kicker>}
-      {section.heading && <h2 className="font-display text-xl font-semibold sm:text-2xl">{section.heading}</h2>}
+      {!article && section.heading && <h2 className="font-display text-xl font-semibold sm:text-2xl">{section.heading}</h2>}
       {section.body && <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{section.body}</p>}
     </div>
   );

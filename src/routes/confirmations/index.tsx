@@ -164,7 +164,7 @@ function ConfirmationsPage() {
           { to: "/confirmations/recover", label: "Recover response" },
           { to: "/confirmations/next-in-line", label: "Next in Line" },
         ]}
-        maxWidth="max-w-4xl"
+        maxWidth="max-w-6xl"
       >
         <div className="confirmations-theme">
           {accountAccess?.authenticated && accountAccess.country && preferredAccountResponse ? (

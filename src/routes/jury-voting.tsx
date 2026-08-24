@@ -246,7 +246,7 @@ function JuryVotingPage() {
 function JuryVotingFrame({ children, description }: { children: ReactNode; description: string }) {
   return (
     <ParticipationRouteChrome>
-      <ParticipationServiceShell service="jury" title="Jury voting" description={description} maxWidth="max-w-4xl">
+      <ParticipationServiceShell service="jury" title="Jury voting" description={description} maxWidth="max-w-6xl">
         {children}
       </ParticipationServiceShell>
     </ParticipationRouteChrome>

@@ -3,6 +3,7 @@ import repairStyles from "@/country-personalities-v4.css?inline";
 import betaStyles from "@/country-personalities-beta2.css?inline";
 import glassParityStyles from "@/country-glass-parity.css?inline";
 import buttonStyles from "@/country-button-theme.css?inline";
+import wikiStyles from "@/country-wiki.css?inline";
 
 /**
  * Country personalities are intentionally route-scoped. Keeping the CSS as an
@@ -17,6 +18,7 @@ export function CountryPersonalityStyles() {
       {betaStyles}
       {glassParityStyles}
       {buttonStyles}
+      {wikiStyles}
     </style>
   );
 }

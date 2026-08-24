@@ -13,6 +13,97 @@
   max-width: var(--public-reading-measure);
 }
 
+.desktop-context-layout,
+.desktop-context-content {
+  min-width: 0;
+}
+
+.desktop-context-rail nav {
+  border-block: 1px solid hsl(var(--border) / .55);
+  background: hsl(var(--surface) / .28);
+}
+
+.desktop-context-label {
+  color: hsl(var(--primary));
+  font-size: .65rem;
+  font-weight: 850;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.desktop-context-description {
+  margin-top: .5rem;
+  color: hsl(var(--muted-foreground));
+  font-size: .7rem;
+  line-height: 1.5;
+}
+
+.desktop-context-links {
+  display: flex;
+  gap: .25rem;
+}
+
+.desktop-context-link {
+  display: flex;
+  min-width: 0;
+  min-height: 2.8rem;
+  flex-direction: column;
+  justify-content: center;
+  padding: .45rem .65rem;
+  border-radius: .65rem;
+  color: hsl(var(--muted-foreground));
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.desktop-context-link > span {
+  overflow: hidden;
+  font-size: .72rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-context-link small {
+  display: none;
+  margin-top: .16rem;
+  color: hsl(var(--muted-foreground));
+  font-size: .6rem;
+  line-height: 1.25;
+}
+
+.desktop-context-link:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--surface) / .58);
+}
+
+.desktop-context-link.is-active {
+  color: hsl(var(--foreground));
+  background: linear-gradient(90deg, hsl(var(--primary) / .16), hsl(var(--surface) / .42));
+  box-shadow: inset 2px 0 hsl(var(--primary));
+}
+
+.desktop-context-guide {
+  display: none;
+  color: hsl(var(--primary));
+  font-size: .65rem;
+  font-weight: 750;
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .desktop-context-layout { display: grid; gap: 1rem; }
+  .desktop-context-rail nav {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 1rem;
+    padding: .5rem;
+  }
+  .desktop-context-rail .desktop-context-label { padding-left: .5rem; }
+  .desktop-context-description,
+  .desktop-context-guide { display: none; }
+  .desktop-context-links { justify-content: flex-end; }
+}
+
 body[data-solaris-route="pulse"] .app-main .text-\[9px\],
 body[data-solaris-route="pulse"] .app-main .text-\[10px\] {
   font-size: .75rem !important;
@@ -29,6 +120,65 @@ body[data-solaris-route="pulse"] .app-main .text-\[10px\] {
   .app-main[data-public-layout="data"] > *,
   .app-main[data-public-layout="workspace"] > * {
     min-width: 0;
+  }
+
+  .desktop-context-layout {
+    display: grid;
+    grid-template-columns: clamp(10.5rem, 13vw, 12.5rem) minmax(0, 1fr);
+    gap: clamp(1.4rem, 2vw, 2.5rem);
+    align-items: start;
+  }
+
+  .desktop-context-rail {
+    position: sticky;
+    z-index: 20;
+    top: 6rem;
+  }
+
+  .desktop-context-rail nav {
+    padding: .9rem 0;
+    border-left: 1px solid hsl(var(--border) / .55);
+    border-block: 0;
+    background: transparent;
+  }
+
+  .desktop-context-label,
+  .desktop-context-description,
+  .desktop-context-guide {
+    margin-inline: .9rem .65rem;
+  }
+
+  .desktop-context-links {
+    display: grid;
+    gap: .12rem;
+    margin-top: .85rem;
+  }
+
+  .desktop-context-link {
+    min-height: 3.25rem;
+    padding: .55rem .9rem;
+    border-radius: 0 .7rem .7rem 0;
+  }
+
+  .desktop-context-link small { display: block; }
+  .desktop-context-guide { display: block; margin-top: 1rem; line-height: 1.45; }
+
+  /* Long workspaces keep their local controls available while the main column
+     scrolls. These surfaces are opaque so the sticky treatment does not add a
+     permanent backdrop-filter cost on desktop. */
+  .participation-service-nav,
+  .my-solaris-section-nav,
+  .desktop-context-content > .responsive-tabs,
+  .desktop-context-content .directory-page-filter {
+    position: sticky;
+    z-index: 26;
+    top: 5rem;
+    box-shadow: 0 .8rem 2rem hsl(var(--background) / .32);
+  }
+
+  .desktop-context-content > .responsive-tabs {
+    padding-block: .35rem;
+    background: hsl(var(--background));
   }
 
   .wiki-library-grid {

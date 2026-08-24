@@ -764,6 +764,109 @@ body[data-entity-theme="country"][data-country-hero-layout="passport"] .app-main
   }
 }
 
+/* Heritage: an archival cultural identity without faux parchment. The double
+   rule, woven line field and restrained serif treatment all use live country
+   colours, so the style remains traditional without becoming a beige theme. */
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  :is(.country-public-hero, .wiki-public-hero),
+[data-preview-layout="heritage"] {
+  border: 1px solid rgb(var(--solaris-accent) / .34) !important;
+  border-radius: .65rem !important;
+  background:
+    linear-gradient(145deg, rgb(var(--solaris-accent) / .075), transparent 42%),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-accent)) 6%) !important;
+  box-shadow:
+    inset 0 0 0 4px rgb(var(--solaris-bg-deep) / .35),
+    inset 0 0 0 5px rgb(var(--solaris-accent) / .17),
+    0 24px 60px -48px rgb(var(--solaris-bg-deep) / .9) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+[data-preview-layout="heritage"] > .country-hero-background-flag {
+  top: 50% !important;
+  right: clamp(-4rem, 1vw, 1rem) !important;
+  width: min(42vw, 34rem) !important;
+  height: min(42vw, 34rem) !important;
+  opacity: .13 !important;
+  filter: saturate(.72) contrast(1.08) !important;
+  transform: translateY(-50%) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  :is(.country-public-hero, .wiki-public-hero) .country-hero-title,
+[data-preview-layout="heritage"] .country-hero-title {
+  font-family: Georgia, "Times New Roman", var(--font-display, serif) !important;
+  font-weight: 600 !important;
+  letter-spacing: -.025em !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+[data-preview-layout="heritage"] > .country-personality-signature {
+  inset: .75rem;
+  border: 1px solid rgb(var(--solaris-accent) / .17);
+  border-radius: .25rem;
+  background:
+    repeating-linear-gradient(45deg, transparent 0 9px, rgb(var(--solaris-accent) / .035) 9px 10px, transparent 10px 18px),
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .22), transparent 18%, transparent 82%, rgb(var(--solaris-accent) / .22)) 0 100% / 100% 1px no-repeat;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+[data-preview-layout="heritage"] > .country-personality-signature::before {
+  content: "✦  TERRA SOLARIS ARCHIVE  ✦";
+  left: 50%;
+  bottom: .65rem;
+  color: rgb(var(--solaris-accent) / .62);
+  font-family: Georgia, serif;
+  font-size: .48rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  .app-main :is(.data-panel, .country-personality-card, .wiki-article-surface, .wiki-infobox) {
+  border-radius: .45rem !important;
+  border-color: rgb(var(--solaris-accent) / .25) !important;
+  box-shadow: inset 0 0 0 3px rgb(var(--solaris-bg-deep) / .22) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  :is(.wiki-article-section summary h2, .wiki-introduction h2, .wiki-feature-title) {
+  font-family: Georgia, "Times New Roman", var(--font-display, serif) !important;
+  font-weight: 600 !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+  :is(.wiki-heading-rule, .wiki-article-section-body::before) {
+  height: 3px;
+  background:
+    linear-gradient(180deg,
+      rgb(var(--solaris-accent) / .6) 0 1px,
+      transparent 1px 2px,
+      rgb(var(--solaris-accent) / .22) 2px 3px);
+}
+
+@media (max-width: 767px) {
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+    :is(.country-public-hero, .wiki-public-hero),
+  [data-preview-layout="heritage"] {
+    min-height: 15rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"]
+    :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+  [data-preview-layout="heritage"] > .country-personality-signature::before {
+    content: "✦  SOLARIS ARCHIVE  ✦";
+    max-width: calc(100% - 2rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 /* Final responsive and preview parity repairs --------------------------------
    These rules intentionally sit last. They prevent an older flag layer from
    reappearing over Glass and make the editor preview use the same compositions

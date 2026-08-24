@@ -19,13 +19,17 @@ describe("archive readiness", () => {
     )).toBe(true);
   });
 
-  it("does not render country missing states before every archive query settles", () => {
-    for (const path of ["routes/countries/$code.tsx", "routes/wiki/$code.tsx"]) {
-      const route = source(path);
-      expect(route.indexOf("archiveIsLoading(...archiveQueries)")).toBeLessThan(
-        route.indexOf("if (!country)"),
-      );
-    }
+  it("does not render country missing states before the country directory settles", () => {
+    const countryRoute = source("routes/countries/$code.tsx");
+    expect(countryRoute.indexOf("archiveIsLoading(...archiveQueries)")).toBeLessThan(
+      countryRoute.indexOf("if (!country)"),
+    );
+
+    const wiki = source("components/wiki/CountryWikiExperience.tsx");
+    expect(wiki.indexOf("if (countriesQuery.isLoading)")).toBeLessThan(
+      wiki.indexOf("if (!country)"),
+    );
+    expect(wiki).toContain("archivePartial");
   });
 
   it("keeps Televoting data access out of the primary browser auth session", () => {
@@ -52,12 +56,13 @@ describe("archive readiness", () => {
   });
 
   it("uses compact wiki article navigation instead of an always-open page marathon", () => {
-    const wiki = source("routes/wiki/$code.tsx");
+    const wiki = source("components/wiki/CountryWikiExperience.tsx");
     expect(wiki).toContain('aria-label="Article contents"');
-    expect(wiki).toContain("<details id={id}");
-    expect(wiki).toContain('id="overview" className="wiki-article-lead');
-    expect(wiki).toContain('<WikiSection id="culture" title="Country, culture and media">');
-    expect(wiki).toContain('<WikiSection id="contest" title="Solaris Song Contest">');
-    expect(wiki).toContain("Quick facts about {country.name}");
+    expect(wiki).toContain("<details");
+    expect(wiki).toContain('id="introduction"');
+    expect(wiki).toContain("buildCountryWikiCustomSections");
+    expect(wiki).toContain('<WikiArticleSection id="solaris-song-contest" title="Solaris Song Contest"');
+    expect(wiki).toContain("Quick facts about ${country.name}");
+    expect(wiki).toContain("IntersectionObserver");
   });
 });

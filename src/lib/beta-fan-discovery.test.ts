@@ -125,7 +125,7 @@ describe("beta-informed fan discovery", () => {
 
   it("puts listening links on the main public entry surfaces", () => {
     const countryRoute = source("src/routes/countries/$code.tsx");
-    const wiki = source("src/routes/wiki/$code.tsx");
+    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
     const editionRoute = source("src/routes/editions/$slug.tsx");
     const component = source("src/components/EntryListenLinks.tsx");
     expect(countryRoute).toContain("<EntryListenLinks");

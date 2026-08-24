@@ -35,6 +35,12 @@ type PublicNavItem = {
   description?: string;
 };
 
+type DesktopContextGroup = {
+  label: string;
+  description: string;
+  items: PublicNavItem[];
+};
+
 const EXPLORE_NAV: PublicNavItem[] = [
   { to: "/editions", label: "Editions", description: "See every Solaris Song Contest edition" },
   { to: "/countries", label: "Countries", description: "See countries, entries and results" },
@@ -86,13 +92,72 @@ const PARTICIPATE_ROUTES = [
 ] as const;
 const ACCOUNT_ROUTES = ["/me", "/auth", "/my-solaris", "/country-hub"];
 
+const DESKTOP_CONTEXT_GROUPS: DesktopContextGroup[] = [
+  {
+    label: "Explore Solaris",
+    description: "Move between the public archives without returning to the home page.",
+    items: [
+      { to: "/editions", label: "Editions", description: "Contest archive" },
+      { to: "/countries", label: "Countries", description: "Delegations and records" },
+      { to: "/shows", label: "Shows", description: "Fields and broadcasts" },
+      { to: "/wiki", label: "Wiki", description: "Country articles" },
+      { to: "/results", label: "Results", description: "Rankings and scorecharts" },
+    ],
+  },
+  {
+    label: "Understand results",
+    description: "Move from a result into its patterns, relationships and records.",
+    items: [
+      { to: "/analysis", label: "Analysis", description: "Result patterns" },
+      { to: "/relationships", label: "Relationships", description: "Voting connections" },
+      { to: "/records", label: "Records", description: "All-time milestones" },
+      { to: "/scorecharts", label: "Scorecharts", description: "Detailed votes" },
+      { to: "/pulse", label: "Pulse", description: "Recent updates" },
+    ],
+  },
+  {
+    label: "Participate",
+    description: "All participant services stay in one connected workspace.",
+    items: [
+      { to: "/participate", label: "Start here", description: "Choose a service" },
+      { to: "/confirmations", label: "Confirmations", description: "Submit or edit an entry" },
+      { to: "/jury-voting", label: "Jury voting", description: "Send jury points" },
+      { to: "/televoting", label: "Televoting", description: "Vote as the audience" },
+      { to: "/next-in-line", label: "Next in Line", description: "Enter the side competition" },
+    ],
+  },
+  {
+    label: "Interactive tools",
+    description: "Compare, test and replay published Solaris data.",
+    items: [
+      { to: "/tools", label: "All tools", description: "Choose a tool" },
+      { to: "/predictions", label: "Predictions", description: "Build and track a prediction" },
+      { to: "/compare", label: "Compare", description: "Countries side by side" },
+      { to: "/result-lab", label: "Result Lab", description: "Test result scenarios" },
+      { to: "/taste-dna", label: "Taste DNA", description: "Explore voting taste" },
+      { to: "/broadcast-intelligence", label: "Broadcast", description: "Replay result moments" },
+      { to: "/archive-games", label: "Archive Games", description: "Play with history" },
+    ],
+  },
+  {
+    label: "My Solaris",
+    description: "Your personal activity, participation and country tools.",
+    items: [
+      { to: "/my-solaris", label: "My Solaris", description: "Personal overview" },
+      { to: "/country-hub", label: "Country workspace", description: "Country, entries and page" },
+      { to: "/confirmations", label: "My confirmation", description: "Open your response" },
+      { to: "/participate", label: "Participation", description: "Voting and submissions" },
+    ],
+  },
+];
+
 type PublicLayout = "home" | "reading" | "directory" | "detail" | "data" | "workspace" | "core";
 
 const PUBLIC_CANVAS_CLASS: Record<PublicLayout, string> = {
   home: "max-w-[1680px]",
   reading: "max-w-[1180px]",
   directory: "max-w-[1680px]",
-  detail: "max-w-[1520px]",
+  detail: "max-w-[1920px]",
   data: "max-w-[1680px]",
   workspace: "max-w-[1600px]",
   core: "max-w-[1440px]",
@@ -103,7 +168,7 @@ function publicLayoutForPath(pathname: string): PublicLayout {
 
   if (/^\/(guide|auth|reset|recover)(\/|$)/.test(pathname)) return "reading";
 
-  if (/^\/(analysis|relationships|records|scorecharts|broadcast-intelligence)(\/|$)/.test(pathname)) {
+  if (/^\/(analysis|relationships|records|scorecharts|pulse|broadcast-intelligence)(\/|$)/.test(pathname)) {
     return "data";
   }
 
@@ -125,6 +190,12 @@ function pathMatches(pathname: string, route: string) {
 
 function anyPathMatches(pathname: string, routes: readonly string[]) {
   return routes.some((route) => pathMatches(pathname, route));
+}
+
+function desktopContextForPath(pathname: string) {
+  return DESKTOP_CONTEXT_GROUPS.find((group) =>
+    group.items.some((item) => pathMatches(pathname, item.to)),
+  ) ?? null;
 }
 
 function productEyebrow(eyebrow?: string) {
@@ -216,6 +287,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const accountHref = email ? "/my-solaris" : "/auth";
   const publicLayout = publicLayoutForPath(pathname);
+  const desktopContext = (
+    ["directory", "data", "workspace"].includes(publicLayout) ||
+    (publicLayout === "detail" && !pathname.startsWith("/wiki/"))
+  )
+    ? desktopContextForPath(pathname)
+    : null;
   const visibleAccountEmail =
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const resultsActive = pathMatches(pathname, "/results");
@@ -513,16 +590,32 @@ export function AppShell({ children }: { children: ReactNode }) {
           PUBLIC_CANVAS_CLASS[publicLayout],
         )}
       >
-        {isHomePage && (
-          <Suspense fallback={null}>
-            <LazyHomeAnniversaryTakeover />
-          </Suspense>
-        )}
-        {children}
-        {isEditionPage && (
-          <Suspense fallback={null}>
-            <LazyEditionHostingExtension pathname={pathname} />
-          </Suspense>
+        {desktopContext ? (
+          <div className="desktop-context-layout">
+            <DesktopContextRail group={desktopContext} pathname={pathname} />
+            <div className="desktop-context-content min-w-0">
+              {children}
+              {isEditionPage && (
+                <Suspense fallback={null}>
+                  <LazyEditionHostingExtension pathname={pathname} />
+                </Suspense>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {isHomePage && (
+              <Suspense fallback={null}>
+                <LazyHomeAnniversaryTakeover />
+              </Suspense>
+            )}
+            {children}
+            {isEditionPage && (
+              <Suspense fallback={null}>
+                <LazyEditionHostingExtension pathname={pathname} />
+              </Suspense>
+            )}
+          </>
         )}
       </main>
 
@@ -552,6 +645,40 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
     </div>
+  );
+}
+
+function DesktopContextRail({
+  group,
+  pathname,
+}: {
+  group: DesktopContextGroup;
+  pathname: string;
+}) {
+  return (
+    <aside className="desktop-context-rail hidden lg:block">
+      <nav aria-label={`${group.label} navigation`}>
+        <p className="desktop-context-label">{group.label}</p>
+        <p className="desktop-context-description">{group.description}</p>
+        <div className="desktop-context-links">
+          {group.items.map((item) => {
+            const active = pathMatches(pathname, item.to);
+            return (
+              <Link
+                key={item.to}
+                to={item.to as any}
+                aria-current={active ? "page" : undefined}
+                className={cn("desktop-context-link", active && "is-active")}
+              >
+                <span>{item.label}</span>
+                {item.description && <small>{item.description}</small>}
+              </Link>
+            );
+          })}
+        </div>
+        <Link to="/guide" className="desktop-context-guide">Need help? Open the Guide →</Link>
+      </nav>
+    </aside>
   );
 }
 

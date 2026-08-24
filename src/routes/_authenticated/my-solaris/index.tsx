@@ -496,7 +496,7 @@ function MySolarisTabs({
       </label>
 
       <nav
-        className="scroll-slim hidden gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-surface/55 p-1.5 md:flex"
+        className="my-solaris-section-nav scroll-slim hidden gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-surface/95 p-1.5 md:flex"
         aria-label="MySolaris sections"
       >
         {TABS.map(({ id, label, icon: Icon }) => (

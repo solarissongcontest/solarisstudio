@@ -2,7 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { ChevronDown, Crown, Music2 } from "lucide-react";
 
 import { Panel } from "@/components/AppShell";
-import { useCountryNationalFinals } from "@/lib/national-finals";
+import {
+  useCountryNationalFinals,
+  type PublicNationalFinal,
+} from "@/lib/national-finals";
 import type { Country } from "@/lib/data";
 
 function formatDate(value: string | null) {
@@ -17,9 +20,35 @@ function humanPosition(value: number | null, fallback: number) {
 }
 
 export function CountryNationalFinals({ country }: { country: Country }) {
-  const { data: finals, isLoading } = useCountryNationalFinals(country.id);
+  const query = useCountryNationalFinals(country.id);
+  return (
+    <CountryNationalFinalsContent
+      country={country}
+      finals={query.data}
+      isLoading={query.isLoading}
+      isError={query.isError}
+    />
+  );
+}
+
+export function CountryNationalFinalsContent({
+  country,
+  finals,
+  isLoading = false,
+  isError = false,
+  mode = "country",
+}: {
+  country: Country;
+  finals?: PublicNationalFinal[];
+  isLoading?: boolean;
+  isError?: boolean;
+  mode?: "country" | "wiki";
+}) {
 
   if (isLoading) {
+    if (mode === "wiki") {
+      return <p className="text-sm text-muted-foreground">Loading national-final history…</p>;
+    }
     return (
       <Panel title="National finals" description="Selection history and competing songs">
         <p className="text-sm text-muted-foreground">Loading national-final history…</p>
@@ -27,13 +56,25 @@ export function CountryNationalFinals({ country }: { country: Country }) {
     );
   }
 
+  if (isError) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {mode === "wiki"
+          ? "National-final history is temporarily unavailable. The rest of this Wiki article is still available."
+          : "National-final history is temporarily unavailable. The rest of this country page is still available."}
+      </p>
+    );
+  }
+
   if (!finals?.length) return null;
 
-  return (
-    <Panel
-      title="National finals"
-      description="Open a selection to see its published running order and, once released, its results."
-    >
+  const content = (
+    <div>
+      {mode === "wiki" && (
+        <p className="mb-4 max-w-[72ch] text-sm leading-7 text-muted-foreground">
+          Open a selection to see its published running order and, once released, its result.
+        </p>
+      )}
       <div className="space-y-2">
         {finals.map((nationalFinal) => {
           const runningOrder = [...nationalFinal.entries].sort(
@@ -173,6 +214,17 @@ export function CountryNationalFinals({ country }: { country: Country }) {
           );
         })}
       </div>
+    </div>
+  );
+
+  if (mode === "wiki") return content;
+
+  return (
+    <Panel
+      title="National finals"
+      description="Open a selection to see its published running order and, once released, its results."
+    >
+      {content}
     </Panel>
   );
 }
