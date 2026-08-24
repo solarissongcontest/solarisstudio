@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
@@ -71,17 +72,28 @@ export const Route = createFileRoute("/shows/$showId")({
 function ShowPage() {
   const { showId } = Route.useParams();
   const search = Route.useSearch();
-  const { data: show, isLoading } = useShow(showId);
-  const { data: participants } = usePublicShowParticipants(showId);
-  const { data: archivedResults } = useResults(showId);
-  const { data: jury } = useJuryVotes(showId);
-  const { data: tele } = useTelevotes(showId);
-  const { data: voters } = useShowVoters(showId);
-  const { data: countries } = useCountries();
-  const { data: allResults } = useAllResults();
-  const { data: allShows } = useAllShows();
-  const { data: themes } = useThemes();
-  const { data: entities } = useContestEntities(show?.edition_id);
+  const showQuery = useShow(showId);
+  const participantsQuery = usePublicShowParticipants(showId);
+  const resultsQuery = useResults(showId);
+  const juryQuery = useJuryVotes(showId);
+  const televoteQuery = useTelevotes(showId);
+  const votersQuery = useShowVoters(showId);
+  const countriesQuery = useCountries();
+  const allResultsQuery = useAllResults();
+  const allShowsQuery = useAllShows();
+  const themesQuery = useThemes();
+  const entitiesQuery = useContestEntities(showQuery.data?.edition_id);
+  const { data: show } = showQuery;
+  const { data: participants } = participantsQuery;
+  const { data: archivedResults } = resultsQuery;
+  const { data: jury } = juryQuery;
+  const { data: tele } = televoteQuery;
+  const { data: voters } = votersQuery;
+  const { data: countries } = countriesQuery;
+  const { data: allResults } = allResultsQuery;
+  const { data: allShows } = allShowsQuery;
+  const { data: themes } = themesQuery;
+  const { data: entities } = entitiesQuery;
 
   const publication = useMemo(
     () => resolveShowPublication(show),
@@ -266,13 +278,9 @@ function ShowPage() {
     if (!valid) setTab(tabOptions[0].value);
   }, [tab, tabOptions]);
 
-  if (isLoading) {
-    return (
-      <AppShell>
-        <p className="text-sm text-muted-foreground">Loading show…</p>
-      </AppShell>
-    );
-  }
+  const archiveQueries = [showQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery, votersQuery, countriesQuery, allResultsQuery, allShowsQuery, themesQuery, entitiesQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading show…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   if (!show) {
     return (

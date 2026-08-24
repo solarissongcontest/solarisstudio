@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
@@ -73,13 +75,20 @@ function CountryWikiRoute() {
 
 function CountryWikiPage() {
   const { code } = Route.useParams();
-  const { data: countries } = useCountries();
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: participants } = useAllParticipants();
-  const { data: results } = useAllResults();
-  const { data: jury } = useAllJuryVotes();
-  const { data: televote } = useAllTelevotes();
+  const countriesQuery = useCountries();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const participantsQuery = useAllParticipants();
+  const resultsQuery = useAllResults();
+  const juryQuery = useAllJuryVotes();
+  const televoteQuery = useAllTelevotes();
+  const { data: countries } = countriesQuery;
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: results } = resultsQuery;
+  const { data: jury } = juryQuery;
+  const { data: televote } = televoteQuery;
 
   const country = (countries ?? []).find(
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
@@ -109,6 +118,10 @@ function CountryWikiPage() {
     () => (country ? computeCountryForm(country.id, opts) : null),
     [country, opts],
   );
+
+  const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery, world];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading wiki article…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   if (!country) {
     return (
@@ -222,22 +235,38 @@ function CountryWikiPage() {
           </div>
         </section>
 
+        <nav aria-label="Article contents" className="country-personality-card mb-5 overflow-x-auto rounded-2xl border border-border/60 bg-surface/65 p-2 [scrollbar-width:none]">
+          <div className="flex min-w-max items-center gap-1">
+            <span className="px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Contents</span>
+            {[
+              ["overview", "Overview"],
+              ["culture", "Country"],
+              ["contest", "Contest"],
+              ["national-finals", "National finals"],
+              ["character", "Character"],
+              ["facts", "Facts"],
+            ].map(([id, label]) => <a key={id} href={`#${id}`} className="rounded-lg px-2.5 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-surface-strong hover:text-foreground">{label}</a>)}
+          </div>
+        </nav>
+
         <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_310px] lg:items-start">
           <article className="min-w-0 space-y-6">
-            <WikiSection title="Overview">
+            <WikiSection id="overview" title="Overview" defaultOpen>
               <p className="whitespace-pre-wrap">{authoredOverview}</p>
               {profile?.motto && <blockquote className="mt-4 border-l-2 border-primary/50 pl-4 font-display italic text-foreground">“{profile.motto}”</blockquote>}
             </WikiSection>
 
-            <CountryCustomSections
-              country={country}
-              profile={profile}
-              sections={contentSections}
-              media={media}
-              surface="wiki"
-            />
+            <WikiSection id="culture" title="Country, culture and media">
+              <CountryCustomSections
+                country={country}
+                profile={profile}
+                sections={contentSections}
+                media={media}
+                surface="wiki"
+              />
+            </WikiSection>
 
-            <WikiSection title="Solaris Song Contest">
+            <WikiSection id="contest" title="Solaris Song Contest">
               {stats && stats.participations > 0 ? (
                 <>
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -285,9 +314,11 @@ function CountryWikiPage() {
               ) : <p>{country.name} has no published Solaris Song Contest history yet.</p>}
             </WikiSection>
 
-            <CountryNationalFinals country={country} />
+            <WikiSection id="national-finals" title="National finals">
+              <CountryNationalFinals country={country} />
+            </WikiSection>
 
-            <section className="country-personality-card glass overflow-hidden p-5 sm:p-6">
+            <WikiSection id="character" title="Solaris character read">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Solaris character read</p>
               <h2 className="mt-2 font-display text-2xl font-semibold">{character.title}</h2>
               <p className="mt-3 text-sm leading-7 text-muted-foreground">{character.summary}</p>
@@ -298,10 +329,10 @@ function CountryWikiPage() {
                   ))}
                 </div>
               )}
-            </section>
+            </WikiSection>
 
             {facts.length > 0 && (
-              <section className="country-personality-card glass p-5 sm:p-6">
+              <WikiSection id="facts" title="Fun facts">
                 <div className="mb-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">From the national record</p>
                   <h2 className="mt-1 font-display text-xl font-semibold">Fun facts</h2>
@@ -319,7 +350,7 @@ function CountryWikiPage() {
                     </div>
                   ))}
                 </div>
-              </section>
+              </WikiSection>
             )}
           </article>
 
@@ -343,12 +374,15 @@ function CountryWikiPage() {
   );
 }
 
-function WikiSection({ title, children }: { title: string; children: React.ReactNode }) {
+function WikiSection({ id, title, children, defaultOpen = false }: { id: string; title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
-    <section className="country-personality-card min-w-0 border-b border-border/60 p-4 sm:p-5">
-      <h2 className="border-b border-border/60 pb-2 font-display text-xl font-semibold sm:text-2xl">{title}</h2>
-      <div className="mt-4 text-sm leading-7 text-muted-foreground">{children}</div>
-    </section>
+    <details id={id} open={defaultOpen} className="country-personality-card group min-w-0 scroll-mt-24 overflow-hidden rounded-2xl border border-border/60 bg-surface/25">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 p-4 font-display text-xl font-semibold marker:hidden sm:px-5 sm:text-2xl">
+        <span>{title}</span>
+        <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="border-t border-border/60 p-4 text-sm leading-7 text-muted-foreground sm:p-5">{children}</div>
+    </details>
   );
 }
 

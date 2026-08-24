@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
@@ -29,17 +30,24 @@ export const Route = createFileRoute("/editions/$slug")({
 
 function EditionPage() {
   const { slug } = Route.useParams();
-  const { data: edition, isLoading } = useEdition(slug);
-  const { data: shows } = useShows(edition?.id);
-  const { data: participants } = usePublicEditionParticipants(edition?.id);
-  const { data: countries } = useCountries();
-  const { data: entities } = useContestEntities(edition?.id);
-  const { data: allResults } = useAllResults();
-  const { data: allShows } = useAllShows();
+  const editionQuery = useEdition(slug);
+  const { data: edition } = editionQuery;
+  const showsQuery = useShows(edition?.id);
+  const participantsQuery = usePublicEditionParticipants(edition?.id);
+  const countriesQuery = useCountries();
+  const entitiesQuery = useContestEntities(edition?.id);
+  const resultsQuery = useAllResults();
+  const allShowsQuery = useAllShows();
+  const { data: shows } = showsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: countries } = countriesQuery;
+  const { data: entities } = entitiesQuery;
+  const { data: allResults } = resultsQuery;
+  const { data: allShows } = allShowsQuery;
+  const archiveQueries = [editionQuery, showsQuery, participantsQuery, countriesQuery, entitiesQuery, resultsQuery, allShowsQuery];
 
-  if (isLoading) {
-    return <AppShell><p className="text-sm text-muted-foreground">Loading edition…</p></AppShell>;
-  }
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading edition…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   if (!edition) {
     return (

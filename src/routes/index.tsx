@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
 import { PulseStrip } from "@/components/PulseStrip";
@@ -74,10 +75,14 @@ const CORE_DESTINATIONS = [
 ] as const;
 
 function HomePage() {
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: countries } = useCountries();
-  const { data: results } = useAllResults();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const countriesQuery = useCountries();
+  const resultsQuery = useAllResults();
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: countries } = countriesQuery;
+  const { data: results } = resultsQuery;
 
   const editionList = useMemo(
     () => (editions ?? []).filter((edition) => edition.published),
@@ -190,6 +195,10 @@ function HomePage() {
     newsroomStories.find((story) => story.intensity === "breaking") ??
     newsroomStories[0] ??
     leadStory;
+
+  const archiveQueries = [editionsQuery, showsQuery, countriesQuery, resultsQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading Solaris Today…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

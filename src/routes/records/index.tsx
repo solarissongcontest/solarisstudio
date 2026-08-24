@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
@@ -42,12 +43,18 @@ const CATEGORY_LABELS: Record<FanRecordCategory, string> = {
 };
 
 function RecordsPage() {
-  const { data: countries } = useCountries();
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: participants } = useAllParticipants();
-  const { data: results } = useAllResults();
-  const { data: jury } = useAllJuryVotes();
+  const countriesQuery = useCountries();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const participantsQuery = useAllParticipants();
+  const resultsQuery = useAllResults();
+  const juryQuery = useAllJuryVotes();
+  const { data: countries } = countriesQuery;
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: results } = resultsQuery;
+  const { data: jury } = juryQuery;
   const [tab, setTab] = useState<Tab>("all");
 
   const records = useMemo(
@@ -77,6 +84,10 @@ function RecordsPage() {
       ).size,
     [results, showById],
   );
+
+  const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Hall of records" title="Records" description="Verified records from the published archive." /><ArchiveDataLoading label="Calculating records from the archive…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Hall of records" title="Records" description="Verified records from the published archive." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

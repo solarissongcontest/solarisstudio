@@ -107,18 +107,14 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
 
   if (state !== "allowed") {
     return (
-      <AdminShell>
-        <AdminPage>
-          <div className="mx-auto max-w-xl">
-            <AdminCard strong>
-              <div className="flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.06] text-sky-100"><ShieldCheck className="size-4" /></span>
-                <div className="min-w-0"><p className="text-sm font-semibold text-foreground">{state === "checking" ? "Checking organizer access…" : "Opening the authorized workspace…"}</p><p className="mt-1 text-xs text-muted-foreground">Solaris is verifying the current organizer session.</p></div>
-              </div>
-            </AdminCard>
+      <main className="grid min-h-[60vh] place-items-center px-4" aria-busy="true">
+        <div className="glass w-full max-w-xl p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.06] text-sky-100"><ShieldCheck className="size-4" /></span>
+            <div className="min-w-0"><p className="text-sm font-semibold text-foreground">{state === "checking" ? "Checking organizer access…" : "Opening sign in…"}</p><p className="mt-1 text-xs text-muted-foreground">Solaris is verifying the current organizer session.</p></div>
           </div>
-        </AdminPage>
-      </AdminShell>
+        </div>
+      </main>
     );
   }
 

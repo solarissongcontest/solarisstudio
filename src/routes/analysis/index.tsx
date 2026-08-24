@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { ChordDiagram } from "@/components/viz/ChordDiagram";
@@ -47,12 +48,18 @@ const ANALYSIS_TABS = [
 type Tab = (typeof ANALYSIS_TABS)[number]["value"];
 
 function AnalysisPage() {
-  const { data: countries } = useCountries();
-  const { data: rawJury } = useAllJuryVotes();
-  const { data: rawResults } = useAllResults();
-  const { data: rawShows } = useAllShows();
-  const { data: rawEditions } = useEditions();
-  const { data: rawParticipants } = useAllParticipants();
+  const countriesQuery = useCountries();
+  const juryQuery = useAllJuryVotes();
+  const resultsQuery = useAllResults();
+  const showsQuery = useAllShows();
+  const editionsQuery = useEditions();
+  const participantsQuery = useAllParticipants();
+  const { data: countries } = countriesQuery;
+  const { data: rawJury } = juryQuery;
+  const { data: rawResults } = resultsQuery;
+  const { data: rawShows } = showsQuery;
+  const { data: rawEditions } = editionsQuery;
+  const { data: rawParticipants } = participantsQuery;
 
   const [filters, setFilters] = useState<AnalysisFiltersState>(DEFAULT_ANALYSIS_FILTERS);
   const [tab, setTab] = useState<Tab>("discover");
@@ -230,6 +237,10 @@ function AnalysisPage() {
     ? cMap.get(intelligence.loyaltyScore[0].countryId)
     : undefined;
   const regionFocused = bias[0] ? cMap.get(bias[0].id) : undefined;
+  const archiveQueries = [countriesQuery, juryQuery, resultsQuery, showsQuery, editionsQuery, participantsQuery];
+
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Results intelligence" title="Analysis" description="Stories and patterns from published results." /><ArchiveDataLoading label="Building analysis from the archive…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Results intelligence" title="Analysis" description="Stories and patterns from published results." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

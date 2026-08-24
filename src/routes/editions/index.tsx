@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -34,10 +35,14 @@ type EditionCard = {
 };
 
 function EditionsPage() {
-  const { data: editions, isLoading } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: results } = useAllResults();
-  const { data: countries } = useCountries();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const resultsQuery = useAllResults();
+  const countriesQuery = useCountries();
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: results } = resultsQuery;
+  const { data: countries } = countriesQuery;
 
   const editionList = useMemo(
     () =>
@@ -116,6 +121,10 @@ function EditionsPage() {
 
   const latest = cards[0] ?? null;
   const archive = cards.slice(1);
+  const archiveQueries = [editionsQuery, showsQuery, resultsQuery, countriesQuery];
+
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Contest archive" title="Editions" description="Every published Solaris chapter, from the latest contest back through the archive." /><ArchiveDataLoading label="Loading editions and results…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Contest archive" title="Editions" description="Every published Solaris chapter, from the latest contest back through the archive." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>
@@ -124,8 +133,6 @@ function EditionsPage() {
         title="Editions"
         description="Every published Solaris chapter, from the latest contest back through the archive."
       />
-
-      {isLoading && <p className="text-sm text-muted-foreground">Loading editions…</p>}
 
       {latest && <LatestEdition card={latest} />}
 
@@ -147,7 +154,7 @@ function EditionsPage() {
         </section>
       )}
 
-      {!isLoading && cards.length === 0 && (
+      {cards.length === 0 && (
         <div className="glass p-5 text-sm text-muted-foreground">No editions are public yet.</div>
       )}
     </AppShell>

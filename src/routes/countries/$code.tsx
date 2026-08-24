@@ -11,6 +11,7 @@ import {
 } from "recharts";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { CountryWorldOverview } from "@/components/CountryWorldOverview";
@@ -68,13 +69,20 @@ type Tab = (typeof TABS)[number]["value"];
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
-  const { data: countries } = useCountries();
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: participants } = useAllParticipants();
-  const { data: results } = useAllResults();
-  const { data: jury } = useAllJuryVotes();
-  const { data: televote } = useAllTelevotes();
+  const countriesQuery = useCountries();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const participantsQuery = useAllParticipants();
+  const resultsQuery = useAllResults();
+  const juryQuery = useAllJuryVotes();
+  const televoteQuery = useAllTelevotes();
+  const { data: countries } = countriesQuery;
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: results } = resultsQuery;
+  const { data: jury } = juryQuery;
+  const { data: televote } = televoteQuery;
   const [tab, setTab] = useState<Tab>("overview");
 
   const country = (countries ?? []).find(
@@ -104,6 +112,10 @@ function CountryProfilePage() {
     () => (country ? computeCountryForm(country.id, opts) : null),
     [country, opts],
   );
+
+  const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading country profile…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   if (!country) {
     return (

@@ -3,6 +3,7 @@ import { ArrowRight, BarChart3, Beaker, GitCompareArrows, Table2, Trophy } from 
 import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
@@ -34,12 +35,18 @@ export const Route = createFileRoute("/results/")({
 });
 
 function ResultsOverviewPage() {
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: results } = useAllResults();
-  const { data: participants } = useAllParticipants();
-  const { data: countries } = useCountries();
-  const { data: entities } = useAllContestEntities();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const resultsQuery = useAllResults();
+  const participantsQuery = useAllParticipants();
+  const countriesQuery = useCountries();
+  const entitiesQuery = useAllContestEntities();
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: results } = resultsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: countries } = countriesQuery;
+  const { data: entities } = entitiesQuery;
 
   const displayMap = useMemo(
     () => entityDisplayMap(entities ?? [], countries ?? []),
@@ -84,6 +91,10 @@ function ResultsOverviewPage() {
   const winner = winnerRow ? displayMap.get(winnerRow.country_id) ?? null : null;
   const margin = winnerRow && runnerUp ? winnerRow.total_points - runnerUp.total_points : null;
   const publication = latestShow ? resolveShowPublication(latestShow) : null;
+  const archiveQueries = [editionsQuery, showsQuery, resultsQuery, participantsQuery, countriesQuery, entitiesQuery];
+
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Results overview" title="Results" description="Published rankings, voting splits and scorecharts." /><ArchiveDataLoading label="Loading published results…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Results overview" title="Results" description="Published rankings, voting splits and scorecharts." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>
