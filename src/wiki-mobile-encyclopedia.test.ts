@@ -10,45 +10,42 @@ describe("mobile Wiki encyclopedia layout", () => {
     expect(styles.indexOf("{wikiMobileStyles}")).toBeGreaterThan(styles.indexOf("{wikiRestorationStyles}"));
   });
 
-  it("keeps the mobile masthead flat and compact instead of poster-sized", () => {
+  it("keeps the mobile masthead compact without stripping personality artwork", () => {
     expect(mobile).toContain('.wiki-canvas .country-wiki-header {');
     expect(mobile).toContain("min-height: 0 !important;");
-    expect(mobile).toContain("border-radius: 0 !important;");
-    expect(mobile).toContain("width: 3.6rem !important;");
-    expect(mobile).toContain(".country-personality-signature,");
-    expect(mobile).toContain("display: none !important;");
+    expect(mobile).toContain("border-radius: .85rem !important;");
+    expect(mobile).toContain("width: 3.8rem !important;");
+    expect(mobile).not.toContain('.country-wiki-header .country-personality-signature,\n  body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .country-hero-background-flag');
   });
 
-  it("neutralises personality card geometry with a selector strong enough to win on mobile", () => {
+  it("restores one compact card per mobile Wiki section", () => {
     expect(mobile).toContain('body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas :is(.wiki-introduction, .wiki-article-section)');
-    expect(mobile).toContain("border: 0 !important;");
-    expect(mobile).toContain("border-radius: 0 !important;");
-    expect(mobile).toContain("background: transparent !important;");
-    expect(mobile).toContain("box-shadow: none !important;");
+    expect(mobile).toContain("border: 1px solid rgb(var(--solaris-accent) / .15) !important;");
+    expect(mobile).toContain("border-radius: .82rem !important;");
+    expect(mobile).toContain("gap: .55rem !important;");
   });
 
-  it("uses a Wikipedia-style lead without a duplicate Introduction heading on phones", () => {
-    expect(mobile).toContain('.wiki-introduction :is(.wiki-section-kicker, h2, .wiki-heading-rule)');
-    expect(mobile).toContain("display: none !important;");
+  it("keeps Introduction visible but compact", () => {
+    expect(mobile).toContain('.wiki-canvas .wiki-introduction h2');
+    expect(mobile).toContain("font-size: 1.02rem !important;");
+    expect(mobile).toContain("padding: .88rem .9rem .94rem !important;");
   });
 
-  it("renders sections as compact article dividers rather than stacked cards", () => {
-    expect(mobile).toContain('.wiki-canvas .wiki-article-section {\n    border-top: 1px solid');
-    expect(mobile).toContain("min-height: 2.9rem !important;");
-    expect(mobile).toContain("padding: .58rem .05rem !important;");
+  it("keeps section cards much smaller than the old slabs", () => {
+    expect(mobile).toContain("min-height: 3rem !important;");
+    expect(mobile).toContain("padding: .66rem .78rem !important;");
+    expect(mobile).toContain("font-size: .94rem !important;");
+  });
+
+  it("preserves personality-specific mobile card treatments", () => {
+    expect(mobile).toContain('[data-country-hero-layout="editorial"]');
+    expect(mobile).toContain('[data-country-hero-layout="broadcast"]');
+    expect(mobile).toContain('[data-country-hero-layout="glass-card"]');
+    expect(mobile).toContain('[data-country-hero-layout="passport"]');
   });
 
   it("keeps mobile article headings and reading UI in Gotham", () => {
     expect(mobile).toContain('.wiki-canvas .wiki-article-section > summary h2');
     expect(mobile).toContain('font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;');
-    expect(mobile).toContain("font-size: .95rem !important;");
-  });
-
-  it("makes Contents and Quick facts inline article utilities rather than a floating card", () => {
-    expect(mobile).toContain(".wiki-mobile-tools {");
-    expect(mobile).toContain("position: static !important;");
-    expect(mobile).toContain(".wiki-mobile-toolbar {");
-    expect(mobile).toContain("border-radius: 0 !important;");
-    expect(mobile).toContain("box-shadow: none !important;");
   });
 });
