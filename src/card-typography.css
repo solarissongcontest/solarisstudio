@@ -26,6 +26,15 @@ body {
   font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ThemeConfig can still contain old saved font names. Any rendered themeVars
+   surface is forced back to the Solaris font system so legacy data cannot bring
+   an abandoned typeface back into broadcasts or previews. */
+[style*="--t-font-body"] {
+  --t-font-display: "Classica Crastao", Georgia, serif !important;
+  --t-font-body: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+}
+
 /*
  * Final public UI guard.
  *
