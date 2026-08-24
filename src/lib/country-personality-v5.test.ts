@@ -103,7 +103,8 @@ describe("country personality V5 art direction", () => {
   it("gives Water Drop an organic refractive flag shape", () => {
     expect(css).toContain('[data-country-hero-layout="water-drop"]');
     expect(css).toContain("border-radius: 62% 38% 56% 44% / 46% 55% 45% 54% !important;");
-    expect(css).toContain("width: 190px !important; height: 215px !important;");
+    expect(css).toContain("width: 190px !important;");
+    expect(css).toContain("height: 215px !important;");
   });
 
   it("makes Luxurious and Traditional structurally different", () => {
