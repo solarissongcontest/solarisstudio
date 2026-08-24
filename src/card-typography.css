@@ -7,13 +7,31 @@
 @import "./edition-show-parity.css";
 
 /*
+ * Canonical Solaris typography.
+ *
+ * Gotham is the default UI/reading face. Classica Crastao is reserved for
+ * genuinely large editorial/page headlines. These variables intentionally
+ * override the older bootstrap defaults from styles.css on every route.
+ */
+:root {
+  --font-display: "Classica Crastao", Georgia, serif;
+  --font-sans: "Gotham", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+:where(p, label, button, input, textarea, select, a, li, dt, dd, table, th, td) {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
  * Final public UI guard.
  *
- * Classica Crastao is reserved for genuinely large editorial/page headlines.
  * Card titles, panel titles, utility headings and numeric stats stay in Gotham,
  * even when older components still carry Tailwind's `font-display` utility.
  */
-
 h3.font-display,
 h4.font-display,
 h5.font-display,
@@ -32,6 +50,7 @@ h6.font-display,
 .display-headline,
 .page-header h1,
 h1.font-display,
+.country-hero-title,
 .site-nav .font-display {
   font-family: "Classica Crastao", Georgia, serif !important;
   font-weight: 400 !important;
