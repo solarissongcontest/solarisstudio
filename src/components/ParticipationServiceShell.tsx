@@ -32,7 +32,7 @@ export function ParticipationServiceShell({
   description,
   children,
   actions = [],
-  maxWidth = "max-w-5xl",
+  maxWidth = "max-w-7xl",
 }: {
   service: ParticipationService;
   title: string;
@@ -61,7 +61,7 @@ export function ParticipationServiceShell({
     <div className={cn("mx-auto min-w-0", maxWidth)}>
       <nav
         aria-label="Participation services"
-        className="mb-4 grid min-w-0 grid-cols-2 gap-1.5 rounded-2xl border border-border/60 bg-surface/35 p-1.5 sm:mb-5 sm:flex"
+        className="participation-service-nav mb-4 grid min-w-0 grid-cols-2 gap-1.5 rounded-2xl border border-border/60 bg-surface/95 p-1.5 sm:mb-5 sm:flex"
       >
         <ServiceTab
           to="/confirmations"

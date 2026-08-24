@@ -56,6 +56,7 @@ const PERSONALITIES: Array<{ value: CountryHeroLayout; label: string; descriptio
   { value: "duotone", label: "Duotone", description: "Asymmetric two-colour geometry with strong graphic contrast." },
   { value: "passport", label: "Passport", description: "Compact official-document styling with security-print details." },
   { value: "horizon", label: "Horizon", description: "Calm lower-weighted composition with a clean horizon structure." },
+  { value: "heritage", label: "Heritage", description: "Archival elegance, ornamental rules and a traditional cultural character." },
 ];
 
 const DECORATIONS: Array<{
@@ -85,6 +86,26 @@ const DECORATIONS: Array<{
   { value: "eclipse", label: "Eclipse", description: "A dramatic off-centre halo with restrained light and depth." },
 ];
 
+const RECOMMENDED_DECORATIONS: Record<CountryHeroLayout, CountryDecorationStyle[]> = {
+  classic: ["auto", "flag", "orbits"],
+  editorial: ["auto", "grid", "none"],
+  minimal: ["none"],
+  "flag-focus": ["flag", "auto"],
+  poster: ["auto", "rays", "flag"],
+  split: ["auto", "flag", "facets"],
+  spotlight: ["auto", "eclipse", "orbits"],
+  broadcast: ["auto", "grid", "flag"],
+  panorama: ["auto", "waves", "aurora"],
+  monument: ["auto", "topography", "orbits"],
+  "glass-card": ["auto", "flag", "none"],
+  newspaper: ["none", "grid"],
+  ribbon: ["auto", "flag", "facets"],
+  duotone: ["auto", "facets", "rays"],
+  passport: ["auto", "flag", "grid"],
+  horizon: ["auto", "waves", "flag"],
+  heritage: ["auto", "topography", "constellation"],
+};
+
 function CountryThemePage() {
   const { country: targetCountryId } = Route.useSearch();
   const { data: accountData, isLoading } = useMyCountryAccount();
@@ -102,6 +123,7 @@ function CountryThemePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"country" | "wiki">("country");
 
   useEffect(() => {
     const existing = countryThemeToVisual(savedTheme);
@@ -231,8 +253,21 @@ function CountryThemePage() {
       flagImage={country.flag_image}
       theme={theme}
       previewStyle={previewStyle}
+      mode={previewMode}
     />
   );
+  const recommendedDecorations = RECOMMENDED_DECORATIONS[theme.heroLayout];
+  const decorationOptions = DECORATIONS
+    .filter(({ value }) =>
+      theme.heroLayout === "glass-card"
+        ? ["auto", "none", "flag"].includes(value)
+        : true,
+    )
+    .sort((a, b) => {
+      const aRank = recommendedDecorations.indexOf(a.value);
+      const bRank = recommendedDecorations.indexOf(b.value);
+      return (aRank < 0 ? 99 : aRank) - (bRank < 0 ? 99 : bRank);
+    });
 
   return (
     <AppShell>
@@ -563,14 +598,20 @@ function CountryThemePage() {
                           : current.decorationStyle,
                     }))
                   }
-                  className={`min-h-24 rounded-xl border p-3 text-left transition-colors ${
+                  className={`group min-h-32 overflow-hidden rounded-xl border p-2 text-left transition-colors ${
                     theme.heroLayout === value
                       ? "border-primary bg-primary/10"
                       : "border-border bg-surface hover:bg-surface-strong"
                   }`}
                 >
-                  <span className="block text-sm font-semibold">{label}</span>
-                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  <PersonalityMiniature
+                    layout={value}
+                    countryName={country.name}
+                    flagImage={country.flag_image}
+                    theme={theme}
+                  />
+                  <span className="mt-2 block px-1 text-sm font-semibold">{label}</span>
+                  <span className="mt-1 block px-1 pb-1 text-[11px] leading-4 text-muted-foreground">
                     {description}
                   </span>
                 </button>
@@ -587,11 +628,7 @@ function CountryThemePage() {
             }
           >
             <div className="grid gap-2 sm:grid-cols-2">
-              {DECORATIONS.filter(({ value }) =>
-                theme.heroLayout === "glass-card"
-                  ? ["auto", "none", "flag"].includes(value)
-                  : true,
-              ).map(({ value, label, description }) => (
+              {decorationOptions.map(({ value, label, description }) => (
                 <button
                   key={value}
                   type="button"
@@ -607,7 +644,12 @@ function CountryThemePage() {
                     flagImage={country.flag_image}
                     accent={theme.accent}
                   />
-                  <span className="block text-sm font-semibold">{label}</span>
+                  <span className="flex items-center justify-between gap-2 text-sm font-semibold">
+                    {label}
+                    {recommendedDecorations.includes(value) && (
+                      <small className="rounded-full bg-primary/10 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-primary">Recommended</small>
+                    )}
+                  </span>
                   <span className="mt-1 block text-xs leading-5 text-muted-foreground">
                     {description}
                   </span>
@@ -655,7 +697,10 @@ function CountryThemePage() {
         <div className="hidden xl:block xl:sticky xl:top-24 xl:self-start">
           <Panel
             title="Live preview"
-            description="This uses your real flag and your current unsaved settings."
+            description="Switch between the country dashboard and Wiki before saving."
+            actions={
+              <PreviewModeSwitch value={previewMode} onChange={setPreviewMode} />
+            }
           >
             {preview}
           </Panel>
@@ -701,6 +746,7 @@ function CountryThemePage() {
                 <X className="size-4" />
               </button>
             </div>
+            <PreviewModeSwitch value={previewMode} onChange={setPreviewMode} />
             {preview}
             <button
               type="button"
@@ -736,6 +782,7 @@ function CountryThemePreview({
   flagImage,
   theme,
   previewStyle,
+  mode,
 }: {
   countryName: string;
   region: string;
@@ -743,6 +790,7 @@ function CountryThemePreview({
   flagImage: string | null;
   theme: CountryVisualTheme;
   previewStyle: React.CSSProperties;
+  mode: "country" | "wiki";
 }) {
   const layout = theme.heroLayout;
   const decoration = effectiveDecoration(theme);
@@ -750,8 +798,9 @@ function CountryThemePreview({
   const previewHeight = layout === "poster" ? "min-h-[350px]" : compact ? "min-h-[250px]" : "min-h-[300px]";
 
   return (
+    <div className={`country-theme-preview-context ${mode === "wiki" ? "is-wiki" : "is-country"}`}>
     <div
-      className={`country-theme-live-preview country-public-hero glass relative ${previewHeight} overflow-hidden px-5 py-6 sm:px-7 sm:py-8`}
+      className={`country-theme-live-preview ${mode === "wiki" ? "wiki-public-hero" : "country-public-hero"} glass relative ${previewHeight} overflow-hidden px-5 py-6 sm:px-7 sm:py-8`}
       style={{
         ...previewStyle,
         ...themeStyleProperties(theme),
@@ -825,6 +874,75 @@ function CountryThemePreview({
         </div>
       </div>
     </div>
+    {mode === "wiki" && (
+      <div className="country-theme-wiki-preview" style={themeStyleProperties(theme) as React.CSSProperties}>
+        <nav><span className="is-active">01 Introduction</span><span>02 Country</span><span>03 SSC history</span></nav>
+        <article>
+          <p>Terra Solaris Wiki</p>
+          <h2>Introduction</h2>
+          <i />
+          <span>{countryName} is a country in Terra Solaris. This preview shows how normal article text, headings and section rules use the selected theme.</span>
+          <h3>Country and culture</h3>
+        </article>
+        <aside>
+          <div>{flagImage ? <img src={flagImage} alt="" /> : <span>{countryName.slice(0, 3).toUpperCase()}</span>}</div>
+          <strong>{countryName}</strong>
+          <dl><div><dt>Region</dt><dd>{region}</dd></div><div><dt>Capital</dt><dd>Country fact</dd></div></dl>
+        </aside>
+      </div>
+    )}
+    </div>
+  );
+}
+
+function PreviewModeSwitch({
+  value,
+  onChange,
+}: {
+  value: "country" | "wiki";
+  onChange: (value: "country" | "wiki") => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/45 p-1" aria-label="Preview page">
+      {(["country", "wiki"] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => onChange(mode)}
+          aria-pressed={value === mode}
+          className={`min-h-9 rounded-lg px-3 text-xs font-semibold capitalize ${value === mode ? "bg-primary/12 text-primary" : "text-muted-foreground"}`}
+        >
+          {mode}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PersonalityMiniature({
+  layout,
+  countryName,
+  flagImage,
+  theme,
+}: {
+  layout: CountryHeroLayout;
+  countryName: string;
+  flagImage: string | null;
+  theme: CountryVisualTheme;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="personality-miniature relative block h-16 overflow-hidden rounded-lg border border-white/10"
+      data-preview-layout={layout}
+      style={{
+        ...themeStyleProperties(theme),
+        background: `linear-gradient(135deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`,
+      } as React.CSSProperties}
+    >
+      {flagImage && <span className="absolute inset-y-0 right-0 w-2/5 bg-contain bg-center bg-no-repeat opacity-60" style={{ backgroundImage: `url(${JSON.stringify(flagImage)})` }} />}
+      <span className="absolute inset-x-3 bottom-2 truncate font-display text-sm font-bold" style={{ color: theme.textPrimary }}>{countryName}</span>
+    </span>
   );
 }
 

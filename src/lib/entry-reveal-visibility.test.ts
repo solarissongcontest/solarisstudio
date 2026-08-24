@@ -11,7 +11,7 @@ const publicCountryArchive = source("src/lib/public-country-archive.ts");
 const showRoute = source("src/routes/shows/$showId.tsx");
 const editionRoute = source("src/routes/editions/$slug.tsx");
 const countryRoute = source("src/routes/countries/$code.tsx");
-const wikiRoute = source("src/routes/wiki/$code.tsx");
+const wikiRoute = source("src/components/wiki/CountryWikiExperience.tsx");
 const protectionMigration = source("supabase/migrations/20260821201357_protect_confirmation_entry_reveals.sql");
 const projectionMigration = source("supabase/migrations/20260821201620_public_safe_participant_projection.sql");
 const historicalVisibilityMigration = source("supabase/migrations/20260823141500_historical_entry_visibility_guard.sql");
@@ -85,7 +85,7 @@ describe("entry reveal visibility", () => {
 
   it("shows the full published entry archive on Wiki pages instead of only eight editions", () => {
     expect(wikiRoute).toContain("Wiki is archival: show every published canonical entry");
-    expect(wikiRoute).toContain("const latestEntries = canonicalEditionEntries(countryParticipants).sort(");
+    expect(wikiRoute).toContain("const latestEntries = canonicalEditionEntries(");
   });
 
   it("forces public Country and Wiki history through entry-level reveal gates too", () => {
@@ -95,6 +95,6 @@ describe("entry reveal visibility", () => {
     expect(publicCountryArchive).toContain("scheduledMs <= nowMs");
     expect(countryRoute).toContain("buildPublicCountryArchive");
     expect(wikiRoute).toContain("buildPublicCountryArchive");
-    expect(wikiRoute).toContain('"Entry not revealed yet"');
+    expect(wikiRoute).toContain('"Entry not revealed"');
   });
 });

@@ -36,7 +36,8 @@ body[data-entity-theme="country"]:is(
     [data-country-hero-layout="ribbon"],
     [data-country-hero-layout="duotone"],
     [data-country-hero-layout="passport"],
-    [data-country-hero-layout="horizon"]
+    [data-country-hero-layout="horizon"],
+    [data-country-hero-layout="heritage"]
   ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag > svg {
   display: none !important;
 }
@@ -54,7 +55,8 @@ body[data-entity-theme="country"]:is(
     [data-country-hero-layout="ribbon"],
     [data-country-hero-layout="duotone"],
     [data-country-hero-layout="passport"],
-    [data-country-hero-layout="horizon"]
+    [data-country-hero-layout="horizon"],
+    [data-country-hero-layout="heritage"]
   ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before {
   content: "";
   position: absolute;
