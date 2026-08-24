@@ -5,8 +5,8 @@
    without returning to nested card-on-card layouts. */
 
 .wiki-canvas {
-  --wiki-display-font: "Sora", ui-sans-serif, system-ui, sans-serif;
-  --wiki-body-font: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --wiki-headline-font: "Classica Crastao", Georgia, serif;
+  --wiki-body-font: "Gotham", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Keep the article column itself transparent. The individual sections are the
@@ -71,20 +71,17 @@
   display: none !important;
 }
 
-/* Restore the original Solaris typography hierarchy explicitly. The previous
-   Wiki used Sora for display text and Manrope for reading text. Do not let the
-   article accidentally fall back to the browser/system font. */
+/* Solaris typography is fixed: Classica Crastao is for genuinely large Wiki
+   headlines, while Gotham owns all reading, navigation, metadata and stats. */
 .wiki-canvas :is(
+  .country-hero-title,
   .wiki-introduction h2,
   .wiki-article-section > summary h2,
-  .wiki-feature-title,
-  .wiki-subheading,
-  .wiki-infobox-identity h2,
-  .wiki-record-strip dd,
-  .wiki-sheet-panel > header h2
+  .wiki-feature-title
 ) {
-  font-family: var(--wiki-display-font) !important;
-  letter-spacing: -.025em;
+  font-family: var(--wiki-headline-font) !important;
+  font-weight: 400 !important;
+  letter-spacing: .02em !important;
 }
 
 .wiki-canvas :is(
@@ -92,19 +89,24 @@
   .wiki-article-section-body,
   .wiki-contents-nav,
   .wiki-infobox,
+  .wiki-infobox-identity h2,
   .wiki-entry-row,
   .wiki-facts-list,
-  .wiki-adjacent-articles
+  .wiki-adjacent-articles,
+  .wiki-subheading,
+  .wiki-record-strip dt,
+  .wiki-record-strip dd,
+  .wiki-sheet-panel > header h2
 ) {
   font-family: var(--wiki-body-font) !important;
 }
 
-/* The selected personality may deliberately own a decorative Wiki heading
-   font. These are kept art-directed instead of allowing every body paragraph
-   to inherit it. */
+/* Personality changes geometry, colour and ornament, not the core Solaris font
+   system. Heritage therefore keeps Classica headlines instead of switching to
+   a separate serif family. */
 body[data-entity-theme="country"][data-country-hero-layout="heritage"]
-  .wiki-canvas :is(.wiki-introduction h2, .wiki-article-section > summary h2, .wiki-feature-title) {
-  font-family: Georgia, "Times New Roman", serif !important;
+  .wiki-canvas :is(.country-hero-title, .wiki-introduction h2, .wiki-article-section > summary h2, .wiki-feature-title) {
+  font-family: var(--wiki-headline-font) !important;
 }
 
 /* Personality card continuity. The old Wiki sections were
@@ -250,10 +252,6 @@ body[data-entity-theme="country"][data-country-hero-layout="heritage"]
 .wiki-record-strip > div:nth-child(n) {
   border-top-width: 1px !important;
   border-right-width: 1px !important;
-}
-
-.wiki-record-strip dt {
-  font-family: var(--wiki-body-font) !important;
 }
 
 .wiki-record-strip dd {
