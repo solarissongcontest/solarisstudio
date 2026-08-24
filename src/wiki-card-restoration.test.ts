@@ -18,11 +18,18 @@ describe("Wiki cards and typography", () => {
     expect(restoration).toContain("border-radius: 1.15rem !important;");
   });
 
-  it("uses the original Solaris display and body font families", () => {
-    expect(restoration).toContain('--wiki-display-font: "Sora", ui-sans-serif, system-ui, sans-serif;');
-    expect(restoration).toContain('--wiki-body-font: "Manrope", ui-sans-serif, system-ui, sans-serif;');
-    expect(restoration).toContain("font-family: var(--wiki-display-font) !important;");
+  it("uses Classica Crastao for major headlines and Gotham for everything else", () => {
+    expect(restoration).toContain('--wiki-headline-font: "Classica Crastao", Georgia, serif;');
+    expect(restoration).toContain('--wiki-body-font: "Gotham", ui-sans-serif, system-ui, sans-serif;');
+    expect(restoration).toContain("font-family: var(--wiki-headline-font) !important;");
     expect(restoration).toContain("font-family: var(--wiki-body-font) !important;");
+    expect(restoration).not.toContain("Sora");
+    expect(restoration).not.toContain("Manrope");
+  });
+
+  it("keeps stat values and utility headings in Gotham instead of the headline face", () => {
+    expect(restoration).toContain(".wiki-record-strip dd,");
+    expect(restoration).toContain(".wiki-sheet-panel > header h2");
   });
 
   it("restores compact Wiki stat cards and personality-specific section treatments", () => {
