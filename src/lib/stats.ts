@@ -7,6 +7,7 @@
 
 import type { Country, Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
 
+import { isFinalShow, isSemiShow } from "./edition-progression";
 import { isTopScore, makeTopScoreResolver } from "./voting";
 
 /* ============================================================
@@ -107,7 +108,7 @@ function buildCombinedEditionPlacements(
 
     const finalRows = rows
       .filter(
-        (row) => showById.get(row.show_id ?? "")?.kind === "grand-final" && row.final_rank != null,
+        (row) => isFinalShow(showById.get(row.show_id ?? "")) && row.final_rank != null,
       )
       .sort(
         (a, b) =>
@@ -139,7 +140,7 @@ function buildCombinedEditionPlacements(
       const nqSemiByCountry = new Map<string, ResultRow>();
 
       for (const row of rows) {
-        if (showById.get(row.show_id ?? "")?.kind !== "semi-final") {
+        if (!isSemiShow(showById.get(row.show_id ?? ""))) {
           continue;
         }
 
@@ -210,14 +211,16 @@ function buildCombinedEditionPlacements(
       }
 
       for (const row of bestByCountry.values()) {
-        const kind = showById.get(row.show_id ?? "")?.kind;
-
         placements.set(row.country_id, {
           editionId,
           countryId: row.country_id,
           rank: row.final_rank,
           row,
-          source: kind === "grand-final" ? "final" : kind === "semi-final" ? "semi" : "other",
+          source: isFinalShow(showById.get(row.show_id ?? ""))
+            ? "final"
+            : isSemiShow(showById.get(row.show_id ?? ""))
+              ? "semi"
+              : "other",
         });
       }
     }
@@ -341,15 +344,15 @@ export function computeCountryStats(
   );
 
   const finalsResults = myResults.filter(
-    (result) => showById.get(result.show_id ?? "")?.kind === "grand-final",
+    (result) => isFinalShow(showById.get(result.show_id ?? "")),
   );
 
   const semiResults = myResults.filter(
-    (result) => showById.get(result.show_id ?? "")?.kind === "semi-final",
+    (result) => isSemiShow(showById.get(result.show_id ?? "")),
   );
 
   const semiParticipants = myParticipants.filter(
-    (participant) => showById.get(participant.show_id ?? "")?.kind === "semi-final",
+    (participant) => isSemiShow(showById.get(participant.show_id ?? "")),
   );
 
   const qualified = semiParticipants.filter((participant) => participant.qualified === true);
@@ -471,7 +474,7 @@ export function computeCountryStats(
       myResults.some(
         (result) =>
           result.edition_id === edition.id &&
-          showById.get(result.show_id ?? "")?.kind === "grand-final",
+          isFinalShow(showById.get(result.show_id ?? "")),
       ),
     );
 

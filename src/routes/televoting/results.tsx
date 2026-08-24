@@ -173,7 +173,7 @@ function TelevotingResultsPage() {
                   <article key={`${entryKey}-${index}`} className={cn("data-panel grid items-center gap-3 px-3 py-3 sm:px-4", index === 0 && "ring-1 ring-primary/30", mode === "compare" ? "grid-cols-[34px_minmax(0,1fr)_80px_80px]" : "grid-cols-[34px_minmax(0,1fr)_96px]") }>
                     <div className={cn("grid size-8 place-items-center rounded-full text-sm font-semibold tabular-nums", index === 0 ? "bg-primary/20 text-primary" : "bg-surface text-muted-foreground")}>{convertedRank}</div>
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-surface">{entry?.image ? <img src={entry.image} alt="" className="h-full w-full object-cover" /> : <span>{entry?.flag || "✦"}</span>}</div>
+                      <div className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-surface">{entry?.image ? <img src={entry.image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span>{entry?.flag || "✦"}</span>}</div>
                       <div className="min-w-0"><p className="truncate font-semibold">{entry?.displayName || entryKey}</p>{mode === "compare" ? <p className="mt-0.5 text-[10px] text-muted-foreground">original #{originalRank}{movement ? ` · ${movement > 0 ? "▲" : "▼"}${Math.abs(movement)}` : " · unchanged"}</p> : null}</div>
                     </div>
                     {mode === "converted" ? <Score value={row.final_points} label="points" strong /> : null}

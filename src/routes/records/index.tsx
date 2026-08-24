@@ -55,7 +55,10 @@ function RecordsPage() {
   const { data: participants } = participantsQuery;
   const { data: results } = resultsQuery;
   const { data: jury } = juryQuery;
-  const [tab, setTab] = useState<Tab>("all");
+  // Opening every record at once produced a several-screen wall on desktop and
+  // an even longer mobile page. Start with the most useful category and keep
+  // "All" available for people who deliberately want the full archive.
+  const [tab, setTab] = useState<Tab>("career");
 
   const records = useMemo(
     () =>

@@ -31,7 +31,7 @@ describe("Solaris Studio guides and country confirmation access", () => {
   });
 
   it("keeps the current public and organizer section names", () => {
-    for (const text of ['label: "Insights"', 'label: "Pulse"', 'label: "Relationships"', "Participate"])
+    for (const text of ['label="Insights"', 'label: "Pulse"', 'label: "Relationships"', 'label: "Participate"'])
       expect(appShell).toContain(text);
 
     expect(adminNav).toContain(">Workspace<");

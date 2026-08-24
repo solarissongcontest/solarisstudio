@@ -55,6 +55,7 @@ type BackgroundFamily =
 function backgroundFamilyFor(pathname: string): BackgroundFamily {
   if (pathname.startsWith("/confirmations")) return "confirmations";
   if (pathname.startsWith("/televoting")) return "televoting";
+  if (pathname.startsWith("/jury-voting") || pathname.startsWith("/next-in-line")) return "participate";
   if (pathname.startsWith("/participate")) return "participate";
   if (pathname.startsWith("/pulse")) return "pulse";
   if (pathname.startsWith("/predictions")) return "predictions";
@@ -280,7 +281,6 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
 
   return (
     <details
-      open
       className="fixed bottom-[5.6rem] right-3 z-[80] max-h-[52vh] w-[min(23rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-primary/25 bg-popover/95 shadow-2xl backdrop-blur-xl lg:bottom-5 lg:right-5"
     >
       <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-foreground [&::-webkit-details-marker]:hidden">

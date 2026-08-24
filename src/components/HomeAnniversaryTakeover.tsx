@@ -25,7 +25,7 @@ export function HomeAnniversaryTakeover() {
   );
 
   useEffect(() => {
-    const tick = window.setInterval(() => setClock(new Date()), 1000);
+    const tick = window.setInterval(() => setClock(new Date()), 60_000);
     return () => window.clearInterval(tick);
   }, []);
 

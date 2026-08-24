@@ -373,3 +373,109 @@ a[class*="rounded-lg"] {
     backdrop-filter: none !important;
   }
 }
+
+/* Site-wide flow and interaction polish ----------------------------------- */
+
+:where(.app-main, .admin-page) :where(button, a, summary, [role="button"]):disabled,
+:where(.app-main, .admin-page) :where(button, [role="button"])[aria-disabled="true"] {
+  cursor: not-allowed;
+  filter: saturate(.7);
+}
+
+:where(.app-main, .admin-page) :where(section, article, details)[id] {
+  scroll-margin-top: 6rem;
+}
+
+/* Keep the secondary Pulse controls out of the mobile reading path. They
+   remain normal, permanently visible sidebar panels on desktop. */
+@media (min-width: 1024px) {
+  .pulse-sidebar-disclosure > summary {
+    display: none !important;
+  }
+
+  .pulse-sidebar-disclosure > .pulse-sidebar-content {
+    display: block !important;
+  }
+
+  .directory-secondary > summary {
+    display: none !important;
+  }
+
+  .directory-secondary > .directory-secondary-content {
+    display: block !important;
+  }
+}
+
+/* Wiki articles follow a reading hierarchy instead of looking like a stack
+   of unrelated dashboard cards. Country personality decoration still flows
+   through every section, but it no longer competes with the article itself. */
+.wiki-article-lead {
+  text-wrap: pretty;
+}
+
+.wiki-article-section > summary {
+  background: linear-gradient(90deg, rgb(var(--solaris-bg-primary) / .06), transparent 72%);
+}
+
+.wiki-article-section[open] > summary {
+  color: var(--foreground);
+}
+
+@media (max-width: 767px) {
+  .wiki-public-hero {
+    min-height: 0 !important;
+  }
+
+  .wiki-article-section {
+    margin-inline: -.25rem;
+    border-radius: 0 !important;
+    border-inline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .wiki-article-section > summary {
+    min-height: 3.25rem;
+    padding: .8rem .25rem !important;
+    background: transparent;
+    font-size: 1.12rem !important;
+  }
+
+  .wiki-article-section > div {
+    padding: 1rem .25rem 1.25rem !important;
+    border-color: rgb(var(--solaris-bg-primary) / .12) !important;
+  }
+
+  .participation-card-details {
+    display: none;
+  }
+
+  .televote-submit-bar {
+    position: sticky !important;
+    z-index: 24;
+    bottom: calc(4.75rem + env(safe-area-inset-bottom));
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: .65rem !important;
+    border-radius: 1rem !important;
+    background: rgba(5, 17, 38, .98) !important;
+  }
+
+  .televote-submit-bar > button {
+    min-width: 0;
+    padding-inline: .75rem;
+  }
+
+  .televote-submit-help {
+    display: none;
+  }
+
+  /* Fixed navigation and sheet controls stay crisp without an expensive
+     live blur over a continuously colourful background. */
+  .site-nav,
+  .mobile-quick-nav,
+  .wiki-mobile-contents button {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
@@ -20,22 +20,42 @@ export const Route = createFileRoute("/wiki/")({
   component: WikiIndexPage,
 });
 
+const DIRECTORY_PAGE_SIZE = 18;
+
 function WikiIndexPage() {
   const countriesQuery = useCountries();
   const { data: countries } = countriesQuery;
   const [search, setSearch] = useState("");
+  const [region, setRegion] = useState("all");
+  const [letter, setLetter] = useState("all");
+  const [visibleCount, setVisibleCount] = useState(DIRECTORY_PAGE_SIZE);
+
+  const regions = useMemo(
+    () => [...new Set((countries ?? []).map((country) => country.region).filter(Boolean))].sort(),
+    [countries],
+  );
+
+  const letters = useMemo(
+    () => [...new Set((countries ?? []).map((country) => country.name.slice(0, 1).toUpperCase()))].sort(),
+    [countries],
+  );
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return [...(countries ?? [])]
       .filter((country) =>
-        !query ||
-        country.name.toLowerCase().includes(query) ||
-        country.short_code.toLowerCase().includes(query) ||
-        (country.native_name ?? "").toLowerCase().includes(query),
+        (region === "all" || country.region === region) &&
+        (letter === "all" || country.name.toUpperCase().startsWith(letter)) &&
+        (!query ||
+          country.name.toLowerCase().includes(query) ||
+          country.short_code.toLowerCase().includes(query) ||
+          (country.native_name ?? "").toLowerCase().includes(query)),
       )
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [countries, search]);
+  }, [countries, search, region, letter]);
+
+  const visibleCountries = filtered.slice(0, visibleCount);
+  useEffect(() => setVisibleCount(DIRECTORY_PAGE_SIZE), [search, region, letter]);
 
   if (countriesQuery.isLoading) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataLoading label="Loading the Wiki library…" /></AppShell>;
   if (countriesQuery.isError) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataError /></AppShell>;
@@ -58,7 +78,8 @@ function WikiIndexPage() {
       />
 
       <section className="directory-page-filter mb-5 rounded-2xl border p-3 sm:p-4">
-        <label className="relative block">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <label className="relative block min-w-0">
           <span className="sr-only">Search the Wiki</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -68,6 +89,40 @@ function WikiIndexPage() {
             className="min-h-11 w-full rounded-xl border border-border bg-background/45 pl-10 pr-3 text-sm outline-none transition focus:border-primary/55"
           />
         </label>
+        <label>
+          <span className="sr-only">Filter Wiki by region</span>
+          <select
+            value={region}
+            onChange={(event) => setRegion(event.target.value)}
+            className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none transition focus:border-primary/55"
+          >
+            <option value="all">All regions</option>
+            {regions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        </div>
+
+        <div className="scroll-slim mt-3 flex gap-1 overflow-x-auto pb-1" aria-label="Filter Wiki by first letter">
+          <button
+            type="button"
+            onClick={() => setLetter("all")}
+            aria-pressed={letter === "all"}
+            className={`min-h-9 shrink-0 rounded-lg px-3 text-xs font-semibold ${letter === "all" ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
+          >
+            All
+          </button>
+          {letters.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setLetter(item)}
+              aria-pressed={letter === item}
+              className={`min-h-9 min-w-9 shrink-0 rounded-lg px-2 text-xs font-semibold ${letter === item ? "bg-primary/12 text-primary" : "bg-background/35 text-muted-foreground"}`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section>
@@ -80,7 +135,7 @@ function WikiIndexPage() {
         </div>
 
         <div className="wiki-library-grid grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((country) => (
+          {visibleCountries.map((country) => (
             <Link
               key={country.id}
               to="/wiki/$code"
@@ -110,6 +165,18 @@ function WikiIndexPage() {
             </div>
           )}
         </div>
+
+        {visibleCountries.length < filtered.length && (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisibleCount((count) => count + DIRECTORY_PAGE_SIZE)}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-5 text-sm font-semibold transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              Show {DIRECTORY_PAGE_SIZE} more · {filtered.length - visibleCountries.length} remaining
+            </button>
+          </div>
+        )}
       </section>
     </AppShell>
   );

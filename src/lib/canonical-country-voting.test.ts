@@ -103,6 +103,26 @@ function juryVote(
 }
 
 describe("canonical country voting statistics", () => {
+  it("treats the legacy final show kind as a real final in every public statistic", () => {
+    const e1 = edition("e1", 1);
+    const legacyFinal = show("final", "e1", "final");
+    const stats = computeCanonicalCountryStats(countryId, {
+      editions: [e1],
+      shows: [legacyFinal],
+      participants: [participant("p-final", "e1", "final")],
+      results: [result("r-final", "e1", "final", 120, 1)],
+      jury: [],
+      televote: [],
+    });
+
+    expect(stats.participations).toBe(1);
+    expect(stats.finals).toBe(1);
+    expect(stats.wins).toBe(1);
+    expect(stats.podiums).toBe(1);
+    expect(stats.top10).toBe(1);
+    expect(stats.winPct).toBe(100);
+  });
+
   it("averages points given per edition rather than treating semi and final as separate contests", () => {
     const e1 = edition("e1", 1);
     const semi = show("semi", "e1", "semi-final");

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
-import { useMemo } from "react";
+import { ChevronDown, ListTree, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
@@ -14,6 +14,7 @@ import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import { buildCountryAutoSection, type CountryPageSection } from "@/lib/country-page-builder";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
+import type { Country, Edition, Participant } from "@/lib/data";
 import {
   editionLabel,
   useAllJuryVotes,
@@ -40,6 +41,15 @@ export const Route = createFileRoute("/wiki/$code")({
   }),
   component: CountryWikiRoute,
 });
+
+const ARTICLE_SECTIONS = [
+  ["overview", "Introduction"],
+  ["culture", "Country and culture"],
+  ["contest", "Solaris Song Contest"],
+  ["national-finals", "National finals"],
+  ["character", "Solaris character"],
+  ["facts", "Fun facts"],
+] as const;
 
 function sectionSystemSlot(section: CountryPageSection) {
   const json = section.content_json;
@@ -194,6 +204,14 @@ function CountryWikiPage() {
   // description takes priority, so the default is editable rather than removed.
   const generatedOverview = buildCountryAutoSection("overview", country, profile);
   const authoredOverview = profile?.summary?.trim() || country.description?.trim() || generatedOverview;
+  const sortedCountries = [...(countries ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  const countryIndex = sortedCountries.findIndex((item) => item.id === country.id);
+  const previousCountry = countryIndex > 0 ? sortedCountries[countryIndex - 1] : null;
+  const nextCountry = countryIndex >= 0 && countryIndex < sortedCountries.length - 1
+    ? sortedCountries[countryIndex + 1]
+    : null;
+  const recentEntries = latestEntries.slice(0, 5);
+  const earlierEntries = latestEntries.slice(5);
 
   return (
     <AppShell>
@@ -206,7 +224,7 @@ function CountryWikiPage() {
           <span className="text-foreground">Wiki</span>
         </div>
 
-        <section className="wiki-public-hero glass relative mb-5 overflow-hidden px-5 py-6 sm:px-7 sm:py-8">
+        <section className="wiki-public-hero glass relative mb-3 overflow-hidden px-4 py-4 sm:mb-5 sm:px-7 sm:py-8">
           <BackgroundFlag
             image={country.flag_image}
             className="country-hero-background-flag -right-20 -top-24 h-80 w-80"
@@ -221,40 +239,30 @@ function CountryWikiPage() {
                 style={{ backgroundImage: `url(${JSON.stringify(country.flag_image)})` }}
               />
             )}
-            <div className="country-hero-identity flex min-w-0 items-center gap-4">
-              <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="lg" />
+            <div className="country-hero-identity flex min-w-0 items-center gap-3 sm:gap-4">
+              <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Terra Solaris Wiki</p>
-                <h1 className="country-hero-title mt-2 break-words font-display text-3xl font-bold sm:text-5xl">{country.name}</h1>
+                <h1 className="country-hero-title mt-1.5 break-words font-display text-3xl font-bold sm:mt-2 sm:text-5xl">{country.name}</h1>
                 {country.native_name && country.native_name !== country.name && <p className="mt-1 text-sm text-muted-foreground">{country.native_name}</p>}
               </div>
             </div>
-            <p className="mt-4 max-w-3xl whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-              {authoredOverview}
-            </p>
           </div>
         </section>
 
-        <nav aria-label="Article contents" className="country-personality-card mb-5 overflow-x-auto rounded-2xl border border-border/60 bg-surface/65 p-2 [scrollbar-width:none]">
-          <div className="flex min-w-max items-center gap-1">
-            <span className="px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Contents</span>
-            {[
-              ["overview", "Overview"],
-              ["culture", "Country"],
-              ["contest", "Contest"],
-              ["national-finals", "National finals"],
-              ["character", "Character"],
-              ["facts", "Facts"],
-            ].map(([id, label]) => <a key={id} href={`#${id}`} className="rounded-lg px-2.5 py-2 text-[11px] font-semibold text-muted-foreground hover:bg-surface-strong hover:text-foreground">{label}</a>)}
-          </div>
-        </nav>
+        <ArticleContents mobile />
 
-        <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_310px] lg:items-start">
+        <div className="mb-4 lg:hidden">
+          <WikiInfobox country={country} profile={profile} infoRows={infoRows} mobile />
+        </div>
+
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start xl:grid-cols-[210px_minmax(0,1fr)_300px]">
+          <ArticleContents />
           <article className="min-w-0 space-y-6">
-            <WikiSection id="overview" title="Overview" defaultOpen>
-              <p className="whitespace-pre-wrap">{authoredOverview}</p>
+            <section id="overview" className="wiki-article-lead scroll-mt-24 border-b border-border/60 px-1 pb-6">
+              <p className="whitespace-pre-wrap text-[15px] leading-7 text-foreground/90">{authoredOverview}</p>
               {profile?.motto && <blockquote className="mt-4 border-l-2 border-primary/50 pl-4 font-display italic text-foreground">“{profile.motto}”</blockquote>}
-            </WikiSection>
+            </section>
 
             <WikiSection id="culture" title="Country, culture and media">
               <CountryCustomSections
@@ -278,36 +286,36 @@ function CountryWikiPage() {
                     <MiniStat label="All-time position" value={stats.avgCombinedPlacement != null ? stats.avgCombinedPlacement.toFixed(1) : "—"} />
                   </div>
                   {latestEntries.length > 0 && (
-                    <div className="mt-5 overflow-hidden rounded-xl border border-border/70">
-                      {latestEntries.map((entry) => {
-                        const edition = editionMap.get(entry.edition_id);
-                        const revealed = Boolean(entry.artist?.trim() || entry.song?.trim());
-                        const qualification = qualificationFor(entry.edition_id);
-                        const label = qualificationLabel(qualification);
-                        return (
-                          <div key={entry.edition_id} className="border-b border-border/50 px-3 py-3 last:border-b-0">
-                            <div className="grid min-w-0 grid-cols-[1fr_auto] gap-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold">
-                                  {revealed
-                                    ? `${entry.artist || "Artist TBC"} · ${entry.song || "Song TBC"}`
-                                    : "Entry not revealed yet"}
-                                </p>
-                                <p className="mt-0.5 text-[10px] text-muted-foreground">{edition ? editionLabel(edition) : "Edition"}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {label && (
-                                  <span className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase ${qualificationBadgeClass(qualification)}`}>
-                                    {label}
-                                  </span>
-                                )}
-                                {edition ? <Link to="/editions/$slug" params={{ slug: edition.slug }} className="self-center text-[10px] font-semibold text-primary">View →</Link> : null}
-                              </div>
-                            </div>
-                            {revealed ? <EntryListenLinks entry={entry} compact className="mt-2" /> : null}
+                    <div className="mt-5 space-y-2">
+                      <div className="overflow-hidden rounded-xl border border-border/70">
+                        {recentEntries.map((entry) => (
+                          <WikiEntryRow
+                            key={entry.edition_id}
+                            entry={entry}
+                            edition={editionMap.get(entry.edition_id)}
+                            qualification={qualificationFor(entry.edition_id)}
+                          />
+                        ))}
+                      </div>
+
+                      {earlierEntries.length > 0 && (
+                        <details className="group overflow-hidden rounded-xl border border-border/70 bg-surface/25">
+                          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 text-xs font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+                            <span>Earlier entries</span>
+                            <span className="text-primary">{earlierEntries.length} <span className="group-open:hidden">↓</span><span className="hidden group-open:inline">↑</span></span>
+                          </summary>
+                          <div className="border-t border-border/60">
+                            {earlierEntries.map((entry) => (
+                              <WikiEntryRow
+                                key={entry.edition_id}
+                                entry={entry}
+                                edition={editionMap.get(entry.edition_id)}
+                                qualification={qualificationFor(entry.edition_id)}
+                              />
+                            ))}
                           </div>
-                        );
-                      })}
+                        </details>
+                      )}
                     </div>
                   )}
                 </>
@@ -354,29 +362,214 @@ function CountryWikiPage() {
             )}
           </article>
 
-          <aside className="min-w-0 lg:sticky lg:top-24">
-            <div className="country-personality-card glass overflow-hidden">
-              <div className="border-b border-border/60 p-4 text-center">
-                <div className="mx-auto flex justify-center"><FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="xl" /></div>
-                <p className="mt-3 font-display text-xl font-bold">{country.name}</p>
-                {country.native_name && country.native_name !== country.name && <p className="mt-1 text-xs text-muted-foreground">{country.native_name}</p>}
-                {profile?.motto && <p className="mt-2 text-[11px] italic text-muted-foreground">“{profile.motto}”</p>}
-              </div>
-              <div className="divide-y divide-border/50 px-4">
-                {infoRows.map(([label, value]) => value ? <div key={label} className="grid grid-cols-[92px_minmax(0,1fr)] gap-3 py-3 text-xs"><span className="font-semibold text-muted-foreground">{label}</span><span className="break-words text-right">{value}</span></div> : null)}
-              </div>
-              <div className="border-t border-border/60 p-4"><Link to="/countries/$code" params={{ code: country.short_code }} className="flex min-h-10 items-center justify-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold">← Country overview</Link></div>
-            </div>
+          <aside className="hidden min-w-0 lg:sticky lg:top-24 lg:block">
+            <WikiInfobox country={country} profile={profile} infoRows={infoRows} />
           </aside>
         </div>
+
+        <nav aria-label="Adjacent Wiki articles" className="mt-5 grid grid-cols-2 gap-2">
+          {previousCountry ? (
+            <Link to="/wiki/$code" params={{ code: previousCountry.short_code }} className="min-w-0 rounded-2xl border border-border/65 bg-surface/35 p-3 text-left transition hover:bg-surface">
+              <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">← Previous</span>
+              <span className="mt-1 block truncate text-sm font-semibold">{previousCountry.name}</span>
+            </Link>
+          ) : <span />}
+          {nextCountry ? (
+            <Link to="/wiki/$code" params={{ code: nextCountry.short_code }} className="min-w-0 rounded-2xl border border-border/65 bg-surface/35 p-3 text-right transition hover:bg-surface">
+              <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Next →</span>
+              <span className="mt-1 block truncate text-sm font-semibold">{nextCountry.name}</span>
+            </Link>
+          ) : <span />}
+        </nav>
       </div>
     </AppShell>
   );
 }
 
+function openArticleSection(id: string) {
+  const section = document.getElementById(id);
+  if (section instanceof HTMLDetailsElement) section.open = true;
+  window.requestAnimationFrame(() => section?.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+function ArticleContents({ mobile = false }: { mobile?: boolean }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id) openArticleSection(id);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
+  if (mobile) {
+    return (
+      <>
+        <div className="wiki-mobile-contents sticky top-[4.25rem] z-30 mb-3 xl:hidden">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/92 px-4 text-sm font-semibold shadow-lg backdrop-blur-xl"
+          >
+            <span className="inline-flex items-center gap-2"><ListTree className="size-4 text-primary" /> Article sections</span>
+            <span className="text-xs text-muted-foreground">{ARTICLE_SECTIONS.length} sections</span>
+          </button>
+        </div>
+
+        {open && (
+          <div className="fixed inset-0 z-[120] xl:hidden">
+            <button type="button" aria-label="Close article sections" className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => setOpen(false)} />
+            <div className="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-y-auto rounded-t-[1.75rem] border-t border-border bg-background p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
+              <div className="mb-2 flex items-center justify-between px-2 py-1">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">Terra Solaris Wiki</p>
+                  <h2 className="mt-1 font-display text-xl font-bold">Article sections</h2>
+                </div>
+                <button type="button" onClick={() => setOpen(false)} className="grid size-11 place-items-center rounded-xl border border-border bg-surface" aria-label="Close article sections"><X className="size-4" /></button>
+              </div>
+              <nav aria-label="Article contents" className="grid gap-1">
+                {ARTICLE_SECTIONS.map(([id, label], index) => (
+                  <a
+                    key={id}
+                    href={`#${id}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setOpen(false);
+                      window.setTimeout(() => openArticleSection(id), 0);
+                    }}
+                    className="grid min-h-12 grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-3 text-sm font-semibold text-foreground transition hover:bg-surface"
+                  >
+                    <span className="numeric text-xs text-primary">{String(index + 1).padStart(2, "0")}</span>
+                    <span>{label}</span>
+                    <span className="text-primary">→</span>
+                  </a>
+                ))}
+              </nav>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  return (
+    <aside className="hidden min-w-0 xl:block">
+      <nav aria-label="Article contents" className="sticky top-24 rounded-2xl border border-border/60 bg-surface/35 p-2">
+        <p className="px-2 py-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">Contents</p>
+        {ARTICLE_SECTIONS.map(([id, label], index) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            onClick={(event) => {
+              event.preventDefault();
+              openArticleSection(id);
+            }}
+            className="grid min-h-10 grid-cols-[22px_minmax(0,1fr)] items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-muted-foreground transition hover:bg-surface hover:text-foreground"
+          >
+            <span className="numeric text-[10px] text-primary">{index + 1}</span>
+            <span>{label}</span>
+          </a>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+type WikiProfile = {
+  motto?: string | null;
+};
+
+function WikiInfobox({
+  country,
+  profile,
+  infoRows,
+  mobile = false,
+}: {
+  country: Country;
+  profile?: WikiProfile | null;
+  infoRows: ReadonlyArray<readonly [string, string | number | null | undefined]>;
+  mobile?: boolean;
+}) {
+  const content = (
+    <>
+      <div className="flex items-center gap-3 border-b border-border/60 p-3 lg:block lg:p-4 lg:text-center">
+        <div className="flex shrink-0 justify-center"><FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="lg" /></div>
+        <div className="min-w-0 lg:mt-3">
+          <p className="truncate font-display text-lg font-bold lg:text-xl">{country.name}</p>
+          {country.native_name && country.native_name !== country.name && <p className="mt-0.5 truncate text-xs text-muted-foreground">{country.native_name}</p>}
+          {profile?.motto && <p className="mt-1 hidden text-[11px] italic text-muted-foreground sm:block lg:mt-2">“{profile.motto}”</p>}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-px bg-border/45 lg:block lg:divide-y lg:divide-border/50 lg:bg-transparent lg:px-4">
+        {infoRows.map(([label, value]) => value ? (
+          <div key={label} className="min-w-0 bg-surface/45 px-3 py-2.5 lg:grid lg:grid-cols-[92px_minmax(0,1fr)] lg:gap-3 lg:bg-transparent lg:px-0 lg:py-3 lg:text-xs">
+            <span className="block text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground lg:text-xs lg:normal-case lg:tracking-normal">{label}</span>
+            <span className="mt-1 block break-words text-xs text-foreground lg:mt-0 lg:text-right">{value}</span>
+          </div>
+        ) : null)}
+      </div>
+      <div className="border-t border-border/60 p-3 lg:p-4"><Link to="/countries/$code" params={{ code: country.short_code }} className="flex min-h-10 items-center justify-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold">Open country dashboard →</Link></div>
+    </>
+  );
+
+  if (mobile) {
+    return (
+      <details className="country-personality-card group overflow-hidden rounded-2xl border border-border/60 bg-surface/25">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+          <span>Quick facts about {country.name}</span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="border-t border-border/60">{content}</div>
+      </details>
+    );
+  }
+
+  return (
+    <div className="country-personality-card glass overflow-hidden">
+      {content}
+    </div>
+  );
+}
+
+function WikiEntryRow({
+  entry,
+  edition,
+  qualification,
+}: {
+  entry: Participant;
+  edition?: Edition;
+  qualification: QualificationStatus;
+}) {
+  const revealed = Boolean(entry.artist?.trim() || entry.song?.trim());
+  const label = qualificationLabel(qualification);
+
+  return (
+    <div className="border-b border-border/50 px-3 py-3 last:border-b-0">
+      <div className="grid min-w-0 grid-cols-[1fr_auto] gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{revealed ? `${entry.artist || "Artist TBC"} · ${entry.song || "Song TBC"}` : "Entry not revealed yet"}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{edition ? editionLabel(edition) : "Edition"}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {label && <span className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase ${qualificationBadgeClass(qualification)}`}>{label}</span>}
+          {edition ? <Link to="/editions/$slug" params={{ slug: edition.slug }} className="self-center text-[10px] font-semibold text-primary">View →</Link> : null}
+        </div>
+      </div>
+      {revealed ? <EntryListenLinks entry={entry} compact className="mt-2" /> : null}
+    </div>
+  );
+}
+
 function WikiSection({ id, title, children, defaultOpen = false }: { id: string; title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   return (
-    <details id={id} open={defaultOpen} className="country-personality-card group min-w-0 scroll-mt-24 overflow-hidden rounded-2xl border border-border/60 bg-surface/25">
+    <details id={id} open={defaultOpen} className="wiki-article-section country-personality-card group min-w-0 scroll-mt-24 overflow-hidden border-y border-border/60 bg-surface/10 sm:rounded-2xl sm:border">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 p-4 font-display text-xl font-semibold marker:hidden sm:px-5 sm:text-2xl">
         <span>{title}</span>
         <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />

@@ -85,7 +85,7 @@ export function VotingMatrix({
                 >
                   <span className="flex flex-col items-center gap-1">
                     {c?.flag_image ? (
-                      <img src={c.flag_image} alt={c.name} className="h-4 w-6 rounded-[2px] object-cover" />
+                      <img src={c.flag_image} alt={c.name} loading="lazy" decoding="async" className="h-4 w-6 rounded-[2px] object-cover" />
                     ) : null}
                     <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
                       {c?.short_code ?? c?.name}
@@ -105,7 +105,7 @@ export function VotingMatrix({
                 <th className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur">
                   <span className="flex items-center gap-2">
                     {rc?.flag_image ? (
-                      <img src={rc.flag_image} alt={rc.name} className="h-4 w-6 rounded-[2px] object-cover" />
+                      <img src={rc.flag_image} alt={rc.name} loading="lazy" decoding="async" className="h-4 w-6 rounded-[2px] object-cover" />
                     ) : null}
                     <span className="truncate">{rc?.name}</span>
                   </span>

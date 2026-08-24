@@ -95,6 +95,13 @@ function ShowsPage() {
   const archiveCards = cards.filter(
     (card) => card.edition.edition_number !== latestEditionNumber,
   );
+  const archiveGroups = useMemo(() => {
+    const groups = new Map<string, ShowCard[]>();
+    archiveCards.forEach((card) => {
+      groups.set(card.edition.id, [...(groups.get(card.edition.id) ?? []), card]);
+    });
+    return [...groups.values()];
+  }, [archiveCards]);
   const completedCount = cards.filter((card) => card.hasResults).length;
   const grandFinalCount = cards.filter(
     (card) => card.show.kind === "grand-final" || card.show.kind === "final",
@@ -147,9 +154,9 @@ function ShowsPage() {
                 title="Earlier shows"
                 count={`${archiveCards.length} archived`}
               />
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {archiveCards.map((card) => (
-                  <ArchiveShow key={card.show.id} card={card} />
+              <div className="mt-3 space-y-2">
+                {archiveGroups.map((group, index) => (
+                  <ArchiveEditionGroup key={group[0]!.edition.id} cards={group} defaultOpen={index === 0} />
                 ))}
               </div>
             </section>
@@ -163,6 +170,27 @@ function ShowsPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+function ArchiveEditionGroup({ cards, defaultOpen }: { cards: ShowCard[]; defaultOpen?: boolean }) {
+  const edition = cards[0]!.edition;
+  const resultCount = cards.filter((card) => card.hasResults).length;
+
+  return (
+    <details open={defaultOpen} className="group overflow-hidden rounded-2xl border border-border/65 bg-surface/25">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:hidden sm:px-5 [&::-webkit-details-marker]:hidden">
+        <div className="min-w-0">
+          <p className="truncate font-display text-base font-bold sm:text-lg">{editionLabel(edition)}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{cards.length} show{cards.length === 1 ? "" : "s"} · {resultCount} result{resultCount === 1 ? "" : "s"}</p>
+        </div>
+        <span className="shrink-0 text-xs font-semibold text-primary group-open:hidden">Open ↓</span>
+        <span className="hidden shrink-0 text-xs font-semibold text-primary group-open:inline">Close ↑</span>
+      </summary>
+      <div className="grid gap-2 border-t border-border/55 p-2 sm:grid-cols-2 sm:p-3 xl:grid-cols-3">
+        {cards.map((card) => <ArchiveShow key={card.show.id} card={card} />)}
+      </div>
+    </details>
   );
 }
 

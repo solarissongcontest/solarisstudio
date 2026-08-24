@@ -220,12 +220,50 @@ function SolarisPulsePage() {
     }
   };
 
+  const visibleInboxEvents = inboxEvents.slice(0, 6);
+  const earlierInboxEvents = inboxEvents.slice(6, 16);
+  const renderInboxEvent = (event: (typeof inboxEvents)[number]) => {
+    const unread = Boolean(user && !readIds.has(event.id));
+    return (
+      <Link
+        key={event.id}
+        to={event.route}
+        onClick={() => user && markRead.mutate(event.id)}
+        className="flex gap-3 py-4 first:pt-0 last:pb-0"
+      >
+        <span
+          className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+            unread ? "bg-primary" : "bg-border"
+          }`}
+        />
+        <span className="min-w-0">
+          <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
+            {eventTypeLabel(event.event_type)}
+            {event.importance === "important" ? " · Important" : ""}
+          </span>
+          <span className="mt-1 block text-sm font-semibold">{event.title}</span>
+          {event.summary && (
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              {event.summary}
+            </span>
+          )}
+          <span className="mt-2 block text-[10px] text-muted-foreground">
+            {new Intl.DateTimeFormat(undefined, {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(new Date(event.published_at))}
+          </span>
+        </span>
+      </Link>
+    );
+  };
+
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Personal update desk"
+        eyebrow="Updates"
         title="Solaris Pulse"
-        description="The useful changes from the contest, your follows and Prediction Arena, without turning every quiet update into noise."
+        description="Recent contest news, followed countries and changes in Prediction Arena—kept in one useful feed."
         actions={
           <Link to="/me" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
             My Solaris
@@ -235,7 +273,7 @@ function SolarisPulsePage() {
 
       <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
         <div className="space-y-5">
-          <Panel title="Right now" description="Current public state, before the personalized layer">
+          <Panel title="Right now" description="The latest edition and Prediction Arena status">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-surface p-4">
                 <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-primary">
@@ -285,7 +323,7 @@ function SolarisPulsePage() {
             description={
               user
                 ? `${unreadIds.length} unread · ${follows.length} followed`
-                : "Sign in to filter updates by the things you follow"
+                : "Sign in to see updates from the countries, editions and shows you follow"
             }
             actions={
               user && unreadIds.length ? (
@@ -307,42 +345,23 @@ function SolarisPulsePage() {
                 The update feed is temporarily unavailable. Other public contest pages still work normally.
               </p>
             ) : inboxEvents.length ? (
-              <div className="divide-y divide-border/60">
-                {inboxEvents.slice(0, 16).map((event) => {
-                  const unread = Boolean(user && !readIds.has(event.id));
-                  return (
-                    <Link
-                      key={event.id}
-                      to={event.route}
-                      onClick={() => user && markRead.mutate(event.id)}
-                      className="flex gap-3 py-4 first:pt-0 last:pb-0"
-                    >
-                      <span
-                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
-                          unread ? "bg-primary" : "bg-border"
-                        }`}
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
-                          {eventTypeLabel(event.event_type)}
-                          {event.importance === "important" ? " · Important" : ""}
-                        </span>
-                        <span className="mt-1 block text-sm font-semibold">{event.title}</span>
-                        {event.summary && (
-                          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                            {event.summary}
-                          </span>
-                        )}
-                        <span className="mt-2 block text-[10px] text-muted-foreground">
-                          {new Intl.DateTimeFormat(undefined, {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          }).format(new Date(event.published_at))}
-                        </span>
+              <div>
+                <div className="divide-y divide-border/60">
+                  {visibleInboxEvents.map(renderInboxEvent)}
+                </div>
+                {earlierInboxEvents.length > 0 && (
+                  <details className="group mt-4 border-t border-border/60 pt-2">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl px-2 text-xs font-semibold text-muted-foreground transition hover:bg-surface hover:text-foreground [&::-webkit-details-marker]:hidden">
+                      <span>Earlier updates</span>
+                      <span className="text-primary">
+                        {earlierInboxEvents.length} <span className="group-open:hidden">↓</span><span className="hidden group-open:inline">↑</span>
                       </span>
-                    </Link>
-                  );
-                })}
+                    </summary>
+                    <div className="mt-2 divide-y divide-border/60">
+                      {earlierInboxEvents.map(renderInboxEvent)}
+                    </div>
+                  </details>
+                )}
               </div>
             ) : (
               <div className="rounded-xl bg-surface p-4">
@@ -360,7 +379,7 @@ function SolarisPulsePage() {
           {user && pulseRound && (
             <Panel
               title="Prediction movement"
-              description="Aggregate movement only. Nobody else's individual prediction is exposed."
+              description="See how the overall prediction has changed. Individual ballots stay private."
             >
               {!movementAllowed ? (
                 <p className="text-sm leading-relaxed text-muted-foreground">
@@ -399,14 +418,14 @@ function SolarisPulsePage() {
                 </div>
               ) : (
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  There is not enough changed aggregate data for a meaningful movement signal yet.
+                  There are not enough changed predictions to show a useful trend yet.
                 </p>
               )}
             </Panel>
           )}
 
           {recordInsights.length > 0 && (
-            <Panel title="Record watch" description="Automatically compared with earlier public results">
+            <Panel title="Record watch" description="Notable changes compared with earlier public results">
               <div className="grid gap-2 sm:grid-cols-2">
                 {recordInsights.slice(0, 6).map((insight) => (
                   <Link key={insight.id} to={insight.route} className="rounded-xl bg-surface p-3">
@@ -440,7 +459,12 @@ function SolarisPulsePage() {
             </Panel>
           )}
 
-          <Panel title="Following" description="Choose how noisy each follow is allowed to become">
+          <details className="pulse-sidebar-disclosure group">
+            <summary className="mb-2 flex min-h-12 cursor-pointer list-none items-center justify-between rounded-2xl border border-border/60 bg-surface/35 px-4 text-sm font-semibold lg:hidden [&::-webkit-details-marker]:hidden">
+              Following <span className="text-xs text-primary">{follows.length} <span className="group-open:hidden">↓</span><span className="hidden group-open:inline">↑</span></span>
+            </summary>
+            <div className="pulse-sidebar-content">
+          <Panel title="Following" description="Choose which updates each follow sends to Pulse">
             {!user ? (
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Sign in, then follow countries, editions and shows from their public pages.
@@ -502,9 +526,16 @@ function SolarisPulsePage() {
               </div>
             )}
           </Panel>
+            </div>
+          </details>
 
           {user && (
-            <Panel title="Pulse preferences" description="Global filters for your in-app inbox">
+            <details className="pulse-sidebar-disclosure group">
+              <summary className="mb-2 flex min-h-12 cursor-pointer list-none items-center justify-between rounded-2xl border border-border/60 bg-surface/35 px-4 text-sm font-semibold lg:hidden [&::-webkit-details-marker]:hidden">
+                Pulse preferences <span className="text-primary"><span className="group-open:hidden">↓</span><span className="hidden group-open:inline">↑</span></span>
+              </summary>
+              <div className="pulse-sidebar-content">
+            <Panel title="Pulse preferences" description="Choose what appears in your in-app feed">
               <label className="flex items-center justify-between gap-3 rounded-xl bg-surface px-3 py-3">
                 <span>
                   <span className="block text-sm font-semibold">In-app Pulse</span>
@@ -553,6 +584,8 @@ function SolarisPulsePage() {
                 <p className="mt-2 text-xs text-muted-foreground">{preferenceMessage}</p>
               )}
             </Panel>
+              </div>
+            </details>
           )}
         </div>
       </div>

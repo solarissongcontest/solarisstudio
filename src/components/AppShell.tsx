@@ -1,13 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  BarChart3,
   ChevronDown,
   CircleHelp,
   Compass,
   Home,
   Menu,
-  Sparkles,
+  Trophy,
   User,
+  Vote,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -42,10 +42,7 @@ const EXPLORE_NAV: PublicNavItem[] = [
   { to: "/wiki", label: "Wiki", description: "Read detailed country pages" },
 ];
 
-const MOBILE_EXPLORE_NAV: PublicNavItem[] = [
-  { to: "/results", label: "Results", description: "Open published scoreboards and result views" },
-  ...EXPLORE_NAV,
-];
+const MOBILE_EXPLORE_NAV: PublicNavItem[] = EXPLORE_NAV;
 
 const INSIGHTS_NAV: PublicNavItem[] = [
   { to: "/analysis", label: "Analysis", description: "See what the results and votes show" },
@@ -69,8 +66,24 @@ const INSIGHT_ROUTES = [
 ] as string[];
 
 const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
-const MOBILE_EXPLORE_ROUTES = ["/results", ...EXPLORE_ROUTES];
-const PARTICIPATE_ROUTES = ["/participate", "/confirmations", "/televoting"];
+const RESULT_ROUTES = [
+  "/results",
+  "/scorecharts",
+  "/analysis",
+  "/records",
+  "/relationships",
+  "/compare",
+  "/result-lab",
+  "/taste-dna",
+  "/broadcast-intelligence",
+] as const;
+const PARTICIPATE_ROUTES = [
+  "/participate",
+  "/confirmations",
+  "/jury-voting",
+  "/televoting",
+  "/next-in-line",
+] as const;
 const ACCOUNT_ROUTES = ["/me", "/auth", "/my-solaris", "/country-hub"];
 
 type PublicLayout = "home" | "reading" | "directory" | "detail" | "data" | "workspace" | "core";
@@ -94,7 +107,7 @@ function publicLayoutForPath(pathname: string): PublicLayout {
     return "data";
   }
 
-  if (/^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|televoting|my-solaris|country-hub)(\/|$)/.test(pathname)) {
+  if (/^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|jury-voting|televoting|next-in-line|my-solaris|country-hub)(\/|$)/.test(pathname)) {
     return "workspace";
   }
 
@@ -217,19 +230,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       to: "/editions",
       label: "Explore",
       icon: Compass,
-      active: anyPathMatches(pathname, MOBILE_EXPLORE_ROUTES),
+      active: anyPathMatches(pathname, EXPLORE_ROUTES),
     },
     {
-      to: "/analysis",
-      label: "Insights",
-      icon: BarChart3,
-      active: anyPathMatches(pathname, INSIGHT_ROUTES),
+      to: "/participate",
+      label: "Participate",
+      icon: Vote,
+      active: anyPathMatches(pathname, PARTICIPATE_ROUTES),
     },
     {
-      to: "/predictions",
-      label: "Predict",
-      icon: Sparkles,
-      active: pathMatches(pathname, "/predictions"),
+      to: "/results",
+      label: "Results",
+      icon: Trophy,
+      active: anyPathMatches(pathname, RESULT_ROUTES),
     },
     {
       to: accountHref,
@@ -496,7 +509,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main
         data-public-layout={publicLayout}
         className={cn(
-          "app-main relative z-10 mx-auto w-full min-w-0 px-3 py-4 sm:px-5 sm:py-6 lg:px-8 lg:py-8 2xl:px-10",
+          "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
           PUBLIC_CANVAS_CLASS[publicLayout],
         )}
       >
