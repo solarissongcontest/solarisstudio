@@ -1,6 +1,6 @@
 /* Mobile Wiki reading mode -------------------------------------------------
-   Mobile is an encyclopedia first. Country personality still supplies colour,
-   but dashboard/card geometry is deliberately neutralised below 640px. */
+   Keep the selected country personality visible on phones, but compress the
+   layout so the Wiki reads like an article rather than a dashboard. */
 
 @media (max-width: 639px) {
   .wiki-canvas {
@@ -13,40 +13,30 @@
     font-size: .64rem;
   }
 
-  /* Flat article masthead, not a personality card or poster. */
+  /* Compact personality masthead. Do not strip the personality artwork away. */
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header {
     min-height: 0 !important;
-    padding: .7rem .1rem .75rem !important;
-    border: 0 !important;
-    border-bottom: 1px solid hsl(var(--border) / .5) !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .country-personality-signature,
-  body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .country-hero-background-flag,
-  body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .country-glass-panel-flag {
-    display: none !important;
+    padding: .78rem .82rem !important;
+    border-radius: .85rem !important;
+    box-shadow: 0 14px 34px -30px rgb(var(--solaris-bg-deep) / .95) !important;
   }
 
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .relative.z-10 {
     display: grid !important;
-    gap: .45rem !important;
+    gap: .48rem !important;
   }
 
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .country-hero-identity {
     display: grid !important;
     grid-template-columns: auto minmax(0, 1fr) !important;
     align-items: center !important;
-    gap: .6rem !important;
+    gap: .62rem !important;
   }
 
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header [data-flag-chip="true"] {
-    width: 3.6rem !important;
-    height: 2.4rem !important;
-    border-radius: .2rem !important;
-    box-shadow: none !important;
+    width: 3.8rem !important;
+    height: 2.5rem !important;
+    border-radius: .22rem !important;
   }
 
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .wiki-section-kicker {
@@ -56,70 +46,66 @@
 
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .country-hero-title {
     margin-top: .05rem !important;
-    font-size: clamp(1.8rem, 8.5vw, 2.2rem) !important;
-    line-height: .95 !important;
+    font-size: clamp(1.85rem, 8.7vw, 2.25rem) !important;
+    line-height: .94 !important;
   }
 
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .country-hero-title + p {
     margin-top: .1rem !important;
-    font-size: .66rem !important;
+    font-size: .67rem !important;
   }
 
   body[data-entity-theme="country"] .wiki-canvas .country-wiki-header .wiki-dashboard-link {
     min-height: 0 !important;
     margin: 0 !important;
-    padding: .1rem 0 !important;
+    padding: .12rem 0 !important;
     border: 0 !important;
-    border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
     color: hsl(var(--primary)) !important;
-    font-size: .66rem !important;
+    font-size: .67rem !important;
     justify-content: flex-start !important;
   }
 
-  /* Article utilities like Wikipedia's compact mobile controls. */
+  /* Contents + quick facts stay lightweight between the masthead and article. */
   .wiki-mobile-tools {
     position: static !important;
-    margin: .35rem 0 .4rem !important;
+    margin: .42rem 0 .55rem !important;
   }
 
   .wiki-mobile-toolbar {
     grid-template-columns: 1fr 1fr !important;
-    gap: 0 !important;
+    gap: .42rem !important;
     padding: 0 !important;
     border: 0 !important;
-    border-bottom: 1px solid hsl(var(--border) / .48) !important;
-    border-radius: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
   }
 
   .wiki-mobile-toolbar button {
-    min-height: 2.3rem !important;
+    min-height: 2.4rem !important;
     justify-content: flex-start !important;
-    gap: .38rem !important;
-    padding: 0 .2rem !important;
-    border-radius: 0 !important;
+    gap: .4rem !important;
+    padding: 0 .62rem !important;
+    border: 1px solid rgb(var(--solaris-accent) / .13) !important;
+    border-radius: .68rem !important;
+    background: color-mix(in srgb, var(--surface) 78%, transparent) !important;
     font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
-    font-size: .68rem !important;
+    font-size: .69rem !important;
     font-weight: 650 !important;
   }
 
-  .wiki-mobile-toolbar button + button {
-    border-left: 1px solid hsl(var(--border) / .38) !important;
-    padding-left: .7rem !important;
-  }
-
-  /* True mobile article mode. This intentionally outranks all personality
-     card selectors from wiki-card-restoration.css. */
+  /* One refined card per article section. The previous pass removed these
+     entirely; this keeps the Wiki's visual identity without returning to huge
+     stacked slabs. */
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-reading-grid {
     margin: 0 !important;
     gap: 0 !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-surface {
-    display: block !important;
+    display: grid !important;
+    gap: .55rem !important;
     overflow: visible !important;
     border: 0 !important;
     border-radius: 0 !important;
@@ -129,69 +115,78 @@
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas :is(.wiki-introduction, .wiki-article-section) {
     position: relative !important;
-    isolation: auto !important;
-    overflow: visible !important;
+    isolation: isolate !important;
+    overflow: hidden !important;
     margin: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    border: 1px solid rgb(var(--solaris-accent) / .15) !important;
+    border-radius: .82rem !important;
+    background:
+      linear-gradient(145deg, rgb(var(--solaris-accent) / .04), transparent 58%),
+      color-mix(in srgb, var(--surface) 90%, rgb(var(--solaris-accent)) 10%) !important;
+    box-shadow: 0 10px 28px -26px rgb(var(--solaris-bg-deep) / .95) !important;
   }
 
-  /* Wikipedia-style lead: the page title already identifies the article, so
-     mobile does not need a second giant "Introduction" heading. */
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-introduction {
-    padding: .75rem .08rem .95rem !important;
+    padding: .88rem .9rem .94rem !important;
   }
 
-  body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-introduction :is(.wiki-section-kicker, h2, .wiki-heading-rule) {
-    display: none !important;
+  body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-introduction .wiki-section-kicker {
+    margin-bottom: .18rem !important;
+    font-size: .48rem !important;
+    letter-spacing: .12em !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-introduction h2 {
+    margin: 0 !important;
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 1.02rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -.012em !important;
+  }
+
+  .wiki-heading-rule {
+    margin: .4rem 0 .6rem !important;
+    opacity: .55 !important;
   }
 
   .wiki-introduction .wiki-prose,
   .wiki-prose {
     max-width: none !important;
     font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
-    font-size: .92rem !important;
-    line-height: 1.58 !important;
-  }
-
-  body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section {
-    border-top: 1px solid hsl(var(--border) / .5) !important;
+    font-size: .9rem !important;
+    line-height: 1.55 !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section > summary {
-    min-height: 2.9rem !important;
-    padding: .58rem .05rem !important;
+    min-height: 3rem !important;
+    padding: .66rem .78rem !important;
     border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
+    background: linear-gradient(90deg, rgb(var(--solaris-accent) / .035), transparent 66%) !important;
     box-shadow: none !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section[open] > summary {
-    border-bottom: 1px solid hsl(var(--border) / .35) !important;
+    border-bottom: 1px solid rgb(var(--solaris-accent) / .12) !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section > summary h2 {
     margin: 0 !important;
     font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
-    font-size: .95rem !important;
+    font-size: .94rem !important;
     font-weight: 700 !important;
-    line-height: 1.25 !important;
+    line-height: 1.22 !important;
     letter-spacing: -.01em !important;
     text-transform: none !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section > summary > svg {
-    width: .84rem !important;
+    width: .82rem !important;
     color: hsl(var(--muted-foreground)) !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section-body {
-    padding: .72rem .05rem .95rem !important;
+    padding: .78rem .82rem .9rem !important;
   }
 
   .wiki-article-section-body::before {
@@ -201,13 +196,56 @@
   .wiki-feature-title,
   .wiki-subheading {
     font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
-    font-size: .94rem !important;
+    font-size: .93rem !important;
     font-weight: 700 !important;
     letter-spacing: -.01em !important;
   }
 
-  /* Keep useful data surfaces compact instead of turning the article back into
-     a dashboard. */
+  /* Let each personality keep a compact mobile signature instead of being
+     flattened into the same generic card. */
+  body[data-entity-theme="country"][data-country-hero-layout="editorial"]
+    .wiki-canvas :is(.wiki-introduction, .wiki-article-section) {
+    border-width: 0 0 1px 3px !important;
+    border-radius: 0 .7rem .7rem 0 !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="minimal"]
+    .wiki-canvas :is(.wiki-introduction, .wiki-article-section) {
+    border-width: 0 0 1px !important;
+    border-radius: 0 !important;
+    background: color-mix(in srgb, var(--surface) 34%, transparent) !important;
+    box-shadow: none !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"]
+    .wiki-canvas :is(.wiki-introduction, .wiki-article-section) {
+    border-left: 3px solid rgb(var(--solaris-accent) / .62) !important;
+    border-radius: .6rem !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+    .wiki-canvas :is(.wiki-introduction, .wiki-article-section) {
+    border-color: rgb(255 255 255 / .17) !important;
+    border-radius: 1rem !important;
+    background: linear-gradient(135deg, rgb(255 255 255 / .09), rgb(255 255 255 / .025) 58%, rgb(var(--solaris-accent) / .045)) !important;
+    -webkit-backdrop-filter: blur(13px) saturate(145%) !important;
+    backdrop-filter: blur(13px) saturate(145%) !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="newspaper"]
+    .wiki-canvas :is(.wiki-introduction, .wiki-article-section) {
+    border-width: 1px 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="passport"]
+    .wiki-canvas :is(.wiki-introduction, .wiki-article-section) {
+    border-radius: .66rem !important;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--surface) 91%, transparent) !important;
+  }
+
+  /* Compact data cards only where they actually help reading. */
   .wiki-record-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: .38rem !important;
@@ -216,8 +254,7 @@
 
   .wiki-record-strip > div {
     padding: .58rem .6rem !important;
-    border-radius: .4rem !important;
-    background: hsl(var(--surface) / .38) !important;
+    border-radius: .48rem !important;
   }
 
   .wiki-record-strip dt {
