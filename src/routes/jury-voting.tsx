@@ -10,11 +10,12 @@ import {
   ShieldCheck,
   Vote,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { Panel } from "@/components/AppShell";
 import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
+import { ParticipationRouteChrome, ParticipationServiceShell } from "@/components/ParticipationServiceShell";
 import { Button } from "@/components/ui/button";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import {
@@ -131,18 +132,17 @@ function JuryVotingPage() {
 
   if (isLoading) {
     return (
-      <AppShell>
-        <PageHeader eyebrow="Country accounts" title="Jury voting" description="Loading the current jury voting status…" />
-      </AppShell>
+      <JuryVotingFrame description="Loading the current jury voting status…">
+        <Panel><p className="text-sm text-muted-foreground">Loading jury voting…</p></Panel>
+      </JuryVotingFrame>
     );
   }
 
   if (error) {
     return (
-      <AppShell>
-        <PageHeader eyebrow="Country accounts" title="Jury voting" description="The jury voting service could not be loaded." />
+      <JuryVotingFrame description="The jury voting service could not be loaded.">
         <Panel><p className="text-sm text-red-200">{error instanceof Error ? error.message : "Jury voting is unavailable."}</p></Panel>
-      </AppShell>
+      </JuryVotingFrame>
     );
   }
 
@@ -150,12 +150,7 @@ function JuryVotingPage() {
     const notSignedIn = context?.error === "not_authenticated";
     const needsCountry = context?.error === "country_account_required";
     return (
-      <AppShell>
-        <PageHeader
-          eyebrow="Country accounts"
-          title="Jury voting"
-          description="Jury ballots are official delegation votes, so they can only be submitted from a signed-in country account."
-        />
+      <JuryVotingFrame description="Jury ballots are official delegation votes, so they can only be submitted from a signed-in country account.">
         <Panel title={notSignedIn ? "Sign in first" : needsCountry ? "Country account required" : "Jury voting unavailable"}>
           <p className="text-sm leading-relaxed text-muted-foreground">
             {notSignedIn
@@ -171,18 +166,12 @@ function JuryVotingPage() {
             {notSignedIn ? "Sign in" : "Open My Solaris"}
           </Link>
         </Panel>
-      </AppShell>
+      </JuryVotingFrame>
     );
   }
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Official delegation vote"
-        title="Jury voting"
-        description={`Signed in for ${context.country?.name ?? "your country"}. Jury voting only becomes available when the organizer opens it for a show.`}
-      />
-
+    <JuryVotingFrame description={`Signed in for ${context.country?.name ?? "your country"}. Jury voting only becomes available when the organizer opens it for a show.`}>
       <div className="space-y-4">
         <Panel>
           <div className="flex items-start gap-3">
@@ -250,7 +239,17 @@ function JuryVotingPage() {
           </Panel>
         )}
       </div>
-    </AppShell>
+    </JuryVotingFrame>
+  );
+}
+
+function JuryVotingFrame({ children, description }: { children: ReactNode; description: string }) {
+  return (
+    <ParticipationRouteChrome>
+      <ParticipationServiceShell service="jury" title="Jury voting" description={description} maxWidth="max-w-4xl">
+        {children}
+      </ParticipationServiceShell>
+    </ParticipationRouteChrome>
   );
 }
 

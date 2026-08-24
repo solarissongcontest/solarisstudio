@@ -14,6 +14,7 @@ import {
 
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
+import { archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 
 import { computeStandings } from "@/lib/analysis";
 
@@ -106,29 +107,22 @@ function BroadcastPage() {
   /* Data                                                                     */
   /* ------------------------------------------------------------------------ */
 
-  const { data: show } =
-    useShow(showId);
-
-  const { data: participants } =
-    useShowParticipants(showId);
-
-  const { data: voters } =
-    useShowVoters(showId);
-
-  const { data: jury } =
-    useJuryVotes(showId);
-
-  const { data: tele } =
-    useTelevotes(showId);
-
-  const { data: countries } =
-    useCountries();
-
-  const { data: entities } =
-    useAllContestEntities();
-
-  const { data: themes } =
-    useThemes();
+  const showQuery = useShow(showId);
+  const participantsQuery = useShowParticipants(showId);
+  const votersQuery = useShowVoters(showId);
+  const juryQuery = useJuryVotes(showId);
+  const televoteQuery = useTelevotes(showId);
+  const countriesQuery = useCountries();
+  const entitiesQuery = useAllContestEntities();
+  const themesQuery = useThemes();
+  const { data: show } = showQuery;
+  const { data: participants } = participantsQuery;
+  const { data: voters } = votersQuery;
+  const { data: jury } = juryQuery;
+  const { data: tele } = televoteQuery;
+  const { data: countries } = countriesQuery;
+  const { data: entities } = entitiesQuery;
+  const { data: themes } = themesQuery;
 
   /* ------------------------------------------------------------------------ */
   /* Theme                                                                    */
@@ -1090,6 +1084,14 @@ function BroadcastPage() {
   /* ------------------------------------------------------------------------ */
   /* Loading / missing show                                                   */
   /* ------------------------------------------------------------------------ */
+
+  const broadcastQueries = [showQuery, participantsQuery, votersQuery, juryQuery, televoteQuery, countriesQuery, entitiesQuery, themesQuery];
+  if (archiveIsLoading(...broadcastQueries)) {
+    return <div className="grid min-h-screen place-items-center bg-black text-white"><p className="text-sm text-white/60">Loading broadcast…</p></div>;
+  }
+  if (archiveHasError(...broadcastQueries)) {
+    return <div className="grid min-h-screen place-items-center bg-black px-6 text-center text-white"><p className="text-sm text-red-200">The broadcast data could not be loaded. Refresh the page to try again.</p></div>;
+  }
 
   if (!show) {
     return (

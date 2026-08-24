@@ -11,6 +11,7 @@ import {
 } from "recharts";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import { useCompleteJuryArchive } from "@/lib/complete-jury";
@@ -34,17 +35,28 @@ export const Route = createFileRoute("/relationships/$pair")({
 
 function RelationshipPairPage() {
   const { pair } = Route.useParams();
-  const { data: countries } = useCountries();
-  const { data: editions } = useEditions();
-  const { data: participants } = useAllParticipants();
-  const { data: jury } = useCompleteJuryArchive();
-  const { data: televote } = useAllTelevotes();
-  const { data: results } = useAllResults();
-  const { data: shows } = useAllShows();
+  const countriesQuery = useCountries();
+  const editionsQuery = useEditions();
+  const participantsQuery = useAllParticipants();
+  const juryQuery = useCompleteJuryArchive();
+  const televoteQuery = useAllTelevotes();
+  const resultsQuery = useAllResults();
+  const showsQuery = useAllShows();
+  const { data: countries } = countriesQuery;
+  const { data: editions } = editionsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: jury } = juryQuery;
+  const { data: televote } = televoteQuery;
+  const { data: results } = resultsQuery;
+  const { data: shows } = showsQuery;
 
   const [codeA, codeB] = pair.toUpperCase().split("-VS-");
   const a = (countries ?? []).find((country) => country.short_code.toUpperCase() === codeA);
   const b = (countries ?? []).find((country) => country.short_code.toUpperCase() === codeB);
+
+  const archiveQueries = [countriesQuery, editionsQuery, participantsQuery, juryQuery, televoteQuery, resultsQuery, showsQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading relationship history…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   if (!a || !b) {
     return (

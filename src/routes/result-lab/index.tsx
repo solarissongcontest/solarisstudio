@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
@@ -47,16 +48,24 @@ function downloadText(filename: string, text: string) {
 }
 
 function ResultLabPage() {
-  const { data: editions } = useEditions();
+  const editionsQuery = useEditions();
+  const { data: editions } = editionsQuery;
   const [editionId, setEditionId] = useState<string>("");
-  const { data: editionShows } = useShows(editionId || undefined);
+  const showsQuery = useShows(editionId || undefined);
+  const { data: editionShows } = showsQuery;
   const [showId, setShowId] = useState<string>("");
-  const { data: countries } = useCountries();
-  const { data: entities } = useAllContestEntities();
-  const { data: participants } = useShowParticipants(showId || undefined);
-  const { data: results } = useResults(showId || undefined);
-  const { data: juryVotes } = useJuryVotes(showId || undefined);
-  const { data: voters } = useShowVoters(showId || undefined);
+  const countriesQuery = useCountries();
+  const entitiesQuery = useAllContestEntities();
+  const participantsQuery = useShowParticipants(showId || undefined);
+  const resultsQuery = useResults(showId || undefined);
+  const juryQuery = useJuryVotes(showId || undefined);
+  const votersQuery = useShowVoters(showId || undefined);
+  const { data: countries } = countriesQuery;
+  const { data: entities } = entitiesQuery;
+  const { data: participants } = participantsQuery;
+  const { data: results } = resultsQuery;
+  const { data: juryVotes } = juryQuery;
+  const { data: voters } = votersQuery;
 
   const [juryWeight, setJuryWeight] = useState(50);
   const [blendMode, setBlendMode] = useState<ResultLabBlendMode>("raw");
@@ -233,6 +242,11 @@ function ResultLabPage() {
     const safeName = selectedShow.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
     downloadText(`solaris-result-lab-${safeName || "simulation"}.csv`, resultLabCsv(simulation.rows));
   };
+
+  const archiveQueries = [editionsQuery, showsQuery, countriesQuery, entitiesQuery, participantsQuery, resultsQuery, juryQuery, votersQuery];
+  const selectionPending = Boolean(editions?.some((edition) => edition.published) && !editionId) || Boolean(eligibleShows.length && !showId);
+  if (selectionPending || archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="What-if analytics" title="Result Lab" description="Build a scenario from a published result." /><ArchiveDataLoading label="Preparing Result Lab…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="What-if analytics" title="Result Lab" description="Build a scenario from a published result." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

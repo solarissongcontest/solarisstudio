@@ -358,7 +358,11 @@ function ConfirmationsPage() {
                           onClick={() => setSelectedId(round.id)}
                           className="shrink-0"
                         >
-                          Open confirmation <ArrowRight className="size-4" />
+                          {canOpen ? (
+                            <>Open confirmation <ArrowRight className="size-4" /></>
+                          ) : (
+                            <><LockKeyhole className="size-4" /> {reason === "SCHEDULED" ? "Upcoming" : reason === "RESPONSE_LIMIT_REACHED" ? "Full" : "Closed"}</>
+                          )}
                         </Button>
                       )}
                     </div>

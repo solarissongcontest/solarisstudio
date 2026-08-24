@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
   archiveGameStats,
@@ -32,12 +33,18 @@ const MODES: ReadonlyArray<readonly [ArchiveGameMode, string, string]> = [
 ];
 
 function ArchiveGamesPage() {
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: participants } = useAllParticipants();
-  const { data: results } = useAllResults();
-  const { data: countries } = useCountries();
-  const { data: entities } = useAllContestEntities();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const participantsQuery = useAllParticipants();
+  const resultsQuery = useAllResults();
+  const countriesQuery = useCountries();
+  const entitiesQuery = useAllContestEntities();
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: results } = resultsQuery;
+  const { data: countries } = countriesQuery;
+  const { data: entities } = entitiesQuery;
 
   const [mode, setMode] = useState<ArchiveGameMode>("higher-lower");
   const [round, setRound] = useState(1);
@@ -100,6 +107,10 @@ function ArchiveGamesPage() {
     setStreak(0);
     setBestStreak(0);
   };
+
+  const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, countriesQuery, entitiesQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataLoading label="Preparing the archive games…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

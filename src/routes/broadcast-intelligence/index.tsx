@@ -14,6 +14,7 @@ import {
   PageHeader,
   Panel,
 } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 
 import { FlagChip } from "@/components/FlagChip";
 
@@ -71,30 +72,25 @@ const MOMENT_LABELS: Record<
 };
 
 function BroadcastIntelligencePage() {
-  const { data: editions } =
-    useEditions();
+  const editionsQuery = useEditions();
+  const { data: editions } = editionsQuery;
 
   const [editionId, setEditionId] =
     useState("");
 
-  const { data: shows } =
-    useShows(
-      editionId || undefined,
-    );
+  const showsQuery = useShows(editionId || undefined);
+  const { data: shows } = showsQuery;
 
   const [showId, setShowId] =
     useState("");
 
-  const { data: results } =
-    useResults(
-      showId || undefined,
-    );
+  const resultsQuery = useResults(showId || undefined);
+  const { data: results } = resultsQuery;
 
-  const { data: countries } =
-    useCountries();
-
-  const { data: entities } =
-    useAllContestEntities();
+  const countriesQuery = useCountries();
+  const entitiesQuery = useAllContestEntities();
+  const { data: countries } = countriesQuery;
+  const { data: entities } = entitiesQuery;
 
   const [replayStep, setReplayStep] =
     useState(0);
@@ -300,6 +296,11 @@ function BroadcastIntelligencePage() {
     setEditionId(value);
     setShowId("");
   };
+
+  const archiveQueries = [editionsQuery, showsQuery, resultsQuery, countriesQuery, entitiesQuery];
+  const selectionPending = Boolean(editions?.some((edition) => edition.published) && !editionId) || Boolean(eligibleShows.length && !showId);
+  if (selectionPending || archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast analytics" title="Broadcast Intelligence" description="Replay and inspect a published result." /><ArchiveDataLoading label="Preparing the results replay…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast analytics" title="Broadcast Intelligence" description="Replay and inspect a published result." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

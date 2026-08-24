@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { useCompleteJuryArchive } from "@/lib/complete-jury";
@@ -36,12 +37,18 @@ function pairParam(a: Country, b: Country) {
 }
 
 function RelationshipsPage() {
-  const { data: countries } = useCountries();
-  const { data: participants } = useAllParticipants();
-  const { data: jury } = useCompleteJuryArchive();
-  const { data: results } = useAllResults();
-  const { data: shows } = useAllShows();
-  const { data: editions } = useEditions();
+  const countriesQuery = useCountries();
+  const participantsQuery = useAllParticipants();
+  const juryQuery = useCompleteJuryArchive();
+  const resultsQuery = useAllResults();
+  const showsQuery = useAllShows();
+  const editionsQuery = useEditions();
+  const { data: countries } = countriesQuery;
+  const { data: participants } = participantsQuery;
+  const { data: jury } = juryQuery;
+  const { data: results } = resultsQuery;
+  const { data: shows } = showsQuery;
+  const { data: editions } = editionsQuery;
 
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
@@ -136,6 +143,10 @@ function RelationshipsPage() {
 
     return rows;
   }, [pairs, query, tab, oneSidedMap]);
+
+  const archiveQueries = [countriesQuery, participantsQuery, juryQuery, resultsQuery, showsQuery, editionsQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataLoading label="Calculating country relationships…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

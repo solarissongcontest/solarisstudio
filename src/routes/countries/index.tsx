@@ -3,6 +3,7 @@ import { Search, SlidersHorizontal, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import {
@@ -36,13 +37,20 @@ type CountryRow = {
 };
 
 function CountriesPage() {
-  const { data: countries } = useCountries();
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
-  const { data: participants } = useAllParticipants();
-  const { data: results } = useAllResults();
-  const { data: jury } = useAllJuryVotes();
-  const { data: televote } = useAllTelevotes();
+  const countriesQuery = useCountries();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const participantsQuery = useAllParticipants();
+  const resultsQuery = useAllResults();
+  const juryQuery = useAllJuryVotes();
+  const televoteQuery = useAllTelevotes();
+  const { data: countries } = countriesQuery;
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: participants } = participantsQuery;
+  const { data: results } = resultsQuery;
+  const { data: jury } = juryQuery;
+  const { data: televote } = televoteQuery;
 
   const [search, setSearch] = useState("");
   const [region, setRegion] = useState("all");
@@ -147,6 +155,14 @@ function CountriesPage() {
     (search.trim() ? 1 : 0) +
     (region !== "all" ? 1 : 0) +
     (sort !== "name" ? 1 : 0);
+
+  const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
+  if (archiveIsLoading(...archiveQueries)) {
+    return <AppShell><PageHeader eyebrow="Delegation directory" title="Countries" description="Browse every Solaris delegation, or search an artist or song to find the country that sent it." /><ArchiveDataLoading label="Loading countries and contest history…" /></AppShell>;
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return <AppShell><PageHeader eyebrow="Delegation directory" title="Countries" description="Browse every Solaris delegation, or search an artist or song to find the country that sent it." /><ArchiveDataError /></AppShell>;
+  }
 
   return (
     <AppShell>

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, LoaderCircle, Music2, ShieldCheck } from "lucide-react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { Panel } from "@/components/AppShell";
+import { ParticipationRouteChrome, ParticipationServiceShell } from "@/components/ParticipationServiceShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -258,12 +259,13 @@ export function NextInLineCompetition() {
   }
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Separate competition"
+    <ParticipationRouteChrome>
+      <ParticipationServiceShell
+        service="next-in-line"
         title="Next in Line"
         description="A second competition for songs left behind by countries already competing in the current SSC edition. Enter a song that did not win your National Final or was not chosen in your internal selection."
-      />
+        maxWidth="max-w-4xl"
+      >
 
       <div className="mx-auto max-w-3xl space-y-4">
         <Panel>
@@ -394,6 +396,7 @@ export function NextInLineCompetition() {
           </Panel>
         )}
       </div>
-    </AppShell>
+      </ParticipationServiceShell>
+    </ParticipationRouteChrome>
   );
 }

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
@@ -30,15 +31,22 @@ type JuryBallot = {
 };
 
 function JuryReplayPage() {
-  const { data: editions } = useEditions();
+  const editionsQuery = useEditions();
+  const { data: editions } = editionsQuery;
   const [editionId, setEditionId] = useState("");
-  const { data: shows } = useShows(editionId || undefined);
+  const showsQuery = useShows(editionId || undefined);
+  const { data: shows } = showsQuery;
   const [showId, setShowId] = useState("");
-  const { data: countries } = useCountries();
-  const { data: entities } = useAllContestEntities();
-  const { data: participants } = useShowParticipants(showId || undefined);
-  const { data: juryVotes } = useJuryVotes(showId || undefined);
-  const { data: voters } = useShowVoters(showId || undefined);
+  const countriesQuery = useCountries();
+  const entitiesQuery = useAllContestEntities();
+  const participantsQuery = useShowParticipants(showId || undefined);
+  const juryQuery = useJuryVotes(showId || undefined);
+  const votersQuery = useShowVoters(showId || undefined);
+  const { data: countries } = countriesQuery;
+  const { data: entities } = entitiesQuery;
+  const { data: participants } = participantsQuery;
+  const { data: juryVotes } = juryQuery;
+  const { data: voters } = votersQuery;
 
   const [step, setStep] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
@@ -161,6 +169,11 @@ function JuryReplayPage() {
     }
     setStep((current) => Math.min(ballots.length, current + 1));
   };
+
+  const archiveQueries = [editionsQuery, showsQuery, countriesQuery, entitiesQuery, participantsQuery, juryQuery, votersQuery];
+  const selectionPending = Boolean(editions?.some((edition) => edition.published) && !editionId) || Boolean(eligibleShows.length && !showId);
+  if (selectionPending || archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast Intelligence" title="Jury Replay" description="Replay published jury ballots." /><ArchiveDataLoading label="Preparing the jury replay…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast Intelligence" title="Jury Replay" description="Replay published jury ballots." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

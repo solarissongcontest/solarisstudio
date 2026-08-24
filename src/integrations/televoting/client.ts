@@ -41,10 +41,13 @@ function createTelevotingClient() {
     db: { schema: "televoting" },
     global: { fetch: createSupabaseFetch(key) },
     auth: {
-      storage: typeof window !== "undefined" ? localStorage : undefined,
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
+      // Televoting is a data/realtime client. Solaris Studio's primary client
+      // owns the only browser auth session, so this client must not compete for
+      // the same GoTrue storage key or run a second refresh loop.
+      storageKey: "solaris-televoting-data-only",
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
   });
 }

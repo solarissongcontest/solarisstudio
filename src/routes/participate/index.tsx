@@ -30,7 +30,7 @@ function ParticipatePage() {
       <PageHeader
         eyebrow="Participate"
         title="Take part in Solaris"
-        description="Contest participation and voting services, separated by what they actually do. Revolutionary, apparently."
+        description="Confirm your delegation, vote in the contest and follow each participation service from one place."
       />
 
       <section className="grid gap-3 md:grid-cols-2">

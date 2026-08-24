@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
@@ -19,8 +20,10 @@ export const Route = createFileRoute("/scorecharts/")({
 });
 
 function ScorechartsPage() {
-  const { data: editions } = useEditions();
-  const { data: shows } = useAllShows();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
 
   const editionMap = useMemo(
     () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
@@ -38,6 +41,10 @@ function ScorechartsPage() {
         }),
     [shows, editionMap],
   );
+
+  const archiveQueries = [editionsQuery, showsQuery];
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Detailed voting" title="Full Scorecharts" description="Published detailed voting matrices." /><ArchiveDataLoading label="Loading scorecharts…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Detailed voting" title="Full Scorecharts" description="Published detailed voting matrices." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

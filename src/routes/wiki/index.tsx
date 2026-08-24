@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { useCountries } from "@/lib/data";
 
@@ -20,7 +21,8 @@ export const Route = createFileRoute("/wiki/")({
 });
 
 function WikiIndexPage() {
-  const { data: countries } = useCountries();
+  const countriesQuery = useCountries();
+  const { data: countries } = countriesQuery;
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
@@ -34,6 +36,9 @@ function WikiIndexPage() {
       )
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [countries, search]);
+
+  if (countriesQuery.isLoading) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataLoading label="Loading the Wiki library…" /></AppShell>;
+  if (countriesQuery.isError) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>

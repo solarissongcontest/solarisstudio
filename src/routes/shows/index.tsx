@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -37,10 +38,14 @@ type ShowCard = {
 };
 
 function ShowsPage() {
-  const { data: editions, isLoading: editionsLoading } = useEditions();
-  const { data: shows, isLoading: showsLoading } = useAllShows();
-  const { data: countries } = useCountries();
-  const { data: results } = useAllResults();
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const countriesQuery = useCountries();
+  const resultsQuery = useAllResults();
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+  const { data: countries } = countriesQuery;
+  const { data: results } = resultsQuery;
 
   const editionMap = useMemo(
     () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
@@ -94,7 +99,11 @@ function ShowsPage() {
   const grandFinalCount = cards.filter(
     (card) => card.show.kind === "grand-final" || card.show.kind === "final",
   ).length;
-  const loading = editionsLoading || showsLoading;
+  const archiveQueries = [editionsQuery, showsQuery, countriesQuery, resultsQuery];
+  const loading = archiveIsLoading(...archiveQueries);
+
+  if (loading) return <AppShell><PageHeader eyebrow="Broadcast archive" title="Shows" description="Semi-finals, finals and result nights in one broadcast-first archive." /><ArchiveDataLoading label="Loading shows and published results…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast archive" title="Shows" description="Semi-finals, finals and result nights in one broadcast-first archive." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>
@@ -103,8 +112,6 @@ function ShowsPage() {
         title="Shows"
         description="Semi-finals, finals and result nights in one broadcast-first archive. Open a show for its field, scoreboard and published result."
       />
-
-      {loading && <p className="text-sm text-muted-foreground">Loading shows…</p>}
 
       {!loading && cards.length > 0 && (
         <>

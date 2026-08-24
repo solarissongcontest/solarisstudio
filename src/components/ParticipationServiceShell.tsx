@@ -1,11 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ClipboardCheck, Vote } from "lucide-react";
+import { ClipboardCheck, Gavel, Music2, Vote } from "lucide-react";
 import { createContext, useContext, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
 
-type ParticipationService = "confirmations" | "televoting";
+type ParticipationService = "confirmations" | "jury" | "televoting" | "next-in-line";
 
 type ServiceAction = {
   to: string;
@@ -42,7 +42,12 @@ export function ParticipationServiceShell({
   maxWidth?: string;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const serviceLabel = service === "confirmations" ? "Confirmations" : "Televoting";
+  const serviceLabel = {
+    confirmations: "Confirmations",
+    jury: "Jury voting",
+    televoting: "Televoting",
+    "next-in-line": "Next in Line",
+  }[service];
 
   // Legacy confirmation screens used to advertise Next in Line as a
   // confirmation sub-flow. It is now a separate song competition at
@@ -54,7 +59,10 @@ export function ParticipationServiceShell({
 
   return (
     <div className={cn("mx-auto min-w-0", maxWidth)}>
-      <div className="mb-4 flex min-w-0 items-center gap-1 border-b border-border/55 pb-3 sm:mb-5">
+      <nav
+        aria-label="Participation services"
+        className="-mx-1 mb-4 flex min-w-0 items-center gap-1 overflow-x-auto border-b border-border/55 px-1 pb-3 [scrollbar-width:none] sm:mb-5"
+      >
         <ServiceTab
           to="/confirmations"
           label="Confirmations"
@@ -62,12 +70,24 @@ export function ParticipationServiceShell({
           active={pathname.startsWith("/confirmations")}
         />
         <ServiceTab
+          to="/jury-voting"
+          label="Jury voting"
+          icon={Gavel}
+          active={pathname.startsWith("/jury-voting")}
+        />
+        <ServiceTab
           to="/televoting"
           label="Televoting"
           icon={Vote}
           active={pathname.startsWith("/televoting")}
         />
-      </div>
+        <ServiceTab
+          to="/next-in-line"
+          label="Next in Line"
+          icon={Music2}
+          active={pathname.startsWith("/next-in-line")}
+        />
+      </nav>
 
       <PageHeader
         eyebrow={`${serviceLabel} · Participate`}
@@ -115,7 +135,7 @@ function ServiceTab({
       to={to as any}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "inline-flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold transition sm:text-xs",
+        "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold transition sm:text-xs",
         active
           ? "bg-primary/[0.09] text-primary"
           : "text-muted-foreground hover:bg-surface hover:text-foreground",
