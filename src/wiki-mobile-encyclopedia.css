@@ -1,0 +1,291 @@
+/* Mobile Wiki reading mode -------------------------------------------------
+   Desktop keeps the full personality-aware card system. On phones the Wiki
+   switches to an article-first encyclopedia layout: one readable article
+   sheet, compact identity header, slim contents tools and section dividers.
+   This is intentionally closer to mobile Wikipedia than to a dashboard. */
+
+@media (max-width: 639px) {
+  .wiki-canvas {
+    width: 100%;
+  }
+
+  .wiki-breadcrumbs {
+    margin: 0 0 .55rem;
+    gap: .4rem;
+    font-size: .67rem;
+  }
+
+  /* Compact article masthead. The country personality still owns colour and
+     ornament, but it cannot turn the first screen into a poster-sized hero. */
+  .country-wiki-header {
+    min-height: 0 !important;
+    padding: .9rem 1rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .country-wiki-header .relative.z-10 {
+    gap: .65rem !important;
+  }
+
+  .country-wiki-header .country-hero-identity {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: .7rem !important;
+  }
+
+  .country-wiki-header [data-flag-chip="true"] {
+    width: 4.5rem !important;
+    height: 3rem !important;
+    border-radius: .35rem !important;
+  }
+
+  .country-wiki-header .country-hero-background-flag {
+    right: -.75rem !important;
+    width: 9.5rem !important;
+    height: 9.5rem !important;
+    opacity: .08 !important;
+  }
+
+  .country-wiki-header .country-glass-panel-flag {
+    opacity: .09 !important;
+  }
+
+  .country-wiki-header .wiki-section-kicker {
+    font-size: .55rem !important;
+    letter-spacing: .15em !important;
+  }
+
+  .country-wiki-header .country-hero-title {
+    margin-top: .15rem !important;
+    font-size: clamp(2rem, 10vw, 2.65rem) !important;
+    line-height: .92 !important;
+  }
+
+  .country-wiki-header .country-hero-title + p {
+    margin-top: .2rem !important;
+    font-size: .72rem !important;
+  }
+
+  .country-wiki-header .wiki-dashboard-link {
+    min-height: 0 !important;
+    margin-top: .1rem !important;
+    padding: .2rem 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: hsl(var(--primary)) !important;
+    font-size: .7rem !important;
+    justify-content: flex-start !important;
+  }
+
+  /* Mobile article tools behave like article utilities, not another card. */
+  .wiki-mobile-tools {
+    position: static !important;
+    z-index: auto !important;
+    margin: .55rem 0 .7rem !important;
+  }
+
+  .wiki-mobile-toolbar {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-block: 1px solid hsl(var(--border) / .56) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .wiki-mobile-toolbar button {
+    min-height: 2.65rem !important;
+    justify-content: flex-start !important;
+    gap: .45rem !important;
+    padding: 0 .65rem !important;
+    border-radius: 0 !important;
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+    font-size: .73rem !important;
+    font-weight: 700 !important;
+  }
+
+  .wiki-mobile-toolbar button + button {
+    border-left: 1px solid hsl(var(--border) / .5) !important;
+  }
+
+  .wiki-mobile-toolbar button:hover {
+    background: hsl(var(--surface) / .32) !important;
+  }
+
+  /* One article sheet. Major sections live inside it as headings/dividers,
+     instead of six giant rounded boxes stacked down the page. */
+  .wiki-reading-grid {
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+
+  .wiki-article-surface {
+    display: block !important;
+    overflow: hidden !important;
+    border: 1px solid hsl(var(--border) / .58) !important;
+    border-radius: .9rem !important;
+    background: color-mix(in srgb, var(--surface) 76%, hsl(var(--background)) 24%) !important;
+    box-shadow: 0 16px 40px -34px rgb(var(--solaris-bg-deep) / .85) !important;
+  }
+
+  .wiki-introduction,
+  .wiki-article-section,
+  body[data-entity-theme="country"] .wiki-introduction,
+  body[data-entity-theme="country"] .wiki-article-section {
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .wiki-introduction {
+    padding: 1rem .95rem 1.1rem !important;
+  }
+
+  .wiki-introduction .wiki-section-kicker {
+    display: none !important;
+  }
+
+  .wiki-introduction h2 {
+    margin: 0 !important;
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 1.35rem !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -.02em !important;
+    text-transform: none !important;
+  }
+
+  .wiki-heading-rule {
+    margin: .55rem 0 .8rem !important;
+    background: hsl(var(--border) / .7) !important;
+  }
+
+  .wiki-introduction .wiki-prose,
+  .wiki-prose {
+    max-width: none !important;
+    font-size: .94rem !important;
+    line-height: 1.62 !important;
+  }
+
+  .wiki-article-section {
+    border-top: 1px solid hsl(var(--border) / .58) !important;
+  }
+
+  .wiki-article-section > summary,
+  body[data-entity-theme="country"] .wiki-article-section > summary {
+    min-height: 3.35rem !important;
+    padding: .7rem .95rem !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .wiki-article-section[open] > summary {
+    border-bottom: 1px solid hsl(var(--border) / .44) !important;
+  }
+
+  .wiki-article-section > summary:hover {
+    background: hsl(var(--surface) / .28) !important;
+  }
+
+  .wiki-article-section > summary h2,
+  body[data-entity-theme="country"] .wiki-article-section > summary h2 {
+    margin: 0 !important;
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    line-height: 1.25 !important;
+    letter-spacing: -.015em !important;
+    text-transform: none !important;
+  }
+
+  .wiki-article-section > summary > svg {
+    width: .95rem !important;
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .wiki-article-section-body {
+    padding: .9rem .95rem 1.15rem !important;
+  }
+
+  .wiki-article-section-body::before {
+    display: none !important;
+  }
+
+  .wiki-feature-title,
+  .wiki-subheading {
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -.015em !important;
+  }
+
+  /* Keep useful data cards, but make them compact enough to read like an
+     encyclopedia record rather than a dashboard buried inside the article. */
+  .wiki-record-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: .45rem !important;
+    margin-top: 1rem !important;
+  }
+
+  .wiki-record-strip > div {
+    padding: .7rem .72rem !important;
+    border-radius: .55rem !important;
+  }
+
+  .wiki-record-strip dt {
+    font-size: .55rem !important;
+  }
+
+  .wiki-record-strip dd {
+    margin-top: .2rem !important;
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+  }
+
+  .wiki-entry-row {
+    grid-template-columns: 4.6rem minmax(0, 1fr) !important;
+    gap: .5rem .8rem !important;
+    padding: .72rem 0 !important;
+  }
+
+  .wiki-facts-list,
+  .wiki-media-gallery {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wiki-adjacent-articles {
+    margin-top: .7rem !important;
+  }
+
+  /* Bottom sheets remain functional, but read as Wiki panels rather than
+     oversized app modals. */
+  .wiki-sheet-panel {
+    max-height: 76vh !important;
+    padding: .7rem .8rem max(.9rem, env(safe-area-inset-bottom)) !important;
+    border-radius: 1rem 1rem 0 0 !important;
+  }
+
+  .wiki-sheet-panel > header h2 {
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+    font-size: 1.05rem !important;
+  }
+
+  .wiki-sheet-panel > .wiki-contents-nav a {
+    min-height: 2.7rem !important;
+    font-size: .78rem !important;
+  }
+
+  .wiki-infobox-mobile .wiki-infobox-identity h2 {
+    font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  }
+}
