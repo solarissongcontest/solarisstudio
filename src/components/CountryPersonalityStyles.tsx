@@ -9,11 +9,14 @@ import wikiMobileStyles from "@/wiki-mobile-encyclopedia.css?inline";
 import feedbackStyles from "@/country-personality-feedback.css?inline";
 import artDirectionStyles from "@/country-personalities-v5.css?inline";
 import silhouetteStyles from "@/country-personalities-v6.css?inline";
+import silhouetteLayoutStyles from "@/country-personalities-v6-layout.css?inline";
 
 /**
  * Country personalities are intentionally route-scoped. V6 is loaded after
  * the broad V5 art-direction layer and owns the final silhouettes for the
- * personalities that still looked too much like the same base card.
+ * personalities that still looked too much like the same base card. The last
+ * compact layer also keeps editor thumbnails and responsive inner structure in
+ * parity with those silhouettes.
  */
 export function CountryPersonalityStyles() {
   return (
@@ -29,6 +32,7 @@ export function CountryPersonalityStyles() {
       {feedbackStyles}
       {artDirectionStyles}
       {silhouetteStyles}
+      {silhouetteLayoutStyles}
     </style>
   );
 }
