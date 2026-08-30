@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { matchVoterKey, type Country, type JuryVote, type Voter, type VoterOption } from "@/lib/data";
+import {
+  matchVoterKey,
+  voterOptionsFromVoters,
+  type Country,
+  type JuryVote,
+  type Voter,
+  type VoterOption,
+} from "@/lib/data";
 
 import { cn } from "@/lib/utils";
 
@@ -25,41 +32,56 @@ export function VotingMatrix({
 }) {
   const [hover, setHover] = useState<{ from: string; to: string } | null>(null);
 
-  const voterMap = new Map<string, VoterOption>();
-  (voters ?? []).forEach((v) => {
-    const c = v.country_id ? countries.get(v.country_id) : undefined;
-    voterMap.set(`v:${v.id}`, {
-      key: `v:${v.id}`,
-      voterId: v.id,
-      countryId: v.country_id,
-      name: v.name || c?.name || "Voter",
-      short_code: c?.short_code ?? null,
-      flag_image: v.flag_image ?? c?.flag_image ?? null,
-      accent_color: v.accent_color || c?.accent_color || "#8888aa",
-    });
-  });
+  /*
+   * Use the same canonical voter resolver as the organizer/editor surfaces.
+   * Historical custom nations are keyed by contest_entity_id rather than a
+   * global country_id. Building this map from country_id alone made those
+   * ballots land under `c:<entityId>` while their visible scorechart column was
+   * `v:<voterId>`, so the cells looked empty even though row totals counted the
+   * points. SSC7 Zenryah is one real archive example of that mismatch.
+   */
+  const voterList: VoterOption[] = voterOptionsFromVoters(
+    voters ?? [],
+    [...countries.values()],
+  );
+  const voterMap = new Map(voterList.map((voter) => [voter.key, voter]));
+
   const displayFor = (colKey: string): VoterOption | undefined => {
     if (voterMap.has(colKey)) return voterMap.get(colKey);
     const id = colKey.startsWith("c:") ? colKey.slice(2) : colKey;
     const c = countries.get(id);
     return c
-      ? { key: `c:${c.id}`, voterId: null, countryId: c.id, name: c.name, short_code: c.short_code, flag_image: c.flag_image, accent_color: c.accent_color }
+      ? {
+          key: `c:${c.id}`,
+          voterId: null,
+          countryId: c.id,
+          name: c.name,
+          short_code: c.short_code,
+          flag_image: c.flag_image,
+          accent_color: c.accent_color,
+        }
       : undefined;
   };
-  const voterList: VoterOption[] = [...voterMap.values()];
-  const colKeyOf = (v: JuryVote) => matchVoterKey(v, voterList);
 
+  const colKeyOf = (vote: JuryVote) => matchVoterKey(vote, voterList);
 
   const cell = new Map<string, number>();
-  votes.forEach((v) => {
-    const key = `${colKeyOf(v)}>${v.receiving_country_id}`;
-    cell.set(key, (cell.get(key) ?? 0) + v.points);
+  votes.forEach((vote) => {
+    const key = `${colKeyOf(vote)}>${vote.receiving_country_id}`;
+    cell.set(key, (cell.get(key) ?? 0) + vote.points);
   });
+
   const totals = new Map<string, number>();
-  votes.forEach((v) =>
-    totals.set(v.receiving_country_id, (totals.get(v.receiving_country_id) ?? 0) + v.points),
+  votes.forEach((vote) =>
+    totals.set(
+      vote.receiving_country_id,
+      (totals.get(vote.receiving_country_id) ?? 0) + vote.points,
+    ),
   );
-  const columns = voters && voters.length ? voters.map((v) => `v:${v.id}`) : order.map((id) => `c:${id}`);
+
+  const columns = voterList.length
+    ? voterList.map((voter) => voter.key)
+    : order.map((id) => `c:${id}`);
   const rows = [...order].sort((a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0));
 
   if (!order.length) return <p className="text-sm text-muted-foreground">No votes yet.</p>;
@@ -85,7 +107,13 @@ export function VotingMatrix({
                 >
                   <span className="flex flex-col items-center gap-1">
                     {c?.flag_image ? (
-                      <img src={c.flag_image} alt={c.name} loading="lazy" decoding="async" className="h-4 w-6 rounded-[2px] object-cover" />
+                      <img
+                        src={c.flag_image}
+                        alt={c.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-4 w-6 rounded-[2px] object-cover"
+                      />
                     ) : null}
                     <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
                       {c?.short_code ?? c?.name}
@@ -105,7 +133,13 @@ export function VotingMatrix({
                 <th className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur">
                   <span className="flex items-center gap-2">
                     {rc?.flag_image ? (
-                      <img src={rc.flag_image} alt={rc.name} loading="lazy" decoding="async" className="h-4 w-6 rounded-[2px] object-cover" />
+                      <img
+                        src={rc.flag_image}
+                        alt={rc.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-4 w-6 rounded-[2px] object-cover"
+                      />
                     ) : null}
                     <span className="truncate">{rc?.name}</span>
                   </span>
@@ -133,7 +167,9 @@ export function VotingMatrix({
                       )}
                       style={
                         val && !isTop
-                          ? { background: `color-mix(in oklab, var(--jury) ${Math.min(val * 6, 55)}%, transparent)` }
+                          ? {
+                              background: `color-mix(in oklab, var(--jury) ${Math.min(val * 6, 55)}%, transparent)`,
+                            }
                           : undefined
                       }
                     >
@@ -141,7 +177,9 @@ export function VotingMatrix({
                     </td>
                   );
                 })}
-                <td className="numeric px-2 py-1 text-right font-semibold">{totals.get(to) ?? 0}</td>
+                <td className="numeric px-2 py-1 text-right font-semibold">
+                  {totals.get(to) ?? 0}
+                </td>
               </tr>
             );
           })}
