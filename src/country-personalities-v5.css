@@ -1,0 +1,990 @@
+/* Solaris country personalities V5 -----------------------------------------
+   Final art-direction layer. This is loaded after all legacy personality,
+   Beta, Wiki and mobile repair layers so every route and preview resolves to
+   one deliberate composition. Gotham remains the UI/readability face;
+   Classica Crastao is reserved for expressive identity headlines. */
+
+/* Shared geometry ---------------------------------------------------------- */
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout] {
+  --v5-radius: 18px;
+  --v5-pad-x: clamp(1.35rem, 3.2vw, 3rem);
+  --v5-pad-y: clamp(1.35rem, 3.2vw, 2.8rem);
+  position: relative !important;
+  isolation: isolate !important;
+  min-height: clamp(17rem, 28vw, 23rem) !important;
+  padding: var(--v5-pad-y) var(--v5-pad-x) !important;
+  overflow: hidden !important;
+  border: 1px solid rgb(var(--solaris-accent) / .16) !important;
+  border-radius: var(--v5-radius) !important;
+  background: color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%) !important;
+  box-shadow: 0 22px 55px -45px rgb(var(--solaris-bg-deep) / .88) !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+.country-theme-live-preview[data-preview-layout] > .relative.z-10 {
+  position: relative !important;
+  z-index: 4 !important;
+  max-width: min(100%, 46rem) !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title,
+.country-theme-live-preview[data-preview-layout] .country-hero-title {
+  margin-top: .35rem !important;
+  font-family: "Classica Crastao", Georgia, serif !important;
+  font-size: clamp(3.45rem, 6.1vw, 5.45rem) !important;
+  font-weight: 400 !important;
+  line-height: .94 !important;
+  letter-spacing: .008em !important;
+  text-wrap: balance !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :is(p, a, button),
+.country-theme-live-preview[data-preview-layout] :is(p, a, button) {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* One primary flag treatment. Rectangular/art-directed layouts use the real
+   flag image directly rather than the old circular SVG dissolve. */
+body[data-entity-theme="country"]:is(
+  [data-country-hero-layout="editorial"],
+  [data-country-hero-layout="flag-focus"],
+  [data-country-hero-layout="poster"],
+  [data-country-hero-layout="split"],
+  [data-country-hero-layout="broadcast"],
+  [data-country-hero-layout="panorama"],
+  [data-country-hero-layout="monument"],
+  [data-country-hero-layout="glass-card"],
+  [data-country-hero-layout="newspaper"],
+  [data-country-hero-layout="ribbon"],
+  [data-country-hero-layout="duotone"],
+  [data-country-hero-layout="passport"],
+  [data-country-hero-layout="horizon"],
+  [data-country-hero-layout="heritage"],
+  [data-country-hero-layout="sci-fi"],
+  [data-country-hero-layout="water-drop"]
+) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag > svg,
+.country-theme-live-preview:is(
+  [data-preview-layout="editorial"],
+  [data-preview-layout="flag-focus"],
+  [data-preview-layout="poster"],
+  [data-preview-layout="split"],
+  [data-preview-layout="broadcast"],
+  [data-preview-layout="panorama"],
+  [data-preview-layout="monument"],
+  [data-preview-layout="glass-card"],
+  [data-preview-layout="newspaper"],
+  [data-preview-layout="ribbon"],
+  [data-preview-layout="duotone"],
+  [data-preview-layout="passport"],
+  [data-preview-layout="horizon"],
+  [data-preview-layout="heritage"],
+  [data-preview-layout="sci-fi"],
+  [data-preview-layout="water-drop"]
+) .country-hero-background-flag > svg {
+  display: none !important;
+}
+
+body[data-entity-theme="country"]:is(
+  [data-country-hero-layout="editorial"],
+  [data-country-hero-layout="flag-focus"],
+  [data-country-hero-layout="poster"],
+  [data-country-hero-layout="split"],
+  [data-country-hero-layout="broadcast"],
+  [data-country-hero-layout="panorama"],
+  [data-country-hero-layout="monument"],
+  [data-country-hero-layout="glass-card"],
+  [data-country-hero-layout="newspaper"],
+  [data-country-hero-layout="ribbon"],
+  [data-country-hero-layout="duotone"],
+  [data-country-hero-layout="passport"],
+  [data-country-hero-layout="horizon"],
+  [data-country-hero-layout="heritage"],
+  [data-country-hero-layout="sci-fi"],
+  [data-country-hero-layout="water-drop"]
+) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview:is(
+  [data-preview-layout="editorial"],
+  [data-preview-layout="flag-focus"],
+  [data-preview-layout="poster"],
+  [data-preview-layout="split"],
+  [data-preview-layout="broadcast"],
+  [data-preview-layout="panorama"],
+  [data-preview-layout="monument"],
+  [data-preview-layout="glass-card"],
+  [data-preview-layout="newspaper"],
+  [data-preview-layout="ribbon"],
+  [data-preview-layout="duotone"],
+  [data-preview-layout="passport"],
+  [data-preview-layout="horizon"],
+  [data-preview-layout="heritage"],
+  [data-preview-layout="sci-fi"],
+  [data-preview-layout="water-drop"]
+) .country-hero-background-flag::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-image: var(--background-flag-image) !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: cover !important;
+}
+
+/* CLASSIC ------------------------------------------------------------------ */
+body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="classic"] {
+  min-height: clamp(16rem, 24vw, 20rem) !important;
+  background:
+    radial-gradient(circle at 88% 14%, rgb(var(--solaris-accent) / .08), transparent 28%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%), color-mix(in srgb, var(--surface) 82%, rgb(var(--solaris-bg-deep)) 18%)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="classic"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="classic"] .country-hero-background-flag {
+  top: -2rem !important;
+  right: -2rem !important;
+  width: clamp(10rem, 22vw, 18rem) !important;
+  height: clamp(10rem, 22vw, 18rem) !important;
+  opacity: .1 !important;
+  transform: none !important;
+}
+
+/* EDITORIAL ---------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="editorial"] {
+  --v5-radius: 6px;
+  min-height: clamp(18rem, 28vw, 22rem) !important;
+  padding-left: clamp(4.5rem, 7vw, 6rem) !important;
+  padding-right: 44% !important;
+  background: color-mix(in srgb, var(--surface) 95%, rgb(var(--solaris-bg-deep)) 5%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero)::after,
+.country-theme-live-preview[data-preview-layout="editorial"]::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 3 !important;
+  left: clamp(2rem, 3.4vw, 3rem) !important;
+  top: 24% !important;
+  bottom: 24% !important;
+  width: 2px !important;
+  background: rgb(var(--solaris-accent) / .72) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="editorial"] .country-hero-background-flag {
+  inset: 0 0 0 58% !important;
+  width: 42% !important;
+  height: 100% !important;
+  opacity: .72 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="editorial"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%) !important;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 28%, #000 100%) !important;
+}
+
+/* MINIMAL ------------------------------------------------------------------ */
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="minimal"] {
+  --v5-radius: 4px;
+  min-height: clamp(13rem, 19vw, 17rem) !important;
+  border-width: 0 0 1px !important;
+  background: color-mix(in srgb, var(--surface) 42%, transparent) !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title,
+.country-theme-live-preview[data-preview-layout="minimal"] .country-hero-title {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: clamp(2.3rem, 4.5vw, 3.8rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: -.035em !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="minimal"] .country-hero-background-flag {
+  display: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="minimal"] > .country-personality-signature {
+  position: absolute !important;
+  left: var(--v5-pad-x) !important;
+  bottom: 28% !important;
+  width: 5rem !important;
+  height: 1px !important;
+  background: rgb(var(--solaris-accent) / .48) !important;
+}
+
+/* FLAG FOCUS --------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="flag-focus"] {
+  min-height: clamp(18rem, 31vw, 24rem) !important;
+  background: rgb(var(--solaris-bg-deep)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero)::after,
+.country-theme-live-preview[data-preview-layout="flag-focus"]::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 2 !important;
+  inset: 0 !important;
+  background: linear-gradient(90deg, rgb(var(--solaris-bg-deep) / .9) 0 34%, rgb(var(--solaris-bg-deep) / .56) 56%, rgb(var(--solaris-bg-deep) / .08) 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="flag-focus"] .country-hero-background-flag {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .94 !important;
+  transform: none !important;
+  filter: saturate(1.06) contrast(1.03) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] :is(.country-public-hero, .wiki-public-hero) .country-hero-identity > :first-child {
+  display: none !important;
+}
+
+/* POSTER ------------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="poster"] {
+  min-height: clamp(20rem, 34vw, 27rem) !important;
+  display: grid !important;
+  place-items: center !important;
+  text-align: center !important;
+  background: linear-gradient(180deg, rgb(var(--solaris-bg-deep) / .22), rgb(var(--solaris-bg-deep) / .7)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+.country-theme-live-preview[data-preview-layout="poster"] > .relative.z-10 {
+  margin-inline: auto !important;
+  text-align: center !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="poster"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="poster"] .country-hero-background-flag {
+  inset: -16% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .25 !important;
+  transform: rotate(-5deg) scale(1.1) !important;
+  filter: saturate(1.12) contrast(1.08) !important;
+}
+
+/* SPLIT -------------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="split"] {
+  min-height: clamp(18rem, 28vw, 22rem) !important;
+  padding-right: 46% !important;
+  background: color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="split"] .country-hero-background-flag {
+  inset: 0 0 0 56% !important;
+  width: 44% !important;
+  height: 100% !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="split"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="split"] .country-hero-background-flag::before {
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* SPOTLIGHT ---------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="spotlight"] {
+  min-height: clamp(17rem, 26vw, 21rem) !important;
+  text-align: center !important;
+  background:
+    radial-gradient(circle at 50% 40%, rgb(var(--solaris-accent) / .22), transparent 34%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 90%, rgb(var(--solaris-bg-deep)) 10%), color-mix(in srgb, var(--surface) 64%, rgb(var(--solaris-bg-deep)) 36%)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+.country-theme-live-preview[data-preview-layout="spotlight"] > .relative.z-10 {
+  margin-inline: auto !important;
+  text-align: center !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="spotlight"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 1 !important;
+  width: clamp(8rem, 17vw, 13rem) !important;
+  aspect-ratio: 1 !important;
+  left: 50% !important;
+  top: 50% !important;
+  border: 1px solid rgb(var(--solaris-accent) / .3) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 0 42px rgb(var(--solaris-accent) / .14) !important;
+  transform: translate(-50%, -50%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="spotlight"] .country-hero-background-flag {
+  top: -2rem !important;
+  right: 50% !important;
+  width: clamp(9rem, 19vw, 14rem) !important;
+  opacity: .08 !important;
+  transform: translateX(50%) !important;
+}
+
+/* BROADCAST ---------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="broadcast"] {
+  --v5-radius: 8px;
+  min-height: clamp(17rem, 26vw, 21rem) !important;
+  padding-top: clamp(6.4rem, 10vw, 8rem) !important;
+  background: color-mix(in srgb, var(--surface) 86%, rgb(var(--solaris-bg-deep)) 14%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="broadcast"] .country-hero-background-flag {
+  inset: 0 0 auto !important;
+  width: 100% !important;
+  height: clamp(5rem, 8vw, 6.6rem) !important;
+  opacity: .66 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="broadcast"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(180deg, #000 0 58%, transparent 100%) !important;
+  mask-image: linear-gradient(180deg, #000 0 58%, transparent 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="broadcast"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: 44% 0 0 !important;
+  background:
+    linear-gradient(rgb(var(--solaris-accent) / .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .055) 1px, transparent 1px) !important;
+  background-size: 32px 32px !important;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 38%, transparent) !important;
+  mask-image: linear-gradient(180deg, transparent, #000 38%, transparent) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+.country-theme-live-preview[data-preview-layout="broadcast"] > .country-personality-signature::after {
+  content: "ON AIR" !important;
+  position: absolute !important;
+  top: -42% !important;
+  right: 1rem !important;
+  padding: .38rem .58rem !important;
+  background: rgb(var(--solaris-accent) / .94) !important;
+  color: rgb(var(--solaris-bg-deep)) !important;
+  font: 800 .56rem/1 "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: .16em !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title,
+.country-theme-live-preview[data-preview-layout="broadcast"] .country-hero-title {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: clamp(2.8rem, 5.2vw, 4.5rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: -.02em !important;
+  text-transform: uppercase !important;
+}
+
+/* PANORAMA ----------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="panorama"] {
+  min-height: clamp(19rem, 31vw, 25rem) !important;
+  padding-bottom: clamp(8.5rem, 15vw, 12rem) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="panorama"] .country-hero-background-flag {
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 45% !important;
+  opacity: .58 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="panorama"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 100%) !important;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 35%, #000 100%) !important;
+}
+
+/* LUXURIOUS (stored as monument) ------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="monument"] {
+  --v5-radius: 12px;
+  min-height: clamp(18rem, 29vw, 23rem) !important;
+  padding-inline: clamp(4rem, 9vw, 10rem) !important;
+  text-align: center !important;
+  background:
+    radial-gradient(circle at 50% 46%, rgb(var(--solaris-accent) / .1), transparent 36%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%), color-mix(in srgb, var(--surface) 75%, rgb(var(--solaris-bg-deep)) 25%)) !important;
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--solaris-accent) / .2),
+    inset 0 0 0 8px rgb(var(--solaris-bg-deep) / .17),
+    inset 0 0 0 9px rgb(var(--solaris-accent) / .1) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+.country-theme-live-preview[data-preview-layout="monument"] > .relative.z-10 {
+  margin-inline: auto !important;
+  text-align: center !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="monument"] .country-hero-background-flag {
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: .28 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="monument"] .country-hero-background-flag::before {
+  background-image: var(--background-flag-image), var(--background-flag-image) !important;
+  background-size: 11% 100%, 11% 100% !important;
+  background-position: left center, right center !important;
+  background-repeat: no-repeat, no-repeat !important;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 9%, transparent 17% 83%, #000 91% 100%) !important;
+  mask-image: linear-gradient(90deg, #000 0 9%, transparent 17% 83%, #000 91% 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="monument"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 2 !important;
+  left: 12% !important;
+  right: 12% !important;
+  top: 18% !important;
+  bottom: 18% !important;
+  border-block: 1px solid rgb(var(--solaris-accent) / .24) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+.country-theme-live-preview[data-preview-layout="monument"] > .country-personality-signature::before {
+  content: "◆  TERRA SOLARIS  ◆" !important;
+  position: absolute !important;
+  top: -.34rem !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  padding-inline: .7rem !important;
+  background: color-mix(in srgb, var(--surface) 92%, rgb(var(--solaris-bg-deep)) 8%) !important;
+  color: rgb(var(--solaris-accent) / .7) !important;
+  font: 700 .5rem/1 "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: .2em !important;
+  white-space: nowrap !important;
+}
+
+/* GLASS CARD --------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="glass-card"] {
+  min-height: clamp(19rem, 30vw, 24rem) !important;
+  padding: clamp(1.2rem, 2.8vw, 2rem) !important;
+  border: 0 !important;
+  background: linear-gradient(135deg, rgb(var(--solaris-bg-deep) / .08), rgb(var(--solaris-accent) / .05)) !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+.country-theme-live-preview[data-preview-layout="glass-card"] > .relative.z-10 {
+  width: min(88%, 42.5rem) !important;
+  margin-block: auto !important;
+  padding: clamp(1.5rem, 3vw, 2.2rem) !important;
+  overflow: hidden !important;
+  border: 1px solid rgb(255 255 255 / .32) !important;
+  border-radius: clamp(1.5rem, 3vw, 2rem) !important;
+  background: linear-gradient(135deg, rgb(255 255 255 / .17), rgb(255 255 255 / .045) 52%, rgb(var(--solaris-accent) / .09)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .5), inset 0 -1px 0 rgb(var(--solaris-accent) / .13), 0 24px 60px -36px rgb(var(--solaris-bg-deep) / .82) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(172%) brightness(1.05) !important;
+  backdrop-filter: blur(24px) saturate(172%) brightness(1.05) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-glass-panel-flag,
+.country-theme-live-preview[data-preview-layout="glass-card"] .country-glass-panel-flag {
+  display: block !important;
+  opacity: .32 !important;
+  filter: blur(10px) saturate(1.35) contrast(1.05) !important;
+  transform: scale(1.05) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="glass-card"] .country-hero-background-flag {
+  display: none !important;
+}
+
+/* NEWSPAPER ---------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="newspaper"] {
+  --v5-radius: 2px;
+  min-height: clamp(15rem, 22vw, 19rem) !important;
+  padding-top: clamp(5.6rem, 8vw, 6.8rem) !important;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 31px, rgb(var(--solaris-accent) / .025) 31px 32px),
+    color-mix(in srgb, var(--surface) 96%, rgb(var(--solaris-accent)) 4%) !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="newspaper"] .country-hero-background-flag {
+  inset: 0 0 auto !important;
+  width: 100% !important;
+  height: clamp(3.3rem, 5vw, 4.6rem) !important;
+  opacity: .32 !important;
+  filter: saturate(.4) contrast(1.18) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.country-public-hero, .wiki-public-hero)::after,
+.country-theme-live-preview[data-preview-layout="newspaper"]::after {
+  content: "" !important;
+  position: absolute !important;
+  left: var(--v5-pad-x) !important;
+  right: var(--v5-pad-x) !important;
+  top: 5rem !important;
+  height: 4px !important;
+  border-block: 1px solid rgb(var(--solaris-accent) / .28) !important;
+}
+
+/* RIBBON ------------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="ribbon"] {
+  min-height: clamp(16rem, 24vw, 20rem) !important;
+  background: color-mix(in srgb, var(--surface) 91%, rgb(var(--solaris-bg-deep)) 9%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="ribbon"] .country-hero-background-flag {
+  inset: -26% -9% !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: .82 !important;
+  transform: rotate(-8deg) !important;
+  clip-path: polygon(0 43%, 100% 43%, 100% 65%, 0 65%) !important;
+}
+
+/* DUOTONE ------------------------------------------------------------------ */
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="duotone"] {
+  min-height: clamp(17rem, 26vw, 21rem) !important;
+  padding-right: 44% !important;
+  background: linear-gradient(112deg, color-mix(in srgb, var(--surface) 96%, rgb(var(--solaris-bg-deep)) 4%) 0 56%, color-mix(in srgb, rgb(var(--solaris-accent)) 48%, rgb(var(--solaris-bg-deep)) 52%) 56.4% 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="duotone"] .country-hero-background-flag {
+  inset: 0 0 0 49% !important;
+  width: 51% !important;
+  height: 100% !important;
+  opacity: .65 !important;
+  clip-path: polygon(19% 0, 100% 0, 100% 100%, 0 100%) !important;
+  filter: saturate(.58) contrast(1.12) !important;
+}
+
+/* PASSPORT ----------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="passport"] {
+  --v5-radius: 12px;
+  min-height: clamp(16rem, 23vw, 20rem) !important;
+  background:
+    repeating-radial-gradient(circle at 82% 50%, transparent 0 14px, rgb(var(--solaris-accent) / .045) 15px 16px, transparent 17px 25px),
+    repeating-linear-gradient(125deg, transparent 0 18px, rgb(var(--solaris-accent) / .025) 19px 20px, transparent 21px 38px),
+    color-mix(in srgb, var(--surface) 92%, rgb(var(--solaris-accent)) 8%) !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--solaris-accent) / .25), inset 0 0 0 6px rgb(var(--solaris-bg-deep) / .16), inset 0 0 0 7px rgb(var(--solaris-accent) / .08) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title,
+.country-theme-live-preview[data-preview-layout="passport"] .country-hero-title {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: clamp(2.5rem, 4.6vw, 4rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: -.025em !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="passport"] .country-hero-background-flag {
+  inset: 1.4rem auto auto 1.4rem !important;
+  width: clamp(4.5rem, 8vw, 7rem) !important;
+  height: clamp(3rem, 5.4vw, 4.7rem) !important;
+  opacity: .9 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="passport"] .country-hero-background-flag::before {
+  background-size: contain !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="passport"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 2 !important;
+  right: clamp(1.3rem, 4vw, 2.3rem) !important;
+  bottom: clamp(1.2rem, 4vw, 2.1rem) !important;
+  width: clamp(4.5rem, 9vw, 6.7rem) !important;
+  aspect-ratio: 1 !important;
+  border: 1px dashed rgb(var(--solaris-accent) / .48) !important;
+  border-radius: 999px !important;
+  transform: rotate(-11deg) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+.country-theme-live-preview[data-preview-layout="passport"] > .country-personality-signature::before {
+  content: "TS\AENTRY" !important;
+  white-space: pre !important;
+  position: absolute !important;
+  inset: 18% !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px solid rgb(var(--solaris-accent) / .34) !important;
+  border-radius: inherit !important;
+  color: rgb(var(--solaris-accent) / .67) !important;
+  font: 800 .58rem/1.15 "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: .08em !important;
+  text-align: center !important;
+}
+
+/* HORIZON ------------------------------------------------------------------ */
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="horizon"] {
+  min-height: clamp(16rem, 24vw, 20rem) !important;
+  padding-bottom: clamp(6rem, 10vw, 8rem) !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, rgb(var(--solaris-bg-deep)) 4%) 0 65%, rgb(var(--solaris-accent) / .045) 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero)::after,
+.country-theme-live-preview[data-preview-layout="horizon"]::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 2 !important;
+  left: var(--v5-pad-x) !important;
+  right: var(--v5-pad-x) !important;
+  bottom: 34% !important;
+  height: 1px !important;
+  background: rgb(var(--solaris-accent) / .32) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="horizon"] .country-hero-background-flag {
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 34% !important;
+  opacity: .5 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="horizon"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 38%, #000 100%) !important;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 38%, #000 100%) !important;
+}
+
+/* TRADITIONAL (stored as heritage) ----------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="heritage"] {
+  --v5-radius: 9px;
+  min-height: clamp(17rem, 25vw, 21.5rem) !important;
+  padding-right: clamp(7rem, 16vw, 12rem) !important;
+  background:
+    linear-gradient(90deg, transparent 0 3%, rgb(var(--solaris-accent) / .045) 3% 3.25%, transparent 3.25% 96.75%, rgb(var(--solaris-accent) / .045) 96.75% 97%, transparent 97%),
+    repeating-linear-gradient(0deg, transparent 0 33px, rgb(var(--solaris-accent) / .018) 33px 34px),
+    color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-accent)) 6%) !important;
+  box-shadow: inset 0 0 0 1px rgb(var(--solaris-accent) / .22), inset 0 0 0 8px rgb(var(--solaris-bg-deep) / .13), inset 0 0 0 9px rgb(var(--solaris-accent) / .08) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="heritage"] .country-hero-background-flag {
+  top: 1.5rem !important;
+  right: 1.5rem !important;
+  left: auto !important;
+  width: clamp(4.8rem, 9vw, 7.5rem) !important;
+  height: clamp(3.2rem, 6vw, 5rem) !important;
+  opacity: .94 !important;
+  transform: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="heritage"] .country-hero-background-flag::before {
+  background-size: contain !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="heritage"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 2 !important;
+  left: var(--v5-pad-x) !important;
+  top: 58% !important;
+  width: 7rem !important;
+  height: 1px !important;
+  background: rgb(var(--solaris-accent) / .38) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+.country-theme-live-preview[data-preview-layout="heritage"] > .country-personality-signature::after {
+  content: "◆" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  padding-inline: .45rem !important;
+  background: var(--surface) !important;
+  color: rgb(var(--solaris-accent) / .62) !important;
+  font-size: .52rem !important;
+  transform: translate(-50%, -50%) !important;
+}
+
+/* SCI-FI ------------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="sci-fi"] {
+  --v5-radius: 16px;
+  min-height: clamp(18rem, 27vw, 22rem) !important;
+  padding-right: clamp(12rem, 34vw, 30rem) !important;
+  background:
+    radial-gradient(circle at 79% 45%, rgb(var(--solaris-accent) / .13), transparent 30%),
+    linear-gradient(150deg, color-mix(in srgb, var(--surface) 88%, rgb(var(--solaris-bg-deep)) 12%), color-mix(in srgb, var(--surface) 62%, rgb(var(--solaris-bg-deep)) 38%)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.country-public-hero, .wiki-public-hero)::before,
+.country-theme-live-preview[data-preview-layout="sci-fi"]::before {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 1 !important;
+  inset: 0 0 0 46% !important;
+  background:
+    linear-gradient(rgb(var(--solaris-accent) / .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .045) 1px, transparent 1px),
+    linear-gradient(125deg, transparent 32%, rgb(var(--solaris-accent) / .08) 32.4% 54%, transparent 54.4%) !important;
+  background-size: 24px 24px, 24px 24px, auto !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 28%) !important;
+  mask-image: linear-gradient(90deg, transparent, #000 28%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="sci-fi"] .country-hero-background-flag {
+  top: 14% !important;
+  right: 5% !important;
+  left: auto !important;
+  width: clamp(8rem, 18vw, 15rem) !important;
+  height: clamp(5.2rem, 12vw, 10rem) !important;
+  opacity: .55 !important;
+  transform: perspective(600px) rotateY(-12deg) rotateZ(-2deg) !important;
+  filter: saturate(.8) contrast(1.08) drop-shadow(0 0 18px rgb(var(--solaris-accent) / .14)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="sci-fi"] .country-hero-background-flag::before {
+  -webkit-mask-image: linear-gradient(180deg, #000 0 65%, transparent 100%) !important;
+  mask-image: linear-gradient(180deg, #000 0 65%, transparent 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title,
+.country-theme-live-preview[data-preview-layout="sci-fi"] .country-hero-title {
+  font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  font-size: clamp(2.7rem, 5vw, 4.4rem) !important;
+  font-weight: 800 !important;
+  letter-spacing: -.025em !important;
+  text-transform: uppercase !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="sci-fi"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 2 !important;
+  right: 8% !important;
+  bottom: 12% !important;
+  width: 3.1rem !important;
+  aspect-ratio: 1 !important;
+  border: 1px solid rgb(var(--solaris-accent) / .32) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 0 24px rgb(var(--solaris-accent) / .1) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::before,
+.country-theme-live-preview[data-preview-layout="sci-fi"] > .country-personality-signature::before {
+  content: "TS // ACTIVE" !important;
+  position: absolute !important;
+  right: 3.9rem !important;
+  top: .7rem !important;
+  color: rgb(var(--solaris-accent) / .66) !important;
+  font: 700 .5rem/1 "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: .16em !important;
+  white-space: nowrap !important;
+}
+
+/* WATER DROP --------------------------------------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] :is(.country-public-hero, .wiki-public-hero),
+.country-theme-live-preview[data-preview-layout="water-drop"] {
+  --v5-radius: 22px;
+  min-height: clamp(18.2rem, 28vw, 22.5rem) !important;
+  padding-right: clamp(10rem, 30vw, 24rem) !important;
+  background:
+    radial-gradient(circle at 82% 26%, rgb(255 255 255 / .05), transparent 23%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 92%, rgb(var(--solaris-bg-deep)) 8%), color-mix(in srgb, var(--surface) 74%, rgb(var(--solaris-bg-deep)) 26%)) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="water-drop"] .country-hero-background-flag {
+  top: 7% !important;
+  right: -2.5% !important;
+  left: auto !important;
+  width: clamp(12rem, 27vw, 23rem) !important;
+  height: clamp(13rem, 29vw, 25rem) !important;
+  opacity: .32 !important;
+  overflow: hidden !important;
+  border: 1px solid rgb(255 255 255 / .18) !important;
+  border-radius: 62% 38% 56% 44% / 46% 55% 45% 54% !important;
+  background: rgb(var(--solaris-accent) / .055) !important;
+  box-shadow: inset 18px 14px 34px rgb(255 255 255 / .07), inset -18px -12px 30px rgb(var(--solaris-accent) / .1), 0 20px 42px -30px rgb(var(--solaris-bg-deep) / .75) !important;
+  transform: rotate(-7deg) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(135%) !important;
+  backdrop-filter: blur(16px) saturate(135%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="water-drop"] .country-hero-background-flag::before {
+  opacity: .9 !important;
+  filter: blur(3px) saturate(1.2) !important;
+  transform: scale(1.08) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="water-drop"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 1 !important;
+  right: 28% !important;
+  top: 13% !important;
+  width: 2.5rem !important;
+  height: 2.8rem !important;
+  border: 1px solid rgb(255 255 255 / .12) !important;
+  border-radius: 58% 42% 60% 40% / 45% 52% 48% 55% !important;
+  background: rgb(var(--solaris-accent) / .055) !important;
+  box-shadow: inset 4px 3px 8px rgb(255 255 255 / .08) !important;
+  transform: rotate(12deg) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] :is(.country-public-hero, .wiki-public-hero) > .country-personality-signature::after,
+.country-theme-live-preview[data-preview-layout="water-drop"] > .country-personality-signature::after {
+  content: "" !important;
+  position: absolute !important;
+  width: 1.25rem !important;
+  height: 1.45rem !important;
+  left: 4.2rem !important;
+  top: 7.2rem !important;
+  border: 1px solid rgb(255 255 255 / .09) !important;
+  border-radius: 60% 40% 58% 42% / 46% 54% 46% 54% !important;
+  background: rgb(var(--solaris-accent) / .04) !important;
+}
+
+/* Personality continuity through content ---------------------------------- */
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-left: 3px solid rgb(var(--solaris-accent) / .5) !important; border-radius: 0 12px 12px 0 !important; }
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-width: 0 0 1px !important; border-radius: 0 !important; box-shadow: none !important; }
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-left: 3px solid rgb(var(--solaris-accent) / .58) !important; border-radius: 7px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="monument"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-radius: 8px !important; box-shadow: inset 0 0 0 1px rgb(var(--solaris-accent) / .055) !important; }
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-width: 1px 0 !important; border-radius: 2px !important; box-shadow: none !important; }
+body[data-entity-theme="country"][data-country-hero-layout="passport"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { background: repeating-linear-gradient(125deg, transparent 0 28px, rgb(var(--solaris-accent) / .018) 29px 30px, transparent 31px 56px), var(--solaris-card-surface) !important; }
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-radius: 6px !important; box-shadow: inset 0 0 0 1px rgb(var(--solaris-accent) / .05) !important; }
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-radius: 8px 8px 2px 8px !important; border-color: rgb(var(--solaris-accent) / .18) !important; }
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] :is(.data-panel, .country-personality-card, .wiki-introduction, .wiki-article-section) { border-radius: 16px 28px 16px 16px !important; border-color: rgb(var(--solaris-accent) / .13) !important; }
+
+/* Picker miniatures -------------------------------------------------------- */
+.personality-miniature[data-preview-layout] {
+  height: 5.85rem !important;
+  min-height: 5.85rem !important;
+  max-height: 5.85rem !important;
+  border-radius: 12px !important;
+}
+.personality-miniature[data-preview-layout="sci-fi"] {
+  background:
+    linear-gradient(rgb(var(--solaris-accent) / .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--solaris-accent) / .055) 1px, transparent 1px),
+    radial-gradient(circle at 77% 45%, rgb(var(--solaris-accent) / .22), transparent 31%),
+    color-mix(in srgb, var(--surface) 80%, rgb(var(--solaris-bg-deep)) 20%) !important;
+  background-size: 18px 18px, 18px 18px, auto, auto !important;
+}
+.personality-miniature[data-preview-layout="sci-fi"] > span:not(:last-child) {
+  inset: 14% 7% auto auto !important;
+  width: 45% !important;
+  height: 55% !important;
+  opacity: .55 !important;
+  background-size: cover !important;
+  transform: perspective(250px) rotateY(-14deg) !important;
+  -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent) !important;
+  mask-image: linear-gradient(180deg, #000 60%, transparent) !important;
+}
+.personality-miniature[data-preview-layout="sci-fi"] > span:last-child { font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important; font-size: .76rem !important; font-weight: 800 !important; text-transform: uppercase !important; }
+.personality-miniature[data-preview-layout="sci-fi"]::before { content: "TS // ACTIVE" !important; position: absolute; top: .55rem; left: .62rem; color: rgb(var(--solaris-accent) / .65); font: 700 .28rem/1 "Gotham", ui-sans-serif, system-ui, sans-serif; letter-spacing: .12em; }
+
+.personality-miniature[data-preview-layout="water-drop"] {
+  background: linear-gradient(145deg, color-mix(in srgb, var(--surface) 91%, rgb(var(--solaris-bg-deep)) 9%), color-mix(in srgb, var(--surface) 72%, rgb(var(--solaris-bg-deep)) 28%)) !important;
+}
+.personality-miniature[data-preview-layout="water-drop"] > span:not(:last-child) {
+  inset: 5% -6% auto auto !important;
+  width: 58% !important;
+  height: 105% !important;
+  opacity: .34 !important;
+  background-size: cover !important;
+  border: 1px solid rgb(255 255 255 / .16) !important;
+  border-radius: 62% 38% 56% 44% / 46% 55% 45% 54% !important;
+  filter: blur(2px) saturate(1.15) !important;
+  transform: rotate(-7deg) !important;
+}
+.personality-miniature[data-preview-layout="water-drop"]::before { content: "" !important; position: absolute; right: 34%; top: 12%; width: 1.1rem; height: 1.3rem; border-radius: 60% 40% 55% 45% / 46% 54% 46% 54%; background: rgb(var(--solaris-accent) / .1); border: 1px solid rgb(255 255 255 / .1); }
+
+/* Stronger miniature distinctions for all legacy personalities. */
+.personality-miniature[data-preview-layout="monument"]::before { content: "◆ LUXURY ◆" !important; }
+.personality-miniature[data-preview-layout="heritage"]::before { content: "TRADITION" !important; }
+.personality-miniature[data-preview-layout="glass-card"]::before { backdrop-filter: blur(6px) saturate(140%) !important; }
+
+/* Wiki reductions ---------------------------------------------------------- */
+body[data-entity-theme="country"] .wiki-public-hero {
+  min-height: clamp(12.5rem, 18vw, 17rem) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="poster"] .wiki-public-hero,
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] .wiki-public-hero,
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .wiki-public-hero {
+  min-height: clamp(14rem, 20vw, 18rem) !important;
+}
+
+/* Mobile pixel targets ----------------------------------------------------- */
+@media (max-width: 639px) {
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero),
+  .country-theme-live-preview[data-preview-layout] {
+    --v5-pad-x: 20px;
+    --v5-pad-y: 22px;
+    min-height: 238px !important;
+    border-radius: 16px !important;
+  }
+
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title,
+  .country-theme-live-preview[data-preview-layout] .country-hero-title {
+    font-size: 40px !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="classic"] .country-public-hero { min-height: 238px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="editorial"] .country-public-hero { min-height: 265px !important; padding: 112px 20px 22px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="minimal"] .country-public-hero { min-height: 210px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .country-public-hero { min-height: 275px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="poster"] .country-public-hero { min-height: 300px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero { min-height: 275px !important; padding: 22px 20px 112px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="spotlight"] .country-public-hero { min-height: 255px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .country-public-hero { min-height: 260px !important; padding: 102px 20px 22px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero { min-height: 285px !important; padding: 22px 20px 132px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero { min-height: 278px !important; padding: 24px 54px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .country-public-hero { min-height: 280px !important; padding: 27px 20px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .country-public-hero { min-height: 235px !important; padding: 76px 20px 20px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="ribbon"] .country-public-hero { min-height: 250px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero { min-height: 260px !important; padding-right: 42% !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero { min-height: 255px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="horizon"] .country-public-hero { min-height: 245px !important; padding-bottom: 92px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero { min-height: 268px !important; padding: 22px 106px 22px 22px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .country-public-hero { min-height: 272px !important; padding: 22px 150px 22px 20px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero { min-height: 278px !important; padding: 22px 140px 22px 20px !important; }
+
+  /* Mobile transformations that change geometry rather than simply scaling. */
+  body[data-entity-theme="country"][data-country-hero-layout="editorial"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="editorial"] .country-hero-background-flag {
+    inset: 0 0 auto 0 !important;
+    width: 100% !important;
+    height: 92px !important;
+    opacity: .7 !important;
+  }
+  body[data-entity-theme="country"][data-country-hero-layout="editorial"] .country-public-hero .country-hero-background-flag::before,
+  .country-theme-live-preview[data-preview-layout="editorial"] .country-hero-background-flag::before {
+    -webkit-mask-image: linear-gradient(180deg, #000 0 64%, transparent 100%) !important;
+    mask-image: linear-gradient(180deg, #000 0 64%, transparent 100%) !important;
+  }
+  body[data-entity-theme="country"][data-country-hero-layout="editorial"] .country-public-hero::after { left: 20px !important; top: 116px !important; bottom: 28px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="split"] .country-hero-background-flag {
+    inset: auto 0 0 !important;
+    width: 100% !important;
+    height: 100px !important;
+  }
+
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="broadcast"] .country-hero-background-flag { height: 78px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .country-public-hero > .country-personality-signature { inset: 50% 0 0 !important; background-size: 32px 32px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .country-public-hero .country-hero-title { font-size: 34px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero .country-hero-background-flag { height: 120px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero .country-hero-background-flag::before { background-size: 32px 100%, 32px 100% !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero .country-hero-title { font-size: 44px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .country-public-hero > .relative.z-10 { width: 100% !important; min-height: 225px !important; padding: 22px !important; border-radius: 24px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .country-public-hero .country-hero-background-flag { height: 52px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="ribbon"] .country-public-hero .country-hero-background-flag { inset: -28% -12% !important; clip-path: polygon(0 44%, 100% 44%, 100% 64%, 0 64%) !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero .country-hero-background-flag { width: 72px !important; height: 48px !important; top: 22px !important; left: 22px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .country-personality-signature { width: 70px !important; right: 18px !important; bottom: 18px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="horizon"] .country-public-hero .country-hero-background-flag { height: 82px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero .country-hero-background-flag { width: 72px !important; height: 48px !important; top: 22px !important; right: 22px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero .country-hero-title { font-size: 42px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .country-public-hero .country-hero-background-flag { width: 112px !important; height: 74px !important; top: 38px !important; right: 20px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .country-public-hero .country-hero-title { font-size: 38px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero .country-hero-background-flag { width: 190px !important; height: 215px !important; right: -35px !important; top: 20px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero .country-hero-title { font-size: 41px !important; }
+
+  /* Wiki is always article-first and shorter than the dashboard hero. */
+  body[data-entity-theme="country"] .wiki-public-hero { min-height: 165px !important; padding: 18px 20px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-public-hero { min-height: 145px !important; }
+  body[data-entity-theme="country"]:is([data-country-hero-layout="poster"],[data-country-hero-layout="flag-focus"],[data-country-hero-layout="panorama"]) .wiki-public-hero { min-height: 205px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .wiki-public-hero .country-hero-background-flag { width: 118px !important; height: 132px !important; right: -22px !important; top: 12px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-public-hero .country-hero-background-flag { width: 98px !important; height: 64px !important; right: 16px !important; top: 24px !important; }
+}

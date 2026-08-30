@@ -7,11 +7,12 @@ import wikiStyles from "@/country-wiki.css?inline";
 import wikiRestorationStyles from "@/wiki-card-restoration.css?inline";
 import wikiMobileStyles from "@/wiki-mobile-encyclopedia.css?inline";
 import feedbackStyles from "@/country-personality-feedback.css?inline";
+import artDirectionStyles from "@/country-personalities-v5.css?inline";
 
 /**
- * Country personalities are intentionally route-scoped. Keeping the CSS as an
- * inline route asset prevents the bundler from promoting specialist selectors
- * into the stylesheet downloaded by every Solaris page.
+ * Country personalities are intentionally route-scoped. The V5 art-direction
+ * layer is loaded last so Country, Wiki, editor previews and thumbnails share
+ * the same final composition while older repair layers can be retired safely.
  */
 export function CountryPersonalityStyles() {
   return (
@@ -25,6 +26,7 @@ export function CountryPersonalityStyles() {
       {wikiRestorationStyles}
       {wikiMobileStyles}
       {feedbackStyles}
+      {artDirectionStyles}
     </style>
   );
 }

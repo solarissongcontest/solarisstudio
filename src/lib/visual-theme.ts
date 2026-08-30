@@ -30,7 +30,9 @@ export type CountryHeroLayout =
   | "duotone"
   | "passport"
   | "horizon"
-  | "heritage";
+  | "heritage"
+  | "sci-fi"
+  | "water-drop";
 
 export const COUNTRY_HERO_LAYOUTS: CountryHeroLayout[] = [
   "classic",
@@ -50,6 +52,8 @@ export const COUNTRY_HERO_LAYOUTS: CountryHeroLayout[] = [
   "passport",
   "horizon",
   "heritage",
+  "sci-fi",
+  "water-drop",
 ];
 
 export type CountryDecorationStyle =
