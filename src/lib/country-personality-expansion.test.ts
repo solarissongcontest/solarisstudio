@@ -159,10 +159,11 @@ describe("expanded country page personalities", () => {
 
   it("keeps auto decorations structural and makes the matched Glass flag optional", () => {
     const repairCss = source("src/country-personalities-v4.css");
-    expect(editor).toContain('theme.decorationStyle === "none" ? "none" : "flag"');
     expect(editor).toContain('if (theme.heroLayout === "minimal") return "none"');
     expect(editor).toContain('return "flag"');
-    expect(editor).toContain('["auto", "none", "flag"]');
+    expect(editor).toContain('"glass-card": ["auto", "flag", "none"]');
+    expect(editor).toContain('"water-drop": ["auto", "waves", "flag", "none"]');
+    expect(editor).toContain('["glass-card", "water-drop"].includes');
     expect(editor).toContain('? { ...existing, decorationStyle: "auto" }');
     expect(repairCss).toContain(".country-glass-panel-flag");
     expect(repairCss).toContain("> .country-hero-background-flag");
