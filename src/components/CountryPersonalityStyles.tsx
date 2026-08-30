@@ -10,13 +10,13 @@ import feedbackStyles from "@/country-personality-feedback.css?inline";
 import artDirectionStyles from "@/country-personalities-v5.css?inline";
 import silhouetteStyles from "@/country-personalities-v6.css?inline";
 import silhouetteLayoutStyles from "@/country-personalities-v6-layout.css?inline";
+import waterDropStyles from "@/country-water-drop-v61.css?inline";
 
 /**
- * Country personalities are intentionally route-scoped. V6 is loaded after
- * the broad V5 art-direction layer and owns the final silhouettes for the
- * personalities that still looked too much like the same base card. The last
- * compact layer also keeps editor thumbnails and responsive inner structure in
- * parity with those silhouettes.
+ * Country personalities are intentionally route-scoped. V6 owns the final
+ * silhouettes for the personalities that still looked too much like the same
+ * base card. Water Drop V6.1 is deliberately last because it replaces V6's
+ * bean-like treatment with a true liquid-card treatment and safe text zone.
  */
 export function CountryPersonalityStyles() {
   return (
@@ -33,6 +33,7 @@ export function CountryPersonalityStyles() {
       {artDirectionStyles}
       {silhouetteStyles}
       {silhouetteLayoutStyles}
+      {waterDropStyles}
     </style>
   );
 }
