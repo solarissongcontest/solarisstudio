@@ -1,0 +1,514 @@
+/* Solaris country personalities V6
+   Focused silhouette rebuild for Water Drop, Traditional, Luxurious,
+   Passport, Split, Duotone and Panorama. Loaded after V5. */
+
+body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > div:last-child {
+  position: relative;
+  z-index: 7;
+}
+
+/* WATER DROP: the whole hero is the liquid object. */
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero,
+.country-theme-live-preview[data-preview-layout="water-drop"] {
+  min-height: 282px !important;
+  padding: 26px 142px 24px 24px !important;
+  overflow: hidden !important;
+  border: 1px solid rgb(255 255 255 / .16) !important;
+  border-radius: 46% 13% 42% 20% / 28% 48% 52% 72% !important;
+  background:
+    radial-gradient(circle at 18% 14%, rgb(255 255 255 / .105), transparent 24%),
+    radial-gradient(circle at 76% 76%, rgb(var(--solaris-accent) / .13), transparent 32%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 87%, white 13%), color-mix(in srgb, var(--surface) 76%, rgb(var(--solaris-bg-deep)) 24%)) !important;
+  box-shadow:
+    inset 10px 11px 26px rgb(255 255 255 / .035),
+    inset -18px -16px 42px rgb(var(--solaris-accent) / .07),
+    0 26px 52px -38px rgb(var(--solaris-bg-deep) / .85) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(155%) !important;
+  backdrop-filter: blur(18px) saturate(155%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero::before,
+.country-theme-live-preview[data-preview-layout="water-drop"]::before {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 5 !important;
+  left: 7% !important;
+  top: 5% !important;
+  width: 46% !important;
+  height: 16% !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, rgb(255 255 255 / .21), rgb(255 255 255 / .03) 68%, transparent) !important;
+  filter: blur(1px) !important;
+  transform: rotate(-5deg) !important;
+  opacity: .72 !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="water-drop"] .country-hero-background-flag {
+  display: block !important;
+  inset: 0 -6% 0 48% !important;
+  width: 58% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 54% 15% 44% 30% / 35% 51% 49% 65% !important;
+  opacity: .42 !important;
+  transform: rotate(-3deg) scale(1.06) !important;
+  filter: blur(1.7px) saturate(1.28) contrast(1.05) !important;
+  -webkit-mask-image: radial-gradient(ellipse at 68% 50%, #000 0 52%, transparent 76%) !important;
+  mask-image: radial-gradient(ellipse at 68% 50%, #000 0 52%, transparent 76%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="water-drop"] .country-hero-background-flag::before {
+  transform: scale(1.13) !important;
+  filter: blur(2.5px) saturate(1.18) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="water-drop"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 4 !important;
+  right: 28% !important;
+  top: 8% !important;
+  width: 30px !important;
+  height: 37px !important;
+  border: 1px solid rgb(255 255 255 / .12) !important;
+  border-radius: 58% 42% 62% 38% / 44% 56% 44% 56% !important;
+  background: linear-gradient(145deg, rgb(255 255 255 / .09), rgb(var(--solaris-accent) / .045)) !important;
+  box-shadow: inset 5px 4px 10px rgb(255 255 255 / .08) !important;
+  transform: rotate(11deg) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero > .country-personality-signature::after,
+.country-theme-live-preview[data-preview-layout="water-drop"] > .country-personality-signature::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 62px !important;
+  top: 156px !important;
+  width: 16px !important;
+  height: 21px !important;
+  border: 1px solid rgb(255 255 255 / .09) !important;
+  border-radius: 60% 40% 56% 44% / 44% 56% 44% 56% !important;
+  background: rgb(var(--solaris-accent) / .04) !important;
+  transform: rotate(-8deg) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero .country-hero-title,
+.country-theme-live-preview[data-preview-layout="water-drop"] .country-hero-title {
+  max-width: 11.5rem !important;
+  font-size: 41px !important;
+  line-height: .94 !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero > .relative.z-10 > div:last-child {
+  display: grid !important;
+  grid-template-columns: max-content max-content !important;
+  justify-content: start !important;
+  gap: 8px !important;
+  margin-top: 18px !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero > .relative.z-10 > div:last-child > :nth-child(3) {
+  grid-column: 1 / -1 !important;
+  justify-self: start !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero > .relative.z-10 > div:last-child :is(a,button) {
+  min-height: 42px !important;
+  padding-inline: 17px !important;
+  border: 1px solid rgb(255 255 255 / .14) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(145deg, rgb(255 255 255 / .10), rgb(var(--solaris-accent) / .06)) !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .13) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(145%) !important;
+  backdrop-filter: blur(12px) saturate(145%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="water-drop"] :is(.data-panel,.country-personality-card,.wiki-introduction,.wiki-article-section) {
+  border-radius: 14px 26px 16px 18px !important;
+  border-color: rgb(var(--solaris-accent) / .12) !important;
+}
+
+/* TRADITIONAL: flat cultural archive, deliberately the opposite of liquid. */
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero,
+.country-theme-live-preview[data-preview-layout="heritage"] {
+  min-height: 252px !important;
+  padding: 24px 108px 24px 24px !important;
+  border: 1px solid rgb(var(--solaris-accent) / .27) !important;
+  border-radius: 6px !important;
+  background:
+    linear-gradient(90deg, transparent 0 3.1%, rgb(var(--solaris-accent) / .035) 3.1% 3.38%, transparent 3.38% 96.62%, rgb(var(--solaris-accent) / .035) 96.62% 96.9%, transparent 96.9%),
+    repeating-linear-gradient(0deg, transparent 0 31px, rgb(var(--solaris-accent) / .016) 31px 32px),
+    color-mix(in srgb, var(--surface) 95%, rgb(var(--solaris-accent)) 5%) !important;
+  box-shadow: inset 0 0 0 6px rgb(var(--solaris-bg-deep) / .12), inset 0 0 0 7px rgb(var(--solaris-accent) / .075) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero::before,
+.country-theme-live-preview[data-preview-layout="heritage"]::before,
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero::after,
+.country-theme-live-preview[data-preview-layout="heritage"]::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 2 !important;
+  width: 18px !important;
+  height: 18px !important;
+  opacity: .15 !important;
+  background: linear-gradient(45deg, transparent 46%, rgb(var(--solaris-accent)) 47% 53%, transparent 54%), linear-gradient(-45deg, transparent 46%, rgb(var(--solaris-accent)) 47% 53%, transparent 54%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero::before,
+.country-theme-live-preview[data-preview-layout="heritage"]::before { left: 14px !important; top: 14px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero::after,
+.country-theme-live-preview[data-preview-layout="heritage"]::after { right: 14px !important; bottom: 14px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="heritage"] .country-hero-background-flag {
+  display: block !important;
+  top: 24px !important;
+  right: 24px !important;
+  left: auto !important;
+  width: 72px !important;
+  height: 48px !important;
+  opacity: .96 !important;
+  transform: none !important;
+  filter: none !important;
+  border-radius: 3px !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="heritage"] .country-hero-background-flag::before { background-size: contain !important; background-position: center !important; filter: none !important; transform: none !important; }
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero .country-hero-title,
+.country-theme-live-preview[data-preview-layout="heritage"] .country-hero-title {
+  max-width: 12rem !important;
+  font-family: "Classica Crastao", Georgia, serif !important;
+  font-size: 42px !important;
+  line-height: .92 !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="heritage"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 2 !important;
+  left: 24px !important;
+  top: 58% !important;
+  width: 112px !important;
+  height: 1px !important;
+  background: rgb(var(--solaris-accent) / .38) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero > .country-personality-signature::after,
+.country-theme-live-preview[data-preview-layout="heritage"] > .country-personality-signature::after {
+  content: "◆" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  padding-inline: 7px !important;
+  background: var(--surface) !important;
+  color: rgb(var(--solaris-accent) / .58) !important;
+  font-size: 7px !important;
+  transform: translate(-50%, -50%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero > .relative.z-10 > div:last-child {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  margin-top: 18px !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero > .relative.z-10 > div:last-child :is(a,button) {
+  min-height: 40px !important;
+  padding-inline: 15px !important;
+  border-radius: 5px !important;
+  border: 1px solid rgb(var(--solaris-accent) / .26) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero > .relative.z-10 > div:last-child > :first-child { background: rgb(var(--solaris-accent) / .14) !important; }
+
+/* LUXURIOUS: ceremonial symmetry, not a busy framed card. */
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero,
+.country-theme-live-preview[data-preview-layout="monument"] {
+  min-height: 274px !important;
+  padding: 28px 54px !important;
+  border: 1px solid rgb(var(--solaris-accent) / .22) !important;
+  border-radius: 10px !important;
+  text-align: center !important;
+  background: radial-gradient(circle at 50% 45%, rgb(var(--solaris-accent) / .09), transparent 37%), linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-bg-deep)) 6%), color-mix(in srgb, var(--surface) 78%, rgb(var(--solaris-bg-deep)) 22%)) !important;
+  box-shadow: inset 0 0 0 8px rgb(var(--solaris-bg-deep) / .12), inset 0 0 0 9px rgb(var(--solaris-accent) / .08), 0 24px 52px -42px rgb(var(--solaris-bg-deep) / .8) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero > .relative.z-10,
+.country-theme-live-preview[data-preview-layout="monument"] > .relative.z-10 { width: min(100%, 31rem) !important; margin-inline: auto !important; text-align: center !important; }
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="monument"] .country-hero-background-flag { display: block !important; inset: 0 !important; width: 100% !important; height: 100% !important; opacity: .28 !important; transform: none !important; filter: none !important; }
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="monument"] .country-hero-background-flag::before {
+  background-image: var(--background-flag-image), var(--background-flag-image) !important;
+  background-size: 32px 100%, 32px 100% !important;
+  background-position: left center, right center !important;
+  background-repeat: no-repeat, no-repeat !important;
+  -webkit-mask-image: linear-gradient(90deg, #000 0 8%, transparent 16% 84%, #000 92% 100%) !important;
+  mask-image: linear-gradient(90deg, #000 0 8%, transparent 16% 84%, #000 92% 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="monument"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 16% !important;
+  right: 16% !important;
+  top: 20% !important;
+  bottom: 20% !important;
+  border-block: 1px solid rgb(var(--solaris-accent) / .22) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero > .country-personality-signature::before,
+.country-theme-live-preview[data-preview-layout="monument"] > .country-personality-signature::before {
+  content: "◆  TERRA SOLARIS  ◆" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: -5px !important;
+  padding-inline: 9px !important;
+  background: color-mix(in srgb, var(--surface) 90%, rgb(var(--solaris-bg-deep)) 10%) !important;
+  color: rgb(var(--solaris-accent) / .72) !important;
+  font: 700 8px/1 "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: .18em !important;
+  white-space: nowrap !important;
+  transform: translateX(-50%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero .country-hero-title,
+.country-theme-live-preview[data-preview-layout="monument"] .country-hero-title { font-size: 44px !important; line-height: .92 !important; text-align: center !important; }
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero > .relative.z-10 > div:last-child {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 9px !important;
+  margin-top: 22px !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero > .relative.z-10 > div:last-child :is(a,button) {
+  min-height: 42px !important;
+  padding-inline: 17px !important;
+  border: 1px solid rgb(var(--solaris-accent) / .24) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, rgb(var(--solaris-accent) / .14), rgb(var(--solaris-accent) / .055)) !important;
+}
+
+/* PASSPORT: official document sheet. */
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero,
+.country-theme-live-preview[data-preview-layout="passport"] {
+  min-height: 258px !important;
+  padding: 22px !important;
+  border: 1px solid rgb(var(--solaris-accent) / .25) !important;
+  border-radius: 10px !important;
+  background: repeating-radial-gradient(circle at 83% 52%, transparent 0 9px, rgb(var(--solaris-accent) / .033) 10px 11px, transparent 12px 19px), repeating-linear-gradient(118deg, transparent 0 30px, rgb(var(--solaris-accent) / .018) 31px 32px, transparent 33px 61px), color-mix(in srgb, var(--surface) 94%, rgb(var(--solaris-accent)) 6%) !important;
+  box-shadow: inset 0 0 0 6px rgb(var(--solaris-bg-deep) / .12), inset 0 0 0 7px rgb(var(--solaris-accent) / .075) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="passport"] .country-hero-background-flag {
+  display: block !important;
+  top: 22px !important;
+  left: 22px !important;
+  right: auto !important;
+  width: 72px !important;
+  height: 48px !important;
+  opacity: .96 !important;
+  transform: none !important;
+  border-radius: 3px !important;
+  filter: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="passport"] .country-hero-background-flag::before { background-size: contain !important; filter: none !important; transform: none !important; }
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .relative.z-10,
+.country-theme-live-preview[data-preview-layout="passport"] > .relative.z-10 { padding-left: 88px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero .country-hero-title,
+.country-theme-live-preview[data-preview-layout="passport"] .country-hero-title { font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important; font-size: 34px !important; font-weight: 800 !important; letter-spacing: -.025em !important; }
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="passport"] > .country-personality-signature {
+  position: absolute !important;
+  z-index: 3 !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  width: 68px !important;
+  height: 68px !important;
+  border: 1px dashed rgb(var(--solaris-accent) / .43) !important;
+  border-radius: 50% !important;
+  transform: rotate(-11deg) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .country-personality-signature::before,
+.country-theme-live-preview[data-preview-layout="passport"] > .country-personality-signature::before {
+  content: "TS\A ENTRY" !important;
+  white-space: pre !important;
+  position: absolute !important;
+  inset: 14px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px solid rgb(var(--solaris-accent) / .3) !important;
+  border-radius: 50% !important;
+  color: rgb(var(--solaris-accent) / .65) !important;
+  font: 800 8px/1.1 "Gotham", ui-sans-serif, system-ui, sans-serif !important;
+  letter-spacing: .08em !important;
+  text-align: center !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .relative.z-10 > div:last-child { display: flex !important; flex-wrap: wrap !important; gap: 7px !important; margin-top: 22px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .relative.z-10 > div:last-child :is(a,button) { min-height: 38px !important; padding-inline: 13px !important; border-radius: 5px !important; box-shadow: none !important; }
+
+/* SPLIT: two hard zones, no diagonal. */
+body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero,
+.country-theme-live-preview[data-preview-layout="split"] {
+  min-height: 272px !important;
+  padding: 22px 20px 112px !important;
+  border-radius: 14px !important;
+  background: var(--solaris-card-surface) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero::before,
+.country-theme-live-preview[data-preview-layout="split"]::before,
+body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero::after,
+.country-theme-live-preview[data-preview-layout="split"]::after { display: none !important; }
+body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="split"] .country-hero-background-flag {
+  display: block !important;
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 100px !important;
+  opacity: 1 !important;
+  border-radius: 0 !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero .country-hero-background-flag::before,
+.country-theme-live-preview[data-preview-layout="split"] .country-hero-background-flag::before { background-size: cover !important; background-position: center !important; filter: none !important; transform: none !important; -webkit-mask-image: none !important; mask-image: none !important; }
+body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero .country-hero-title,
+.country-theme-live-preview[data-preview-layout="split"] .country-hero-title { font-size: 40px !important; max-width: 13rem !important; }
+body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero > .relative.z-10 > div:last-child { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; margin-top: 18px !important; max-width: 100% !important; }
+
+/* DUOTONE: diagonal graphic field, not Split with another tint. */
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero,
+.country-theme-live-preview[data-preview-layout="duotone"] {
+  min-height: 262px !important;
+  padding: 22px 42% 22px 20px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(112deg, var(--solaris-card-surface) 0 56%, color-mix(in srgb, rgb(var(--solaris-accent)) 48%, rgb(var(--solaris-bg-deep)) 52%) 56.3% 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="duotone"] .country-hero-background-flag {
+  display: block !important;
+  inset: 0 0 0 48% !important;
+  width: 52% !important;
+  height: 100% !important;
+  opacity: .64 !important;
+  clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%) !important;
+  transform: none !important;
+  filter: saturate(.56) contrast(1.12) !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero .country-hero-title,
+.country-theme-live-preview[data-preview-layout="duotone"] .country-hero-title { max-width: 11rem !important; font-size: 38px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero > .relative.z-10 > div:last-child { display: grid !important; grid-template-columns: max-content max-content !important; justify-content: start !important; gap: 7px !important; margin-top: 16px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero > .relative.z-10 > div:last-child > :nth-child(3) { grid-column: 1 / -1 !important; justify-self: start !important; }
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero > .relative.z-10 > div:last-child :is(a,button) { min-height: 38px !important; padding-inline: 13px !important; }
+
+/* PANORAMA: calm wide lower horizon. */
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero,
+.country-theme-live-preview[data-preview-layout="panorama"] {
+  min-height: 258px !important;
+  padding: 22px 20px 103px !important;
+  border-radius: 14px !important;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 95%, rgb(var(--solaris-bg-deep)) 5%) 0 62%, rgb(var(--solaris-accent) / .035) 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero::after,
+.country-theme-live-preview[data-preview-layout="panorama"]::after {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 3 !important;
+  left: 20px !important;
+  right: 20px !important;
+  bottom: 94px !important;
+  height: 1px !important;
+  background: rgb(var(--solaris-accent) / .32) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="panorama"] .country-hero-background-flag {
+  display: block !important;
+  inset: auto 0 0 !important;
+  width: 100% !important;
+  height: 92px !important;
+  opacity: .64 !important;
+  transform: none !important;
+  filter: none !important;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 100%) !important;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 34%, #000 100%) !important;
+}
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero .country-hero-title,
+.country-theme-live-preview[data-preview-layout="panorama"] .country-hero-title { max-width: 17rem !important; font-size: 40px !important; }
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero > .relative.z-10 > div:last-child { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; margin-top: 17px !important; }
+
+/* Desktop expansions preserve each silhouette. */
+@media (min-width: 768px) {
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero,
+  .country-theme-live-preview[data-preview-layout="water-drop"] { min-height: 390px !important; padding: 54px 430px 48px 56px !important; border-radius: 44% 12% 40% 18% / 26% 44% 56% 74% !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero .country-hero-title,
+  .country-theme-live-preview[data-preview-layout="water-drop"] .country-hero-title { max-width: 34rem !important; font-size: 76px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="water-drop"] .country-hero-background-flag { inset: -4% -4% -4% 58% !important; width: 48% !important; height: 108% !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero,
+  .country-theme-live-preview[data-preview-layout="heritage"] { min-height: 340px !important; padding: 50px 180px 48px 56px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero .country-hero-title,
+  .country-theme-live-preview[data-preview-layout="heritage"] .country-hero-title { max-width: 38rem !important; font-size: 78px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="heritage"] .country-hero-background-flag { width: 116px !important; height: 76px !important; right: 56px !important; top: 48px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero,
+  .country-theme-live-preview[data-preview-layout="monument"] { min-height: 370px !important; padding: 48px 170px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero .country-hero-title,
+  .country-theme-live-preview[data-preview-layout="monument"] .country-hero-title { font-size: 82px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] .country-public-hero .country-hero-background-flag::before,
+  .country-theme-live-preview[data-preview-layout="monument"] .country-hero-background-flag::before { background-size: 145px 100%, 145px 100% !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero,
+  .country-theme-live-preview[data-preview-layout="passport"] { min-height: 330px !important; padding: 36px 42px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .relative.z-10,
+  .country-theme-live-preview[data-preview-layout="passport"] > .relative.z-10 { padding-left: 126px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="passport"] .country-hero-background-flag { width: 104px !important; height: 68px !important; left: 42px !important; top: 38px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero .country-hero-title,
+  .country-theme-live-preview[data-preview-layout="passport"] .country-hero-title { font-size: 58px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .country-public-hero > .country-personality-signature,
+  .country-theme-live-preview[data-preview-layout="passport"] > .country-personality-signature { width: 108px !important; height: 108px !important; right: 38px !important; bottom: 34px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero,
+  .country-theme-live-preview[data-preview-layout="split"] { min-height: 350px !important; padding: 44px 48% 44px 46px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="split"] .country-hero-background-flag { inset: 0 0 0 56% !important; width: 44% !important; height: 100% !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero::after,
+  .country-theme-live-preview[data-preview-layout="split"]::after { display: block !important; content: "" !important; position: absolute !important; z-index: 3 !important; top: 0 !important; bottom: 0 !important; left: 56% !important; width: 1px !important; background: rgb(var(--solaris-accent) / .32) !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .country-public-hero .country-hero-title,
+  .country-theme-live-preview[data-preview-layout="split"] .country-hero-title { max-width: 32rem !important; font-size: 68px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero,
+  .country-theme-live-preview[data-preview-layout="duotone"] { min-height: 345px !important; padding: 44px 46% 42px 46px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] .country-public-hero .country-hero-title,
+  .country-theme-live-preview[data-preview-layout="duotone"] .country-hero-title { max-width: 32rem !important; font-size: 72px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero,
+  .country-theme-live-preview[data-preview-layout="panorama"] { min-height: 390px !important; padding: 44px 48px 175px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero .country-hero-background-flag,
+  .country-theme-live-preview[data-preview-layout="panorama"] .country-hero-background-flag { height: 160px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero::after,
+  .country-theme-live-preview[data-preview-layout="panorama"]::after { left: 48px !important; right: 48px !important; bottom: 162px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .country-public-hero .country-hero-title,
+  .country-theme-live-preview[data-preview-layout="panorama"] .country-hero-title { max-width: 38rem !important; font-size: 76px !important; }
+}
+
+/* Wiki reductions: same concept, less artwork, article stays primary. */
+@media (max-width: 639px) {
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .wiki-public-hero { min-height: 178px !important; padding: 18px 112px 18px 18px !important; border-radius: 44% 12% 40% 18% / 28% 48% 52% 72% !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .wiki-public-hero .country-hero-background-flag { inset: 0 -8% 0 52% !important; width: 56% !important; height: 100% !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="water-drop"] .wiki-public-hero > .country-personality-signature { display: none !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .wiki-public-hero { min-height: 164px !important; padding: 18px 92px 18px 18px !important; border-radius: 4px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="heritage"] .wiki-public-hero .country-hero-background-flag { width: 62px !important; height: 41px !important; top: 18px !important; right: 18px !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="monument"] .wiki-public-hero { min-height: 174px !important; padding: 20px 44px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .wiki-public-hero { min-height: 160px !important; padding: 18px 18px 18px 92px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .wiki-public-hero .country-hero-background-flag { width: 62px !important; height: 41px !important; left: 18px !important; top: 18px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="passport"] .wiki-public-hero > .country-personality-signature { width: 54px !important; height: 54px !important; right: 14px !important; bottom: 14px !important; opacity: .58 !important; }
+
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .wiki-public-hero { min-height: 182px !important; padding: 18px 18px 68px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="split"] .wiki-public-hero .country-hero-background-flag { height: 56px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="duotone"] .wiki-public-hero { min-height: 174px !important; padding: 18px 38% 18px 18px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .wiki-public-hero { min-height: 182px !important; padding: 18px 18px 72px !important; }
+  body[data-entity-theme="country"][data-country-hero-layout="panorama"] .wiki-public-hero .country-hero-background-flag { height: 62px !important; }
+}
