@@ -1,79 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { FriendVotingSettings } from "@/integrations/televoting/friend-voting-settings.server";
-
-const fraction = (value: unknown, name: string) => {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0 || number > 1) throw new Error(`${name} must be between 0 and 1`);
-  return number;
-};
-const risk = (value: unknown, name: string) => {
-  const number = Math.round(Number(value));
-  if (!Number.isFinite(number) || number < 0 || number > 100) throw new Error(`${name} must be between 0 and 100`);
-  return number;
-};
-const weight = (value: unknown, name: string) => {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0 || number > 100) throw new Error(`${name} must be between 0 and 100`);
-  return number;
-};
-const positiveInt = (value: unknown, name: string, min = 1) => {
-  const number = Math.trunc(Number(value));
-  if (!Number.isFinite(number) || number < min || number > 100) throw new Error(`${name} must be at least ${min}`);
-  return number;
-};
-
-export const getFriendVotingSettings = createServerFn({ method: "GET" }).handler(async () => {
-  const { getFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
-  return getFriendVotingSettingsServer();
+const fraction = (value: unknown, name: string) => { const number = Number(value); if (!Number.isFinite(number) || number < 0 || number > 1) throw new Error(`${name} must be between 0 and 1`); return number; };
+const risk = (value: unknown, name: string) => { const number = Math.round(Number(value)); if (!Number.isFinite(number) || number < 0 || number > 100) throw new Error(`${name} must be between 0 and 100`); return number; };
+const weight = (value: unknown, name: string) => { const number = Number(value); if (!Number.isFinite(number) || number < 0 || number > 100) throw new Error(`${name} must be between 0 and 100`); return number; };
+const positiveInt = (value: unknown, name: string, min = 1) => { const number = Math.trunc(Number(value)); if (!Number.isFinite(number) || number < min || number > 100) throw new Error(`${name} must be at least ${min}`); return number; };
+const advanced = (data: FriendVotingSettings) => ({
+  bayesianPriorAlpha: weight(data.advancedModel.bayesianPriorAlpha, "Bayesian alpha"), bayesianPriorBeta: weight(data.advancedModel.bayesianPriorBeta, "Bayesian beta"), relationshipAnomalyWeight: weight(data.advancedModel.relationshipAnomalyWeight, "Relationship anomaly weight"), historicalDeviationWeight: weight(data.advancedModel.historicalDeviationWeight, "Historical deviation weight"), reciprocityWeight: weight(data.advancedModel.reciprocityWeight, "Advanced reciprocity weight"), intensityWeight: weight(data.advancedModel.intensityWeight, "Advanced intensity weight"), juryWeight: weight(data.advancedModel.juryWeight, "Jury weight"), televoteWeight: weight(data.advancedModel.televoteWeight, "Televote weight"), crossChannelWeight: weight(data.advancedModel.crossChannelWeight, "Cross-channel weight"), networkWeight: weight(data.advancedModel.networkWeight, "Network weight"), countryStrengthWeight: weight(data.advancedModel.countryStrengthWeight, "Country-strength weight"), minimumEvidenceForStrongRisk: positiveInt(data.advancedModel.minimumEvidenceForStrongRisk, "Minimum evidence for strong risk"), oneEditionCap: risk(data.advancedModel.oneEditionCap, "Advanced one-edition cap"), twoEditionCap: risk(data.advancedModel.twoEditionCap, "Advanced two-edition cap"),
 });
-
-export const updateFriendVotingSettings = createServerFn({ method: "POST" })
-  .inputValidator((data: FriendVotingSettings) => {
-    const parsed: FriendVotingSettings = {
-      minIndependentEditions: positiveInt(data.minIndependentEditions, "Minimum independent editions"),
-      fullConfidenceEditions: positiveInt(data.fullConfidenceEditions, "Full-confidence editions"),
-      supportEditionThreshold: fraction(data.supportEditionThreshold, "Support threshold"),
-      maximumEditionThreshold: fraction(data.maximumEditionThreshold, "Maximum-score threshold"),
-      reciprocalEditionThreshold: fraction(data.reciprocalEditionThreshold, "Reciprocity threshold"),
-      intensityThreshold: fraction(data.intensityThreshold, "Intensity threshold"),
-      crossChannelMinEditions: positiveInt(data.crossChannelMinEditions, "Cross-channel editions"),
-      baseConfidenceWeight: weight(data.baseConfidenceWeight, "Confidence weight"),
-      supportWeight: weight(data.supportWeight, "Support weight"),
-      maximumWeight: weight(data.maximumWeight, "Maximum-score weight"),
-      reciprocityWeight: weight(data.reciprocityWeight, "Reciprocity weight"),
-      intensityWeight: weight(data.intensityWeight, "Intensity weight"),
-      crossChannelWeight: weight(data.crossChannelWeight, "Cross-channel cap"),
-      crossChannelPerEditionWeight: weight(data.crossChannelPerEditionWeight, "Cross-channel edition weight"),
-      oneEditionCap: risk(data.oneEditionCap, "One-edition cap"),
-      twoEditionCap: risk(data.twoEditionCap, "Two-edition cap"),
-      cliqueMinEdgeRisk: risk(data.cliqueMinEdgeRisk, "Group edge threshold"),
-      cliqueInternalShareThreshold: fraction(data.cliqueInternalShareThreshold, "Group internal-share threshold"),
-      cliqueMinMembers: positiveInt(data.cliqueMinMembers, "Minimum group members", 2),
-      cliqueMinDensity: fraction(data.cliqueMinDensity, "Group density threshold"),
-      riskNotable: risk(data.riskNotable, "Notable risk band"),
-      riskReview: risk(data.riskReview, "Review risk band"),
-      riskStrong: risk(data.riskStrong, "Strong risk band"),
-      riskHigh: risk(data.riskHigh, "High risk band"),
-      riskCritical: risk(data.riskCritical, "Critical risk band"),
-    };
-    if (!(parsed.riskNotable <= parsed.riskReview && parsed.riskReview <= parsed.riskStrong && parsed.riskStrong <= parsed.riskHigh && parsed.riskHigh <= parsed.riskCritical)) {
-      throw new Error("Risk bands must increase from notable to critical");
-    }
-    return parsed;
-  })
-  .handler(async ({ data }) => {
-    const [{ loadFriendVotingSettingsServer, updateFriendVotingSettingsServer }, { writeAdminAuditServer }] = await Promise.all([
-      import("@/integrations/televoting/friend-voting-settings.server"),
-      import("@/integrations/supabase/admin-audit.server"),
-    ]);
-    const before = await loadFriendVotingSettingsServer();
-    const result = await updateFriendVotingSettingsServer(data);
-    await writeAdminAuditServer({
-      action: "friend_voting_settings.update",
-      tableName: "friend_voting_settings",
-      recordId: "default",
-      beforeData: before,
-      afterData: result,
-    });
-    return result;
-  });
+export const getFriendVotingSettings = createServerFn({ method: "GET" }).handler(async () => { const { getFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server"); return getFriendVotingSettingsServer(); });
+export const updateFriendVotingSettings = createServerFn({ method: "POST" }).inputValidator((data: FriendVotingSettings) => {
+  const parsed: FriendVotingSettings = { ...data,
+    minIndependentEditions: positiveInt(data.minIndependentEditions, "Minimum independent editions"), fullConfidenceEditions: positiveInt(data.fullConfidenceEditions, "Full-confidence editions"), supportEditionThreshold: fraction(data.supportEditionThreshold, "Support threshold"), maximumEditionThreshold: fraction(data.maximumEditionThreshold, "Maximum-score threshold"), reciprocalEditionThreshold: fraction(data.reciprocalEditionThreshold, "Reciprocity threshold"), intensityThreshold: fraction(data.intensityThreshold, "Intensity threshold"), crossChannelMinEditions: positiveInt(data.crossChannelMinEditions, "Cross-channel editions"), baseConfidenceWeight: weight(data.baseConfidenceWeight, "Confidence weight"), supportWeight: weight(data.supportWeight, "Support weight"), maximumWeight: weight(data.maximumWeight, "Maximum-score weight"), reciprocityWeight: weight(data.reciprocityWeight, "Reciprocity weight"), intensityWeight: weight(data.intensityWeight, "Intensity weight"), crossChannelWeight: weight(data.crossChannelWeight, "Cross-channel cap"), crossChannelPerEditionWeight: weight(data.crossChannelPerEditionWeight, "Cross-channel edition weight"), oneEditionCap: risk(data.oneEditionCap, "One-edition cap"), twoEditionCap: risk(data.twoEditionCap, "Two-edition cap"), cliqueMinEdgeRisk: risk(data.cliqueMinEdgeRisk, "Group edge threshold"), cliqueInternalShareThreshold: fraction(data.cliqueInternalShareThreshold, "Group internal-share threshold"), cliqueMinMembers: positiveInt(data.cliqueMinMembers, "Minimum group members", 2), cliqueMinDensity: fraction(data.cliqueMinDensity, "Group density threshold"), riskNotable: risk(data.riskNotable, "Notable risk band"), riskReview: risk(data.riskReview, "Review risk band"), riskStrong: risk(data.riskStrong, "Strong risk band"), riskHigh: risk(data.riskHigh, "High risk band"), riskCritical: risk(data.riskCritical, "Critical risk band"), advancedModel: advanced(data) });
+  if (!(parsed.riskNotable <= parsed.riskReview && parsed.riskReview <= parsed.riskStrong && parsed.riskStrong <= parsed.riskHigh && parsed.riskHigh <= parsed.riskCritical)) throw new Error("Risk bands must increase from notable to critical");
+  return parsed;
+}).handler(async ({ data }) => {
+  const [{ loadFriendVotingSettingsServer, updateFriendVotingSettingsServer }, { writeAdminAuditServer }] = await Promise.all([import("@/integrations/televoting/friend-voting-settings.server"), import("@/integrations/supabase/admin-audit.server")]);
+  const before = await loadFriendVotingSettingsServer(); const result = await updateFriendVotingSettingsServer(data);
+  await writeAdminAuditServer({ action: "friend_voting_settings.update", tableName: "friend_voting_settings", recordId: "default", beforeData: before, afterData: result });
+  return result;
+});
