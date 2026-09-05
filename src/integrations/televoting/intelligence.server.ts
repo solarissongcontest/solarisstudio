@@ -1,7 +1,7 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { loadCanonicalVotingContextServer, canonicalEditionForRound } from "@/integrations/televoting/canonical-context.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
-import { calculateFriendVotingRisk } from "@/integrations/televoting/friend-voting-math";
+import { calculateAdvancedFriendVotingRisk, FRIEND_VOTING_MODEL_VERSION, type AdvancedFriendVotingObservation } from "@/integrations/televoting/advanced-friend-voting";
 
 export type IntelligenceLens = "hod" | "country";
 export type IntelligenceChannel = "combined" | "televote" | "jury";
@@ -14,9 +14,12 @@ export type IntelligencePair = {
   points: number; averagePoints: number; normalizedAverage: number; reciprocalSupport: number; uniqueEditions: number; crossChannelEditions: number;
   televoteOpportunities: number; televoteSupportFrequency: number; televotePoints: number;
   juryOpportunities: number; jurySupportFrequency: number; juryPoints: number;
-  riskScore: number; confidence: number; reasons: string[];
+  riskScore: number; confidence: number; reasons: string[]; warnings: string[];
+  juryRisk: number; televoteRisk: number; crossChannelRisk: number; relationshipAnomaly: number;
+  reciprocityRisk: number; intensityRisk: number; historicalDeviationRisk: number; networkRisk: number; countryStrengthRisk: number;
+  evidence: { observedSupport: number; eligibleSupport: number; smoothedSupportRate: number; averageScore: number; expectedAverageScore: number; maximumScores: number; reciprocalEditions: number; reciprocalSupportEditions: number; crossChannelEditions: number; historicalMaxScoreRate: number };
+  modelVersion: string;
 };
-
 export type IntelligenceSignal = { key: string; severity: "low" | "medium" | "high" | "critical"; title: string; description: string; count: number; countries: string[] };
 
 type Submission = { id: string; round_id: string; country_code: string; username: string; username_normalized: string; ip_country: string | null; is_vpn: boolean; risk_score: number; status: string | null; created_at: string };
@@ -25,29 +28,21 @@ type RoundEntry = { round_id: string; entry_key: string; country_code: string | 
 type Round = { id: string; name: string; edition_id: string; status: string };
 type Country = { code: string; name: string };
 type Observation = { lensIdentity: string; controllerPersonId: string | null; controllerName: string | null; editionId: string; showOrRoundId: string; channel: "televote" | "jury"; voterCountryCode: string; targetCountryCode: string; score: number; maxScore: number; supported: boolean; maximum: boolean; normalized: number };
-type EditionNormalized = { total: number; count: number };
-type EditionReciprocal = { opportunities: number; supported: boolean };
 type PairAccumulator = {
   identityKey: string; controllerPersonId: string | null; controllerName: string | null; votingCountries: Set<string>; targetCode: string;
   opportunities: number; supported: number; max: number; points: number; editions: Set<string>;
-  televote: { opportunities: number; supported: number; points: number; max: number };
-  jury: { opportunities: number; supported: number; points: number; max: number };
-  supportChannelsByEdition: Map<string, Set<string>>;
-  maximumEditions: Set<string>;
-  normalizedByEdition: Map<string, EditionNormalized>;
-  reciprocalByEdition: Map<string, EditionReciprocal>;
+  televote: { opportunities: number; supported: number; points: number; max: number }; jury: { opportunities: number; supported: number; points: number; max: number };
+  supportChannelsByEdition: Map<string, Set<string>>; maximumEditions: Set<string>; observations: Observation[];
 };
-
 const pct = (value: number) => Math.round(value * 1000) / 10;
 const round2 = (value: number) => Math.round(value * 100) / 100;
-function displayEdition(edition: any) { return edition?.edition_number ? `SSC${edition.edition_number}` : String(edition?.name ?? "unknown edition"); }
+const displayEdition = (edition: any) => edition?.edition_number ? `SSC${edition.edition_number}` : String(edition?.name ?? "unknown edition");
 
 export async function getMergedIntelligenceServer(options: IntelligenceOptions = {}) {
   await requireMergedTelevotingAdminServer();
   const lens: IntelligenceLens = options.lens === "country" ? "country" : "hod";
-  const channel: IntelligenceChannel = ["jury", "televote"].includes(String(options.channel)) ? options.channel as IntelligenceChannel : "combined";
+  const channel: IntelligenceChannel = options.channel === "jury" || options.channel === "televote" ? options.channel : "combined";
   const canonical = await loadCanonicalVotingContextServer();
-
   const [submissionResult, roundResult, roundEntryResult, countryResult] = await Promise.all([
     televotingAdmin.from("vote_submissions").select("id,round_id,country_code,username,username_normalized,ip_country,is_vpn,risk_score,status,created_at").order("created_at", { ascending: true }).limit(50000),
     televotingAdmin.from("rounds").select("id,name,edition_id,status").order("created_at", { ascending: true }),
@@ -58,23 +53,14 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
   if (roundResult.error) throw new Error(roundResult.error.message);
   if (roundEntryResult.error) throw new Error(roundEntryResult.error.message);
   if (countryResult.error) throw new Error(countryResult.error.message);
-
   const allSubmissions = (submissionResult.data ?? []) as Submission[];
   const rounds = (roundResult.data ?? []) as Round[];
   const roundEntries = (roundEntryResult.data ?? []) as RoundEntry[];
   const countries = (countryResult.data ?? []) as Country[];
   const countryName = new Map(countries.map((country) => [String(country.code).toUpperCase(), country.name]));
-  for (const country of canonical.hod.countries) {
-    const code = String((country as any).short_code ?? "").toUpperCase();
-    if (code && !countryName.has(code)) countryName.set(code, String((country as any).name));
-  }
-
+  for (const country of canonical.hod.countries) { const code = String((country as any).short_code ?? "").toUpperCase(); if (code && !countryName.has(code)) countryName.set(code, String((country as any).name)); }
   const canonicalEditionByRound = new Map<string, string>();
-  for (const round of rounds) {
-    const canonicalId = canonicalEditionForRound(canonical, round);
-    if (canonicalId) canonicalEditionByRound.set(round.id, canonicalId);
-  }
-
+  for (const round of rounds) { const id = canonicalEditionForRound(canonical, round); if (id) canonicalEditionByRound.set(round.id, id); }
   const filteredSubmissions = allSubmissions.filter((submission) => {
     if (submission.status === "deleted") return false;
     const editionId = canonicalEditionByRound.get(submission.round_id);
@@ -85,50 +71,28 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
     }
     return true;
   });
-
   const ids = filteredSubmissions.map((row) => row.id);
   let entries: Entry[] = [];
-  if (ids.length) {
-    const result = await televotingAdmin.from("vote_entries").select("submission_id,target_country_code,points").in("submission_id", ids).limit(250000);
-    if (result.error) throw new Error(result.error.message);
-    entries = (result.data ?? []) as Entry[];
-  }
+  if (ids.length) { const result = await televotingAdmin.from("vote_entries").select("submission_id,target_country_code,points").in("submission_id", ids).limit(250000); if (result.error) throw new Error(result.error.message); entries = (result.data ?? []) as Entry[]; }
   const entriesBySubmission = new Map<string, Entry[]>();
-  for (const entry of entries) {
-    const list = entriesBySubmission.get(entry.submission_id) ?? [];
-    list.push(entry);
-    entriesBySubmission.set(entry.submission_id, list);
-  }
-
+  for (const entry of entries) { const list = entriesBySubmission.get(entry.submission_id) ?? []; list.push(entry); entriesBySubmission.set(entry.submission_id, list); }
   const participantsByRound = new Map<string, Set<string>>();
-  for (const entry of roundEntries) {
-    const target = String(entry.country_code || entry.entry_key || "").toUpperCase();
-    if (!target) continue;
-    const set = participantsByRound.get(entry.round_id) ?? new Set<string>();
-    set.add(target);
-    participantsByRound.set(entry.round_id, set);
-  }
-
+  for (const entry of roundEntries) { const target = String(entry.country_code || entry.entry_key || "").trim().toUpperCase(); if (!target) continue; const set = participantsByRound.get(entry.round_id) ?? new Set<string>(); set.add(target); participantsByRound.set(entry.round_id, set); }
   const observations: Observation[] = [];
   const hodEditionCoverage = new Set<string>();
   const unknownHodEditionCoverage = new Set<string>();
-
   if (channel !== "jury") {
     for (const submission of filteredSubmissions) {
-      const editionId = canonicalEditionByRound.get(submission.round_id);
-      if (!editionId) continue;
+      const editionId = canonicalEditionByRound.get(submission.round_id); if (!editionId) continue;
       const voterCode = String(submission.country_code).trim().toUpperCase();
       const voterCountry = canonical.hod.countriesByCode.get(voterCode) as any;
       const hod = canonical.hod.resolve(editionId, voterCountry?.id, "televote");
       const editionLabel = displayEdition(canonical.hod.editionsById.get(editionId));
       if (hod) hodEditionCoverage.add(`${editionId}:${voterCode}`); else unknownHodEditionCoverage.add(`${editionId}:${voterCode}`);
-      // HOD-lens relationship analysis must follow an actual person. If this
-      // edition is marked another/unknown and has no resolved HOD identity, it
-      // contributes no personal friendship-voting observation at all.
       if (lens === "hod" && !hod) continue;
       const identity = lens === "country" ? `country:${voterCode}` : `hod:${hod!.personId}`;
       const ballotEntries = entriesBySubmission.get(submission.id) ?? [];
-      const points = new Map(ballotEntries.map((entry) => [String(entry.target_country_code).toUpperCase(), Number(entry.points || 0)]));
+      const points = new Map(ballotEntries.map((entry) => [String(entry.target_country_code).trim().toUpperCase(), Number(entry.points || 0)]));
       const maxScore = Math.max(0, ...points.values());
       for (const target of participantsByRound.get(submission.round_id) ?? new Set<string>()) {
         if (!target || target === voterCode) continue;
@@ -137,26 +101,17 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       }
     }
   }
-
   const juryVotesInScope = canonical.juryVotes.filter((vote) => {
     if (options.editionId && String(vote.edition_id) !== options.editionId) return false;
     if (!vote.voter_country_id) return false;
     return !options.hodPersonId || canonical.hod.resolve(vote.edition_id, vote.voter_country_id, "jury")?.personId === options.hodPersonId;
   });
-
   if (channel !== "televote") {
     const votesByBallot = new Map<string, typeof juryVotesInScope>();
-    for (const vote of juryVotesInScope) {
-      const key = `${vote.edition_id}:${vote.show_id ?? "edition"}:${vote.voter_country_id}`;
-      const list = votesByBallot.get(key) ?? [];
-      list.push(vote);
-      votesByBallot.set(key, list);
-    }
+    for (const vote of juryVotesInScope) { const key = `${vote.edition_id}:${vote.show_id ?? "edition"}:${vote.voter_country_id}`; const list = votesByBallot.get(key) ?? []; list.push(vote); votesByBallot.set(key, list); }
     for (const [ballotKey, ballotVotes] of votesByBallot) {
-      const first = ballotVotes[0];
-      if (!first?.voter_country_id) continue;
-      const voterCountry = canonical.hod.countriesById.get(first.voter_country_id) as any;
-      if (!voterCountry) continue;
+      const first = ballotVotes[0]; if (!first?.voter_country_id) continue;
+      const voterCountry = canonical.hod.countriesById.get(first.voter_country_id) as any; if (!voterCountry) continue;
       const voterCode = String(voterCountry.short_code ?? voterCountry.name).toUpperCase();
       const hod = canonical.hod.resolve(first.edition_id, first.voter_country_id, "jury");
       const editionLabel = displayEdition(canonical.hod.editionsById.get(first.edition_id));
@@ -164,142 +119,67 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       if (lens === "hod" && !hod) continue;
       const identity = lens === "country" ? `country:${voterCode}` : `hod:${hod!.personId}`;
       const scoreByTarget = new Map<string, number>();
-      for (const vote of ballotVotes) {
-        if (!vote.receiving_country_id) continue;
-        const target = canonical.hod.countriesById.get(vote.receiving_country_id) as any;
-        if (target) scoreByTarget.set(String(target.short_code ?? target.name).toUpperCase(), Number(vote.points ?? 0));
-      }
+      for (const vote of ballotVotes) { if (!vote.receiving_country_id) continue; const target = canonical.hod.countriesById.get(vote.receiving_country_id) as any; if (target) scoreByTarget.set(String(target.short_code ?? target.name).toUpperCase(), Number(vote.points ?? 0)); }
       const maxScore = Math.max(0, ...scoreByTarget.values());
       const participants = first.show_id ? canonical.participantsByShow.get(String(first.show_id)) ?? new Set<string>() : canonical.editionParticipants.get(String(first.edition_id)) ?? new Set<string>();
       for (const targetCountryId of participants) {
         if (targetCountryId === first.voter_country_id) continue;
-        const target = canonical.hod.countriesById.get(targetCountryId) as any;
-        if (!target) continue;
-        const targetCode = String(target.short_code ?? target.name).toUpperCase();
-        const score = scoreByTarget.get(targetCode) ?? 0;
+        const target = canonical.hod.countriesById.get(targetCountryId) as any; if (!target) continue;
+        const targetCode = String(target.short_code ?? target.name).toUpperCase(); const score = scoreByTarget.get(targetCode) ?? 0;
         observations.push({ lensIdentity: identity, controllerPersonId: hod?.personId ?? null, controllerName: lens === "hod" ? hod?.displayName ?? `HOD unknown · ${editionLabel}` : null, editionId: String(first.edition_id), showOrRoundId: String(first.show_id ?? ballotKey), channel: "jury", voterCountryCode: voterCode, targetCountryCode: targetCode, score, maxScore, supported: score > 0, maximum: score > 0 && score === maxScore, normalized: maxScore > 0 ? score / maxScore : 0 });
       }
     }
   }
-
   const observationLookup = new Map<string, Observation[]>();
-  for (const observation of observations) {
-    const key = `${observation.editionId}:${observation.channel}:${observation.voterCountryCode}:${observation.targetCountryCode}`;
-    const list = observationLookup.get(key) ?? [];
-    list.push(observation);
-    observationLookup.set(key, list);
-  }
-
+  for (const observation of observations) { const key = `${observation.editionId}:${observation.channel}:${observation.voterCountryCode}:${observation.targetCountryCode}`; const list = observationLookup.get(key) ?? []; list.push(observation); observationLookup.set(key, list); }
   const pairs = new Map<string, PairAccumulator>();
   for (const observation of observations) {
     const key = `${observation.lensIdentity}\u0000${observation.targetCountryCode}`;
-    const current = pairs.get(key) ?? {
-      identityKey: observation.lensIdentity, controllerPersonId: observation.controllerPersonId, controllerName: observation.controllerName,
-      votingCountries: new Set<string>(), targetCode: observation.targetCountryCode, opportunities: 0, supported: 0, max: 0, points: 0, editions: new Set<string>(),
-      televote: { opportunities: 0, supported: 0, points: 0, max: 0 }, jury: { opportunities: 0, supported: 0, points: 0, max: 0 },
-      supportChannelsByEdition: new Map<string, Set<string>>(), maximumEditions: new Set<string>(), normalizedByEdition: new Map<string, EditionNormalized>(), reciprocalByEdition: new Map<string, EditionReciprocal>(),
-    };
-    current.votingCountries.add(observation.voterCountryCode);
-    current.opportunities += 1;
-    current.points += observation.score;
-    current.editions.add(observation.editionId);
-    const normalized = current.normalizedByEdition.get(observation.editionId) ?? { total: 0, count: 0 };
-    normalized.total += observation.normalized;
-    normalized.count += 1;
-    current.normalizedByEdition.set(observation.editionId, normalized);
-    if (observation.supported) {
-      current.supported += 1;
-      const channelSet = current.supportChannelsByEdition.get(observation.editionId) ?? new Set<string>();
-      channelSet.add(observation.channel);
-      current.supportChannelsByEdition.set(observation.editionId, channelSet);
-    }
-    if (observation.maximum) {
-      current.max += 1;
-      current.maximumEditions.add(observation.editionId);
-    }
-    const channelBucket = current[observation.channel];
-    channelBucket.opportunities += 1;
-    channelBucket.points += observation.score;
-    if (observation.supported) channelBucket.supported += 1;
-    if (observation.maximum) channelBucket.max += 1;
-
-    const reverseKey = `${observation.editionId}:${observation.channel}:${observation.targetCountryCode}:${observation.voterCountryCode}`;
-    const reverse = observationLookup.get(reverseKey);
-    if (reverse?.length) {
-      const reciprocal = current.reciprocalByEdition.get(observation.editionId) ?? { opportunities: 0, supported: false };
-      reciprocal.opportunities += 1;
-      if (observation.supported && reverse.some((candidate) => candidate.supported)) reciprocal.supported = true;
-      current.reciprocalByEdition.set(observation.editionId, reciprocal);
-    }
+    const current = pairs.get(key) ?? { identityKey: observation.lensIdentity, controllerPersonId: observation.controllerPersonId, controllerName: observation.controllerName, votingCountries: new Set<string>(), targetCode: observation.targetCountryCode, opportunities: 0, supported: 0, max: 0, points: 0, editions: new Set<string>(), televote: { opportunities: 0, supported: 0, points: 0, max: 0 }, jury: { opportunities: 0, supported: 0, points: 0, max: 0 }, supportChannelsByEdition: new Map<string, Set<string>>(), maximumEditions: new Set<string>(), observations: [] };
+    current.votingCountries.add(observation.voterCountryCode); current.opportunities += 1; current.points += observation.score; current.editions.add(observation.editionId); current.observations.push(observation);
+    if (observation.supported) { current.supported += 1; const set = current.supportChannelsByEdition.get(observation.editionId) ?? new Set<string>(); set.add(observation.channel); current.supportChannelsByEdition.set(observation.editionId, set); }
+    if (observation.maximum) { current.max += 1; current.maximumEditions.add(observation.editionId); }
+    const bucket = current[observation.channel]; bucket.opportunities += 1; bucket.points += observation.score; if (observation.supported) bucket.supported += 1; if (observation.maximum) bucket.max += 1;
+    const reverse = observationLookup.get(`${observation.editionId}:${observation.channel}:${observation.targetCountryCode}:${observation.voterCountryCode}`);
+    if (reverse?.some((candidate) => candidate.supported) && observation.supported) { /* reciprocal evidence is calculated below at edition level */ }
     pairs.set(key, current);
   }
-
   const relationships: IntelligencePair[] = [];
+  const advancedAll: AdvancedFriendVotingObservation[] = observations.map((row) => ({ editionId: row.editionId, channel: row.channel, voterId: row.lensIdentity, targetCode: row.targetCountryCode, score: row.score, maxScore: row.maxScore, supported: row.supported, maximum: row.maximum }));
   for (const value of pairs.values()) {
     const uniqueEditions = value.editions.size;
     const supportFrequency = uniqueEditions ? value.supportChannelsByEdition.size / uniqueEditions : 0;
     const maximumFrequency = uniqueEditions ? value.maximumEditions.size / uniqueEditions : 0;
-    const normalizedEditionAverages = [...value.normalizedByEdition.values()].map((row) => row.count ? row.total / row.count : 0);
-    const normalizedAverage = normalizedEditionAverages.length ? normalizedEditionAverages.reduce((sum, score) => sum + score, 0) / normalizedEditionAverages.length : 0;
-    const reciprocalEditions = [...value.reciprocalByEdition.values()].filter((row) => row.opportunities > 0);
-    const reciprocalSupport = reciprocalEditions.length ? reciprocalEditions.filter((row) => row.supported).length / reciprocalEditions.length : 0;
-    const crossChannelEditions = [...value.supportChannelsByEdition.values()].filter((channels) => channels.has("jury") && channels.has("televote")).length;
-    const risk = calculateFriendVotingRisk({ uniqueEditions, opportunities: value.opportunities, supportFrequency, maximumFrequency, reciprocalSupport, normalizedAverage, crossChannelEditions });
-
+    const normalizedByEdition = new Map<string, number[]>();
+    for (const row of value.observations) { const list = normalizedByEdition.get(row.editionId) ?? []; list.push(row.normalized); normalizedByEdition.set(row.editionId, list); }
+    const normalizedAverage = normalizedByEdition.size ? [...normalizedByEdition.values()].reduce((sum, rows) => sum + (rows.reduce((a, b) => a + b, 0) / Math.max(1, rows.length)), 0) / normalizedByEdition.size : 0;
+    const reciprocalByEdition = new Set<string>();
+    for (const row of value.observations) {
+      const reverse = observationLookup.get(`${row.editionId}:${row.channel}:${row.targetCountryCode}:${row.voterCountryCode}`);
+      if (reverse?.some((candidate) => candidate.supported) && row.supported) reciprocalByEdition.add(row.editionId);
+    }
+    const reciprocalEditions = reciprocalByEdition.size;
+    const reciprocalSupport = uniqueEditions ? reciprocalEditions / uniqueEditions : 0;
+    const crossChannelEditions = [...value.supportChannelsByEdition.values()].filter((set) => set.has("jury") && set.has("televote")).length;
+    const pairAdvanced = value.observations.map((row) => ({ editionId: row.editionId, channel: row.channel, voterId: row.lensIdentity, targetCode: row.targetCountryCode, score: row.score, maxScore: row.maxScore, supported: row.supported, maximum: row.maximum })) satisfies AdvancedFriendVotingObservation[];
+    const advanced = calculateAdvancedFriendVotingRisk(pairAdvanced, advancedAll, reciprocalSupport, reciprocalEditions);
     const votingCodes = [...value.votingCountries].sort();
     const votingNames = votingCodes.map((code) => countryName.get(code) ?? code);
     const targetName = countryName.get(value.targetCode) ?? value.targetCode;
     const identityLabel = lens === "hod" ? value.controllerName ?? votingNames.join(" / ") : votingNames.join(" / ");
     const televoteFrequency = value.televote.opportunities ? value.televote.supported / value.televote.opportunities : 0;
     const juryFrequency = value.jury.opportunities ? value.jury.supported / value.jury.opportunities : 0;
-
-    relationships.push({
-      identityKey: value.identityKey, controllerPersonId: value.controllerPersonId, controllerName: value.controllerName,
-      votingCountry: identityLabel, votingCountries: votingNames, targetCountry: targetName, targetCode: value.targetCode,
-      opportunities: value.opportunities, supported: value.supported, supportFrequency: pct(supportFrequency), maximumScores: value.max, maximumFrequency: pct(maximumFrequency),
-      points: value.points, averagePoints: round2(value.opportunities ? value.points / value.opportunities : 0), normalizedAverage: pct(normalizedAverage), reciprocalSupport: pct(reciprocalSupport), uniqueEditions, crossChannelEditions,
-      televoteOpportunities: value.televote.opportunities, televoteSupportFrequency: pct(televoteFrequency), televotePoints: value.televote.points,
-      juryOpportunities: value.jury.opportunities, jurySupportFrequency: pct(juryFrequency), juryPoints: value.jury.points,
-      riskScore: risk.riskScore, confidence: risk.confidence, reasons: risk.reasons,
-    });
+    relationships.push({ identityKey: value.identityKey, controllerPersonId: value.controllerPersonId, controllerName: value.controllerName, votingCountry: identityLabel, votingCountries: votingNames, targetCountry: targetName, targetCode: value.targetCode, opportunities: value.opportunities, supported: value.supported, supportFrequency: pct(supportFrequency), maximumScores: value.max, maximumFrequency: pct(maximumFrequency), points: value.points, averagePoints: round2(value.opportunities ? value.points / value.opportunities : 0), normalizedAverage: pct(normalizedAverage), reciprocalSupport: pct(reciprocalSupport), uniqueEditions, crossChannelEditions, televoteOpportunities: value.televote.opportunities, televoteSupportFrequency: pct(televoteFrequency), televotePoints: value.televote.points, juryOpportunities: value.jury.opportunities, jurySupportFrequency: pct(juryFrequency), juryPoints: value.jury.points, riskScore: advanced.overallRisk, confidence: advanced.confidence, reasons: advanced.reasons, warnings: advanced.warnings, juryRisk: advanced.juryRisk, televoteRisk: advanced.televoteRisk, crossChannelRisk: advanced.crossChannelRisk, relationshipAnomaly: advanced.relationshipAnomaly, reciprocityRisk: advanced.reciprocityRisk, intensityRisk: advanced.intensityRisk, historicalDeviationRisk: advanced.historicalDeviationRisk, networkRisk: advanced.networkRisk, countryStrengthRisk: advanced.countryStrengthRisk, evidence: advanced.evidence, modelVersion: FRIEND_VOTING_MODEL_VERSION });
   }
   relationships.sort((a, b) => b.riskScore - a.riskScore || b.uniqueEditions - a.uniqueEditions || b.opportunities - a.opportunities);
-
-  const usernameCounts = new Map<string, Set<string>>();
-  const vpnCountries = new Map<string, number>();
-  const highRiskCountries = new Map<string, number>();
-  const suspiciousCountries = new Map<string, number>();
-  for (const submission of filteredSubmissions) {
-    const user = submission.username_normalized || submission.username.toLowerCase();
-    const countriesForUser = usernameCounts.get(user) ?? new Set<string>();
-    countriesForUser.add(submission.country_code);
-    usernameCounts.set(user, countriesForUser);
-    if (submission.is_vpn) vpnCountries.set(submission.country_code, (vpnCountries.get(submission.country_code) ?? 0) + 1);
-    if (Number(submission.risk_score ?? 0) >= 65) highRiskCountries.set(submission.country_code, (highRiskCountries.get(submission.country_code) ?? 0) + 1);
-    if (submission.status === "suspicious") suspiciousCountries.set(submission.country_code, (suspiciousCountries.get(submission.country_code) ?? 0) + 1);
-  }
-  const multiCountryUsernames = [...usernameCounts.entries()].filter(([, codes]) => codes.size > 1);
-  const signals: IntelligenceSignal[] = [];
-  const pushSignal = (signal: IntelligenceSignal) => { if (signal.count > 0) signals.push(signal); };
+  const usernameCounts = new Map<string, Set<string>>(); const vpnCountries = new Map<string, number>(); const highRiskCountries = new Map<string, number>(); const suspiciousCountries = new Map<string, number>();
+  for (const submission of filteredSubmissions) { const user = submission.username_normalized || submission.username.toLowerCase(); const set = usernameCounts.get(user) ?? new Set<string>(); set.add(submission.country_code); usernameCounts.set(user, set); if (submission.is_vpn) vpnCountries.set(submission.country_code, (vpnCountries.get(submission.country_code) ?? 0) + 1); if (Number(submission.risk_score ?? 0) >= 65) highRiskCountries.set(submission.country_code, (highRiskCountries.get(submission.country_code) ?? 0) + 1); if (submission.status === "suspicious") suspiciousCountries.set(submission.country_code, (suspiciousCountries.get(submission.country_code) ?? 0) + 1); }
+  const multiCountryUsernames = [...usernameCounts.entries()].filter(([, codes]) => codes.size > 1); const signals: IntelligenceSignal[] = []; const pushSignal = (signal: IntelligenceSignal) => { if (signal.count > 0) signals.push(signal); };
   pushSignal({ key: "suspicious", severity: suspiciousCountries.size > 5 ? "high" : "medium", title: "Ballots marked suspicious", description: "Moderator or automated integrity review has placed these ballots in the suspicious state.", count: [...suspiciousCountries.values()].reduce((a, b) => a + b, 0), countries: [...suspiciousCountries.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([code]) => countryName.get(String(code).toUpperCase()) ?? code) });
   pushSignal({ key: "high-risk", severity: "high", title: "High-risk ballots", description: "Ballots with stored technical/integrity risk score 65 or higher should receive organizer attention.", count: [...highRiskCountries.values()].reduce((a, b) => a + b, 0), countries: [...highRiskCountries.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([code]) => countryName.get(String(code).toUpperCase()) ?? code) });
   pushSignal({ key: "vpn", severity: "medium", title: "VPN / proxy evidence", description: "VPN evidence remains supporting technical information only. It never defines HOD identity or proves coordinated voting by itself.", count: [...vpnCountries.values()].reduce((a, b) => a + b, 0), countries: [...vpnCountries.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([code]) => countryName.get(String(code).toUpperCase()) ?? code) });
   pushSignal({ key: "username-cross-country", severity: multiCountryUsernames.length > 4 ? "high" : "medium", title: "Usernames seen across multiple countries", description: "Username reuse is supporting identity evidence. Historical HOD attribution comes from the canonical HOD assignment layer, not this heuristic.", count: multiCountryUsernames.length, countries: [...new Set(multiCountryUsernames.flatMap(([, codes]) => [...codes]))].slice(0, 8).map((code) => countryName.get(String(code).toUpperCase()) ?? code) });
-
   const juryBallotCount = new Set(juryVotesInScope.filter((vote) => vote.voter_country_id).map((vote) => `${vote.edition_id}:${vote.show_id ?? "edition"}:${vote.voter_country_id}`)).size;
-  const stats = {
-    ballots: filteredSubmissions.length, active: filteredSubmissions.length, deleted: allSubmissions.filter((row) => row.status === "deleted").length,
-    suspicious: filteredSubmissions.filter((row) => row.status === "suspicious").length, verified: filteredSubmissions.filter((row) => row.status === "verified").length,
-    highRisk: filteredSubmissions.filter((row) => Number(row.risk_score ?? 0) >= 65).length, vpn: filteredSubmissions.filter((row) => row.is_vpn).length,
-    rounds: rounds.length, juryBallots: juryBallotCount, juryVotes: juryVotesInScope.length, relationships: relationships.length,
-    attentionRelationships: relationships.filter((row) => row.riskScore >= 50).length, hodAssignedEditionCountries: hodEditionCoverage.size, hodUnknownEditionCountries: unknownHodEditionCoverage.size,
-  };
-
-  return {
-    stats, signals, relationships: relationships.slice(0, 750),
-    filters: {
-      lens, channel, hodPersonId: options.hodPersonId ?? null, editionId: options.editionId ?? null, people: canonical.hod.people,
-      editions: canonical.hod.editions.map((edition: any) => ({ id: String(edition.id), name: String(edition.name), editionNumber: edition.edition_number == null ? null : Number(edition.edition_number) })).sort((a: any, b: any) => Number(b.editionNumber ?? 0) - Number(a.editionNumber ?? 0)),
-    },
-  };
+  const stats = { ballots: filteredSubmissions.length, active: filteredSubmissions.length, deleted: allSubmissions.filter((row) => row.status === "deleted").length, suspicious: filteredSubmissions.filter((row) => row.status === "suspicious").length, verified: filteredSubmissions.filter((row) => row.status === "verified").length, highRisk: filteredSubmissions.filter((row) => Number(row.risk_score ?? 0) >= 65).length, vpn: filteredSubmissions.filter((row) => row.is_vpn).length, rounds: rounds.length, juryBallots: juryBallotCount, juryVotes: juryVotesInScope.length, relationships: relationships.length, attentionRelationships: relationships.filter((row) => row.riskScore >= 50).length, hodAssignedEditionCountries: hodEditionCoverage.size, hodUnknownEditionCountries: unknownHodEditionCoverage.size };
+  return { stats, signals, relationships: relationships.slice(0, 750), filters: { lens, channel, hodPersonId: options.hodPersonId ?? null, editionId: options.editionId ?? null, people: canonical.hod.people, editions: canonical.hod.editions.map((edition: any) => ({ id: String(edition.id), name: String(edition.name), editionNumber: edition.edition_number == null ? null : Number(edition.edition_number) })).sort((a: any, b: any) => Number(b.editionNumber ?? 0) - Number(a.editionNumber ?? 0)) } };
 }
