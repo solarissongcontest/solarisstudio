@@ -65,7 +65,15 @@ function TelevotingAnalyticsPage() {
     <div className="mx-auto max-w-7xl py-4 sm:py-8">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
         <Link to="/televoting/admin" className="text-xs text-muted-foreground hover:text-foreground">← Televoting control centre</Link>
-        <Link to="/admin/hod-history" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground hover:text-foreground"><UserRoundCog className="size-3.5" /> Manage HOD history</Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/televoting/admin/intelligence"
+            className="inline-flex items-center gap-2 rounded-xl border border-sky-200/20 bg-sky-200/[0.08] px-3 py-2 text-xs font-semibold text-sky-100 transition hover:border-sky-200/30 hover:bg-sky-200/[0.12]"
+          >
+            <ShieldAlert className="size-3.5" /> Friend-voting intelligence
+          </Link>
+          <Link to="/admin/hod-history" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-muted-foreground hover:text-foreground"><UserRoundCog className="size-3.5" /> Manage HOD history</Link>
+        </div>
       </div>
 
       <header className="mb-8">
