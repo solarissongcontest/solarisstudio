@@ -212,6 +212,13 @@ function VotingAdminOverview() {
                 title="Analytics"
                 description="See turnout, how points were spread, and how countries and entries performed."
               />
+              <WorkflowLink
+                to="/televoting/admin/intelligence"
+                icon={ShieldAlert}
+                title="Friend-voting intelligence"
+                description="Compare jury and televote relationships, historical anomalies, reciprocity and coordinated voting patterns."
+                detail="Jury · televote · network analysis"
+              />
             </div>
           </section>
 
@@ -231,8 +238,8 @@ function VotingAdminOverview() {
               <AdminLinkRow
                 to="/televoting/admin/intelligence"
                 icon={ShieldAlert}
-                title="Voting intelligence"
-                description="Look more closely at repeated voting links and unusual patterns."
+                title="Friend-voting intelligence"
+                description="Compare jury and televote relationships, historical anomalies, reciprocity and coordinated voting patterns."
               />
               <AdminLinkRow
                 to="/televoting/admin/audit-log"
