@@ -77,18 +77,18 @@ export function AdminNav() {
       active: (path) => path.startsWith("/confirmations/admin/sync") || path.startsWith("/admin/lineup-sync/"),
     },
     {
+      label: "Friend-voting intelligence",
+      to: "/admin/friend-voting",
+      icon: ShieldAlert,
+      active: (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence"),
+    },
+    {
       label: "Televoting",
       to: "/televoting/admin",
       icon: Vote,
       active: (path) =>
         (path.startsWith("/televoting/admin") && !path.startsWith("/televoting/admin/intelligence")) ||
         path.startsWith("/admin/hod-history"),
-    },
-    {
-      label: "Friend-voting intelligence",
-      to: "/televoting/admin/intelligence",
-      icon: ShieldAlert,
-      active: (path) => path.startsWith("/televoting/admin/intelligence"),
     },
     {
       label: "Broadcast",
