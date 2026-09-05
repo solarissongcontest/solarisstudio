@@ -46,11 +46,14 @@ describe("country HOD ownership history", () => {
     expect(hodPanel).toContain("observer.observe(document.body, { childList: true, subtree: true })");
   });
 
-  it("feeds only resolved HOD identities into friendship-voting intelligence", () => {
+  it("uses HOD identities when configured and country history when a country has no HOD history at all", () => {
     expect(migration).toContain("delegation_hod_assignments");
     expect(migration).toContain("country-account-self");
     expect(intelligence).toContain("canonical.hod.resolve");
-    expect(intelligence).toContain('if (lens === "hod" && !hod) continue;');
+    expect(intelligence).toContain("countriesWithHodHistory");
+    expect(intelligence).toContain("useCountryFallback");
+    expect(intelligence).toContain('if (lens === "hod" && !hod && !countryFallback) continue;');
+    expect(intelligence).toContain("country-fallback:");
     expect(intelligence).not.toContain("unknown:${editionId}:${voterCode}");
   });
 });
