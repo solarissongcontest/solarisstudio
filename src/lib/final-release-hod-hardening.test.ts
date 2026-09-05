@@ -8,8 +8,11 @@ const intelligence = source("src/integrations/televoting/intelligence.server.ts"
 const migration = source("supabase/migrations/20260822001000_finalize_hod_release_hardening.sql");
 
 describe("final public-release HOD hardening", () => {
-  it("never creates anonymous person identities in the HOD analysis lens", () => {
-    expect(intelligence.split('if (lens === "hod" && !hod) continue;').length - 1).toBe(2);
+  it("uses explicit country fallback only when no HOD history exists", () => {
+    expect(intelligence).toContain("countriesWithHodHistory");
+    expect(intelligence).toContain('lens === "hod" && Boolean(countryId) && !countriesWithHodHistory.has(String(countryId))');
+    expect(intelligence.split('if (lens === "hod" && !hod && !countryFallback) continue;').length - 1).toBe(2);
+    expect(intelligence).toContain("`country-fallback:${voterCode}`");
     expect(intelligence).not.toContain("`unknown:${editionId}:${voterCode}`");
     expect(intelligence).not.toContain("`unknown:${first.edition_id}:${voterCode}`");
   });
