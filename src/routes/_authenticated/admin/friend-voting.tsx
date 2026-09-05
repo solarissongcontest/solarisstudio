@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ShieldAlert, UserRoundCog } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
-import { getMergedTelevotingIntelligence } from "@/integrations/televoting/intelligence.functions";
+import { getLightweightFriendVotingIntelligence } from "@/integrations/televoting/intelligence.functions";
 import { useEditions } from "@/lib/data";
+
+const ALL_EDITIONS = "__all__";
 
 export const Route = createFileRoute("/_authenticated/admin/friend-voting")({
   head: () => ({
@@ -19,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin/friend-voting")({
 });
 
 function FriendVotingPage() {
-  const getIntelligence = useServerFn(getMergedTelevotingIntelligence);
+  const getIntelligence = useServerFn(getLightweightFriendVotingIntelligence);
   const { data: editions = [] } = useEditions();
   const [editionId, setEditionId] = useState("");
 
@@ -28,24 +30,58 @@ function FriendVotingPage() {
     [editions],
   );
 
-  const intelligence = useQuery({
-    queryKey: ["friend-voting-admin", editionId],
-    queryFn: () => getIntelligence({ data: { lens: "hod", channel: "combined", editionId } }),
-    enabled: Boolean(editionId),
-    staleTime: 60_000,
+  const editionIdsToAnalyse = useMemo(
+    () => editionId === ALL_EDITIONS ? sortedEditions.map((edition) => edition.id) : editionId ? [editionId] : [],
+    [editionId, sortedEditions],
+  );
+
+  const queries = useQueries({
+    queries: editionIdsToAnalyse.map((id) => ({
+      queryKey: ["friend-voting-admin-lite", id],
+      queryFn: async () => {
+        const result = await getIntelligence({ data: { lens: "hod", channel: "combined", editionId: id } });
+        if (!result) throw new Error("Friend-voting analysis returned no data");
+        return result;
+      },
+      staleTime: 60_000,
+      retry: 1,
+    })),
   });
 
+  const isLoading = queries.some((query) => query.isLoading || query.isFetching);
+  const firstError = queries.find((query) => query.error)?.error;
+  const completed = queries.map((query) => query.data).filter(Boolean) as any[];
+
+  const combined = useMemo(() => {
+    if (!completed.length) return null;
+    const relationships = completed.flatMap((result) => result.relationships ?? []);
+    const stats = completed.reduce((acc, result) => ({
+      ballots: acc.ballots + Number(result.stats?.ballots ?? 0),
+      juryBallots: acc.juryBallots + Number(result.stats?.juryBallots ?? 0),
+      suspicious: acc.suspicious + Number(result.stats?.suspicious ?? 0),
+      highRisk: acc.highRisk + Number(result.stats?.highRisk ?? 0),
+      relationships: acc.relationships + Number(result.stats?.relationships ?? 0),
+      attentionRelationships: acc.attentionRelationships + Number(result.stats?.attentionRelationships ?? 0),
+      hodUnknownEditionCountries: acc.hodUnknownEditionCountries + Number(result.stats?.hodUnknownEditionCountries ?? 0),
+    }), { ballots: 0, juryBallots: 0, suspicious: 0, highRisk: 0, relationships: 0, attentionRelationships: 0, hodUnknownEditionCountries: 0 });
+    return { relationships, stats };
+  }, [completed]);
+
   const topRelationships = useMemo(
-    () => [...(intelligence.data?.relationships ?? [])].sort((a, b) => b.riskScore - a.riskScore).slice(0, 30),
-    [intelligence.data?.relationships],
+    () => [...(combined?.relationships ?? [])].sort((a, b) => b.riskScore - a.riskScore).slice(0, 50),
+    [combined?.relationships],
   );
+
+  const progressLabel = editionId === ALL_EDITIONS
+    ? `${completed.length}/${editionIdsToAnalyse.length} editions analysed`
+    : "Edition scoped";
 
   return (
     <div className="mx-auto max-w-7xl">
       <AdminPageHeader
         eyebrow="Integrity intelligence"
         title="Friend-voting intelligence"
-        description="Compare jury and televote relationships, historical anomalies, reciprocity and coordinated voting patterns. Analysis is loaded one edition at a time to stay within Cloudflare Worker CPU limits."
+        description="Compare jury and televote relationships, historical anomalies and reciprocal voting patterns. All-editions analysis runs edition-by-edition so no single Cloudflare Worker request has to process the full archive."
         actions={
           <Link to="/admin/hod-history" className="admin-action-secondary">
             <UserRoundCog className="size-4" /> HOD history
@@ -63,6 +99,7 @@ function FriendVotingPage() {
               className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30 sm:max-w-md"
             >
               <option value="">Choose an edition</option>
+              <option value={ALL_EDITIONS}>All editions</option>
               {sortedEditions.map((edition) => (
                 <option key={edition.id} value={edition.id}>
                   SSC{edition.edition_number ?? "?"} · {edition.name}
@@ -70,7 +107,7 @@ function FriendVotingPage() {
               ))}
             </select>
           </div>
-          {editionId ? <AdminStatus tone={intelligence.isFetching ? "neutral" : "info"}>{intelligence.isFetching ? "Analysing…" : "Edition scoped"}</AdminStatus> : null}
+          {editionId ? <AdminStatus tone={isLoading ? "neutral" : "info"}>{isLoading ? progressLabel : progressLabel}</AdminStatus> : null}
         </div>
       </AdminCard>
 
@@ -78,30 +115,29 @@ function FriendVotingPage() {
         <AdminCard className="mt-4">
           <div className="py-10 text-center">
             <ShieldAlert className="mx-auto size-7 text-sky-100/70" />
-            <h2 className="mt-3 text-lg font-semibold">Choose an edition first</h2>
+            <h2 className="mt-3 text-lg font-semibold">Choose an edition or all editions</h2>
             <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
-              The previous page analysed the entire voting archive on every load, which could exceed the Worker CPU limit. Edition-scoped analysis avoids that while keeping the same HOD-aware model.
+              All editions are analysed as separate lightweight requests and then combined here, which avoids the Worker CPU-limit failure from the old archive-wide request.
             </p>
           </div>
         </AdminCard>
-      ) : intelligence.isLoading ? (
-        <AdminCard className="mt-4"><p className="py-10 text-center text-sm text-muted-foreground">Building friend-voting analysis…</p></AdminCard>
-      ) : intelligence.error ? (
+      ) : firstError ? (
         <AdminCard className="mt-4 !border-rose-200/15 !bg-rose-200/[0.045]">
-          <p className="text-sm text-rose-100">{intelligence.error instanceof Error ? intelligence.error.message : "Friend-voting analysis could not be loaded."}</p>
+          <p className="text-sm text-rose-100">{firstError instanceof Error ? firstError.message : "Friend-voting analysis could not be loaded."}</p>
         </AdminCard>
-      ) : intelligence.data ? (
+      ) : !combined && isLoading ? (
+        <AdminCard className="mt-4"><p className="py-10 text-center text-sm text-muted-foreground">Building friend-voting analysis…</p></AdminCard>
+      ) : combined ? (
         <>
-          <section className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
+          <section className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
             {[
-              ["TV ballots", intelligence.data.stats.ballots],
-              ["Jury ballots", intelligence.data.stats.juryBallots],
-              ["Suspicious", intelligence.data.stats.suspicious],
-              ["High risk", intelligence.data.stats.highRisk],
-              ["Relationships", intelligence.data.stats.relationships],
-              ["Need attention", intelligence.data.stats.attentionRelationships],
-              ["Groups", intelligence.data.coordination.stats.groups],
-              ["HOD unknown", intelligence.data.stats.hodUnknownEditionCountries],
+              ["TV ballots", combined.stats.ballots],
+              ["Jury ballots", combined.stats.juryBallots],
+              ["Suspicious", combined.stats.suspicious],
+              ["High risk", combined.stats.highRisk],
+              ["Relationships", combined.stats.relationships],
+              ["Need attention", combined.stats.attentionRelationships],
+              ["HOD unknown", combined.stats.hodUnknownEditionCountries],
             ].map(([label, value]) => (
               <AdminCard key={String(label)}>
                 <p className="admin-section-label">{label}</p>
@@ -120,8 +156,8 @@ function FriendVotingPage() {
             </div>
 
             <div className="divide-y divide-white/[0.07]">
-              {topRelationships.map((row) => (
-                <div key={`${row.identityKey}>${row.targetCode}`} className="grid gap-3 py-3 md:grid-cols-[1fr_auto] md:items-center">
+              {topRelationships.map((row, index) => (
+                <div key={`${row.identityKey}>${row.targetCode}:${index}`} className="grid gap-3 py-3 md:grid-cols-[1fr_auto] md:items-center">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">{row.votingCountry} → {row.targetCountry}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -134,7 +170,7 @@ function FriendVotingPage() {
                   </div>
                 </div>
               ))}
-              {!topRelationships.length ? <p className="py-8 text-center text-sm text-muted-foreground">No relationships were found for this edition.</p> : null}
+              {!topRelationships.length ? <p className="py-8 text-center text-sm text-muted-foreground">No relationships were found for this selection.</p> : null}
             </div>
           </AdminCard>
         </>
