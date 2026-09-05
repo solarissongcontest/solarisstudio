@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ShieldAlert, UserRoundCog } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, ChevronDown, Search, ShieldAlert, UserRoundCog } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { getLightweightFriendVotingIntelligence } from "@/integrations/televoting/intelligence.functions";
@@ -24,6 +24,9 @@ function FriendVotingPage() {
   const getIntelligence = useServerFn(getLightweightFriendVotingIntelligence);
   const { data: editions = [] } = useEditions();
   const [editionId, setEditionId] = useState("");
+  const [search, setSearch] = useState("");
+  const [minRisk, setMinRisk] = useState(0);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
 
   const sortedEditions = useMemo(
     () => [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1)),
@@ -35,53 +38,109 @@ function FriendVotingPage() {
     [editionId, sortedEditions],
   );
 
-  const queries = useQueries({
-    queries: editionIdsToAnalyse.map((id) => ({
-      queryKey: ["friend-voting-admin-lite", id],
-      queryFn: async () => {
-        const result = await getIntelligence({ data: { lens: "hod", channel: "combined", editionId: id } });
-        if (!result) throw new Error("Friend-voting analysis returned no data");
-        return result;
-      },
-      staleTime: 60_000,
-      retry: 1,
-    })),
+  const editionById = useMemo(() => new Map(sortedEditions.map((edition) => [edition.id, edition])), [sortedEditions]);
+
+  useEffect(() => {
+    setProgress({ done: 0, total: editionIdsToAnalyse.length });
+  }, [editionId, editionIdsToAnalyse.length]);
+
+  const analysis = useQuery({
+    queryKey: ["friend-voting-admin-sequential", editionId, editionIdsToAnalyse.join(",")],
+    enabled: Boolean(editionId && editionIdsToAnalyse.length),
+    staleTime: 60_000,
+    retry: false,
+    queryFn: async () => {
+      const results: Array<{ editionId: string; data: any }> = [];
+      const failures: Array<{ editionId: string; message: string }> = [];
+      setProgress({ done: 0, total: editionIdsToAnalyse.length });
+
+      for (let index = 0; index < editionIdsToAnalyse.length; index += 1) {
+        const id = editionIdsToAnalyse[index];
+        try {
+          const result = await getIntelligence({ data: { lens: "hod", channel: "combined", editionId: id } });
+          if (!result) throw new Error("No data returned");
+          results.push({ editionId: id, data: result });
+        } catch (caught) {
+          failures.push({
+            editionId: id,
+            message: caught instanceof Error ? caught.message : "Analysis failed",
+          });
+        }
+        setProgress({ done: index + 1, total: editionIdsToAnalyse.length });
+      }
+
+      return { results, failures };
+    },
   });
 
-  const isLoading = queries.some((query) => query.isLoading || query.isFetching);
-  const firstError = queries.find((query) => query.error)?.error;
-  const completed = queries.map((query) => query.data).filter(Boolean) as any[];
-
   const combined = useMemo(() => {
+    const completed = analysis.data?.results ?? [];
     if (!completed.length) return null;
-    const relationships = completed.flatMap((result) => result.relationships ?? []);
-    const stats = completed.reduce((acc, result) => ({
+
+    const relationships = completed.flatMap(({ editionId: resultEditionId, data }) => {
+      const edition = editionById.get(resultEditionId);
+      const editionLabel = edition?.edition_number ? `SSC${edition.edition_number}` : edition?.name ?? "Edition";
+      return (data.relationships ?? []).map((row: any) => ({ ...row, editionId: resultEditionId, editionLabel }));
+    });
+
+    const stats = completed.reduce((acc, { data: result }) => ({
       ballots: acc.ballots + Number(result.stats?.ballots ?? 0),
       juryBallots: acc.juryBallots + Number(result.stats?.juryBallots ?? 0),
       suspicious: acc.suspicious + Number(result.stats?.suspicious ?? 0),
       highRisk: acc.highRisk + Number(result.stats?.highRisk ?? 0),
       relationships: acc.relationships + Number(result.stats?.relationships ?? 0),
       attentionRelationships: acc.attentionRelationships + Number(result.stats?.attentionRelationships ?? 0),
+      hodAssignedEditionCountries: acc.hodAssignedEditionCountries + Number(result.stats?.hodAssignedEditionCountries ?? 0),
       hodUnknownEditionCountries: acc.hodUnknownEditionCountries + Number(result.stats?.hodUnknownEditionCountries ?? 0),
-    }), { ballots: 0, juryBallots: 0, suspicious: 0, highRisk: 0, relationships: 0, attentionRelationships: 0, hodUnknownEditionCountries: 0 });
+    }), {
+      ballots: 0,
+      juryBallots: 0,
+      suspicious: 0,
+      highRisk: 0,
+      relationships: 0,
+      attentionRelationships: 0,
+      hodAssignedEditionCountries: 0,
+      hodUnknownEditionCountries: 0,
+    });
+
     return { relationships, stats };
-  }, [completed]);
+  }, [analysis.data?.results, editionById]);
 
-  const topRelationships = useMemo(
-    () => [...(combined?.relationships ?? [])].sort((a, b) => b.riskScore - a.riskScore).slice(0, 50),
-    [combined?.relationships],
-  );
+  const filteredRelationships = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return [...(combined?.relationships ?? [])]
+      .filter((row: any) => row.riskScore >= minRisk)
+      .filter((row: any) => {
+        if (!term) return true;
+        const sourceCountries = (row.votingCountries ?? []).join(" ");
+        return `${sourceCountries} ${row.controllerName ?? ""} ${row.targetCountry} ${row.editionLabel ?? ""}`.toLowerCase().includes(term);
+      })
+      .sort((a: any, b: any) => b.riskScore - a.riskScore || b.confidence - a.confidence)
+      .slice(0, 100);
+  }, [combined?.relationships, minRisk, search]);
 
-  const progressLabel = editionId === ALL_EDITIONS
-    ? `${completed.length}/${editionIdsToAnalyse.length} editions analysed`
-    : "Edition scoped";
+  const failures = analysis.data?.failures ?? [];
+  const failedLabels = failures.map((failure) => {
+    const edition = editionById.get(failure.editionId);
+    return edition?.edition_number ? `SSC${edition.edition_number}` : edition?.name ?? failure.editionId;
+  });
+
+  const totalHodUnits = (combined?.stats.hodAssignedEditionCountries ?? 0) + (combined?.stats.hodUnknownEditionCountries ?? 0);
+  const hodCoverage = totalHodUnits
+    ? Math.round(((combined?.stats.hodAssignedEditionCountries ?? 0) / totalHodUnits) * 100)
+    : 0;
+
+  const isAll = editionId === ALL_EDITIONS;
+  const progressLabel = isAll
+    ? `${progress.done}/${progress.total} editions analysed`
+    : analysis.isFetching ? "Analysing…" : "Edition ready";
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="mx-auto max-w-7xl space-y-4">
       <AdminPageHeader
         eyebrow="Integrity intelligence"
         title="Friend-voting intelligence"
-        description="Compare jury and televote relationships, historical anomalies and reciprocal voting patterns. All-editions analysis runs edition-by-edition so no single Cloudflare Worker request has to process the full archive."
+        description="Find unusual jury and televote relationships by country, with HOD identity shown as context rather than replacing the country."
         actions={
           <Link to="/admin/hod-history" className="admin-action-secondary">
             <UserRoundCog className="size-4" /> HOD history
@@ -90,13 +149,13 @@ function FriendVotingPage() {
       />
 
       <AdminCard strong>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 flex-1">
-            <label className="admin-section-label">Edition to analyse</label>
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_190px] lg:items-end">
+          <label className="block min-w-0">
+            <span className="admin-section-label">Edition</span>
             <select
               value={editionId}
               onChange={(event) => setEditionId(event.target.value)}
-              className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30 sm:max-w-md"
+              className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
             >
               <option value="">Choose an edition</option>
               <option value={ALL_EDITIONS}>All editions</option>
@@ -106,75 +165,141 @@ function FriendVotingPage() {
                 </option>
               ))}
             </select>
-          </div>
-          {editionId ? <AdminStatus tone={isLoading ? "neutral" : "info"}>{isLoading ? progressLabel : progressLabel}</AdminStatus> : null}
+          </label>
+
+          <label className="block min-w-0">
+            <span className="admin-section-label">Find a country or HOD</span>
+            <span className="relative mt-2 block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search relationships"
+                className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] pl-9 pr-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+              />
+            </span>
+          </label>
+
+          <label className="block">
+            <span className="admin-section-label">Minimum risk</span>
+            <select
+              value={minRisk}
+              onChange={(event) => setMinRisk(Number(event.target.value))}
+              className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+            >
+              <option value={0}>All relationships</option>
+              <option value={20}>20+</option>
+              <option value={30}>30+</option>
+              <option value={40}>40+</option>
+              <option value={60}>60+</option>
+              <option value={80}>80+</option>
+            </select>
+          </label>
         </div>
+
+        {editionId ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <AdminStatus tone={analysis.isFetching ? "neutral" : failures.length ? "attention" : "info"}>{progressLabel}</AdminStatus>
+            {failures.length ? <AdminStatus tone="attention">{failures.length} failed</AdminStatus> : null}
+          </div>
+        ) : null}
       </AdminCard>
 
       {!editionId ? (
-        <AdminCard className="mt-4">
-          <div className="py-10 text-center">
+        <AdminCard>
+          <div className="py-8 text-center">
             <ShieldAlert className="mx-auto size-7 text-sky-100/70" />
-            <h2 className="mt-3 text-lg font-semibold">Choose an edition or all editions</h2>
-            <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
-              All editions are analysed as separate lightweight requests and then combined here, which avoids the Worker CPU-limit failure from the old archive-wide request.
-            </p>
+            <h2 className="mt-3 text-lg font-semibold">Choose an edition or the full history</h2>
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">All editions are processed one after another so a few difficult editions cannot overload the Worker or erase the successful results.</p>
           </div>
         </AdminCard>
-      ) : firstError ? (
-        <AdminCard className="mt-4 !border-rose-200/15 !bg-rose-200/[0.045]">
-          <p className="text-sm text-rose-100">{firstError instanceof Error ? firstError.message : "Friend-voting analysis could not be loaded."}</p>
-        </AdminCard>
-      ) : !combined && isLoading ? (
-        <AdminCard className="mt-4"><p className="py-10 text-center text-sm text-muted-foreground">Building friend-voting analysis…</p></AdminCard>
-      ) : combined ? (
-        <>
-          <section className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
-            {[
-              ["TV ballots", combined.stats.ballots],
-              ["Jury ballots", combined.stats.juryBallots],
-              ["Suspicious", combined.stats.suspicious],
-              ["High risk", combined.stats.highRisk],
-              ["Relationships", combined.stats.relationships],
-              ["Need attention", combined.stats.attentionRelationships],
-              ["HOD unknown", combined.stats.hodUnknownEditionCountries],
-            ].map(([label, value]) => (
-              <AdminCard key={String(label)}>
-                <p className="admin-section-label">{label}</p>
-                <p className="mt-2 text-2xl font-semibold">{value}</p>
-              </AdminCard>
-            ))}
-          </section>
+      ) : null}
 
-          <AdminCard className="mt-4">
-            <div className="mb-4 flex items-center justify-between gap-3">
+      {failures.length ? (
+        <div className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.045] p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-100" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-50">Partial analysis</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/70">Results from {analysis.data?.results.length ?? 0} edition{analysis.data?.results.length === 1 ? "" : "s"} are still shown. Failed: {failedLabels.join(", ")}.</p>
+            </div>
+            <button type="button" onClick={() => void analysis.refetch()} className="shrink-0 rounded-lg border border-amber-100/15 px-3 py-1.5 text-xs font-semibold text-amber-50">Retry</button>
+          </div>
+        </div>
+      ) : null}
+
+      {analysis.isLoading && !combined ? (
+        <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Building friend-voting analysis…</p></AdminCard>
+      ) : null}
+
+      {combined ? (
+        <>
+          <AdminCard>
+            <div className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
+              <CompactMetric label="TV ballots" value={combined.stats.ballots} />
+              <CompactMetric label="Jury ballots" value={combined.stats.juryBallots} />
+              <CompactMetric label="Relationships" value={combined.stats.relationships} />
+              <CompactMetric label="Need attention" value={combined.stats.attentionRelationships} />
+              <CompactMetric label="High risk" value={combined.stats.highRisk} />
+              <CompactMetric label="HOD coverage" value={`${hodCoverage}%`} />
+            </div>
+          </AdminCard>
+
+          <AdminCard>
+            <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <p className="admin-section-label">Relationship evidence</p>
-                <h2 className="mt-1 text-xl font-bold">Highest-risk relationships</h2>
+                <h2 className="mt-1 text-xl font-bold">Country relationships</h2>
               </div>
-              <AdminStatus tone="info">Top {topRelationships.length}</AdminStatus>
+              <AdminStatus tone="info">{filteredRelationships.length} shown</AdminStatus>
             </div>
 
             <div className="divide-y divide-white/[0.07]">
-              {topRelationships.map((row, index) => (
-                <div key={`${row.identityKey}>${row.targetCode}:${index}`} className="grid gap-3 py-3 md:grid-cols-[1fr_auto] md:items-center">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{row.votingCountry} → {row.targetCountry}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {row.controllerName ? `HOD: ${row.controllerName} · ` : ""}{row.reasons.join(" · ") || "No elevated evidence signal"}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 text-xs">
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">Risk {row.riskScore}</span>
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-muted-foreground">Confidence {row.confidence}%</span>
-                  </div>
-                </div>
-              ))}
-              {!topRelationships.length ? <p className="py-8 text-center text-sm text-muted-foreground">No relationships were found for this selection.</p> : null}
+              {filteredRelationships.map((row: any, index: number) => {
+                const sourceCountry = (row.votingCountries?.length ? row.votingCountries.join(" / ") : row.votingCountry) || "Unknown country";
+                const sourceLabel = row.controllerName ? `${sourceCountry} (${row.controllerName})` : sourceCountry;
+                return (
+                  <details key={`${row.identityKey}>${row.targetCode}:${row.editionId}:${index}`} className="group py-3">
+                    <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{sourceLabel} → {row.targetCountry}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{row.editionLabel} · {row.uniqueEditions} edition{row.uniqueEditions === 1 ? "" : "s"} of evidence</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold">Risk {row.riskScore}</span>
+                        <span className="hidden rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-muted-foreground sm:inline">{row.confidence}% conf.</span>
+                        <ChevronDown className="size-4 text-muted-foreground transition group-open:rotate-180" />
+                      </div>
+                    </summary>
+                    <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+                      <p className="text-xs leading-relaxed text-muted-foreground">{row.reasons?.join(" · ") || "No elevated evidence signal."}</p>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                        <SmallMetric label="Confidence" value={`${row.confidence}%`} />
+                        <SmallMetric label="Support" value={`${row.supportFrequency}%`} />
+                        <SmallMetric label="Reciprocity" value={`${row.reciprocalSupport}%`} />
+                        <SmallMetric label="Average points" value={row.averagePoints} />
+                      </div>
+                    </div>
+                  </details>
+                );
+              })}
+              {!filteredRelationships.length ? <p className="py-8 text-center text-sm text-muted-foreground">No relationships match the current filters.</p> : null}
             </div>
           </AdminCard>
         </>
       ) : null}
+
+      {editionId && !analysis.isFetching && !combined && failures.length ? (
+        <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]"><p className="text-sm text-rose-100">None of the selected editions could be analysed. Retry the failed editions above.</p></AdminCard>
+      ) : null}
     </div>
   );
+}
+
+function CompactMetric({ label, value }: { label: string; value: string | number }) {
+  return <div><p className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold text-foreground">{value}</p></div>;
+}
+
+function SmallMetric({ label, value }: { label: string; value: string | number }) {
+  return <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-2.5 py-2"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-1 font-semibold text-foreground">{value}</p></div>;
 }
