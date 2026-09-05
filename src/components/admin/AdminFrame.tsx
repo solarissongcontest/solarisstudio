@@ -3,6 +3,7 @@ import {
   CircleHelp,
   LayoutDashboard,
   MoreHorizontal,
+  ShieldAlert,
   Trophy,
   Vote,
   type LucideIcon,
@@ -56,10 +57,17 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         path.startsWith("/admin/edition-theme/"),
     },
     {
+      label: "Friend vote",
+      href: "/admin/friend-voting",
+      icon: ShieldAlert,
+      active: (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence"),
+    },
+    {
       label: "Televote",
       href: "/televoting/admin",
       icon: Vote,
-      active: (path) => path.startsWith("/televoting/admin") || path.startsWith("/admin/hod-history"),
+      active: (path) =>
+        path.startsWith("/televoting/admin") && !path.startsWith("/televoting/admin/intelligence"),
     },
     {
       label: "Guide",
@@ -73,6 +81,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       icon: MoreHorizontal,
       active: (path) =>
         path.startsWith("/admin/more") ||
+        path.startsWith("/admin/hod-history") ||
         path.startsWith("/admin/hosts") ||
         path.startsWith("/admin/country-accounts") ||
         path.startsWith("/admin/predictions") ||
@@ -100,7 +109,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
         aria-label="Organizer navigation"
       >
-        <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
+        <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
           {mobileItems.map((item) => {
             const Icon = item.icon;
             const active = item.active(pathname);
@@ -110,14 +119,14 @@ export function AdminFrame({ children }: { children: ReactNode }) {
                 to={item.href as any}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-[3.45rem] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
+                  "flex min-h-[3.45rem] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition-colors",
                   active
                     ? "bg-sky-200/[0.09] text-sky-50"
                     : "text-muted-foreground hover:bg-white/[0.035] hover:text-foreground",
                 )}
               >
                 <Icon className="size-[1.08rem]" />
-                <span className="truncate">{item.label}</span>
+                <span className="w-full truncate text-center">{item.label}</span>
               </Link>
             );
           })}
