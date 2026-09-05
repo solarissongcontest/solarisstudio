@@ -138,10 +138,6 @@ type Coverage = { editionId: string; voterCode: string; personId: string | null 
 const pct = (value: number) => Math.round(value * 1000) / 10;
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
-function displayEdition(edition: any) {
-  return edition?.edition_number ? `SSC${edition.edition_number}` : String(edition?.name ?? "unknown edition");
-}
-
 function ranksForScores(rows: Array<{ target: string; score: number }>) {
   const scores = [...new Set(rows.map((row) => row.score))].sort((a, b) => b - a);
   const rankByScore = new Map<number, number>();
@@ -203,6 +199,12 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
     if (code && !countryName.has(code)) countryName.set(code, String((country as any).name));
   }
 
+  const countriesWithHodHistory = new Set(
+    canonical.hod.assignments.map((assignment: any) => String(assignment.country_id)),
+  );
+  const useCountryFallback = (countryId: string | null | undefined) =>
+    lens === "hod" && Boolean(countryId) && !countriesWithHodHistory.has(String(countryId));
+
   const canonicalEditionByRound = new Map<string, string>();
   for (const round of rounds) {
     const editionId = canonicalEditionForRound(canonical, round);
@@ -236,11 +238,17 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       if (!editionId) continue;
       const voterCode = String(submission.country_code).trim().toUpperCase();
       const voterCountry = canonical.hod.countriesByCode.get(voterCode) as any;
-      const hod = canonical.hod.resolve(editionId, voterCountry?.id, "televote");
+      const countryId = voterCountry?.id ? String(voterCountry.id) : null;
+      const hod = canonical.hod.resolve(editionId, countryId, "televote");
+      const countryFallback = !hod && useCountryFallback(countryId);
       coverage.push({ editionId, voterCode, personId: hod?.personId ?? null });
-      if (lens === "hod" && !hod) continue;
+      if (lens === "hod" && !hod && !countryFallback) continue;
 
-      const identity = lens === "country" ? `country:${voterCode}` : `hod:${hod!.personId}`;
+      const identity = lens === "country"
+        ? `country:${voterCode}`
+        : hod
+          ? `hod:${hod.personId}`
+          : `country-fallback:${voterCode}`;
       const ballotEntries = entriesBySubmission.get(submission.id) ?? [];
       const points = new Map(ballotEntries.map((entry) => [String(entry.target_country_code).trim().toUpperCase(), Number(entry.points || 0)]));
       const targets = [...(participantsByRound.get(submission.round_id) ?? new Set<string>())].filter((target) => target && target !== voterCode);
@@ -252,7 +260,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
         allObservations.push({
           lensIdentity: identity,
           controllerPersonId: hod?.personId ?? null,
-          controllerName: lens === "hod" ? hod?.displayName ?? null : null,
+          controllerName: lens === "hod" && hod ? hod.displayName : null,
           editionId,
           showOrRoundId: submission.round_id,
           channel: "televote",
@@ -287,11 +295,17 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       const voterCountry = canonical.hod.countriesById.get(first.voter_country_id) as any;
       if (!voterCountry) continue;
       const voterCode = String(voterCountry.short_code ?? voterCountry.name).toUpperCase();
-      const hod = canonical.hod.resolve(editionId, first.voter_country_id, "jury");
+      const countryId = String(first.voter_country_id);
+      const hod = canonical.hod.resolve(editionId, countryId, "jury");
+      const countryFallback = !hod && useCountryFallback(countryId);
       coverage.push({ editionId, voterCode, personId: hod?.personId ?? null });
-      if (lens === "hod" && !hod) continue;
+      if (lens === "hod" && !hod && !countryFallback) continue;
 
-      const identity = lens === "country" ? `country:${voterCode}` : `hod:${hod!.personId}`;
+      const identity = lens === "country"
+        ? `country:${voterCode}`
+        : hod
+          ? `hod:${hod.personId}`
+          : `country-fallback:${voterCode}`;
       const scoreByTarget = new Map<string, number>();
       for (const vote of ballotVotes) {
         if (!vote.receiving_country_id) continue;
@@ -317,7 +331,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
         allObservations.push({
           lensIdentity: identity,
           controllerPersonId: hod?.personId ?? null,
-          controllerName: lens === "hod" ? hod?.displayName ?? null : null,
+          controllerName: lens === "hod" && hod ? hod.displayName : null,
           editionId,
           showOrRoundId: String(first.show_id ?? ballotKey),
           channel: "jury",
@@ -437,6 +451,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
     const targetName = countryName.get(value.targetCode) ?? value.targetCode;
     const televoteFrequency = value.televote.opportunities ? value.televote.supported / value.televote.opportunities : 0;
     const juryFrequency = value.jury.opportunities ? value.jury.supported / value.jury.opportunities : 0;
+    const countryFallback = value.identityKey.startsWith("country-fallback:");
 
     relationships.push({
       identityKey: value.identityKey,
@@ -466,7 +481,9 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       riskScore: advanced.overallRisk,
       confidence: advanced.confidence,
       reasons: advanced.reasons,
-      warnings: advanced.warnings,
+      warnings: countryFallback
+        ? ["No HOD history is configured for this country, so analytics uses the country identity across all available editions.", ...advanced.warnings]
+        : advanced.warnings,
       juryRisk: advanced.juryRisk,
       televoteRisk: advanced.televoteRisk,
       crossChannelRisk: advanced.crossChannelRisk,
