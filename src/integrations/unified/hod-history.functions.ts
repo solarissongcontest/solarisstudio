@@ -3,12 +3,15 @@ import type { HodChannel } from "@/integrations/unified/hod-history.server";
 
 export const getHodHistory = createServerFn({ method: "GET" }).handler(async () => {
   const { getHodHistoryServer } = await import("@/integrations/unified/hod-history.server");
-  return getHodHistoryServer();
+  const result = await getHodHistoryServer();
+  if (!result) throw new Error("HOD history returned no data");
+  return result;
 });
 
 export const getHodIdentitySuggestions = createServerFn({ method: "GET" }).handler(async () => {
   const { getHodIdentitySuggestionsServer } = await import("@/integrations/unified/hod-suggestions.server");
-  return getHodIdentitySuggestionsServer();
+  const result = await getHodIdentitySuggestionsServer();
+  return result ?? [];
 });
 
 export const saveHodPerson = createServerFn({ method: "POST" })
@@ -28,6 +31,7 @@ export const saveHodPerson = createServerFn({ method: "POST" })
       import("@/integrations/supabase/admin-audit.server"),
     ]);
     const result = await saveHodPersonServer(data);
+    if (!result?.id) throw new Error("HOD identity was not saved");
     await writeAdminAuditServer({
       action: data.id ? "hod_person.update" : "hod_person.create",
       tableName: "delegation_people",
@@ -72,6 +76,7 @@ export const saveHodAssignments = createServerFn({ method: "POST" })
       import("@/integrations/supabase/admin-audit.server"),
     ]);
     const result = await saveHodAssignmentsServer(data);
+    if (!result) throw new Error("HOD tenure was not saved");
     await writeAdminAuditServer({
       action: "hod_assignment.range_save",
       tableName: "delegation_hod_assignments",
@@ -99,6 +104,7 @@ export const deleteHodAssignment = createServerFn({ method: "POST" })
       import("@/integrations/supabase/admin-audit.server"),
     ]);
     const result = await deleteHodAssignmentServer(data.id);
+    if (!result) throw new Error("HOD assignment was not removed");
     await writeAdminAuditServer({
       action: "hod_assignment.delete",
       tableName: "delegation_hod_assignments",
