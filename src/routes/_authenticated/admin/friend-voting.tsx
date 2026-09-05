@@ -9,6 +9,7 @@ import { getLightweightFriendVotingIntelligence } from "@/integrations/televotin
 import { useEditions } from "@/lib/data";
 
 const ALL_EDITIONS = "__all__";
+const ALL_EDITIONS_BATCH_SIZE = 3;
 
 export const Route = createFileRoute("/_authenticated/admin/friend-voting")({
   head: () => ({
@@ -26,7 +27,7 @@ function FriendVotingPage() {
   const [editionId, setEditionId] = useState("");
   const [search, setSearch] = useState("");
   const [minRisk, setMinRisk] = useState(0);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [progress, setProgress] = useState({ processed: 0, succeeded: 0, total: 0 });
 
   const sortedEditions = useMemo(
     () => [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1)),
@@ -41,32 +42,58 @@ function FriendVotingPage() {
   const editionById = useMemo(() => new Map(sortedEditions.map((edition) => [edition.id, edition])), [sortedEditions]);
 
   useEffect(() => {
-    setProgress({ done: 0, total: editionIdsToAnalyse.length });
+    setProgress({ processed: 0, succeeded: 0, total: editionIdsToAnalyse.length });
   }, [editionId, editionIdsToAnalyse.length]);
 
+  const analyseEdition = async (id: string) => {
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const result = await getIntelligence({ data: { lens: "hod", channel: "combined", editionId: id } });
+        if (!result) throw new Error("No data returned");
+        return result;
+      } catch (caught) {
+        lastError = caught;
+        if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("Analysis failed");
+  };
+
   const analysis = useQuery({
-    queryKey: ["friend-voting-admin-sequential", editionId, editionIdsToAnalyse.join(",")],
+    queryKey: ["friend-voting-admin-batched", editionId, editionIdsToAnalyse.join(",")],
     enabled: Boolean(editionId && editionIdsToAnalyse.length),
     staleTime: 60_000,
     retry: false,
     queryFn: async () => {
       const results: Array<{ editionId: string; data: any }> = [];
       const failures: Array<{ editionId: string; message: string }> = [];
-      setProgress({ done: 0, total: editionIdsToAnalyse.length });
+      let processed = 0;
+      let succeeded = 0;
+      setProgress({ processed: 0, succeeded: 0, total: editionIdsToAnalyse.length });
 
-      for (let index = 0; index < editionIdsToAnalyse.length; index += 1) {
-        const id = editionIdsToAnalyse[index];
-        try {
-          const result = await getIntelligence({ data: { lens: "hod", channel: "combined", editionId: id } });
-          if (!result) throw new Error("No data returned");
-          results.push({ editionId: id, data: result });
-        } catch (caught) {
-          failures.push({
-            editionId: id,
-            message: caught instanceof Error ? caught.message : "Analysis failed",
-          });
+      for (let start = 0; start < editionIdsToAnalyse.length; start += ALL_EDITIONS_BATCH_SIZE) {
+        const batch = editionIdsToAnalyse.slice(start, start + ALL_EDITIONS_BATCH_SIZE);
+        const settled = await Promise.allSettled(batch.map((id) => analyseEdition(id)));
+
+        settled.forEach((outcome, index) => {
+          const id = batch[index];
+          processed += 1;
+          if (outcome.status === "fulfilled") {
+            succeeded += 1;
+            results.push({ editionId: id, data: outcome.value });
+          } else {
+            failures.push({
+              editionId: id,
+              message: outcome.reason instanceof Error ? outcome.reason.message : "Analysis failed",
+            });
+          }
+        });
+
+        setProgress({ processed, succeeded, total: editionIdsToAnalyse.length });
+        if (start + ALL_EDITIONS_BATCH_SIZE < editionIdsToAnalyse.length) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
         }
-        setProgress({ done: index + 1, total: editionIdsToAnalyse.length });
       }
 
       return { results, failures };
@@ -132,8 +159,10 @@ function FriendVotingPage() {
 
   const isAll = editionId === ALL_EDITIONS;
   const progressLabel = isAll
-    ? `${progress.done}/${progress.total} editions analysed`
-    : analysis.isFetching ? "Analysing…" : "Edition ready";
+    ? analysis.isFetching
+      ? `${progress.succeeded}/${progress.total} successful · ${progress.processed}/${progress.total} processed`
+      : `${analysis.data?.results.length ?? 0}/${editionIdsToAnalyse.length} editions analysed successfully`
+    : analysis.isFetching ? "Analysing…" : failures.length ? "Analysis failed" : "Edition ready";
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
@@ -210,22 +239,26 @@ function FriendVotingPage() {
           <div className="py-8 text-center">
             <ShieldAlert className="mx-auto size-7 text-sky-100/70" />
             <h2 className="mt-3 text-lg font-semibold">Choose an edition or the full history</h2>
-            <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">All editions are processed one after another so a few difficult editions cannot overload the Worker or erase the successful results.</p>
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">All editions are processed in small batches, with an automatic retry for individual failures, so one troublesome request does not wipe out the rest.</p>
           </div>
         </AdminCard>
       ) : null}
 
       {failures.length ? (
-        <div className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.045] p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-100" />
+        <details className="rounded-2xl border border-amber-200/15 bg-amber-200/[0.045] p-4">
+          <summary className="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
+            <AlertTriangle className="size-4 shrink-0 text-amber-100" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-amber-50">Partial analysis</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-100/70">Results from {analysis.data?.results.length ?? 0} edition{analysis.data?.results.length === 1 ? "" : "s"} are still shown. Failed: {failedLabels.join(", ")}.</p>
+              <p className="text-sm font-semibold text-amber-50">Partial analysis · {analysis.data?.results.length ?? 0} succeeded, {failures.length} failed</p>
+              <p className="mt-1 truncate text-xs text-amber-100/65">Tap to see failed editions</p>
             </div>
-            <button type="button" onClick={() => void analysis.refetch()} className="shrink-0 rounded-lg border border-amber-100/15 px-3 py-1.5 text-xs font-semibold text-amber-50">Retry</button>
+            <ChevronDown className="size-4 text-amber-100/70" />
+          </summary>
+          <div className="mt-3 border-t border-amber-100/10 pt-3">
+            <p className="text-xs leading-relaxed text-amber-100/75">Failed: {failedLabels.join(", ")}.</p>
+            <button type="button" onClick={() => void analysis.refetch()} className="mt-3 rounded-lg border border-amber-100/15 px-3 py-1.5 text-xs font-semibold text-amber-50">Retry analysis</button>
           </div>
-        </div>
+        </details>
       ) : null}
 
       {analysis.isLoading && !combined ? (
