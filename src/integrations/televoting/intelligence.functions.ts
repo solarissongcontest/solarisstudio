@@ -1,7 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { IntelligenceChannel, IntelligenceLens } from "@/integrations/televoting/intelligence.server";
+
 type IntelligenceEditionFilter = { id: string; name: string; editionNumber: number | null };
-type IntelligenceInput = { lens?: IntelligenceLens; channel?: IntelligenceChannel; hodPersonId?: string | null; editionId?: string | null };
+type IntelligenceInput = {
+  lens?: IntelligenceLens;
+  channel?: IntelligenceChannel;
+  hodPersonId?: string | null;
+  editionId?: string | null;
+};
 
 const normalizeInput = (data?: IntelligenceInput) => ({
   lens: data?.lens === "country" ? "country" as const : "hod" as const,
@@ -10,19 +16,38 @@ const normalizeInput = (data?: IntelligenceInput) => ({
   editionId: data?.editionId ? String(data.editionId) : null,
 });
 
+const emptyCoordination = () => ({
+  groups: [],
+  edges: [],
+  stats: {
+    knownControllerObservations: 0,
+    knownControllerEdges: 0,
+    qualifiedEdges: 0,
+    groups: 0,
+  },
+});
+
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
     const [{ getMergedIntelligenceServer }, { loadFriendVotingSettingsServer }, { getCoordinationGroupsServer }] = await Promise.all([
-      import("@/integrations/televoting/intelligence.server"), import("@/integrations/televoting/friend-voting-settings.server"), import("@/integrations/televoting/coordination-groups.server"),
+      import("@/integrations/televoting/intelligence.server"),
+      import("@/integrations/televoting/friend-voting-settings.server"),
+      import("@/integrations/televoting/coordination-groups.server"),
     ]);
     const settings = await loadFriendVotingSettingsServer();
     const result = await getMergedIntelligenceServer({ ...data, advancedModel: settings.advancedModel });
-    const coordination = data.lens === "hod" ? await getCoordinationGroupsServer(data, settings) : { groups: [], edges: [], stats: { knownControllerObservations: 0, knownControllerEdges: 0, qualifiedEdges: 0, groups: 0 } };
+    const coordination = data.lens === "hod" ? await getCoordinationGroupsServer(data, settings) : emptyCoordination();
     return {
       ...result,
-      stats: { ...result.stats, relationships: result.relationships.length, attentionRelationships: result.relationships.filter((row) => row.riskScore >= settings.riskReview).length },
-      settings, coordination, filters: { ...result.filters, editions: result.filters.editions as IntelligenceEditionFilter[] },
+      stats: {
+        ...result.stats,
+        relationships: result.relationships.length,
+        attentionRelationships: result.relationships.filter((row) => row.riskScore >= settings.riskReview).length,
+      },
+      settings,
+      coordination,
+      filters: { ...result.filters, editions: result.filters.editions as IntelligenceEditionFilter[] },
     };
   });
 
@@ -44,16 +69,19 @@ export const getLightweightFriendVotingIntelligence = createServerFn({ method: "
         attentionRelationships: result.relationships.filter((row) => row.riskScore >= settings.riskReview).length,
       },
       settings,
-      coordination: {
-        groups: [],
-        edges: [],
-        stats: {
-          knownControllerObservations: 0,
-          knownControllerEdges: 0,
-          qualifiedEdges: 0,
-          groups: 0,
-        },
-      },
+      coordination: emptyCoordination(),
       filters: { ...result.filters, editions: result.filters.editions as IntelligenceEditionFilter[] },
     };
+  });
+
+export const getFriendVotingCoordination = createServerFn({ method: "POST" })
+  .inputValidator(normalizeInput)
+  .handler(async ({ data }) => {
+    if (data.lens !== "hod") return emptyCoordination();
+    const [{ getCoordinationGroupsServer }, { loadFriendVotingSettingsServer }] = await Promise.all([
+      import("@/integrations/televoting/coordination-groups.server"),
+      import("@/integrations/televoting/friend-voting-settings.server"),
+    ]);
+    const settings = await loadFriendVotingSettingsServer();
+    return getCoordinationGroupsServer(data, settings);
   });
