@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   RadioTower,
   RefreshCw,
+  ShieldAlert,
   Sparkles,
   Trophy,
   Vote,
@@ -79,7 +80,15 @@ export function AdminNav() {
       label: "Televoting",
       to: "/televoting/admin",
       icon: Vote,
-      active: (path) => path.startsWith("/televoting/admin") || path.startsWith("/admin/hod-history"),
+      active: (path) =>
+        (path.startsWith("/televoting/admin") && !path.startsWith("/televoting/admin/intelligence")) ||
+        path.startsWith("/admin/hod-history"),
+    },
+    {
+      label: "Friend-voting intelligence",
+      to: "/televoting/admin/intelligence",
+      icon: ShieldAlert,
+      active: (path) => path.startsWith("/televoting/admin/intelligence"),
     },
     {
       label: "Broadcast",
