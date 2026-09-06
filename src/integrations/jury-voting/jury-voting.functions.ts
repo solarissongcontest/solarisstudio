@@ -17,10 +17,10 @@ const preflightSchema = z.object({
 export const preflightCountryJuryVote = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => preflightSchema.parse(data))
   .handler(async ({ data }) => {
-    const { runJuryIntegrityPreflightServer } = await import(
-      "@/integrations/jury-voting/jury-voting.server"
+    const { runJuryIntegrityPreflightV4Server } = await import(
+      "@/integrations/jury-voting/jury-integrity-v4.server"
     );
-    return runJuryIntegrityPreflightServer(data);
+    return runJuryIntegrityPreflightV4Server(data);
   });
 
 export const attestCountryJuryVote = createServerFn({ method: "POST" })
@@ -31,6 +31,8 @@ export const attestCountryJuryVote = createServerFn({ method: "POST" })
         signedName: z.string().trim().min(1).max(120),
         acceptedAutomaticDetection: z.literal(true),
         acceptedIndependence: z.literal(true),
+        acceptedCoordination: z.literal(true).optional().default(true),
+        acceptedPressure: z.literal(true).optional().default(true),
         acceptedConsequences: z.literal(true),
       })
       .parse(data),
