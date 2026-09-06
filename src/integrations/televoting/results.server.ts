@@ -7,7 +7,13 @@ export type PublishedResultRow = {
   country_code: string | null;
   original_votes: number;
   final_points: number;
-  original_rank: number;
+  original_rank: number | null;
+  robust_rank?: number;
+  effective_points?: number;
+  effective_supporters?: number;
+  breadth_factor?: number;
+  robust_support?: number;
+  rank_boost?: number;
   rank_factor?: number;
   weighted_score?: number;
   exact_points?: number;
@@ -24,6 +30,7 @@ export type PublishedResultsPayload = {
     total_points: number;
     calculated_at: string | null;
     version: number;
+    engine_version: string;
     advanced: boolean;
     broadcast_mode: "original" | "converted" | "combined";
   } | null;
@@ -36,6 +43,12 @@ type RawPublishedResultRow = {
   original_votes?: number | string | null;
   final_points?: number | string | null;
   original_rank?: number | string | null;
+  robust_rank?: number | string | null;
+  effective_points?: number | string | null;
+  effective_supporters?: number | string | null;
+  breadth_factor?: number | string | null;
+  robust_support?: number | string | null;
+  rank_boost?: number | string | null;
   rank_factor?: number | string | null;
   weighted_score?: number | string | null;
   exact_points?: number | string | null;
@@ -49,7 +62,7 @@ async function readPublishedResults(
   roundId?: string,
 ): Promise<PublishedResultsPayload> {
   const selection =
-    "id,name,results_status,total_points_to_distribute,rank_exponent,calculated_at,calculation_version,public_advanced_transparency,broadcast_display_mode,editions(name)";
+    "id,name,results_status,total_points_to_distribute,rank_exponent,televote_engine_version,calculated_at,calculation_version,public_advanced_transparency,broadcast_display_mode,editions(name)";
 
   let query = client
     .from("rounds")
@@ -74,6 +87,7 @@ async function readPublishedResults(
     id: string;
     name: string;
     total_points_to_distribute: number;
+    televote_engine_version: string | null;
     calculated_at: string | null;
     calculation_version: number;
     public_advanced_transparency: boolean | null;
@@ -96,23 +110,38 @@ async function readPublishedResults(
   if (resultError) throw new Error(resultError.message);
 
   const advanced = Boolean(round.public_advanced_transparency);
+  const robust = round.televote_engine_version === "robust-televote-v2";
   const rows: PublishedResultRow[] = ((results ?? []) as RawPublishedResultRow[]).map(
     (result) => ({
       entry_key: String(result.entry_key ?? result.country_code ?? ""),
       country_code: result.country_code ? String(result.country_code) : null,
       original_votes: Number(result.original_votes ?? 0),
       final_points: Number(result.final_points ?? 0),
-      original_rank: Number(result.original_rank ?? 0),
-      ...(advanced
+      original_rank: result.original_rank == null ? null : Number(result.original_rank),
+      ...(advanced && robust
         ? {
-            rank_factor: Number(result.rank_factor ?? 0),
+            robust_rank: Number(result.robust_rank ?? 0),
+            effective_points: Number(result.effective_points ?? 0),
+            effective_supporters: Number(result.effective_supporters ?? 0),
+            breadth_factor: Number(result.breadth_factor ?? 0),
+            robust_support: Number(result.robust_support ?? 0),
+            rank_boost: Number(result.rank_boost ?? 0),
             weighted_score: Number(result.weighted_score ?? 0),
             exact_points: Number(result.exact_points ?? 0),
             floored_points: Number(result.floored_points ?? 0),
             decimal_remainder: Number(result.decimal_remainder ?? 0),
             remainder_bonus: Number(result.remainder_bonus ?? 0),
           }
-        : {}),
+        : advanced
+          ? {
+              rank_factor: Number(result.rank_factor ?? 0),
+              weighted_score: Number(result.weighted_score ?? 0),
+              exact_points: Number(result.exact_points ?? 0),
+              floored_points: Number(result.floored_points ?? 0),
+              decimal_remainder: Number(result.decimal_remainder ?? 0),
+              remainder_bonus: Number(result.remainder_bonus ?? 0),
+            }
+          : {}),
     }),
   );
 
@@ -124,6 +153,7 @@ async function readPublishedResults(
       total_points: round.total_points_to_distribute,
       calculated_at: round.calculated_at,
       version: round.calculation_version,
+      engine_version: round.televote_engine_version ?? "rank-weighted-v1",
       advanced,
       broadcast_mode: round.broadcast_display_mode ?? "converted",
     },
