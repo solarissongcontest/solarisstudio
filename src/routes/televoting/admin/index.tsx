@@ -48,7 +48,8 @@ function VotingAdminOverview() {
     queryKey: ["merged-televoting-admin-overview"],
     queryFn: () => getOverview(),
     enabled: backendReady,
-    refetchInterval: 5_000,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
   });
 
   const nextAction =
@@ -213,7 +214,7 @@ function VotingAdminOverview() {
                 description="See turnout, how points were spread, and how countries and entries performed."
               />
               <WorkflowLink
-                to="/televoting/admin/intelligence"
+                to="/admin/friend-voting"
                 icon={ShieldAlert}
                 title="Friend-voting intelligence"
                 description="Compare jury and televote relationships, historical anomalies, reciprocity and coordinated voting patterns."
@@ -234,12 +235,6 @@ function VotingAdminOverview() {
                 icon={Blend}
                 title="Combined results"
                 description="See how jury and televote points are put together for the final result."
-              />
-              <AdminLinkRow
-                to="/televoting/admin/intelligence"
-                icon={ShieldAlert}
-                title="Friend-voting intelligence"
-                description="Compare jury and televote relationships, historical anomalies, reciprocity and coordinated voting patterns."
               />
               <AdminLinkRow
                 to="/televoting/admin/audit-log"
