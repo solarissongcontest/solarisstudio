@@ -31,15 +31,15 @@ export const attestCountryJuryVote = createServerFn({ method: "POST" })
         signedName: z.string().trim().min(1).max(120),
         acceptedAutomaticDetection: z.literal(true),
         acceptedIndependence: z.literal(true),
-        acceptedCoordination: z.literal(true).optional().default(true),
-        acceptedPressure: z.literal(true).optional().default(true),
+        acceptedCoordination: z.literal(true),
+        acceptedPressure: z.literal(true),
         acceptedConsequences: z.literal(true),
       })
       .parse(data),
   )
   .handler(async ({ data }) => {
-    const { signVoteIntegrityAttestationServer } = await import(
-      "@/integrations/televoting/preflight.server"
+    const { signFullVoteIntegrityAttestationServer } = await import(
+      "@/integrations/televoting/integrity-attestation.server"
     );
-    return signVoteIntegrityAttestationServer(data);
+    return signFullVoteIntegrityAttestationServer(data);
   });
