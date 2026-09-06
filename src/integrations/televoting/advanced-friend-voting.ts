@@ -1,8 +1,24 @@
-/** Pure, explainable friend-voting model v3. Statistical signals are for review, never guilt findings. */
-export const FRIEND_VOTING_MODEL_VERSION = "friend-voting-model-v3";
+import {
+  DEFAULT_EDITION_DECAY,
+  DEFAULT_LIFETIME_FLOOR,
+  DEFAULT_LIFETIME_SHARE,
+  DEFAULT_RECENT_SHARE,
+  blendRecentAndLifetime,
+  editionAge,
+  effectiveHistoricalEvidence,
+  evidenceConfidence,
+  lifetimeEditionWeight,
+  recentEditionWeight,
+  weightedMean,
+  weightedSd,
+} from "@/integrations/televoting/history-weighting";
+
+/** Pure, explainable friend-voting model v4. Statistical signals are for review, never guilt findings. */
+export const FRIEND_VOTING_MODEL_VERSION = "friend-voting-model-v4";
 
 export type AdvancedFriendVotingObservation = {
   editionId: string;
+  editionNumber?: number | null;
   channel: "jury" | "televote";
   voterId: string;
   targetCode: string;
@@ -22,6 +38,10 @@ export type AdvancedFriendVotingNetworkSignal = {
   reason?: string;
 };
 
+export type AdvancedFriendVotingContext = {
+  similarityRisk?: number;
+};
+
 export type AdvancedFriendVotingConfig = {
   bayesianPriorAlpha: number;
   bayesianPriorBeta: number;
@@ -35,6 +55,12 @@ export type AdvancedFriendVotingConfig = {
   networkWeight: number;
   countryStrengthWeight: number;
   rankPatternWeight?: number;
+  similarityWeight?: number;
+  continuityWeight?: number;
+  editionDecay?: number;
+  lifetimeFloor?: number;
+  recentHistoryShare?: number;
+  lifetimeHistoryShare?: number;
   minimumEvidenceForStrongRisk: number;
   oneEditionCap: number;
   twoEditionCap: number;
@@ -43,16 +69,22 @@ export type AdvancedFriendVotingConfig = {
 export const DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG: AdvancedFriendVotingConfig = {
   bayesianPriorAlpha: 1,
   bayesianPriorBeta: 1,
-  relationshipAnomalyWeight: 20,
-  historicalDeviationWeight: 20,
-  reciprocityWeight: 15,
+  relationshipAnomalyWeight: 18,
+  historicalDeviationWeight: 14,
+  reciprocityWeight: 14,
   intensityWeight: 10,
-  juryWeight: 10,
-  televoteWeight: 10,
-  crossChannelWeight: 5,
-  networkWeight: 10,
-  countryStrengthWeight: 10,
-  rankPatternWeight: 10,
+  juryWeight: 3,
+  televoteWeight: 3,
+  crossChannelWeight: 6,
+  networkWeight: 12,
+  countryStrengthWeight: 4,
+  rankPatternWeight: 6,
+  similarityWeight: 12,
+  continuityWeight: 4,
+  editionDecay: DEFAULT_EDITION_DECAY,
+  lifetimeFloor: DEFAULT_LIFETIME_FLOOR,
+  recentHistoryShare: DEFAULT_RECENT_SHARE,
+  lifetimeHistoryShare: DEFAULT_LIFETIME_SHARE,
   minimumEvidenceForStrongRisk: 3,
   oneEditionCap: 29,
   twoEditionCap: 49,
@@ -60,6 +92,8 @@ export const DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG: AdvancedFriendVotingConfig =
 
 export type AdvancedFriendVotingResult = {
   overallRisk: number;
+  recentRisk: number;
+  lifetimeRisk: number;
   confidence: number;
   juryRisk: number;
   televoteRisk: number;
@@ -71,6 +105,8 @@ export type AdvancedFriendVotingResult = {
   rankPatternRisk: number;
   networkRisk: number;
   countryStrengthRisk: number;
+  similarityRisk: number;
+  continuityRisk: number;
   reasons: string[];
   warnings: string[];
   sampleSize: {
@@ -79,11 +115,15 @@ export type AdvancedFriendVotingResult = {
     juryOpportunities: number;
     televoteOpportunities: number;
     historicalBaseline: number;
+    effectiveRecentEditions: number;
+    effectiveLifetimeEditions: number;
   };
   evidence: {
     observedSupport: number;
     eligibleSupport: number;
     smoothedSupportRate: number;
+    recentSupportRate: number;
+    lifetimeSupportRate: number;
     averageScore: number;
     expectedAverageScore: number;
     maximumScores: number;
@@ -93,6 +133,8 @@ export type AdvancedFriendVotingResult = {
     historicalMaxScoreRate: number;
     observedRankPercentile: number;
     expectedRankPercentile: number;
+    currentStreak: number;
+    effectiveHistoricalEvidence: number;
   };
   modelVersion: string;
 };
@@ -103,7 +145,6 @@ type PreparedHistory = {
   all: AdvancedFriendVotingObservation[];
   byVoter: Map<string, AdvancedFriendVotingObservation[]>;
   byVoterTarget: Map<string, AdvancedFriendVotingObservation[]>;
-  intensityByVoter: Map<string, Aggregate>;
   fieldIntensity: Map<string, FieldAggregate>;
 };
 
@@ -133,9 +174,9 @@ function zRisk(z: number) {
 }
 
 function weighted(parts: Array<[number, number]>) {
-  const usable = parts.filter(([, w]) => w > 0 && Number.isFinite(w));
-  const total = usable.reduce((s, [, w]) => s + w, 0);
-  return total ? usable.reduce((s, [v, w]) => s + clamp(v) * w, 0) / total : 0;
+  const usable = parts.filter(([, weight]) => weight > 0 && Number.isFinite(weight));
+  const total = usable.reduce((sum, [, weight]) => sum + weight, 0);
+  return total ? usable.reduce((sum, [value, weight]) => sum + clamp(value) * weight, 0) / total : 0;
 }
 
 function rankPercentile(row: AdvancedFriendVotingObservation) {
@@ -157,6 +198,7 @@ function dedupe(rows: AdvancedFriendVotingObservation[], relationshipScope: bool
         ...row,
         score: Number(row.score) || 0,
         maxScore: Number(row.maxScore) || 0,
+        editionNumber: row.editionNumber == null ? null : Number(row.editionNumber),
         rank: row.rank == null ? null : Number(row.rank),
         participantCount: row.participantCount == null ? null : Number(row.participantCount),
       });
@@ -168,6 +210,7 @@ function dedupe(rows: AdvancedFriendVotingObservation[], relationshipScope: bool
       ...old,
       score: (old.score + (Number(row.score) || 0)) / 2,
       maxScore: Math.max(old.maxScore, Number(row.maxScore) || 0),
+      editionNumber: Math.max(Number(old.editionNumber ?? -Infinity), Number(row.editionNumber ?? -Infinity)),
       supported: Boolean(old.supported || row.supported || row.score > 0),
       maximum: Boolean(old.maximum || row.maximum),
       rank: oldRank == null ? nextRank : nextRank == null ? oldRank : (oldRank + nextRank) / 2,
@@ -190,7 +233,6 @@ function prepareHistory(allObservations: AdvancedFriendVotingObservation[]): Pre
   const all = dedupe(allObservations, false);
   const byVoter = new Map<string, AdvancedFriendVotingObservation[]>();
   const byVoterTarget = new Map<string, AdvancedFriendVotingObservation[]>();
-  const intensityByVoter = new Map<string, Aggregate>();
   const fieldIntensity = new Map<string, FieldAggregate>();
 
   for (const row of all) {
@@ -199,11 +241,6 @@ function prepareHistory(allObservations: AdvancedFriendVotingObservation[]): Pre
 
     if (row.maxScore > 0) {
       const normalized = clamp01(row.score / row.maxScore);
-      const voterAggregate = intensityByVoter.get(row.voterId) ?? { total: 0, count: 0 };
-      voterAggregate.total += normalized;
-      voterAggregate.count += 1;
-      intensityByVoter.set(row.voterId, voterAggregate);
-
       const fieldKey = `${row.editionId}:${row.channel}:${row.targetCode}`;
       const field = fieldIntensity.get(fieldKey) ?? { total: 0, count: 0, byVoter: new Map<string, Aggregate>() };
       field.total += normalized;
@@ -216,9 +253,74 @@ function prepareHistory(allObservations: AdvancedFriendVotingObservation[]): Pre
     }
   }
 
-  const prepared = { all, byVoter, byVoterTarget, intensityByVoter, fieldIntensity };
+  const prepared = { all, byVoter, byVoterTarget, fieldIntensity };
   preparedHistoryCache.set(allObservations, prepared);
   return prepared;
+}
+
+function resolveCurrentEditionNumber(rows: AdvancedFriendVotingObservation[]) {
+  const values = rows
+    .map((row) => Number(row.editionNumber))
+    .filter((value) => Number.isFinite(value));
+  return values.length ? Math.max(...values) : null;
+}
+
+function rowWeight(
+  row: AdvancedFriendVotingObservation,
+  currentEditionNumber: number | null,
+  config: AdvancedFriendVotingConfig,
+  lifetime = false,
+) {
+  if (currentEditionNumber == null || row.editionNumber == null || !Number.isFinite(Number(row.editionNumber))) return 1;
+  const age = editionAge(currentEditionNumber, Number(row.editionNumber));
+  return lifetime
+    ? lifetimeEditionWeight(age, config.editionDecay, config.lifetimeFloor)
+    : recentEditionWeight(age, config.editionDecay);
+}
+
+function weightedRate(
+  rows: AdvancedFriendVotingObservation[],
+  predicate: (row: AdvancedFriendVotingObservation) => boolean,
+  currentEditionNumber: number | null,
+  config: AdvancedFriendVotingConfig,
+  lifetime = false,
+) {
+  const weights = rows.map((row) => rowWeight(row, currentEditionNumber, config, lifetime));
+  const total = weights.reduce((sum, value) => sum + value, 0);
+  if (total <= 0) return 0;
+  const successes = rows.reduce(
+    (sum, row, index) => sum + (predicate(row) ? weights[index]! : 0),
+    0,
+  );
+  return successes / total;
+}
+
+function weightedAverageScore(
+  rows: AdvancedFriendVotingObservation[],
+  currentEditionNumber: number | null,
+  config: AdvancedFriendVotingConfig,
+  lifetime = false,
+) {
+  return weightedMean(rows.map((row) => ({
+    value: Number(row.score) || 0,
+    weight: rowWeight(row, currentEditionNumber, config, lifetime),
+  })));
+}
+
+function consecutiveSupportStreak(rows: AdvancedFriendVotingObservation[]) {
+  const supportedEditionNumbers = [...new Set(
+    rows
+      .filter((row) => row.supported ?? row.score > 0)
+      .map((row) => Number(row.editionNumber))
+      .filter((value) => Number.isFinite(value)),
+  )].sort((a, b) => b - a);
+  if (!supportedEditionNumbers.length) return 0;
+  let streak = 1;
+  for (let index = 1; index < supportedEditionNumbers.length; index += 1) {
+    if (supportedEditionNumbers[index - 1]! - supportedEditionNumbers[index]! !== 1) break;
+    streak += 1;
+  }
+  return streak;
 }
 
 export function calculateAdvancedFriendVotingRisk(
@@ -227,87 +329,165 @@ export function calculateAdvancedFriendVotingRisk(
   reciprocalSupportRate = 0,
   reciprocalEditions = 0,
   network: AdvancedFriendVotingNetworkSignal | null = null,
-  config: AdvancedFriendVotingConfig = DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG,
+  configInput: AdvancedFriendVotingConfig = DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG,
+  context: AdvancedFriendVotingContext = {},
 ): AdvancedFriendVotingResult {
+  const config = { ...DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG, ...configInput };
   const pair = dedupe(pairObservations, true);
   const history = prepareHistory(allObservations);
-  const editions = new Set(pair.map((r) => r.editionId));
-  const jury = pair.filter((r) => r.channel === "jury");
-  const televote = pair.filter((r) => r.channel === "televote");
-  const supported = pair.filter((r) => r.supported ?? r.score > 0).length;
-  const maximum = pair.filter((r) => r.maximum ?? (r.score > 0 && r.score === r.maxScore)).length;
+  const editions = new Set(pair.map((row) => row.editionId));
+  const jury = pair.filter((row) => row.channel === "jury");
+  const televote = pair.filter((row) => row.channel === "televote");
+  const supported = pair.filter((row) => row.supported ?? row.score > 0).length;
+  const maximum = pair.filter((row) => row.maximum ?? (row.score > 0 && row.score === row.maxScore)).length;
   const opportunities = pair.length;
   const voterId = pair[0]?.voterId ?? "";
   const targetCode = pair[0]?.targetCode ?? "";
+  const currentEditionNumber = resolveCurrentEditionNumber([...allObservations, ...pair]);
 
   const targetRows = history.byVoterTarget.get(`${voterId}\u0000${targetCode}`) ?? [];
-  const targetHistory = targetRows.filter((r) => !editions.has(r.editionId));
+  const targetHistory = targetRows.filter((row) => !editions.has(row.editionId));
   const voterRows = history.byVoter.get(voterId) ?? [];
-  const voterHistory = voterRows.filter((r) => r.targetCode !== targetCode);
+  const voterHistory = voterRows.filter((row) => row.targetCode !== targetCode);
   const baseline = targetHistory.length ? targetHistory : voterHistory;
 
-  const baselineScores = baseline.map((r) => Number(r.score) || 0);
-  const observedAverage = mean(pair.map((r) => Number(r.score) || 0));
-  const expectedAverage = baselineScores.length ? mean(baselineScores) : 0;
-  const historicalDeviationRisk = baselineScores.length >= 2 && expectedAverage !== 0
-    ? zRisk(Math.abs(observedAverage - expectedAverage) / Math.max(sd(baselineScores), 1))
-    : 0;
+  const recentSupportRateRaw = weightedRate(pair, (row) => row.supported ?? row.score > 0, currentEditionNumber, config, false);
+  const lifetimeSupportRateRaw = weightedRate(pair, (row) => row.supported ?? row.score > 0, currentEditionNumber, config, true);
+  const recentOpportunityWeight = pair.reduce((sum, row) => sum + rowWeight(row, currentEditionNumber, config, false), 0);
+  const lifetimeOpportunityWeight = pair.reduce((sum, row) => sum + rowWeight(row, currentEditionNumber, config, true), 0);
+  const recentSupportWeight = pair.reduce(
+    (sum, row) => sum + ((row.supported ?? row.score > 0) ? rowWeight(row, currentEditionNumber, config, false) : 0),
+    0,
+  );
+  const lifetimeSupportWeight = pair.reduce(
+    (sum, row) => sum + ((row.supported ?? row.score > 0) ? rowWeight(row, currentEditionNumber, config, true) : 0),
+    0,
+  );
+  const recentSupportRate = beta(recentSupportWeight, recentOpportunityWeight, config.bayesianPriorAlpha, config.bayesianPriorBeta);
+  const lifetimeSupportRate = beta(lifetimeSupportWeight, lifetimeOpportunityWeight, config.bayesianPriorAlpha, config.bayesianPriorBeta);
+  const smoothedSupportRate = blendRecentAndLifetime(
+    recentSupportRate,
+    lifetimeSupportRate,
+    config.recentHistoryShare,
+    config.lifetimeHistoryShare,
+  );
 
-  const voterIntensityAggregate = history.intensityByVoter.get(voterId);
-  const expectedIntensity = voterIntensityAggregate?.count
-    ? voterIntensityAggregate.total / voterIntensityAggregate.count
+  const observedAverageRecent = weightedAverageScore(pair, currentEditionNumber, config, false);
+  const observedAverageLifetime = weightedAverageScore(pair, currentEditionNumber, config, true);
+  const expectedAverageRecent = weightedAverageScore(baseline, currentEditionNumber, config, false);
+  const expectedAverageLifetime = weightedAverageScore(baseline, currentEditionNumber, config, true);
+  const baselineRecentScores = baseline.map((row) => ({
+    value: Number(row.score) || 0,
+    weight: rowWeight(row, currentEditionNumber, config, false),
+  }));
+  const baselineLifetimeScores = baseline.map((row) => ({
+    value: Number(row.score) || 0,
+    weight: rowWeight(row, currentEditionNumber, config, true),
+  }));
+  const recentDeviation = baseline.length >= 2 && expectedAverageRecent !== 0
+    ? zRisk(Math.abs(observedAverageRecent - expectedAverageRecent) / Math.max(weightedSd(baselineRecentScores), 1))
     : 0;
-  const pairIntensity = pair.filter((r) => r.maxScore > 0).map((r) => clamp01(r.score / r.maxScore));
-  const observedIntensity = mean(pairIntensity);
-  const maximumRate = opportunities ? maximum / opportunities : 0;
-  const historicalMaximumRate = baseline.length
-    ? baseline.filter((r) => r.maxScore > 0 && r.score === r.maxScore && r.score > 0).length / baseline.length
+  const lifetimeDeviation = baseline.length >= 2 && expectedAverageLifetime !== 0
+    ? zRisk(Math.abs(observedAverageLifetime - expectedAverageLifetime) / Math.max(weightedSd(baselineLifetimeScores), 1))
     : 0;
-  const intensityRisk = clamp(100 * (
-    0.55 * clamp01(Math.abs(observedIntensity - expectedIntensity) / Math.max(0.08, expectedIntensity || 0.08))
-    + 0.45 * Math.abs(maximumRate - historicalMaximumRate)
+  const historicalDeviationRisk = blendRecentAndLifetime(
+    recentDeviation,
+    lifetimeDeviation,
+    config.recentHistoryShare,
+    config.lifetimeHistoryShare,
+  );
+
+  const pairIntensityRecent = weightedMean(pair.filter((row) => row.maxScore > 0).map((row) => ({
+    value: clamp01(row.score / row.maxScore),
+    weight: rowWeight(row, currentEditionNumber, config, false),
+  })));
+  const pairIntensityLifetime = weightedMean(pair.filter((row) => row.maxScore > 0).map((row) => ({
+    value: clamp01(row.score / row.maxScore),
+    weight: rowWeight(row, currentEditionNumber, config, true),
+  })));
+  const baselineIntensityRecent = weightedMean(baseline.filter((row) => row.maxScore > 0).map((row) => ({
+    value: clamp01(row.score / row.maxScore),
+    weight: rowWeight(row, currentEditionNumber, config, false),
+  })));
+  const baselineIntensityLifetime = weightedMean(baseline.filter((row) => row.maxScore > 0).map((row) => ({
+    value: clamp01(row.score / row.maxScore),
+    weight: rowWeight(row, currentEditionNumber, config, true),
+  })));
+  const maximumRateRecent = weightedRate(pair, (row) => row.maximum ?? (row.score > 0 && row.score === row.maxScore), currentEditionNumber, config, false);
+  const maximumRateLifetime = weightedRate(pair, (row) => row.maximum ?? (row.score > 0 && row.score === row.maxScore), currentEditionNumber, config, true);
+  const historicalMaximumRate = weightedRate(baseline, (row) => row.maxScore > 0 && row.score === row.maxScore && row.score > 0, currentEditionNumber, config, false);
+  const intensityRecent = clamp(100 * (
+    0.55 * clamp01(Math.abs(pairIntensityRecent - baselineIntensityRecent) / Math.max(0.08, baselineIntensityRecent || 0.08))
+    + 0.45 * Math.abs(maximumRateRecent - historicalMaximumRate)
   ));
-
-  const smoothedSupportRate = beta(supported, opportunities, config.bayesianPriorAlpha, config.bayesianPriorBeta);
-  const relationshipAnomaly = clamp(100 * (
-    0.5 * smoothedSupportRate * Math.min(1, opportunities / 8)
-    + 0.3 * clamp01(Math.abs(observedAverage - expectedAverage) / 12)
-    + 0.2 * maximumRate
+  const intensityLifetime = clamp(100 * (
+    0.55 * clamp01(Math.abs(pairIntensityLifetime - baselineIntensityLifetime) / Math.max(0.08, baselineIntensityLifetime || 0.08))
+    + 0.45 * Math.abs(maximumRateLifetime - historicalMaximumRate)
   ));
+  const intensityRisk = blendRecentAndLifetime(intensityRecent, intensityLifetime, config.recentHistoryShare, config.lifetimeHistoryShare);
 
-  const jurySupported = jury.filter((r) => r.supported ?? r.score > 0).length;
-  const televoteSupported = televote.filter((r) => r.supported ?? r.score > 0).length;
+  const relationshipRecent = clamp(100 * (
+    0.5 * recentSupportRate * Math.min(1, recentOpportunityWeight / 4)
+    + 0.3 * clamp01(Math.abs(observedAverageRecent - expectedAverageRecent) / 12)
+    + 0.2 * maximumRateRecent
+  ));
+  const relationshipLifetime = clamp(100 * (
+    0.5 * lifetimeSupportRate * Math.min(1, lifetimeOpportunityWeight / 6)
+    + 0.3 * clamp01(Math.abs(observedAverageLifetime - expectedAverageLifetime) / 12)
+    + 0.2 * maximumRateLifetime
+  ));
+  const relationshipAnomaly = blendRecentAndLifetime(
+    relationshipRecent,
+    relationshipLifetime,
+    config.recentHistoryShare,
+    config.lifetimeHistoryShare,
+  );
+
+  const juryRecentWeight = jury.reduce((sum, row) => sum + rowWeight(row, currentEditionNumber, config, false), 0);
+  const televoteRecentWeight = televote.reduce((sum, row) => sum + rowWeight(row, currentEditionNumber, config, false), 0);
+  const jurySupportWeight = jury.reduce((sum, row) => sum + ((row.supported ?? row.score > 0) ? rowWeight(row, currentEditionNumber, config, false) : 0), 0);
+  const televoteSupportWeight = televote.reduce((sum, row) => sum + ((row.supported ?? row.score > 0) ? rowWeight(row, currentEditionNumber, config, false) : 0), 0);
   const juryRisk = jury.length
     ? weighted([
-        [100 * beta(jurySupported, jury.length, config.bayesianPriorAlpha, config.bayesianPriorBeta) * Math.min(1, jury.length / 8), 0.65],
+        [100 * beta(jurySupportWeight, juryRecentWeight, config.bayesianPriorAlpha, config.bayesianPriorBeta) * Math.min(1, juryRecentWeight / 4), 0.65],
         [historicalDeviationRisk, 0.35],
       ])
     : 0;
   const televoteRisk = televote.length
     ? weighted([
-        [100 * beta(televoteSupported, televote.length, config.bayesianPriorAlpha, config.bayesianPriorBeta) * Math.min(1, televote.length / 8), 0.65],
+        [100 * beta(televoteSupportWeight, televoteRecentWeight, config.bayesianPriorAlpha, config.bayesianPriorBeta) * Math.min(1, televoteRecentWeight / 4), 0.65],
         [historicalDeviationRisk, 0.35],
       ])
     : 0;
 
-  const channelsByEdition = new Map<string, Set<string>>();
+  const channelsByEdition = new Map<string, { channels: Set<string>; weight: number }>();
   for (const row of pair) {
     if (!(row.supported ?? row.score > 0)) continue;
-    const channels = channelsByEdition.get(row.editionId) ?? new Set<string>();
-    channels.add(row.channel);
-    channelsByEdition.set(row.editionId, channels);
+    const current = channelsByEdition.get(row.editionId) ?? {
+      channels: new Set<string>(),
+      weight: rowWeight(row, currentEditionNumber, config, false),
+    };
+    current.channels.add(row.channel);
+    current.weight = Math.max(current.weight, rowWeight(row, currentEditionNumber, config, false));
+    channelsByEdition.set(row.editionId, current);
   }
-  const crossChannelEditions = [...channelsByEdition.values()].filter((channels) => channels.has("jury") && channels.has("televote")).length;
-  const crossChannelRisk = clamp(100 * (editions.size ? crossChannelEditions / editions.size : 0) * Math.min(1, editions.size / 6));
+  const crossChannelRows = [...channelsByEdition.values()];
+  const crossChannelWeight = crossChannelRows
+    .filter((row) => row.channels.has("jury") && row.channels.has("televote"))
+    .reduce((sum, row) => sum + row.weight, 0);
+  const supportedEditionWeight = crossChannelRows.reduce((sum, row) => sum + row.weight, 0);
+  const crossChannelEditions = crossChannelRows.filter((row) => row.channels.has("jury") && row.channels.has("televote")).length;
+  const crossChannelRisk = clamp(100 * (supportedEditionWeight > 0 ? crossChannelWeight / supportedEditionWeight : 0) * Math.min(1, supportedEditionWeight / 3));
   const reciprocityRisk = clamp(100 * beta(
     reciprocalSupportRate * reciprocalEditions,
     reciprocalEditions,
     config.bayesianPriorAlpha,
     config.bayesianPriorBeta,
-  ) * Math.min(1, reciprocalEditions / 6));
+  ) * Math.min(1, reciprocalEditions / 4));
   const networkRisk = clamp(network?.score ?? 0);
+  const similarityRisk = clamp(context.similarityRisk ?? 0);
 
-  const residuals: number[] = [];
+  const residuals: Array<{ value: number; weight: number }> = [];
   for (const row of pair) {
     if (row.maxScore <= 0) continue;
     const field = history.fieldIntensity.get(`${row.editionId}:${row.channel}:${row.targetCode}`);
@@ -316,90 +496,132 @@ export function calculateAdvancedFriendVotingRisk(
     const othersCount = field.count - own.count;
     if (othersCount <= 0) continue;
     const fieldAverage = (field.total - own.total) / othersCount;
-    residuals.push(Math.abs(clamp01(row.score / row.maxScore) - fieldAverage));
+    residuals.push({
+      value: Math.abs(clamp01(row.score / row.maxScore) - fieldAverage),
+      weight: rowWeight(row, currentEditionNumber, config, false),
+    });
   }
-  const countryStrengthRisk = clamp(100 * mean(residuals) * Math.min(1, residuals.length / 4));
+  const countryStrengthRisk = clamp(100 * weightedMean(residuals) * Math.min(1, effectiveHistoricalEvidence(residuals.map((row) => row.weight)) / 3));
 
-  const observedRankValues = pair.map(rankPercentile).filter((value): value is number => value != null);
-  const baselineRankValues = baseline.map(rankPercentile).filter((value): value is number => value != null);
-  const observedRankPercentile = mean(observedRankValues);
-  const expectedRankPercentile = mean(baselineRankValues);
+  const observedRankRows = pair.map((row) => ({ row, value: rankPercentile(row) })).filter((item): item is { row: AdvancedFriendVotingObservation; value: number } => item.value != null);
+  const baselineRankRows = baseline.map((row) => ({ row, value: rankPercentile(row) })).filter((item): item is { row: AdvancedFriendVotingObservation; value: number } => item.value != null);
+  const observedRankPercentile = weightedMean(observedRankRows.map((item) => ({ value: item.value, weight: rowWeight(item.row, currentEditionNumber, config, false) })));
+  const expectedRankPercentile = weightedMean(baselineRankRows.map((item) => ({ value: item.value, weight: rowWeight(item.row, currentEditionNumber, config, false) })));
+  const baselineRankSd = weightedSd(baselineRankRows.map((item) => ({ value: item.value, weight: rowWeight(item.row, currentEditionNumber, config, false) })));
   const positiveRankShift = Math.max(0, observedRankPercentile - expectedRankPercentile);
-  const rankZ = baselineRankValues.length >= 2
-    ? positiveRankShift / Math.max(sd(baselineRankValues), 0.12)
+  const rankZ = baselineRankRows.length >= 2 ? positiveRankShift / Math.max(baselineRankSd, 0.12) : 0;
+  const topQuartileRate = observedRankRows.length
+    ? weightedMean(observedRankRows.map((item) => ({ value: item.value >= 0.75 ? 1 : 0, weight: rowWeight(item.row, currentEditionNumber, config, false) })))
     : 0;
-  const topQuartileRate = observedRankValues.length
-    ? observedRankValues.filter((value) => value >= 0.75).length / observedRankValues.length
+  const historicalTopQuartileRate = baselineRankRows.length
+    ? weightedMean(baselineRankRows.map((item) => ({ value: item.value >= 0.75 ? 1 : 0, weight: rowWeight(item.row, currentEditionNumber, config, false) })))
     : 0;
-  const historicalTopQuartileRate = baselineRankValues.length
-    ? baselineRankValues.filter((value) => value >= 0.75).length / baselineRankValues.length
-    : 0;
-  const rankPatternRisk = observedRankValues.length && baselineRankValues.length >= 2
+  const rankPatternRisk = observedRankRows.length && baselineRankRows.length >= 2
     ? clamp(0.7 * zRisk(rankZ) + 30 * Math.max(0, topQuartileRate - historicalTopQuartileRate))
     : 0;
 
-  const baseRisk = weighted([
-    [relationshipAnomaly, config.relationshipAnomalyWeight],
-    [historicalDeviationRisk, config.historicalDeviationWeight],
+  const currentStreak = consecutiveSupportStreak(pair);
+  const continuityRisk = currentStreak >= 2
+    ? clamp(100 * (1 - Math.exp(-(currentStreak - 1) / 2)))
+    : 0;
+
+  const recentRisk = weighted([
+    [relationshipRecent, config.relationshipAnomalyWeight],
+    [recentDeviation, config.historicalDeviationWeight],
     [reciprocityRisk, config.reciprocityWeight],
-    [intensityRisk, config.intensityWeight],
+    [intensityRecent, config.intensityWeight],
     [juryRisk, config.juryWeight],
     [televoteRisk, config.televoteWeight],
     [crossChannelRisk, config.crossChannelWeight],
-    [rankPatternRisk, config.rankPatternWeight ?? 10],
+    [rankPatternRisk, config.rankPatternWeight ?? 6],
     [networkRisk, config.networkWeight],
+    [countryStrengthRisk, config.countryStrengthWeight],
+    [similarityRisk, config.similarityWeight ?? 12],
+    [continuityRisk, config.continuityWeight ?? 4],
   ]);
-  let overallRisk = clamp(baseRisk + (countryStrengthRisk - 50) * Math.min(1, config.countryStrengthWeight / 100));
-  if (editions.size < 2) overallRisk = Math.min(overallRisk, config.oneEditionCap);
-  else if (editions.size < 3) overallRisk = Math.min(overallRisk, config.twoEditionCap);
+  const lifetimeRisk = weighted([
+    [relationshipLifetime, config.relationshipAnomalyWeight],
+    [lifetimeDeviation, config.historicalDeviationWeight],
+    [reciprocityRisk, config.reciprocityWeight],
+    [intensityLifetime, config.intensityWeight],
+    [juryRisk, config.juryWeight],
+    [televoteRisk, config.televoteWeight],
+    [crossChannelRisk, config.crossChannelWeight],
+    [rankPatternRisk, config.rankPatternWeight ?? 6],
+    [networkRisk, config.networkWeight],
+    [countryStrengthRisk, config.countryStrengthWeight],
+    [similarityRisk, config.similarityWeight ?? 12],
+    [continuityRisk, config.continuityWeight ?? 4],
+  ]);
 
-  const evidenceFactor = 1 - Math.exp(-opportunities / 5);
-  const editionFactor = 1 - Math.exp(-editions.size / 3);
-  const baselineFactor = Math.min(1, baseline.length / 8);
-  const consistency = pairIntensity.length > 1 ? 1 - clamp01(sd(pairIntensity) / 0.5) : 0.5;
-  const channelFactor = pair.length ? 0.75 + 0.25 * Math.min(1, new Set(pair.map((r) => r.channel)).size / 2) : 0;
+  const independentSignals = [
+    relationshipAnomaly,
+    historicalDeviationRisk,
+    reciprocityRisk,
+    intensityRisk,
+    crossChannelRisk,
+    rankPatternRisk,
+    networkRisk,
+    countryStrengthRisk,
+    similarityRisk,
+    continuityRisk,
+  ];
+  const strongSignalCount = independentSignals.filter((value) => value >= 65).length;
+  const corroborationBonus = Math.min(10, Math.max(0, strongSignalCount - 1) * 2.5);
+  let overallRisk = clamp(
+    blendRecentAndLifetime(recentRisk, lifetimeRisk, config.recentHistoryShare, config.lifetimeHistoryShare) + corroborationBonus,
+  );
+
+  const editionRecentWeights = [...new Map(pair.map((row) => [row.editionId, rowWeight(row, currentEditionNumber, config, false)])).values()];
+  const editionLifetimeWeights = [...new Map(pair.map((row) => [row.editionId, rowWeight(row, currentEditionNumber, config, true)])).values()];
+  const effectiveRecentEditions = effectiveHistoricalEvidence(editionRecentWeights);
+  const effectiveLifetimeEditions = effectiveHistoricalEvidence(editionLifetimeWeights);
+  if (effectiveRecentEditions < 1.5) overallRisk = Math.min(overallRisk, config.oneEditionCap);
+  else if (effectiveRecentEditions < 2.5) overallRisk = Math.min(overallRisk, config.twoEditionCap);
+
+  const baselineEffectiveEvidence = effectiveHistoricalEvidence(baseline.map((row) => rowWeight(row, currentEditionNumber, config, false)));
+  const historyEvidenceFactor = evidenceConfidence(effectiveRecentEditions, 3);
+  const baselineFactor = evidenceConfidence(baselineEffectiveEvidence, 3);
+  const channelFactor = pair.length ? (new Set(pair.map((row) => row.channel)).size >= 2 ? 1 : 0.65) : 0;
+  const corroborationFactor = Math.min(1, strongSignalCount / 3);
   const confidence = clamp(100 * (
-    0.35 * evidenceFactor
-    + 0.35 * editionFactor
-    + 0.2 * baselineFactor
-    + 0.1 * consistency
-  ) * channelFactor);
+    0.5 * historyEvidenceFactor
+    + 0.2 * channelFactor
+    + 0.15 * baselineFactor
+    + 0.15 * corroborationFactor
+  ));
 
   const reasons: string[] = [];
   const warnings: string[] = [];
-  if (supported && smoothedSupportRate >= 0.7 && editions.size >= 2) {
-    reasons.push(`Repeated support in ${pct(supported / Math.max(1, opportunities))} of eligible observations (${supported}/${opportunities})`);
+  if (supported && recentSupportRateRaw >= 0.7 && effectiveRecentEditions >= 1.5) {
+    reasons.push(`Recent-weighted support is ${pct(recentSupportRateRaw)} across the available relationship history`);
   }
   if (baseline.length >= 2 && historicalDeviationRisk >= 60) {
-    reasons.push(`Observed average score (${round(observedAverage, 1)}) differs unusually from the historical baseline (${round(expectedAverage, 1)})`);
+    reasons.push(`Recent-weighted average score (${round(observedAverageRecent, 1)}) differs unusually from the historical baseline (${round(expectedAverageRecent, 1)})`);
   }
-  if (rankPatternRisk >= 60) {
-    reasons.push(`The target is ranked unusually high compared with this voter's historical rank pattern`);
+  if (rankPatternRisk >= 60) reasons.push("The target is ranked unusually high compared with this voter's historical rank pattern");
+  if (maximumRateRecent >= 0.4 && effectiveRecentEditions >= 1.5) {
+    reasons.push(`Recent maximum-score concentration is ${pct(maximumRateRecent)}, versus ${pct(historicalMaximumRate)} in the available baseline`);
   }
-  if (maximumRate >= 0.4 && editions.size >= 2) {
-    reasons.push(`Maximum-score concentration is ${pct(maximumRate)}, versus ${pct(historicalMaximumRate)} in the available baseline`);
-  }
-  if (reciprocalEditions && reciprocalSupportRate >= 0.6) {
-    reasons.push(`Reciprocal support occurred in ${pct(reciprocalSupportRate)} of comparable editions`);
-  }
-  if (crossChannelEditions) {
-    reasons.push(`The relationship appears in both jury and televote in ${crossChannelEditions} edition${crossChannelEditions === 1 ? "" : "s"}`);
-  }
-  if (countryStrengthRisk < 25 && pair.length >= 2) {
-    reasons.push("The target is broadly strong in the same voting fields, reducing the relationship-specific anomaly signal");
-  }
+  if (reciprocalEditions && reciprocalSupportRate >= 0.6) reasons.push(`Reciprocal support occurred in ${pct(reciprocalSupportRate)} of comparable editions`);
+  if (crossChannelEditions) reasons.push(`The relationship appears in both jury and televote in ${crossChannelEditions} edition${crossChannelEditions === 1 ? "" : "s"}`);
+  if (similarityRisk >= 65) reasons.push("The ballot is unusually similar to other relevant voting activity after accounting for normal round consensus");
+  if (currentStreak >= 3) reasons.push(`Recent support continues across ${currentStreak} consecutive editions`);
+  if (countryStrengthRisk < 25 && pair.length >= 2) reasons.push("The target is broadly strong in the same voting fields, reducing the relationship-specific anomaly signal");
   if (networkRisk >= 65 && network?.reason) reasons.push(network.reason);
 
-  if (editions.size < config.minimumEvidenceForStrongRisk) {
-    warnings.push(`Only ${editions.size} independent edition${editions.size === 1 ? "" : "s"} are available; risk is capped and should not be treated as a strong conclusion`);
+  if (effectiveRecentEditions < config.minimumEvidenceForStrongRisk) {
+    warnings.push(`Recent-weighted evidence equals ${round(effectiveRecentEditions, 2)} editions; risk is capped until more independent evidence exists`);
   }
-  if (baseline.length < 2) warnings.push("Insufficient target-specific historical baseline; historical-deviation risk is conservative");
-  if (!observedRankValues.length || baselineRankValues.length < 2) warnings.push("Insufficient rank history for rank-pattern analysis");
+  if (baselineEffectiveEvidence < 1.5) warnings.push("Limited recent-weighted historical baseline; historical-deviation risk is conservative");
+  if (!observedRankRows.length || baselineRankRows.length < 2) warnings.push("Insufficient rank history for rank-pattern analysis");
   if (!jury.length) warnings.push("No jury observations are available for this relationship");
   if (!televote.length) warnings.push("No televote observations are available for this relationship");
 
   return {
     overallRisk: Math.round(overallRisk),
+    recentRisk: Math.round(recentRisk),
+    lifetimeRisk: Math.round(lifetimeRisk),
     confidence: Math.round(confidence),
     juryRisk: Math.round(juryRisk),
     televoteRisk: Math.round(televoteRisk),
@@ -411,6 +633,8 @@ export function calculateAdvancedFriendVotingRisk(
     rankPatternRisk: Math.round(rankPatternRisk),
     networkRisk: Math.round(networkRisk),
     countryStrengthRisk: Math.round(countryStrengthRisk),
+    similarityRisk: Math.round(similarityRisk),
+    continuityRisk: Math.round(continuityRisk),
     reasons,
     warnings,
     sampleSize: {
@@ -419,13 +643,17 @@ export function calculateAdvancedFriendVotingRisk(
       juryOpportunities: jury.length,
       televoteOpportunities: televote.length,
       historicalBaseline: baseline.length,
+      effectiveRecentEditions,
+      effectiveLifetimeEditions,
     },
     evidence: {
       observedSupport: supported,
       eligibleSupport: opportunities,
       smoothedSupportRate,
-      averageScore: observedAverage,
-      expectedAverageScore: expectedAverage,
+      recentSupportRate,
+      lifetimeSupportRate,
+      averageScore: observedAverageRecent,
+      expectedAverageScore: expectedAverageRecent,
       maximumScores: maximum,
       reciprocalEditions,
       reciprocalSupportEditions: Math.round(clamp01(reciprocalSupportRate) * reciprocalEditions),
@@ -433,6 +661,8 @@ export function calculateAdvancedFriendVotingRisk(
       historicalMaxScoreRate: historicalMaximumRate,
       observedRankPercentile,
       expectedRankPercentile,
+      currentStreak,
+      effectiveHistoricalEvidence: effectiveRecentEditions,
     },
     modelVersion: FRIEND_VOTING_MODEL_VERSION,
   };
