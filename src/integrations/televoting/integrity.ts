@@ -38,14 +38,14 @@ export type VoteIntegrityReport = {
   token: string;
   expiresAt: string;
   automatic: true;
-  modelVersion: string;
+  modelVersion?: string;
   relationshipRisk: number;
   riskScore: number;
-  confidence: number;
+  confidence?: number;
   severity: VoteIntegritySeverity;
-  interventionLevel: IntegrityIntervention;
+  interventionLevel?: IntegrityIntervention;
   requiresAttestation: boolean;
-  reasonCategories: string[];
+  reasonCategories?: string[];
   findings: VoteIntegrityFinding[];
   technicalSignals: VoteIntegrityTechnicalSignal[];
   history: {
