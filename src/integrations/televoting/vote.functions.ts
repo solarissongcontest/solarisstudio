@@ -64,19 +64,10 @@ export const attestMergedTelevotingVote = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    if (
-      !data.acceptedAutomaticDetection ||
-      !data.acceptedIndependence ||
-      !data.acceptedCoordination ||
-      !data.acceptedPressure ||
-      !data.acceptedConsequences
-    ) {
-      throw new Error("All voting-integrity declarations must be acknowledged");
-    }
-    const { signVoteIntegrityAttestationServer } = await import(
-      "@/integrations/televoting/preflight.server"
+    const { signFullVoteIntegrityAttestationServer } = await import(
+      "@/integrations/televoting/integrity-attestation.server"
     );
-    return signVoteIntegrityAttestationServer(data);
+    return signFullVoteIntegrityAttestationServer(data);
   });
 
 export const submitMergedTelevotingVote = createServerFn({ method: "POST" })
