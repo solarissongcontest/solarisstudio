@@ -48,6 +48,8 @@ export const attestMergedTelevotingVote = createServerFn({ method: "POST" })
     signedName: string;
     acceptedAutomaticDetection: boolean;
     acceptedIndependence: boolean;
+    acceptedCoordination: boolean;
+    acceptedPressure: boolean;
     acceptedConsequences: boolean;
   }) => {
     if (!data?.token) throw new Error("Missing integrity-check token");
@@ -56,6 +58,8 @@ export const attestMergedTelevotingVote = createServerFn({ method: "POST" })
       signedName: String(data.signedName ?? "").trim(),
       acceptedAutomaticDetection: Boolean(data.acceptedAutomaticDetection),
       acceptedIndependence: Boolean(data.acceptedIndependence),
+      acceptedCoordination: Boolean(data.acceptedCoordination),
+      acceptedPressure: Boolean(data.acceptedPressure),
       acceptedConsequences: Boolean(data.acceptedConsequences),
     };
   })
