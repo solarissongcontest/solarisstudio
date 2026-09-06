@@ -66,7 +66,10 @@ describe("country account jury voting contract", () => {
     expect(route).toContain("jury and televote");
     expect(route).toContain("preflightCountryJuryVote");
     expect(route).toContain("attestCountryJuryVote");
-    expect(route).toContain("VOTE_INTEGRITY_ATTESTATION");
+    expect(route).toContain("VOTE_INTEGRITY_AUTOMATION");
+    expect(route).toContain("VOTE_INTEGRITY_INDEPENDENCE");
+    expect(route).toContain("VOTE_INTEGRITY_COORDINATION");
+    expect(route).toContain("VOTE_INTEGRITY_PRESSURE");
     expect(route).toContain("VOTE_INTEGRITY_CONSEQUENCE");
     expect(route).toContain("DelayedConfirmationState");
     expect(route).toContain("submit_country_jury_ballot");
