@@ -65,7 +65,7 @@ export const VOTE_INTEGRITY_INDEPENDENCE =
   "These votes reflect my own independent preferences.";
 
 export const VOTE_INTEGRITY_COORDINATION =
-  "I did not agree to exchange, trade, copy, or coordinate votes with another voter or delegation.";
+  "I did not take part in coordinated friend-voting, reciprocal voting, vote trading, copied voting, or any agreement to exchange or arrange votes with another voter or delegation.";
 
 export const VOTE_INTEGRITY_PRESSURE =
   "Nobody instructed, pressured, or required me to vote this way.";
@@ -79,4 +79,4 @@ export const VOTE_INTEGRITY_ATTESTATION =
   `${VOTE_INTEGRITY_INDEPENDENCE} ${VOTE_INTEGRITY_COORDINATION} ${VOTE_INTEGRITY_PRESSURE}`;
 
 export const VOTE_INTEGRITY_CONSEQUENCE =
-  "I understand that this declaration is recorded. If SSC organizers later establish that I knowingly lied in this declaration, it can lead to removal of the ballot or other SSC sanctions, including a ban.";
+  "I understand that this declaration is recorded. If SSC organizers later establish that I knowingly lied in this declaration, it can lead to removal of the ballot or other SSC sanctions, including a ban from SSC.";
