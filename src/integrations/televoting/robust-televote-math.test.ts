@@ -6,6 +6,7 @@ import {
   convertRobustRound,
   effectiveSupporterCount,
   transformBallot,
+  type RobustBallotInput,
 } from "@/integrations/televoting/robust-televote-math";
 
 describe("robust televote v2", () => {
@@ -34,22 +35,22 @@ describe("robust televote v2", () => {
   });
 
   it("rewards broad support when entries have comparable aggregate support", () => {
-    const ballots = [
+    const ballots: RobustBallotInput[] = [
       { voterId: "1", allocations: { A: 10, C: 10 } },
       { voterId: "2", allocations: { A: 10, C: 10 } },
       { voterId: "3", allocations: { A: 10, C: 10 } },
-      { voterId: "4", allocations: { B: 3, C: 17 } },
-      { voterId: "5", allocations: { B: 3, C: 17 } },
-      { voterId: "6", allocations: { B: 3, C: 17 } },
-      { voterId: "7", allocations: { B: 3, C: 17 } },
-      { voterId: "8", allocations: { B: 3, C: 17 } },
-      { voterId: "9", allocations: { B: 3, C: 17 } },
-      { voterId: "10", allocations: { B: 3, C: 17 } },
-      { voterId: "11", allocations: { B: 3, C: 17 } },
-      { voterId: "12", allocations: { B: 3, C: 17 } },
-      { voterId: "13", allocations: { B: 3, C: 17 } },
+      { voterId: "4", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "5", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "6", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "7", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "8", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "9", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "10", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "11", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "12", allocations: { B: 3, C: 10, D: 7 } },
+      { voterId: "13", allocations: { B: 3, C: 10, D: 7 } },
     ];
-    const result = convertRobustRound({ participants: ["A", "B", "C"], ballots, totalPoints: 580 });
+    const result = convertRobustRound({ participants: ["A", "B", "C", "D"], ballots, totalPoints: 580 });
     const A = result.rows.find((row) => row.code === "A")!;
     const B = result.rows.find((row) => row.code === "B")!;
 
