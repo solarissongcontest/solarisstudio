@@ -158,6 +158,52 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     text-overflow: ellipsis;
     font-size: .43rem;
   }
+
+  /* iOS Safari can misplace the viewport-based full-bleed trick used by the
+     homepage takeover. On phones, bleed from the known AppShell padding instead. */
+  body.solaris-anniversary-day .solaris-anniversary-v2 {
+    left: auto;
+    width: calc(100% + 1.5rem);
+    max-width: none;
+    margin-left: -.75rem;
+    margin-right: -.75rem;
+    overflow-x: clip;
+    padding-inline: 1rem;
+  }
+
+  body.solaris-anniversary-day .solaris-anniversary-v2 > div,
+  body.solaris-anniversary-day .anniversary-v2-hero,
+  body.solaris-anniversary-day .anniversary-v2-hero > * {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  body.solaris-anniversary-day .anniversary-v2-title {
+    max-width: 100%;
+    font-size: clamp(3rem, 16vw, 4.6rem);
+    line-height: .82;
+    overflow-wrap: anywhere;
+  }
+
+  body.solaris-anniversary-day .anniversary-v2-kicker,
+  body.solaris-anniversary-day .anniversary-v2-actions {
+    max-width: 100%;
+  }
+
+  body.solaris-anniversary-day .anniversary-v2-action {
+    max-width: 100%;
+  }
+
+  body.solaris-anniversary-day .solaris-anniversary-global-badge {
+    left: .5rem;
+    right: .5rem;
+    width: auto;
+    max-width: none;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
   .solaris-anniversary-season-notice {
     grid-template-columns: auto minmax(0,1fr);
     gap: .72rem;
