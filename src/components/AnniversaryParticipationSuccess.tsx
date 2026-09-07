@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import "@/anniversary-participation-success.css";
+
 const SUCCESS_PHRASES = [
   "Your vote has been recorded",
   "Your jury ballot has been recorded",
