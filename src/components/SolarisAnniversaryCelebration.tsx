@@ -2,36 +2,57 @@ import { useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import "@/anniversary-global.css";
-import { getSolarisAnniversary } from "@/lib/anniversary";
+import {
+  getSolarisAnniversarySeason,
+  type AnniversaryPhase,
+  type SolarisAnniversarySeason,
+} from "@/lib/anniversary";
 
 const LEGACY_PREVIEW_KEY = "solaris:anniversary-preview";
+const INTRO_KEY_PREFIX = "solaris:anniversary-intro";
 const STAR_COLORS = ["#74e7ff", "#b7a4ff", "#ff8fc7", "#ffe36e", "#78f3d0", "#ffffff"];
 
-const FALLING_STARS = Array.from({ length: 72 }, (_, index) => ({
+const FALLING_STARS = Array.from({ length: 48 }, (_, index) => ({
   left: `${(index * 37 + 11) % 100}%`,
-  size: `${14 + ((index * 19) % 34)}px`,
+  size: `${10 + ((index * 19) % 28)}px`,
   color: STAR_COLORS[index % STAR_COLORS.length],
-  opacity: 0.42 + ((index * 13) % 46) / 100,
-  duration: `${7.2 + ((index * 23) % 72) / 10}s`,
-  delay: `${-((index * 0.83) % 15)}s`,
-  drift: `${-150 + ((index * 47) % 300)}px`,
+  opacity: 0.24 + ((index * 13) % 38) / 100,
+  duration: `${10 + ((index * 23) % 88) / 10}s`,
+  delay: `${-((index * 0.83) % 18)}s`,
+  drift: `${-180 + ((index * 47) % 360)}px`,
   rotate: `${(index * 73) % 360}deg`,
-  scale: 0.72 + ((index * 17) % 54) / 100,
+  scale: 0.62 + ((index * 17) % 44) / 100,
 }));
 
-function createStarBurst(x: number, y: number) {
+function previewPhase(searchStr: string): AnniversaryPhase | null {
+  const preview = new URLSearchParams(searchStr).get("anniversary");
+  if (preview === "preview" || preview === "active") return "active";
+  if (preview === "countdown") return "countdown";
+  if (preview === "after") return "after";
+  return null;
+}
+
+function withPreview(season: SolarisAnniversarySeason, phase: AnniversaryPhase | null) {
+  if (!phase) return season;
+  if (phase === "active") return { ...season, active: true, phase, daysUntil: 0, daysSince: 0 };
+  if (phase === "countdown") return { ...season, active: false, phase, daysUntil: 1, daysSince: null };
+  if (phase === "after") return { ...season, active: false, phase, daysUntil: null, daysSince: 1 };
+  return season;
+}
+
+function createStarBurst(x: number, y: number, count: number) {
   const burst = document.createElement("span");
   burst.className = "solaris-anniversary-star-burst";
   burst.style.left = `${x}px`;
   burst.style.top = `${y}px`;
 
-  for (let index = 0; index < 26; index += 1) {
+  for (let index = 0; index < count; index += 1) {
     const star = document.createElement("span");
     star.className = "solaris-anniversary-burst-star";
     star.style.setProperty("--burst-color", STAR_COLORS[index % STAR_COLORS.length]);
-    star.style.setProperty("--burst-angle", `${(360 / 26) * index + ((index % 3) * 5)}deg`);
-    star.style.setProperty("--burst-distance", `${54 + ((index * 19) % 105)}px`);
-    star.style.setProperty("--burst-size", `${10 + ((index * 7) % 18)}px`);
+    star.style.setProperty("--burst-angle", `${(360 / count) * index + ((index % 3) * 5)}deg`);
+    star.style.setProperty("--burst-distance", `${36 + ((index * 19) % (count > 10 ? 92 : 52))}px`);
+    star.style.setProperty("--burst-size", `${7 + ((index * 7) % (count > 10 ? 14 : 9))}px`);
     star.style.setProperty("--burst-rotate", `${(index * 83) % 360}deg`);
     star.style.setProperty("--burst-delay", `${(index % 4) * 10}ms`);
     burst.appendChild(star);
@@ -44,37 +65,56 @@ function createStarBurst(x: number, y: number) {
 export function SolarisAnniversaryCelebration() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const [clock, setClock] = useState(() => new Date());
-
-  const preview = useMemo(
-    () => new URLSearchParams(searchStr).get("anniversary") === "preview",
-    [searchStr],
-  );
+  const [showIntro, setShowIntro] = useState(false);
 
   useEffect(() => {
-    // Remove the old sticky preview flag from earlier builds. Preview mode is
-    // deliberately URL-scoped now so Anniversary Day can never remain enabled
-    // accidentally on an ordinary date.
     window.sessionStorage.removeItem(LEGACY_PREVIEW_KEY);
-
-    // The anniversary state only changes at a date boundary. Checking once a
-    // minute keeps the page accurate without re-rendering the application
-    // every second on the other 364 days of the year.
     const tick = window.setInterval(() => setClock(new Date()), 60_000);
     return () => window.clearInterval(tick);
   }, []);
 
-  const anniversary = useMemo(() => getSolarisAnniversary(clock), [clock]);
-  const active = anniversary.active || preview;
+  const season = useMemo(
+    () => withPreview(getSolarisAnniversarySeason(clock), previewPhase(searchStr)),
+    [clock, searchStr],
+  );
+  const active = season.phase === "active";
 
   useEffect(() => {
-    if (!active) {
-      document.body.classList.remove("solaris-anniversary-day");
+    if (season.phase === "dormant") {
+      delete document.body.dataset.solarisAnniversaryPhase;
       delete document.body.dataset.solarisAnniversary;
+      document.body.classList.remove("solaris-anniversary-day");
       return;
     }
 
-    document.body.classList.add("solaris-anniversary-day");
-    document.body.dataset.solarisAnniversary = String(anniversary.year);
+    document.body.dataset.solarisAnniversaryPhase = season.phase;
+    document.body.dataset.solarisAnniversary = String(season.year);
+    document.body.classList.toggle("solaris-anniversary-day", active);
+
+    return () => {
+      delete document.body.dataset.solarisAnniversaryPhase;
+      delete document.body.dataset.solarisAnniversary;
+      document.body.classList.remove("solaris-anniversary-day");
+    };
+  }, [active, season.phase, season.year]);
+
+  useEffect(() => {
+    if (!active) {
+      setShowIntro(false);
+      return;
+    }
+
+    const key = `${INTRO_KEY_PREFIX}:${season.year}`;
+    if (window.sessionStorage.getItem(key)) return;
+
+    window.sessionStorage.setItem(key, "1");
+    setShowIntro(true);
+    const timeout = window.setTimeout(() => setShowIntro(false), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [active, season.year]);
+
+  useEffect(() => {
+    if (!active) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -82,7 +122,12 @@ export function SolarisAnniversaryCelebration() {
       const target = event.target instanceof Element ? event.target.closest("a[href], button") : null;
       if (!target || reducedMotion.matches) return;
 
-      createStarBurst(event.clientX, event.clientY);
+      const major = Boolean(
+        target.closest(
+          ".anniversary-route-cta, .anniversary-hub-actions, .anniversary-nav-link, .anniversary-v2-actions",
+        ),
+      );
+      createStarBurst(event.clientX, event.clientY, major ? 20 : 8);
 
       if (!(target instanceof HTMLAnchorElement)) return;
       if (event.defaultPrevented) return;
@@ -92,54 +137,77 @@ export function SolarisAnniversaryCelebration() {
       const url = new URL(target.href, window.location.href);
       if (url.origin !== window.location.origin) return;
 
-      // Give the cannon burst enough time to be visible before the route swaps.
+      // Only major anniversary links pause navigation for the larger burst. Normal
+      // navigation remains instant so Anniversary Day never makes the product feel slow.
+      if (!major) return;
+
       event.preventDefault();
       event.stopPropagation();
-      window.setTimeout(() => window.location.assign(url.href), 260);
+      window.setTimeout(() => window.location.assign(url.href), 210);
     };
 
     document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [active]);
 
-    return () => {
-      document.body.classList.remove("solaris-anniversary-day");
-      delete document.body.dataset.solarisAnniversary;
-      document.removeEventListener("click", handleClick, true);
-    };
-  }, [active, anniversary.year]);
+  if (season.phase === "dormant") return null;
 
-  if (!active) return null;
+  const badge =
+    season.phase === "countdown"
+      ? season.daysUntil === 1
+        ? "Anniversary tomorrow"
+        : `${season.daysUntil} days to Anniversary Day`
+      : season.phase === "after"
+        ? `Solaris Year ${season.age + 1} begins`
+        : `${season.age} years of Solaris`;
 
   return (
-    <div className="solaris-anniversary-global" aria-hidden="true">
-      <div className="solaris-anniversary-global-wash" />
-      <div className="solaris-anniversary-global-stars">
-        {FALLING_STARS.map((star, index) => (
-          <span
-            key={index}
-            className="solaris-anniversary-falling-star"
-            style={
-              {
-                left: star.left,
-                "--star-size": star.size,
-                "--star-color": star.color,
-                "--star-opacity": star.opacity,
-                "--star-duration": star.duration,
-                "--star-delay": star.delay,
-                "--star-drift": star.drift,
-                "--star-rotate": star.rotate,
-                "--star-scale": star.scale,
-              } as CSSProperties
-            }
-          />
-        ))}
-      </div>
+    <>
+      {showIntro && (
+        <div className="solaris-anniversary-intro" aria-hidden="true">
+          <span className="solaris-anniversary-intro-orbit" />
+          <strong>{String(season.age).padStart(2, "0")}</strong>
+          <span>YEARS OF SOLARIS</span>
+          <small>17 · 09 · 2022</small>
+        </div>
+      )}
 
-      <div className="solaris-anniversary-global-badge">
-        <span className="solaris-anniversary-badge-star" />
-        <span>17 September</span>
-        <span className="solaris-anniversary-badge-divider">·</span>
-        <strong>{anniversary.age} years of Solaris</strong>
+      <div
+        className={`solaris-anniversary-global phase-${season.phase}`}
+        aria-hidden="true"
+      >
+        {active && <div className="solaris-anniversary-global-wash" />}
+        {active && (
+          <div className="solaris-anniversary-global-stars">
+            {FALLING_STARS.map((star, index) => (
+              <span
+                key={index}
+                className="solaris-anniversary-falling-star"
+                style={
+                  {
+                    left: star.left,
+                    "--star-size": star.size,
+                    "--star-color": star.color,
+                    "--star-opacity": star.opacity,
+                    "--star-duration": star.duration,
+                    "--star-delay": star.delay,
+                    "--star-drift": star.drift,
+                    "--star-rotate": star.rotate,
+                    "--star-scale": star.scale,
+                  } as CSSProperties
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="solaris-anniversary-global-badge">
+          <span className="solaris-anniversary-badge-star" />
+          <span>17 September</span>
+          <span className="solaris-anniversary-badge-divider">·</span>
+          <strong>{badge}</strong>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
