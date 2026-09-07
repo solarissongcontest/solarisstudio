@@ -4,6 +4,8 @@ import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from
 import "@/anniversary-global.css";
 import "@/anniversary-sitewide.css";
 import "@/anniversary-season.css";
+import "@/anniversary-polish.css";
+import { AnniversaryNavigation } from "@/components/AnniversaryNavigation";
 import {
   getSolarisAnniversarySeason,
   ordinal,
@@ -17,7 +19,19 @@ const LazyAnniversaryDeepDive = lazy(() =>
   })),
 );
 
-const LEGACY_PREVIEW_KEY = "solaris:anniversary-preview";
+const LazyAnniversaryTasteEra = lazy(() =>
+  import("@/components/AnniversaryTasteEra").then((module) => ({
+    default: module.AnniversaryTasteEra,
+  })),
+);
+
+const LazyAnniversaryResultLabPresets = lazy(() =>
+  import("@/components/AnniversaryResultLabPresets").then((module) => ({
+    default: module.AnniversaryResultLabPresets,
+  })),
+);
+
+const PREVIEW_SESSION_KEY = "solaris:anniversary-preview-phase";
 const INTRO_SEEN_KEY = "solaris:anniversary-intro-seen";
 const STAR_COLORS = ["#74e7ff", "#b7a4ff", "#ff8fc7", "#ffe36e", "#78f3d0", "#ffffff"];
 
@@ -69,6 +83,10 @@ function previewPhase(searchStr: string): AnniversaryPhase | null {
   return null;
 }
 
+function validPreviewPhase(value: string | null): AnniversaryPhase | null {
+  return value === "active" || value === "countdown" || value === "after" ? value : null;
+}
+
 function withPreview(season: SolarisAnniversarySeason, phase: AnniversaryPhase | null): SolarisAnniversarySeason {
   if (!phase) return season;
   if (phase === "active") return { ...season, active: true, phase, daysUntil: 0, daysSince: 0 };
@@ -105,16 +123,35 @@ export function SolarisAnniversaryCelebration() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const [clock, setClock] = useState(() => new Date());
   const [showIntro, setShowIntro] = useState(false);
+  const [sessionPreview, setSessionPreview] = useState<AnniversaryPhase | null>(null);
 
   useEffect(() => {
-    window.sessionStorage.removeItem(LEGACY_PREVIEW_KEY);
     const tick = window.setInterval(() => setClock(new Date()), 60_000);
     return () => window.clearInterval(tick);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(searchStr);
+    const raw = params.get("anniversary");
+    if (raw === "off") {
+      window.sessionStorage.removeItem(PREVIEW_SESSION_KEY);
+      setSessionPreview(null);
+      return;
+    }
+
+    const explicit = previewPhase(searchStr);
+    if (explicit) {
+      window.sessionStorage.setItem(PREVIEW_SESSION_KEY, explicit);
+      setSessionPreview(explicit);
+      return;
+    }
+
+    setSessionPreview(validPreviewPhase(window.sessionStorage.getItem(PREVIEW_SESSION_KEY)));
+  }, [searchStr]);
+
   const season = useMemo(
-    () => withPreview(getSolarisAnniversarySeason(clock), previewPhase(searchStr)),
-    [clock, searchStr],
+    () => withPreview(getSolarisAnniversarySeason(clock), previewPhase(searchStr) ?? sessionPreview),
+    [clock, searchStr, sessionPreview],
   );
   const active = season.phase === "active";
   const tone = useMemo(() => anniversaryTone(pathname), [pathname]);
@@ -190,6 +227,7 @@ export function SolarisAnniversaryCelebration() {
 
     return isAdmin ? null : (
       <>
+        <AnniversaryNavigation />
         <Link to="/anniversary" className="solaris-anniversary-global-badge" aria-label="Open the Solaris anniversary hub">
           <span className="solaris-anniversary-badge-star" aria-hidden="true" />
           <span>17 September</span>
@@ -216,6 +254,8 @@ export function SolarisAnniversaryCelebration() {
 
   return (
     <>
+      {!isAdmin ? <AnniversaryNavigation /> : null}
+
       <div className="solaris-anniversary-global" aria-hidden="true">
         <div className="solaris-anniversary-global-wash" />
         <div className="solaris-anniversary-orbits">
@@ -246,17 +286,19 @@ export function SolarisAnniversaryCelebration() {
         </div>
       </div>
 
-      <Link
-        to="/anniversary"
-        className="solaris-anniversary-global-badge"
-        aria-label={`Open the ${season.ordinal} Solaris anniversary hub`}
-        data-anniversary-action="major"
-      >
-        <span className="solaris-anniversary-badge-star" aria-hidden="true" />
-        <span>17 September</span>
-        <span className="solaris-anniversary-badge-divider">·</span>
-        <strong>{season.age} years of Solaris</strong>
-      </Link>
+      {!isAdmin ? (
+        <Link
+          to="/anniversary"
+          className="solaris-anniversary-global-badge"
+          aria-label={`Open the ${season.ordinal} Solaris anniversary hub`}
+          data-anniversary-action="major"
+        >
+          <span className="solaris-anniversary-badge-star" aria-hidden="true" />
+          <span>17 September</span>
+          <span className="solaris-anniversary-badge-divider">·</span>
+          <strong>{season.age} years of Solaris</strong>
+        </Link>
+      ) : null}
 
       {!isAdmin && pathname !== "/" && !pathname.startsWith("/anniversary") ? (
         <Suspense fallback={null}>
@@ -264,14 +306,26 @@ export function SolarisAnniversaryCelebration() {
         </Suspense>
       ) : null}
 
-      {showIntro && (
+      {!isAdmin && pathname.startsWith("/taste-dna") ? (
+        <Suspense fallback={null}>
+          <LazyAnniversaryTasteEra />
+        </Suspense>
+      ) : null}
+
+      {!isAdmin && pathname.startsWith("/result-lab") ? (
+        <Suspense fallback={null}>
+          <LazyAnniversaryResultLabPresets />
+        </Suspense>
+      ) : null}
+
+      {showIntro && !isAdmin ? (
         <div className="solaris-anniversary-intro" role="status" aria-live="polite">
           <div className="solaris-anniversary-intro-orbit" aria-hidden="true" />
           <p>17 · 09 · 2022</p>
           <strong>{season.age} YEARS OF SOLARIS</strong>
           <span>Anniversary Day</span>
         </div>
-      )}
+      ) : null}
     </>
   );
 }
