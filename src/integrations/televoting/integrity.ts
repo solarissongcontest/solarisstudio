@@ -42,6 +42,7 @@ export type VoteIntegrityReport = {
   relationshipRisk: number;
   riskScore: number;
   confidence?: number;
+  independenceScore?: number;
   severity: VoteIntegritySeverity;
   interventionLevel?: IntegrityIntervention;
   requiresAttestation: boolean;
