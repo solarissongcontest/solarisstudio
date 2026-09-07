@@ -20,7 +20,16 @@ export const preflightCountryJuryVote = createServerFn({ method: "POST" })
     const { runJuryIntegrityPreflightV5Server } = await import(
       "@/integrations/jury-voting/jury-integrity-v5.server"
     );
-    return runJuryIntegrityPreflightV5Server(data);
+    const report = await runJuryIntegrityPreflightV5Server(data);
+    return {
+      ...report,
+      // Voters receive the action and broad categories, not the exact target,
+      // historical pattern or confidence details that could be used to tune a
+      // coordinated ballot around the detector. Full evidence stays in admin_evidence.
+      riskScore: Math.min(100, Math.ceil(report.riskScore / 10) * 10),
+      confidence: undefined,
+      findings: [],
+    };
   });
 
 export const attestCountryJuryVote = createServerFn({ method: "POST" })
