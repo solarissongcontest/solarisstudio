@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
+import "@/anniversary-interactive.css";
 import { useFanSession } from "@/lib/prediction-data";
 import { useTasteBallots } from "@/lib/taste-data";
 import { rankingSimilarity } from "@/lib/taste-dna";
