@@ -5,6 +5,7 @@ import "@/anniversary-global.css";
 import "@/anniversary-sitewide.css";
 import "@/anniversary-season.css";
 import { AnniversaryDeepExperience } from "@/components/AnniversaryDeepExperience";
+import { AnniversaryNavLink } from "@/components/AnniversaryNavLink";
 import {
   getSolarisAnniversarySeason,
   ordinal,
@@ -175,6 +176,7 @@ export function SolarisAnniversaryCelebration() {
 
   return (
     <>
+      {!isAdmin && <AnniversaryNavLink />}
       {!isAdmin && <AnniversaryDeepExperience />}
       <div className="solaris-anniversary-global" aria-hidden="true">
         <div className="solaris-anniversary-global-wash" />
