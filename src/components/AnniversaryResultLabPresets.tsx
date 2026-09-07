@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import "@/anniversary-interactive.css";
+import "@/anniversary-result-lab.css";
 import { useAllShows, useEditions } from "@/lib/data";
 
 function setNativeValue(element: HTMLInputElement | HTMLSelectElement, value: string) {
