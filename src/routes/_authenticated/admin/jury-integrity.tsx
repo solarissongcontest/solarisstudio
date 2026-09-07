@@ -123,7 +123,7 @@ function CaseCard({ row }: { row: JuryIntegrityCase }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-black">{row.countryCode}</h2>
-            <AdminStatus tone={row.risk >= 80 ? "danger" : row.risk >= 50 ? "attention" : "ready"}>
+            <AdminStatus tone={row.risk >= 80 ? "blocked" : row.risk >= 50 ? "attention" : "ready"}>
               Risk {row.risk}/100
             </AdminStatus>
             <AdminStatus tone="neutral">Confidence {row.confidence}/100</AdminStatus>
