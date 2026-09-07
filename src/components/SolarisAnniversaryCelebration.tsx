@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import "@/anniversary-global.css";
 import "@/anniversary-sitewide.css";
@@ -11,125 +11,54 @@ import {
   type SolarisAnniversarySeason,
 } from "@/lib/anniversary";
 
+const LazyAnniversaryDeepDive = lazy(() =>
+  import("@/components/AnniversaryDeepDive").then((module) => ({
+    default: module.AnniversaryDeepDive,
+  })),
+);
+
 const LEGACY_PREVIEW_KEY = "solaris:anniversary-preview";
 const INTRO_SEEN_KEY = "solaris:anniversary-intro-seen";
 const STAR_COLORS = ["#74e7ff", "#b7a4ff", "#ff8fc7", "#ffe36e", "#78f3d0", "#ffffff"];
 
-const FALLING_STARS = Array.from({ length: 54 }, (_, index) => ({
+const FALLING_STARS = Array.from({ length: 42 }, (_, index) => ({
   left: `${(index * 37 + 11) % 100}%`,
-  size: `${10 + ((index * 19) % 30)}px`,
+  size: `${9 + ((index * 19) % 26)}px`,
   color: STAR_COLORS[index % STAR_COLORS.length],
-  opacity: 0.28 + ((index * 13) % 40) / 100,
-  duration: `${9.2 + ((index * 23) % 86) / 10}s`,
+  opacity: 0.2 + ((index * 13) % 34) / 100,
+  duration: `${10.4 + ((index * 23) % 92) / 10}s`,
   delay: `${-((index * 0.83) % 18)}s`,
-  drift: `${-190 + ((index * 47) % 380)}px`,
+  drift: `${-170 + ((index * 47) % 340)}px`,
   rotate: `${(index * 73) % 360}deg`,
-  scale: 0.62 + ((index * 17) % 48) / 100,
+  scale: 0.6 + ((index * 17) % 44) / 100,
 }));
 
-type AnniversaryRouteContext = {
-  eyebrow: string;
-  title: string;
-  detail: string;
-  tone: "archive" | "data" | "play" | "participate" | "personal" | "default";
-};
-
-function routeContext(pathname: string, age: number): AnniversaryRouteContext {
-  if (pathname === "/anniversary" || pathname.startsWith("/anniversary/")) {
-    return {
-      eyebrow: "Anniversary headquarters",
-      title: `${age} years of Solaris`,
-      detail: "Champions, records, turning points and the contest year that brought Solaris here.",
-      tone: "archive",
-    };
-  }
-  if (pathname.startsWith("/editions")) {
-    return {
-      eyebrow: `${age} years, edition by edition`,
-      title: "Walk through Solaris history",
-      detail: "Every published edition is another chapter in the archive that began on 17 September 2022.",
-      tone: "archive",
-    };
-  }
-  if (pathname.startsWith("/countries") || pathname.startsWith("/wiki")) {
-    return {
-      eyebrow: "Across Terra Solaris",
-      title: "Every delegation has a history",
-      detail: `Debuts, returns, finals and victories have shaped ${age} years of country stories.`,
-      tone: "archive",
-    };
-  }
-  if (pathname.startsWith("/records")) {
-    return {
-      eyebrow: `${age} years of records`,
-      title: "Records made to be broken",
-      detail: "Revisit the scores, streaks and milestones that survived another year of increasingly unreasonable scoreboard emotions.",
-      tone: "data",
-    };
-  }
+function anniversaryTone(pathname: string) {
+  if (pathname.startsWith("/editions") || pathname.startsWith("/countries") || pathname.startsWith("/wiki")) return "archive";
   if (
     pathname.startsWith("/results") ||
     pathname.startsWith("/analysis") ||
     pathname.startsWith("/relationships") ||
+    pathname.startsWith("/records") ||
     pathname.startsWith("/scorecharts") ||
     pathname.startsWith("/broadcast-intelligence")
-  ) {
-    return {
-      eyebrow: "Anniversary intelligence",
-      title: `${age} years hidden in the numbers`,
-      detail: "Explore the results, voting relationships and scoreboard moments that built the Solaris archive.",
-      tone: "data",
-    };
-  }
+  ) return "data";
   if (
     pathname.startsWith("/archive-games") ||
     pathname.startsWith("/taste-dna") ||
     pathname.startsWith("/result-lab") ||
-    pathname.startsWith("/compare")
-  ) {
-    return {
-      eyebrow: "Anniversary challenge",
-      title: `Play with ${age} years of history`,
-      detail: "Use the archive rather than merely staring at it respectfully like a museum exhibit.",
-      tone: "play",
-    };
-  }
-  if (pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me")) {
-    return {
-      eyebrow: "Your Solaris story",
-      title: "You are part of the archive",
-      detail: "Your country, participation and contest history sit inside a story that started in 2022.",
-      tone: "personal",
-    };
-  }
+    pathname.startsWith("/compare") ||
+    pathname.startsWith("/predictions")
+  ) return "play";
+  if (pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me")) return "personal";
   if (
     pathname.startsWith("/participate") ||
     pathname.startsWith("/confirmations") ||
     pathname.startsWith("/jury-voting") ||
     pathname.startsWith("/televoting") ||
     pathname.startsWith("/next-in-line")
-  ) {
-    return {
-      eyebrow: "The next chapter",
-      title: `Be part of Solaris year ${age + 1}`,
-      detail: "Anniversary styling stays deliberately restrained here so the actual voting and submission tools remain usable.",
-      tone: "participate",
-    };
-  }
-  if (pathname.startsWith("/predictions")) {
-    return {
-      eyebrow: `${age} years behind us`,
-      title: "What happens next?",
-      detail: "The archive is written. The next result, naturally, is where everyone begins arguing again.",
-      tone: "play",
-    };
-  }
-  return {
-    eyebrow: "Solaris anniversary day",
-    title: `${age} years of Solaris`,
-    detail: "17 September 2022 → today. The whole Studio is celebrating the contest archive.",
-    tone: "default",
-  };
+  ) return "participate";
+  return "default";
 }
 
 function previewPhase(searchStr: string): AnniversaryPhase | null {
@@ -154,21 +83,21 @@ function createStarBurst(x: number, y: number, strong: boolean) {
   burst.style.left = `${x}px`;
   burst.style.top = `${y}px`;
 
-  const count = strong ? 22 : 8;
+  const count = strong ? 18 : 6;
   for (let index = 0; index < count; index += 1) {
     const star = document.createElement("span");
     star.className = "solaris-anniversary-burst-star";
     star.style.setProperty("--burst-color", STAR_COLORS[index % STAR_COLORS.length]);
     star.style.setProperty("--burst-angle", `${(360 / count) * index + ((index % 3) * 5)}deg`);
-    star.style.setProperty("--burst-distance", `${strong ? 62 + ((index * 19) % 96) : 28 + ((index * 13) % 42)}px`);
-    star.style.setProperty("--burst-size", `${strong ? 9 + ((index * 7) % 15) : 6 + ((index * 5) % 8)}px`);
+    star.style.setProperty("--burst-distance", `${strong ? 54 + ((index * 19) % 78) : 24 + ((index * 13) % 34)}px`);
+    star.style.setProperty("--burst-size", `${strong ? 8 + ((index * 7) % 13) : 5 + ((index * 5) % 7)}px`);
     star.style.setProperty("--burst-rotate", `${(index * 83) % 360}deg`);
     star.style.setProperty("--burst-delay", `${(index % 4) * 10}ms`);
     burst.appendChild(star);
   }
 
   document.body.appendChild(burst);
-  window.setTimeout(() => burst.remove(), 980);
+  window.setTimeout(() => burst.remove(), 900);
 }
 
 export function SolarisAnniversaryCelebration() {
@@ -188,7 +117,7 @@ export function SolarisAnniversaryCelebration() {
     [clock, searchStr],
   );
   const active = season.phase === "active";
-  const context = useMemo(() => routeContext(pathname, season.age), [pathname, season.age]);
+  const tone = useMemo(() => anniversaryTone(pathname), [pathname]);
   const isAdmin =
     pathname.startsWith("/admin") ||
     pathname.startsWith("/confirmations/admin") ||
@@ -204,7 +133,7 @@ export function SolarisAnniversaryCelebration() {
     if (window.sessionStorage.getItem(key)) return;
     window.sessionStorage.setItem(key, "1");
     setShowIntro(true);
-    const timeout = window.setTimeout(() => setShowIntro(false), 1900);
+    const timeout = window.setTimeout(() => setShowIntro(false), 1650);
     return () => window.clearTimeout(timeout);
   }, [active, season.year]);
 
@@ -220,8 +149,7 @@ export function SolarisAnniversaryCelebration() {
 
     document.body.dataset.solarisAnniversary = String(season.year);
     document.body.dataset.solarisAnniversaryPhase = season.phase;
-
-    if (active) document.body.dataset.solarisAnniversaryTone = context.tone;
+    if (active) document.body.dataset.solarisAnniversaryTone = tone;
     else delete document.body.dataset.solarisAnniversaryTone;
 
     return () => {
@@ -230,7 +158,7 @@ export function SolarisAnniversaryCelebration() {
       delete document.body.dataset.solarisAnniversaryTone;
       delete document.body.dataset.solarisAnniversaryPhase;
     };
-  }, [active, context.tone, season.phase, season.year]);
+  }, [active, season.phase, season.year, tone]);
 
   useEffect(() => {
     if (!active) return;
@@ -239,7 +167,6 @@ export function SolarisAnniversaryCelebration() {
     const handleClick = (event: MouseEvent) => {
       const target = event.target instanceof Element ? event.target.closest("a[href], button") : null;
       if (!target || reducedMotion.matches) return;
-
       const strong = Boolean(target.closest("[data-anniversary-action='major']"));
       createStarBurst(event.clientX, event.clientY, strong);
     };
@@ -259,24 +186,18 @@ export function SolarisAnniversaryCelebration() {
       : `Solaris year ${season.age + 1} has begun`;
     const detail = countdown
       ? `The ${season.ordinal} anniversary arrives on 17 September. The full Studio takeover unlocks on Anniversary Day.`
-      : `The anniversary celebration is still glowing for a few days while Solaris moves into its ${ordinal(season.age + 1)} year.`;
+      : `The celebration stays visible for a few days while Solaris moves into its ${ordinal(season.age + 1)} year.`;
 
     return isAdmin ? null : (
       <>
-        <Link
-          to="/anniversary"
-          className="solaris-anniversary-global-badge"
-          aria-label="Open the Solaris anniversary hub"
-        >
+        <Link to="/anniversary" className="solaris-anniversary-global-badge" aria-label="Open the Solaris anniversary hub">
           <span className="solaris-anniversary-badge-star" aria-hidden="true" />
           <span>17 September</span>
           <span className="solaris-anniversary-badge-divider">·</span>
           <strong>{countdown ? title : `Year ${season.age + 1} begins`}</strong>
         </Link>
 
-        <aside
-          className={`solaris-anniversary-season-notice ${countdown ? "solaris-anniversary-season-notice--countdown" : "solaris-anniversary-season-notice--after"}`}
-        >
+        <aside className={`solaris-anniversary-season-notice ${countdown ? "solaris-anniversary-season-notice--countdown" : "solaris-anniversary-season-notice--after"}`}>
           <div className="solaris-anniversary-season-mark" aria-hidden="true">
             <span>{countdown ? season.daysUntil : String(season.age + 1).padStart(2, "0")}</span>
           </div>
@@ -337,25 +258,11 @@ export function SolarisAnniversaryCelebration() {
         <strong>{season.age} years of Solaris</strong>
       </Link>
 
-      {pathname !== "/" && !isAdmin && (
-        <aside className={`solaris-anniversary-context solaris-anniversary-context--${context.tone}`}>
-          <div className="solaris-anniversary-context-mark" aria-hidden="true">
-            <span>{String(season.age).padStart(2, "0")}</span>
-          </div>
-          <div className="solaris-anniversary-context-copy">
-            <p>{context.eyebrow}</p>
-            <strong>{context.title}</strong>
-            <span>{context.detail}</span>
-          </div>
-          <Link
-            to="/anniversary"
-            className="solaris-anniversary-context-action"
-            data-anniversary-action="major"
-          >
-            Anniversary hub <span aria-hidden="true">→</span>
-          </Link>
-        </aside>
-      )}
+      {!isAdmin && pathname !== "/" && !pathname.startsWith("/anniversary") ? (
+        <Suspense fallback={null}>
+          <LazyAnniversaryDeepDive anniversaryYear={season.year} age={season.age} />
+        </Suspense>
+      ) : null}
 
       {showIntro && (
         <div className="solaris-anniversary-intro" role="status" aria-live="polite">
