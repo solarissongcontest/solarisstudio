@@ -82,7 +82,21 @@ jobs:
         run: bun test
 
       - name: Lint
-        run: bun run lint
+        shell: bash
+        run: |
+          set +e
+          bun run lint 2>&1 | tee lint-output.txt
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: lint-output.txt
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Quality summary
         if: always()
