@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import "@/anniversary-navigation.css";
+
 export function AnniversaryNavigation() {
   useEffect(() => {
     const created: HTMLElement[] = [];
