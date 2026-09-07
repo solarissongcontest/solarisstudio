@@ -202,7 +202,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
   const countriesWithHodHistory = new Set(
     canonical.hod.assignments.map((assignment: any) => String(assignment.country_id)),
   );
-  const useCountryFallback = (countryId: string | null | undefined) =>
+  const shouldUseCountryFallback = (countryId: string | null | undefined) =>
     lens === "hod" && Boolean(countryId) && !countriesWithHodHistory.has(String(countryId));
 
   const canonicalEditionByRound = new Map<string, string>();
@@ -240,7 +240,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       const voterCountry = canonical.hod.countriesByCode.get(voterCode) as any;
       const countryId = voterCountry?.id ? String(voterCountry.id) : null;
       const hod = canonical.hod.resolve(editionId, countryId, "televote");
-      const countryFallback = !hod && useCountryFallback(countryId);
+      const countryFallback = !hod && shouldUseCountryFallback(countryId);
       coverage.push({ editionId, voterCode, personId: hod?.personId ?? null });
       if (lens === "hod" && !hod && !countryFallback) continue;
 
@@ -297,7 +297,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
       const voterCode = String(voterCountry.short_code ?? voterCountry.name).toUpperCase();
       const countryId = String(first.voter_country_id);
       const hod = canonical.hod.resolve(editionId, countryId, "jury");
-      const countryFallback = !hod && useCountryFallback(countryId);
+      const countryFallback = !hod && shouldUseCountryFallback(countryId);
       coverage.push({ editionId, voterCode, personId: hod?.personId ?? null });
       if (lens === "hod" && !hod && !countryFallback) continue;
 
