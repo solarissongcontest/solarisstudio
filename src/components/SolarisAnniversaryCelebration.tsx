@@ -5,8 +5,10 @@ import "@/anniversary-global.css";
 import "@/anniversary-sitewide.css";
 import "@/anniversary-season.css";
 import { AnniversaryDeepExperience } from "@/components/AnniversaryDeepExperience";
+import { AnniversaryMilestones } from "@/components/AnniversaryMilestones";
 import { AnniversaryNavLink } from "@/components/AnniversaryNavLink";
 import { AnniversaryShareCard } from "@/components/AnniversaryShareCard";
+import { AnniversarySubmissionMoment } from "@/components/AnniversarySubmissionMoment";
 import { AnniversaryTasteEra } from "@/components/AnniversaryTasteEra";
 import {
   getSolarisAnniversarySeason,
@@ -180,8 +182,10 @@ export function SolarisAnniversaryCelebration() {
     <>
       {!isAdmin && <AnniversaryNavLink />}
       {!isAdmin && <AnniversaryDeepExperience />}
+      {!isAdmin && <AnniversaryMilestones />}
       {!isAdmin && <AnniversaryTasteEra />}
       {!isAdmin && <AnniversaryShareCard />}
+      {!isAdmin && <AnniversarySubmissionMoment />}
       <div className="solaris-anniversary-global" aria-hidden="true">
         <div className="solaris-anniversary-global-wash" />
         <div className="solaris-anniversary-orbits"><span /><span /><span /></div>
