@@ -80,7 +80,9 @@ export function AnniversaryShareCard() {
       .map((entry) => published.find((edition) => edition.id === entry.edition_id)?.edition_number)
       .filter((value): value is number => value != null);
     const debut = editionNumbers.length ? Math.min(...editionNumbers) : country.first_participation;
-    const share = published.length ? Math.round((new Set(entries.map((entry) => entry.edition_id)).size / published.length) * 100) : 0;
+    const share = published.length
+      ? Math.round((new Set(entries.map((entry) => entry.edition_id)).size / published.length) * 100)
+      : 0;
     return {
       participations: new Set(entries.map((entry) => entry.edition_id)).size,
       finals,
@@ -96,7 +98,9 @@ export function AnniversaryShareCard() {
 
   const makeCard = () => {
     const name = escapeXml(country.name.toUpperCase());
-    const subtitle = escapeXml(`${stats.participations} participations · ${stats.wins} win${stats.wins === 1 ? "" : "s"} · ${stats.finals} finals`);
+    const subtitle = escapeXml(
+      `${stats.participations} participations · ${stats.wins} win${stats.wins === 1 ? "" : "s"} · ${stats.finals} finals`,
+    );
     const debut = escapeXml(stats.debut ? `SSC ${stats.debut}` : "—");
     const rank = escapeXml(stats.bestRank ? `#${stats.bestRank}` : "—");
     const score = escapeXml(stats.bestScore ? String(stats.bestScore) : "—");
@@ -127,8 +131,7 @@ export function AnniversaryShareCard() {
 <text x="340" y="1105" fill="#ffffff" fill-opacity=".6" font-family="Arial,sans-serif" font-size="30">of published editions</text>
 <text x="90" y="1380" fill="#ffffff" fill-opacity=".4" font-family="Arial,sans-serif" font-size="24" letter-spacing="4">17 SEPTEMBER 2022 → 2026 · SOLARIS STUDIO</text>
 </svg>`;
-    const filename = `${country.short_code.toLowerCase()}-solaris-anniversary.svg`;
-    downloadSvg(filename, svg);
+    downloadSvg(`${country.short_code.toLowerCase()}-solaris-anniversary.svg`, svg);
   };
 
   return createPortal(
@@ -141,7 +144,11 @@ export function AnniversaryShareCard() {
         </span>
       </div>
       <div className="anniversary-deep-actions">
-        <button type="button" onClick={makeCard} className="anniversary-deep-download-button">
+        <button
+          type="button"
+          onClick={makeCard}
+          className="inline-flex min-h-10 items-center rounded-full border border-amber-200/25 bg-amber-200/[0.07] px-4 text-xs font-bold text-amber-50 transition hover:border-amber-200/45 hover:bg-amber-200/[0.12]"
+        >
           Download anniversary card ↓
         </button>
       </div>
