@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Vote,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,8 +25,11 @@ import {
 } from "@/integrations/televoting/anti-abuse";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import {
-  VOTE_INTEGRITY_ATTESTATION,
+  VOTE_INTEGRITY_AUTOMATION,
   VOTE_INTEGRITY_CONSEQUENCE,
+  VOTE_INTEGRITY_COORDINATION,
+  VOTE_INTEGRITY_INDEPENDENCE,
+  VOTE_INTEGRITY_PRESSURE,
   type VoteIntegrityReport,
   type VoteIntegritySeverity,
 } from "@/integrations/televoting/integrity";
@@ -57,7 +61,7 @@ type Country = {
   flag_url: string | null;
 };
 
-type Stage = "register" | "vote" | "integrity" | "done";
+type Stage = "register" | "vote" | "review" | "integrity" | "done";
 type ClientIdentity = Awaited<ReturnType<typeof buildTelevotingClientIdentity>>;
 
 const TOTAL = 20;
@@ -91,6 +95,15 @@ function severityClass(severity: VoteIntegritySeverity) {
   return "border-sky-300/20 bg-sky-300/10 text-sky-100";
 }
 
+function reasonLabel(reason: string) {
+  if (reason === "historical_relationship") return "Unusual historical support pattern";
+  if (reason === "reciprocal_pattern") return "Reciprocal support pattern";
+  if (reason === "recent_persistence") return "Repeated recent support";
+  if (reason === "unusual_similarity") return "Unusual ballot similarity";
+  if (reason === "multiple_relationships") return "Several unusual relationships";
+  return "Unusual voting pattern";
+}
+
 export function TelevotingBooth({
   roundId,
   roundName,
@@ -116,6 +129,8 @@ export function TelevotingBooth({
   const [signedName, setSignedName] = useState("");
   const [acceptedAutomatic, setAcceptedAutomatic] = useState(false);
   const [acceptedIndependence, setAcceptedIndependence] = useState(false);
+  const [acceptedCoordination, setAcceptedCoordination] = useState(false);
+  const [acceptedPressure, setAcceptedPressure] = useState(false);
   const [acceptedConsequences, setAcceptedConsequences] = useState(false);
 
   const { data: countries = [], isLoading: countriesLoading } = useQuery({
@@ -225,11 +240,12 @@ export function TelevotingBooth({
       setPendingIdentity(identity);
       setPendingBallot(ballot);
       if (report.requiresAttestation) {
-        setSignedName("");
-        setAcceptedAutomatic(false);
-        setAcceptedIndependence(false);
-        setAcceptedConsequences(false);
+        resetDeclarationState();
         setStage("integrity");
+        return;
+      }
+      if (report.interventionLevel === "notice" || report.interventionLevel === "review") {
+        setStage("review");
         return;
       }
       submitMutation.mutate({ token: report.token, ballot, identity });
@@ -250,14 +266,12 @@ export function TelevotingBooth({
           signedName,
           acceptedAutomaticDetection: acceptedAutomatic,
           acceptedIndependence,
+          acceptedCoordination,
+          acceptedPressure,
           acceptedConsequences,
         },
       });
-      return {
-        token: integrityReport.token,
-        ballot: pendingBallot,
-        identity: pendingIdentity,
-      };
+      return { token: integrityReport.token, ballot: pendingBallot, identity: pendingIdentity };
     },
     onSuccess: (payload) => submitMutation.mutate(payload),
     onError: (caught) => {
@@ -265,19 +279,34 @@ export function TelevotingBooth({
     },
   });
 
+  function resetDeclarationState() {
+    setSignedName("");
+    setAcceptedAutomatic(false);
+    setAcceptedIndependence(false);
+    setAcceptedCoordination(false);
+    setAcceptedPressure(false);
+    setAcceptedConsequences(false);
+  }
+
   function clearIntegrityState() {
     setIntegrityReport(null);
     setPendingBallot([]);
     setPendingIdentity(null);
-    setSignedName("");
-    setAcceptedAutomatic(false);
-    setAcceptedIndependence(false);
-    setAcceptedConsequences(false);
+    resetDeclarationState();
   }
 
   function returnToBallot() {
     clearIntegrityState();
     setStage("vote");
+  }
+
+  function submitPendingReviewedBallot() {
+    if (!integrityReport || !pendingIdentity || !pendingBallot.length) return;
+    submitMutation.mutate({
+      token: integrityReport.token,
+      ballot: pendingBallot,
+      identity: pendingIdentity,
+    });
   }
 
   function adjust(entryKey: string, delta: number) {
@@ -314,7 +343,6 @@ export function TelevotingBooth({
           <h2 className="mt-2 text-2xl font-medium">Register to vote</h2>
           <p className="mt-2 text-sm text-muted-foreground">Choose a display name and the fictional Solaris country you represent.</p>
         </header>
-
         <div className="mt-6 space-y-4">
           <div>
             <label htmlFor="merged-vote-username" className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Username</label>
@@ -332,8 +360,50 @@ export function TelevotingBooth({
             </p>
           </div>
         </div>
-
         <Button className="mt-6 w-full" disabled={!canContinue} onClick={() => setStage("vote")}><Vote className="size-4" /> Enter voting booth</Button>
+      </section>
+    );
+  }
+
+  if (stage === "review" && integrityReport) {
+    const isReview = integrityReport.interventionLevel === "review";
+    return (
+      <section className="mx-auto max-w-2xl space-y-4">
+        <div className={cn("rounded-2xl border p-6", severityClass(integrityReport.severity))}>
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 size-6 shrink-0" />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.15em]">Automatic Voting Integrity System</p>
+              <h2 className="mt-2 text-2xl font-black">{isReview ? "Please review your ballot" : "A voting-integrity notice"}</h2>
+              <p className="mt-2 text-sm leading-6 opacity-90">
+                Solaris noticed an unusual voting pattern. This is <strong>not</strong> a finding of misconduct. Make sure your ballot reflects your own independent preferences before continuing.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {integrityReport.reasonCategories?.length ? (
+          <div className="glass-strong p-5">
+            <p className="text-xs font-bold">General reason categories</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {integrityReport.reasonCategories.map((reason) => (
+                <span key={reason} className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-muted-foreground">
+                  {reasonLabel(reason)}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+              Exact detector thresholds are kept private. The warning exists to encourage an independent review, not to accuse you of cheating.
+            </p>
+          </div>
+        ) : null}
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button variant="outline" className="min-h-12" onClick={returnToBallot}><ArrowLeft className="size-4" /> Review my votes</Button>
+          <Button className="min-h-12" onClick={submitPendingReviewedBallot} disabled={submitMutation.isPending}>
+            <ShieldCheck className="size-4" /> {submitMutation.isPending ? "Submitting…" : "My ballot is correct"}
+          </Button>
+        </div>
       </section>
     );
   }
@@ -343,7 +413,10 @@ export function TelevotingBooth({
       signedName.trim().toLowerCase() === username.trim().toLowerCase() &&
       acceptedAutomatic &&
       acceptedIndependence &&
+      acceptedCoordination &&
+      acceptedPressure &&
       acceptedConsequences;
+    const provisional = integrityReport.interventionLevel === "provisional_review";
 
     return (
       <section className="mx-auto max-w-3xl space-y-4">
@@ -354,40 +427,35 @@ export function TelevotingBooth({
                 <ShieldAlert className="size-6 shrink-0" />
                 <p className="text-xs font-black uppercase tracking-[0.15em]">Automatic Voting Integrity System</p>
                 <span className="rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-bold">{severityLabel(integrityReport.severity)} · {integrityReport.riskScore}/100</span>
+                {integrityReport.confidence != null ? <span className="rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-bold">Confidence {integrityReport.confidence}%</span> : null}
               </div>
-              <h2 className="mt-4 text-2xl font-black sm:text-3xl">Your ballot was automatically flagged before submission</h2>
+              <h2 className="mt-4 text-2xl font-black sm:text-3xl">Voting Integrity Declaration required</h2>
               <p className="mt-3 text-sm leading-6 opacity-90">
-                <strong>No person flagged this ballot.</strong> Solaris' automatic voting-fraud system compared the ballot with historical voting patterns linked to your HOD and your country, including previous televotes and jury votes.
+                <strong>No person flagged this ballot.</strong> Solaris detected a combination of patterns strong enough to require an explicit declaration before submission.
               </p>
               <p className="mt-2 text-sm leading-6 opacity-80">
-                A flag is not proof of misconduct. It means the statistical pattern is strong enough that you must review the ballot and make an explicit declaration if you still want to submit it.
+                An automated flag is not proof of misconduct. Recent editions carry more weight than older history, while older patterns still contribute context.
               </p>
+              {provisional ? <p className="mt-3 rounded-xl border border-red-200/20 bg-red-950/20 p-3 text-xs leading-5">Because this case also contains unusually strong current-round coordination evidence, the ballot will be recorded for organizer integrity review rather than automatically rejected.</p> : null}
             </div>
-            <button type="button" onClick={returnToBallot} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-current/25 bg-black/15 px-4 text-sm font-bold">
-              <ArrowLeft className="size-4" /> Change my votes
-            </button>
-          </div>
-        </div>
-
-        <div className="glass-strong p-5 sm:p-6">
-          <div className="flex items-start gap-3 rounded-xl border border-emerald-200/15 bg-emerald-200/[0.055] p-4">
-            <PenLine className="mt-0.5 size-5 shrink-0 text-emerald-100" />
-            <div>
-              <p className="text-sm font-bold text-emerald-100">Nothing has been submitted yet</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">You can go back, change any points you want, and run the automatic check again. The current warning does not lock your ballot.</p>
-              <Button type="button" variant="outline" className="mt-3" onClick={returnToBallot}><ArrowLeft className="size-4" /> Go back and change votes</Button>
-            </div>
+            <Button type="button" variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button>
           </div>
         </div>
 
         <div className="glass-strong p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-100/65">Why the automatic system flagged this</p>
-              <h3 className="mt-1 text-xl font-bold">Detected historical relationships</h3>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-100/65">Why this requires a declaration</p>
+              <h3 className="mt-1 text-xl font-bold">Relevant relationship evidence</h3>
             </div>
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] text-muted-foreground">Relationship risk {integrityReport.relationshipRisk}/100</span>
           </div>
+
+          {integrityReport.reasonCategories?.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {integrityReport.reasonCategories.map((reason) => <span key={reason} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] text-muted-foreground">{reasonLabel(reason)}</span>)}
+            </div>
+          ) : null}
 
           <div className="mt-4 space-y-3">
             {integrityReport.findings.map((finding, index) => (
@@ -397,38 +465,22 @@ export function TelevotingBooth({
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-bold">{finding.targetName}</p>
                       <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-semibold">{finding.lens === "hod" ? "HOD history" : "Country history"}</span>
-                      <span className="rounded-full border border-amber-200/20 bg-amber-200/[0.07] px-2 py-1 text-[10px] font-semibold text-amber-100">Signal {finding.riskScore}</span>
                     </div>
                     <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{finding.scopeLabel}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center text-[10px] sm:grid-cols-3">
                     <MiniStat label="Editions" value={String(finding.uniqueEditions)} />
-                    <MiniStat label="Support" value={`${finding.supportFrequency}%`} />
+                    <MiniStat label="Recent evidence" value={finding.effectiveRecentEditions == null ? "–" : finding.effectiveRecentEditions.toFixed(1)} />
                     <MiniStat label="Confidence" value={`${finding.confidence}%`} />
                   </div>
                 </div>
-                <ul className="mt-3 space-y-1.5 text-xs leading-5 text-muted-foreground">
-                  {finding.reasons.map((reason) => <li key={reason}>• {reason}</li>)}
-                  {finding.crossChannelEditions > 0 ? <li>• Jury + televote reinforcement appears in {finding.crossChannelEditions} edition{finding.crossChannelEditions === 1 ? "" : "s"}.</li> : null}
-                  {finding.reciprocalSupport > 0 ? <li>• Historical reciprocal support rate: {finding.reciprocalSupport}%.</li> : null}
-                </ul>
+                {finding.reasons.length ? <ul className="mt-3 space-y-1.5 text-xs leading-5 text-muted-foreground">{finding.reasons.map((reason) => <li key={reason}>• {reason}</li>)}</ul> : null}
               </article>
             ))}
           </div>
 
-          {integrityReport.technicalSignals.length ? (
-            <div className="mt-4 space-y-2">
-              {integrityReport.technicalSignals.map((signal) => (
-                <div key={signal.key} className="rounded-xl border border-violet-200/15 bg-violet-200/[0.045] p-3">
-                  <p className="text-xs font-bold text-violet-100">{signal.title}</p>
-                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{signal.description}</p>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
           <div className="mt-4 rounded-xl border border-white/8 bg-black/10 p-3 text-[11px] leading-5 text-muted-foreground">
-            Historical check scanned {integrityReport.history.televoteBallotsConsidered} stored televote ballot{integrityReport.history.televoteBallotsConsidered === 1 ? "" : "s"} and {integrityReport.history.juryBallotsConsidered} jury ballot{integrityReport.history.juryBallotsConsidered === 1 ? "" : "s"}. {integrityReport.history.hodHistoryAvailable ? "A historical HOD identity was available for this edition." : "No HOD identity was available for this edition, so country history carries more of the comparison."}
+            Historical check scanned {integrityReport.history.televoteBallotsConsidered} stored televote ballot{integrityReport.history.televoteBallotsConsidered === 1 ? "" : "s"} and {integrityReport.history.juryBallotsConsidered} jury ballot{integrityReport.history.juryBallotsConsidered === 1 ? "" : "s"}. Four-edition-old evidence is worth about 60% of current-edition evidence in the recent-history model.
           </div>
         </div>
 
@@ -436,22 +488,18 @@ export function TelevotingBooth({
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 size-6 shrink-0 text-red-200" />
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-100/70">Declaration required to continue</p>
-              <h3 className="mt-1 text-xl font-black">If you still want to submit this ballot, sign this declaration</h3>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">You can still avoid signing entirely by going back and changing your votes.</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-100/70">Voting Integrity Declaration</p>
+              <h3 className="mt-1 text-xl font-black">Confirm each statement individually</h3>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">You can instead return to the ballot and change your votes. Nothing has been submitted yet.</p>
             </div>
           </div>
 
           <div className="mt-5 space-y-3">
-            <IntegrityCheckbox checked={acceptedAutomatic} onChange={setAcceptedAutomatic}>
-              I understand that <strong>Solaris' automatic Voting Integrity System</strong>, not a person, generated this warning. I have read why my ballot was flagged and understand that an automated flag is not by itself a finding of misconduct.
-            </IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedIndependence} onChange={setAcceptedIndependence}>
-              {VOTE_INTEGRITY_ATTESTATION}
-            </IntegrityCheckbox>
-            <IntegrityCheckbox checked={acceptedConsequences} onChange={setAcceptedConsequences}>
-              {VOTE_INTEGRITY_CONSEQUENCE}
-            </IntegrityCheckbox>
+            <IntegrityCheckbox checked={acceptedAutomatic} onChange={setAcceptedAutomatic}>{VOTE_INTEGRITY_AUTOMATION}</IntegrityCheckbox>
+            <IntegrityCheckbox checked={acceptedIndependence} onChange={setAcceptedIndependence}>{VOTE_INTEGRITY_INDEPENDENCE}</IntegrityCheckbox>
+            <IntegrityCheckbox checked={acceptedCoordination} onChange={setAcceptedCoordination}>{VOTE_INTEGRITY_COORDINATION}</IntegrityCheckbox>
+            <IntegrityCheckbox checked={acceptedPressure} onChange={setAcceptedPressure}>{VOTE_INTEGRITY_PRESSURE}</IntegrityCheckbox>
+            <IntegrityCheckbox checked={acceptedConsequences} onChange={setAcceptedConsequences}>{VOTE_INTEGRITY_CONSEQUENCE}</IntegrityCheckbox>
           </div>
 
           <label className="mt-5 block">
@@ -461,24 +509,12 @@ export function TelevotingBooth({
           </label>
 
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            <Button type="button" variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}>
-              <ArrowLeft className="size-4" /> Change my votes instead
-            </Button>
-            <Button
-              type="button"
-              className="min-h-12 bg-red-600 text-white hover:bg-red-500"
-              disabled={!canSign || attestationMutation.isPending || submitMutation.isPending}
-              onClick={() => attestationMutation.mutate()}
-            >
-              <PenLine className="size-4" />
-              {attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : "Sign declaration & submit"}
+            <Button type="button" variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Change my votes instead</Button>
+            <Button type="button" className="min-h-12 bg-red-600 text-white hover:bg-red-500" disabled={!canSign || attestationMutation.isPending || submitMutation.isPending} onClick={() => attestationMutation.mutate()}>
+              <PenLine className="size-4" /> {attestationMutation.isPending || submitMutation.isPending ? "Recording declaration…" : "Sign declaration & submit"}
             </Button>
           </div>
         </div>
-
-        <button type="button" onClick={returnToBallot} className="mx-auto flex min-h-11 items-center gap-2 px-4 text-sm font-semibold text-sky-100 underline underline-offset-4">
-          <ArrowLeft className="size-4" /> I want to review and change my ballot first
-        </button>
       </section>
     );
   }
@@ -530,7 +566,7 @@ export function TelevotingBooth({
 
       <div className="televote-submit-bar glass-strong flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="outline" onClick={() => { clearIntegrityState(); setPoints({}); }} disabled={!used || checking}><RotateCcw className="size-4" /> Reset ballot</Button>
-        <div className="televote-submit-help text-xs leading-5 text-muted-foreground sm:text-right">Exactly 20 points · at least 5 entries · max 10 per entry<br /><span className="text-sky-100/65">Every ballot is automatically checked against HOD, country, jury and televote history before submission.</span></div>
+        <div className="televote-submit-help text-xs leading-5 text-muted-foreground sm:text-right">Exactly 20 points · at least 5 entries · max 10 per entry<br /><span className="text-sky-100/65">Every ballot is checked for current and historical integrity patterns before submission.</span></div>
         <Button disabled={!canSubmit || checking} onClick={() => preflightMutation.mutate()}><ShieldAlert className="size-4" /> {checking ? "Checking ballot…" : "Review & submit"}</Button>
       </div>
     </section>

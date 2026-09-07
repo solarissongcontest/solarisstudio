@@ -20,6 +20,8 @@ const emptyCoordination = () => ({
   groups: [],
   edges: [],
   stats: {
+    modelVersion: "friend-voting-model-v4",
+    editionDecay: 0.88,
     knownControllerObservations: 0,
     knownControllerEdges: 0,
     qualifiedEdges: 0,
@@ -30,13 +32,13 @@ const emptyCoordination = () => ({
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const [{ getMergedIntelligenceServer }, { loadFriendVotingSettingsServer }, { getCoordinationGroupsServer }] = await Promise.all([
-      import("@/integrations/televoting/intelligence.server"),
+    const [{ getMergedIntelligenceV4Server }, { loadFriendVotingSettingsServer }, { getCoordinationGroupsServer }] = await Promise.all([
+      import("@/integrations/televoting/intelligence-v4.server"),
       import("@/integrations/televoting/friend-voting-settings.server"),
       import("@/integrations/televoting/coordination-groups.server"),
     ]);
     const settings = await loadFriendVotingSettingsServer();
-    const result = await getMergedIntelligenceServer({ ...data, advancedModel: settings.advancedModel });
+    const result = await getMergedIntelligenceV4Server(data, settings);
     const coordination = data.lens === "hod" ? await getCoordinationGroupsServer(data, settings) : emptyCoordination();
     return {
       ...result,
@@ -54,12 +56,12 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
 export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const [{ getMergedIntelligenceServer }, { loadFriendVotingSettingsServer }] = await Promise.all([
-      import("@/integrations/televoting/intelligence.server"),
+    const [{ getMergedIntelligenceV4Server }, { loadFriendVotingSettingsServer }] = await Promise.all([
+      import("@/integrations/televoting/intelligence-v4.server"),
       import("@/integrations/televoting/friend-voting-settings.server"),
     ]);
     const settings = await loadFriendVotingSettingsServer();
-    const result = await getMergedIntelligenceServer({ ...data, advancedModel: settings.advancedModel });
+    const result = await getMergedIntelligenceV4Server(data, settings);
     if (!result) throw new Error("Friend-voting analysis returned no data");
     return {
       ...result,

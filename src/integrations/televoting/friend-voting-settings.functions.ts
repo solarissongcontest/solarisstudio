@@ -33,22 +33,38 @@ const positiveInt = (value: unknown, name: string, min = 1) => {
   return number;
 };
 
-const advanced = (data: FriendVotingSettings) => ({
-  bayesianPriorAlpha: weight(data.advancedModel.bayesianPriorAlpha, "Bayesian alpha"),
-  bayesianPriorBeta: weight(data.advancedModel.bayesianPriorBeta, "Bayesian beta"),
-  relationshipAnomalyWeight: weight(data.advancedModel.relationshipAnomalyWeight, "Relationship anomaly weight"),
-  historicalDeviationWeight: weight(data.advancedModel.historicalDeviationWeight, "Historical deviation weight"),
-  reciprocityWeight: weight(data.advancedModel.reciprocityWeight, "Advanced reciprocity weight"),
-  intensityWeight: weight(data.advancedModel.intensityWeight, "Advanced intensity weight"),
-  juryWeight: weight(data.advancedModel.juryWeight, "Jury weight"),
-  televoteWeight: weight(data.advancedModel.televoteWeight, "Televote weight"),
-  crossChannelWeight: weight(data.advancedModel.crossChannelWeight, "Cross-channel weight"),
-  networkWeight: weight(data.advancedModel.networkWeight, "Network weight"),
-  countryStrengthWeight: weight(data.advancedModel.countryStrengthWeight, "Country-strength weight"),
-  minimumEvidenceForStrongRisk: positiveInt(data.advancedModel.minimumEvidenceForStrongRisk, "Minimum evidence for strong risk"),
-  oneEditionCap: risk(data.advancedModel.oneEditionCap, "Advanced one-edition cap"),
-  twoEditionCap: risk(data.advancedModel.twoEditionCap, "Advanced two-edition cap"),
-});
+const advanced = (data: FriendVotingSettings): FriendVotingSettings["advancedModel"] => {
+  const model = data.advancedModel;
+  const recentHistoryShare = fraction(model.recentHistoryShare ?? 0.75, "Recent-history share");
+  const lifetimeHistoryShare = fraction(model.lifetimeHistoryShare ?? 0.25, "Lifetime-history share");
+  if (recentHistoryShare + lifetimeHistoryShare <= 0) {
+    throw new Error("Recent and lifetime history shares cannot both be zero");
+  }
+
+  return {
+    bayesianPriorAlpha: weight(model.bayesianPriorAlpha, "Bayesian alpha"),
+    bayesianPriorBeta: weight(model.bayesianPriorBeta, "Bayesian beta"),
+    relationshipAnomalyWeight: weight(model.relationshipAnomalyWeight, "Relationship anomaly weight"),
+    historicalDeviationWeight: weight(model.historicalDeviationWeight, "Historical deviation weight"),
+    reciprocityWeight: weight(model.reciprocityWeight, "Advanced reciprocity weight"),
+    intensityWeight: weight(model.intensityWeight, "Advanced intensity weight"),
+    juryWeight: weight(model.juryWeight, "Jury weight"),
+    televoteWeight: weight(model.televoteWeight, "Televote weight"),
+    crossChannelWeight: weight(model.crossChannelWeight, "Cross-channel weight"),
+    networkWeight: weight(model.networkWeight, "Network weight"),
+    countryStrengthWeight: weight(model.countryStrengthWeight, "Country-strength weight"),
+    rankPatternWeight: weight(model.rankPatternWeight ?? 6, "Rank-pattern weight"),
+    similarityWeight: weight(model.similarityWeight ?? 12, "Ballot-similarity weight"),
+    continuityWeight: weight(model.continuityWeight ?? 4, "Continuity weight"),
+    editionDecay: fraction(model.editionDecay ?? 0.88, "Edition decay"),
+    lifetimeFloor: fraction(model.lifetimeFloor ?? 0.15, "Lifetime evidence floor"),
+    recentHistoryShare,
+    lifetimeHistoryShare,
+    minimumEvidenceForStrongRisk: positiveInt(model.minimumEvidenceForStrongRisk, "Minimum evidence for strong risk"),
+    oneEditionCap: risk(model.oneEditionCap, "Advanced one-edition cap"),
+    twoEditionCap: risk(model.twoEditionCap, "Advanced two-edition cap"),
+  };
+};
 
 export const getFriendVotingSettings = createServerFn({ method: "GET" }).handler(async () => {
   const { getFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
@@ -87,14 +103,7 @@ export const updateFriendVotingSettings = createServerFn({ method: "POST" })
       advancedModel: advanced(data),
     };
 
-    if (
-      !(
-        parsed.riskNotable <= parsed.riskReview &&
-        parsed.riskReview <= parsed.riskStrong &&
-        parsed.riskStrong <= parsed.riskHigh &&
-        parsed.riskHigh <= parsed.riskCritical
-      )
-    ) {
+    if (!(parsed.riskNotable <= parsed.riskReview && parsed.riskReview <= parsed.riskStrong && parsed.riskStrong <= parsed.riskHigh && parsed.riskHigh <= parsed.riskCritical)) {
       throw new Error("Risk bands must increase from notable to critical");
     }
 

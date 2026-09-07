@@ -51,7 +51,7 @@ describe("country HOD ownership history", () => {
     expect(migration).toContain("country-account-self");
     expect(intelligence).toContain("canonical.hod.resolve");
     expect(intelligence).toContain("countriesWithHodHistory");
-    expect(intelligence).toContain("useCountryFallback");
+    expect(intelligence).toContain("shouldUseCountryFallback");
     expect(intelligence).toContain('if (lens === "hod" && !hod && !countryFallback) continue;');
     expect(intelligence).toContain("country-fallback:");
     expect(intelligence).not.toContain("unknown:${editionId}:${voterCode}");

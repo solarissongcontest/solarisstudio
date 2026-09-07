@@ -1,18 +1,32 @@
 import { randomUUID } from "node:crypto";
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  FRIEND_VOTING_MODEL_VERSION,
+  calculateAdvancedFriendVotingRisk,
+  type AdvancedFriendVotingObservation,
+} from "@/integrations/televoting/advanced-friend-voting";
+import { calculateBallotSimilarityRisk } from "@/integrations/televoting/ballot-similarity";
 import { canonicalEditionForRound, loadCanonicalVotingContextServer } from "@/integrations/televoting/canonical-context.server";
-import { calculateFriendVotingRisk } from "@/integrations/televoting/friend-voting-math";
 import { loadFriendVotingSettingsServer } from "@/integrations/televoting/friend-voting-settings.server";
+import { editionAge, recentEditionWeight } from "@/integrations/televoting/history-weighting";
 import {
   VOTE_INTEGRITY_ATTESTATION,
+  VOTE_INTEGRITY_AUTOMATION,
   VOTE_INTEGRITY_CONSEQUENCE,
+  VOTE_INTEGRITY_COORDINATION,
+  VOTE_INTEGRITY_INDEPENDENCE,
+  VOTE_INTEGRITY_PRESSURE,
   VOTE_INTEGRITY_STATEMENT_VERSION,
   type VoteIntegrityFinding,
   type VoteIntegrityReport,
   type VoteIntegritySeverity,
   type VoteIntegrityTechnicalSignal,
 } from "@/integrations/televoting/integrity";
+import {
+  interventionRequiresAttestation,
+  resolveIntegrityIntervention,
+} from "@/integrations/televoting/integrity-policy";
 import { getTelevotingNetworkSignals } from "@/integrations/televoting/network.server";
 import { enforceTelevotingRateLimit } from "@/integrations/televoting/rate-limit.server";
 
@@ -39,6 +53,7 @@ type VoteEntryRow = { submission_id: string; target_country_code: string; points
 type RoundEntryRow = { round_id: string; entry_key: string; country_code: string | null };
 type Observation = {
   editionId: string;
+  editionNumber: number | null;
   channel: "televote" | "jury";
   voterCode: string;
   voterCountryId: string | null;
@@ -49,6 +64,8 @@ type Observation = {
   supported: boolean;
   maximum: boolean;
   normalized: number;
+  rank: number | null;
+  participantCount: number;
 };
 
 const ignoredDeletedCategories = new Set([
@@ -83,98 +100,112 @@ function ballotMap(entries: VotePreflightInput["entries"]) {
   return Object.fromEntries(entries.map((entry) => [entry.target_country_code, entry.points]));
 }
 
+function ranksForScores(rows: Array<{ target: string; score: number }>) {
+  const ordered = [...rows].sort((a, b) => b.score - a.score || a.target.localeCompare(b.target));
+  const rank = new Map<string, number>();
+  ordered.forEach((row, index) => rank.set(row.target, index + 1));
+  return rank;
+}
+
+function advancedObservation(row: Observation, lens: "hod" | "country"): AdvancedFriendVotingObservation {
+  return {
+    editionId: row.editionId,
+    editionNumber: row.editionNumber,
+    channel: row.channel,
+    voterId: lens === "hod" && row.hodPersonId ? `hod:${row.hodPersonId}` : `country:${row.voterCode}`,
+    targetCode: row.targetCode,
+    score: row.score,
+    maxScore: row.maxScore,
+    supported: row.supported,
+    maximum: row.maximum,
+    rank: row.rank,
+    participantCount: row.participantCount,
+  };
+}
+
+function reciprocalEvidence(
+  pair: Observation[],
+  allObservations: Observation[],
+  settings: Awaited<ReturnType<typeof loadFriendVotingSettingsServer>>,
+) {
+  const currentEdition = Math.max(
+    ...allObservations.map((row) => Number(row.editionNumber)).filter((value) => Number.isFinite(value)),
+    ...pair.map((row) => Number(row.editionNumber)).filter((value) => Number.isFinite(value)),
+  );
+  const byEdition = new Map<string, { weight: number; supported: boolean }>();
+  for (const observation of pair) {
+    const reverse = allObservations.filter(
+      (candidate) =>
+        candidate.editionId === observation.editionId &&
+        candidate.channel === observation.channel &&
+        candidate.voterCode === observation.targetCode &&
+        candidate.targetCode === observation.voterCode,
+    );
+    if (!reverse.length) continue;
+    const age = Number.isFinite(currentEdition) && observation.editionNumber != null
+      ? editionAge(currentEdition, observation.editionNumber)
+      : 0;
+    const weight = recentEditionWeight(age, settings.advancedModel.editionDecay);
+    const current = byEdition.get(observation.editionId) ?? { weight, supported: false };
+    current.weight = Math.max(current.weight, weight);
+    if (observation.supported && reverse.some((candidate) => candidate.supported)) current.supported = true;
+    byEdition.set(observation.editionId, current);
+  }
+  const rows = [...byEdition.values()];
+  const opportunities = rows.reduce((sum, row) => sum + row.weight, 0);
+  const supported = rows.reduce((sum, row) => sum + (row.supported ? row.weight : 0), 0);
+  return {
+    rate: opportunities > 0 ? supported / opportunities : 0,
+    effectiveEditions: opportunities,
+    rawEditions: rows.length,
+  };
+}
+
 function relationshipFinding(
   observations: Observation[],
   allObservations: Observation[],
   targetCode: string,
   lens: "hod" | "country",
   currentCountryCode: string,
-  currentHodPersonId: string | null,
   targetName: string,
   settings: Awaited<ReturnType<typeof loadFriendVotingSettingsServer>>,
 ): VoteIntegrityFinding | null {
   const pair = observations.filter((observation) => observation.targetCode === targetCode);
   if (!pair.length) return null;
 
-  const editions = new Set(pair.map((observation) => observation.editionId));
-  const supportChannels = new Map<string, Set<string>>();
-  const maximumEditions = new Set<string>();
-  const normalizedByEdition = new Map<string, { total: number; count: number }>();
-  const reciprocalByEdition = new Map<string, { opportunities: number; supported: boolean }>();
-
-  for (const observation of pair) {
-    if (observation.supported) {
-      const channels = supportChannels.get(observation.editionId) ?? new Set<string>();
-      channels.add(observation.channel);
-      supportChannels.set(observation.editionId, channels);
-    }
-    if (observation.maximum) maximumEditions.add(observation.editionId);
-
-    const normalized = normalizedByEdition.get(observation.editionId) ?? { total: 0, count: 0 };
-    normalized.total += observation.normalized;
-    normalized.count += 1;
-    normalizedByEdition.set(observation.editionId, normalized);
-
-    const reverse = allObservations.filter(
-      (candidate) =>
-        candidate.editionId === observation.editionId &&
-        candidate.channel === observation.channel &&
-        candidate.voterCode === targetCode &&
-        candidate.targetCode === observation.voterCode,
-    );
-    if (reverse.length) {
-      const reciprocal = reciprocalByEdition.get(observation.editionId) ?? { opportunities: 0, supported: false };
-      reciprocal.opportunities += 1;
-      if (observation.supported && reverse.some((candidate) => candidate.supported)) reciprocal.supported = true;
-      reciprocalByEdition.set(observation.editionId, reciprocal);
-    }
-  }
-
-  const uniqueEditions = editions.size;
-  const supportFrequency = uniqueEditions ? supportChannels.size / uniqueEditions : 0;
-  const maximumFrequency = uniqueEditions ? maximumEditions.size / uniqueEditions : 0;
-  const normalizedEditionAverages = [...normalizedByEdition.values()].map((row) =>
-    row.count ? row.total / row.count : 0,
+  const reciprocal = reciprocalEvidence(pair, allObservations, settings);
+  const advanced = calculateAdvancedFriendVotingRisk(
+    pair.map((row) => advancedObservation(row, lens)),
+    allObservations.map((row) => advancedObservation(row, lens)),
+    reciprocal.rate,
+    reciprocal.effectiveEditions,
+    null,
+    settings.advancedModel,
   );
-  const normalizedAverage = normalizedEditionAverages.length
-    ? normalizedEditionAverages.reduce((sum, value) => sum + value, 0) / normalizedEditionAverages.length
-    : 0;
-  const reciprocalEditions = [...reciprocalByEdition.values()].filter((row) => row.opportunities > 0);
-  const reciprocalSupport = reciprocalEditions.length
-    ? reciprocalEditions.filter((row) => row.supported).length / reciprocalEditions.length
-    : 0;
-  const crossChannelEditions = [...supportChannels.values()].filter(
-    (channels) => channels.has("jury") && channels.has("televote"),
-  ).length;
 
-  const risk = calculateFriendVotingRisk(
-    {
-      uniqueEditions,
-      opportunities: pair.length,
-      supportFrequency,
-      maximumFrequency,
-      reciprocalSupport,
-      normalizedAverage,
-      crossChannelEditions,
-    },
-    settings,
-  );
+  const maximumFrequency = pair.length
+    ? pair.filter((row) => row.maximum).length / pair.length
+    : 0;
 
   return {
     targetCode,
     targetName,
     lens,
     scopeLabel: lens === "hod"
-      ? "Your HOD history across the countries/editions you controlled"
-      : `Historical voting from ${currentCountryCode}`,
-    riskScore: risk.riskScore,
-    confidence: risk.confidence,
-    uniqueEditions,
-    supportFrequency: pct(supportFrequency),
+      ? "Your recent-weighted HOD history across the countries and editions you controlled"
+      : `Recent-weighted historical voting from ${currentCountryCode}`,
+    riskScore: advanced.overallRisk,
+    confidence: advanced.confidence,
+    uniqueEditions: advanced.sampleSize.editions,
+    supportFrequency: pct(advanced.evidence.recentSupportRate),
     maximumFrequency: pct(maximumFrequency),
-    reciprocalSupport: pct(reciprocalSupport),
-    crossChannelEditions,
-    reasons: risk.reasons,
+    reciprocalSupport: pct(reciprocal.rate),
+    crossChannelEditions: advanced.evidence.crossChannelEditions,
+    reasons: advanced.reasons,
+    recentRisk: advanced.recentRisk,
+    lifetimeRisk: advanced.lifetimeRisk,
+    effectiveRecentEditions: advanced.sampleSize.effectiveRecentEditions,
+    continuityRisk: advanced.continuityRisk,
   };
 }
 
@@ -212,6 +243,12 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
   if (currentRound.status !== "open") throw new Error("Voting round is not open");
 
   const canonicalEditionId = canonicalEditionForRound(canonical, currentRound);
+  const editionNumberFor = (editionId: string | null | undefined) => {
+    if (!editionId) return null;
+    const edition = canonical.hod.editionsById.get(String(editionId)) as any;
+    const value = Number(edition?.edition_number);
+    return Number.isFinite(value) ? value : null;
+  };
   const currentCountry = canonical.hod.countriesByCode.get(countryCode) as any;
   const currentCountryId = currentCountry?.id ? String(currentCountry.id) : null;
   const currentHod = canonical.hod.resolve(canonicalEditionId, currentCountryId, "televote");
@@ -234,12 +271,11 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
   const participantsByRound = new Map<string, Set<string>>();
   for (const row of roundEntryRows) {
     const code = upper(row.country_code);
-    if (code) {
-      roundEntryCountry.set(`${row.round_id}:${row.entry_key}`, code);
-      const participants = participantsByRound.get(row.round_id) ?? new Set<string>();
-      participants.add(code);
-      participantsByRound.set(row.round_id, participants);
-    }
+    if (!code) continue;
+    roundEntryCountry.set(`${row.round_id}:${row.entry_key}`, code);
+    const participants = participantsByRound.get(row.round_id) ?? new Set<string>();
+    participants.add(code);
+    participantsByRound.set(row.round_id, participants);
   }
 
   const voteEntriesBySubmission = new Map<string, VoteEntryRow[]>();
@@ -263,29 +299,31 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     const hod = canonical.hod.resolve(editionId, voterCountryId, "televote");
     const rawEntries = voteEntriesBySubmission.get(submission.id) ?? [];
     const scoreByTarget = new Map<string, number>();
-    let maxScore = 0;
     for (const entry of rawEntries) {
-      maxScore = Math.max(maxScore, Number(entry.points || 0));
       const targetCode = roundEntryCountry.get(`${submission.round_id}:${entry.target_country_code}`) ?? upper(entry.target_country_code);
       if (targetCode) scoreByTarget.set(targetCode, Number(entry.points || 0));
     }
-    const participants = participantsByRound.get(submission.round_id) ?? new Set<string>();
-    if (participants.size) historicalTelevoteBallots += 1;
-    for (const targetCode of participants) {
-      if (targetCode === voterCode) continue;
-      const score = scoreByTarget.get(targetCode) ?? 0;
+    const participants = [...(participantsByRound.get(submission.round_id) ?? new Set<string>())].filter((target) => target !== voterCode);
+    const scoreRows = participants.map((target) => ({ target, score: scoreByTarget.get(target) ?? 0 }));
+    const rankByTarget = ranksForScores(scoreRows);
+    const maxScore = Math.max(0, ...scoreRows.map((row) => row.score));
+    if (participants.length) historicalTelevoteBallots += 1;
+    for (const row of scoreRows) {
       allObservations.push({
         editionId,
+        editionNumber: editionNumberFor(editionId),
         channel: "televote",
         voterCode,
         voterCountryId,
         hodPersonId: hod?.personId ?? null,
-        targetCode,
-        score,
+        targetCode: row.target,
+        score: row.score,
         maxScore,
-        supported: score > 0,
-        maximum: score > 0 && maxScore > 0 && score === maxScore,
-        normalized: maxScore > 0 ? score / maxScore : 0,
+        supported: row.score > 0,
+        maximum: row.score > 0 && maxScore > 0 && row.score === maxScore,
+        normalized: maxScore > 0 ? row.score / maxScore : 0,
+        rank: rankByTarget.get(row.target) ?? null,
+        participantCount: scoreRows.length,
       });
     }
   }
@@ -307,9 +345,7 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     const voterCode = upper(voterCountry.short_code ?? voterCountry.name);
     const hod = canonical.hod.resolve(first.edition_id, first.voter_country_id, "jury");
     const scoreByTarget = new Map<string, number>();
-    let maxScore = 0;
     for (const vote of ballotVotes) {
-      maxScore = Math.max(maxScore, Number(vote.points ?? 0));
       if (!vote.receiving_country_id) continue;
       const target = canonical.hod.countriesById.get(vote.receiving_country_id) as any;
       if (target) scoreByTarget.set(upper(target.short_code ?? target.name), Number(vote.points ?? 0));
@@ -317,98 +353,109 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     const participantIds = first.show_id
       ? canonical.participantsByShow.get(String(first.show_id)) ?? new Set<string>()
       : canonical.editionParticipants.get(String(first.edition_id)) ?? new Set<string>();
-    if (participantIds.size) historicalJuryBallots += 1;
+    const scoreRows: Array<{ target: string; score: number }> = [];
     for (const targetCountryId of participantIds) {
       if (targetCountryId === first.voter_country_id) continue;
       const target = canonical.hod.countriesById.get(targetCountryId) as any;
       if (!target) continue;
       const targetCode = upper(target.short_code ?? target.name);
-      const score = scoreByTarget.get(targetCode) ?? 0;
+      scoreRows.push({ target: targetCode, score: scoreByTarget.get(targetCode) ?? 0 });
+    }
+    const rankByTarget = ranksForScores(scoreRows);
+    const maxScore = Math.max(0, ...scoreRows.map((row) => row.score));
+    if (scoreRows.length) historicalJuryBallots += 1;
+    for (const row of scoreRows) {
       allObservations.push({
         editionId: String(first.edition_id),
+        editionNumber: editionNumberFor(first.edition_id),
         channel: "jury",
         voterCode,
         voterCountryId: String(first.voter_country_id),
         hodPersonId: hod?.personId ?? null,
-        targetCode,
-        score,
+        targetCode: row.target,
+        score: row.score,
         maxScore,
-        supported: score > 0,
-        maximum: score > 0 && maxScore > 0 && score === maxScore,
-        normalized: maxScore > 0 ? score / maxScore : 0,
+        supported: row.score > 0,
+        maximum: row.score > 0 && maxScore > 0 && row.score === maxScore,
+        normalized: maxScore > 0 ? row.score / maxScore : 0,
+        rank: rankByTarget.get(row.target) ?? null,
+        participantCount: scoreRows.length,
       });
     }
   }
 
   const currentEntries = roundEntryRows.filter((row) => row.round_id === input.roundId);
   const currentEntryCode = new Map(currentEntries.map((row) => [row.entry_key, upper(row.country_code)]));
-  const proposedByCode = new Map<string, number>();
   const proposedEntryPoints = new Map(input.entries.map((entry) => [entry.target_country_code, Number(entry.points)]));
-  const proposedMax = Math.max(0, ...input.entries.map((entry) => Number(entry.points || 0)));
-  const currentParticipants = participantsByRound.get(input.roundId) ?? new Set<string>();
-
+  const proposedByCode = new Map<string, number>();
+  const currentParticipants = [...(participantsByRound.get(input.roundId) ?? new Set<string>())].filter((target) => target !== countryCode);
   for (const row of currentEntries) {
     const targetCode = currentEntryCode.get(row.entry_key);
-    if (!targetCode) continue;
-    proposedByCode.set(targetCode, proposedEntryPoints.get(row.entry_key) ?? 0);
+    if (targetCode) proposedByCode.set(targetCode, proposedEntryPoints.get(row.entry_key) ?? 0);
   }
+  const proposedRows = currentParticipants.map((target) => ({ target, score: proposedByCode.get(target) ?? 0 }));
+  const proposedRanks = ranksForScores(proposedRows);
+  const proposedMax = Math.max(0, ...proposedRows.map((row) => row.score));
 
   if (canonicalEditionId) {
-    for (const targetCode of currentParticipants) {
-      if (targetCode === countryCode) continue;
-      const score = proposedByCode.get(targetCode) ?? 0;
+    for (const row of proposedRows) {
       allObservations.push({
         editionId: canonicalEditionId,
+        editionNumber: editionNumberFor(canonicalEditionId),
         channel: "televote",
         voterCode: countryCode,
         voterCountryId: currentCountryId,
         hodPersonId: currentHod?.personId ?? null,
-        targetCode,
-        score,
+        targetCode: row.target,
+        score: row.score,
         maxScore: proposedMax,
-        supported: score > 0,
-        maximum: score > 0 && proposedMax > 0 && score === proposedMax,
-        normalized: proposedMax > 0 ? score / proposedMax : 0,
+        supported: row.score > 0,
+        maximum: row.score > 0 && proposedMax > 0 && row.score === proposedMax,
+        normalized: proposedMax > 0 ? row.score / proposedMax : 0,
+        rank: proposedRanks.get(row.target) ?? null,
+        participantCount: proposedRows.length,
       });
     }
   }
 
-  const supportedTargets = [...proposedByCode.entries()].filter(([, points]) => points > 0).map(([code]) => code);
+  const supportedTargets = proposedRows.filter((row) => row.score > 0).map((row) => row.target);
   const findings: VoteIntegrityFinding[] = [];
+  const countryObservations = allObservations.filter((observation) => observation.voterCode === countryCode);
+  const hodObservations = currentHod?.personId
+    ? allObservations.filter((observation) => observation.hodPersonId === currentHod.personId)
+    : [];
 
   for (const targetCode of supportedTargets) {
     const targetName = countryName.get(targetCode) ?? targetCode;
-    const countryObservations = allObservations.filter((observation) => observation.voterCode === countryCode);
-    const countryFinding = relationshipFinding(
-      countryObservations,
-      allObservations,
-      targetCode,
-      "country",
-      countryCode,
-      currentHod?.personId ?? null,
-      targetName,
-      settings,
-    );
+    const countryFinding = relationshipFinding(countryObservations, allObservations, targetCode, "country", countryCode, targetName, settings);
     if (countryFinding) findings.push(countryFinding);
-
     if (currentHod?.personId) {
-      const hodObservations = allObservations.filter((observation) => observation.hodPersonId === currentHod.personId);
-      const hodFinding = relationshipFinding(
-        hodObservations,
-        allObservations,
-        targetCode,
-        "hod",
-        countryCode,
-        currentHod.personId,
-        targetName,
-        settings,
-      );
+      const hodFinding = relationshipFinding(hodObservations, allObservations, targetCode, "hod", countryCode, targetName, settings);
       if (hodFinding) findings.push(hodFinding);
     }
   }
 
   findings.sort((a, b) => b.riskScore - a.riskScore || b.confidence - a.confidence);
+  const relationshipFindings = findings.filter((finding) => finding.riskScore >= settings.riskNotable);
   const relationshipRisk = Math.max(0, ...findings.map((finding) => finding.riskScore));
+  const relationshipConfidence = findings[0]?.confidence ?? 0;
+
+  const activeSameRound = ((submissionsResult.data ?? []) as SubmissionRow[]).filter(
+    (submission) => submission.round_id === input.roundId && submission.status !== "deleted",
+  );
+  const currentEntryKeys = currentEntries.map((row) => row.entry_key);
+  const sameRoundBallots = activeSameRound.map((submission) => ({
+    voterId: submission.id,
+    allocations: Object.fromEntries(
+      (voteEntriesBySubmission.get(submission.id) ?? []).map((entry) => [entry.target_country_code, Number(entry.points ?? 0)]),
+    ),
+  }));
+  const similarity = calculateBallotSimilarityRisk({
+    current: { voterId: `pending:${username.toLowerCase()}`, allocations: ballotMap(input.entries) },
+    others: sameRoundBallots,
+    participants: currentEntryKeys,
+  });
+  const similarityConfidence = sameRoundBallots.length ? Math.min(100, (sameRoundBallots.length / 8) * 100) : 0;
 
   const historicalIdentitySubmissions = usableSubmissions
     .map((submission) => {
@@ -437,12 +484,37 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
       }]
     : [];
 
-  const relationshipFindings = findings.filter((finding) => finding.riskScore >= settings.riskNotable);
-  const multiRelationshipBonus = new Set(relationshipFindings.map((finding) => finding.targetCode)).size >= 3 ? 6 : 0;
-  const ipContextBonus = ipChanged && relationshipRisk >= settings.riskNotable ? 8 : 0;
-  const riskScore = Math.min(100, relationshipRisk + multiRelationshipBonus + ipContextBonus);
-  const requiresAttestation = relationshipRisk >= settings.riskNotable;
+  const notableTargets = new Set(relationshipFindings.map((finding) => finding.targetCode));
+  const multiRelationshipBonus = notableTargets.size >= 3 ? 6 : 0;
+  const corroborationBonus = relationshipRisk >= 50 && similarity.risk >= 50 ? 5 : 0;
+  const riskScore = Math.min(100, Math.max(relationshipRisk, similarity.risk) + multiRelationshipBonus + corroborationBonus);
+  const confidence = Math.round(Math.max(
+    relationshipConfidence,
+    similarity.risk > 0 ? Math.min(similarity.risk, similarityConfidence) : 0,
+  ));
+  const strongSignalCount = [
+    relationshipRisk >= 65,
+    similarity.risk >= 65,
+    findings.some((finding) => finding.reciprocalSupport >= 60),
+    findings.some((finding) => (finding.continuityRisk ?? 0) >= 65),
+    notableTargets.size >= 3,
+  ].filter(Boolean).length;
+  const interventionLevel = resolveIntegrityIntervention({
+    risk: riskScore,
+    confidence,
+    strongSignalCount,
+    currentCoordinationEvidence: similarity.currentCoordinationEvidence,
+  });
+  const requiresAttestation = interventionRequiresAttestation(interventionLevel);
   const severity = severityForRisk(riskScore, settings);
+
+  const reasonCategories = [
+    ...(relationshipRisk >= settings.riskNotable ? ["historical_relationship"] : []),
+    ...(findings.some((finding) => finding.reciprocalSupport >= 60) ? ["reciprocal_pattern"] : []),
+    ...(findings.some((finding) => (finding.continuityRisk ?? 0) >= 65) ? ["recent_persistence"] : []),
+    ...(similarity.risk >= settings.riskNotable ? ["unusual_similarity"] : []),
+    ...(notableTargets.size >= 3 ? ["multiple_relationships"] : []),
+  ];
 
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 20 * 60_000).toISOString();
@@ -452,6 +524,23 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     juryBallotsConsidered: historicalJuryBallots,
     previousIpFingerprints: previousIpHashes.length,
     ipChanged,
+    effectiveRecentEditions: findings[0]?.effectiveRecentEditions ?? 0,
+    effectiveLifetimeEditions: findings[0]?.uniqueEditions ?? 0,
+  };
+
+  const adminEvidence = {
+    strongSignalCount,
+    notableTargetCount: notableTargets.size,
+    similarity: {
+      risk: similarity.risk,
+      strongestSimilarity: similarity.strongestSimilarity,
+      baselineMean: similarity.baselineMean,
+      baselineSd: similarity.baselineSd,
+      zScore: similarity.zScore,
+      matchedVoterId: similarity.matchedVoterId,
+      currentCoordinationEvidence: similarity.currentCoordinationEvidence,
+      comparisonBallots: sameRoundBallots.length,
+    },
   };
 
   const { error: insertError } = await tv.from("vote_preflight_checks").insert({
@@ -468,11 +557,16 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     hod_person_id: currentHod?.personId ?? null,
     relationship_risk: relationshipRisk,
     risk_score: riskScore,
+    confidence,
     severity,
+    intervention_level: interventionLevel,
     requires_attestation: requiresAttestation,
     findings: relationshipFindings.slice(0, 10),
     technical_signals: technicalSignals,
     history_summary: history,
+    model_version: FRIEND_VOTING_MODEL_VERSION,
+    voter_reason_categories: reasonCategories,
+    admin_evidence: adminEvidence,
     statement_version: VOTE_INTEGRITY_STATEMENT_VERSION,
     expires_at: expiresAt,
   });
@@ -482,10 +576,14 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     token,
     expiresAt,
     automatic: true,
+    modelVersion: FRIEND_VOTING_MODEL_VERSION,
     relationshipRisk,
     riskScore,
+    confidence,
     severity,
+    interventionLevel,
     requiresAttestation,
+    reasonCategories,
     findings: relationshipFindings.slice(0, 10),
     technicalSignals,
     history,
@@ -525,7 +623,14 @@ export async function signVoteIntegrityAttestationServer(input: {
     throw new Error("Your connection changed during the integrity review. Return to the ballot and run the automatic check again.");
   }
 
-  const attestationText = `${VOTE_INTEGRITY_ATTESTATION}\n\n${VOTE_INTEGRITY_CONSEQUENCE}`;
+  const attestationText = [
+    VOTE_INTEGRITY_AUTOMATION,
+    VOTE_INTEGRITY_INDEPENDENCE,
+    VOTE_INTEGRITY_COORDINATION,
+    VOTE_INTEGRITY_PRESSURE,
+    VOTE_INTEGRITY_CONSEQUENCE,
+    VOTE_INTEGRITY_ATTESTATION,
+  ].join("\n\n");
   const { error: updateError } = await tv
     .from("vote_preflight_checks")
     .update({

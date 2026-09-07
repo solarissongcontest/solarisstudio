@@ -38,6 +38,8 @@ import {
 } from "@/integrations/televoting/conversion.functions";
 import { getMergedTelevotingRounds } from "@/integrations/televoting/rounds.functions";
 
+type Engine = "rank-weighted-v1" | "robust-televote-v2";
+
 export function VotingResultsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -52,7 +54,14 @@ export function VotingResultsView() {
   const [roundId, setRoundId] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [totalPoints, setTotalPoints] = useState("");
+  const [engine, setEngine] = useState<Engine>("robust-televote-v2");
   const [exponent, setExponent] = useState("");
+  const [ballotExponent, setBallotExponent] = useState("0.75");
+  const [breadthFloor, setBreadthFloor] = useState("0.75");
+  const [breadthExponent, setBreadthExponent] = useState("0.50");
+  const [supportExponent, setSupportExponent] = useState("1.20");
+  const [rankBoostStrength, setRankBoostStrength] = useState("0.80");
+  const [rankBoostShape, setRankBoostShape] = useState("1.30");
   const [advanced, setAdvanced] = useState(false);
   const [broadcastMode, setBroadcastMode] = useState<"original" | "converted" | "combined">("converted");
   const [readiness, setReadiness] = useState<string[] | null>(null);
@@ -79,7 +88,6 @@ export function VotingResultsView() {
     () => editions.flatMap((edition) => edition.rounds.map((round) => ({ ...round, editionName: edition.name }))),
     [editions],
   );
-
   const effectiveRoundId = roundId || allRounds.find((round) => round.status === "closed")?.id || allRounds[0]?.id || "";
 
   const { data, isLoading, error } = useQuery({
@@ -91,7 +99,14 @@ export function VotingResultsView() {
   useEffect(() => {
     if (!data?.round) return;
     setTotalPoints(String(data.round.total_points_to_distribute ?? 0));
+    setEngine((data.round.televote_engine_version ?? "rank-weighted-v1") as Engine);
     setExponent(String(data.round.rank_exponent ?? 1.33));
+    setBallotExponent(String(data.round.ballot_exponent ?? 0.75));
+    setBreadthFloor(String(data.round.breadth_floor ?? 0.75));
+    setBreadthExponent(String(data.round.breadth_exponent ?? 0.5));
+    setSupportExponent(String(data.round.support_exponent ?? 1.2));
+    setRankBoostStrength(String(data.round.rank_boost_strength ?? 0.8));
+    setRankBoostShape(String(data.round.rank_boost_shape ?? 1.3));
     setAdvanced(Boolean(data.round.public_advanced_transparency));
     setBroadcastMode(data.round.broadcast_display_mode ?? "converted");
     setReadiness(null);
@@ -107,16 +122,22 @@ export function VotingResultsView() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      updateConfig({
-        data: {
-          roundId: effectiveRoundId,
-          totalPoints: Number(totalPoints),
-          rankExponent: Number(exponent),
-          advancedTransparency: advanced,
-          broadcastMode,
-        },
-      }),
+    mutationFn: () => updateConfig({
+      data: {
+        roundId: effectiveRoundId,
+        totalPoints: Number(totalPoints),
+        engineVersion: engine,
+        rankExponent: Number(exponent),
+        ballotExponent: Number(ballotExponent),
+        breadthFloor: Number(breadthFloor),
+        breadthExponent: Number(breadthExponent),
+        supportExponent: Number(supportExponent),
+        rankBoostStrength: Number(rankBoostStrength),
+        rankBoostShape: Number(rankBoostShape),
+        advancedTransparency: advanced,
+        broadcastMode,
+      },
+    }),
     onSuccess: async (result) => {
       setSettingsOpen(false);
       toast.success(result.outdated ? "Settings saved · result needs recalculation" : "Result settings saved");
@@ -169,12 +190,17 @@ export function VotingResultsView() {
   const storedRows = (data?.stored ?? []) as Array<{
     country_code: string;
     original_votes: number;
-    original_rank: number;
+    original_rank: number | null;
+    robust_rank?: number | null;
+    effective_points?: number | null;
+    effective_supporters?: number | null;
+    breadth_factor?: number | null;
+    rank_boost?: number | null;
+    engine_version?: string | null;
     final_points: number;
   }>;
-
   const sortedRows = useMemo(
-    () => [...storedRows].sort((a, b) => Number(b.final_points) - Number(a.final_points) || Number(a.original_rank) - Number(b.original_rank)),
+    () => [...storedRows].sort((a, b) => Number(b.final_points) - Number(a.final_points) || Number(a.robust_rank ?? a.original_rank ?? 999) - Number(b.robust_rank ?? b.original_rank ?? 999)),
     [storedRows],
   );
 
@@ -183,12 +209,12 @@ export function VotingResultsView() {
       <AdminPageHeader
         eyebrow="Voting"
         title="Televote result"
-        description="One guided path from closed voting to a published official result. Conversion details remain available without dominating the workflow."
+        description="Calculate, inspect and publish the official televote. Robust v2 reduces single-voter leverage while preserving a dramatic Eurovision-style point distribution."
         actions={
           <AdminMoreMenu label="Result actions" title="Result tools" description="Configuration, recalculation and public preview.">
             <div className="divide-y divide-white/[0.07]">
-              <AdminActionItem icon={Settings2} title="Conversion settings" description="Point pool, rank exponent, public transparency and broadcast display." onClick={() => setSettingsOpen(true)} />
-              <AdminActionItem icon={RefreshCw} title="Recalculate result" description="Re-run the stored conversion using current entries and settings." onClick={() => {
+              <AdminActionItem icon={Settings2} title="Conversion settings" description="Engine, point pool, robust-v2 parameters, transparency and broadcast display." onClick={() => setSettingsOpen(true)} />
+              <AdminActionItem icon={RefreshCw} title="Recalculate result" description="Re-run the versioned conversion using current ballots and settings." onClick={() => {
                 const protectedResult = data?.round.results_status === "locked" || data?.round.results_status === "published";
                 if (protectedResult) setProtectedRecalcOpen(true);
                 else recalcMutation.mutate(false);
@@ -228,23 +254,34 @@ export function VotingResultsView() {
                   <div className="min-w-0">
                     <p className="admin-section-label">Official workflow</p>
                     <h2 className="mt-1 truncate text-lg font-bold tracking-[-.02em]">{data.round.name}</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">Calculation v{data.round.calculation_version} · {data.participants.length} entries</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Calculation v{data.round.calculation_version} · {data.participants.length} entries · <span className="font-semibold text-foreground">{data.round.televote_engine_version}</span></p>
                   </div>
                   <AdminStatus tone={resultTone(data.round.results_status)}>{resultLabel(data.round.results_status)}</AdminStatus>
                 </div>
-
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <Step number="1" label="Vote" done={data.round.status === "closed" || data.round.results_status !== "draft"} active={data.round.status !== "closed" && data.round.results_status === "draft"} />
                   <Step number="2" label="Calculate" done={data.round.calculation_version > 0 && !data.round.results_outdated} active={data.round.status === "closed" && (data.round.calculation_version <= 0 || data.round.results_outdated)} />
                   <Step number="3" label="Publish" done={data.round.results_status === "published"} active={data.round.results_status === "locked"} />
                 </div>
-
-                {data.round.results_outdated ? (
-                  <div className="mt-4 rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-sm leading-relaxed text-amber-100">The line-up or conversion settings changed after the stored calculation. Recalculate before locking or publishing.</div>
-                ) : null}
-
+                {data.round.results_outdated ? <div className="mt-4 rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-sm leading-relaxed text-amber-100">The line-up or calculation settings changed after the stored result. Recalculate before locking or publishing.</div> : null}
                 <div className="mt-4">{primaryAction(data)}</div>
               </AdminCard>
+
+              {data.robustPreview ? (
+                <AdminCard>
+                  <AdminCardHeader eyebrow="Robust v2 preview" title="Support and influence shaping" action={<AdminStatus tone="info">Preview</AdminStatus>} />
+                  <p className="mb-4 text-xs leading-5 text-muted-foreground">Every valid ballot is softened and renormalized to equal total power, concentrated support receives only a bounded adjustment, and rank amplification is capped. This preview uses the exact official v2 engine.</p>
+                  <div className="divide-y divide-white/[0.06]">
+                    {data.robustPreview.rows.slice(0, 10).map((row) => (
+                      <div key={row.code} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 py-2.5 text-sm">
+                        <span className="numeric text-center text-xs text-muted-foreground">{row.robustRank}</span>
+                        <div className="min-w-0"><p className="truncate font-semibold">{row.code}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{row.effectivePoints.toFixed(1)} effective · {row.effectiveSupporters.toFixed(1)} effective supporters · breadth ×{row.breadthFactor.toFixed(3)} · rank ×{row.rankBoost.toFixed(3)}</p></div>
+                        <span className="numeric font-bold text-sky-100">{row.finalPoints} pts</span>
+                      </div>
+                    ))}
+                  </div>
+                </AdminCard>
+              ) : null}
 
               {readiness !== null ? (
                 <AdminCard className={readiness.length ? "border-amber-200/15 bg-amber-200/[0.035]" : "border-emerald-200/15 bg-emerald-200/[0.03]"}>
@@ -262,35 +299,53 @@ export function VotingResultsView() {
                 </div>
                 {sortedRows.length ? (
                   <div className="divide-y divide-white/[0.06]">
-                    {sortedRows.map((row, index) => (
-                      <div key={row.country_code} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 text-sm sm:px-5">
-                        <span className="numeric text-center text-xs text-muted-foreground">{index + 1}</span>
-                        <div className="min-w-0"><p className="truncate font-semibold">{row.country_code}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{row.original_votes} raw votes · raw rank #{row.original_rank}</p></div>
-                        <span className="numeric text-right font-bold text-sky-100">{row.final_points} pts</span>
-                      </div>
-                    ))}
+                    {sortedRows.map((row, index) => {
+                      const robust = row.engine_version === "robust-televote-v2" || row.robust_rank != null;
+                      return (
+                        <div key={row.country_code} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 text-sm sm:px-5">
+                          <span className="numeric text-center text-xs text-muted-foreground">{index + 1}</span>
+                          <div className="min-w-0"><p className="truncate font-semibold">{row.country_code}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{row.original_votes} raw · {robust ? `robust rank #${row.robust_rank ?? "–"} · ${Number(row.effective_supporters ?? 0).toFixed(1)} effective supporters` : `raw rank #${row.original_rank ?? "–"}`}</p></div>
+                          <span className="numeric text-right font-bold text-sky-100">{row.final_points} pts</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="p-4"><AdminEmptyState icon={Calculator} title="No stored calculation" description="Close voting and calculate the result when the ballot set is final." /></div>
-                )}
+                ) : <div className="p-4"><AdminEmptyState icon={Calculator} title="No stored calculation" description="Close voting and calculate the result when the ballot set is final." /></div>}
               </AdminCard>
             </>
           )}
         </div>
       )}
 
-      <AdminSheet open={settingsOpen} onClose={() => !saveMutation.isPending && setSettingsOpen(false)} title="Conversion settings" description="Advanced calculation and display controls. Changing them can make an existing stored result outdated.">
+      <AdminSheet open={settingsOpen} onClose={() => !saveMutation.isPending && setSettingsOpen(false)} title="Conversion settings" description="Versioned calculation controls. Existing published results keep the engine and parameters they were calculated with unless you explicitly recalculate them.">
         <div className="space-y-4">
+          <div className="space-y-2"><Label>Calculation engine</Label><select value={engine} onChange={(event) => setEngine(event.target.value as Engine)} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm"><option value="robust-televote-v2">Robust Televote v2 · recommended</option><option value="rank-weighted-v1">Legacy rank-weighted v1</option></select></div>
           <div className="space-y-2"><Label>Total points</Label><Input inputMode="numeric" value={totalPoints} onChange={(event) => setTotalPoints(event.target.value)} className="min-h-11" /></div>
-          <div className="space-y-2"><Label>Rank exponent</Label><Input inputMode="decimal" value={exponent} onChange={(event) => setExponent(event.target.value)} className="min-h-11" /></div>
+
+          {engine === "rank-weighted-v1" ? (
+            <div className="space-y-2"><Label>Legacy rank exponent</Label><Input inputMode="decimal" value={exponent} onChange={(event) => setExponent(event.target.value)} className="min-h-11" /><p className="text-[11px] text-muted-foreground">Historical v1 default: 1.33.</p></div>
+          ) : (
+            <div className="space-y-3 rounded-xl border border-sky-200/10 bg-sky-200/[0.025] p-4">
+              <div><p className="text-sm font-bold">Eurovision Robust preset</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Softens individual maximum scores, rewards breadth gently, amplifies genuine support, and caps the rank bonus at a predictable level.</p></div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <NumberSetting label="Ballot exponent" value={ballotExponent} setValue={setBallotExponent} hint="0.75 recommended" />
+                <NumberSetting label="Breadth floor" value={breadthFloor} setValue={setBreadthFloor} hint="0.75 recommended" />
+                <NumberSetting label="Breadth shape" value={breadthExponent} setValue={setBreadthExponent} hint="0.50 recommended" />
+                <NumberSetting label="Support exponent" value={supportExponent} setValue={setSupportExponent} hint="1.20 recommended" />
+                <NumberSetting label="Rank boost strength" value={rankBoostStrength} setValue={setRankBoostStrength} hint="0.80 = max 1.8×" />
+                <NumberSetting label="Rank boost shape" value={rankBoostShape} setValue={setRankBoostShape} hint="1.30 recommended" />
+              </div>
+              <button type="button" className="admin-action-secondary w-full" onClick={() => { setBallotExponent("0.75"); setBreadthFloor("0.75"); setBreadthExponent("0.50"); setSupportExponent("1.20"); setRankBoostStrength("0.80"); setRankBoostShape("1.30"); }}>Restore recommended robust preset</button>
+            </div>
+          )}
+
           <div className="space-y-2"><Label>Broadcast display</Label><select value={broadcastMode} onChange={(event) => setBroadcastMode(event.target.value as typeof broadcastMode)} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm"><option value="converted">Converted points</option><option value="original">Original votes</option><option value="combined">Both</option></select></div>
-          <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-sm"><span><span className="block font-semibold">Advanced public transparency</span><span className="mt-1 block text-xs text-muted-foreground">Show conversion intermediates after publication.</span></span><input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} className="size-5 shrink-0" /></label>
+          <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-sm"><span><span className="block font-semibold">Advanced public transparency</span><span className="mt-1 block text-xs text-muted-foreground">Show calculation intermediates after publication.</span></span><input type="checkbox" checked={advanced} onChange={(event) => setAdvanced(event.target.checked)} className="size-5 shrink-0" /></label>
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2"><button type="button" disabled={saveMutation.isPending} onClick={() => setSettingsOpen(false)} className="admin-action-secondary">Cancel</button><button type="button" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()} className="admin-action-primary w-full">{saveMutation.isPending ? "Saving…" : "Save settings"}</button></div>
         </div>
       </AdminSheet>
 
-      <AdminConfirmSheet open={protectedRecalcOpen} onClose={() => setProtectedRecalcOpen(false)} onConfirm={() => recalcMutation.mutate(true)} title="Replace protected calculation?" description="This result is locked or published. Recalculation will replace the saved conversion using the current line-up and settings. Official SSC results are not changed by this tool." confirmLabel="Recalculate result" danger busy={recalcMutation.isPending} />
-
+      <AdminConfirmSheet open={protectedRecalcOpen} onClose={() => setProtectedRecalcOpen(false)} onConfirm={() => recalcMutation.mutate(true)} title="Replace protected calculation?" description="This result is locked or published. Recalculation will replace the saved conversion using the current line-up, selected versioned engine and settings. Official SSC results are not changed by this tool." confirmLabel="Recalculate result" danger busy={recalcMutation.isPending} />
       <AdminConfirmSheet open={publishOpen} onClose={() => setPublishOpen(false)} onConfirm={() => changeStatus("published")} title="Publish televote result?" description="The stored converted televote will become available on the public Televoting Results page. The publication readiness check has passed for this round." confirmLabel="Publish result" busy={statusBusy} />
     </div>
   );
@@ -310,6 +365,10 @@ export function VotingResultsView() {
     }
     return <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200/15 bg-emerald-200/[0.04] p-3"><span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-100"><CheckCircle2 className="size-4" /> Published</span><Link to="/televoting/results" className="admin-action-secondary"><Send className="size-4" /> View public</Link></div>;
   }
+}
+
+function NumberSetting({ label, value, setValue, hint }: { label: string; value: string; setValue: (value: string) => void; hint: string }) {
+  return <label className="space-y-1.5"><span className="text-xs font-semibold">{label}</span><Input inputMode="decimal" value={value} onChange={(event) => setValue(event.target.value)} className="min-h-10" /><span className="block text-[10px] text-muted-foreground">{hint}</span></label>;
 }
 
 function Step({ number, label, done, active }: { number: string; label: string; done: boolean; active: boolean }) {

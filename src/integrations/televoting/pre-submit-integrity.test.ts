@@ -32,11 +32,13 @@ describe("pre-submit voting integrity", () => {
     expect(preflight).toContain("canonical.juryVotes");
     expect(preflight).toContain('resolve(first.edition_id, first.voter_country_id, "jury")');
     expect(preflight).toContain('resolve(editionId, voterCountryId, "televote")');
-    expect(preflight).toContain("calculateFriendVotingRisk");
-    expect(preflight).toContain('targetCode,\n      "country"');
-    expect(preflight).toContain('targetCode,\n        "hod"');
-    expect(preflight).toContain("reciprocalSupport");
-    expect(preflight).toContain("crossChannelEditions");
+    expect(preflight).toContain("calculateAdvancedFriendVotingRisk");
+    expect(preflight).toContain("FRIEND_VOTING_MODEL_VERSION");
+    expect(preflight).toContain("recentEditionWeight");
+    expect(preflight).toContain("relationshipFinding(countryObservations");
+    expect(preflight).toContain("relationshipFinding(hodObservations");
+    expect(preflight).toContain("reciprocalEvidence");
+    expect(preflight).toContain("calculateBallotSimilarityRisk");
   });
 
   it("requires the exact checked ballot and a declaration when flagged", () => {
