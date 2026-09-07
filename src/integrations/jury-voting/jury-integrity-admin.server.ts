@@ -76,13 +76,20 @@ export async function listJuryIntegrityCasesServer() {
   if (showsResult.error) throw new Error(showsResult.error.message);
   if (editionsResult.error) throw new Error(editionsResult.error.message);
 
-  const shows = new Map((showsResult.data ?? []).map((row: any) => [String(row.id), String(row.name ?? "Jury show")]));
-  const editions = new Map((editionsResult.data ?? []).map((row: any) => [
-    String(row.id),
-    row.edition_number
-      ? `SSC ${Number(row.edition_number)} · ${String(row.name ?? "Edition")}`
-      : String(row.name ?? "Edition"),
-  ]));
+  const shows = new Map<string, string>(
+    (showsResult.data ?? []).map((row: any): [string, string] => [
+      String(row.id),
+      String(row.name ?? "Jury show"),
+    ]),
+  );
+  const editions = new Map<string, string>(
+    (editionsResult.data ?? []).map((row: any): [string, string] => [
+      String(row.id),
+      row.edition_number
+        ? `SSC ${Number(row.edition_number)} · ${String(row.name ?? "Edition")}`
+        : String(row.name ?? "Edition"),
+    ]),
+  );
 
   const targetIds = new Set<string>();
   for (const row of preflights) {
@@ -96,10 +103,12 @@ export async function listJuryIntegrityCasesServer() {
     ? await db.from("countries").select("id,name,short_code").in("id", [...targetIds])
     : { data: [], error: null };
   if (countriesResult.error) throw new Error(countriesResult.error.message);
-  const countryNames = new Map((countriesResult.data ?? []).map((row: any) => [
-    String(row.id),
-    String(row.name ?? row.short_code ?? row.id),
-  ]));
+  const countryNames = new Map<string, string>(
+    (countriesResult.data ?? []).map((row: any): [string, string] => [
+      String(row.id),
+      String(row.name ?? row.short_code ?? row.id),
+    ]),
+  );
 
   const cases: JuryIntegrityCase[] = preflights.map((row: any) => {
     const evidence = asObject(asObject(row.admin_evidence).juryIndependence);
