@@ -1,0 +1,545 @@
+/* Data-driven anniversary modules injected into the real public pages. */
+
+.anniv-deep-host {
+  width: 100%;
+  min-width: 0;
+}
+
+.anniv-deep {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin: 0 0 1.2rem;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(116,231,255,.12), transparent 30%),
+    radial-gradient(circle at 92% 0%, rgba(255,227,110,.08), transparent 28%),
+    linear-gradient(145deg, rgba(10,13,39,.88), rgba(8,9,27,.78));
+  padding: clamp(.9rem, 2vw, 1.25rem);
+  box-shadow: inset 0 1px rgba(255,255,255,.07), 0 18px 60px rgba(3,4,18,.16);
+  backdrop-filter: blur(20px) saturate(145%);
+}
+
+.anniv-deep::after {
+  content: "04";
+  position: absolute;
+  right: -.45rem;
+  top: -.8rem;
+  z-index: -1;
+  color: rgba(255,255,255,.025);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(5rem, 13vw, 10rem);
+  font-weight: 950;
+  line-height: .8;
+  letter-spacing: -.08em;
+  pointer-events: none;
+}
+
+.anniv-deep--compact {
+  padding: clamp(.8rem, 1.6vw, 1.05rem);
+}
+
+.anniv-deep-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: .85rem;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+}
+
+.anniv-deep-head > div {
+  min-width: 0;
+}
+
+.anniv-deep-head p,
+.anniv-deep-kicker {
+  color: rgba(255,229,135,.88);
+  font-size: .56rem;
+  font-weight: 950;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.anniv-deep-head h2 {
+  margin-top: .28rem;
+  color: rgba(255,255,255,.96);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.25rem, 2.6vw, 2.15rem);
+  font-weight: 900;
+  letter-spacing: -.045em;
+  line-height: 1;
+}
+
+.anniv-deep-head > div > span {
+  display: block;
+  max-width: 58rem;
+  margin-top: .38rem;
+  color: rgba(255,255,255,.53);
+  font-size: .73rem;
+  line-height: 1.5;
+}
+
+.anniv-deep-hub-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,227,110,.2);
+  border-radius: 999px;
+  background: rgba(255,227,110,.055);
+  padding: .58rem .75rem;
+  color: rgba(255,246,205,.88);
+  font-size: .65rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.anniv-deep-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0,1fr));
+  gap: .6rem;
+}
+
+.anniv-deep-stat,
+.anniv-deep-card,
+.anniv-deep-era-card,
+.anniv-deep-preset-row > a,
+.anniv-deep-share-card {
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,.085);
+  background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+  box-shadow: inset 0 1px rgba(255,255,255,.045);
+}
+
+.anniv-deep-stat {
+  border-radius: 1rem;
+  padding: .8rem;
+}
+
+.anniv-deep-stat > span {
+  display: block;
+  color: rgba(255,255,255,.4);
+  font-size: .52rem;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.anniv-deep-stat strong {
+  display: block;
+  margin-top: .3rem;
+  overflow-wrap: anywhere;
+  color: rgba(255,255,255,.95);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1rem, 2vw, 1.45rem);
+  font-weight: 900;
+  letter-spacing: -.035em;
+  line-height: 1.05;
+}
+
+.anniv-deep-stat small {
+  display: block;
+  margin-top: .22rem;
+  color: rgba(255,255,255,.42);
+  font-size: .58rem;
+}
+
+.anniv-deep-leader-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: .7rem;
+}
+
+.anniv-deep-card {
+  border-radius: 1.15rem;
+  padding: .9rem;
+}
+
+.anniv-deep-card h3 {
+  margin-top: .38rem;
+  overflow-wrap: anywhere;
+  color: rgba(255,255,255,.94);
+  font-family: var(--font-display, inherit);
+  font-size: 1rem;
+  font-weight: 860;
+  letter-spacing: -.025em;
+  line-height: 1.15;
+}
+
+.anniv-deep-card > span {
+  display: block;
+  margin-top: .36rem;
+  color: rgba(255,255,255,.49);
+  font-size: .68rem;
+  line-height: 1.5;
+}
+
+.anniv-deep-rank-list {
+  margin-top: .7rem;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+
+.anniv-deep-rank-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0,1fr) auto;
+  align-items: center;
+  gap: .55rem;
+  min-height: 2.5rem;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  color: rgba(255,255,255,.8);
+}
+
+.anniv-deep-rank-row:last-child {
+  border-bottom: 0;
+}
+
+.anniv-deep-rank-number {
+  color: rgba(255,227,110,.68);
+  font-size: .55rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.anniv-deep-rank-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .7rem;
+  font-weight: 780;
+}
+
+.anniv-deep-rank-row strong {
+  color: rgba(255,255,255,.64);
+  font-size: .63rem;
+  font-weight: 850;
+}
+
+.anniv-deep-timeline {
+  display: grid;
+  gap: .7rem;
+}
+
+.anniv-deep-year {
+  display: grid;
+  grid-template-columns: 4rem minmax(0,1fr);
+  gap: .8rem;
+  align-items: start;
+  padding-top: .7rem;
+  border-top: 1px solid rgba(255,255,255,.075);
+}
+
+.anniv-deep-year > strong {
+  color: rgba(255,229,135,.9);
+  font-family: var(--font-display, inherit);
+  font-size: 1.25rem;
+  letter-spacing: -.04em;
+}
+
+.anniv-deep-year > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+}
+
+.anniv-deep-year a {
+  display: grid;
+  gap: .1rem;
+  min-width: 8rem;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: .85rem;
+  background: rgba(255,255,255,.025);
+  padding: .55rem .65rem;
+}
+
+.anniv-deep-year a span {
+  color: rgba(255,255,255,.86);
+  font-size: .68rem;
+  font-weight: 850;
+}
+
+.anniv-deep-year a small {
+  max-width: 11rem;
+  overflow: hidden;
+  color: rgba(255,255,255,.4);
+  font-size: .55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.anniv-deep-moment-grid,
+.anniv-deep-three-grid {
+  display: grid;
+  gap: .7rem;
+  margin-top: .75rem;
+}
+
+.anniv-deep-moment-grid {
+  grid-template-columns: repeat(4, minmax(0,1fr));
+}
+
+.anniv-deep-three-grid {
+  grid-template-columns: repeat(3, minmax(0,1fr));
+}
+
+.anniv-deep-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  margin-top: .7rem;
+}
+
+.anniv-deep-badges span {
+  display: inline-flex;
+  min-height: 1.9rem;
+  align-items: center;
+  border: 1px solid rgba(255,227,110,.14);
+  border-radius: 999px;
+  background: rgba(255,227,110,.04);
+  padding: .38rem .6rem;
+  color: rgba(255,245,202,.72);
+  font-size: .58rem;
+  font-weight: 800;
+}
+
+.anniv-deep-share-card {
+  position: relative;
+  overflow: hidden;
+  margin-top: .75rem;
+  border-color: rgba(255,227,110,.17);
+  border-radius: 1.15rem;
+  background:
+    radial-gradient(circle at 90% 20%, rgba(255,227,110,.09), transparent 32%),
+    radial-gradient(circle at 5% 80%, rgba(116,231,255,.08), transparent 38%),
+    rgba(255,255,255,.025);
+  padding: .9rem;
+}
+
+.anniv-deep-share-card small {
+  display: block;
+  color: rgba(255,229,135,.76);
+  font-size: .53rem;
+  font-weight: 950;
+  letter-spacing: .16em;
+}
+
+.anniv-deep-share-card strong {
+  display: block;
+  margin-top: .35rem;
+  color: white;
+  font-family: var(--font-display, inherit);
+  font-size: 1.1rem;
+  letter-spacing: -.03em;
+}
+
+.anniv-deep-share-card > span {
+  display: block;
+  margin-top: .28rem;
+  color: rgba(255,255,255,.5);
+  font-size: .67rem;
+  line-height: 1.45;
+}
+
+.anniv-deep-share-card button {
+  margin-top: .65rem;
+  min-height: 2.2rem;
+  border: 1px solid rgba(116,231,255,.18);
+  border-radius: 999px;
+  background: rgba(116,231,255,.06);
+  padding: .45rem .7rem;
+  color: rgba(255,255,255,.8);
+  font-size: .62rem;
+  font-weight: 850;
+}
+
+.anniv-deep-share-card--personal strong {
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+}
+
+.anniv-deep-era-compare {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+  align-items: stretch;
+  gap: .7rem;
+}
+
+.anniv-deep-era-card {
+  display: grid;
+  gap: .22rem;
+  border-radius: 1rem;
+  padding: .85rem;
+}
+
+.anniv-deep-era-card strong {
+  color: rgba(255,229,135,.92);
+  font-family: var(--font-display, inherit);
+  font-size: 1.6rem;
+  letter-spacing: -.05em;
+}
+
+.anniv-deep-era-card span {
+  color: rgba(255,255,255,.78);
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.anniv-deep-era-card small {
+  color: rgba(255,255,255,.43);
+  font-size: .6rem;
+}
+
+.anniv-deep-era-arrow {
+  display: grid;
+  place-items: center;
+  color: rgba(116,231,255,.6);
+  font-size: 1.4rem;
+}
+
+.anniv-deep-preset-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: .65rem;
+}
+
+.anniv-deep-preset-row > a {
+  display: grid;
+  min-height: 6.7rem;
+  align-content: center;
+  border-radius: 1rem;
+  padding: .8rem;
+}
+
+.anniv-deep-preset-row small {
+  color: rgba(255,229,135,.68);
+  font-size: .51rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.anniv-deep-preset-row strong {
+  margin-top: .32rem;
+  overflow-wrap: anywhere;
+  color: rgba(255,255,255,.9);
+  font-size: .76rem;
+}
+
+.anniv-deep-preset-row span {
+  margin-top: .5rem;
+  color: rgba(116,231,255,.7);
+  font-size: .6rem;
+  font-weight: 850;
+}
+
+@media (max-width: 1100px) {
+  .anniv-deep-stats { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .anniv-deep-moment-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+@media (max-width: 760px) {
+  .anniv-deep {
+    border-radius: 1.2rem;
+    padding: .82rem;
+  }
+
+  .anniv-deep::after {
+    content: "04";
+    right: -.2rem;
+    top: -.2rem;
+    font-size: 5.4rem;
+  }
+
+  .anniv-deep-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: .65rem;
+  }
+
+  .anniv-deep-head h2 {
+    font-size: 1.28rem;
+    line-height: 1.05;
+  }
+
+  .anniv-deep-head > div > span {
+    font-size: .66rem;
+  }
+
+  .anniv-deep-hub-link {
+    min-height: 2.2rem;
+    padding: .45rem .65rem;
+  }
+
+  .anniv-deep-stats,
+  .anniv-deep-leader-grid,
+  .anniv-deep-moment-grid,
+  .anniv-deep-three-grid,
+  .anniv-deep-preset-row {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .anniv-deep-year {
+    grid-template-columns: 3.3rem minmax(0,1fr);
+  }
+
+  .anniv-deep-year a {
+    min-width: 7rem;
+  }
+
+  .anniv-deep-era-compare {
+    grid-template-columns: 1fr;
+  }
+
+  .anniv-deep-era-arrow {
+    min-height: 1.2rem;
+    transform: rotate(90deg);
+  }
+}
+
+@media (max-width: 430px) {
+  .anniv-deep-stats,
+  .anniv-deep-leader-grid,
+  .anniv-deep-moment-grid,
+  .anniv-deep-three-grid,
+  .anniv-deep-preset-row {
+    grid-template-columns: 1fr;
+  }
+
+  .anniv-deep-stat {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    align-items: baseline;
+    gap: .2rem .8rem;
+    padding: .68rem .75rem;
+  }
+
+  .anniv-deep-stat strong {
+    margin-top: 0;
+    text-align: right;
+  }
+
+  .anniv-deep-stat small {
+    grid-column: 1 / -1;
+  }
+
+  .anniv-deep-year {
+    grid-template-columns: 1fr;
+    gap: .35rem;
+  }
+
+  .anniv-deep-year > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  .anniv-deep-year a {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anniv-deep * { scroll-behavior: auto !important; }
+}
