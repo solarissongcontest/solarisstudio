@@ -2,6 +2,7 @@ import { useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import "@/anniversary-global.css";
+import { SiteAnniversaryContext } from "@/components/SiteAnniversaryContext";
 import {
   getSolarisAnniversarySeason,
   type AnniversaryPhase,
@@ -136,9 +137,6 @@ export function SolarisAnniversaryCelebration() {
 
       const url = new URL(target.href, window.location.href);
       if (url.origin !== window.location.origin) return;
-
-      // Only major anniversary links pause navigation for the larger burst. Normal
-      // navigation remains instant so Anniversary Day never makes the product feel slow.
       if (!major) return;
 
       event.preventDefault();
@@ -150,7 +148,8 @@ export function SolarisAnniversaryCelebration() {
     return () => document.removeEventListener("click", handleClick, true);
   }, [active]);
 
-  if (season.phase === "dormant") return null;
+  const siteContext = <SiteAnniversaryContext />;
+  if (season.phase === "dormant") return siteContext;
 
   const badge =
     season.phase === "countdown"
@@ -163,6 +162,7 @@ export function SolarisAnniversaryCelebration() {
 
   return (
     <>
+      {siteContext}
       {showIntro && (
         <div className="solaris-anniversary-intro" aria-hidden="true">
           <span className="solaris-anniversary-intro-orbit" />
@@ -172,10 +172,7 @@ export function SolarisAnniversaryCelebration() {
         </div>
       )}
 
-      <div
-        className={`solaris-anniversary-global phase-${season.phase}`}
-        aria-hidden="true"
-      >
+      <div className={`solaris-anniversary-global phase-${season.phase}`} aria-hidden="true">
         {active && <div className="solaris-anniversary-global-wash" />}
         {active && (
           <div className="solaris-anniversary-global-stars">
