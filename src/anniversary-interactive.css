@@ -1,0 +1,120 @@
+.anniv-taste-winner {
+  border: 1px solid rgba(255,227,110,.18);
+  border-radius: 1.1rem;
+  background: radial-gradient(circle at 90% 10%, rgba(255,227,110,.1), transparent 34%), rgba(255,255,255,.025);
+  padding: 1rem;
+}
+
+.anniv-taste-winner small,
+.anniv-taste-note,
+.anniv-taste-empty span {
+  color: rgba(255,255,255,.48);
+  font-size: .65rem;
+  line-height: 1.5;
+}
+
+.anniv-taste-winner small {
+  display: block;
+  color: rgba(255,229,135,.75);
+  font-size: .54rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.anniv-taste-winner strong {
+  display: block;
+  margin-top: .35rem;
+  color: #fff;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  letter-spacing: -.045em;
+}
+
+.anniv-taste-winner span {
+  display: block;
+  margin-top: .28rem;
+  color: rgba(255,255,255,.55);
+  font-size: .7rem;
+}
+
+.anniv-taste-bars {
+  display: grid;
+  grid-template-columns: repeat(5,minmax(0,1fr));
+  gap: .65rem;
+  margin-top: .75rem;
+}
+
+.anniv-taste-bars > div {
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.02);
+  padding: .72rem;
+}
+
+.anniv-taste-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+}
+
+.anniv-taste-label span {
+  color: rgba(255,255,255,.72);
+  font-size: .65rem;
+  font-weight: 850;
+}
+
+.anniv-taste-label strong {
+  color: rgba(255,229,135,.85);
+  font-size: .62rem;
+}
+
+.anniv-taste-track {
+  height: .42rem;
+  margin-top: .55rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+}
+
+.anniv-taste-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #74e7ff, #ffe36e);
+}
+
+.anniv-taste-bars small {
+  display: block;
+  margin-top: .45rem;
+  color: rgba(255,255,255,.36);
+  font-size: .53rem;
+}
+
+.anniv-taste-note {
+  margin-top: .7rem;
+}
+
+.anniv-taste-empty {
+  display: grid;
+  gap: .3rem;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.02);
+  padding: .9rem;
+}
+
+.anniv-taste-empty strong {
+  color: rgba(255,255,255,.88);
+  font-size: .8rem;
+}
+
+@media (max-width: 900px) {
+  .anniv-taste-bars { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+@media (max-width: 430px) {
+  .anniv-taste-bars { grid-template-columns: 1fr; }
+}
