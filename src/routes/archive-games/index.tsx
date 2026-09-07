@@ -1,9 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { getSolarisAnniversary } from "@/lib/anniversary";
 import {
   archiveGameStats,
   buildArchiveGameQuestion,
@@ -32,7 +33,25 @@ const MODES: ReadonlyArray<readonly [ArchiveGameMode, string, string]> = [
   ["archive-trivia", "Archive Trivia", "Questions about songs, artists, host cities and other archived facts, not just placements."],
 ];
 
+const ANNIVERSARY_CHALLENGE_LENGTH = 10;
+
+function anniversaryRank(score: number) {
+  if (score >= 10) return { title: "Living Archive", detail: "Apparently you have replaced ordinary memory with SSC statistics." };
+  if (score >= 8) return { title: "Solaris Historian", detail: "You know the archive disturbingly well." };
+  if (score >= 6) return { title: "Scoreboard Addict", detail: "The important numbers are clearly taking up valuable brain space." };
+  if (score >= 4) return { title: "Delegation Intern", detail: "Solid archive knowledge. Someone may trust you with a spreadsheet." };
+  return { title: "Casual Viewer", detail: "You survived the archive. That is already something." };
+}
+
 function ArchiveGamesPage() {
+  const searchStr = useLocation({ select: (location) => location.searchStr });
+  const anniversary = useMemo(() => getSolarisAnniversary(), []);
+  const preview = useMemo(() => {
+    const value = new URLSearchParams(searchStr).get("anniversary");
+    return value === "preview" || value === "active";
+  }, [searchStr]);
+  const anniversaryChallenge = anniversary.active || preview;
+
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const participantsQuery = useAllParticipants();
@@ -53,6 +72,12 @@ function ArchiveGamesPage() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
 
+  const effectiveMode = anniversaryChallenge
+    ? MODES[(Math.max(1, round) - 1) % MODES.length][0]
+    : mode;
+  const challengeComplete = anniversaryChallenge && round > ANNIVERSARY_CHALLENGE_LENGTH;
+  const challengeRank = anniversaryRank(score);
+
   const displayMap = useMemo(
     () => entityDisplayMap(entities ?? [], countries ?? []),
     [entities, countries],
@@ -71,8 +96,11 @@ function ArchiveGamesPage() {
 
   const stats = useMemo(() => archiveGameStats(gameInput), [gameInput]);
   const question = useMemo(
-    () => buildArchiveGameQuestion(gameInput, mode, `${mode}:${round}`),
-    [gameInput, mode, round],
+    () =>
+      challengeComplete
+        ? null
+        : buildArchiveGameQuestion(gameInput, effectiveMode, `${effectiveMode}:${round}:${anniversaryChallenge ? "anniversary" : "normal"}`),
+    [gameInput, effectiveMode, round, challengeComplete, anniversaryChallenge],
   );
 
   const answered = answer != null;
@@ -99,8 +127,7 @@ function ArchiveGamesPage() {
     setRound((current) => current + 1);
   };
 
-  const switchMode = (nextMode: ArchiveGameMode) => {
-    setMode(nextMode);
+  const resetChallenge = () => {
     setAnswer(null);
     setRound(1);
     setScore(0);
@@ -108,16 +135,29 @@ function ArchiveGamesPage() {
     setBestStreak(0);
   };
 
+  const switchMode = (nextMode: ArchiveGameMode) => {
+    setMode(nextMode);
+    resetChallenge();
+  };
+
   const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, countriesQuery, entitiesQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataLoading label="Preparing the archive games…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataError /></AppShell>;
+  if (archiveIsLoading(...archiveQueries)) {
+    return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataLoading label="Preparing the archive games…" /></AppShell>;
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return <AppShell><PageHeader eyebrow="Archive Games" title="Play the SSC archive" description="Quick games built from published history." /><ArchiveDataError /></AppShell>;
+  }
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Archive Games"
-        title="Play the SSC archive"
-        description="Turn published SSC history into quick games about results, entries, songs, artists and host facts. No account is needed and nothing is stored."
+        eyebrow={anniversaryChallenge ? "Anniversary challenge" : "Archive Games"}
+        title={anniversaryChallenge ? `${anniversary.age} Years Challenge` : "Play the SSC archive"}
+        description={
+          anniversaryChallenge
+            ? `Ten questions rotate through every Archive Games format. Finish the challenge to earn an anniversary archive rank.`
+            : "Turn published SSC history into quick games about results, entries, songs, artists and host facts. No account is needed and nothing is stored."
+        }
         actions={
           <Link
             to="/records"
@@ -130,37 +170,68 @@ function ArchiveGamesPage() {
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-5">
         <div className="min-w-0 space-y-4">
-          <Panel title="Game mode" description="Switching mode starts a fresh session">
-            <div className="space-y-2" role="radiogroup" aria-label="Archive game mode">
-              {MODES.map(([value, label, description]) => {
-                const active = value === mode;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={active}
-                    onClick={() => switchMode(value)}
-                    className={`w-full min-w-0 rounded-xl border px-3 py-3 text-left transition-colors ${
-                      active
-                        ? "border-primary/50 bg-surface-strong"
-                        : "border-border bg-surface hover:bg-surface-strong"
-                    }`}
-                  >
-                    <span className="block text-sm font-semibold">{label}</span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </Panel>
+          {anniversaryChallenge ? (
+            <Panel title={`${anniversary.age} Years Challenge`} description="Five archive formats rotate automatically, twice each">
+              <div className="space-y-2">
+                {MODES.map(([value, label], index) => {
+                  const active = value === effectiveMode && !challengeComplete;
+                  const completedRounds = Math.max(0, round - 1);
+                  const appearancesCompleted = Math.floor(completedRounds / MODES.length) + (completedRounds % MODES.length > index ? 1 : 0);
+                  return (
+                    <div
+                      key={value}
+                      className={`rounded-xl border px-3 py-3 ${active ? "border-primary/50 bg-surface-strong" : "border-border bg-surface"}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold">{label}</span>
+                        <span className="text-[10px] font-semibold text-muted-foreground">{Math.min(2, appearancesCompleted)}/2</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+          ) : (
+            <Panel title="Game mode" description="Switching mode starts a fresh session">
+              <div className="space-y-2" role="radiogroup" aria-label="Archive game mode">
+                {MODES.map(([value, label, description]) => {
+                  const active = value === mode;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => switchMode(value)}
+                      className={`w-full min-w-0 rounded-xl border px-3 py-3 text-left transition-colors ${
+                        active
+                          ? "border-primary/50 bg-surface-strong"
+                          : "border-border bg-surface hover:bg-surface-strong"
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold">{label}</span>
+                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Panel>
+          )}
 
-          <Panel title="Session">
-            <div className="grid grid-cols-3 gap-2">
+          <Panel title={anniversaryChallenge ? "Challenge" : "Session"}>
+            <div className={`grid gap-2 ${anniversaryChallenge ? "grid-cols-2" : "grid-cols-3"}`}>
               <Stat label="Score" value={score} />
-              <Stat label="Streak" value={streak} />
-              <Stat label="Best" value={bestStreak} />
+              {anniversaryChallenge ? <Stat label="Question" value={Math.min(round, ANNIVERSARY_CHALLENGE_LENGTH)} /> : <Stat label="Streak" value={streak} />}
+              {!anniversaryChallenge ? <Stat label="Best" value={bestStreak} /> : null}
             </div>
+            {anniversaryChallenge ? (
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-strong">
+                <div
+                  className="h-full rounded-full bg-primary transition-[width]"
+                  style={{ width: `${Math.min(100, ((Math.max(1, round) - 1) / ANNIVERSARY_CHALLENGE_LENGTH) * 100)}%` }}
+                />
+              </div>
+            ) : null}
           </Panel>
 
           <Panel title="Archive pool" description="Public historical data currently available">
@@ -174,13 +245,32 @@ function ArchiveGamesPage() {
         </div>
 
         <div className="min-w-0 space-y-4">
-          {question ? (
+          {challengeComplete ? (
+            <Panel title="Anniversary challenge complete" description={`${score}/${ANNIVERSARY_CHALLENGE_LENGTH} correct · best streak ${bestStreak}`}>
+              <div className="rounded-2xl border border-primary/30 bg-surface-strong p-5 sm:p-7">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Your Solaris Knowledge Rank</p>
+                <h2 className="mt-2 font-display text-3xl font-semibold sm:text-4xl">{challengeRank.title}</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{challengeRank.detail}</p>
+                <div className="mt-5 grid grid-cols-2 gap-2 sm:max-w-sm">
+                  <Stat label="Score" value={score} />
+                  <Stat label="Best streak" value={bestStreak} />
+                </div>
+                <button
+                  type="button"
+                  onClick={resetChallenge}
+                  className="mt-5 min-h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm font-semibold sm:w-auto"
+                >
+                  Play the challenge again
+                </button>
+              </div>
+            </Panel>
+          ) : question ? (
             <Panel
-              title={`Question ${round}`}
+              title={anniversaryChallenge ? `Question ${round} of ${ANNIVERSARY_CHALLENGE_LENGTH}` : `Question ${round}`}
               description={question.eyebrow}
               actions={
                 <span className="rounded-lg bg-surface px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  {MODES.find(([value]) => value === mode)?.[1]}
+                  {MODES.find(([value]) => value === effectiveMode)?.[1]}
                 </span>
               }
             >
@@ -234,22 +324,16 @@ function ArchiveGamesPage() {
                 </div>
 
                 {answered && (
-                  <div
-                    className={`mt-5 rounded-xl border p-4 ${
-                      correct ? "border-primary/40 bg-surface-strong" : "border-border bg-surface"
-                    }`}
-                  >
+                  <div className={`mt-5 rounded-xl border p-4 ${correct ? "border-primary/40 bg-surface-strong" : "border-border bg-surface"}`}>
                     <p className="font-display text-lg font-semibold">{correct ? "Correct" : "Not quite"}</p>
-                    <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">
-                      {question.explanation}
-                    </p>
+                    <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">{question.explanation}</p>
                     <button
                       type="button"
                       onClick={nextQuestion}
                       autoFocus
                       className="mt-4 min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold sm:w-auto"
                     >
-                      Next question →
+                      {anniversaryChallenge && round === ANNIVERSARY_CHALLENGE_LENGTH ? "See anniversary rank →" : "Next question →"}
                     </button>
                   </div>
                 )}
@@ -263,23 +347,11 @@ function ArchiveGamesPage() {
             </Panel>
           )}
 
-          <Panel title="How it works" description="Quick games generated from the public SSC archive">
+          <Panel title="How it works" description={anniversaryChallenge ? "Anniversary challenge generated from the public SSC archive" : "Quick games generated from the public SSC archive"}>
             <div className="grid gap-3 sm:grid-cols-3">
-              <InfoCard
-                number="01"
-                title="Real archive data"
-                text="Questions are generated from published Solaris results, editions, songs, artists and host information."
-              />
-              <InfoCard
-                number="02"
-                title="More than results"
-                text="Archive Trivia mixes host-city and entry questions into the games so the archive is not just placement comparisons."
-              />
-              <InfoCard
-                number="03"
-                title="Private by default"
-                text="Your score stays in this browser session and is not published to other users."
-              />
+              <InfoCard number="01" title="Real archive data" text="Questions are generated from published Solaris results, editions, songs, artists and host information." />
+              <InfoCard number="02" title={anniversaryChallenge ? "Five rotating formats" : "More than results"} text={anniversaryChallenge ? "The birthday challenge rotates Higher or Lower, Jury vs Televote, Edition Detective, Winner Detective and Archive Trivia." : "Archive Trivia mixes host-city and entry questions into the games so the archive is not just placement comparisons."} />
+              <InfoCard number="03" title="Private by default" text="Your score stays in this browser session and is not published to other users." />
             </div>
           </Panel>
         </div>
