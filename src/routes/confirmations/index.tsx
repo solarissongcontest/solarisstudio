@@ -2,7 +2,7 @@ import "@/confirmations.css";
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,6 +25,7 @@ import {
   type CountryConfirmationResponse,
 } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
+import { formatLiveCountdown, millisecondsUntil } from "@/lib/solaris-schedule";
 import { availabilityBadge, computeAvailability, type AvailabilityReason } from "@/lib/ssc";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,17 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
     new Date(value),
   );
+}
+
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return now;
 }
 
 function StatePill({ round }: { round: PublicRound }) {
@@ -94,6 +106,7 @@ function StatePill({ round }: { round: PublicRound }) {
 }
 
 function ConfirmationsPage() {
+  const now = useNow();
   const rounds = Route.useLoaderData();
   const initiallyOpen = useMemo(
     () => (rounds.length === 1 && roundReason(rounds[0]!) === "OPEN" ? rounds[0]!.id : null),
@@ -292,6 +305,8 @@ function ConfirmationsPage() {
                 const canOpen = reason === "OPEN";
                 const opens = formatDate(round.opens_at);
                 const closes = formatDate(round.closes_at);
+                const untilOpen = round.opens_at ? millisecondsUntil(round.opens_at, now) : null;
+                const untilClose = round.closes_at ? millisecondsUntil(round.closes_at, now) : null;
                 const remaining =
                   round.response_limit === null
                     ? null
@@ -331,6 +346,28 @@ function ConfirmationsPage() {
                                     ? "This round has reached its response limit."
                                     : "This round is currently closed."}
                         </p>
+
+                        {reason === "NOT_OPEN_YET" && untilOpen !== null ? (
+                          <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-sky-200/20 bg-sky-200/[0.07] px-3 py-2 text-sky-100">
+                            <Clock3 className="size-3.5 shrink-0" />
+                            <span className="numeric text-xs font-bold tabular-nums">
+                              {formatLiveCountdown(untilOpen)}
+                            </span>
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/70">
+                              until opening
+                            </span>
+                          </div>
+                        ) : canOpen && untilClose !== null ? (
+                          <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-emerald-200/20 bg-emerald-200/[0.07] px-3 py-2 text-emerald-100">
+                            <Clock3 className="size-3.5 shrink-0" />
+                            <span className="numeric text-xs font-bold tabular-nums">
+                              {formatLiveCountdown(untilClose)}
+                            </span>
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-100/70">
+                              until closing
+                            </span>
+                          </div>
+                        ) : null}
                       </div>
 
                       {ownResponse ? (
