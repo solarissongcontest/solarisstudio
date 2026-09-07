@@ -112,6 +112,7 @@ function asJsonObject(value: unknown): { [key: string]: IntegrityJsonValue } {
 export async function listIntegrityDeclarationsServer(input?: {
   limit?: number;
   signedOnly?: boolean;
+  attestationOnly?: boolean;
 }) {
   await requireMergedTelevotingAdminServer();
 
@@ -123,10 +124,10 @@ export async function listIntegrityDeclarationsServer(input?: {
     .select(
       "id,round_id,username_normalized,country_code,hod_person_id,relationship_risk,risk_score,confidence,severity,intervention_level,model_version,voter_reason_categories,admin_evidence,findings,technical_signals,history_summary,statement_version,attested_at,signed_name,attestation_text,submission_id,submitted_at,expires_at,created_at",
     )
-    .eq("requires_attestation", true)
     .order("created_at", { ascending: false })
     .limit(limit);
 
+  if (input?.attestationOnly !== false) query = query.eq("requires_attestation", true);
   if (input?.signedOnly) query = query.not("attested_at", "is", null);
 
   const { data: preflights, error } = await query;
