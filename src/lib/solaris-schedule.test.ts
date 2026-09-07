@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   confirmationDateToUtc,
   countdownParts,
+  formatCompactCountdown,
+  formatLiveCountdown,
   resolveScheduleState,
 } from "./solaris-schedule";
 
@@ -92,5 +94,13 @@ describe("entry reveal dates", () => {
       minutes: 4,
       seconds: 5,
     });
+  });
+
+  it("keeps minutes visible when a compact countdown spans days", () => {
+    expect(formatCompactCountdown(((24 * 60) + 12) * 60 * 1000)).toBe("1d 0h 12m");
+  });
+
+  it("includes seconds in a live countdown", () => {
+    expect(formatLiveCountdown((((24 * 60) + 12) * 60 + 34) * 1000)).toBe("1d 0h 12m 34s");
   });
 });
