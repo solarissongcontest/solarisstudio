@@ -78,7 +78,14 @@ export function confirmationDateToUtc(date: string | null | undefined) {
 
 export function formatCompactCountdown(milliseconds: number) {
   const { days, hours, minutes } = countdownParts(milliseconds);
-  if (days > 0) return `${days}d ${hours}h`;
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${Math.max(minutes, 1)}m`;
+}
+
+export function formatLiveCountdown(milliseconds: number) {
+  const { days, hours, minutes, seconds } = countdownParts(milliseconds);
+  if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  return `${minutes}m ${seconds}s`;
 }
