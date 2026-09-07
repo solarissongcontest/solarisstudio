@@ -1,0 +1,441 @@
+body.solaris-anniversary-day {
+  --anniv-midnight: #05081d;
+  --anniv-cyan: #74e7ff;
+  --anniv-lilac: #b7a4ff;
+  --anniv-pink: #ff8fc7;
+  --anniv-gold: #ffe36e;
+  --anniv-mint: #78f3d0;
+}
+
+.solaris-anniversary-orbits {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  opacity: .34;
+}
+
+.solaris-anniversary-orbits span {
+  position: absolute;
+  display: block;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 50%;
+  box-shadow: inset 0 0 80px rgba(116,231,255,.02);
+}
+
+.solaris-anniversary-orbits span:nth-child(1) {
+  width: 70vw;
+  height: 70vw;
+  left: -32vw;
+  top: 10vh;
+  transform: rotate(18deg);
+}
+
+.solaris-anniversary-orbits span:nth-child(2) {
+  width: 54vw;
+  height: 54vw;
+  right: -24vw;
+  top: -12vh;
+  transform: rotate(-24deg);
+}
+
+.solaris-anniversary-orbits span:nth-child(3) {
+  width: 88vw;
+  height: 32vw;
+  left: 18vw;
+  bottom: -18vw;
+  transform: rotate(-9deg);
+}
+
+body.solaris-anniversary-day .site-nav {
+  background:
+    linear-gradient(180deg, rgba(5,8,29,.94), rgba(5,8,29,.78)) !important;
+  backdrop-filter: blur(24px) saturate(145%);
+}
+
+body.solaris-anniversary-day .site-nav::after {
+  content: "SSC ANNIVERSARY · 2022 → 2026";
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  transform: translateX(-50%);
+  padding: 0 .65rem;
+  background: var(--anniv-midnight);
+  color: rgba(255,227,110,.8);
+  font-size: .48rem;
+  font-weight: 900;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.solaris-anniversary-context {
+  position: fixed;
+  z-index: 91;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: .9rem;
+  width: min(960px, calc(100vw - 2rem));
+  padding: .72rem .78rem;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 20px;
+  background:
+    linear-gradient(120deg, rgba(7,10,33,.94), rgba(14,14,44,.9)),
+    radial-gradient(circle at 20% 0%, rgba(116,231,255,.18), transparent 45%);
+  box-shadow:
+    0 20px 70px rgba(0,0,0,.42),
+    inset 0 1px rgba(255,255,255,.08),
+    0 0 40px rgba(116,231,255,.08);
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+.solaris-anniversary-context--data { box-shadow: 0 20px 70px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.08), 0 0 42px rgba(116,231,255,.12); }
+.solaris-anniversary-context--archive { box-shadow: 0 20px 70px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.08), 0 0 42px rgba(255,227,110,.11); }
+.solaris-anniversary-context--play { box-shadow: 0 20px 70px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.08), 0 0 42px rgba(255,143,199,.11); }
+.solaris-anniversary-context--personal { box-shadow: 0 20px 70px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.08), 0 0 42px rgba(120,243,208,.11); }
+.solaris-anniversary-context--participate { opacity: .94; }
+
+.solaris-anniversary-context-mark {
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  border: 1px solid rgba(255,227,110,.34);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,227,110,.17), rgba(255,227,110,.03) 62%, transparent 63%);
+  color: var(--anniv-gold);
+  box-shadow: inset 0 0 20px rgba(255,227,110,.08), 0 0 20px rgba(255,227,110,.06);
+  font-size: 1.15rem;
+  font-weight: 950;
+  letter-spacing: -.04em;
+}
+
+.solaris-anniversary-context-copy { min-width: 0; }
+.solaris-anniversary-context-copy p {
+  margin: 0 0 .15rem;
+  color: var(--anniv-gold);
+  font-size: .53rem;
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.solaris-anniversary-context-copy strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+  font-size: .96rem;
+  font-weight: 900;
+}
+.solaris-anniversary-context-copy span {
+  display: block;
+  margin-top: .18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255,255,255,.56);
+  font-size: .69rem;
+}
+
+.solaris-anniversary-context-action {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 2.45rem;
+  padding: 0 .9rem;
+  border: 1px solid rgba(255,227,110,.28);
+  border-radius: 999px;
+  background: rgba(255,227,110,.08);
+  color: #fff;
+  font-size: .67rem;
+  font-weight: 850;
+  white-space: nowrap;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+.solaris-anniversary-context-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,227,110,.55);
+  background: rgba(255,227,110,.14);
+}
+
+.solaris-anniversary-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(116,231,255,.14), transparent 26%),
+    radial-gradient(circle at 50% 45%, rgba(255,227,110,.06), transparent 42%),
+    rgba(2,4,17,.92);
+  pointer-events: none;
+  animation: solaris-anniversary-intro-out 1.9s ease forwards;
+}
+
+.solaris-anniversary-intro p {
+  margin: 0 0 .6rem;
+  color: rgba(255,227,110,.78);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .36em;
+}
+.solaris-anniversary-intro strong {
+  position: relative;
+  z-index: 2;
+  color: #fff;
+  font-size: clamp(2rem, 7vw, 5.8rem);
+  font-weight: 950;
+  letter-spacing: -.055em;
+  text-align: center;
+  text-shadow: 0 0 42px rgba(116,231,255,.18);
+}
+.solaris-anniversary-intro span {
+  margin-top: .7rem;
+  color: rgba(255,255,255,.55);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+.solaris-anniversary-intro-orbit {
+  position: absolute;
+  width: min(64vw, 620px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 50%;
+  box-shadow: inset 0 0 70px rgba(116,231,255,.03), 0 0 70px rgba(183,164,255,.04);
+  animation: solaris-anniversary-orbit-spin 8s linear infinite;
+}
+.solaris-anniversary-intro-orbit::before,
+.solaris-anniversary-intro-orbit::after {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border: 1px solid rgba(255,227,110,.13);
+  border-radius: 50%;
+  transform: rotate(62deg);
+}
+.solaris-anniversary-intro-orbit::after {
+  inset: 29%;
+  border-color: rgba(116,231,255,.14);
+  transform: rotate(-28deg);
+}
+
+.anniversary-hub-shell {
+  position: relative;
+  overflow: hidden;
+}
+.anniversary-hub-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 26rem;
+  padding: clamp(1.4rem, 4vw, 3rem);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 12% 5%, rgba(255,227,110,.12), transparent 27%),
+    radial-gradient(circle at 88% 18%, rgba(116,231,255,.17), transparent 31%),
+    linear-gradient(145deg, rgba(6,9,31,.97), rgba(13,13,48,.93));
+  box-shadow: inset 0 1px rgba(255,255,255,.08), 0 30px 90px rgba(0,0,0,.32);
+}
+.anniversary-hub-number {
+  position: absolute;
+  right: clamp(1rem, 4vw, 3rem);
+  top: 50%;
+  transform: translateY(-50%);
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255,255,255,.11);
+  font-size: clamp(10rem, 31vw, 26rem);
+  font-weight: 950;
+  letter-spacing: -.1em;
+  line-height: .75;
+  user-select: none;
+}
+.anniversary-hub-kicker {
+  position: relative;
+  z-index: 2;
+  color: var(--anniv-gold);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+.anniversary-hub-title {
+  position: relative;
+  z-index: 2;
+  max-width: 780px;
+  margin-top: 1.1rem;
+  color: white;
+  font-size: clamp(3rem, 8vw, 7.4rem);
+  font-weight: 950;
+  line-height: .86;
+  letter-spacing: -.065em;
+}
+.anniversary-hub-title em {
+  display: block;
+  color: var(--anniv-gold);
+  font-style: normal;
+}
+.anniversary-hub-copy {
+  position: relative;
+  z-index: 2;
+  max-width: 660px;
+  margin-top: 1.25rem;
+  color: rgba(255,255,255,.62);
+  font-size: .98rem;
+  line-height: 1.75;
+}
+.anniversary-hub-actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .7rem;
+  margin-top: 1.5rem;
+}
+.anniversary-hub-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.8rem;
+  padding: 0 1rem;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 850;
+}
+.anniversary-hub-action.primary {
+  border-color: rgba(255,227,110,.35);
+  background: rgba(255,227,110,.12);
+}
+.anniversary-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: .8rem;
+  margin-top: .9rem;
+}
+.anniversary-hub-stat,
+.anniversary-hub-card {
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(9,12,38,.86), rgba(11,14,42,.7));
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+}
+.anniversary-hub-stat { padding: 1.15rem; }
+.anniversary-hub-stat p {
+  color: rgba(255,255,255,.46);
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.anniversary-hub-stat strong {
+  display: block;
+  margin-top: .35rem;
+  color: #fff;
+  font-size: clamp(1.8rem, 4vw, 3.25rem);
+  font-weight: 950;
+  letter-spacing: -.05em;
+}
+.anniversary-hub-section { margin-top: 2rem; }
+.anniversary-hub-section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .9rem;
+}
+.anniversary-hub-section-head p {
+  color: var(--anniv-gold);
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+.anniversary-hub-section-head h2 {
+  margin-top: .25rem;
+  color: #fff;
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  font-weight: 950;
+  letter-spacing: -.04em;
+}
+.anniversary-hub-story-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: .8rem;
+}
+.anniversary-hub-card { padding: 1rem; }
+.anniversary-hub-card small {
+  color: var(--anniv-cyan);
+  font-size: .56rem;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.anniversary-hub-card h3 {
+  margin-top: .5rem;
+  color: white;
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+.anniversary-hub-card p {
+  margin-top: .45rem;
+  color: rgba(255,255,255,.52);
+  font-size: .75rem;
+  line-height: 1.55;
+}
+.anniversary-hub-card b {
+  display: inline-block;
+  margin-top: .7rem;
+  color: var(--anniv-gold);
+  font-size: .72rem;
+}
+
+@keyframes solaris-anniversary-intro-out {
+  0%, 62% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+@keyframes solaris-anniversary-orbit-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .solaris-anniversary-context { grid-template-columns: auto minmax(0,1fr); }
+  .solaris-anniversary-context-action { display: none; }
+  .anniversary-hub-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .anniversary-hub-story-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 639px) {
+  body.solaris-anniversary-day .site-nav::after { display: none; }
+  .solaris-anniversary-context {
+    left: .55rem;
+    right: .55rem;
+    bottom: calc(4.6rem + env(safe-area-inset-bottom));
+    transform: none;
+    width: auto;
+    gap: .65rem;
+    padding: .58rem .62rem;
+    border-radius: 17px;
+  }
+  .solaris-anniversary-context-mark { width: 2.5rem; height: 2.5rem; font-size: .92rem; }
+  .solaris-anniversary-context-copy p { font-size: .47rem; }
+  .solaris-anniversary-context-copy strong { font-size: .8rem; }
+  .solaris-anniversary-context-copy span { display: none; }
+  .anniversary-hub-hero { min-height: 22rem; padding: 1.25rem; border-radius: 24px; }
+  .anniversary-hub-number { right: -.5rem; opacity: .72; }
+  .anniversary-hub-grid,
+  .anniversary-hub-story-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-anniversary-intro { animation: none; display: none; }
+  .solaris-anniversary-intro-orbit { animation: none; }
+  .solaris-anniversary-context-action { transition: none; }
+}
