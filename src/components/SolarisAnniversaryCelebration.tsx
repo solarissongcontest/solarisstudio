@@ -39,7 +39,7 @@ function routeContext(pathname: string, age: number): AnniversaryRouteContext {
   }
   if (pathname.startsWith("/editions")) {
     return {
-      eyebrow: "Four years, edition by edition",
+      eyebrow: `${age} years, edition by edition`,
       title: "Walk through Solaris history",
       detail: "Every published edition is another chapter in the archive that began on 17 September 2022.",
       tone: "archive",
@@ -49,7 +49,7 @@ function routeContext(pathname: string, age: number): AnniversaryRouteContext {
     return {
       eyebrow: "Across Terra Solaris",
       title: "Every delegation has a history",
-      detail: "Debuts, returns, finals and victories have shaped four years of country stories.",
+      detail: `Debuts, returns, finals and victories have shaped ${age} years of country stories.`,
       tone: "archive",
     };
   }
@@ -70,7 +70,7 @@ function routeContext(pathname: string, age: number): AnniversaryRouteContext {
   ) {
     return {
       eyebrow: "Anniversary intelligence",
-      title: "Four years hidden in the numbers",
+      title: `${age} years hidden in the numbers`,
       detail: "Explore the results, voting relationships and scoreboard moments that built the Solaris archive.",
       tone: "data",
     };
@@ -78,7 +78,7 @@ function routeContext(pathname: string, age: number): AnniversaryRouteContext {
   if (pathname.startsWith("/archive-games") || pathname.startsWith("/taste-dna") || pathname.startsWith("/result-lab") || pathname.startsWith("/compare")) {
     return {
       eyebrow: "Anniversary challenge",
-      title: "Play with four years of history",
+      title: `Play with ${age} years of history`,
       detail: "Use the archive rather than merely staring at it respectfully like a museum exhibit.",
       tone: "play",
     };
@@ -100,14 +100,14 @@ function routeContext(pathname: string, age: number): AnniversaryRouteContext {
   ) {
     return {
       eyebrow: "The next chapter",
-      title: "Be part of Solaris year five",
+      title: `Be part of Solaris year ${age + 1}`,
       detail: "Anniversary styling stays deliberately restrained here so the actual voting and submission tools remain usable.",
       tone: "participate",
     };
   }
   if (pathname.startsWith("/predictions")) {
     return {
-      eyebrow: "Four years behind us",
+      eyebrow: `${age} years behind us`,
       title: "What happens next?",
       detail: "The archive is written. The next result, naturally, is where everyone begins arguing again.",
       tone: "play",
