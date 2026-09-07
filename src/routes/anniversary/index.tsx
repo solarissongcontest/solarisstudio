@@ -71,7 +71,7 @@ function AnniversaryPage() {
             <em>of Solaris</em>
           </h1>
           <p className="anniversary-hub-copy">
-            Solaris Song Contest began on 17 September 2022. This is the anniversary archive: the latest contest year, the records that survived it, the champions who changed the history books and the routes back into four years of gloriously unnecessary scoreboard drama.
+            Solaris Song Contest began on 17 September 2022. This is the anniversary archive: the latest contest year, the records that survived it, the champions who changed the history books and the routes back into {anniversary.age} years of gloriously unnecessary scoreboard drama.
           </p>
           <div className="anniversary-hub-actions">
             <Link to="/editions" className="anniversary-hub-action primary" data-anniversary-action="major">
@@ -93,7 +93,7 @@ function AnniversaryPage() {
           <div className="anniversary-hub-section-head">
             <div>
               <p>Since 2022</p>
-              <h2 id="all-time-heading">Four years in numbers</h2>
+              <h2 id="all-time-heading">{anniversary.age} years in numbers</h2>
             </div>
           </div>
           <div className="anniversary-hub-grid">
@@ -122,7 +122,7 @@ function AnniversaryPage() {
         <section className="anniversary-hub-section" aria-labelledby="stories-heading">
           <div className="anniversary-hub-section-head">
             <div>
-              <p>Year four, in headlines</p>
+              <p>Year {anniversary.age}, in headlines</p>
               <h2 id="stories-heading">Moments that shaped the year</h2>
             </div>
           </div>
@@ -167,7 +167,7 @@ function AnniversaryPage() {
             <HubLink
               to="/relationships"
               eyebrow="Voting history"
-              title="Follow four years of relationships"
+              title={`Follow ${anniversary.age} years of relationships`}
               copy="Explore the countries that repeatedly voted alike and the patterns that accumulated over time."
             />
             <HubLink
