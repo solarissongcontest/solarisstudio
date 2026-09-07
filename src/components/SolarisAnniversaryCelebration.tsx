@@ -1,21 +1,33 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import "@/anniversary-global.css";
 import "@/anniversary-sitewide.css";
 import "@/anniversary-season.css";
-import { AnniversaryDeepExperience } from "@/components/AnniversaryDeepExperience";
-import { AnniversaryMilestones } from "@/components/AnniversaryMilestones";
+import "@/anniversary-deep.css";
 import { AnniversaryNavLink } from "@/components/AnniversaryNavLink";
-import { AnniversaryShareCard } from "@/components/AnniversaryShareCard";
-import { AnniversarySubmissionMoment } from "@/components/AnniversarySubmissionMoment";
-import { AnniversaryTasteEra } from "@/components/AnniversaryTasteEra";
 import {
   getSolarisAnniversarySeason,
   ordinal,
   type AnniversaryPhase,
   type SolarisAnniversarySeason,
 } from "@/lib/anniversary";
+
+const LazyDeepExperience = lazy(() =>
+  import("@/components/AnniversaryDeepExperience").then((module) => ({ default: module.AnniversaryDeepExperience })),
+);
+const LazyMilestones = lazy(() =>
+  import("@/components/AnniversaryMilestones").then((module) => ({ default: module.AnniversaryMilestones })),
+);
+const LazyShareCard = lazy(() =>
+  import("@/components/AnniversaryShareCard").then((module) => ({ default: module.AnniversaryShareCard })),
+);
+const LazySubmissionMoment = lazy(() =>
+  import("@/components/AnniversarySubmissionMoment").then((module) => ({ default: module.AnniversarySubmissionMoment })),
+);
+const LazyTasteEra = lazy(() =>
+  import("@/components/AnniversaryTasteEra").then((module) => ({ default: module.AnniversaryTasteEra })),
+);
 
 const LEGACY_PREVIEW_KEY = "solaris:anniversary-preview";
 const INTRO_SEEN_KEY = "solaris:anniversary-intro-seen";
@@ -88,6 +100,34 @@ function createStarBurst(x: number, y: number, strong: boolean) {
   window.setTimeout(() => burst.remove(), 980);
 }
 
+function isDeepRoute(pathname: string) {
+  return [
+    "/editions",
+    "/countries",
+    "/wiki",
+    "/records",
+    "/results",
+    "/shows",
+    "/analysis",
+    "/relationships",
+    "/pulse",
+    "/archive-games",
+    "/taste-dna",
+    "/result-lab",
+    "/broadcast-intelligence",
+    "/compare",
+    "/predictions",
+    "/my-solaris",
+    "/country-hub",
+    "/me",
+    "/participate",
+    "/confirmations",
+    "/jury-voting",
+    "/televoting",
+    "/next-in-line",
+  ].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
 export function SolarisAnniversaryCelebration() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const searchStr = useLocation({ select: (location) => location.searchStr });
@@ -104,6 +144,9 @@ export function SolarisAnniversaryCelebration() {
   const active = season.phase === "active";
   const context = useMemo(() => routeContext(pathname, season.age), [pathname, season.age]);
   const isAdmin = pathname.startsWith("/admin") || pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
+  const personalRoute = pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me");
+  const countryRoute = pathname.startsWith("/countries/") || pathname.startsWith("/wiki/");
+  const submissionRoute = pathname.startsWith("/confirmations") || pathname.startsWith("/televoting") || pathname.startsWith("/jury-voting") || pathname.startsWith("/next-in-line");
 
   useEffect(() => {
     if (!active) {
@@ -181,11 +224,15 @@ export function SolarisAnniversaryCelebration() {
   return (
     <>
       {!isAdmin && <AnniversaryNavLink />}
-      {!isAdmin && <AnniversaryDeepExperience />}
-      {!isAdmin && <AnniversaryMilestones />}
-      {!isAdmin && <AnniversaryTasteEra />}
-      {!isAdmin && <AnniversaryShareCard />}
-      {!isAdmin && <AnniversarySubmissionMoment />}
+      {!isAdmin && (
+        <Suspense fallback={null}>
+          {isDeepRoute(pathname) ? <LazyDeepExperience /> : null}
+          {countryRoute || personalRoute ? <LazyMilestones /> : null}
+          {pathname.startsWith("/taste-dna") ? <LazyTasteEra /> : null}
+          {personalRoute ? <LazyShareCard /> : null}
+          {submissionRoute ? <LazySubmissionMoment /> : null}
+        </Suspense>
+      )}
       <div className="solaris-anniversary-global" aria-hidden="true">
         <div className="solaris-anniversary-global-wash" />
         <div className="solaris-anniversary-orbits"><span /><span /><span /></div>
