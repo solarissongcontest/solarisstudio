@@ -15,7 +15,12 @@ export type IntegrityDeclarationRow = {
   hod_person_id: string | null;
   relationship_risk: number;
   risk_score: number;
+  confidence: number;
   severity: string;
+  intervention_level: string;
+  model_version: string;
+  voter_reason_categories: string[];
+  admin_evidence: Record<string, unknown>;
   findings: VoteIntegrityFinding[];
   technical_signals: VoteIntegrityTechnicalSignal[];
   history_summary: {
@@ -44,7 +49,12 @@ type PreflightDbRow = {
   hod_person_id: string | null;
   relationship_risk: number;
   risk_score: number;
+  confidence: number;
   severity: string;
+  intervention_level: string;
+  model_version: string;
+  voter_reason_categories: unknown;
+  admin_evidence: unknown;
   findings: unknown;
   technical_signals: unknown;
   history_summary: unknown;
@@ -85,7 +95,7 @@ export async function listIntegrityDeclarationsServer(input?: {
   let query = tv
     .from("vote_preflight_checks")
     .select(
-      "id,round_id,username_normalized,country_code,hod_person_id,relationship_risk,risk_score,severity,findings,technical_signals,history_summary,statement_version,attested_at,signed_name,attestation_text,submission_id,submitted_at,expires_at,created_at",
+      "id,round_id,username_normalized,country_code,hod_person_id,relationship_risk,risk_score,confidence,severity,intervention_level,model_version,voter_reason_categories,admin_evidence,findings,technical_signals,history_summary,statement_version,attested_at,signed_name,attestation_text,submission_id,submitted_at,expires_at,created_at",
     )
     .eq("requires_attestation", true)
     .order("created_at", { ascending: false })
@@ -152,7 +162,12 @@ export async function listIntegrityDeclarationsServer(input?: {
       hod_person_id: row.hod_person_id,
       relationship_risk: Number(row.relationship_risk ?? 0),
       risk_score: Number(row.risk_score ?? 0),
+      confidence: Number(row.confidence ?? 0),
       severity: row.severity,
+      intervention_level: String(row.intervention_level ?? "none"),
+      model_version: String(row.model_version ?? "friend-voting-model-v3"),
+      voter_reason_categories: asArray<string>(row.voter_reason_categories),
+      admin_evidence: asObject(row.admin_evidence),
       findings: asArray<VoteIntegrityFinding>(row.findings),
       technical_signals: asArray<VoteIntegrityTechnicalSignal>(row.technical_signals),
       history_summary: {
