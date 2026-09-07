@@ -1,0 +1,27 @@
+/* Overrides that keep annual decoration age-neutral and functional routes calm. */
+
+.anniv-deep::after,
+@media (max-width: 760px) {
+  .anniv-deep::after {
+    content: "✦";
+    font-family: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+}
+
+body[data-solaris-anniversary-tone="participate"] .solaris-anniversary-orbits {
+  opacity: .18;
+}
+
+body[data-solaris-anniversary-tone="participate"] .solaris-anniversary-global-stars {
+  opacity: .4;
+}
+
+body[data-solaris-anniversary-tone="participate"] .solaris-anniversary-falling-star:nth-child(n+9) {
+  display: none;
+}
+
+body[data-solaris-anniversary-tone="participate"] .solaris-anniversary-global-wash {
+  opacity: .45;
+}
