@@ -1,9 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminCard, AdminCardHeader, AdminPage } from "@/components/AdminUI";
+import { AdminPage } from "@/components/admin/AdminShell";
+import { AdminCard, AdminCardHeader, AdminPageHeader } from "@/components/admin/AdminUI";
 
 export const Route = createFileRoute("/_authenticated/admin/anniversary")({
-  head: () => ({ meta: [{ title: "Anniversary Preview — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Anniversary Preview — Solaris Studio" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: AnniversaryPreviewPage,
 });
 
@@ -19,42 +25,55 @@ const PREVIEWS = [
 
 function AnniversaryPreviewPage() {
   return (
-    <AdminPage
-      title="Anniversary Preview"
-      description="Test every annual SSC anniversary state without changing the system clock. Open previews in a new tab and use responsive device mode for phone layouts."
-    >
-      <AdminCard>
-        <AdminCardHeader eyebrow="17 September" title="Preview states" description="These URLs only change the current browser view. They do not publish or alter anniversary data." />
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {PREVIEWS.map((preview) => (
-            <a
-              key={preview.href}
-              href={preview.href}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-strong"
-            >
-              <p className="text-sm font-semibold">{preview.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{preview.description}</p>
-              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-primary">Open preview →</p>
-            </a>
-          ))}
-        </div>
-      </AdminCard>
+    <AdminPage>
+      <div className="mx-auto max-w-5xl">
+        <AdminPageHeader
+          eyebrow="17 September"
+          title="Anniversary Preview"
+          description="Test every annual SSC anniversary state without changing the system clock. Open previews in a new tab and use responsive device mode for phone layouts."
+        />
 
-      <AdminCard className="mt-4">
-        <AdminCardHeader eyebrow="QA" title="What to test" description="The anniversary should remain usable, not merely impressive from a safe distance." />
-        <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-          <p>• 390px and 430px phone widths</p>
-          <p>• reduced-motion mode</p>
-          <p>• country detail and Wiki pages</p>
-          <p>• Records, Analysis and Relationships</p>
-          <p>• Archive Games and interactive tools</p>
-          <p>• voting and confirmation task clarity</p>
-          <p>• authenticated MySolaris story</p>
-          <p>• no horizontal scrolling anywhere</p>
-        </div>
-      </AdminCard>
+        <AdminCard>
+          <AdminCardHeader
+            eyebrow="Preview states"
+            title="Open an anniversary surface"
+            description="These URLs only change the current browser view. They do not publish or alter anniversary data."
+          />
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {PREVIEWS.map((preview) => (
+              <a
+                key={preview.href}
+                href={preview.href}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.06]"
+              >
+                <p className="text-sm font-semibold text-foreground">{preview.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{preview.description}</p>
+                <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-primary">Open preview →</p>
+              </a>
+            ))}
+          </div>
+        </AdminCard>
+
+        <AdminCard className="mt-4">
+          <AdminCardHeader
+            eyebrow="QA"
+            title="What to test"
+            description="The anniversary should remain usable, not merely impressive from a safe distance."
+          />
+          <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+            <p>• 390px and 430px phone widths</p>
+            <p>• reduced-motion mode</p>
+            <p>• country detail and Wiki pages</p>
+            <p>• Records, Analysis and Relationships</p>
+            <p>• Archive Games and interactive tools</p>
+            <p>• voting and confirmation task clarity</p>
+            <p>• authenticated MySolaris story</p>
+            <p>• no horizontal scrolling anywhere</p>
+          </div>
+        </AdminCard>
+      </div>
     </AdminPage>
   );
 }
