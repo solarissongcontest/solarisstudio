@@ -19,10 +19,10 @@ export function HomeAnniversaryTakeover() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const [clock, setClock] = useState(() => new Date());
 
-  const preview = useMemo(
-    () => new URLSearchParams(searchStr).get("anniversary") === "preview",
-    [searchStr],
-  );
+  const preview = useMemo(() => {
+    const value = new URLSearchParams(searchStr).get("anniversary");
+    return value === "preview" || value === "active";
+  }, [searchStr]);
 
   useEffect(() => {
     const tick = window.setInterval(() => setClock(new Date()), 60_000);
