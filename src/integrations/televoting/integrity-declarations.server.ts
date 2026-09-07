@@ -5,6 +5,14 @@ import type {
   VoteIntegrityTechnicalSignal,
 } from "@/integrations/televoting/integrity";
 
+export type IntegrityJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | IntegrityJsonValue[]
+  | { [key: string]: IntegrityJsonValue };
+
 export type IntegrityDeclarationRow = {
   id: string;
   round_id: string;
@@ -20,7 +28,7 @@ export type IntegrityDeclarationRow = {
   intervention_level: string;
   model_version: string;
   voter_reason_categories: string[];
-  admin_evidence: Record<string, unknown>;
+  admin_evidence: { [key: string]: IntegrityJsonValue };
   findings: VoteIntegrityFinding[];
   technical_signals: VoteIntegrityTechnicalSignal[];
   history_summary: {
@@ -81,6 +89,24 @@ function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function asJsonValue(value: unknown): IntegrityJsonValue {
+  if (value == null) return null;
+  if (typeof value === "string" || typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (Array.isArray(value)) return value.map(asJsonValue);
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, asJsonValue(item)]),
+    );
+  }
+  return String(value);
+}
+
+function asJsonObject(value: unknown): { [key: string]: IntegrityJsonValue } {
+  const json = asJsonValue(value);
+  return json && typeof json === "object" && !Array.isArray(json) ? json : {};
 }
 
 export async function listIntegrityDeclarationsServer(input?: {
@@ -167,7 +193,7 @@ export async function listIntegrityDeclarationsServer(input?: {
       intervention_level: String(row.intervention_level ?? "none"),
       model_version: String(row.model_version ?? "friend-voting-model-v3"),
       voter_reason_categories: asArray<string>(row.voter_reason_categories),
-      admin_evidence: asObject(row.admin_evidence),
+      admin_evidence: asJsonObject(row.admin_evidence),
       findings: asArray<VoteIntegrityFinding>(row.findings),
       technical_signals: asArray<VoteIntegrityTechnicalSignal>(row.technical_signals),
       history_summary: {
