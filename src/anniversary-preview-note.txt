@@ -1,0 +1,8 @@
+Anniversary preview controls
+
+?anniversary=active or ?anniversary=preview  -> full Anniversary Day
+?anniversary=countdown                     -> countdown state
+?anniversary=after                         -> post-anniversary afterglow
+?anniversary=off                           -> clear the session preview override
+
+The anniversary hub exposes these controls directly. Preview state persists in sessionStorage while navigating the site.
