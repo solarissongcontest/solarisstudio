@@ -3,6 +3,8 @@ import type { Country, Edition, Participant, ResultRow, Show } from "@/lib/data"
 export const SOLARIS_BIRTH_DATE = "2022-09-17";
 export const SOLARIS_ANNIVERSARY_TIME_ZONE = "Europe/Paris";
 
+export type AnniversaryPhase = "dormant" | "countdown" | "active" | "after";
+
 export type SolarisAnniversary = {
   active: boolean;
   year: number;
@@ -10,6 +12,12 @@ export type SolarisAnniversary = {
   ordinal: string;
   previousYear: number;
   dateLabel: string;
+};
+
+export type SolarisAnniversarySeason = SolarisAnniversary & {
+  phase: AnniversaryPhase;
+  daysUntil: number | null;
+  daysSince: number | null;
 };
 
 export type AnniversaryStory = {
@@ -46,6 +54,10 @@ function dateParts(date: Date, timeZone = SOLARIS_ANNIVERSARY_TIME_ZONE) {
   return { year: value("year"), month: value("month"), day: value("day") };
 }
 
+function dayNumber(year: number, month: number, day: number) {
+  return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
 export function ordinal(value: number) {
   const mod100 = value % 100;
   if (mod100 >= 11 && mod100 <= 13) return `${value}th`;
@@ -67,6 +79,33 @@ export function getSolarisAnniversary(date = new Date()): SolarisAnniversary {
     previousYear: year - 1,
     dateLabel: `17 September ${year}`,
   };
+}
+
+export function getSolarisAnniversarySeason(date = new Date()): SolarisAnniversarySeason {
+  const { year, month, day } = dateParts(date);
+  const base = getSolarisAnniversary(date);
+
+  if (year < 2022) {
+    return { ...base, phase: "dormant", daysUntil: null, daysSince: null };
+  }
+
+  const today = dayNumber(year, month, day);
+  const anniversaryDay = dayNumber(year, 9, 17);
+  const delta = anniversaryDay - today;
+
+  if (delta === 0) {
+    return { ...base, active: true, phase: "active", daysUntil: 0, daysSince: 0 };
+  }
+
+  if (delta >= 1 && delta <= 3) {
+    return { ...base, phase: "countdown", daysUntil: delta, daysSince: null };
+  }
+
+  if (delta <= -1 && delta >= -3) {
+    return { ...base, phase: "after", daysUntil: null, daysSince: Math.abs(delta) };
+  }
+
+  return { ...base, phase: "dormant", daysUntil: null, daysSince: null };
 }
 
 function editionName(edition?: Edition | null) {
