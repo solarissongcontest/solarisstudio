@@ -1,6 +1,12 @@
 /* Overrides that keep annual decoration age-neutral and functional routes calm. */
 
-.anniv-deep::after,
+.anniv-deep::after {
+  content: "✦";
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
 @media (max-width: 760px) {
   .anniv-deep::after {
     content: "✦";
