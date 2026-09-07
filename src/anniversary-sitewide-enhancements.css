@@ -1,0 +1,150 @@
+/* Small enhancements that hook the anniversary identity into the existing shared shell
+   without coupling the shell itself to one date-specific feature. */
+
+.anniversary-site-context-host {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+}
+
+body[data-solaris-anniversary-phase="active"] .page-header::before {
+  content: "✦  SSC ANNIVERSARY";
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: .65rem;
+  border: 1px solid rgba(255,225,122,.20);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255,225,122,.07), rgba(115,232,255,.045));
+  padding: .28rem .5rem;
+  color: rgba(255,234,151,.9);
+  font-size: .56rem;
+  font-weight: 950;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+}
+
+body[data-solaris-anniversary-phase="active"] .site-nav a[aria-label="Solaris Studio home"] > span:last-child::after,
+body[data-solaris-anniversary-phase="countdown"] .site-nav a[aria-label="Solaris Studio home"] > span:last-child::after,
+body[data-solaris-anniversary-phase="after"] .site-nav a[aria-label="Solaris Studio home"] > span:last-child::after {
+  content: "✦  ANNIVERSARY";
+  display: block;
+  margin-top: .08rem;
+  color: rgba(255,229,135,.82);
+  font-size: .5rem;
+  font-weight: 950;
+  letter-spacing: .14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+body[data-solaris-anniversary-phase="active"] .site-nav a[aria-label="Solaris Studio home"] > span:last-child > span:last-child,
+body[data-solaris-anniversary-phase="countdown"] .site-nav a[aria-label="Solaris Studio home"] > span:last-child > span:last-child,
+body[data-solaris-anniversary-phase="after"] .site-nav a[aria-label="Solaris Studio home"] > span:last-child > span:last-child {
+  display: none;
+}
+
+body[data-solaris-anniversary-phase="active"] .mobile-quick-nav {
+  background:
+    linear-gradient(180deg, rgba(7,7,22,.73), rgba(7,7,22,.96)),
+    radial-gradient(circle at 50% 0, rgba(115,232,255,.08), transparent 65%);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+
+body[data-solaris-anniversary-phase="active"] [data-public-layout="data"] .anniversary-route-context {
+  border-color: rgba(115,232,255,.18);
+}
+
+body[data-solaris-anniversary-phase="active"] [data-public-layout="workspace"] .anniversary-route-context {
+  background:
+    radial-gradient(circle at 10% 10%, rgba(115,232,255,.08), transparent 34%),
+    linear-gradient(135deg, rgba(12,13,35,.84), rgba(10,10,27,.75));
+}
+
+.solaris-anniversary-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 190;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(115,232,255,.12), transparent 22%),
+    radial-gradient(circle at 50% 52%, rgba(182,162,255,.08), transparent 38%),
+    rgba(4,5,17,.76);
+  backdrop-filter: blur(12px) saturate(130%);
+  animation: solaris-anniversary-intro-out 1.5s ease forwards;
+}
+
+.solaris-anniversary-intro-orbit {
+  position: absolute;
+  width: min(48vw, 25rem);
+  aspect-ratio: 1;
+  border: 1px solid rgba(115,232,255,.2);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 2.5rem rgba(255,225,122,.014),
+    0 0 0 5rem rgba(182,162,255,.012),
+    0 0 80px rgba(115,232,255,.07);
+  animation: solaris-anniversary-intro-orbit 1.35s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.solaris-anniversary-intro strong {
+  position: relative;
+  background: linear-gradient(180deg, #fff9dc, #ffe17a 56%, #c0a7ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: var(--font-display, inherit);
+  font-size: clamp(4.6rem, 16vw, 9rem);
+  font-weight: 950;
+  line-height: .78;
+  letter-spacing: -.08em;
+  animation: solaris-anniversary-intro-copy .8s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.solaris-anniversary-intro > span:not(.solaris-anniversary-intro-orbit) {
+  position: relative;
+  margin-top: .8rem;
+  color: rgba(255,255,255,.9);
+  font-family: var(--font-display, inherit);
+  font-size: clamp(.9rem, 3vw, 1.35rem);
+  font-weight: 900;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  animation: solaris-anniversary-intro-copy .9s .05s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.solaris-anniversary-intro small {
+  position: relative;
+  margin-top: .55rem;
+  color: rgba(255,255,255,.4);
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .22em;
+  animation: solaris-anniversary-intro-copy .9s .1s cubic-bezier(.2,.8,.2,1) both;
+}
+
+@keyframes solaris-anniversary-intro-copy {
+  from { opacity: 0; transform: translateY(12px) scale(.96); filter: blur(8px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes solaris-anniversary-intro-orbit {
+  from { opacity: 0; transform: scale(.6) rotate(-18deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes solaris-anniversary-intro-out {
+  0%, 68% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@media (max-width: 639px) {
+  .solaris-anniversary-intro-orbit { width: 72vw; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-anniversary-intro { display: none; }
+}
