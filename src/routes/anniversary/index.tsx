@@ -94,13 +94,23 @@ function AnniversaryPage() {
     const countryStats = new Map<string, { participations: Set<string>; finals: Set<string>; wins: number; points: number }>();
     for (const entry of baseEntries) {
       if (!entry.country_id) continue;
-      const stat = countryStats.get(entry.country_id) ?? { participations: new Set<string>(), finals: new Set<string>(), wins: 0, points: 0 };
+      const stat = countryStats.get(entry.country_id) ?? {
+        participations: new Set<string>(),
+        finals: new Set<string>(),
+        wins: 0,
+        points: 0,
+      };
       stat.participations.add(entry.edition_id);
       countryStats.set(entry.country_id, stat);
     }
     for (const result of finalResults) {
       if (!result.country_id || !result.show_id) continue;
-      const stat = countryStats.get(result.country_id) ?? { participations: new Set<string>(), finals: new Set<string>(), wins: 0, points: 0 };
+      const stat = countryStats.get(result.country_id) ?? {
+        participations: new Set<string>(),
+        finals: new Set<string>(),
+        wins: 0,
+        points: 0,
+      };
       stat.finals.add(result.show_id);
       stat.points += result.total_points ?? 0;
       if (result.final_rank === 1) stat.wins += 1;
@@ -176,7 +186,9 @@ function AnniversaryPage() {
         </section>
 
         <section className="anniversary-hub-section" aria-labelledby="all-time-heading">
-          <div className="anniversary-hub-section-head"><div><p>Since 2022</p><h2 id="all-time-heading">{anniversary.age} years in numbers</h2></div></div>
+          <div className="anniversary-hub-section-head">
+            <div><p>Since 2022</p><h2 id="all-time-heading">{anniversary.age} years in numbers</h2></div>
+          </div>
           <div className="anniversary-hub-grid">
             <HubStat label="Published editions" value={publishedEditions.length} />
             <HubStat label="Public shows" value={allTimeShows.length} />
@@ -186,7 +198,9 @@ function AnniversaryPage() {
         </section>
 
         <section className="anniversary-hub-section" aria-labelledby="year-heading">
-          <div className="anniversary-hub-section-head"><div><p>17 September {anniversary.previousYear} → today</p><h2 id="year-heading">The anniversary year</h2></div></div>
+          <div className="anniversary-hub-section-head">
+            <div><p>17 September {anniversary.previousYear} → today</p><h2 id="year-heading">The anniversary year</h2></div>
+          </div>
           <div className="anniversary-hub-grid">
             <HubStat label="Contest chapters" value={recap.editionCount} />
             <HubStat label="Public shows" value={recap.showCount} />
@@ -196,28 +210,65 @@ function AnniversaryPage() {
         </section>
 
         <section className="anniversary-hub-section" aria-labelledby="moments-heading">
-          <div className="anniversary-hub-section-head"><div><p>The anniversary four</p><h2 id="moments-heading">Four moments that define the archive</h2></div></div>
+          <div className="anniversary-hub-section-head">
+            <div><p>The anniversary four</p><h2 id="moments-heading">Four moments that define the archive</h2></div>
+          </div>
           <div className="anniversary-hub-story-grid">
-            <MomentCard number="01" title="Where Solaris began" detail={firstEdition ? `${firstEdition.edition_number != null ? `SSC ${firstEdition.edition_number}` : firstEdition.name}${firstEdition.host_city ? ` · ${firstEdition.host_city}` : ""}` : "The first published contest chapter."} />
-            <MomentCard number="02" title="The biggest winning total" detail={anniversaryLegacy.highest ? `${anniversaryLegacy.highest.country} · ${anniversaryLegacy.highest.points} points · ${anniversaryLegacy.highest.edition}` : "No published final result yet."} />
-            <MomentCard number="03" title="The closest final" detail={anniversaryLegacy.closest ? `${anniversaryLegacy.winner ?? ""}${""}` : ""} hidden />
+            <MomentCard
+              number="01"
+              title="Where Solaris began"
+              detail={
+                firstEdition
+                  ? `${firstEdition.edition_number != null ? `SSC ${firstEdition.edition_number}` : firstEdition.name}${firstEdition.host_city ? ` · ${firstEdition.host_city}` : ""}`
+                  : "The first published contest chapter."
+              }
+            />
+            <MomentCard
+              number="02"
+              title="The biggest winning total"
+              detail={
+                anniversaryLegacy.highest
+                  ? `${anniversaryLegacy.highest.country} · ${anniversaryLegacy.highest.points} points · ${anniversaryLegacy.highest.edition}`
+                  : "No published final result yet."
+              }
+            />
             <article className="anniversary-hub-card">
               <small>03 · Closest final</small>
-              <h3>{anniversaryLegacy.closest ? `${anniversaryLegacy.closest.winner} vs ${anniversaryLegacy.closest.runnerUp}` : "Still waiting for the photo finish"}</h3>
-              <p>{anniversaryLegacy.closest ? `${anniversaryLegacy.closest.edition} was decided by ${anniversaryLegacy.closest.gap} point${anniversaryLegacy.closest.gap === 1 ? "" : "s"}.` : "No published final has enough ranking data yet."}</p>
+              <h3>
+                {anniversaryLegacy.closest
+                  ? `${anniversaryLegacy.closest.winner} vs ${anniversaryLegacy.closest.runnerUp}`
+                  : "Still waiting for the photo finish"}
+              </h3>
+              <p>
+                {anniversaryLegacy.closest
+                  ? `${anniversaryLegacy.closest.edition} was decided by ${anniversaryLegacy.closest.gap} point${anniversaryLegacy.closest.gap === 1 ? "" : "s"}.`
+                  : "No published final has enough ranking data yet."}
+              </p>
             </article>
-            <MomentCard number="04" title="The latest champion" detail={anniversaryLegacy.latestWinner ? `${anniversaryLegacy.latestWinner.country} · ${anniversaryLegacy.latestWinner.edition} · ${anniversaryLegacy.latestWinner.points} points` : "The newest published final will fill this place."} />
+            <MomentCard
+              number="04"
+              title="The latest champion"
+              detail={
+                anniversaryLegacy.latestWinner
+                  ? `${anniversaryLegacy.latestWinner.country} · ${anniversaryLegacy.latestWinner.edition} · ${anniversaryLegacy.latestWinner.points} points`
+                  : "The newest published final will fill this place."
+              }
+            />
           </div>
         </section>
 
         <section className="anniversary-hub-section" aria-labelledby="delegations-heading">
-          <div className="anniversary-hub-section-head"><div><p>Four delegations</p><h2 id="delegations-heading">Delegations that shaped the archive</h2></div></div>
+          <div className="anniversary-hub-section-head">
+            <div><p>Four delegations</p><h2 id="delegations-heading">Delegations that shaped the archive</h2></div>
+          </div>
           <div className="anniversary-hub-story-grid">
             {anniversaryLegacy.delegations.map((item, index) => (
               <article key={item.country!.id} className="anniversary-hub-card">
                 <small>0{index + 1} · Historical footprint</small>
                 <h3>{item.country!.name}</h3>
-                <p>{item.participations} participations · {item.finals} finals · {item.wins} win{item.wins === 1 ? "" : "s"} · {item.points} final points</p>
+                <p>
+                  {item.participations} participations · {item.finals} finals · {item.wins} win{item.wins === 1 ? "" : "s"} · {item.points} final points
+                </p>
                 <b>#{index + 1}</b>
               </article>
             ))}
@@ -225,18 +276,25 @@ function AnniversaryPage() {
         </section>
 
         <section className="anniversary-hub-section" aria-labelledby="stories-heading">
-          <div className="anniversary-hub-section-head"><div><p>Year {anniversary.age}, in headlines</p><h2 id="stories-heading">Moments that shaped the year</h2></div></div>
+          <div className="anniversary-hub-section-head">
+            <div><p>Year {anniversary.age}, in headlines</p><h2 id="stories-heading">Moments that shaped the year</h2></div>
+          </div>
           <div className="anniversary-hub-story-grid">
             {recap.stories.map((story) => (
               <article key={story.id} className="anniversary-hub-card">
-                <small>{story.kicker}</small><h3>{story.headline}</h3><p>{story.detail}</p>{story.value ? <b>{story.value}</b> : null}
+                <small>{story.kicker}</small>
+                <h3>{story.headline}</h3>
+                <p>{story.detail}</p>
+                {story.value ? <b>{story.value}</b> : null}
               </article>
             ))}
           </div>
         </section>
 
         <section className="anniversary-hub-section" aria-labelledby="explore-heading">
-          <div className="anniversary-hub-section-head"><div><p>The archive is the celebration</p><h2 id="explore-heading">Keep exploring Solaris history</h2></div></div>
+          <div className="anniversary-hub-section-head">
+            <div><p>The archive is the celebration</p><h2 id="explore-heading">Keep exploring Solaris history</h2></div>
+          </div>
           <div className="anniversary-hub-story-grid">
             <HubLink to="/editions" eyebrow="Chronology" title="Walk through every edition" copy="Browse the contest chapter by chapter, from the earliest published editions to the latest result." />
             <HubLink to="/records" eyebrow="Legacy" title="See the records that survived" copy="Wins, point totals, streaks and all-time milestones gathered into one historical record book." />
@@ -255,9 +313,14 @@ function HubStat({ label, value }: { label: string; value: string | number }) {
   return <div className="anniversary-hub-stat"><p>{label}</p><strong>{value}</strong></div>;
 }
 
-function MomentCard({ number, title, detail, hidden = false }: { number: string; title: string; detail: string; hidden?: boolean }) {
-  if (hidden) return null;
-  return <article className="anniversary-hub-card"><small>{number} · Archive moment</small><h3>{title}</h3><p>{detail}</p></article>;
+function MomentCard({ number, title, detail }: { number: string; title: string; detail: string }) {
+  return (
+    <article className="anniversary-hub-card">
+      <small>{number} · Archive moment</small>
+      <h3>{title}</h3>
+      <p>{detail}</p>
+    </article>
+  );
 }
 
 function HubLink({
@@ -273,7 +336,10 @@ function HubLink({
 }) {
   return (
     <Link to={to} className="anniversary-hub-card group">
-      <small>{eyebrow}</small><h3>{title}</h3><p>{copy}</p><b>Open →</b>
+      <small>{eyebrow}</small>
+      <h3>{title}</h3>
+      <p>{copy}</p>
+      <b>Open →</b>
     </Link>
   );
 }
