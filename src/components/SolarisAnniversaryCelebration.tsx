@@ -5,6 +5,7 @@ import "@/anniversary-global.css";
 import "@/anniversary-sitewide.css";
 import "@/anniversary-season.css";
 import "@/anniversary-polish.css";
+import "@/anniversary-future-proof.css";
 import { AnniversaryNavigation } from "@/components/AnniversaryNavigation";
 import {
   getSolarisAnniversarySeason,
@@ -28,6 +29,12 @@ const LazyAnniversaryTasteEra = lazy(() =>
 const LazyAnniversaryResultLabPresets = lazy(() =>
   import("@/components/AnniversaryResultLabPresets").then((module) => ({
     default: module.AnniversaryResultLabPresets,
+  })),
+);
+
+const LazyAnniversaryToolsCollection = lazy(() =>
+  import("@/components/AnniversaryToolsCollection").then((module) => ({
+    default: module.AnniversaryToolsCollection,
   })),
 );
 
@@ -62,7 +69,8 @@ function anniversaryTone(pathname: string) {
     pathname.startsWith("/taste-dna") ||
     pathname.startsWith("/result-lab") ||
     pathname.startsWith("/compare") ||
-    pathname.startsWith("/predictions")
+    pathname.startsWith("/predictions") ||
+    pathname.startsWith("/tools")
   ) return "play";
   if (pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me")) return "personal";
   if (
@@ -205,12 +213,13 @@ export function SolarisAnniversaryCelebration() {
       const target = event.target instanceof Element ? event.target.closest("a[href], button") : null;
       if (!target || reducedMotion.matches) return;
       const strong = Boolean(target.closest("[data-anniversary-action='major']"));
+      if (tone === "participate" && !strong) return;
       createStarBurst(event.clientX, event.clientY, strong);
     };
 
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
-  }, [active]);
+  }, [active, tone]);
 
   if (season.phase === "dormant") return null;
 
@@ -315,6 +324,12 @@ export function SolarisAnniversaryCelebration() {
       {!isAdmin && pathname.startsWith("/result-lab") ? (
         <Suspense fallback={null}>
           <LazyAnniversaryResultLabPresets />
+        </Suspense>
+      ) : null}
+
+      {!isAdmin && (pathname === "/tools" || pathname === "/tools/") ? (
+        <Suspense fallback={null}>
+          <LazyAnniversaryToolsCollection />
         </Suspense>
       ) : null}
 
