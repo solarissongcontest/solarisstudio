@@ -242,12 +242,17 @@ export function SolarisAnniversaryCelebration() {
         </div>
       </div>
 
-      <div className="solaris-anniversary-global-badge" aria-label={`${anniversary.ordinal} Solaris anniversary`}>
+      <Link
+        to="/anniversary"
+        className="solaris-anniversary-global-badge"
+        aria-label={`Open the ${anniversary.ordinal} Solaris anniversary hub`}
+        data-anniversary-action="major"
+      >
         <span className="solaris-anniversary-badge-star" aria-hidden="true" />
         <span>17 September</span>
         <span className="solaris-anniversary-badge-divider">·</span>
         <strong>{anniversary.age} years of Solaris</strong>
-      </div>
+      </Link>
 
       {pathname !== "/" && (
         <aside className={`solaris-anniversary-context solaris-anniversary-context--${context.tone}`}>
