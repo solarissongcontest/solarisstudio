@@ -11,6 +11,7 @@ import artDirectionStyles from "@/country-personalities-v5.css?inline";
 import silhouetteStyles from "@/country-personalities-v6.css?inline";
 import silhouetteLayoutStyles from "@/country-personalities-v6-layout.css?inline";
 import waterDropStyles from "@/country-water-drop-v61.css?inline";
+import glassFinalStyles from "@/country-glass-final.css?inline";
 
 const countryPersonalityStyles = [
   baseStyles,
@@ -26,13 +27,15 @@ const countryPersonalityStyles = [
   silhouetteStyles,
   silhouetteLayoutStyles,
   waterDropStyles,
+  glassFinalStyles,
 ].join("\n");
 
 /**
  * Country personalities are intentionally route-scoped. V6 owns the final
  * silhouettes for the personalities that still looked too much like the same
- * base card. Water Drop V6.1 is deliberately last because it replaces V6's
- * bean-like treatment with a true liquid-card treatment and safe text zone.
+ * base card. Water Drop V6.1 keeps its own replacement silhouette, while the
+ * final Glass Card layer restores the full-width liquid surface after the
+ * legacy personality layers have been composed.
  *
  * Keep the style contents as one text node. React's SSR hydration can disagree
  * with the browser about multiple adjacent text children inside raw-text
