@@ -17,7 +17,8 @@ describe("Archived Televote results", () => {
     expect(workspace).toContain("useAdminContext");
     expect(workspace).toContain("getMergedTelevotingRoundsPage");
     expect(workspace).toContain('["merged-televoting-results-edition", editionId]');
-    expect(workspace).not.toContain("getMergedTelevotingRounds");
+    expect(workspace).not.toContain('import { getMergedTelevotingRounds }');
+    expect(workspace).not.toContain("useServerFn(getMergedTelevotingRounds);");
   });
 
   it("keeps archived editions read-only", () => {
