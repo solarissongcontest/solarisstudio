@@ -1,0 +1,66 @@
+name: Browser audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install app dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Production build
+        run: bun run build
+
+      - name: Install browser-audit runner
+        run: |
+          bun add --dev @playwright/test@1.55.0
+          bunx playwright install --with-deps chromium
+
+      - name: Run responsive browser audit
+        run: bunx playwright test
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+          E2E_COUNTRY_EMAIL: ${{ secrets.E2E_COUNTRY_EMAIL }}
+          E2E_COUNTRY_PASSWORD: ${{ secrets.E2E_COUNTRY_PASSWORD }}
+          E2E_ORGANIZER_EMAIL: ${{ secrets.E2E_ORGANIZER_EMAIL }}
+          E2E_ORGANIZER_PASSWORD: ${{ secrets.E2E_ORGANIZER_PASSWORD }}
+          E2E_SUSPENDED_EMAIL: ${{ secrets.E2E_SUSPENDED_EMAIL }}
+          E2E_SUSPENDED_PASSWORD: ${{ secrets.E2E_SUSPENDED_PASSWORD }}
+
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-audit
+          path: |
+            playwright-report
+            test-results/playwright
+          if-no-files-found: ignore
+          retention-days: 14
