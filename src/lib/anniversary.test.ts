@@ -34,6 +34,7 @@ describe("Solaris anniversary", () => {
           edition_number: 20,
           name: "SSC 20",
           year: 2025,
+          event_date: "2025-12-01",
           slug: "ssc-20",
           description: null,
           host_country_id: null,
@@ -48,6 +49,7 @@ describe("Solaris anniversary", () => {
           edition_number: 21,
           name: "SSC 21",
           year: 2026,
+          event_date: "2026-06-01",
           slug: "ssc-21",
           description: null,
           host_country_id: null,
@@ -57,7 +59,7 @@ describe("Solaris anniversary", () => {
           status: "complete",
           published: true,
         },
-      ],
+      ] as any,
       shows: [
         {
           id: "gf21",
