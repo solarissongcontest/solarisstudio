@@ -70,16 +70,18 @@ export function AdminSectionNav() {
       pathname.startsWith("/admin/shows/") ||
       pathname.startsWith("/admin/entries/") ||
       pathname.startsWith("/admin/lineup-sync/") ||
+      pathname.startsWith("/admin/participant-status/") ||
       (slug ? pathname === `/admin/${slug}` : false)
     ) {
       return {
         label: "Contest",
-        description: "Shows, entries, allocations and running order",
+        description: "Shows, entries, allocations, running order and participation",
         tabs: [
           { label: "Overview", to: slug ? `/admin/${slug}` : "/admin", active: (path) => Boolean(slug && path === `/admin/${slug}`) },
           { label: "Shows", to: slug ? `/admin/shows/${slug}` : "/admin", active: (path) => path.startsWith("/admin/shows/") },
           { label: "Entries", to: slug ? `/admin/entries/${slug}` : "/admin", active: (path) => path.startsWith("/admin/entries/") },
-          { label: "Line-up sync", to: slug ? `/admin/lineup-sync/${slug}` : "/admin", active: (path) => path.startsWith("/admin/lineup-sync/") },
+          { label: "Sync", to: slug ? `/admin/lineup-sync/${slug}` : "/admin", active: (path) => path.startsWith("/admin/lineup-sync/") },
+          { label: "Participation", to: slug ? `/admin/participant-status/${slug}` : "/admin", active: (path) => path.startsWith("/admin/participant-status/") },
         ],
       };
     }
