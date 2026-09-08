@@ -1,3 +1,4 @@
+import { canonicalCountryVotingMetrics } from "./canonical-country-voting";
 import type { Edition, JuryVote, Participant, ResultRow, Show, Televote } from "./data";
 import {
   buildEditionProgressionPlacements,
@@ -193,6 +194,21 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     .filter((row): row is EditionFlag => row != null);
 
   const qualifications = qualificationOutcomes.filter((row) => row.value).length;
+  const qualificationRanks = [...participationEditionIds]
+    .map((editionId) => {
+      const status = qualificationByEdition.get(editionId) ?? null;
+      if (status !== "q" && status !== "wildcard") return null;
+      const semiRanks = results
+        .filter(
+          (result) =>
+            result.edition_id === editionId &&
+            isSemiShow(showById.get(result.show_id ?? "")) &&
+            result.final_rank != null,
+        )
+        .map((result) => result.final_rank as number);
+      return semiRanks.length ? Math.min(...semiRanks) : null;
+    })
+    .filter((rank): rank is number => rank != null);
 
   const progressionPlacements = buildEditionProgressionPlacements(publicOptions.results, publicOptions.shows);
   const canonicalTimeline: CountryTimelinePoint[] = [];
@@ -246,17 +262,10 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
   );
   const rolling5 = buildRollingFive(canonicalTimeline);
   const { biggestImprovement, biggestDecline } = placementSwings(canonicalTimeline);
-
-  // "Per contest" means per edition, not per show. A delegation can vote in a
-  // heat, semi and final in the same edition; averaging those as separate
-  // contests would make the statistic depend on the format.
-  const givenByEdition = new Map<string, number>();
-  publicOptions.jury
-    .filter((vote) => vote.voter_country_id === countryId)
-    .forEach((vote) => {
-      givenByEdition.set(vote.edition_id, (givenByEdition.get(vote.edition_id) ?? 0) + vote.points);
-    });
-  const averageGivenPerEdition = average([...givenByEdition.values()]);
+  const voting = canonicalCountryVotingMetrics(countryId, {
+    jury: publicOptions.jury,
+    results: publicOptions.results,
+  });
 
   // Received top-score counts must include every published jury/voter identity,
   // including custom/external voters that do not map to a Solaris country.
@@ -288,11 +297,20 @@ export function computeCanonicalCountryStats(countryId: string, options: Options
     nilPointers: editionScores.filter((score) => score === 0).length,
     avgCombinedPlacement: averageCombinedPlacement,
     avgPointsPerParticipation: averageEditionScore,
-    avgReceivedPerContest: averageEditionScore,
-    avgGivenPerContest: averageGivenPerEdition,
+    avgPointsPerVoter: voting.avgPointsPerVoter,
+    avgReceivedPerContest: voting.avgReceivedPerContest,
+    avgGivenPerContest: voting.avgGivenPerContest,
+    avgQualificationRank: average(qualificationRanks),
     topScoresReceived,
     highestScore: editionScores.length ? Math.max(...editionScores) : null,
     lowestScore: editionScores.length ? Math.min(...editionScores) : null,
+    favouriteRecipient: voting.favouriteRecipient,
+    mostGenerousTowards: voting.mostGenerousTowards,
+    harshestTowards: voting.harshestTowards,
+    distinctCountriesAwarded: voting.distinctCountriesAwarded,
+    neverAwarded: voting.neverAwarded,
+    neverVotedForThem: voting.neverVotedForThem,
+    neverVotedFor: voting.neverVotedForThem,
     timeline: canonicalTimeline,
     rolling5,
     biggestImprovement,
