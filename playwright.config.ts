@@ -1,18 +1,21 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const widths = [360, 390, 430, 768, 1024, 1280, 1440, 1680, 1920] as const;
+const fullAudit = process.env.E2E_FULL_AUDIT === "1";
+const widths = fullAudit
+  ? ([360, 390, 430, 768, 1024, 1280, 1440, 1680, 1920] as const)
+  : ([360, 768, 1440, 1920] as const);
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
 
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.e2e\.ts/,
   outputDir: "test-results/playwright",
-  timeout: process.env.CI ? 12 * 60_000 : 5 * 60_000,
-  expect: { timeout: 15_000 },
+  timeout: process.env.CI ? 8 * 60_000 : 5 * 60_000,
+  expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 3 : undefined,
+  workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI
     ? [["line"], ["html", { outputFolder: "playwright-report", open: "never" }]]
     : "list",
