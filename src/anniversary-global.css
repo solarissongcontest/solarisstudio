@@ -59,7 +59,7 @@ body.solaris-anniversary-day {
   position: fixed;
   top: 4.75rem;
   right: .85rem;
-  z-index: 5;
+  z-index: 55;
   display: flex;
   align-items: center;
   gap: .45rem;
@@ -78,11 +78,26 @@ body.solaris-anniversary-day {
   font-weight: 750;
   letter-spacing: .08em;
   text-transform: uppercase;
+  overflow: hidden;
+  transition:
+    width .24s cubic-bezier(.2,.8,.2,1),
+    max-width .24s cubic-bezier(.2,.8,.2,1),
+    padding .24s cubic-bezier(.2,.8,.2,1),
+    background .18s ease,
+    border-color .18s ease;
 }
 
 .solaris-anniversary-global-badge strong {
   color: #fff;
   font-weight: 950;
+}
+
+.solaris-anniversary-badge-copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: .45rem;
+  white-space: nowrap;
 }
 
 .solaris-anniversary-badge-star {
@@ -202,12 +217,50 @@ body.solaris-anniversary-day .app-main .solaris-family-card {
   }
 
   .solaris-anniversary-global-badge {
-    top: 4.35rem;
-    right: .5rem;
-    max-width: calc(100vw - 1rem);
+    top: 4.2rem;
+    right: .6rem;
+    left: auto;
+    width: 2.65rem;
+    max-width: 2.65rem;
+    min-height: 2.65rem;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
     font-size: .51rem;
-    gap: .32rem;
-    padding-inline: .55rem;
+  }
+
+  .solaris-anniversary-global-badge .solaris-anniversary-badge-star {
+    width: 1.05rem;
+  }
+
+  .solaris-anniversary-global-badge .solaris-anniversary-badge-copy {
+    max-width: 0;
+    gap: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateX(.35rem);
+    transition:
+      max-width .24s cubic-bezier(.2,.8,.2,1),
+      opacity .15s ease,
+      transform .24s cubic-bezier(.2,.8,.2,1),
+      gap .24s ease;
+  }
+
+  .solaris-anniversary-global-badge.is-expanded {
+    width: min(20rem, calc(100vw - 1.2rem));
+    max-width: min(20rem, calc(100vw - 1.2rem));
+    justify-content: flex-start;
+    gap: .4rem;
+    padding: .45rem .68rem;
+    background: rgba(5, 9, 31, .88);
+    border-color: rgba(255,255,255,.3);
+  }
+
+  .solaris-anniversary-global-badge.is-expanded .solaris-anniversary-badge-copy {
+    max-width: 17rem;
+    gap: .35rem;
+    opacity: 1;
+    transform: translateX(0);
   }
 
   .solaris-anniversary-falling-star:nth-child(4n) { display: none; }
@@ -217,19 +270,4 @@ body.solaris-anniversary-day .app-main .solaris-family-card {
   body.solaris-anniversary-day .app-main {
     padding-inline: 1.25rem !important;
   }
-}
-
-@media (min-width: 1024px) {
-  body.solaris-anniversary-day .app-main {
-    padding-inline: 1.5rem !important;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .solaris-anniversary-falling-star,
-  .solaris-anniversary-burst-star {
-    animation: none !important;
-  }
-
-  .solaris-anniversary-falling-star { display: none; }
 }

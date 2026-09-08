@@ -1,5 +1,13 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
 import "@/anniversary-global.css";
 import "@/anniversary-sitewide.css";
@@ -125,11 +133,22 @@ export function SolarisAnniversaryCelebration() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const [clock, setClock] = useState(() => new Date());
   const [showIntro, setShowIntro] = useState(false);
+  const [badgeExpanded, setBadgeExpanded] = useState(false);
 
   useEffect(() => {
     const tick = window.setInterval(() => setClock(new Date()), 60_000);
     return () => window.clearInterval(tick);
   }, []);
+
+  useEffect(() => {
+    setBadgeExpanded(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!badgeExpanded) return;
+    const timeout = window.setTimeout(() => setBadgeExpanded(false), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [badgeExpanded]);
 
   const previewPhase = useMemo(() => getAnniversaryPreviewPhase(searchStr), [searchStr, pathname]);
   const season = useMemo(() => withPreview(getSolarisAnniversarySeason(clock), previewPhase), [clock, previewPhase]);
@@ -139,6 +158,16 @@ export function SolarisAnniversaryCelebration() {
   const personalRoute = pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me");
   const countryRoute = pathname.startsWith("/countries/") || pathname.startsWith("/wiki/");
   const submissionRoute = pathname.startsWith("/confirmations") || pathname.startsWith("/televoting") || pathname.startsWith("/jury-voting") || pathname.startsWith("/next-in-line");
+
+  const handleBadgeClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 639px)").matches) return;
+    if (!badgeExpanded) {
+      event.preventDefault();
+      setBadgeExpanded(true);
+    }
+  };
+
+  const badgeClassName = `solaris-anniversary-global-badge ${badgeExpanded ? "is-expanded" : "is-collapsed"}`;
 
   useEffect(() => {
     if (!active) {
@@ -199,10 +228,18 @@ export function SolarisAnniversaryCelebration() {
       : `The celebration stays visible for a few days while Solaris moves into its ${ordinal(season.age + 1)} year.`;
     return (
       <>
-        <Link to="/anniversary" className="solaris-anniversary-global-badge" aria-label="Open the Solaris anniversary hub">
+        <Link
+          to="/anniversary"
+          className={badgeClassName}
+          aria-label={badgeExpanded ? "Open the Solaris anniversary hub" : "Show anniversary status"}
+          aria-expanded={badgeExpanded}
+          onClick={handleBadgeClick}
+        >
           <span className="solaris-anniversary-badge-star" aria-hidden="true" />
-          <span>17 September</span><span className="solaris-anniversary-badge-divider">·</span>
-          <strong>{countdown ? title : `Year ${season.age + 1} begins`}</strong>
+          <span className="solaris-anniversary-badge-copy">
+            <span>17 September</span><span className="solaris-anniversary-badge-divider">·</span>
+            <strong>{countdown ? title : `Year ${season.age + 1} begins`}</strong>
+          </span>
         </Link>
         <aside className={`solaris-anniversary-season-notice ${countdown ? "solaris-anniversary-season-notice--countdown" : "solaris-anniversary-season-notice--after"}`}>
           <div className="solaris-anniversary-season-mark" aria-hidden="true"><span>{countdown ? season.daysUntil : String(season.age + 1).padStart(2, "0")}</span></div>
@@ -234,8 +271,18 @@ export function SolarisAnniversaryCelebration() {
           ))}
         </div>
       </div>
-      <Link to="/anniversary" className="solaris-anniversary-global-badge" aria-label={`Open the ${season.ordinal} Solaris anniversary hub`} data-anniversary-action="major">
-        <span className="solaris-anniversary-badge-star" aria-hidden="true" /><span>17 September</span><span className="solaris-anniversary-badge-divider">·</span><strong>{season.age} years of Solaris</strong>
+      <Link
+        to="/anniversary"
+        className={badgeClassName}
+        aria-label={badgeExpanded ? `Open the ${season.ordinal} Solaris anniversary hub` : "Show anniversary status"}
+        aria-expanded={badgeExpanded}
+        data-anniversary-action="major"
+        onClick={handleBadgeClick}
+      >
+        <span className="solaris-anniversary-badge-star" aria-hidden="true" />
+        <span className="solaris-anniversary-badge-copy">
+          <span>17 September</span><span className="solaris-anniversary-badge-divider">·</span><strong>{season.age} years of Solaris</strong>
+        </span>
       </Link>
       {pathname !== "/" && !isAdmin && (
         <aside className={`solaris-anniversary-context solaris-anniversary-context--${context.tone}`}>
