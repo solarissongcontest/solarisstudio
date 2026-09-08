@@ -55,7 +55,7 @@ describe("country personality V5 art direction", () => {
 
   it("loads the final V5 layer after all legacy repair layers", () => {
     expect(styles).toContain('import artDirectionStyles from "@/country-personalities-v5.css?inline"');
-    expect(styles.indexOf("{artDirectionStyles}")).toBeGreaterThan(styles.indexOf("{feedbackStyles}"));
+    expect(styles.indexOf("\n  artDirectionStyles,")).toBeGreaterThan(styles.indexOf("\n  feedbackStyles,"));
   });
 
   it("locks the pixel-target mobile hero heights", () => {
