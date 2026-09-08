@@ -16,6 +16,7 @@ const FIXED = [
   ["Public voting rounds", "/televoting/admin/rounds", "Voting", "open close entries rules"],
   ["Voting results", "/televoting/admin/results", "Voting", "calculate official results"],
   ["Voting integrity", "/televoting/admin/integrity", "Voting", "review suspicious votes warnings blocked"],
+  ["Voting integrity declarations", "/televoting/admin/integrity-declarations", "Voting", "signed declarations attestations evidence review"],
   ["Friend-voting intelligence", "/admin/friend-voting", "Voting", "relationships reciprocity network signals"],
   ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout voting numbers"],
   ["Country accounts", "/admin/country-accounts", "Administration", "country account access"],
