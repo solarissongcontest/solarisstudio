@@ -79,7 +79,10 @@ function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdit
   const getConversion = useServerFn(getMergedTelevoteConversion);
   const [roundId, setRoundId] = useState("");
 
-  const defaultRoundId = edition.rounds.at(-1)?.id ?? "";
+  const preferredFinal = [...edition.rounds]
+    .reverse()
+    .find((round) => /grand\s*final/i.test(round.name) && !/live/i.test(round.name));
+  const defaultRoundId = preferredFinal?.id ?? edition.rounds.at(-1)?.id ?? "";
   const effectiveRoundId = edition.rounds.some((round) => round.id === roundId)
     ? roundId
     : defaultRoundId;
