@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import {
   createMergedTelevotingRound,
   deleteMergedTelevotingRound,
-  getMergedTelevotingRounds,
+  getMergedTelevotingRoundsForEdition,
   renameMergedTelevotingRound,
   setMergedTelevotingRoundStatus,
   type MergedAdminRound,
@@ -29,7 +29,7 @@ import {
 export function VotingRoundsView() {
   const queryClient = useQueryClient();
   const { editionId } = useAdminContext();
-  const getRounds = useServerFn(getMergedTelevotingRounds);
+  const getRounds = useServerFn(getMergedTelevotingRoundsForEdition);
   const createRound = useServerFn(createMergedTelevotingRound);
   const renameRound = useServerFn(renameMergedTelevotingRound);
   const setStatus = useServerFn(setMergedTelevotingRoundStatus);
