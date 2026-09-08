@@ -168,7 +168,7 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     margin-left: -.75rem;
     margin-right: -.75rem;
     overflow-x: clip;
-    padding-inline: 1rem;
+    padding: .35rem 1rem 2.5rem !important;
   }
 
   body.solaris-anniversary-day .solaris-anniversary-v2 > div,
@@ -179,16 +179,46 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     max-width: 100%;
   }
 
+  /* The badge is fixed and does not consume document flow. Keeping the old
+     2.25rem hero top padding created a giant fake "gap" beneath it on iPhone. */
+  body.solaris-anniversary-day .anniversary-v2-hero {
+    min-height: auto !important;
+    gap: 1rem !important;
+    padding-block: .7rem 2.25rem !important;
+    align-items: start !important;
+  }
+
   body.solaris-anniversary-day .anniversary-v2-title {
     max-width: 100%;
-    font-size: clamp(3rem, 16vw, 4.6rem);
+    margin-top: .85rem;
+    font-size: clamp(3rem, 15vw, 4.35rem);
     line-height: .82;
     overflow-wrap: anywhere;
+  }
+
+  body.solaris-anniversary-day .anniversary-v2-lede {
+    margin-top: 1.05rem;
+    font-size: .96rem;
+    line-height: 1.55;
   }
 
   body.solaris-anniversary-day .anniversary-v2-kicker,
   body.solaris-anniversary-day .anniversary-v2-actions {
     max-width: 100%;
+  }
+
+  body.solaris-anniversary-day .anniversary-v2-kicker {
+    gap: .42rem;
+  }
+
+  body.solaris-anniversary-day .anniversary-v2-chip {
+    min-height: 1.95rem;
+    padding: .4rem .65rem;
+    font-size: .56rem;
+  }
+
+  body.solaris-anniversary-day .anniversary-v2-actions {
+    margin-top: 1.25rem;
   }
 
   body.solaris-anniversary-day .anniversary-v2-action {
