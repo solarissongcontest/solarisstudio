@@ -34,11 +34,108 @@ async function audit(
   });
 }
 
+function withEntryCounts(
+  rounds: Array<{
+    id: string;
+    edition_id: string;
+    name: string;
+    status: unknown;
+    opened_at: string | null;
+    closed_at: string | null;
+    participant_mode: unknown;
+    self_voting_mode: unknown;
+  }>,
+  counts: Map<string, number>,
+): MergedAdminRoundServer[] {
+  return rounds.map((round) => ({
+    ...round,
+    status: round.status as "draft" | "open" | "closed",
+    participant_mode: String(round.participant_mode ?? "countries"),
+    self_voting_mode: String(round.self_voting_mode ?? "country_match"),
+    entry_count: counts.get(round.id) ?? 0,
+  }));
+}
+
+/**
+ * Compatibility catalog for specialist Voting tools. This used to run the
+ * full canonical synchronization routine, including writes and draft syncs,
+ * on every read. It now performs a fixed set of read-only queries instead.
+ */
+export async function getMergedTelevotingRoundsServer() {
+  await requireMergedTelevotingAdminServer();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+
+  const [solarisResult, linkResult, remoteEditionResult, roundsResult, entriesResult] = await Promise.all([
+    db
+      .from("editions")
+      .select("id,name,edition_number,status")
+      .not("edition_number", "is", null)
+      .order("edition_number", { ascending: false }),
+    db
+      .from("integration_links")
+      .select("solaris_id,remote_id")
+      .eq("service", "televoting")
+      .eq("entity_type", "edition"),
+    televotingAdmin
+      .from("editions")
+      .select("id,is_active,is_archived"),
+    televotingAdmin
+      .from("rounds")
+      .select("id,edition_id,name,status,opened_at,closed_at,participant_mode,self_voting_mode")
+      .order("created_at", { ascending: true }),
+    televotingAdmin
+      .from("round_entries")
+      .select("round_id"),
+  ]);
+
+  if (solarisResult.error) throw new Error(solarisResult.error.message);
+  if (linkResult.error) throw new Error(linkResult.error.message);
+  if (remoteEditionResult.error) throw new Error(remoteEditionResult.error.message);
+  if (roundsResult.error) throw new Error(roundsResult.error.message);
+  if (entriesResult.error) throw new Error(entriesResult.error.message);
+
+  const linkBySolaris = new Map<string, string>(
+    (linkResult.data ?? []).map((row: any) => [String(row.solaris_id), String(row.remote_id)]),
+  );
+  const remoteEditionById = new Map<string, { is_active: boolean; is_archived: boolean }>(
+    (remoteEditionResult.data ?? []).map((row) => [String(row.id), {
+      is_active: Boolean(row.is_active),
+      is_archived: Boolean(row.is_archived),
+    }]),
+  );
+  const counts = new Map<string, number>();
+  for (const entry of entriesResult.data ?? []) {
+    counts.set(String(entry.round_id), (counts.get(String(entry.round_id)) ?? 0) + 1);
+  }
+
+  const rounds = withEntryCounts((roundsResult.data ?? []) as any[], counts);
+
+  return (solarisResult.data ?? []).flatMap((edition: any) => {
+    const editionNumber = Number(edition.edition_number);
+    const remoteId = linkBySolaris.get(String(edition.id));
+    if (!Number.isInteger(editionNumber) || !remoteId) return [];
+
+    const remoteEdition = remoteEditionById.get(remoteId);
+    if (!remoteEdition) return [];
+
+    return [{
+      id: remoteId,
+      solaris_id: String(edition.id),
+      name: String(edition.name),
+      edition_number: editionNumber,
+      is_active: remoteEdition.is_active,
+      is_archived: remoteEdition.is_archived,
+      rounds: rounds.filter((round) => round.edition_id === remoteId),
+    }];
+  });
+}
+
 /**
  * Read one Organizer-selected edition only. Ordinary navigation must never
  * rebuild the complete Televoting catalog or auto-sync every historical draft.
  */
-export async function getMergedTelevotingRoundsServer(solarisEditionId: string) {
+export async function getMergedTelevotingRoundsForEditionServer(solarisEditionId: string) {
   await requireMergedTelevotingAdminServer();
   const edition = await getTelevotingEditionProjectionServer(solarisEditionId);
   if (!edition) return null;
@@ -61,19 +158,14 @@ export async function getMergedTelevotingRoundsServer(solarisEditionId: string) 
     if (entriesResult.error) throw new Error(entriesResult.error.message);
 
     for (const entry of entriesResult.data ?? []) {
-      counts.set(entry.round_id, (counts.get(entry.round_id) ?? 0) + 1);
+      counts.set(String(entry.round_id), (counts.get(String(entry.round_id)) ?? 0) + 1);
     }
   }
 
-  const rounds = (roundsResult.data ?? []).map((round) => ({
-    ...round,
-    status: round.status as "draft" | "open" | "closed",
-    participant_mode: String(round.participant_mode ?? "countries"),
-    self_voting_mode: String(round.self_voting_mode ?? "country_match"),
-    entry_count: counts.get(round.id) ?? 0,
-  }));
-
-  return { ...edition, rounds };
+  return {
+    ...edition,
+    rounds: withEntryCounts((roundsResult.data ?? []) as any[], counts),
+  };
 }
 
 export async function createMergedTelevotingRoundServer(data: { editionId: string; name: string }) {
