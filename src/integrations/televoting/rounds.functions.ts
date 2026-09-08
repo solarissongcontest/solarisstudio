@@ -22,17 +22,27 @@ export type MergedAdminEdition = {
   rounds: MergedAdminRound[];
 };
 
-export const getMergedTelevotingRounds = createServerFn({ method: "POST" })
+/** Compatibility loader for specialist tools that need the complete catalog.
+ * The server implementation is read-only and performs a bounded query set. */
+export const getMergedTelevotingRounds = createServerFn({ method: "GET" }).handler(async () => {
+  const { getMergedTelevotingRoundsServer } = await import(
+    "@/integrations/televoting/rounds.server"
+  );
+  return getMergedTelevotingRoundsServer() as Promise<MergedAdminEdition[]>;
+});
+
+/** Preferred Organizer loader: only return the globally selected Solaris edition. */
+export const getMergedTelevotingRoundsForEdition = createServerFn({ method: "POST" })
   .inputValidator((data: { editionId: string }) => {
     const editionId = String(data?.editionId ?? "").trim();
     if (!editionId) throw new Error("Missing Solaris edition");
     return { editionId };
   })
   .handler(async ({ data }) => {
-    const { getMergedTelevotingRoundsServer } = await import(
+    const { getMergedTelevotingRoundsForEditionServer } = await import(
       "@/integrations/televoting/rounds.server"
     );
-    return getMergedTelevotingRoundsServer(data.editionId) as Promise<MergedAdminEdition | null>;
+    return getMergedTelevotingRoundsForEditionServer(data.editionId) as Promise<MergedAdminEdition | null>;
   });
 
 export const createMergedTelevotingRound = createServerFn({ method: "POST" })
