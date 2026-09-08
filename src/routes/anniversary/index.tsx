@@ -124,7 +124,7 @@ function AnniversaryPage() {
         finals: stat.finals.size,
         wins: stat.wins,
         points: stat.points,
-        score: stat.wins * 100000 + stat.finals * 1000 + stat.participations * 100 + stat.points,
+        score: stat.wins * 100000 + stat.finals.size * 1000 + stat.participations.size * 100 + stat.points,
       }))
       .filter((item) => item.country)
       .sort((a, b) => b.score - a.score)
