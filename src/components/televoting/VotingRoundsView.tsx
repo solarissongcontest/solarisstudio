@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Edit3, Layers3, Lock, Plus, Radio, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminActionItem,
   AdminCard,
@@ -29,6 +30,7 @@ import {
 export function VotingRoundsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { editionId } = useAdminContext();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
   const getRounds = useServerFn(getMergedTelevotingRounds);
   const createRound = useServerFn(createMergedTelevotingRound);
@@ -36,7 +38,6 @@ export function VotingRoundsView() {
   const setStatus = useServerFn(setMergedTelevotingRoundStatus);
   const deleteRound = useServerFn(deleteMergedTelevotingRound);
 
-  const [editionId, setEditionId] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState<MergedAdminRound | null>(null);
@@ -53,26 +54,18 @@ export function VotingRoundsView() {
     if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
   }, [admin, adminLoading, navigate]);
 
-  const { data: editions = [], isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-rounds"],
-    queryFn: () => getRounds(),
-    enabled: Boolean(admin),
+  const { data: edition, isLoading, error } = useQuery({
+    queryKey: ["merged-televoting-rounds", editionId],
+    queryFn: () => getRounds({ data: { editionId } }),
+    enabled: Boolean(admin && editionId),
   });
-
-  const effectiveEditionId =
-    editionId || editions.find((edition) => edition.is_active && !edition.is_archived)?.id || editions[0]?.id || "";
-
-  const edition = useMemo(
-    () => editions.find((item) => item.id === effectiveEditionId) ?? null,
-    [editions, effectiveEditionId],
-  );
 
   const rounds = edition?.rounds ?? [];
   const openRound = rounds.find((round) => round.status === "open") ?? null;
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["merged-televoting-rounds", editionId] });
 
   const createMutation = useMutation({
-    mutationFn: () => createRound({ data: { editionId: effectiveEditionId, name: newName.trim() } }),
+    mutationFn: () => createRound({ data: { solarisEditionId: editionId, name: newName.trim() } }),
     onSuccess: async () => {
       setNewName("");
       setCreateOpen(false);
@@ -126,30 +119,21 @@ export function VotingRoundsView() {
         title="Rounds & entries"
         description="Prepare a voting round, check its line-up, then deliberately open or close voting. Technical state stays out of the way until you need it."
         actions={
-          <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
+          <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary" disabled={!editionId}>
             <Plus className="size-4" /> New round
           </button>
         }
       />
 
-      <AdminCard className="mb-4 !p-3">
-        <label className="block">
-          <span className="admin-section-label">Edition</span>
-          <select
-            value={effectiveEditionId}
-            onChange={(event) => setEditionId(event.target.value)}
-            className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm font-semibold text-foreground outline-none focus:border-sky-200/30"
-          >
-            {editions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}{item.is_active ? " · Active" : ""}{item.is_archived ? " · Archived" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-      </AdminCard>
+      {edition ? (
+        <div className="mb-4 rounded-xl border border-white/[0.06] bg-white/[0.018] px-3 py-2 text-xs text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{edition.name}</span>. Change edition from the Organizer header.
+        </div>
+      ) : null}
 
-      {adminLoading || isLoading ? (
+      {!editionId ? (
+        <AdminCard className="py-8 text-center text-sm text-muted-foreground">Choose an edition from the Organizer header.</AdminCard>
+      ) : adminLoading || isLoading ? (
         <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading voting rounds…</AdminCard>
       ) : error ? (
         <AdminCard className="border-rose-200/15 bg-rose-200/[0.045] text-sm text-rose-100">
@@ -244,7 +228,7 @@ export function VotingRoundsView() {
           <label className="block"><span className="text-xs font-semibold">Round name</span><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Grand Final" className="mt-2 min-h-11" /></label>
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
             <button type="button" disabled={createMutation.isPending} onClick={() => setCreateOpen(false)} className="admin-action-secondary">Cancel</button>
-            <button type="button" disabled={!effectiveEditionId || !newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary w-full">{createMutation.isPending ? "Creating…" : "Create draft round"}</button>
+            <button type="button" disabled={!editionId || !newName.trim() || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary w-full">{createMutation.isPending ? "Creating…" : "Create draft round"}</button>
           </div>
         </div>
       </AdminSheet>
