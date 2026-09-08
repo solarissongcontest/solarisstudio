@@ -7,6 +7,7 @@ import {
   getSolarisAnniversary,
   type SolarisAnniversary,
 } from "@/lib/anniversary";
+import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import {
   useAllParticipants,
   useAllResults,
@@ -16,13 +17,14 @@ import {
 } from "@/lib/data";
 
 export function HomeAnniversaryTakeover() {
+  const pathname = useLocation({ select: (location) => location.pathname });
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const [clock, setClock] = useState(() => new Date());
 
-  const preview = useMemo(() => {
-    const value = new URLSearchParams(searchStr).get("anniversary");
-    return value === "preview" || value === "active";
-  }, [searchStr]);
+  const preview = useMemo(
+    () => getAnniversaryPreviewPhase(searchStr) === "active",
+    [searchStr, pathname],
+  );
 
   useEffect(() => {
     const tick = window.setInterval(() => setClock(new Date()), 60_000);
