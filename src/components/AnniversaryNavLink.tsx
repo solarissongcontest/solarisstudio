@@ -2,6 +2,8 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { AnniversaryFeatureBoundary } from "@/components/AnniversaryFeatureBoundary";
+
 const LazyAnniversaryCompletionExperience = lazy(() =>
   import("@/components/AnniversaryCompletionExperience").then((module) => ({
     default: module.AnniversaryCompletionExperience,
@@ -20,20 +22,31 @@ function needsCompletionExperience(pathname: string) {
 }
 
 export function AnniversaryNavLink() {
+  return (
+    <AnniversaryFeatureBoundary name="anniversary-nav-link">
+      <AnniversaryNavLinkInner />
+    </AnniversaryFeatureBoundary>
+  );
+}
+
+function AnniversaryNavLinkInner() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     const nav = document.querySelector<HTMLElement>('nav[aria-label="Main navigation"]');
     setHost(nav);
+    return () => setHost(null);
   }, [pathname]);
 
   return (
     <>
       {needsCompletionExperience(pathname) ? (
-        <Suspense fallback={null}>
-          <LazyAnniversaryCompletionExperience />
-        </Suspense>
+        <AnniversaryFeatureBoundary name={`anniversary-completion:${pathname}`}>
+          <Suspense fallback={null}>
+            <LazyAnniversaryCompletionExperience />
+          </Suspense>
+        </AnniversaryFeatureBoundary>
       ) : null}
       {host
         ? createPortal(
