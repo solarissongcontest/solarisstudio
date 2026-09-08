@@ -39,7 +39,7 @@ export function AnniversaryTakeover({
                 <strong>of Solaris</strong>
               </h1>
               <p className="anniversary-editorial-deck">
-                Four years of champions, near misses, voting chaos and countries writing themselves into Solaris history. Today the Studio becomes the archive.
+                {anniversary.age} years of champions, near misses, voting chaos and countries writing themselves into Solaris history. Today the Studio becomes the archive.
               </p>
               <div className="anniversary-editorial-actions">
                 <Link to="/anniversary" className="anniversary-editorial-action primary" data-anniversary-action="major">
@@ -52,9 +52,9 @@ export function AnniversaryTakeover({
 
           <div className="anniversary-editorial-facts" aria-label="Solaris anniversary highlights">
             <EditorialFact
-              label="The archive"
+              label="This anniversary year"
               value={`${recap.editionCount} chapters`}
-              detail={`${recap.countryCount} countries · ${recap.entryCount} entries in the anniversary year`}
+              detail={`${recap.countryCount} countries · ${recap.entryCount} entries since the previous birthday`}
             />
             <EditorialFact
               label="Closest finish"
