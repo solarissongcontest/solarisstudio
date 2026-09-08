@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminPageHeader } from "@/components/admin/AdminUI";
@@ -31,9 +31,27 @@ function AnniversaryPreviewPage() {
           eyebrow="17 September"
           title="Anniversary Preview"
           description="Test every annual SSC anniversary state without changing the system clock. Open previews in a new tab and use responsive device mode for phone layouts."
+          actions={
+            <Link to="/admin/anniversary-dates" className="admin-action-primary">
+              Manage edition dates
+            </Link>
+          }
         />
 
         <AdminCard>
+          <AdminCardHeader
+            eyebrow="Historical accuracy"
+            title="Exact edition dates power the anniversary year"
+            description="Anniversary-year statistics now depend on each edition's Grand Final or main event date. Fill missing dates before trusting period-specific counts."
+          />
+          <div className="mt-4">
+            <Link to="/admin/anniversary-dates" className="admin-action-secondary">
+              Open edition date editor →
+            </Link>
+          </div>
+        </AdminCard>
+
+        <AdminCard className="mt-4">
           <AdminCardHeader
             eyebrow="Preview states"
             title="Open an anniversary surface"
