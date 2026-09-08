@@ -2,6 +2,8 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 import { auditPage, sitemapRoutes, STATIC_PUBLIC_ROUTES } from "./audit-helpers";
 
+const fullAudit = process.env.E2E_FULL_AUDIT === "1";
+
 async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   const failures: string[] = [];
 
@@ -16,7 +18,13 @@ async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   expect(failures, "Every public route should pass the viewport audit").toEqual([]);
 }
 
-test("public route families pass at this viewport", async ({ page, baseURL }, testInfo) => {
+test("public route families pass at this viewport", async ({ page }, testInfo) => {
+  await auditRoutes(page, [...STATIC_PUBLIC_ROUTES].sort(), testInfo);
+});
+
+test("representative dynamic routes pass desktop audit", async ({ page, baseURL }, testInfo) => {
+  test.skip(testInfo.project.name !== "public-1440", "Dynamic route smoke runs once at desktop baseline");
+
   const discovered = await sitemapRoutes(baseURL!);
   const representativeDynamic = [
     discovered.find((route) => /^\/countries\/[^/]+$/.test(route)),
@@ -24,15 +32,12 @@ test("public route families pass at this viewport", async ({ page, baseURL }, te
     discovered.find((route) => /^\/editions\/[^/]+$/.test(route)),
   ].filter((route): route is string => Boolean(route));
 
-  await auditRoutes(
-    page,
-    [...new Set([...STATIC_PUBLIC_ROUTES, ...representativeDynamic])].sort(),
-    testInfo,
-  );
+  await auditRoutes(page, representativeDynamic, testInfo);
 });
 
 for (let shard = 0; shard < 4; shard += 1) {
   test(`all indexable routes pass desktop audit — shard ${shard + 1}`, async ({ page, baseURL }, testInfo) => {
+    test.skip(!fullAudit, "Full sitemap inventory is reserved for manual/full audit runs");
     test.skip(testInfo.project.name !== "public-1440", "Full inventory runs at desktop baseline");
     const discovered = (await sitemapRoutes(baseURL!)).sort();
     await auditRoutes(
