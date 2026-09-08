@@ -1,9 +1,10 @@
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
 import {
-  ensureCanonicalTelevotingEditionsServer,
-  syncMergedRoundFromSolarisServer,
-} from "@/integrations/televoting/solaris-sync.server";
+  ensureTelevotingEditionProjectionServer,
+  getTelevotingEditionProjectionServer,
+} from "@/integrations/televoting/edition-projection.server";
+import { syncMergedRoundFromSolarisServer } from "@/integrations/televoting/solaris-sync.server";
 
 export type MergedAdminRoundServer = {
   id: string;
@@ -33,42 +34,38 @@ async function audit(
   });
 }
 
-export async function getMergedTelevotingRoundsServer() {
+/**
+ * Read one Organizer-selected edition only. Ordinary navigation must never
+ * rebuild the complete Televoting catalog or auto-sync every historical draft.
+ */
+export async function getMergedTelevotingRoundsServer(solarisEditionId: string) {
   await requireMergedTelevotingAdminServer();
-  const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
+  const edition = await getTelevotingEditionProjectionServer(solarisEditionId);
+  if (!edition) return null;
 
-  // Bound drafts are projections, not independent participant lists. Refresh
-  // them whenever the organizer enters the Televoting rounds workspace so
-  // direct Solaris Studio edits are picked up even when Confirmations was not
-  // the writer that changed the canonical data.
-  const { autoSyncDraftTelevotingRoundsForEditionServer } = await import(
-    "@/integrations/televoting/auto-sync.server"
-  );
-  for (const edition of canonicalEditions) {
-    try {
-      await autoSyncDraftTelevotingRoundsForEditionServer(edition.solaris_id);
-    } catch (caught) {
-      console.error(
-        `[Televoting] Could not refresh draft projections for SSC${edition.edition_number}`,
-        caught,
-      );
+  const roundsResult = await televotingAdmin
+    .from("rounds")
+    .select("id,edition_id,name,status,opened_at,closed_at,participant_mode,self_voting_mode")
+    .eq("edition_id", edition.id)
+    .order("created_at", { ascending: true });
+  if (roundsResult.error) throw new Error(roundsResult.error.message);
+
+  const roundIds = (roundsResult.data ?? []).map((round) => round.id);
+  const counts = new Map<string, number>();
+
+  if (roundIds.length) {
+    const entriesResult = await televotingAdmin
+      .from("round_entries")
+      .select("round_id")
+      .in("round_id", roundIds);
+    if (entriesResult.error) throw new Error(entriesResult.error.message);
+
+    for (const entry of entriesResult.data ?? []) {
+      counts.set(entry.round_id, (counts.get(entry.round_id) ?? 0) + 1);
     }
   }
 
-  const [roundsResult, entriesResult] = await Promise.all([
-    televotingAdmin.from("rounds").select("id,edition_id,name,status,opened_at,closed_at,participant_mode,self_voting_mode").order("created_at", { ascending: true }),
-    televotingAdmin.from("round_entries").select("round_id"),
-  ]);
-
-  if (roundsResult.error) throw new Error(roundsResult.error.message);
-  if (entriesResult.error) throw new Error(entriesResult.error.message);
-
-  const counts = new Map<string, number>();
-  for (const entry of entriesResult.data ?? []) {
-    counts.set(entry.round_id, (counts.get(entry.round_id) ?? 0) + 1);
-  }
-
-  const roundRows = (roundsResult.data ?? []).map((round) => ({
+  const rounds = (roundsResult.data ?? []).map((round) => ({
     ...round,
     status: round.status as "draft" | "open" | "closed",
     participant_mode: String(round.participant_mode ?? "countries"),
@@ -76,17 +73,12 @@ export async function getMergedTelevotingRoundsServer() {
     entry_count: counts.get(round.id) ?? 0,
   }));
 
-  return canonicalEditions.map((edition) => ({
-    ...edition,
-    rounds: roundRows.filter((round) => round.edition_id === edition.id),
-  }));
+  return { ...edition, rounds };
 }
 
 export async function createMergedTelevotingRoundServer(data: { editionId: string; name: string }) {
   const actor = await requireMergedTelevotingAdminServer();
-  const canonicalEditions = await ensureCanonicalTelevotingEditionsServer();
-  const edition = canonicalEditions.find((candidate) => candidate.id === data.editionId);
-  if (!edition) throw new Error("Choose a canonical Solaris edition");
+  const edition = await ensureTelevotingEditionProjectionServer(data.editionId);
 
   const { data: row, error } = await televotingAdmin
     .from("rounds")
@@ -123,7 +115,7 @@ export async function createMergedTelevotingRoundServer(data: { editionId: strin
   } catch (caught) {
     // Keep the newly-created draft bound even when an edition does not yet have
     // enough confirmed participants to form a valid voting round. Future
-    // confirmation changes will retry it automatically.
+    // confirmation changes or an explicit line-up sync can retry it.
     syncWarning = caught instanceof Error ? caught.message : "Canonical line-up could not be populated yet";
   }
 
