@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BarChart3,
   Blend,
-  DatabaseZap,
   Globe2,
   PlayCircle,
   ShieldAlert,
@@ -19,8 +18,8 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { getMergedTelevotingOverview } from "@/integrations/televoting/admin-data.functions";
-import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
 
 export const Route = createFileRoute("/televoting/admin/")({
   head: () => ({
@@ -33,60 +32,58 @@ export const Route = createFileRoute("/televoting/admin/")({
 });
 
 function VotingAdminOverview() {
+  const { editionId } = useAdminContext();
   const getOverview = useServerFn(getMergedTelevotingOverview);
-  const getStatus = useServerFn(getMergedTelevotingServerStatus);
-
-  const { data: status, isLoading: statusLoading } = useQuery({
-    queryKey: ["merged-televoting-server-status-admin"],
-    queryFn: () => getStatus(),
-    staleTime: 30_000,
-  });
-
-  const backendReady = status?.adminReady === true;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-admin-overview"],
-    queryFn: () => getOverview(),
-    enabled: backendReady,
+    queryKey: ["merged-televoting-admin-overview", editionId],
+    queryFn: () => getOverview({ data: { editionId } }),
     staleTime: 10_000,
     refetchInterval: 15_000,
   });
 
   const nextAction =
-    !data || data.rounds === 0
+    data && !data.linked
       ? {
-          title: "Create the first public voting round",
-          description: "Choose the entries and voting rules before public voting can open.",
-          to: "/televoting/admin/rounds",
-          label: "Set up round",
+          title: "Link this edition to public voting",
+          description: "The selected Solaris edition does not have a Televoting projection yet.",
+          to: "/televoting/admin/editions",
+          label: "Sync editions",
         }
-      : data.blocked > 0
+      : !data || data.rounds === 0
         ? {
-            title: `Review ${data.blocked} blocked ${data.blocked === 1 ? "ballot" : "ballots"}`,
-            description: "Integrity checks found voting that needs an organizer decision.",
-            to: "/televoting/admin/integrity",
-            label: "Review integrity",
+            title: "Create the first public voting round",
+            description: "Choose the entries and voting rules before public voting can open.",
+            to: "/televoting/admin/rounds",
+            label: "Set up round",
           }
-        : data.openRounds > 0
+        : data.blocked > 0
           ? {
-              title: "Public voting is open",
-              description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} accepting ballots now.`,
-              to: "/televoting/admin/rounds",
-              label: "Monitor voting",
+              title: `Review ${data.blocked} blocked ${data.blocked === 1 ? "ballot" : "ballots"}`,
+              description: "Integrity checks found voting that needs an organizer decision.",
+              to: "/televoting/admin/integrity",
+              label: "Review integrity",
             }
-          : data.submissions > 0
+          : data.openRounds > 0
             ? {
-                title: "Prepare the public vote result",
-                description: `${data.submissions} submitted ${data.submissions === 1 ? "ballot is" : "ballots are"} available.`,
-                to: "/televoting/admin/results",
-                label: "Open results",
-              }
-            : {
-                title: "No public voting action needs urgent attention",
-                description: "Open or schedule the next round when you are ready.",
+                title: "Public voting is open",
+                description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} accepting ballots now.`,
                 to: "/televoting/admin/rounds",
-                label: "Manage rounds",
-              };
+                label: "Monitor voting",
+              }
+            : data.submissions > 0
+              ? {
+                  title: "Prepare the public vote result",
+                  description: `${data.submissions} submitted ${data.submissions === 1 ? "ballot is" : "ballots are"} available.`,
+                  to: "/televoting/admin/results",
+                  label: "Open results",
+                }
+              : {
+                  title: "No public voting action needs urgent attention",
+                  description: "Open or schedule the next round when you are ready.",
+                  to: "/televoting/admin/rounds",
+                  label: "Manage rounds",
+                };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -101,33 +98,23 @@ function VotingAdminOverview() {
         }
       />
 
-      {statusLoading ? (
-        <AdminCard>
-          <p className="py-7 text-center text-sm text-muted-foreground">Checking the voting system…</p>
-        </AdminCard>
-      ) : !backendReady ? (
-        <AdminCard>
-          <div className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-4">
-            <div className="flex items-start gap-3">
-              <DatabaseZap className="mt-0.5 size-5 shrink-0 text-amber-100" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">Organizer voting tools are unavailable</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Public voting may still work, but organizer controls cannot currently reach the voting backend.
-                  Check System health before changing voting data.
-                </p>
-              </div>
-            </div>
-          </div>
-        </AdminCard>
-      ) : isLoading ? (
+      {isLoading ? (
         <AdminCard>
           <p className="py-7 text-center text-sm text-muted-foreground">Loading voting status…</p>
         </AdminCard>
       ) : error ? (
         <AdminCard>
-          <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4 text-sm text-rose-100">
-            {error instanceof Error ? error.message : "Voting information could not be loaded."}
+          <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.055] p-4">
+            <p className="text-sm font-semibold text-rose-100">Voting information could not be loaded</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              The selected edition was not changed. Retry this page or check System health if the problem continues.
+            </p>
+            {error instanceof Error && error.message ? (
+              <details className="mt-3 text-[11px] text-muted-foreground">
+                <summary className="cursor-pointer font-semibold text-rose-100/80">Technical details</summary>
+                <p className="mt-2 break-words leading-relaxed">{error.message}</p>
+              </details>
+            ) : null}
           </div>
         </AdminCard>
       ) : data ? (
@@ -139,12 +126,16 @@ function VotingAdminOverview() {
                   <h2 className="truncate text-xl font-bold tracking-[-.025em]">
                     {data.activeEdition ?? "Voting workspace"}
                   </h2>
-                  <AdminStatus tone={data.openRounds > 0 ? "ready" : "neutral"}>
-                    {data.openRounds > 0 ? "Public voting live" : "Public voting closed"}
+                  <AdminStatus tone={data.openRounds > 0 ? "ready" : data.linked ? "neutral" : "warning"}>
+                    {!data.linked
+                      ? "Voting not linked"
+                      : data.openRounds > 0
+                        ? "Public voting live"
+                        : "Public voting closed"}
                   </AdminStatus>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Jury tools are available from the Jury tab above. This overview focuses on the public voting service.
+                  Jury tools are available from the Jury tab above. This overview follows the edition selected in Solaris Organizer.
                 </p>
               </div>
 
