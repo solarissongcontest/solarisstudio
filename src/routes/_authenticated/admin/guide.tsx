@@ -17,14 +17,24 @@ export const Route = createFileRoute("/_authenticated/admin/guide")({
 const SECTIONS = [
   {
     title: "Start here",
-    description: "The quickest way to understand the organizer pages.",
+    description: "The Organizer is arranged by what you are trying to do, not by the service that stores the data.",
     questions: [
       {
-        question: "What is the Organizer workspace?",
+        question: "What is Solaris Organizer?",
         answer: (
           <>
-            It is the private part of Solaris Studio used to run the contest. You can manage editions, entries,
-            jury voting, televoting, results, confirmations, country accounts and broadcast design here.
+            Solaris Organizer is the private contest-management side of Solaris Studio. Confirmations and public
+            televoting are part of the same Organizer, so you do not need to learn separate admin products.
+          </>
+        ),
+      },
+      {
+        question: "What are the main Organizer sections?",
+        answer: (
+          <>
+            Use Overview for readiness, Delegations for participation and submissions, Contest for shows and
+            entries, Voting for jury and public voting, Publish for visibility, Broadcast for presentation, and
+            Administration for accounts and system tools.
           </>
         ),
       },
@@ -32,8 +42,8 @@ const SECTIONS = [
         question: "How do I choose which edition I am working on?",
         answer: (
           <>
-            Use the edition button at the top. Choose an edition from the list. Solaris Studio keeps you on the
-            same type of page when it can.
+            Use the edition selector in the top bar. The selected edition follows you through the Organizer so you
+            do not need to keep choosing it again on every page.
           </>
         ),
       },
@@ -42,71 +52,67 @@ const SECTIONS = [
         answer: (
           <>
             Open <Link to="/admin/operations" className="font-semibold text-primary">Overview</Link>. It shows the
-            current edition, important missing items, deadlines and what needs attention next.
+            current edition, readiness problems and the most useful next action.
+          </>
+        ),
+      },
+      {
+        question: "How do I find a page if I forget where it is?",
+        answer: (
+          <>
+            Use Organizer search from the top bar. Search for a task such as jury, publication, Oland, running
+            order or system health instead of trying to remember a route.
           </>
         ),
       },
     ],
   },
   {
-    title: "Editions and shows",
+    title: "Delegations",
+    description: "Participation, submissions, rounds, calendars and delegation access live together.",
     questions: [
       {
-        question: "How do I create or edit an edition?",
+        question: "Where do I review confirmation responses?",
         answer: (
           <>
-            Open All editions, choose an edition or create a new one, then fill in its basic details. Save after
-            making changes.
+            Open Delegations, then Responses. Items needing an organizer decision are prioritized ahead of ready or
+            waiting delegations.
           </>
         ),
       },
       {
-        question: "How do I add a semi-final or final?",
+        question: "Where do I open or close a confirmation round?",
         answer: (
           <>
-            Open the edition, then open Shows. Add the show you need, choose its type and order, then save it.
+            Open Delegations, then Rounds. Use that page for submission waves, timing and capacity instead of
+            looking for a separate Confirmations admin area.
           </>
         ),
       },
       {
-        question: "How do I choose what visitors can see?",
+        question: "Where do I see National Finals and delegation deadlines?",
         answer: (
           <>
-            Open Publication for the edition. Use it to choose which entries, shows or results are public. Keep
-            anything private until it is ready to be shown.
-          </>
-        ),
-      },
-    ],
-  },
-  {
-    title: "Entries and countries",
-    questions: [
-      {
-        question: "How do I add or change an entry?",
-        answer: (
-          <>
-            Open the edition and go to Entries &amp; running order. Choose the country, then add or edit the artist,
-            song and other entry details. The same entry is used across that edition, even if it appears in both a
-            semi-final and the final.
+            Open Delegations, then Calendar. It keeps delegation-related dates together so you can see what is
+            approaching without opening each country separately.
           </>
         ),
       },
       {
-        question: "How do I manage country accounts?",
+        question: "How do I move confirmed countries into the contest?",
         answer: (
           <>
-            Open More, then Country accounts. This page shows which account belongs to each country and lets you
-            manage editing access when needed.
+            Use Delegations → Rounds → Line-up sync, or the Sync to contest shortcut on the Delegations overview.
+            Choose the confirmation wave and target show before applying the sync.
           </>
         ),
       },
       {
-        question: "How do I manage confirmations?",
+        question: "How do I help a delegation regain access?",
         answer: (
           <>
-            Open Delegations. You can see confirmation rounds, country responses and available places. Use the
-            controls there to open, close or review confirmations.
+            Open Delegations → Access. Recovery access is a fallback for a delegation that cannot reach an existing
+            response through its normal country account.
           </>
         ),
       },
@@ -114,72 +120,90 @@ const SECTIONS = [
         question: "Can a signed-in country account edit its confirmation without a recovery code?",
         answer: (
           <>
-            Yes. Solaris Studio matches the signed-in country account to that country&apos;s saved confirmation. If
-            editing is allowed for the edition, round and response, the country sees Edit your response and can
-            open it directly. Recovery codes remain available as a fallback.
-          </>
-        ),
-      },
-      {
-        question: "What is HOD history?",
-        answer: (
-          <>
-            HOD history records who managed a country in past editions. Solaris Studio uses that history when it
-            needs to understand voting activity over time.
+            Yes. Solaris Studio matches the signed-in country account to that country&apos;s saved response. If editing
+            is allowed for the edition, round and response, the delegation can open its response without a recovery code.
           </>
         ),
       },
     ],
   },
   {
-    title: "Jury voting",
+    title: "Contest",
+    description: "Build the edition itself here: shows, entries, allocations and running order.",
     questions: [
+      {
+        question: "How do I add a semi-final or Grand Final?",
+        answer: (
+          <>
+            Open Contest → Shows. Create the stage, choose its type and order, then save it. The Contest overview
+            shows which shows still need entries.
+          </>
+        ),
+      },
+      {
+        question: "How do I add or change an entry?",
+        answer: (
+          <>
+            Open Contest → Entries. Choose the show and country, then edit the artist, song and other entry details.
+          </>
+        ),
+      },
+      {
+        question: "Where do allocation and running order happen?",
+        answer: (
+          <>
+            Open Contest → Entries. The workflow moves through line-up, allocation and running order so the stage
+            you are working on stays visible.
+          </>
+        ),
+      },
+      {
+        question: "Where do I mark a country withdrawn or disqualified?",
+        answer: (
+          <>
+            Open the Contest overview and use Participation status. Change the status instead of deleting the
+            historical participant record.
+          </>
+        ),
+      },
+    ],
+  },
+  {
+    title: "Voting",
+    description: "Jury voting, public voting, integrity and results are one workflow.",
+    questions: [
+      {
+        question: "Where do I configure jury and televote rules?",
+        answer: (
+          <>
+            Open Voting → Rules for the selected edition. Configure point scales, weighting, qualifiers and
+            tie-break rules there.
+          </>
+        ),
+      },
       {
         question: "Where do I enter jury votes?",
         answer: (
           <>
-            Open the edition, then Jury voting. Choose the jury or country, enter the points, check them and save.
+            Open Voting → Jury. Choose the jury, enter its ballot and check completion from the same voting section.
           </>
         ),
       },
       {
-        question: "Why will jury votes not save?",
+        question: "Where do I open public voting?",
         answer: (
           <>
-            First check that the correct edition and show are selected and that the country has an entry in that
-            edition. If the page shows a specific error, follow that message. Do not create a second copy of the
-            same edition entry just to make voting work.
+            Open Voting → Public voting. Configure the round and entries, then open or close voting when the round
+            should accept ballots.
           </>
         ),
       },
       {
-        question: "Can I fix jury votes after saving them?",
+        question: "Where do I see submitted public ballots?",
         answer: (
           <>
-            Yes, while editing is still allowed. Open that jury again, change the points and save the corrected
-            vote.
-          </>
-        ),
-      },
-    ],
-  },
-  {
-    title: "Televoting",
-    questions: [
-      {
-        question: "How do I open public televoting?",
-        answer: (
-          <>
-            Open Voting, then Rounds &amp; entries. Choose the edition and round, check the settings and entries,
-            then open voting when everything is ready. Close it when voting should stop.
-          </>
-        ),
-      },
-      {
-        question: "Where do I see submitted televotes?",
-        answer: (
-          <>
-            Open Voting. The voting pages show submitted ballots and the information you need to review them.
+            Open Voting → Public voting for round activity and ballot data. Use Voting → Results when you are
+            preparing the official result.
           </>
         ),
       },
@@ -187,149 +211,124 @@ const SECTIONS = [
         question: "What does an Integrity warning mean?",
         answer: (
           <>
-            It means Solaris Studio noticed a voting pattern worth checking. It is not automatic proof that
-            someone cheated. Open Integrity, read the information shown and decide whether any action is needed.
+            It means Solaris Studio found a voting pattern worth reviewing. It is evidence for investigation, not
+            automatic proof of cheating. Open Voting → Integrity and review the underlying signals before acting.
           </>
         ),
       },
       {
-        question: "What is Voting analytics?",
+        question: "Where is friend-voting intelligence now?",
         answer: (
           <>
-            Voting analytics shows useful numbers about turnout, how points were spread and how countries or
-            entries voted. It is for understanding the vote, not changing it.
+            It is part of Voting → Integrity. Relationship, signal and network analysis belong with the rest of the
+            integrity workflow rather than being a separate top-level admin product.
           </>
         ),
       },
       {
-        question: "What happens if I remove a vote?",
+        question: "Where do official televote totals go?",
         answer: (
           <>
-            A removed vote no longer counts in the official result. Keep the reason accurate so the history still
-            explains what happened.
+            Use Voting → Results. Official aggregate totals are separate from individual public ballots and feed
+            the show result calculation.
           </>
         ),
       },
     ],
   },
   {
-    title: "Results",
+    title: "Publish",
+    description: "Publishing is separate from calculating results so private data does not become public by accident.",
     questions: [
       {
-        question: "How do I set the jury and televote balance?",
+        question: "How do I choose what visitors can see?",
         answer: (
           <>
-            Open Voting system for the edition. Choose how much of the result should come from juries and how much
-            should come from televoting, then save.
+            Open Publish for the selected edition. Control the visibility of countries, entries, running order,
+            qualifiers, results and detailed voting there.
           </>
         ),
       },
       {
-        question: "Where do I work with televote points?",
+        question: "Does calculating a result publish it automatically?",
         answer: (
           <>
-            Open Televote totals for the edition. This is where the televote points used by the show result are
-            reviewed or entered.
+            No. Voting produces the official result; Publish controls whether that information is visible on the
+            public site. Keep the release private until you have checked it.
           </>
         ),
       },
       {
-        question: "How do I calculate or publish results?",
+        question: "Can I make something private again?",
         answer: (
           <>
-            Make sure the votes are complete first. Open the result page for that edition, calculate the result,
-            check it carefully, then make it public only when it is correct.
-          </>
-        ),
-      },
-      {
-        question: "Does Result Lab change the official result?",
-        answer: (
-          <>
-            No. Result Lab is only for testing another version of a published result. It never changes the official
-            contest result.
+            Yes. Changing publication visibility should hide the public layer without deleting the underlying
+            contest data.
           </>
         ),
       },
     ],
   },
   {
-    title: "Broadcast and design",
+    title: "Broadcast",
+    description: "Design and presentation tools have one permanent home.",
     questions: [
       {
         question: "Where do I change the edition design?",
         answer: (
           <>
-            Open Design &amp; broadcast for the selected edition. That page contains the artwork, colours,
-            scoreboard and other broadcast settings.
+            Open Broadcast. Edit the edition design, artwork, scoreboard and live presentation settings there.
           </>
         ),
       },
       {
-        question: "How do I change a country or Wiki page design?",
+        question: "Can one show use different broadcast settings?",
         answer: (
           <>
-            Country page appearance is controlled from the country&apos;s own editor in My Solaris. Design &amp;
-            broadcast and country-page appearance are separate.
+            Yes. A show can override the edition default. Keep the edition design as the normal baseline and use a
+            show override only when that round genuinely needs something different.
           </>
         ),
       },
       {
-        question: "What should I do before a live broadcast?",
+        question: "What should I check before a live broadcast?",
         answer: (
           <>
-            Check the entries, running order, jury votes, televote settings and result information first. Open the
-            broadcast tools after those are correct.
+            Finish entries and running order in Contest, verify ballots and results in Voting, check visibility in
+            Publish, then use Broadcast for the live presentation.
           </>
         ),
       },
     ],
   },
   {
-    title: "Other organizer pages",
+    title: "Administration",
+    description: "Low-frequency account, history, diagnostics and testing tools live here.",
     questions: [
       {
-        question: "What is Predictions?",
+        question: "How do I manage country accounts?",
         answer: (
           <>
-            Predictions controls the prediction rounds shown to public users. Use it to create or manage the
-            rounds and their timing.
+            Open Administration → Accounts. Use it for country account status and access rather than treating
+            account management as part of everyday contest setup.
           </>
         ),
       },
       {
-        question: "What is Public beta feedback?",
+        question: "What is HOD history?",
         answer: (
           <>
-            Public beta feedback collects what public-site testers reported so you can see problems, confusing
-            parts and improvement ideas.
+            HOD history records who managed a country in each edition. Solaris Studio uses it when historical
+            analysis needs to distinguish different people behind the same delegation.
           </>
         ),
       },
       {
-        question: "What is Admin acceptance test?",
+        question: "What is System health?",
         answer: (
           <>
-            Admin acceptance test is the organizer testing checklist. It helps make sure the important organizer
-            tasks were actually tried before a release.
-          </>
-        ),
-      },
-      {
-        question: "What is Admin beta coverage?",
-        answer: (
-          <>
-            Admin beta coverage compares recent organizer test results and shows which areas still have not been
-            tested properly.
-          </>
-        ),
-      },
-      {
-        question: "What is Sync health?",
-        answer: (
-          <>
-            Sync health checks whether important parts of Solaris Studio are using the same information. If
-            something needs attention, it shows which part to check.
+            System health checks whether important Solaris Studio data and integrations agree. Use it when a sync,
+            voting binding or cross-system workflow looks wrong.
           </>
         ),
       },
@@ -337,17 +336,26 @@ const SECTIONS = [
         question: "What does sync mean when I see it in an error?",
         answer: (
           <>
-            It means keeping the same information up to date in every place that uses it. For example, if an entry
-            changes, other pages that show that entry should update too.
+            It means keeping the same contest information consistent everywhere that uses it. If an entry changes,
+            the dependent Organizer and public views should receive the same canonical information.
           </>
         ),
       },
       {
-        question: "What is System settings?",
+        question: "Where are predictions and testing tools?",
         answer: (
           <>
-            System settings contains site-wide organizer settings such as deadlines and maintenance tools. Most
-            everyday contest work happens elsewhere.
+            Open Administration. Predictions, beta feedback, acceptance testing and other occasional tools live
+            there so they do not compete with everyday edition work.
+          </>
+        ),
+      },
+      {
+        question: "Where do I create or archive an edition?",
+        answer: (
+          <>
+            Open Administration → All editions, or use the edition selector. Edition creation and archive controls
+            are intentionally separate from the current edition&apos;s Contest workflow.
           </>
         ),
       },
@@ -361,7 +369,7 @@ function AdminGuidePage() {
       <AdminPageHeader
         eyebrow="Help"
         title="How to use the organizer tools"
-        description="Open a question to see a simple answer and what to do next."
+        description="Find the task you are trying to do. The Organizer handles which underlying Solaris service is involved."
       />
       <GuideFAQ sections={SECTIONS} />
     </AdminPage>
