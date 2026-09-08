@@ -8,6 +8,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminContextProvider } from "./AdminContext";
+import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
 import { AdminFrame } from "./AdminFrame";
 import { AdminHealthStrip } from "./AdminHealthStrip";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
@@ -35,10 +36,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </Link>
 
             <div className="min-w-0 flex-1">
-              <AdminSelectors />
+              <AdminFeatureBoundary name="edition-selector">
+                <AdminSelectors />
+              </AdminFeatureBoundary>
             </div>
 
-            <AdminCommandPalette />
+            <AdminFeatureBoundary name="command-palette">
+              <AdminCommandPalette />
+            </AdminFeatureBoundary>
 
             <Link
               to="/"
@@ -51,12 +56,20 @@ export function AdminShell({ children }: { children: ReactNode }) {
             {email ? <p className="hidden max-w-40 truncate text-xs text-muted-foreground xl:block">{email}</p> : null}
           </div>
 
-          {!pageAlreadyShowsHealth ? <AdminHealthStrip /> : null}
+          {!pageAlreadyShowsHealth ? (
+            <AdminFeatureBoundary name="health-strip">
+              <AdminHealthStrip />
+            </AdminFeatureBoundary>
+          ) : null}
         </header>
 
         <div className="relative z-10">
           <AdminFrame>
-            {showJuryWindowControl ? <JuryVotingWindowControl /> : null}
+            {showJuryWindowControl ? (
+              <AdminFeatureBoundary name="jury-voting-window">
+                <JuryVotingWindowControl />
+              </AdminFeatureBoundary>
+            ) : null}
             {children}
           </AdminFrame>
         </div>
