@@ -109,6 +109,15 @@ jobs:
             kill "$(cat /tmp/solaris-audit-server.pid)" 2>/dev/null || true
           fi
 
+      - name: Upload browser summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-audit-summary
+          path: playwright-summary.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Upload browser report
         if: always()
         uses: actions/upload-artifact@v4
