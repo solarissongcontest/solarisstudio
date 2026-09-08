@@ -10,8 +10,6 @@ body[data-solaris-anniversary-phase="after"] {
   --anniv-mint: #78f3d0;
 }
 
-/* Countdown intentionally leaves the normal site chrome alone. The only global
-   pre-birthday element is the compact anniversary badge. */
 body[data-solaris-anniversary-phase="after"] .site-nav {
   background: linear-gradient(180deg, rgba(5,8,29,.91), rgba(5,8,29,.76)) !important;
   border-bottom-color: rgba(255,227,110,.18) !important;
@@ -36,8 +34,6 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   white-space: nowrap;
 }
 
-/* The countdown used to add a second large fixed card on top of the badge.
-   One countdown surface is enough; humans can infer that five precedes zero. */
 .solaris-anniversary-season-notice--countdown {
   display: none !important;
 }
@@ -154,14 +150,26 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     font-size: .43rem;
   }
 
-  /* Full bleed relative to the dynamic viewport, not to AppShell's padding box.
-     This removes the visible left gutter on iOS while avoiding the old 50vw shift. */
+  /* The homepage takeover is the first child of AppShell. Remove the shell's
+     own mobile padding on that one page, then let the takeover be a normal
+     100%-wide block. This avoids every viewport/margin compensation bug. */
+  body.solaris-anniversary-day .app-main:has(> .solaris-anniversary-v2) {
+    max-width: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  body.solaris-anniversary-day .app-main:has(> .solaris-anniversary-v2) > :not(.solaris-anniversary-v2) {
+    margin-left: .75rem;
+    margin-right: .75rem;
+  }
+
   body.solaris-anniversary-day .solaris-anniversary-v2 {
-    left: auto;
-    width: 100dvw;
-    max-width: none;
-    margin-left: calc(50% - 50dvw);
-    margin-right: 0;
+    left: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
     overflow-x: clip;
     padding: .35rem 1rem 2.5rem !important;
   }
