@@ -6,16 +6,16 @@ function source(path: string) {
 }
 
 describe("confirmed-country sync discoverability", () => {
-  it("links the show sync manager from the edition Build workflow", () => {
+  it("links the show sync manager from the Contest workflow", () => {
     const editionAdmin = source("routes/_authenticated/admin/$slug.tsx");
     expect(editionAdmin).toContain('title="Sync confirmed countries"');
     expect(editionAdmin).toContain('to={`/admin/lineup-sync/${slug}`}');
   });
 
-  it("links round-to-show sync from Confirmations everyday workflow", () => {
-    const confirmationsAdmin = source("routes/confirmations/admin/index.tsx");
-    expect(confirmationsAdmin).toContain('to="/confirmations/admin/sync"');
-    expect(confirmationsAdmin).toContain('title="Sync to Solaris"');
+  it("keeps round-to-show sync available from Delegations advanced tools", () => {
+    const delegationsAdmin = source("routes/confirmations/admin/index.tsx");
+    expect(delegationsAdmin).toContain('to="/confirmations/admin/sync"');
+    expect(delegationsAdmin).toContain('title="Sync to contest"');
   });
 
   it("uses explicit confirmed-country wording in the show manager", () => {
