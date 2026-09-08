@@ -11,11 +11,7 @@ import {
   useNotificationPreferences,
 } from "@/lib/engagement-data";
 import { useFanSession } from "@/lib/prediction-data";
-import {
-  buildPulseInbox,
-  eventTypeLabel,
-  PULSE_CATEGORY_OPTIONS,
-} from "@/lib/pulse";
+import { buildPulseInbox, PULSE_CATEGORY_OPTIONS } from "@/lib/pulse";
 import {
   formatCompactCountdown,
   millisecondsUntil,
@@ -66,10 +62,9 @@ export function PulseStrip() {
     signedIn: Boolean(user),
     inAppEnabled: preferences?.in_app_enabled ?? true,
   });
-
-  const unreadCount = user
-    ? events.filter((event) => !readIds.has(event.id)).length
-    : 0;
+  const unreadCount = user ? events.filter((event) => !readIds.has(event.id)).length : 0;
+  const lead = events.find((event) => event.importance === "important") ?? events[0];
+  const more = events.filter((event) => event.id !== lead?.id).slice(0, 2);
 
   const activeRound = useMemo(() => {
     return [...(roundsQuery.data ?? [])]
@@ -95,23 +90,21 @@ export function PulseStrip() {
   const untilClose = activeRound?.closes_at ? millisecondsUntil(activeRound.closes_at, now) : null;
 
   return (
-    <section className="glass p-4 sm:p-5" aria-labelledby="pulse-strip-title">
+    <section className="overflow-hidden rounded-3xl border border-border/70 bg-surface" aria-labelledby="pulse-strip-title">
       {activeRound && (
         <Link
           to="/confirmations"
-          className="mb-4 flex min-w-0 items-center gap-3 rounded-xl border border-primary/20 bg-primary/[0.07] px-3 py-3 transition-colors hover:bg-primary/[0.1]"
+          className="flex min-w-0 items-center gap-3 border-b border-primary/20 bg-primary/[0.07] px-4 py-3 transition-colors hover:bg-primary/[0.1] sm:px-5"
         >
           <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
             <Clock3 className="size-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[8px] font-black uppercase tracking-[0.16em] text-primary">
-              {roundState === "open" || roundState === "closing-soon"
-                ? "Confirmations open"
-                : "Coming up"}
+            <span className="block text-xs font-bold uppercase tracking-[0.12em] text-primary">
+              {roundState === "open" || roundState === "closing-soon" ? "Confirmations open" : "Coming up"}
             </span>
             <span className="mt-0.5 block truncate text-sm font-semibold">{activeRound.name}</span>
-            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+            <span className="mt-0.5 block text-xs text-muted-foreground">
               {roundState === "open"
                 ? untilClose !== null
                   ? `Open now · closes in ${formatCompactCountdown(untilClose)}`
@@ -125,71 +118,60 @@ export function PulseStrip() {
                     : "Opening time is set in Confirmations"}
             </span>
           </span>
-          <span className="shrink-0 text-xs font-bold text-primary">Open →</span>
+          <span className="shrink-0 text-sm font-bold text-primary">Open →</span>
         </Link>
       )}
 
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+      <div className="grid md:grid-cols-[1.15fr_.85fr]">
+        <div className="bg-gradient-to-br from-primary/15 via-surface to-background p-5 sm:p-6">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">
-              Solaris Pulse
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">What changed</p>
             {user && unreadCount > 0 && (
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] font-bold text-primary">
-                {unreadCount} unread
+              <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
+                {unreadCount} new
               </span>
             )}
           </div>
-          <h2 id="pulse-strip-title" className="mt-1 text-xl font-bold tracking-[-0.025em]">
-            What’s happening across Solaris?
-          </h2>
-          {user && (
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              Your personal country feed also lives in MySolaris.
+          <h2 id="pulse-strip-title" className="mt-2 text-2xl font-bold tracking-tight">Solaris Pulse</h2>
+
+          {lead ? (
+            <Link to={lead.route} className="mt-4 block">
+              <p className="text-lg font-bold leading-snug">{lead.title}</p>
+              {lead.summary && (
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{lead.summary}</p>
+              )}
+              <p className="mt-3 text-sm font-semibold text-primary">See what changed →</p>
+            </Link>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              {user && preferences?.in_app_enabled === false
+                ? "Your Pulse inbox is paused. You can switch it back on from Pulse preferences."
+                : "Current contest changes will appear here when something happens."}
             </p>
           )}
         </div>
-        <Link to="/pulse" className="shrink-0 text-xs font-bold text-primary">
-          Open →
-        </Link>
-      </div>
 
-      {events.length ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          {events.slice(0, 3).map((event) => (
-            <Link
-              key={event.id}
-              to={event.route}
-              className="rounded-xl bg-surface px-3 py-3 transition-colors hover:bg-surface-strong"
-            >
-              <div className="flex items-center gap-2">
-                {user && (
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      readIds.has(event.id) ? "bg-border" : "bg-primary"
-                    }`}
-                  />
-                )}
-                <p className="text-[8px] font-bold uppercase tracking-[0.13em] text-muted-foreground">
-                  {eventTypeLabel(event.event_type)}
-                </p>
-              </div>
-              <p className="mt-1 line-clamp-2 text-sm font-semibold">{event.title}</p>
-            </Link>
-          ))}
+        <div className="border-t border-border/70 p-5 md:border-l md:border-t-0">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-bold">More updates</p>
+            <Link to="/pulse" className="text-sm font-bold text-primary">Catch up →</Link>
+          </div>
+
+          {more.length ? (
+            <div className="mt-3 divide-y divide-border/70">
+              {more.map((event) => (
+                <Link key={event.id} to={event.route} className="block py-3 first:pt-0 last:pb-0">
+                  <p className="line-clamp-2 text-sm font-semibold leading-5">{event.title}</p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Nothing else needs your attention right now.
+            </p>
+          )}
         </div>
-      ) : (
-        <div className="mt-3 rounded-xl bg-surface px-3 py-3">
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {user && preferences?.in_app_enabled === false
-              ? "Your Pulse inbox is paused. You can switch it back on from Pulse preferences."
-              : user && (followData?.follows.length ?? 0) > 0
-                ? "Nothing important has changed for the things you follow. A rare moment of internet peace."
-                : "Entry reveals, national finals, results, records and other public updates collect here."}
-          </p>
-        </div>
-      )}
+      </div>
     </section>
   );
 }
