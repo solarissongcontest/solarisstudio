@@ -4,6 +4,17 @@ import { createPortal } from "react-dom";
 
 import { AnniversaryCompletionExperience } from "@/components/AnniversaryCompletionExperience";
 
+function needsCompletionExperience(pathname: string) {
+  return (
+    pathname.startsWith("/records") ||
+    pathname.startsWith("/analysis") ||
+    pathname.startsWith("/relationships") ||
+    pathname === "/countries" ||
+    pathname === "/countries/" ||
+    pathname.startsWith("/shows/")
+  );
+}
+
 export function AnniversaryNavLink() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const [host, setHost] = useState<HTMLElement | null>(null);
@@ -15,7 +26,7 @@ export function AnniversaryNavLink() {
 
   return (
     <>
-      <AnniversaryCompletionExperience />
+      {needsCompletionExperience(pathname) ? <AnniversaryCompletionExperience /> : null}
       {host
         ? createPortal(
             <Link
