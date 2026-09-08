@@ -1,9 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { getSolarisAnniversarySeason } from "@/lib/anniversary";
 import {
   archiveGameStats,
   buildArchiveGameQuestion,
@@ -32,7 +33,20 @@ const MODES: ReadonlyArray<readonly [ArchiveGameMode, string, string]> = [
   ["archive-trivia", "Archive Trivia", "Questions about songs, artists, host cities and other archived facts, not just placements."],
 ];
 
+function anniversaryRank(score: number) {
+  if (score >= 20) return "Living Archive";
+  if (score >= 15) return "Solaris Historian";
+  if (score >= 10) return "Scoreboard Addict";
+  if (score >= 5) return "Delegation Intern";
+  return "Casual Viewer";
+}
+
 function ArchiveGamesPage() {
+  const searchStr = useLocation({ select: (location) => location.searchStr });
+  const previewValue = new URLSearchParams(searchStr).get("anniversary");
+  const anniversary = getSolarisAnniversarySeason();
+  const anniversaryMode = anniversary.phase === "active" || previewValue === "preview" || previewValue === "active";
+
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const participantsQuery = useAllParticipants();
@@ -115,9 +129,11 @@ function ArchiveGamesPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Archive Games"
-        title="Play the SSC archive"
-        description="Turn published SSC history into quick games about results, entries, songs, artists and host facts. No account is needed and nothing is stored."
+        eyebrow={anniversaryMode ? `${anniversary.age} Years Challenge` : "Archive Games"}
+        title={anniversaryMode ? "Anniversary Archive Games" : "Play the SSC archive"}
+        description={anniversaryMode
+          ? "Play through published SSC history and build your live anniversary knowledge rank. Your score stays in this browser session."
+          : "Turn published SSC history into quick games about results, entries, songs, artists and host facts. No account is needed and nothing is stored."}
         actions={
           <Link
             to="/records"
@@ -155,12 +171,19 @@ function ArchiveGamesPage() {
             </div>
           </Panel>
 
-          <Panel title="Session">
+          <Panel title={anniversaryMode ? "Anniversary session" : "Session"}>
             <div className="grid grid-cols-3 gap-2">
               <Stat label="Score" value={score} />
               <Stat label="Streak" value={streak} />
               <Stat label="Best" value={bestStreak} />
             </div>
+            {anniversaryMode ? (
+              <div className="mt-3 rounded-xl border border-primary/20 bg-primary/[0.06] p-3 text-center">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Your anniversary rank</p>
+                <p className="mt-1 font-display text-lg font-semibold">{anniversaryRank(score)}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">5 · Intern · 10 · Addict · 15 · Historian · 20 · Living Archive</p>
+              </div>
+            ) : null}
           </Panel>
 
           <Panel title="Archive pool" description="Public historical data currently available">

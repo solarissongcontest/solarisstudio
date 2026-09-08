@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BarChart3,
+  CalendarDays,
   CircleHelp,
   ClipboardCheck,
   LayoutDashboard,
@@ -117,6 +118,12 @@ export function AdminNav() {
       to: "/admin/predictions",
       icon: Sparkles,
       active: (path) => path.startsWith("/admin/predictions"),
+    },
+    {
+      label: "Anniversary Preview",
+      to: "/admin/anniversary",
+      icon: CalendarDays,
+      active: (path) => path.startsWith("/admin/anniversary"),
     },
     {
       label: "Beta feedback",
