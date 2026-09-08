@@ -131,6 +131,7 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
      homepage below it is explicitly restored to the usual mobile width. */
   body.solaris-anniversary-day .app-main:has(> .solaris-anniversary-v2) {
     max-width: none !important;
+    padding-top: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
     overflow-x: clip;
@@ -149,7 +150,7 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     max-width: none !important;
     margin: 0 !important;
     overflow-x: clip;
-    padding: 2.8rem .85rem 2.5rem !important;
+    padding: 2.45rem .85rem 2.5rem !important;
   }
 
   body.solaris-anniversary-day .solaris-anniversary-v2 > div {
@@ -158,30 +159,44 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     max-width: 100%;
   }
 
-  /* The display face is unusually wide. Size against the real content box,
-     not raw viewport width, so the final S never disappears off-screen. */
+  body.solaris-anniversary-day .anniversary-editorial-copy,
+  body.solaris-anniversary-day .anniversary-editorial-title,
+  body.solaris-anniversary-day .anniversary-editorial-title strong {
+    overflow: visible !important;
+  }
+
+  /* Classica Crastao has unusually wide glyph metrics. Give the heading a
+     normal line box and fit the display line to the real iPhone content box
+     rather than allowing the section's clip boundary to shave the glyphs. */
   body.solaris-anniversary-day .anniversary-editorial-title {
     width: 100%;
     max-width: 100%;
-    font-size: clamp(2.65rem, 12vw, 3.3rem) !important;
-    line-height: .84;
-    letter-spacing: -.06em;
+    font-size: clamp(2.45rem, 10.8vw, 2.9rem) !important;
+    line-height: 1 !important;
+    letter-spacing: -.045em;
+    padding-block: .02em .08em;
   }
 
   body.solaris-anniversary-day .anniversary-editorial-title span {
-    font-size: .7em;
-    letter-spacing: -.025em;
+    font-size: .72em;
+    line-height: 1.05;
+    letter-spacing: -.02em;
   }
 
   body.solaris-anniversary-day .anniversary-editorial-title strong {
     display: block;
+    width: max-content;
     max-width: 100%;
-    font-size: .92em;
-    letter-spacing: -.07em;
+    margin-top: .08em;
+    padding: .04em .06em .1em 0;
+    font-size: .88em;
+    line-height: 1.08;
+    letter-spacing: -.055em;
     white-space: nowrap;
   }
 
   body.solaris-anniversary-day .solaris-anniversary-global-badge {
+    top: 4rem !important;
     left: .5rem;
     right: .5rem;
     width: auto;
