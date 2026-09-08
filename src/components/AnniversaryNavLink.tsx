@@ -1,8 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { AnniversaryCompletionExperience } from "@/components/AnniversaryCompletionExperience";
+const LazyAnniversaryCompletionExperience = lazy(() =>
+  import("@/components/AnniversaryCompletionExperience").then((module) => ({
+    default: module.AnniversaryCompletionExperience,
+  })),
+);
 
 function needsCompletionExperience(pathname: string) {
   return (
@@ -26,7 +30,11 @@ export function AnniversaryNavLink() {
 
   return (
     <>
-      {needsCompletionExperience(pathname) ? <AnniversaryCompletionExperience /> : null}
+      {needsCompletionExperience(pathname) ? (
+        <Suspense fallback={null}>
+          <LazyAnniversaryCompletionExperience />
+        </Suspense>
+      ) : null}
       {host
         ? createPortal(
             <Link
