@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAnniversaryRecap, getSolarisAnniversary, ordinal } from "./anniversary";
+import type { Edition } from "./data";
+import {
+  anniversaryPeriodForYear,
+  buildAnniversaryRecap,
+  editionIsInAnniversaryYear,
+  getSolarisAnniversary,
+  ordinal,
+} from "./anniversary";
+
+type DatedEdition = Edition & { event_date?: string | null };
 
 describe("Solaris anniversary", () => {
   it("activates on 17 September in the contest timezone", () => {
@@ -25,41 +34,70 @@ describe("Solaris anniversary", () => {
     expect(ordinal(22)).toBe("22nd");
   });
 
-  it("builds a year-in-review recap from anniversary-era contest data", () => {
+  it("defines the fourth anniversary year as 17 Sep 2025 through 16 Sep 2026", () => {
+    expect(anniversaryPeriodForYear(2026)).toEqual({
+      start: "2025-09-17",
+      endExclusive: "2026-09-17",
+    });
+    expect(editionIsInAnniversaryYear({ event_date: "2025-09-16" }, 2026)).toBe(false);
+    expect(editionIsInAnniversaryYear({ event_date: "2025-09-17" }, 2026)).toBe(true);
+    expect(editionIsInAnniversaryYear({ event_date: "2026-09-16" }, 2026)).toBe(true);
+    expect(editionIsInAnniversaryYear({ event_date: "2026-09-17" }, 2026)).toBe(false);
+    expect(editionIsInAnniversaryYear({ event_date: null }, 2026)).toBe(false);
+  });
+
+  it("builds a year-in-review recap only from exactly dated anniversary-period editions", () => {
+    const editions: DatedEdition[] = [
+      {
+        id: "e20",
+        edition_number: 20,
+        name: "SSC 20",
+        year: 2025,
+        event_date: "2025-08-30",
+        slug: "ssc-20",
+        description: null,
+        host_country_id: null,
+        host_city: null,
+        logo: null,
+        theme_id: null,
+        status: "complete",
+        published: true,
+      },
+      {
+        id: "e21",
+        edition_number: 21,
+        name: "SSC 21",
+        year: 2026,
+        event_date: "2026-06-14",
+        slug: "ssc-21",
+        description: null,
+        host_country_id: null,
+        host_city: null,
+        logo: null,
+        theme_id: null,
+        status: "complete",
+        published: true,
+      },
+      {
+        id: "e22",
+        edition_number: 22,
+        name: "SSC 22",
+        year: 2026,
+        event_date: null,
+        slug: "ssc-22",
+        description: null,
+        host_country_id: null,
+        host_city: null,
+        logo: null,
+        theme_id: null,
+        status: "complete",
+        published: true,
+      },
+    ];
+
     const recap = buildAnniversaryRecap({
       anniversaryYear: 2026,
-      editions: [
-        {
-          id: "e20",
-          edition_number: 20,
-          name: "SSC 20",
-          year: 2025,
-          event_date: "2025-12-01",
-          slug: "ssc-20",
-          description: null,
-          host_country_id: null,
-          host_city: null,
-          logo: null,
-          theme_id: null,
-          status: "complete",
-          published: true,
-        },
-        {
-          id: "e21",
-          edition_number: 21,
-          name: "SSC 21",
-          year: 2026,
-          event_date: "2026-06-01",
-          slug: "ssc-21",
-          description: null,
-          host_country_id: null,
-          host_city: null,
-          logo: null,
-          theme_id: null,
-          status: "complete",
-          published: true,
-        },
-      ] as any,
+      editions,
       shows: [
         {
           id: "gf21",
@@ -134,6 +172,8 @@ describe("Solaris anniversary", () => {
       ],
     });
 
+    expect(recap.editionCount).toBe(1);
+    expect(recap.undatedPublishedEditionCount).toBe(1);
     expect(recap.winners[0]?.name).toBe("Asteria");
     expect(recap.closestFinal?.gap).toBe(2);
     expect(recap.stories.some((story) => story.id === "closest-final")).toBe(true);

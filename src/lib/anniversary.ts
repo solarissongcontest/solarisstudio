@@ -36,13 +36,17 @@ export type AnniversaryRecap = {
   entryCount: number;
   countryCount: number;
   grandFinalCount: number;
+  datedPublishedEditionCount: number;
+  undatedPublishedEditionCount: number;
+  periodStart: string;
+  periodEndExclusive: string;
   winners: Array<{ countryId: string; name: string; points: number; edition: string }>;
   closestFinal: { gap: number; winner: string; runnerUp: string; edition: string } | null;
   biggestWinner: { name: string; points: number; edition: string } | null;
   stories: AnniversaryStory[];
 };
 
-type EditionWithEventDate = Edition & { event_date?: string | null };
+type DatedEdition = Edition & { event_date?: string | null };
 
 function dateParts(date: Date, timeZone = SOLARIS_ANNIVERSARY_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -62,8 +66,21 @@ function dayNumber(year: number, month: number, day: number) {
   return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
 }
 
-function eventDate(edition: Edition) {
-  return (edition as EditionWithEventDate).event_date ?? null;
+export function anniversaryPeriodForYear(anniversaryYear: number) {
+  return {
+    start: `${anniversaryYear - 1}-09-17`,
+    endExclusive: `${anniversaryYear}-09-17`,
+  };
+}
+
+export function editionIsInAnniversaryYear(
+  edition: Pick<DatedEdition, "event_date">,
+  anniversaryYear: number,
+) {
+  const eventDate = edition.event_date;
+  if (!eventDate) return false;
+  const { start, endExclusive } = anniversaryPeriodForYear(anniversaryYear);
+  return eventDate >= start && eventDate < endExclusive;
 }
 
 export function ordinal(value: number) {
@@ -140,23 +157,16 @@ export function buildAnniversaryRecap({
   results: ResultRow[];
   countries: Country[];
 }): AnniversaryRecap {
-  const published = editions.filter((edition) => edition.published);
-  const periodStart = `${anniversaryYear - 1}-09-17`;
-  const periodEnd = `${anniversaryYear}-09-17`;
-
-  // Anniversary-year claims must be based on real dates, not year labels or
-  // edition numbers. The previous anniversary date is exclusive so an edition
-  // held exactly on 17 September is counted only once, on that anniversary.
-  const selected = published
-    .filter((edition) => {
-      const date = eventDate(edition);
-      return Boolean(date && date > periodStart && date <= periodEnd);
-    })
+  const published = editions.filter((edition) => edition.published) as DatedEdition[];
+  const datedPublished = published.filter((edition) => Boolean(edition.event_date));
+  const selected = datedPublished
+    .filter((edition) => editionIsInAnniversaryYear(edition, anniversaryYear))
     .sort((a, b) => {
-      const dateA = eventDate(a) ?? "";
-      const dateB = eventDate(b) ?? "";
-      return dateA.localeCompare(dateB) || (a.edition_number ?? 9999) - (b.edition_number ?? 9999);
+      const dateCompare = (a.event_date ?? "").localeCompare(b.event_date ?? "");
+      if (dateCompare !== 0) return dateCompare;
+      return (a.edition_number ?? 999) - (b.edition_number ?? 999);
     });
+  const { start: periodStart, endExclusive: periodEndExclusive } = anniversaryPeriodForYear(anniversaryYear);
 
   const editionIds = new Set(selected.map((edition) => edition.id));
   const editionMap = new Map(selected.map((edition) => [edition.id, edition]));
@@ -217,21 +227,26 @@ export function buildAnniversaryRecap({
 
   const stories: AnniversaryStory[] = [];
 
-  stories.push({
-    id: "growth",
-    kicker: "The anniversary year",
-    headline:
-      selected.length === 0
-        ? "Exact edition dates are still being completed"
-        : selected.length === 1
+  if (selected.length) {
+    stories.push({
+      id: "growth",
+      kicker: "The anniversary year",
+      headline:
+        selected.length === 1
           ? `${editionName(selected[0])} carried Solaris into another birthday`
           : `${selected.length} contest chapters shaped the year since the last birthday`,
-    detail:
-      selected.length === 0
-        ? `No published edition with a confirmed event date falls between 18 September ${anniversaryYear - 1} and 17 September ${anniversaryYear}.`
-        : `${periodShows.length} public shows and ${participatingCountries.size} countries make up this anniversary chapter of Solaris history.`,
-    value: `${selected.length} editions`,
-  });
+      detail: `${periodShows.length} public shows and ${participatingCountries.size} countries make up this anniversary chapter of Solaris history.`,
+      value: `${selected.length} editions`,
+    });
+  } else {
+    stories.push({
+      id: "growth",
+      kicker: "The anniversary year",
+      headline: "Exact edition dates are still being completed",
+      detail: `Anniversary-year statistics use only editions with a confirmed event date between ${periodStart} and ${periodEndExclusive}.`,
+      value: "Dates needed",
+    });
+  }
 
   if (closestFinal) {
     stories.push({
@@ -292,6 +307,10 @@ export function buildAnniversaryRecap({
     entryCount: participationKeys.size,
     countryCount: participatingCountries.size,
     grandFinalCount: grandFinalShows.length,
+    datedPublishedEditionCount: datedPublished.length,
+    undatedPublishedEditionCount: published.length - datedPublished.length,
+    periodStart,
+    periodEndExclusive,
     winners,
     closestFinal,
     biggestWinner,
