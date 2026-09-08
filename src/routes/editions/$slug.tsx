@@ -218,22 +218,26 @@ function EditionPage() {
               {publicEntries.map((entry) => {
                 const country = displayMap.get(entry.country_id);
                 if (!country) return null;
-                const body = (
-                  <div className="glass h-full p-3.5">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{country.name}</p>
-                        <p className="mt-1 truncate text-sm font-semibold text-foreground">{entry.song}</p>
-                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{entry.artist || "Artist TBC"}</p>
-                      </div>
+                const identity = (
+                  <div className="flex min-w-0 items-start gap-3">
+                    <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{country.name}</p>
+                      <p className="mt-1 truncate text-sm font-semibold text-foreground">{entry.song}</p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{entry.artist || "Artist TBC"}</p>
                     </div>
+                  </div>
+                );
+                return (
+                  <div key={entry.country_id} className="glass h-full p-3.5">
+                    {country.entityType === "global" && country.countryId ? (
+                      <Link to="/countries/$code" params={{ code: country.short_code }} className="block min-w-0">
+                        {identity}
+                      </Link>
+                    ) : identity}
                     <EntryListenLinks entry={entry} compact className="mt-3" />
                   </div>
                 );
-                return country.entityType === "global" && country.countryId ? (
-                  <Link key={entry.country_id} to="/countries/$code" params={{ code: country.short_code }} className="block min-w-0">{body}</Link>
-                ) : <div key={entry.country_id}>{body}</div>;
               })}
             </div>
           </section>
