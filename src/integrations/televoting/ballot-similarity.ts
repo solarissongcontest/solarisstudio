@@ -10,6 +10,8 @@ export type BallotSimilarityResult = {
   baselineSd: number;
   zScore: number;
   matchedVoterId: string | null;
+  coordinationThreshold: number;
+  matchedPeerCount: number;
   currentCoordinationEvidence: boolean;
 };
 
@@ -83,6 +85,14 @@ export function calculateBallotSimilarityRisk(options: {
   const evidenceFactor = Math.min(1, options.others.length / 6);
   const risk = clamp(riskFromZ(zScore) / 100 * evidenceFactor) * 100;
 
+  // Treat an unusually similar ballot as coordination-grade evidence only when
+  // the pattern is shared with more than one independent peer. This prevents a
+  // single coincidentally similar ballot from becoming the decisive current-
+  // coordination signal while keeping the raw similarity risk available for
+  // lower-level review and historical corroboration.
+  const coordinationThreshold = Math.min(0.98, Math.max(0.88, baselineMean + baselineSd * 1.5));
+  const matchedPeerCount = comparisons.filter((row) => row.similarity >= coordinationThreshold).length;
+
   return {
     risk: Math.round(risk),
     strongestSimilarity,
@@ -90,6 +100,9 @@ export function calculateBallotSimilarityRisk(options: {
     baselineSd,
     zScore,
     matchedVoterId: strongest?.voterId ?? null,
-    currentCoordinationEvidence: risk >= 90 && strongestSimilarity >= 0.95 && options.others.length >= 5,
+    coordinationThreshold,
+    matchedPeerCount,
+    currentCoordinationEvidence:
+      risk >= 90 && strongestSimilarity >= 0.95 && options.others.length >= 5 && matchedPeerCount >= 2,
   };
 }

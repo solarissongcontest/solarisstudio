@@ -32,4 +32,50 @@ describe("ballot similarity", () => {
     expect(copied.strongestSimilarity).toBeCloseTo(1, 10);
     expect(copied.risk).toBeGreaterThan(ordinary.risk);
   });
+
+  it("does not treat one extremely similar peer as coordination-grade evidence", () => {
+    const participants = ["A", "B", "C", "D", "E", "F", "G", "H", "I"];
+    const current = { voterId: "current", allocations: { A: 10, B: 5 } };
+    const result = calculateBallotSimilarityRisk({
+      current,
+      participants,
+      others: [
+        { voterId: "copy", allocations: { A: 10, B: 5 } },
+        { voterId: "c", allocations: { C: 10 } },
+        { voterId: "d", allocations: { D: 10 } },
+        { voterId: "e", allocations: { E: 10 } },
+        { voterId: "f", allocations: { F: 10 } },
+        { voterId: "g", allocations: { G: 10 } },
+        { voterId: "h", allocations: { H: 10 } },
+        { voterId: "i", allocations: { I: 10 } },
+      ],
+    });
+
+    expect(result.risk).toBeGreaterThanOrEqual(90);
+    expect(result.matchedPeerCount).toBe(1);
+    expect(result.currentCoordinationEvidence).toBe(false);
+  });
+
+  it("allows coordination-grade evidence when the same unusual pattern appears across multiple peers", () => {
+    const participants = ["A", "B", "C", "D", "E", "F", "G", "H"];
+    const current = { voterId: "current", allocations: { A: 10, B: 5 } };
+    const result = calculateBallotSimilarityRisk({
+      current,
+      participants,
+      others: [
+        { voterId: "copy-1", allocations: { A: 10, B: 5 } },
+        { voterId: "copy-2", allocations: { A: 10, B: 5 } },
+        { voterId: "c", allocations: { C: 10 } },
+        { voterId: "d", allocations: { D: 10 } },
+        { voterId: "e", allocations: { E: 10 } },
+        { voterId: "f", allocations: { F: 10 } },
+        { voterId: "g", allocations: { G: 10 } },
+        { voterId: "h", allocations: { H: 10 } },
+      ],
+    });
+
+    expect(result.risk).toBeGreaterThanOrEqual(90);
+    expect(result.matchedPeerCount).toBe(2);
+    expect(result.currentCoordinationEvidence).toBe(true);
+  });
 });
