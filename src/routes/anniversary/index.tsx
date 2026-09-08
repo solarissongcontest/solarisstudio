@@ -162,7 +162,7 @@ function AnniversaryPage() {
 
   return (
     <AppShell>
-      <main className="anniversary-hub-shell">
+      <div role="region" aria-label="Anniversary hub" className="anniversary-hub-shell">
         <section className="anniversary-hub-hero">
           <div className="anniversary-hub-number" aria-hidden="true">
             {String(anniversary.age).padStart(2, "0")}
@@ -304,7 +304,7 @@ function AnniversaryPage() {
             <HubLink to="/my-solaris" eyebrow="Personal history" title="Open your Solaris story" copy="See your own account and country activity inside the wider contest archive." />
           </div>
         </section>
-      </main>
+      </div>
     </AppShell>
   );
 }

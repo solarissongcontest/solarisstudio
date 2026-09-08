@@ -20,7 +20,7 @@ export function ArchiveDataLoading({ label = "Loading the archive…" }: { label
     <Panel className="min-h-32" variant="glass">
       <div className="flex min-h-24 items-center justify-center gap-3" role="status" aria-live="polite">
         <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden="true" />
-        <p className="text-sm font-semibold text-muted-foreground">{label}</p>
+        <h1 className="text-sm font-semibold text-muted-foreground">{label}</h1>
       </div>
     </Panel>
   );

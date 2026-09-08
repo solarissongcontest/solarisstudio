@@ -8,7 +8,7 @@ describe("Wiki cards and typography", () => {
   it("loads the restoration layer after the canonical Wiki styles", () => {
     expect(styles).toContain('import wikiStyles from "@/country-wiki.css?inline";');
     expect(styles).toContain('import wikiRestorationStyles from "@/wiki-card-restoration.css?inline";');
-    expect(styles.indexOf("{wikiRestorationStyles}")).toBeGreaterThan(styles.indexOf("{wikiStyles}"));
+    expect(styles.indexOf("\n  wikiRestorationStyles,")).toBeGreaterThan(styles.indexOf("\n  wikiStyles,"));
   });
 
   it("keeps the article column transparent and restores one card per major section", () => {

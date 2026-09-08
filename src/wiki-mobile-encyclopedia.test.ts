@@ -7,7 +7,7 @@ const styles = readFileSync(new URL("./components/CountryPersonalityStyles.tsx",
 describe("mobile Wiki encyclopedia layout", () => {
   it("loads the mobile Wiki layer after desktop/personality restoration", () => {
     expect(styles).toContain('import wikiMobileStyles from "@/wiki-mobile-encyclopedia.css?inline";');
-    expect(styles.indexOf("{wikiMobileStyles}")).toBeGreaterThan(styles.indexOf("{wikiRestorationStyles}"));
+    expect(styles.indexOf("\n  wikiMobileStyles,")).toBeGreaterThan(styles.indexOf("\n  wikiRestorationStyles,"));
   });
 
   it("keeps the mobile masthead compact without stripping personality artwork", () => {

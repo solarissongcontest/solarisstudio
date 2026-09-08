@@ -9,7 +9,7 @@ const styles = source("src/components/CountryPersonalityStyles.tsx");
 describe("Beta 2 country personality feedback", () => {
   it("loads the feedback layer after Wiki/mobile restoration so final public and preview styling agrees", () => {
     expect(styles).toContain('import feedbackStyles from "@/country-personality-feedback.css?inline"');
-    expect(styles.indexOf("{feedbackStyles}")).toBeGreaterThan(styles.indexOf("{wikiMobileStyles}"));
+    expect(styles.indexOf("\n  feedbackStyles,")).toBeGreaterThan(styles.indexOf("\n  wikiMobileStyles,"));
   });
 
   it("prevents hero preview selectors from blowing up the small personality miniatures", () => {

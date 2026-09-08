@@ -318,6 +318,7 @@ function ResultLabPage() {
             </div>
             <input
               type="range"
+              aria-label="Jury voting weight"
               min={0}
               max={100}
               step={5}
