@@ -12,68 +12,79 @@ export function AnniversaryTakeover({
 }) {
   if (!anniversary.active) return null;
 
+  const leadStory = recap.stories[0] ?? null;
+  const closest = recap.closestFinal;
+  const biggest = recap.biggestWinner;
+  const latestWinner = recap.winners.at(-1) ?? null;
+
   return (
-    <section className="solaris-anniversary-v2">
+    <section className="solaris-anniversary-v2 solaris-anniversary-editorial">
       <div className="relative z-10 mx-auto max-w-[1240px]">
-        <div className="anniversary-v2-hero">
-          <div className="min-w-0">
-            <div className="anniversary-v2-kicker">
-              <span className="anniversary-v2-chip">17 · 09 · 2022</span>
-              <span className="anniversary-v2-chip">Anniversary Day</span>
-              <span className="anniversary-v2-chip">TSBC Special</span>
-            </div>
-
-            <p className="mt-7 text-[10px] font-black uppercase tracking-[0.32em] text-white/50 sm:text-xs">
-              Solaris Song Contest birthday
-            </p>
-            <h2 className="anniversary-v2-title font-display">
-              <span className="accent">{anniversary.age} YEARS</span>
-              <br />
-              OF SOLARIS
-            </h2>
-            <p className="anniversary-v2-lede">
-              On 17 September 2022, Solaris Song Contest began. Today marks its {anniversary.ordinal} anniversary, with the front page turning into a live archive of champions, records, rivalries and the year that brought us here.
-            </p>
-
-            <div className="anniversary-v2-actions">
-              <Link to="/editions" className="anniversary-v2-action primary">
-                Explore every edition →
-              </Link>
-              <Link to="/records" className="anniversary-v2-action">
-                Open the record book
-              </Link>
-              <Link to="/archive-games" className="anniversary-v2-action">
-                Play the archive
-              </Link>
-            </div>
+        <header className="anniversary-editorial-hero">
+          <div className="anniversary-editorial-meta" aria-label="Anniversary metadata">
+            <span>17 September 2022 → {anniversary.year}</span>
+            <span>{anniversary.ordinal} anniversary</span>
+            <span>TSBC anniversary edition</span>
           </div>
 
-          <div className="anniversary-v2-panel">
-            <div className="anniversary-v2-panel-head">
-              <div>
-                <p className="anniversary-v2-panel-label">Anniversary year in numbers</p>
-                <p className="mt-2 max-w-sm text-sm leading-relaxed text-white/55">
-                  The contest year from 17 September {anniversary.previousYear} to today, captured through its editions, shows, countries and entries.
-                </p>
+          <div className="anniversary-editorial-grid">
+            <div className="anniversary-editorial-number" aria-hidden="true">
+              {String(anniversary.age).padStart(2, "0")}
+            </div>
+
+            <div className="anniversary-editorial-copy">
+              <p className="anniversary-editorial-eyebrow">Solaris Song Contest · Anniversary Day</p>
+              <h1 className="anniversary-editorial-title font-display">
+                <span>{anniversary.age} years</span>
+                <strong>of Solaris</strong>
+              </h1>
+              <p className="anniversary-editorial-deck">
+                Four years of champions, near misses, voting chaos and countries writing themselves into Solaris history. Today the Studio becomes the archive.
+              </p>
+              <div className="anniversary-editorial-actions">
+                <Link to="/anniversary" className="anniversary-editorial-action primary" data-anniversary-action="major">
+                  Enter the anniversary archive →
+                </Link>
+                <Link to="/editions" className="anniversary-editorial-action">Explore every edition</Link>
               </div>
-              <div className="anniversary-v2-orbit" aria-hidden="true" />
-            </div>
-
-            <div className="anniversary-v2-stats">
-              <BirthdayStat label="Contest chapters" value={recap.editionCount} />
-              <BirthdayStat label="Public shows" value={recap.showCount} />
-              <BirthdayStat label="Countries" value={recap.countryCount} />
-              <BirthdayStat label="Entries" value={recap.entryCount} />
             </div>
           </div>
-        </div>
+
+          <div className="anniversary-editorial-facts" aria-label="Solaris anniversary highlights">
+            <EditorialFact
+              label="The archive"
+              value={`${recap.editionCount} chapters`}
+              detail={`${recap.countryCount} countries · ${recap.entryCount} entries in the anniversary year`}
+            />
+            <EditorialFact
+              label="Closest finish"
+              value={closest ? `${closest.gap} pts` : "—"}
+              detail={closest ? `${closest.winner} over ${closest.runnerUp} · ${closest.edition}` : "Waiting for a published final"}
+            />
+            <EditorialFact
+              label="Biggest winning score"
+              value={biggest ? `${biggest.points}` : "—"}
+              detail={biggest ? `${biggest.name} · ${biggest.edition}` : "Waiting for a published final"}
+            />
+            <EditorialFact
+              label="Latest champion"
+              value={latestWinner?.name ?? "—"}
+              detail={latestWinner ? `${latestWinner.edition} · ${latestWinner.points} points` : leadStory?.headline ?? "The archive is still growing"}
+            />
+          </div>
+
+          <div className="anniversary-editorial-scrollcue" aria-hidden="true">
+            <span />
+            The story so far
+          </div>
+        </header>
 
         <div className="anniversary-v2-divider" />
 
         <div className="anniversary-v2-section-head">
           <div>
             <p className="anniversary-v2-eyebrow">The birthday edition</p>
-            <h3 className="anniversary-v2-section-title font-display">One year of Solaris, in headlines</h3>
+            <h2 className="anniversary-v2-section-title font-display">One year of Solaris, in headlines</h2>
           </div>
           <p className="anniversary-v2-section-copy">
             From the previous birthday to today, these are the numbers and moments that shaped another year of the contest.
@@ -87,7 +98,7 @@ export function AnniversaryTakeover({
                 <p className="anniversary-v2-story-kicker">{story.kicker}</p>
                 {story.value && <span className="anniversary-v2-story-value">{story.value}</span>}
               </div>
-              <h4 className="anniversary-v2-story-title font-display">{story.headline}</h4>
+              <h3 className="anniversary-v2-story-title font-display">{story.headline}</h3>
               <p className="anniversary-v2-story-copy">{story.detail}</p>
             </article>
           ))}
@@ -98,7 +109,7 @@ export function AnniversaryTakeover({
         <div className="anniversary-v2-section-head">
           <div>
             <p className="anniversary-v2-eyebrow">Keep exploring</p>
-            <h3 className="anniversary-v2-section-title font-display">The archive is the celebration</h3>
+            <h2 className="anniversary-v2-section-title font-display">The archive is the celebration</h2>
           </div>
           <p className="anniversary-v2-section-copy">
             Anniversary Day brings Solaris history, records and interactive archive features together in one place.
@@ -138,12 +149,13 @@ export function AnniversaryTakeover({
   );
 }
 
-function BirthdayStat({ label, value }: { label: string; value: number }) {
+function EditorialFact({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="anniversary-v2-stat">
-      <p className="anniversary-v2-stat-label">{label}</p>
-      <p className="anniversary-v2-stat-value font-display">{value}</p>
-    </div>
+    <article className="anniversary-editorial-fact">
+      <p>{label}</p>
+      <strong>{value}</strong>
+      <span>{detail}</span>
+    </article>
   );
 }
 
@@ -163,7 +175,7 @@ function BirthdayFeature({
   return (
     <Link to={to} className="anniversary-v2-feature group">
       <p className="anniversary-v2-eyebrow">{eyebrow}</p>
-      <h4 className="anniversary-v2-feature-title font-display">{title}</h4>
+      <h3 className="anniversary-v2-feature-title font-display">{title}</h3>
       <p className="anniversary-v2-feature-copy">{text}</p>
       <p className="anniversary-v2-feature-cta">{cta} →</p>
     </Link>
