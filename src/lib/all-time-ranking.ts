@@ -1,50 +1,47 @@
+import { canonicalEditionResults } from "./canonical-results";
 import type { ResultRow, Show } from "./data";
+import { isFinalShow } from "./edition-progression";
 
 export type AllTimeScoreRow = {
   countryId: string;
   score: number;
+  appearances: number;
   finals: number;
   rank: number;
 };
 
-function isFinal(kind?: string | null) {
-  return kind === "grand-final" || kind === "final";
-}
-
 /**
- * All-time score is the cumulative total from published Grand Finals only.
- * One country can contribute at most one Grand Final score per edition.
+ * All-time score is the cumulative score from one canonical result per country
+ * per edition. A finalist contributes its Grand Final score; otherwise the
+ * deepest main contest stage it reached contributes its score. This mirrors
+ * public country history and avoids both double-counting semi + final and
+ * erasing the points earned by non-qualifiers.
+ *
  * Equal scores share the same competition rank (1, 2, 2, 4).
  */
 export function buildAllTimeScoreRanking(shows: Show[], results: ResultRow[]): AllTimeScoreRow[] {
   const showById = new Map(shows.map((show) => [show.id, show]));
-  const bestFinalByCountryEdition = new Map<string, ResultRow>();
+  const canonical = canonicalEditionResults(results, shows);
+  const totals = new Map<string, { score: number; appearances: number; finals: number }>();
 
-  for (const result of results) {
-    if (!isFinal(showById.get(result.show_id ?? "")?.kind)) continue;
-    const key = `${result.country_id}:${result.edition_id}`;
-    const current = bestFinalByCountryEdition.get(key);
-    if (
-      !current ||
-      (result.final_rank != null && current.final_rank == null) ||
-      (result.final_rank != null && current.final_rank != null && result.final_rank < current.final_rank) ||
-      (result.final_rank === current.final_rank && result.total_points > current.total_points)
-    ) {
-      bestFinalByCountryEdition.set(key, result);
-    }
-  }
-
-  const totals = new Map<string, { score: number; finals: number }>();
-  for (const row of bestFinalByCountryEdition.values()) {
-    const current = totals.get(row.country_id) ?? { score: 0, finals: 0 };
+  for (const row of canonical) {
+    if (!row.country_id) continue;
+    const current = totals.get(row.country_id) ?? { score: 0, appearances: 0, finals: 0 };
     current.score += row.total_points;
-    current.finals += 1;
+    current.appearances += 1;
+    if (isFinalShow(showById.get(row.show_id ?? ""))) current.finals += 1;
     totals.set(row.country_id, current);
   }
 
   const ordered = [...totals.entries()]
     .map(([countryId, values]) => ({ countryId, ...values, rank: 0 }))
-    .sort((a, b) => b.score - a.score || b.finals - a.finals || a.countryId.localeCompare(b.countryId));
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        b.finals - a.finals ||
+        b.appearances - a.appearances ||
+        a.countryId.localeCompare(b.countryId),
+    );
 
   let previousScore: number | null = null;
   let previousRank = 0;

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildAllTimeScoreRanking } from "./all-time-ranking";
 
 function show(id: string, editionId: string, kind: string) {
-  return { id, edition_id: editionId, kind } as any;
+  return { id, edition_id: editionId, name: id, kind } as any;
 }
 
 function result(
@@ -27,7 +27,7 @@ function result(
 }
 
 describe("all-time score ranking", () => {
-  it("counts Grand Final score only once per edition and ignores semi-final score", () => {
+  it("uses the final score for finalists and does not also add their semi-final score", () => {
     const shows = [
       show("s1", "e1", "semi-final"),
       show("f1", "e1", "grand-final"),
@@ -41,8 +41,26 @@ describe("all-time score ranking", () => {
     ]);
 
     expect(rows.find((row) => row.countryId === "a")?.score).toBe(220);
+    expect(rows.find((row) => row.countryId === "a")?.appearances).toBe(2);
     expect(rows.find((row) => row.countryId === "a")?.finals).toBe(2);
     expect(rows.find((row) => row.countryId === "a")?.rank).toBe(1);
+  });
+
+  it("keeps the deepest available score for countries that did not reach the final", () => {
+    const shows = [
+      show("h1", "e1", "heat"),
+      show("s1", "e1", "semi-final"),
+      show("f1", "e1", "grand-final"),
+    ];
+    const rows = buildAllTimeScoreRanking(shows, [
+      result("a-semi", "a", "e1", "s1", 90, 8),
+      result("b-heat", "b", "e1", "h1", 70, 6),
+      result("c-final", "c", "e1", "f1", 100, 10),
+    ]);
+
+    expect(rows.find((row) => row.countryId === "a")?.score).toBe(90);
+    expect(rows.find((row) => row.countryId === "b")?.score).toBe(70);
+    expect(rows.find((row) => row.countryId === "c")?.score).toBe(100);
   });
 
   it("uses competition ranking for tied all-time scores", () => {
