@@ -1,6 +1,23 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+
+const LazyAnniversaryCompletionExperience = lazy(() =>
+  import("@/components/AnniversaryCompletionExperience").then((module) => ({
+    default: module.AnniversaryCompletionExperience,
+  })),
+);
+
+function needsCompletionExperience(pathname: string) {
+  return (
+    pathname.startsWith("/records") ||
+    pathname.startsWith("/analysis") ||
+    pathname.startsWith("/relationships") ||
+    pathname === "/countries" ||
+    pathname === "/countries/" ||
+    pathname.startsWith("/shows/")
+  );
+}
 
 export function AnniversaryNavLink() {
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -11,17 +28,26 @@ export function AnniversaryNavLink() {
     setHost(nav);
   }, [pathname]);
 
-  if (!host) return null;
-
-  return createPortal(
-    <Link
-      to="/anniversary"
-      aria-current={pathname.startsWith("/anniversary") ? "page" : undefined}
-      className="anniversary-main-nav-link"
-      data-anniversary-action="major"
-    >
-      <span aria-hidden="true">✦</span> Anniversary
-    </Link>,
-    host,
+  return (
+    <>
+      {needsCompletionExperience(pathname) ? (
+        <Suspense fallback={null}>
+          <LazyAnniversaryCompletionExperience />
+        </Suspense>
+      ) : null}
+      {host
+        ? createPortal(
+            <Link
+              to="/anniversary"
+              aria-current={pathname.startsWith("/anniversary") ? "page" : undefined}
+              className="anniversary-main-nav-link"
+              data-anniversary-action="major"
+            >
+              <span aria-hidden="true">✦</span> Anniversary
+            </Link>,
+            host,
+          )
+        : null}
+    </>
   );
 }

@@ -2,6 +2,7 @@ import { useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { getSolarisAnniversary } from "@/lib/anniversary";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useAllParticipants, useAllResults, useAllShows, useEditions } from "@/lib/data";
 
@@ -35,6 +36,7 @@ export function AnniversaryShareCard() {
   const { data: participants = [] } = useAllParticipants();
   const { data: results = [] } = useAllResults();
   const country = account?.country ?? null;
+  const anniversary = useMemo(() => getSolarisAnniversary(), []);
 
   useEffect(() => {
     const matches = pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me");
@@ -104,6 +106,8 @@ export function AnniversaryShareCard() {
     const debut = escapeXml(stats.debut ? `SSC ${stats.debut}` : "—");
     const rank = escapeXml(stats.bestRank ? `#${stats.bestRank}` : "—");
     const score = escapeXml(stats.bestScore ? String(stats.bestScore) : "—");
+    const age = String(anniversary.age).padStart(2, "0");
+    const ordinalLabel = escapeXml(anniversary.ordinal.toUpperCase());
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500">
 <defs>
   <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071026"/><stop offset=".52" stop-color="#13244a"/><stop offset="1" stop-color="#27163f"/></linearGradient>
@@ -114,8 +118,8 @@ export function AnniversaryShareCard() {
 <circle cx="1040" cy="230" r="430" fill="url(#glow)"/>
 <circle cx="130" cy="1180" r="360" fill="#ff8fc7" opacity=".07"/>
 <g fill="none" stroke="#ffffff" stroke-opacity=".08"><circle cx="980" cy="320" r="220"/><circle cx="980" cy="320" r="310"/><circle cx="170" cy="1130" r="260"/></g>
-<text x="90" y="105" fill="#ffe36e" font-family="Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="8">SOLARIS 4TH ANNIVERSARY</text>
-<text x="90" y="250" fill="url(#gold)" font-family="Arial,sans-serif" font-size="178" font-weight="900">04</text>
+<text x="90" y="105" fill="#ffe36e" font-family="Arial,sans-serif" font-size="28" font-weight="700" letter-spacing="8">SOLARIS ${ordinalLabel} ANNIVERSARY</text>
+<text x="90" y="250" fill="url(#gold)" font-family="Arial,sans-serif" font-size="178" font-weight="900">${age}</text>
 <text x="90" y="330" fill="#ffffff" font-family="Arial,sans-serif" font-size="45" font-weight="800" letter-spacing="10">YEARS OF SOLARIS</text>
 <text x="90" y="520" fill="#ffffff" font-family="Arial,sans-serif" font-size="96" font-weight="900">${name}</text>
 <text x="90" y="580" fill="#ffffff" fill-opacity=".62" font-family="Arial,sans-serif" font-size="30">${subtitle}</text>
@@ -129,9 +133,9 @@ export function AnniversaryShareCard() {
 <text x="140" y="1030" fill="#ffe36e" font-family="Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="5">PART OF SOLARIS HISTORY</text>
 <text x="140" y="1110" fill="#ffffff" font-family="Arial,sans-serif" font-size="76" font-weight="900">${stats.share}%</text>
 <text x="340" y="1105" fill="#ffffff" fill-opacity=".6" font-family="Arial,sans-serif" font-size="30">of published editions</text>
-<text x="90" y="1380" fill="#ffffff" fill-opacity=".4" font-family="Arial,sans-serif" font-size="24" letter-spacing="4">17 SEPTEMBER 2022 → 2026 · SOLARIS STUDIO</text>
+<text x="90" y="1380" fill="#ffffff" fill-opacity=".4" font-family="Arial,sans-serif" font-size="24" letter-spacing="4">17 SEPTEMBER 2022 → ${anniversary.year} · SOLARIS STUDIO</text>
 </svg>`;
-    downloadSvg(`${country.short_code.toLowerCase()}-solaris-anniversary.svg`, svg);
+    downloadSvg(`${country.short_code.toLowerCase()}-solaris-anniversary-${anniversary.year}.svg`, svg);
   };
 
   return createPortal(
