@@ -78,17 +78,17 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
         <AdminPage>
           <div className="mx-auto max-w-2xl">
             <AdminPageHeader
-              eyebrow="Voting service"
+              eyebrow="Voting"
               title="Organizer connection unavailable"
-              description="Your Solaris organizer session is valid, but the privileged Televoting connection is not ready. Public voting may still remain available."
+              description="Your Solaris Organizer session is valid, but the privileged public-voting connection is not ready. Public voting may still remain available."
               actions={<AdminStatus tone="attention">Needs attention</AdminStatus>}
             />
             <AdminCard strong>
               <div className="flex min-w-0 items-start gap-3">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl border border-amber-200/15 bg-amber-200/[0.06] text-amber-100"><DatabaseZap className="size-5" /></span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-base font-bold text-foreground">Televoting organizer tools are temporarily unavailable</h2>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Avoid live organizer actions until the privileged service connection is restored. This screen does not mean public voting or stored ballots were deleted.</p>
+                  <h2 className="text-base font-bold text-foreground">Public voting organizer tools are temporarily unavailable</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">Avoid live public-voting organizer actions until the privileged connection is restored. This does not mean public voting or stored ballots were deleted.</p>
                   <details className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                     <summary className="cursor-pointer text-sm font-semibold text-muted-foreground hover:text-foreground">Technical details</summary>
                     <div className="mt-3 space-y-2 text-xs leading-relaxed text-muted-foreground">
