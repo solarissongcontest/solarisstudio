@@ -12,6 +12,7 @@ import {
   type AnniversaryPhase,
   type SolarisAnniversarySeason,
 } from "@/lib/anniversary";
+import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 
 const LazyDeepExperience = lazy(() =>
   import("@/components/AnniversaryDeepExperience").then((module) => ({ default: module.AnniversaryDeepExperience })),
@@ -29,7 +30,6 @@ const LazyTasteEra = lazy(() =>
   import("@/components/AnniversaryTasteEra").then((module) => ({ default: module.AnniversaryTasteEra })),
 );
 
-const LEGACY_PREVIEW_KEY = "solaris:anniversary-preview";
 const INTRO_SEEN_KEY = "solaris:anniversary-intro-seen";
 const STAR_COLORS = ["#74e7ff", "#b7a4ff", "#ff8fc7", "#ffe36e", "#78f3d0", "#ffffff"];
 
@@ -61,14 +61,6 @@ function routeContext(pathname: string, age: number): AnniversaryRouteContext {
   if (pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me")) return { eyebrow: "Your Solaris story", title: "You are part of the archive", detail: "Your country history is calculated against the whole published contest archive.", tone: "personal" };
   if (pathname.startsWith("/participate") || pathname.startsWith("/confirmations") || pathname.startsWith("/jury-voting") || pathname.startsWith("/televoting") || pathname.startsWith("/next-in-line")) return { eyebrow: "The next chapter", title: `Be part of Solaris year ${age + 1}`, detail: "Anniversary styling stays restrained on task-focused voting and submission routes.", tone: "participate" };
   return { eyebrow: "Solaris anniversary day", title: `${age} years of Solaris`, detail: "17 September 2022 → today. The whole Studio is celebrating the archive.", tone: "default" };
-}
-
-function previewPhase(searchStr: string): AnniversaryPhase | null {
-  const preview = new URLSearchParams(searchStr).get("anniversary");
-  if (preview === "preview" || preview === "active") return "active";
-  if (preview === "countdown") return "countdown";
-  if (preview === "after") return "after";
-  return null;
 }
 
 function withPreview(season: SolarisAnniversarySeason, phase: AnniversaryPhase | null): SolarisAnniversarySeason {
@@ -135,12 +127,12 @@ export function SolarisAnniversaryCelebration() {
   const [showIntro, setShowIntro] = useState(false);
 
   useEffect(() => {
-    window.sessionStorage.removeItem(LEGACY_PREVIEW_KEY);
     const tick = window.setInterval(() => setClock(new Date()), 60_000);
     return () => window.clearInterval(tick);
   }, []);
 
-  const season = useMemo(() => withPreview(getSolarisAnniversarySeason(clock), previewPhase(searchStr)), [clock, searchStr]);
+  const previewPhase = useMemo(() => getAnniversaryPreviewPhase(searchStr), [searchStr, pathname]);
+  const season = useMemo(() => withPreview(getSolarisAnniversarySeason(clock), previewPhase), [clock, previewPhase]);
   const active = season.phase === "active";
   const context = useMemo(() => routeContext(pathname, season.age), [pathname, season.age]);
   const isAdmin = pathname.startsWith("/admin") || pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
