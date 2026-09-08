@@ -5,15 +5,14 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("delegations overview confirmation triage", () => {
-  it("shows the confirmation colour counts on the actual delegations overview", () => {
+  it("shows the four response states on the actual Delegations overview", () => {
     const overview = source("src/routes/confirmations/admin/index.tsx");
 
     expect(overview).toContain('confirmationsSupabase.rpc("admin_confirmation_responses")');
-    expect(overview).toContain('title="What the colours mean"');
-    expect(overview).toContain("Red · Needs review");
-    expect(overview).toContain("Yellow · Needs fixing");
-    expect(overview).toContain("Green · Ready");
-    expect(overview).toContain("No glow · Waiting");
+    expect(overview).toContain('label="Needs review"');
+    expect(overview).toContain('label="Needs changes"');
+    expect(overview).toContain('label="Ready"');
+    expect(overview).toContain('label="Waiting"');
     expect(overview).toContain("triageCounts.review");
     expect(overview).toContain("triageCounts.issue");
     expect(overview).toContain("triageCounts.ready");

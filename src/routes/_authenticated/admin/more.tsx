@@ -14,51 +14,51 @@ import {
 import { AdminCard, AdminCardHeader, AdminPageHeader } from "@/components/admin/AdminUI";
 
 export const Route = createFileRoute("/_authenticated/admin/more")({
-  head: () => ({ meta: [{ title: "More — Solaris Organizer" }] }),
-  component: MoreAdmin,
+  head: () => ({ meta: [{ title: "Administration — Solaris Organizer" }] }),
+  component: AdministrationAdmin,
 });
 
 const groups = [
   {
-    title: "Contest management",
+    title: "Accounts & contest history",
     items: [
       { label: "Manage editions", description: "Create editions and change their main settings.", to: "/admin", icon: Trophy },
-      { label: "Country accounts", description: "See and manage who can sign in for each country.", to: "/admin/country-accounts", icon: Users },
-      { label: "Hosting", description: "Set host countries, host cities and other hosting details.", to: "/admin/hosts", icon: Flag },
-      { label: "HOD history", description: "See who managed each country in past editions.", to: "/admin/hod-history", icon: History },
+      { label: "Country accounts", description: "Manage who can sign in for each delegation.", to: "/admin/country-accounts", icon: Users },
+      { label: "HOD history", description: "See who managed each delegation in past editions.", to: "/admin/hod-history", icon: History },
+      { label: "Hosting", description: "Set host countries, host cities and hosting details.", to: "/admin/hosts", icon: Flag },
     ],
   },
   {
     title: "Engagement",
     items: [
       { label: "Predictions", description: "Create and manage prediction rounds for visitors.", to: "/admin/predictions", icon: Sparkles },
-      { label: "Beta 2 feedback", description: "See current Beta 2 usability results and Beta 1 comparisons.", to: "/admin/beta2-feedback", icon: BarChart3 },
+      { label: "Beta 2 feedback", description: "See current public-site usability results and comparisons.", to: "/admin/beta2-feedback", icon: BarChart3 },
       { label: "Beta 1 archive", description: "Read the original closed Beta 1 responses and benchmarks.", to: "/admin/beta1-feedback", icon: History },
     ],
   },
   {
     title: "Quality assurance",
     items: [
-      { label: "Admin acceptance test", description: "Run through the main organizer tasks and record what worked.", to: "/admin/beta-test", icon: ClipboardCheck },
-      { label: "Admin beta coverage", description: "Compare recent organizer tests, missing checks and reported bugs.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
+      { label: "Organizer acceptance test", description: "Run through the main organizer tasks and record what worked.", to: "/admin/beta-test", icon: ClipboardCheck },
+      { label: "Organizer beta coverage", description: "Compare organizer tests, missing checks and reported bugs.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
     ],
   },
   {
     title: "System",
     items: [
-      { label: "System settings", description: "Manage deadlines, site-wide settings and maintenance tools.", to: "/admin/system", icon: Settings },
-      { label: "Sync health", description: "Check whether editions, confirmations and televoting are working together.", to: "/admin/sync-health", icon: Settings },
+      { label: "System health", description: "Check data synchronization, stale bindings and integration failures.", to: "/admin/sync-health", icon: Settings },
+      { label: "System settings", description: "Manage deadlines, audit history and maintenance settings.", to: "/admin/system", icon: Settings },
     ],
   },
 ] as const;
 
-function MoreAdmin() {
+function AdministrationAdmin() {
   return (
     <div className="mx-auto max-w-3xl">
       <AdminPageHeader
-        eyebrow="Organizer workspace"
-        title="More"
-        description="Pages you use less often are kept here so the main organizer pages stay focused."
+        eyebrow="Solaris Organizer"
+        title="Administration"
+        description="Accounts, contest history, diagnostics and other low-frequency organizer tools."
       />
 
       <div className="space-y-4">

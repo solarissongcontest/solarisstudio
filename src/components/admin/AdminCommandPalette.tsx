@@ -6,28 +6,30 @@ import { editionLabel, useEditions } from "@/lib/data";
 import { useAdminContext } from "./AdminContext";
 
 const FIXED = [
-  ["Overview", "/admin/operations", "Workspace", "home status next actions"],
-  ["Guide", "/admin/guide", "Help", "how to use instructions questions answers"],
-  ["All editions", "/admin", "Edition", "manage create archive"],
-  ["Delegations", "/confirmations/admin", "Edition", "confirmations responses countries"],
-  ["Delegation responses", "/confirmations/admin/responses", "Delegations", "entries confirmations responses"],
+  ["Overview", "/admin/operations", "Organizer", "home status next actions"],
+  ["Delegations overview", "/confirmations/admin", "Delegations", "confirmations submissions countries"],
+  ["Delegation responses", "/confirmations/admin/responses", "Delegations", "entries confirmations review responses"],
   ["Submission rounds", "/confirmations/admin/rounds", "Delegations", "rounds open close schedule"],
   ["Delegation calendar", "/confirmations/admin/calendar", "Delegations", "national finals reveals deadlines"],
-  ["Voting", "/televoting/admin", "Voting", "televote votes rounds"],
-  ["Voting rounds & entries", "/televoting/admin/rounds", "Voting", "open close entries rules"],
-  ["Voting results", "/televoting/admin/results", "Voting", "calculate lock publish"],
-  ["Voting integrity", "/televoting/admin/integrity", "Voting", "review suspicious votes warnings"],
-  ["Voting integrity declarations", "/televoting/admin/integrity-declarations", "Voting", "review declarations flagged votes"],
+  ["Delegation access", "/confirmations/admin/recovery-codes", "Delegations", "recovery access codes accounts"],
+  ["Public voting overview", "/televoting/admin", "Voting", "public voting rounds ballots"],
+  ["Public voting rounds", "/televoting/admin/rounds", "Voting", "open close entries rules"],
+  ["Voting results", "/televoting/admin/results", "Voting", "calculate official results"],
+  ["Voting integrity", "/televoting/admin/integrity", "Voting", "review suspicious votes warnings blocked"],
+  ["Voting integrity declarations", "/televoting/admin/integrity-declarations", "Voting", "signed declarations attestations evidence review"],
+  ["Friend-voting intelligence", "/admin/friend-voting", "Voting", "relationships reciprocity network signals"],
   ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout voting numbers"],
-  ["Predictions", "/admin/predictions", "More", "prediction rounds"],
-  ["Beta 2 feedback", "/admin/beta2-feedback", "More", "beta 2 public usability current testers comparison"],
-  ["Beta 1 archive", "/admin/beta1-feedback", "More", "beta 1 archive old public testers feedback"],
-  ["Admin beta test", "/admin/beta-test", "More", "organizer testing feedback form"],
-  ["Admin beta feedback", "/admin/admin-beta-feedback", "More", "organizer testers results bugs"],
-  ["Country accounts", "/admin/country-accounts", "More", "country account access"],
-  ["Hosting", "/admin/hosts", "More", "host country city"],
-  ["System settings", "/admin/system", "More", "deadlines settings"],
-  ["More organizer tools", "/admin/more", "More", "system tools archive"],
+  ["Country accounts", "/admin/country-accounts", "Administration", "country account access"],
+  ["HOD history", "/admin/hod-history", "Administration", "delegation manager history"],
+  ["Predictions", "/admin/predictions", "Administration", "prediction rounds"],
+  ["Beta 2 feedback", "/admin/beta2-feedback", "Administration", "public beta current feedback testing report"],
+  ["Beta 1 archive", "/admin/beta1-feedback", "Administration", "public beta historical archive feedback"],
+  ["System health", "/admin/sync-health", "Administration", "sync health integrations diagnostics"],
+  ["System settings", "/admin/system", "Administration", "deadlines settings audit"],
+  ["Administration", "/admin/more", "Administration", "accounts history system tools archive"],
+  ["All editions", "/admin", "Workspace", "manage create archive editions"],
+  ["Organizer guide", "/admin/guide", "Workspace", "how to use instructions questions answers"],
+  ["Mobile menu", "/admin/menu", "Workspace", "delegations broadcast administration guide"],
   ["Public Solaris Studio", "/", "Public site", "homepage"],
 ] as const;
 
@@ -62,51 +64,51 @@ export function AdminCommandPalette() {
     const currentEdition = activeEdition
       ? [
           {
-            label: `${editionLabel(activeEdition)} workspace`,
+            label: `${editionLabel(activeEdition)} contest overview`,
             href: `/admin/${activeEdition.slug}`,
-            group: "Current edition",
+            group: "Contest",
             keywords: `${activeEdition.name} edition home workflow`,
           },
           {
             label: `${editionLabel(activeEdition)} shows`,
             href: `/admin/shows/${activeEdition.slug}`,
-            group: "Current edition",
+            group: "Contest",
             keywords: `${activeEdition.name} shows stages create edit`,
           },
           {
             label: `${editionLabel(activeEdition)} entries & running order`,
             href: `/admin/entries/${activeEdition.slug}`,
-            group: "Current edition",
+            group: "Contest",
             keywords: `${activeEdition.name} entries songs artists line-up lineup running order`,
+          },
+          {
+            label: `${editionLabel(activeEdition)} voting rules`,
+            href: `/admin/voting-system/${activeEdition.slug}`,
+            group: "Voting",
+            keywords: `${activeEdition.name} point scale weighting qualifiers self voting tie rules`,
           },
           {
             label: `${editionLabel(activeEdition)} jury`,
             href: `/admin/jury/${activeEdition.slug}`,
-            group: "Current edition",
+            group: "Voting",
             keywords: `${activeEdition.name} jury juries votes scores roster`,
           },
           {
-            label: `${editionLabel(activeEdition)} voting system`,
-            href: `/admin/voting-system/${activeEdition.slug}`,
-            group: "Current edition",
-            keywords: `${activeEdition.name} point scale weighting qualifiers self voting tie rules`,
-          },
-          {
-            label: `${editionLabel(activeEdition)} televote totals`,
+            label: `${editionLabel(activeEdition)} official televote totals`,
             href: `/admin/televote/${activeEdition.slug}`,
-            group: "Current edition",
-            keywords: `${activeEdition.name} televote totals points`,
+            group: "Voting",
+            keywords: `${activeEdition.name} televote official totals points`,
           },
           {
             label: `${editionLabel(activeEdition)} publication`,
             href: `/admin/publication/${activeEdition.slug}`,
-            group: "Current edition",
+            group: "Publish",
             keywords: `${activeEdition.name} publish visibility results public release`,
           },
           {
             label: `${editionLabel(activeEdition)} design & broadcast`,
             href: `/admin/design/${activeEdition.slug}`,
-            group: "Current edition",
+            group: "Broadcast",
             keywords: `${activeEdition.name} artwork theme broadcast scoreboard hosts scenes`,
           },
         ]
@@ -137,7 +139,7 @@ export function AdminCommandPalette() {
         type="button"
         onClick={() => setOpen(true)}
         className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground sm:flex sm:w-auto sm:px-3"
-        aria-label="Search organizer workspace"
+        aria-label="Search Solaris Organizer"
       >
         <Search className="size-4" />
         <span className="hidden text-xs sm:inline">Search</span>
@@ -158,7 +160,7 @@ export function AdminCommandPalette() {
                 autoFocus
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search actions, editions or tools…"
+                placeholder="Search sections, editions or tools…"
                 className="min-h-14 min-w-0 flex-1 bg-transparent text-sm outline-none"
               />
               <button
@@ -187,7 +189,7 @@ export function AdminCommandPalette() {
               ))}
               {!filtered.length ? (
                 <p className="p-7 text-center text-sm text-muted-foreground">
-                  Nothing in the organizer workspace matches that search.
+                  Nothing in Solaris Organizer matches that search.
                 </p>
               ) : null}
             </div>

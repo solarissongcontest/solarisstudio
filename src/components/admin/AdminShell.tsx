@@ -22,6 +22,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   }, []);
 
   const pageAlreadyShowsHealth = pathname === "/admin/operations";
+  const showJuryWindowControl = pathname.startsWith("/admin/jury/");
 
   return (
     <AdminContextProvider>
@@ -29,8 +30,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-[70] border-b border-white/[0.07] bg-[#06101f]/88 backdrop-blur-2xl">
           <div className="admin-topbar relative flex min-h-[4rem] items-center gap-2 px-3 sm:gap-3 sm:px-5">
             <Link to="/admin/operations" className="min-w-0 shrink-0">
-              <p className="admin-brand-title text-[1.02rem] leading-none text-foreground sm:text-lg">Solaris Studio</p>
-              <p className="mt-1 hidden text-[11px] font-semibold text-muted-foreground sm:block">Organizer workspace</p>
+              <p className="admin-brand-title text-[1.02rem] leading-none text-foreground sm:text-lg">Solaris Organizer</p>
+              <p className="mt-1 hidden text-[11px] font-semibold text-muted-foreground sm:block">Contest control workspace</p>
             </Link>
 
             <div className="min-w-0 flex-1">
@@ -55,7 +56,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
         <div className="relative z-10">
           <AdminFrame>
-            <JuryVotingWindowControl />
+            {showJuryWindowControl ? <JuryVotingWindowControl /> : null}
             {children}
           </AdminFrame>
         </div>

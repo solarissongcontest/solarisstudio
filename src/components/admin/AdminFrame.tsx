@@ -1,10 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  CircleHelp,
+  Eye,
   LayoutDashboard,
-  MoreHorizontal,
-  ShieldAlert,
-  Trophy,
+  Layers3,
+  Menu,
   Vote,
   type LucideIcon,
 } from "lucide-react";
@@ -13,8 +12,9 @@ import type { ReactNode } from "react";
 import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
-import { AdminNav } from "./AdminNav";
 import { useAdminContext } from "./AdminContext";
+import { AdminNav } from "./AdminNav";
+import { AdminSectionNav } from "./AdminSectionNav";
 
 type MobileItem = {
   label: string;
@@ -28,64 +28,68 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
 
-  const activeEdition = editions.find((edition) => edition.id === editionId) ?? editions[0] ?? null;
-  const editionHref = activeEdition ? `/admin/${activeEdition.slug}` : "/admin";
+  const activeEdition =
+    editions.find((edition) => edition.id === editionId) ??
+    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
+    null;
+  const slug = activeEdition?.slug;
+  const editionHref = slug ? `/admin/${slug}` : "/admin";
+  const publishHref = slug ? `/admin/publication/${slug}` : "/admin";
 
   const mobileItems: MobileItem[] = [
     {
-      label: "Overview",
+      label: "Home",
       href: "/admin/operations",
       icon: LayoutDashboard,
       active: (path) => path.startsWith("/admin/operations"),
     },
     {
-      label: "Edition",
+      label: "Contest",
       href: editionHref,
-      icon: Trophy,
+      icon: Layers3,
       active: (path) =>
-        path === "/admin" ||
-        path === "/admin/" ||
-        editions.some((edition) => path === `/admin/${edition.slug}`) ||
-        path.startsWith("/confirmations/admin") ||
+        (slug ? path === `/admin/${slug}` : false) ||
         path.startsWith("/admin/shows/") ||
         path.startsWith("/admin/entries/") ||
-        path.startsWith("/admin/jury/") ||
-        path.startsWith("/admin/televote/") ||
-        path.startsWith("/admin/voting-system/") ||
-        path.startsWith("/admin/publication/") ||
-        path.startsWith("/admin/design/") ||
-        path.startsWith("/admin/edition-theme/"),
+        path.startsWith("/admin/lineup-sync/") ||
+        path.startsWith("/admin/participant-status/"),
     },
     {
-      label: "Friend vote",
-      href: "/admin/friend-voting",
-      icon: ShieldAlert,
-      active: (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence"),
-    },
-    {
-      label: "Televote",
+      label: "Voting",
       href: "/televoting/admin",
       icon: Vote,
       active: (path) =>
-        path.startsWith("/televoting/admin") && !path.startsWith("/televoting/admin/intelligence"),
+        path.startsWith("/televoting/admin") ||
+        path.startsWith("/admin/jury/") ||
+        path.startsWith("/admin/voting-system/") ||
+        path.startsWith("/admin/televote/") ||
+        path.startsWith("/admin/friend-voting") ||
+        path.startsWith("/admin/jury-integrity"),
     },
     {
-      label: "Guide",
-      href: "/admin/guide",
-      icon: CircleHelp,
-      active: (path) => path.startsWith("/admin/guide"),
+      label: "Publish",
+      href: publishHref,
+      icon: Eye,
+      active: (path) => path.startsWith("/admin/publication/"),
     },
     {
-      label: "More",
-      href: "/admin/more",
-      icon: MoreHorizontal,
+      label: "Menu",
+      href: "/admin/menu",
+      icon: Menu,
       active: (path) =>
+        path.startsWith("/admin/menu") ||
+        path.startsWith("/confirmations/admin") ||
+        path.startsWith("/admin/design/") ||
+        path.startsWith("/admin/edition-theme/") ||
         path.startsWith("/admin/more") ||
+        path.startsWith("/admin/country-accounts") ||
         path.startsWith("/admin/hod-history") ||
         path.startsWith("/admin/hosts") ||
-        path.startsWith("/admin/country-accounts") ||
         path.startsWith("/admin/predictions") ||
-        path.startsWith("/admin/beta-feedback") ||
+        path.startsWith("/admin/beta") ||
+        path.startsWith("/admin/admin-beta") ||
+        path.startsWith("/admin/anniversary") ||
+        path.startsWith("/admin/guide") ||
         path.startsWith("/admin/system") ||
         path.startsWith("/admin/sync-health"),
     },
@@ -100,6 +104,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="admin-page admin-main min-w-0">
+        <AdminSectionNav />
         {children}
         {pathname === "/confirmations/admin/countries" ? <DelegationColourOverview /> : null}
       </main>
@@ -109,7 +114,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
         aria-label="Organizer navigation"
       >
-        <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
+        <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
           {mobileItems.map((item) => {
             const Icon = item.icon;
             const active = item.active(pathname);
