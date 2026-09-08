@@ -1,53 +1,6 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-
-const LazyAnniversaryCompletionExperience = lazy(() =>
-  import("@/components/AnniversaryCompletionExperience").then((module) => ({
-    default: module.AnniversaryCompletionExperience,
-  })),
-);
-
-function needsCompletionExperience(pathname: string) {
-  return (
-    pathname.startsWith("/records") ||
-    pathname.startsWith("/analysis") ||
-    pathname.startsWith("/relationships") ||
-    pathname === "/countries" ||
-    pathname === "/countries/" ||
-    pathname.startsWith("/shows/")
-  );
-}
-
 export function AnniversaryNavLink() {
-  const pathname = useLocation({ select: (location) => location.pathname });
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const nav = document.querySelector<HTMLElement>('nav[aria-label="Main navigation"]');
-    setHost(nav);
-  }, [pathname]);
-
-  return (
-    <>
-      {needsCompletionExperience(pathname) ? (
-        <Suspense fallback={null}>
-          <LazyAnniversaryCompletionExperience />
-        </Suspense>
-      ) : null}
-      {host
-        ? createPortal(
-            <Link
-              to="/anniversary"
-              aria-current={pathname.startsWith("/anniversary") ? "page" : undefined}
-              className="anniversary-main-nav-link"
-              data-anniversary-action="major"
-            >
-              <span aria-hidden="true">✦</span> Anniversary
-            </Link>,
-            host,
-          )
-        : null}
-    </>
-  );
+  // The fixed anniversary badge already provides a global route to the hub.
+  // The old implementation portaled an extra link into the live navigation DOM,
+  // which was not worth risking client-route stability for.
+  return null;
 }
