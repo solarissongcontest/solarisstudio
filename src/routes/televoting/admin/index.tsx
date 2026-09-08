@@ -126,7 +126,7 @@ function VotingAdminOverview() {
                   <h2 className="truncate text-xl font-bold tracking-[-.025em]">
                     {data.activeEdition ?? "Voting workspace"}
                   </h2>
-                  <AdminStatus tone={data.openRounds > 0 ? "ready" : data.linked ? "neutral" : "warning"}>
+                  <AdminStatus tone={data.openRounds > 0 ? "ready" : data.linked ? "neutral" : "attention"}>
                     {!data.linked
                       ? "Voting not linked"
                       : data.openRounds > 0
