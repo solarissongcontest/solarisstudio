@@ -102,29 +102,10 @@ function createStarBurst(x: number, y: number, strong: boolean) {
 
 function isDeepRoute(pathname: string) {
   return [
-    "/editions",
-    "/countries",
-    "/wiki",
-    "/records",
-    "/results",
-    "/shows",
-    "/analysis",
-    "/relationships",
-    "/pulse",
-    "/archive-games",
-    "/taste-dna",
-    "/result-lab",
-    "/broadcast-intelligence",
-    "/compare",
-    "/predictions",
-    "/my-solaris",
-    "/country-hub",
-    "/me",
-    "/participate",
-    "/confirmations",
-    "/jury-voting",
-    "/televoting",
-    "/next-in-line",
+    "/editions", "/countries", "/wiki", "/records", "/results", "/shows", "/analysis",
+    "/relationships", "/pulse", "/archive-games", "/taste-dna", "/result-lab",
+    "/broadcast-intelligence", "/compare", "/predictions", "/my-solaris", "/country-hub",
+    "/me", "/participate", "/confirmations", "/jury-voting", "/televoting", "/next-in-line",
   ].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
@@ -140,9 +121,7 @@ export function SolarisAnniversaryCelebration() {
     return () => window.clearInterval(tick);
   }, []);
 
-  useEffect(() => {
-    setBadgeExpanded(false);
-  }, [pathname]);
+  useEffect(() => setBadgeExpanded(false), [pathname]);
 
   useEffect(() => {
     if (!badgeExpanded) return;
@@ -217,6 +196,18 @@ export function SolarisAnniversaryCelebration() {
 
   if (season.phase === "dormant") return null;
 
+  const MobileBadgeTrigger = () => (
+    <button
+      type="button"
+      className="solaris-anniversary-mobile-trigger"
+      aria-label="Show anniversary status"
+      aria-expanded={badgeExpanded}
+      onClick={() => setBadgeExpanded(true)}
+    >
+      <span className="solaris-anniversary-badge-star" aria-hidden="true" />
+    </button>
+  );
+
   if (!active) {
     if (isAdmin) return null;
     const countdown = season.phase === "countdown";
@@ -228,10 +219,11 @@ export function SolarisAnniversaryCelebration() {
       : `The celebration stays visible for a few days while Solaris moves into its ${ordinal(season.age + 1)} year.`;
     return (
       <>
+        {!badgeExpanded && <MobileBadgeTrigger />}
         <Link
           to="/anniversary"
           className={badgeClassName}
-          aria-label={badgeExpanded ? "Open the Solaris anniversary hub" : "Show anniversary status"}
+          aria-label={badgeExpanded ? "Open the Solaris anniversary hub" : "Anniversary status"}
           aria-expanded={badgeExpanded}
           onClick={handleBadgeClick}
         >
@@ -271,10 +263,11 @@ export function SolarisAnniversaryCelebration() {
           ))}
         </div>
       </div>
+      {!badgeExpanded && <MobileBadgeTrigger />}
       <Link
         to="/anniversary"
         className={badgeClassName}
-        aria-label={badgeExpanded ? `Open the ${season.ordinal} Solaris anniversary hub` : "Show anniversary status"}
+        aria-label={badgeExpanded ? `Open the ${season.ordinal} Solaris anniversary hub` : "Anniversary status"}
         aria-expanded={badgeExpanded}
         data-anniversary-action="major"
         onClick={handleBadgeClick}
