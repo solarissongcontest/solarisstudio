@@ -1,32 +1,57 @@
 import { createServerFn } from "@tanstack/react-start";
 
-export const getMergedTelevotingOverview = createServerFn({ method: "GET" }).handler(async () => {
-  const [{ requireMergedTelevotingAdminServer }, { televotingAdmin }] = await Promise.all([
-    import("@/integrations/televoting/admin-session.server"),
-    import("@/integrations/televoting/client.server"),
-  ]);
+type TelevotingOverviewSummary = {
+  editions: number;
+  rounds: number;
+  openRounds: number;
+  submissions: number;
+  blocked: number;
+  activeEdition: string | null;
+  remoteEditionId: string | null;
+  linked: boolean;
+};
 
-  await requireMergedTelevotingAdminServer();
+function numberValue(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
-  const [editions, rounds, openRounds, submissions, blocked, activeEdition] = await Promise.all([
-    televotingAdmin.from("editions").select("id", { count: "exact", head: true }),
-    televotingAdmin.from("rounds").select("id", { count: "exact", head: true }),
-    televotingAdmin.from("rounds").select("id", { count: "exact", head: true }).eq("status", "open"),
-    televotingAdmin.from("vote_submissions").select("id", { count: "exact", head: true }),
-    televotingAdmin.from("anti_abuse_events").select("id", { count: "exact", head: true }).eq("status", "blocked"),
-    televotingAdmin.from("editions").select("name").eq("is_active", true).maybeSingle(),
-  ]);
+export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
+  .inputValidator((data: { editionId?: string | null } | undefined) => ({
+    editionId: data?.editionId ? String(data.editionId) : null,
+  }))
+  .handler(async ({ data }) => {
+    const [{ requireMergedTelevotingAdminServer }, { televotingAdmin }] = await Promise.all([
+      import("@/integrations/televoting/admin-session.server"),
+      import("@/integrations/televoting/client.server"),
+    ]);
 
-  for (const result of [editions, rounds, openRounds, submissions, blocked, activeEdition]) {
-    if (result.error) throw new Error(result.error.message);
-  }
+    await requireMergedTelevotingAdminServer();
 
-  return {
-    editions: editions.count ?? 0,
-    rounds: rounds.count ?? 0,
-    openRounds: openRounds.count ?? 0,
-    submissions: submissions.count ?? 0,
-    blocked: blocked.count ?? 0,
-    activeEdition: activeEdition.data?.name ?? null,
-  };
-});
+    // One database round trip keeps the Cloudflare Worker comfortably below
+    // its subrequest ceiling and makes the overview follow Organizer edition
+    // context instead of aggregating every historical Televoting edition.
+    const { data: rawSummary, error } = await televotingAdmin.rpc(
+      "admin_overview_summary",
+      { p_solaris_edition_id: data.editionId },
+    );
+    if (error) throw new Error(error.message);
+
+    const summary =
+      rawSummary && typeof rawSummary === "object" && !Array.isArray(rawSummary)
+        ? (rawSummary as Record<string, unknown>)
+        : {};
+
+    return {
+      editions: numberValue(summary.editions),
+      rounds: numberValue(summary.rounds),
+      openRounds: numberValue(summary.openRounds),
+      submissions: numberValue(summary.submissions),
+      blocked: numberValue(summary.blocked),
+      activeEdition:
+        typeof summary.activeEdition === "string" ? summary.activeEdition : null,
+      remoteEditionId:
+        typeof summary.remoteEditionId === "string" ? summary.remoteEditionId : null,
+      linked: summary.linked === true,
+    } satisfies TelevotingOverviewSummary;
+  });
