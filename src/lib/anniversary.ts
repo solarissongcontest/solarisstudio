@@ -2,6 +2,8 @@ import type { Country, Edition, Participant, ResultRow, Show } from "@/lib/data"
 
 export const SOLARIS_BIRTH_DATE = "2022-09-17";
 export const SOLARIS_ANNIVERSARY_TIME_ZONE = "Europe/Paris";
+export const SOLARIS_ANNIVERSARY_COUNTDOWN_DAYS = 14;
+export const SOLARIS_ANNIVERSARY_AFTERGLOW_DAYS = 3;
 
 export type AnniversaryPhase = "dormant" | "countdown" | "active" | "after";
 
@@ -97,11 +99,11 @@ export function getSolarisAnniversarySeason(date = new Date()): SolarisAnniversa
     return { ...base, active: true, phase: "active", daysUntil: 0, daysSince: 0 };
   }
 
-  if (delta >= 1 && delta <= 3) {
+  if (delta >= 1 && delta <= SOLARIS_ANNIVERSARY_COUNTDOWN_DAYS) {
     return { ...base, phase: "countdown", daysUntil: delta, daysSince: null };
   }
 
-  if (delta <= -1 && delta >= -3) {
+  if (delta <= -1 && delta >= -SOLARIS_ANNIVERSARY_AFTERGLOW_DAYS) {
     return { ...base, phase: "after", daysUntil: null, daysSince: Math.abs(delta) };
   }
 
