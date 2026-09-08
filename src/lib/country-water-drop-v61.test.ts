@@ -9,7 +9,7 @@ const css = read("src/country-water-drop-v61.css");
 describe("Water Drop V6.1", () => {
   it("loads the liquid refinement after the generic V6 layers", () => {
     expect(styles).toContain('import waterDropStyles from "@/country-water-drop-v61.css?inline"');
-    expect(styles.indexOf("{waterDropStyles}")).toBeGreaterThan(styles.indexOf("{silhouetteLayoutStyles}"));
+    expect(styles.indexOf("\n  waterDropStyles,")).toBeGreaterThan(styles.indexOf("\n  silhouetteLayoutStyles,"));
   });
 
   it("uses the proven irregular water-drop radius rather than the bean radius", () => {
