@@ -12,28 +12,32 @@ import silhouetteStyles from "@/country-personalities-v6.css?inline";
 import silhouetteLayoutStyles from "@/country-personalities-v6-layout.css?inline";
 import waterDropStyles from "@/country-water-drop-v61.css?inline";
 
+const countryPersonalityStyles = [
+  baseStyles,
+  repairStyles,
+  betaStyles,
+  glassParityStyles,
+  buttonStyles,
+  wikiStyles,
+  wikiRestorationStyles,
+  wikiMobileStyles,
+  feedbackStyles,
+  artDirectionStyles,
+  silhouetteStyles,
+  silhouetteLayoutStyles,
+  waterDropStyles,
+].join("\n");
+
 /**
  * Country personalities are intentionally route-scoped. V6 owns the final
  * silhouettes for the personalities that still looked too much like the same
  * base card. Water Drop V6.1 is deliberately last because it replaces V6's
  * bean-like treatment with a true liquid-card treatment and safe text zone.
+ *
+ * Keep the style contents as one text node. React's SSR hydration can disagree
+ * with the browser about multiple adjacent text children inside raw-text
+ * elements such as <style>.
  */
 export function CountryPersonalityStyles() {
-  return (
-    <style data-country-personality-styles>
-      {baseStyles}
-      {repairStyles}
-      {betaStyles}
-      {glassParityStyles}
-      {buttonStyles}
-      {wikiStyles}
-      {wikiRestorationStyles}
-      {wikiMobileStyles}
-      {feedbackStyles}
-      {artDirectionStyles}
-      {silhouetteStyles}
-      {silhouetteLayoutStyles}
-      {waterDropStyles}
-    </style>
-  );
+  return <style data-country-personality-styles>{countryPersonalityStyles}</style>;
 }
