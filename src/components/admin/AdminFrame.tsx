@@ -13,6 +13,7 @@ import { DelegationColourOverview } from "@/components/confirmations/DelegationC
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
+import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
 import { AdminNav } from "./AdminNav";
 import { AdminSectionNav } from "./AdminSectionNav";
 
@@ -99,14 +100,22 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     <div className="admin-frame min-h-[calc(100vh-4rem)]">
       <aside className="admin-sidebar border-r border-white/[0.07]">
         <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto scroll-slim">
-          <AdminNav />
+          <AdminFeatureBoundary name="desktop-navigation">
+            <AdminNav />
+          </AdminFeatureBoundary>
         </div>
       </aside>
 
       <main className="admin-page admin-main min-w-0">
-        <AdminSectionNav />
+        <AdminFeatureBoundary name="section-navigation">
+          <AdminSectionNav />
+        </AdminFeatureBoundary>
         {children}
-        {pathname === "/confirmations/admin/countries" ? <DelegationColourOverview /> : null}
+        {pathname === "/confirmations/admin/countries" ? (
+          <AdminFeatureBoundary name="delegation-colour-overview">
+            <DelegationColourOverview />
+          </AdminFeatureBoundary>
+        ) : null}
       </main>
 
       <nav
