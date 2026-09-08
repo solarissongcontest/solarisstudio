@@ -33,4 +33,14 @@ describe("Voting organizer overview runtime contract", () => {
     expect(migration).toContain("with current_remote as");
     expect(migration).toContain("order by pe.edition_number desc");
   });
+
+  it("prevents future syncs from leaving multiple Televoting editions active", () => {
+    const migration = source("../supabase/migrations/20260908190026_enforce_single_active_televoting_edition.sql");
+
+    expect(migration).toContain("security invoker");
+    expect(migration).toContain("create trigger keep_single_active_edition");
+    expect(migration).toContain("where id <> new.id");
+    expect(migration).toContain("create unique index if not exists televoting_editions_single_active_idx");
+    expect(migration).toContain("where is_active = true");
+  });
 });
