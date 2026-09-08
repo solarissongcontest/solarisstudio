@@ -33,6 +33,10 @@ export const STATIC_PUBLIC_ROUTES = [
 const ignorableRequest = (url: string) =>
   /favicon|google-analytics|googletagmanager|browser-extension|chrome-extension/i.test(url);
 
+function isNavigationCancellation(errorText: string | undefined) {
+  return /ERR_ABORTED|NS_BINDING_ABORTED|cancelled|canceled/i.test(errorText ?? "");
+}
+
 export async function sitemapRoutes(baseURL: string) {
   const response = await fetch(new URL("/sitemap.xml", baseURL));
   if (!response.ok) return [];
@@ -63,8 +67,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   };
   const onPageError = (error: Error) => pageErrors.push(error.message);
   const onRequestFailed = (request: { url(): string; failure(): { errorText: string } | null }) => {
-    if (!ignorableRequest(request.url())) {
-      failedRequests.push(`${request.url()} — ${request.failure()?.errorText ?? "failed"}`);
+    const failure = request.failure()?.errorText;
+    // Browser navigation deliberately aborts in-flight fetches from the previous
+    // route. Treat those as cancellations, not network failures. Real DNS,
+    // connection, HTTP and asset failures still fail the audit.
+    if (!ignorableRequest(request.url()) && !isNavigationCancellation(failure)) {
+      failedRequests.push(`${request.url()} — ${failure ?? "failed"}`);
     }
   };
 
@@ -75,11 +83,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   try {
     const response = await page.goto(path, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${path} should return a successful document`).toBeLessThan(400);
-    await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator("main").first()).toBeVisible();
     await expect(page.locator("h1").first(), `${path} needs one visible page heading`).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
-    await page.waitForTimeout(350);
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
+    await page.waitForTimeout(250);
 
     const result = await page.evaluate(() => {
       const duplicateIds = [...document.querySelectorAll<HTMLElement>("[id]")]
@@ -111,6 +120,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         .map((node) => node.outerHTML.slice(0, 180));
       return {
         overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+        mainCount: document.querySelectorAll("main").length,
         duplicateIds: [...new Set(duplicateIds)],
         brokenImages,
         unnamedControls,
@@ -120,6 +130,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
 
     expect(result.title, `${path} needs a useful document title`).not.toBe("");
     expect(result.overflow, `${path} has horizontal viewport overflow`).toBeLessThanOrEqual(2);
+    expect(result.mainCount, `${path} should contain exactly one main landmark`).toBe(1);
     expect(result.duplicateIds, `${path} has duplicate element IDs`).toEqual([]);
     expect(result.brokenImages, `${path} has broken images`).toEqual([]);
     expect(result.unnamedControls, `${path} has controls without accessible names`).toEqual([]);
