@@ -51,7 +51,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         (slug ? path === `/admin/${slug}` : false) ||
         path.startsWith("/admin/shows/") ||
         path.startsWith("/admin/entries/") ||
-        path.startsWith("/admin/lineup-sync/"),
+        path.startsWith("/admin/lineup-sync/") ||
+        path.startsWith("/admin/participant-status/"),
     },
     {
       label: "Voting",
