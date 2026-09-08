@@ -21,8 +21,8 @@ describe("country personality V6 silhouettes", () => {
   it("loads V6 after V5 and keeps the structural parity layer last", () => {
     expect(styles).toContain('import silhouetteStyles from "@/country-personalities-v6.css?inline"');
     expect(styles).toContain('import silhouetteLayoutStyles from "@/country-personalities-v6-layout.css?inline"');
-    expect(styles.indexOf("{silhouetteStyles}")).toBeGreaterThan(styles.indexOf("{artDirectionStyles}"));
-    expect(styles.indexOf("{silhouetteLayoutStyles}")).toBeGreaterThan(styles.indexOf("{silhouetteStyles}"));
+    expect(styles.indexOf("\n  silhouetteStyles,")).toBeGreaterThan(styles.indexOf("\n  artDirectionStyles,"));
+    expect(styles.indexOf("\n  silhouetteLayoutStyles,")).toBeGreaterThan(styles.indexOf("\n  silhouetteStyles,"));
   });
 
   it("rebuilds all seven weak personalities as explicit final selectors", () => {
