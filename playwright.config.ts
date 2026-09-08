@@ -27,12 +27,15 @@ export default defineConfig({
     colorScheme: "dark",
     ...devices["Desktop Chrome"],
   },
+  // CI starts and health-checks its server explicitly and passes E2E_BASE_URL.
+  // For local runs, use Vite dev rather than Vite preview because the production
+  // build targets Cloudflare and does not emit TanStack's Node preview bundle.
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "bun run preview --host 127.0.0.1 --port 4173",
+        command: "bun run dev --host 127.0.0.1 --port 4173 --strictPort",
         url: "http://127.0.0.1:4173",
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: true,
         timeout: 120_000,
       },
   projects: [
