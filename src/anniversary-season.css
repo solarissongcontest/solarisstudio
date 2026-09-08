@@ -149,13 +149,36 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     max-width: none !important;
     margin: 0 !important;
     overflow-x: clip;
-    padding: 4.35rem .85rem 2.5rem !important;
+    padding: 2.8rem .85rem 2.5rem !important;
   }
 
   body.solaris-anniversary-day .solaris-anniversary-v2 > div {
     width: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+
+  /* The display face is unusually wide. Size against the real content box,
+     not raw viewport width, so the final S never disappears off-screen. */
+  body.solaris-anniversary-day .anniversary-editorial-title {
+    width: 100%;
+    max-width: 100%;
+    font-size: clamp(2.65rem, 12vw, 3.3rem) !important;
+    line-height: .84;
+    letter-spacing: -.06em;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-title span {
+    font-size: .7em;
+    letter-spacing: -.025em;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-title strong {
+    display: block;
+    max-width: 100%;
+    font-size: .92em;
+    letter-spacing: -.07em;
+    white-space: nowrap;
   }
 
   body.solaris-anniversary-day .solaris-anniversary-global-badge {
