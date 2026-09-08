@@ -21,6 +21,8 @@ const FIXED = [
   ["Country accounts", "/admin/country-accounts", "Administration", "country account access"],
   ["HOD history", "/admin/hod-history", "Administration", "delegation manager history"],
   ["Predictions", "/admin/predictions", "Administration", "prediction rounds"],
+  ["Beta 2 feedback", "/admin/beta2-feedback", "Administration", "public beta current feedback testing report"],
+  ["Beta 1 archive", "/admin/beta1-feedback", "Administration", "public beta historical archive feedback"],
   ["System health", "/admin/sync-health", "Administration", "sync health integrations diagnostics"],
   ["System settings", "/admin/system", "Administration", "deadlines settings audit"],
   ["Administration", "/admin/more", "Administration", "accounts history system tools archive"],
