@@ -27,6 +27,8 @@ export function AdminSelectors() {
         pathname.startsWith(`/admin/edition-theme/${edition.slug}`) ||
         pathname.startsWith(`/admin/shows/${edition.slug}`) ||
         pathname.startsWith(`/admin/entries/${edition.slug}`) ||
+        pathname.startsWith(`/admin/lineup-sync/${edition.slug}`) ||
+        pathname.startsWith(`/admin/participant-status/${edition.slug}`) ||
         pathname.startsWith(`/admin/jury/${edition.slug}`) ||
         pathname.startsWith(`/admin/televote/${edition.slug}`) ||
         pathname.startsWith(`/admin/voting-system/${edition.slug}`) ||
@@ -89,6 +91,16 @@ export function AdminSelectors() {
       return;
     }
 
+    if (pathname.startsWith("/admin/lineup-sync/")) {
+      await navigate({ to: "/admin/lineup-sync/$slug", params: { slug: nextEdition.slug } });
+      return;
+    }
+
+    if (pathname.startsWith("/admin/participant-status/")) {
+      await navigate({ to: "/admin/participant-status/$slug", params: { slug: nextEdition.slug } });
+      return;
+    }
+
     if (pathname.startsWith("/admin/jury/")) {
       await navigate({ to: "/admin/jury/$slug", params: { slug: nextEdition.slug }, search: {} });
       return;
@@ -139,7 +151,7 @@ export function AdminSelectors() {
         open={open}
         onClose={() => setOpen(false)}
         title="Switch edition"
-        description={`${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"} available. Solaris Studio keeps you on the same kind of page when it can.`}
+        description={`${orderedEditions.length} edition${orderedEditions.length === 1 ? "" : "s"} available. Solaris Organizer keeps you in the same workspace when it can.`}
       >
         <div className="sticky top-0 z-10 -mx-1 mb-3 bg-[#081326] pb-2">
           <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3">
