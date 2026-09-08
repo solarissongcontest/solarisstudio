@@ -19,8 +19,8 @@ describe("Solaris Studio guides and country confirmation access", () => {
   it("keeps both guide pages easy to find", () => {
     expect(appShell).toContain('to="/guide"');
     expect(adminNav).toContain('to: "/admin/guide"');
-    expect(adminFrame).toContain('href: "/admin/guide"');
-    expect(commandPalette).toContain('["Guide", "/admin/guide", "Help"');
+    expect(adminFrame).toContain('path.startsWith("/admin/guide")');
+    expect(commandPalette).toContain('["Organizer guide", "/admin/guide", "Workspace"');
   });
 
   it("keeps substantial public and organizer Q&A guides", () => {
@@ -30,12 +30,19 @@ describe("Solaris Studio guides and country confirmation access", () => {
     expect(adminGuide).toContain("How to use the organizer tools");
   });
 
-  it("keeps the current public and organizer section names", () => {
+  it("keeps the current public sections and unified organizer workflow", () => {
     for (const text of ['label="Insights"', 'label: "Pulse"', 'label: "Relationships"', 'label: "Participate"'])
       expect(appShell).toContain(text);
 
+    for (const label of ["Overview", "Delegations", "Contest", "Voting", "Publish", "Broadcast", "Administration"])
+      expect(adminNav).toContain(`label: "${label}"`);
+
+    expect(adminNav).toContain(">Current edition<");
     expect(adminNav).toContain(">Workspace<");
-    expect(adminNav).toContain(">More<");
+    expect(adminNav).not.toContain('label: "More"');
+    expect(commandPalette).toContain('["Delegations overview", "/confirmations/admin", "Delegations"');
+    expect(commandPalette).toContain('["Public voting overview", "/televoting/admin", "Voting"');
+    expect(commandPalette).toContain('["Administration", "/admin/more", "Administration"');
     expect(appShell).not.toContain('label: "Recent activity"');
     expect(appShell).not.toContain('label: "Voting links"');
   });
