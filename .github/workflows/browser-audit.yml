@@ -44,14 +44,19 @@ jobs:
 
       - name: Start stable audit server
         env:
-          # The app consumes VITE_/server Supabase names, while the CI secrets
-          # remain deliberately E2E-scoped. Give the app server the same public
-          # test endpoint used by account-state tests when those secrets exist.
-          VITE_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
-          SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
         run: |
+          # Only override the app's normal public configuration when both E2E
+          # endpoint secrets exist. Empty GitHub secrets must not replace the
+          # checked public development config with empty VITE_ variables.
+          if [ -n "$E2E_SUPABASE_URL" ] && [ -n "$E2E_SUPABASE_PUBLISHABLE_KEY" ]; then
+            export VITE_SUPABASE_URL="$E2E_SUPABASE_URL"
+            export VITE_SUPABASE_PUBLISHABLE_KEY="$E2E_SUPABASE_PUBLISHABLE_KEY"
+            export SUPABASE_URL="$E2E_SUPABASE_URL"
+            export SUPABASE_PUBLISHABLE_KEY="$E2E_SUPABASE_PUBLISHABLE_KEY"
+          fi
+
           bun run dev --host 127.0.0.1 --port 4173 --strictPort > /tmp/solaris-audit-server.log 2>&1 &
           echo $! > /tmp/solaris-audit-server.pid
 
