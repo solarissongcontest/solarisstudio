@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { VotingResultsView } from "@/components/televoting/VotingResultsView";
+import { VotingResultsWorkspace } from "@/components/televoting/VotingResultsWorkspace";
 
 export const Route = createFileRoute("/televoting/admin/results")({
   head: () => ({
@@ -9,5 +9,5 @@ export const Route = createFileRoute("/televoting/admin/results")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: VotingResultsView,
+  component: VotingResultsWorkspace,
 });
