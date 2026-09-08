@@ -34,20 +34,29 @@ describe("calm public design contract", () => {
     }
   });
 
-  it("renders Glass Card as one full-width surface on public pages and preview", () => {
+  it("renders Glass Card as one authoritative full-width surface on public pages and preview", () => {
     const parity = source("src/country-glass-parity.css");
     const final = source("src/country-glass-final.css");
     expect(parity).toContain('[data-country-hero-layout="glass-card"]');
     expect(parity).toContain('[data-preview-layout="glass-card"]');
     expect(parity).toContain("content: none !important");
     expect(parity).toContain("display: none !important");
+
+    // The final layer must beat legacy Glass rules by specificity, not merely
+    // by stylesheet order, because WebKit and future composition changes can
+    // otherwise resurrect the old tall/opaque hero.
+    expect(final).toContain(":is(.country-public-hero.glass, .wiki-public-hero.glass)");
+    expect(final).toContain("justify-content: initial !important");
     expect(final).toContain("width: 100% !important");
     expect(final).toContain("max-width: none !important");
     expect(final).toContain("min-height: 0 !important");
     expect(final).toContain("height: auto !important");
+    expect(final).toContain("background: transparent !important");
+    expect(final).toContain("content: none !important");
     expect(final).toContain("rgb(255 255 255 / .085)");
     expect(final).toContain("opacity: .22 !important");
     expect(final).toContain(".country-glass-panel-flag");
+    expect(final).toContain("> .country-hero-background-flag");
   });
 
   it("gives responsive tabs a themeable active state", () => {

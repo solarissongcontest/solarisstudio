@@ -1,12 +1,13 @@
 /* Final Glass Card geometry -------------------------------------------------
-   Glass Card is one full-width liquid surface. Earlier personality layers are
-   intentionally preserved for the other layouts, but several of them still
-   reintroduced a tall hero canvas and stronger surface after glass parity.
-   Keep this narrow override last in the country personality stack. */
+   This is the authoritative Glass Card layer. Legacy personality files still
+   contain historical Glass rules, so these selectors are intentionally more
+   specific than those rules. That prevents the old tall/opaque card from
+   resurfacing when CSS order changes or WebKit resolves the cascade oddly. */
 
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
-  :is(.country-public-hero, .wiki-public-hero),
+  :is(.country-public-hero.glass, .wiki-public-hero.glass),
 .country-theme-live-preview[data-preview-layout="glass-card"] {
+  box-sizing: border-box !important;
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
@@ -17,6 +18,7 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
   padding: 0 !important;
   display: block !important;
   align-items: initial !important;
+  justify-content: initial !important;
   overflow: visible !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -26,9 +28,31 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
   backdrop-filter: none !important;
 }
 
+/* Glass has one visible surface only. Do not let the generic hero pseudo
+   layers or personality signature recreate the old ghost card around it. */
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
-  :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+  :is(.country-public-hero.glass, .wiki-public-hero.glass)::before,
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero.glass, .wiki-public-hero.glass)::after,
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero.glass, .wiki-public-hero.glass) > .country-personality-signature,
+.country-theme-live-preview[data-preview-layout="glass-card"]::before,
+.country-theme-live-preview[data-preview-layout="glass-card"]::after,
+.country-theme-live-preview[data-preview-layout="glass-card"] > .country-personality-signature {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero.glass, .wiki-public-hero.glass) > .relative.z-10,
 .country-theme-live-preview[data-preview-layout="glass-card"] > .relative.z-10 {
+  position: relative !important;
+  isolation: isolate !important;
+  z-index: 1 !important;
+  box-sizing: border-box !important;
+  display: block !important;
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
@@ -53,31 +77,56 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
   backdrop-filter: blur(16px) saturate(145%) brightness(1.015) !important;
 }
 
-/* Keep the flag visible as refraction rather than turning the surface into an
-   opaque accent-colour block. */
+/* Country actions stay inside the one glass sheet instead of becoming a
+   separate desktop column inherited from the generic hero layout. */
 body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
-  :is(.country-public-hero, .wiki-public-hero) .country-glass-panel-flag,
+  .country-public-hero.glass > .relative.z-10 > div:last-child {
+  margin-top: 1rem !important;
+  justify-content: flex-start !important;
+}
+
+/* Keep the flag as soft refraction through the material. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero.glass, .wiki-public-hero.glass) .country-glass-panel-flag,
 .country-theme-live-preview[data-preview-layout="glass-card"] .country-glass-panel-flag {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  display: block !important;
+  border-radius: inherit !important;
+  background-size: cover !important;
+  background-position: center !important;
   opacity: .22 !important;
   filter: blur(7px) saturate(1.24) contrast(1.02) !important;
   transform: scale(1.035) !important;
 }
 
+/* The generic BackgroundFlag is a second visual sheet, so Glass never uses it. */
+body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
+  :is(.country-public-hero.glass, .wiki-public-hero.glass) > .country-hero-background-flag,
+.country-theme-live-preview[data-preview-layout="glass-card"] > .country-hero-background-flag {
+  display: none !important;
+}
+
 @media (max-width: 767px) {
   body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
-    :is(.country-public-hero, .wiki-public-hero),
+    :is(.country-public-hero.glass, .wiki-public-hero.glass),
   .country-theme-live-preview[data-preview-layout="glass-card"] {
     width: 100% !important;
     max-width: none !important;
     min-height: 0 !important;
+    height: auto !important;
     margin: 0 !important;
+    padding: 0 !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout="glass-card"]
-    :is(.country-public-hero, .wiki-public-hero) > .relative.z-10,
+    :is(.country-public-hero.glass, .wiki-public-hero.glass) > .relative.z-10,
   .country-theme-live-preview[data-preview-layout="glass-card"] > .relative.z-10 {
     width: 100% !important;
     max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
     margin: 0 !important;
     padding: 1.1rem !important;
     border-radius: 1.25rem !important;
