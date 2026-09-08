@@ -6,8 +6,11 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock3,
+  Eye,
   Flag,
+  Layers3,
   RadioTower,
+  Settings2,
   ShieldAlert,
   Trophy,
   Users,
@@ -99,7 +102,7 @@ function OrganizerOverview() {
       <div className="mx-auto max-w-5xl">
         <AdminPageHeader
           eyebrow="Organizer overview"
-          title={activeEdition ? editionLabel(activeEdition) : "Solaris Studio"}
+          title={activeEdition ? editionLabel(activeEdition) : "Solaris Organizer"}
           description={
             activeEdition
               ? `${activeEdition.name} · see what is ready, what needs attention and what to do next.`
@@ -108,7 +111,7 @@ function OrganizerOverview() {
           actions={
             activeEdition ? (
               <Link to={`/admin/${activeEdition.slug}` as any} className="admin-action-secondary">
-                Open edition <ArrowRight className="size-4" />
+                Open contest <ArrowRight className="size-4" />
               </Link>
             ) : null
           }
@@ -132,12 +135,12 @@ function OrganizerOverview() {
             <AdminCard strong className="mb-4">
               <div className="flex min-w-0 items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="admin-section-label">Contest readiness</p>
+                  <p className="admin-section-label">Edition readiness</p>
                   <p className="numeric mt-2 text-3xl font-bold tracking-[-.04em]">
                     {readinessLoading ? "…" : `${readiness?.progress ?? 0}%`}
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    This checks the setup, entries, jury votes, televote, results and what is public.
+                    This checks contest setup, entries, jury voting, public voting, results and publication.
                   </p>
                 </div>
                 <AdminStatus
@@ -318,17 +321,47 @@ function OrganizerOverview() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <QuickLink to="/confirmations/admin" icon={ClipboardCheck} label="Delegations" detail="Confirmations" />
-              <QuickLink to="/televoting/admin" icon={Vote} label="Voting" detail="Rounds & vote checks" />
-              <QuickLink
-                to={`/admin/design/${activeEdition.slug}`}
-                icon={RadioTower}
-                label="Broadcast"
-                detail="Design & show"
-              />
-              <QuickLink to="/admin/more" icon={Flag} label="More" detail="System & tools" />
-            </div>
+            <section className="mt-4">
+              <p className="admin-section-label mb-2 px-0.5">Organizer workspaces</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                <QuickLink
+                  to="/confirmations/admin"
+                  icon={ClipboardCheck}
+                  label="Delegations"
+                  detail="Submissions & access"
+                />
+                <QuickLink
+                  to={`/admin/${activeEdition.slug}`}
+                  icon={Layers3}
+                  label="Contest"
+                  detail="Shows & entries"
+                />
+                <QuickLink
+                  to="/televoting/admin"
+                  icon={Vote}
+                  label="Voting"
+                  detail="Jury & public vote"
+                />
+                <QuickLink
+                  to={`/admin/publication/${activeEdition.slug}`}
+                  icon={Eye}
+                  label="Publish"
+                  detail="Visibility & results"
+                />
+                <QuickLink
+                  to={`/admin/design/${activeEdition.slug}`}
+                  icon={RadioTower}
+                  label="Broadcast"
+                  detail="Design & show"
+                />
+                <QuickLink
+                  to="/admin/more"
+                  icon={Settings2}
+                  label="Administration"
+                  detail="Accounts & system"
+                />
+              </div>
+            </section>
           </>
         )}
 
