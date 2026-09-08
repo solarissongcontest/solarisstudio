@@ -51,11 +51,12 @@ export function BetaQuestionCard({
         (option) => option !== "None of these",
       )
     : question.options ?? [];
+  const fieldId = `beta-question-${question.id}`;
 
   return (
     <section className="rounded-2xl border border-border/70 bg-surface/72 p-4 shadow-sm sm:p-5">
       <div className="mb-3">
-        <label className="text-sm font-bold leading-5 text-foreground">
+        <label htmlFor={fieldId} className="text-sm font-bold leading-5 text-foreground">
           {question.label} {question.required ? <span className="text-primary">*</span> : null}
         </label>
         {question.helper ? (
@@ -65,6 +66,7 @@ export function BetaQuestionCard({
 
       {question.type === "text" ? (
         <input
+          id={fieldId}
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder={question.placeholder}
@@ -74,6 +76,7 @@ export function BetaQuestionCard({
 
       {question.type === "textarea" ? (
         <textarea
+          id={fieldId}
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder={question.placeholder}
