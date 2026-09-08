@@ -263,12 +263,19 @@
 
   .anniversary-editorial-actions {
     margin-top: .9rem;
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: .45rem;
   }
 
-  .anniversary-editorial-action { min-height: 2.55rem; width: 100%; font-size: .67rem; }
+  .anniversary-editorial-action {
+    min-height: 2.55rem;
+    width: auto;
+    max-width: 100%;
+    flex: 0 0 auto;
+    font-size: .67rem;
+  }
 
   .anniversary-editorial-facts { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .anniversary-editorial-fact { padding: .75rem .65rem .78rem 0; }
