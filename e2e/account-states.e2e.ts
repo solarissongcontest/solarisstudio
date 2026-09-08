@@ -45,5 +45,13 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
     } else {
       await expect(page.locator("main")).not.toContainText(/signed in as another country/i);
     }
+
+    if (state === "ORGANIZER") {
+      await page.goto("/admin/operations", { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(/\/admin\/operations/);
+      await expect(page.getByText("Solaris Organizer", { exact: true })).toBeVisible();
+      await expect(page.locator("body")).not.toContainText("This page didn't load");
+      await expect(page.locator("body")).not.toContainText("Organizer could not open");
+    }
   });
 }
