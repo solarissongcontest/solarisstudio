@@ -14,25 +14,33 @@ export type MergedAdminRound = {
 
 export type MergedAdminEdition = {
   id: string;
+  solaris_id: string;
   name: string;
   is_active: boolean;
   is_archived: boolean;
   rounds: MergedAdminRound[];
 };
 
-export const getMergedTelevotingRounds = createServerFn({ method: "GET" }).handler(async () => {
-  const { getMergedTelevotingRoundsServer } = await import(
-    "@/integrations/televoting/rounds.server"
-  );
-  return getMergedTelevotingRoundsServer() as Promise<MergedAdminEdition[]>;
-});
+export const getMergedTelevotingRounds = createServerFn({ method: "POST" })
+  .inputValidator((data: { editionId: string }) => {
+    const editionId = String(data?.editionId ?? "").trim();
+    if (!editionId) throw new Error("Missing Solaris edition");
+    return { editionId };
+  })
+  .handler(async ({ data }) => {
+    const { getMergedTelevotingRoundsServer } = await import(
+      "@/integrations/televoting/rounds.server"
+    );
+    return getMergedTelevotingRoundsServer(data.editionId) as Promise<MergedAdminEdition>;
+  });
 
 export const createMergedTelevotingRound = createServerFn({ method: "POST" })
-  .inputValidator((data: { editionId: string; name: string }) => {
+  .inputValidator((data: { solarisEditionId: string; name: string }) => {
+    const solarisEditionId = String(data?.solarisEditionId ?? "").trim();
     const name = String(data?.name ?? "").trim();
-    if (!data?.editionId) throw new Error("Missing edition");
+    if (!solarisEditionId) throw new Error("Missing Solaris edition");
     if (!name) throw new Error("Round name required");
-    return { editionId: data.editionId, name };
+    return { solarisEditionId, name };
   })
   .handler(async ({ data }) => {
     const { createMergedTelevotingRoundServer } = await import(
