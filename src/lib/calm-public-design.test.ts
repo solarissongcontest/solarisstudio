@@ -11,6 +11,10 @@ describe("calm public design contract", () => {
     expect(visual).toContain('import "@/calm-public-layout.css"');
     expect(visual).toContain('import "@/calm-public-chrome.css"');
     expect(personalityStyles).toContain('import glassParityStyles from "@/country-glass-parity.css?inline"');
+    expect(personalityStyles).toContain('import glassFinalStyles from "@/country-glass-final.css?inline"');
+    expect(personalityStyles.indexOf("{glassFinalStyles}")).toBeGreaterThan(
+      personalityStyles.indexOf("{waterDropStyles}"),
+    );
   });
 
   it("lets route colours reach navigation, selectors and controls", () => {
@@ -30,14 +34,19 @@ describe("calm public design contract", () => {
   });
 
   it("renders Glass Card as one full-width surface on public pages and preview", () => {
-    const css = source("src/country-glass-parity.css");
-    expect(css).toContain('[data-country-hero-layout="glass-card"]');
-    expect(css).toContain('[data-preview-layout="glass-card"]');
-    expect(css).toContain("content: none !important");
-    expect(css).toContain("display: none !important");
-    expect(css).toContain("width: 100% !important");
-    expect(css).toContain("max-width: none !important");
-    expect(css).toContain(".country-glass-panel-flag");
+    const parity = source("src/country-glass-parity.css");
+    const final = source("src/country-glass-final.css");
+    expect(parity).toContain('[data-country-hero-layout="glass-card"]');
+    expect(parity).toContain('[data-preview-layout="glass-card"]');
+    expect(parity).toContain("content: none !important");
+    expect(parity).toContain("display: none !important");
+    expect(final).toContain("width: 100% !important");
+    expect(final).toContain("max-width: none !important");
+    expect(final).toContain("min-height: 0 !important");
+    expect(final).toContain("height: auto !important");
+    expect(final).toContain("rgb(255 255 255 / .085)");
+    expect(final).toContain("opacity: .22 !important");
+    expect(final).toContain(".country-glass-panel-flag");
   });
 
   it("gives responsive tabs a themeable active state", () => {

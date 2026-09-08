@@ -11,12 +11,14 @@ import artDirectionStyles from "@/country-personalities-v5.css?inline";
 import silhouetteStyles from "@/country-personalities-v6.css?inline";
 import silhouetteLayoutStyles from "@/country-personalities-v6-layout.css?inline";
 import waterDropStyles from "@/country-water-drop-v61.css?inline";
+import glassFinalStyles from "@/country-glass-final.css?inline";
 
 /**
  * Country personalities are intentionally route-scoped. V6 owns the final
  * silhouettes for the personalities that still looked too much like the same
- * base card. Water Drop V6.1 is deliberately last because it replaces V6's
- * bean-like treatment with a true liquid-card treatment and safe text zone.
+ * base card. Water Drop V6.1 owns its own replacement silhouette, and the
+ * final Glass Card layer restores the single full-width liquid surface after
+ * all legacy personality layers have been composed.
  */
 export function CountryPersonalityStyles() {
   return (
@@ -34,6 +36,7 @@ export function CountryPersonalityStyles() {
       {silhouetteStyles}
       {silhouetteLayoutStyles}
       {waterDropStyles}
+      {glassFinalStyles}
     </style>
   );
 }
