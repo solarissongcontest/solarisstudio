@@ -42,6 +42,8 @@ export type AnniversaryRecap = {
   stories: AnniversaryStory[];
 };
 
+type EditionWithEventDate = Edition & { event_date?: string | null };
+
 function dateParts(date: Date, timeZone = SOLARIS_ANNIVERSARY_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -58,6 +60,10 @@ function dateParts(date: Date, timeZone = SOLARIS_ANNIVERSARY_TIME_ZONE) {
 
 function dayNumber(year: number, month: number, day: number) {
   return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
+function eventDate(edition: Edition) {
+  return (edition as EditionWithEventDate).event_date ?? null;
 }
 
 export function ordinal(value: number) {
@@ -135,20 +141,22 @@ export function buildAnniversaryRecap({
   countries: Country[];
 }): AnniversaryRecap {
   const published = editions.filter((edition) => edition.published);
-  const currentYear = published.filter((edition) => edition.year === anniversaryYear);
-  const previousYear = published.filter((edition) => edition.year === anniversaryYear - 1);
+  const periodStart = `${anniversaryYear - 1}-09-17`;
+  const periodEnd = `${anniversaryYear}-09-17`;
 
-  const bridgeEdition = [...previousYear].sort(
-    (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-  )[0];
-  const periodEditions = [...(bridgeEdition ? [bridgeEdition] : []), ...currentYear].filter(
-    (edition, index, list) => list.findIndex((item) => item.id === edition.id) === index,
-  );
-  const selected = periodEditions.length
-    ? periodEditions
-    : [...published]
-        .sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))
-        .slice(0, 4);
+  // Anniversary-year claims must be based on real dates, not year labels or
+  // edition numbers. The previous anniversary date is exclusive so an edition
+  // held exactly on 17 September is counted only once, on that anniversary.
+  const selected = published
+    .filter((edition) => {
+      const date = eventDate(edition);
+      return Boolean(date && date > periodStart && date <= periodEnd);
+    })
+    .sort((a, b) => {
+      const dateA = eventDate(a) ?? "";
+      const dateB = eventDate(b) ?? "";
+      return dateA.localeCompare(dateB) || (a.edition_number ?? 9999) - (b.edition_number ?? 9999);
+    });
 
   const editionIds = new Set(selected.map((edition) => edition.id));
   const editionMap = new Map(selected.map((edition) => [edition.id, edition]));
@@ -213,10 +221,15 @@ export function buildAnniversaryRecap({
     id: "growth",
     kicker: "The anniversary year",
     headline:
-      selected.length === 1
-        ? `${editionName(selected[0])} carried Solaris into another birthday`
-        : `${selected.length} contest chapters shaped the year since the last birthday`,
-    detail: `${periodShows.length} public shows and ${participatingCountries.size} countries make up this anniversary chapter of Solaris history.`,
+      selected.length === 0
+        ? "Exact edition dates are still being completed"
+        : selected.length === 1
+          ? `${editionName(selected[0])} carried Solaris into another birthday`
+          : `${selected.length} contest chapters shaped the year since the last birthday`,
+    detail:
+      selected.length === 0
+        ? `No published edition with a confirmed event date falls between 18 September ${anniversaryYear - 1} and 17 September ${anniversaryYear}.`
+        : `${periodShows.length} public shows and ${participatingCountries.size} countries make up this anniversary chapter of Solaris history.`,
     value: `${selected.length} editions`,
   });
 

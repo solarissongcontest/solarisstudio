@@ -24,6 +24,7 @@ function edition(id: string, number: number) {
     edition_number: number,
     name: `SSC ${number}`,
     year: 2026,
+    event_date: "2026-05-01",
     slug: `ssc-${number}`,
     description: null,
     host_country_id: null,
