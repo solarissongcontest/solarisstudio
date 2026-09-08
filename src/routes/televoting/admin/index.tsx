@@ -55,38 +55,45 @@ function VotingAdminOverview() {
   const nextAction =
     !data || data.rounds === 0
       ? {
-          title: "Create the first voting round",
-          description: "Choose the entries and voting rules before people can vote.",
+          title: "Create the first public voting round",
+          description: "Choose the entries and voting rules before public voting can open.",
           to: "/televoting/admin/rounds",
           label: "Set up round",
         }
-      : data.openRounds > 0
+      : data.blocked > 0
         ? {
-            title: "Voting is open",
-            description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} accepting votes now.`,
-            to: "/televoting/admin/rounds",
-            label: "Monitor voting",
+            title: `Review ${data.blocked} blocked ${data.blocked === 1 ? "ballot" : "ballots"}`,
+            description: "Integrity checks found voting that needs an organizer decision.",
+            to: "/televoting/admin/integrity",
+            label: "Review integrity",
           }
-        : data.submissions > 0
+        : data.openRounds > 0
           ? {
-              title: "Review and prepare results",
-              description: `${data.submissions} submitted ${data.submissions === 1 ? "vote is" : "votes are"} available to review.`,
-              to: "/televoting/admin/results",
-              label: "Open results",
-            }
-          : {
-              title: "Open or schedule a voting round",
-              description: "Voting rounds exist, but none are open right now.",
+              title: "Public voting is open",
+              description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} accepting ballots now.`,
               to: "/televoting/admin/rounds",
-              label: "Manage rounds",
-            };
+              label: "Monitor voting",
+            }
+          : data.submissions > 0
+            ? {
+                title: "Prepare the public vote result",
+                description: `${data.submissions} submitted ${data.submissions === 1 ? "ballot is" : "ballots are"} available.`,
+                to: "/televoting/admin/results",
+                label: "Open results",
+              }
+            : {
+                title: "No public voting action needs urgent attention",
+                description: "Open or schedule the next round when you are ready.",
+                to: "/televoting/admin/rounds",
+                label: "Manage rounds",
+              };
 
   return (
     <div className="mx-auto max-w-5xl">
       <AdminPageHeader
-        eyebrow="Contest workflow"
+        eyebrow="Current edition"
         title="Voting"
-        description="Create voting rounds, see submitted votes, prepare results and check voting that needs a closer look."
+        description="Jury, public voting, integrity and official results now live under one organizer section."
         actions={
           <Link to="/televoting" target="_blank" className="admin-action-secondary">
             <Globe2 className="size-4" /> Public voting
@@ -96,7 +103,7 @@ function VotingAdminOverview() {
 
       {statusLoading ? (
         <AdminCard>
-          <p className="py-6 text-center text-sm text-muted-foreground">Checking the voting system…</p>
+          <p className="py-7 text-center text-sm text-muted-foreground">Checking the voting system…</p>
         </AdminCard>
       ) : !backendReady ? (
         <AdminCard>
@@ -106,8 +113,8 @@ function VotingAdminOverview() {
               <div>
                 <p className="text-sm font-semibold text-foreground">Organizer voting tools are unavailable</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Solaris Studio cannot currently reach the organizer side of the voting system. Public voting may
-                  still work. Check Sync health before doing organizer voting work.
+                  Public voting may still work, but organizer controls cannot currently reach the voting backend.
+                  Check System health before changing voting data.
                 </p>
               </div>
             </div>
@@ -115,7 +122,7 @@ function VotingAdminOverview() {
         </AdminCard>
       ) : isLoading ? (
         <AdminCard>
-          <p className="py-6 text-center text-sm text-muted-foreground">Loading voting information…</p>
+          <p className="py-7 text-center text-sm text-muted-foreground">Loading voting status…</p>
         </AdminCard>
       ) : error ? (
         <AdminCard>
@@ -124,53 +131,32 @@ function VotingAdminOverview() {
           </div>
         </AdminCard>
       ) : data ? (
-        <>
-          <AdminCard strong className="mb-4">
-            <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="space-y-4">
+          <AdminCard strong>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="admin-section-label">Voting status</p>
-                <h2 className="mt-1 truncate text-xl font-bold tracking-[-.025em]">
-                  {data.activeEdition ?? "No active voting edition"}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-xl font-bold tracking-[-.025em]">
+                    {data.activeEdition ?? "Voting workspace"}
+                  </h2>
+                  <AdminStatus tone={data.openRounds > 0 ? "ready" : "neutral"}>
+                    {data.openRounds > 0 ? "Public voting live" : "Public voting closed"}
+                  </AdminStatus>
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {data.openRounds > 0
-                    ? `${data.openRounds} ${data.openRounds === 1 ? "round" : "rounds"} currently open`
-                    : "No voting round is open right now"}
+                  Jury tools are available from the Jury tab above. This overview focuses on the public voting service.
                 </p>
               </div>
-              <AdminStatus tone={data.openRounds > 0 ? "ready" : "neutral"}>
-                {data.openRounds > 0 ? "Live" : "Closed"}
-              </AdminStatus>
-            </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-white/[0.06] bg-white/[0.018] p-3 text-center">
-              <Metric label="Rounds" value={data.rounds} />
-              <Metric label="Ballots" value={data.submissions} />
-              <Metric label="Blocked" value={data.blocked} />
+              <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[18rem]">
+                <Metric label="Rounds" value={data.rounds} />
+                <Metric label="Ballots" value={data.submissions} />
+                <Metric label="Blocked" value={data.blocked} />
+              </div>
             </div>
           </AdminCard>
 
-          {data.blocked > 0 ? (
-            <Link
-              to="/televoting/admin/integrity"
-              className="mb-4 flex min-w-0 items-start gap-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3.5 transition hover:bg-amber-200/[0.075]"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-200/[0.07] text-amber-100">
-                <ShieldAlert className="size-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-foreground">
-                  {data.blocked} blocked {data.blocked === 1 ? "vote needs" : "votes need"} review
-                </span>
-                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                  Open Integrity to see why the votes were flagged and what has already been done.
-                </span>
-              </span>
-              <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground" />
-            </Link>
-          ) : null}
-
-          <AdminCard className="mb-4">
+          <AdminCard>
             <AdminCardHeader
               eyebrow="Next action"
               title={nextAction.title}
@@ -183,74 +169,76 @@ function VotingAdminOverview() {
             />
           </AdminCard>
 
-          <section className="mb-5">
-            <p className="admin-section-label mb-2">Everyday workflow</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <WorkflowLink
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Public voting"
+              title="What do you need to do?"
+              description="The three everyday public-voting tasks are kept here. Specialist analysis stays out of the way until you need it."
+            />
+            <div className="divide-y divide-white/[0.07]">
+              <WorkspaceRow
                 to="/televoting/admin/rounds"
                 icon={PlayCircle}
                 title="Rounds & entries"
-                description="Choose who can vote, which entries can receive points and when voting opens."
+                description="Choose eligible entries and countries, then open, close or schedule voting."
                 detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} configured`}
               />
-              <WorkflowLink
-                to="/televoting/admin/results"
-                icon={Trophy}
-                title="Results"
-                description="Check submitted votes, calculate the televote points and prepare the official result."
-                detail={`${data.submissions} ballots in archive`}
-              />
-              <WorkflowLink
+              <WorkspaceRow
                 to="/televoting/admin/integrity"
                 icon={ShieldAlert}
-                title="Integrity"
-                description="Check voting that Solaris Studio flagged because the pattern may need a closer look."
-                detail={data.blocked ? `${data.blocked} blocked events` : "No blocked events"}
+                title="Integrity review"
+                description="Review ballots Solaris flagged and record organizer decisions."
+                detail={data.blocked ? `${data.blocked} blocked` : "No blocked ballots"}
               />
-              <WorkflowLink
-                to="/televoting/admin/analytics"
-                icon={BarChart3}
-                title="Analytics"
-                description="See turnout, how points were spread, and how countries and entries performed."
-              />
-              <WorkflowLink
-                to="/admin/friend-voting"
-                icon={ShieldAlert}
-                title="Friend-voting intelligence"
-                description="Compare jury and televote relationships, historical anomalies, reciprocity and coordinated voting patterns."
-                detail="Jury · televote · network analysis"
-              />
-            </div>
-          </section>
-
-          <AdminCard>
-            <AdminCardHeader
-              eyebrow="Advanced"
-              title="Result & audit tools"
-              description="These pages are useful when you need a closer look at results or past organizer actions."
-            />
-            <div className="divide-y divide-white/[0.07]">
-              <AdminLinkRow
-                to="/televoting/admin/combined"
-                icon={Blend}
-                title="Combined results"
-                description="See how jury and televote points are put together for the final result."
-              />
-              <AdminLinkRow
-                to="/televoting/admin/audit-log"
-                icon={ShieldAlert}
-                title="Audit log"
-                description="See important organizer actions and decisions made about votes."
+              <WorkspaceRow
+                to="/televoting/admin/results"
+                icon={Trophy}
+                title="Public vote results"
+                description="Calculate and review the public vote before it becomes part of the official result."
+                detail={`${data.submissions} ballots`}
               />
             </div>
           </AdminCard>
-        </>
+
+          <details className="admin-card group overflow-hidden">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-muted-foreground transition hover:text-foreground">
+              Analysis & advanced voting tools
+              <span className="text-xs transition group-open:rotate-90">›</span>
+            </summary>
+            <div className="border-t border-white/[0.07] px-1 pb-1">
+              <WorkspaceRow
+                to="/televoting/admin/analytics"
+                icon={BarChart3}
+                title="Voting analytics"
+                description="Turnout, point distribution and entry performance."
+              />
+              <WorkspaceRow
+                to="/admin/friend-voting"
+                icon={ShieldAlert}
+                title="Friend-voting intelligence"
+                description="Historical relationships, reciprocity, signals and network analysis."
+              />
+              <WorkspaceRow
+                to="/televoting/admin/combined"
+                icon={Blend}
+                title="Combined result tools"
+                description="Inspect how jury and public voting are combined."
+              />
+              <WorkspaceRow
+                to="/televoting/admin/audit-log"
+                icon={ShieldAlert}
+                title="Voting audit log"
+                description="Review important organizer actions and integrity decisions."
+              />
+            </div>
+          </details>
+        </div>
       ) : (
         <AdminCard>
           <AdminEmptyState
             icon={PlayCircle}
             title="No voting data yet"
-            description="Create a voting round to begin."
+            description="Create a public voting round to begin."
             action={
               <Link to="/televoting/admin/rounds" className="admin-action-primary">
                 Set up round
@@ -265,14 +253,14 @@ function VotingAdminOverview() {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-0">
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.018] px-2 py-2.5">
       <p className="numeric text-lg font-bold">{value}</p>
       <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{label}</p>
     </div>
   );
 }
 
-function WorkflowLink({
+function WorkspaceRow({
   to,
   icon: Icon,
   title,
@@ -286,35 +274,6 @@ function WorkflowLink({
   detail?: string;
 }) {
   return (
-    <Link
-      to={to as any}
-      className="admin-card group flex min-h-28 min-w-0 items-start gap-3 p-3.5 transition hover:border-white/[0.16] hover:bg-white/[0.045]"
-    >
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">{title}</span>
-        <span className="mt-1.5 block text-xs leading-relaxed text-muted-foreground">{description}</span>
-        {detail ? <span className="mt-2 block text-[11px] font-semibold text-sky-100/75">{detail}</span> : null}
-      </span>
-      <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
-    </Link>
-  );
-}
-
-function AdminLinkRow({
-  to,
-  icon: Icon,
-  title,
-  description,
-}: {
-  to: string;
-  icon: typeof ShieldAlert;
-  title: string;
-  description: string;
-}) {
-  return (
     <Link to={to as any} className="admin-action-row group">
       <span className="admin-action-row-icon">
         <Icon className="size-4" />
@@ -323,6 +282,7 @@ function AdminLinkRow({
         <span className="block text-sm font-semibold">{title}</span>
         <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
       </span>
+      {detail ? <span className="hidden shrink-0 text-[11px] font-semibold text-sky-100/70 sm:block">{detail}</span> : null}
       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
     </Link>
   );
