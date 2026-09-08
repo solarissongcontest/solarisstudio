@@ -139,7 +139,9 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(failedRequests, `${path} had failed requests`).toEqual([]);
   } catch (error) {
     await testInfo.attach(`page-${path.replace(/\W+/g, "-") || "home"}`, {
-      body: await page.screenshot({ fullPage: true }),
+      // The viewport is enough to diagnose layout/a11y failures and avoids
+      // generating hundreds of megabytes of full-page PNGs on route sweeps.
+      body: await page.screenshot(),
       contentType: "image/png",
     });
     throw error;
