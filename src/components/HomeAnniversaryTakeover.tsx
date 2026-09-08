@@ -1,6 +1,7 @@
 import { useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
+import "@/anniversary-mobile-fixes.css";
 import { AnniversaryTakeover } from "@/components/AnniversaryTakeover";
 import {
   buildAnniversaryRecap,
