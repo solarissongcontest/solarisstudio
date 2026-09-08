@@ -149,68 +149,104 @@ describe("canonical public history", () => {
         participant("final-row", "e1", "final-1"),
         participant("canonical-row", "e1", null),
       ],
-      results: [result("final-result", "e1", "final-1", 1, 100)],
-      countries: [country],
+      results: [
+        result("semi-result", "e1", "semi-1", 4, 70),
+        result("final-result", "e1", "final-1", 2, 150),
+      ],
+      jury: [],
+      televote: [],
     });
 
     expect(stats.participations).toBe(1);
     expect(stats.finals).toBe(1);
-    expect(stats.finalRate).toBe(100);
-    expect(stats.totalFinalPoints).toBe(100);
-    expect(stats.averageFinalPoints).toBe(100);
+    expect(stats.semis).toBe(1);
+    expect(stats.grandFinalAppearancePct).toBe(100);
+    expect(stats.avgPointsPerParticipation).toBe(150);
+    expect(stats.highestScore).toBe(150);
+    expect(stats.lowestScore).toBe(150);
   });
 
-  it("does not count a semi-only participant as a final appearance", () => {
+  it("does not join qualification streaks across skipped edition numbers", () => {
     const e1 = edition("e1", 1);
-    const semi = show("semi-1", "e1", "semi-final");
+    const e2 = edition("e2", 2);
+    const e3 = edition("e3", 3);
+    const semi1 = show("semi-1", "e1", "semi-final");
+    const semi3 = show("semi-3", "e3", "semi-final");
 
     const stats = computeCanonicalCountryStats("a", {
-      editions: [e1],
-      shows: [semi],
+      editions: [e1, e2, e3],
+      shows: [semi1, semi3],
       participants: [
-        participant("semi-row", "e1", "semi-1", false),
-        participant("canonical-row", "e1", null),
+        participant("e1", "e1", "semi-1", true),
+        participant("e3", "e3", "semi-3", true),
       ],
-      results: [],
-      countries: [country],
+      results: [
+        result("r1", "e1", "semi-1", 4, 80),
+        result("r3", "e3", "semi-3", 5, 75),
+      ],
+      jury: [],
+      televote: [],
     });
 
-    expect(stats.participations).toBe(1);
-    expect(stats.finals).toBe(0);
-    expect(stats.finalRate).toBe(0);
+    expect(stats.qualificationPct).toBe(100);
+    expect(stats.consecutiveQualifications).toBe(1);
   });
 
-  it("deduplicates fan record holders by edition before counting appearances", () => {
-    const collapsed = collapseFanRecordHolders([
-      { editionId: "e1", showId: "semi-1", entityId: "a", rank: 1, points: 90 },
-      { editionId: "e1", showId: "final-1", entityId: "a", rank: 1, points: 100 },
-      { editionId: "e2", showId: "final-2", entityId: "a", rank: 2, points: 95 },
-    ]);
+  it("compares the canonical edition placement instead of whichever show row was last", () => {
+    const e1 = edition("e1", 1);
+    const semi = show("semi-1", "e1", "semi-final");
+    const final = show("final-1", "e1", "grand-final");
 
-    expect(collapsed).toHaveLength(2);
-    expect(collapsed.find((row) => row.editionId === "e1")?.points).toBe(100);
-  });
-
-  it("deduplicates head-to-head edition comparisons", () => {
-    const rows = computeCanonicalHeadToHead({
-      entityA: "a",
-      entityB: "b",
+    const options = {
+      editions: [e1],
+      shows: [semi, final],
       participants: [
         participant("a-semi", "e1", "semi-1", true, "a"),
         participant("a-final", "e1", "final-1", null, "a"),
-        participant("a-canonical", "e1", null, null, "a"),
         participant("b-semi", "e1", "semi-1", true, "b"),
         participant("b-final", "e1", "final-1", null, "b"),
-        participant("b-canonical", "e1", null, null, "b"),
       ],
       results: [
-        result("a-result", "e1", "final-1", 1, 100, "a"),
-        result("b-result", "e1", "final-1", 2, 90, "b"),
+        result("a-final-result", "e1", "final-1", 2, 150, "a"),
+        result("b-final-result", "e1", "final-1", 1, 160, "b"),
+        result("a-semi-result", "e1", "semi-1", 1, 100, "a"),
+        result("b-semi-result", "e1", "semi-1", 4, 70, "b"),
       ],
-    });
+      jury: [],
+      televote: [],
+    };
 
-    expect(rows.comparisons).toBe(1);
-    expect(rows.aWins).toBe(1);
-    expect(rows.bWins).toBe(0);
+    const headToHead = computeCanonicalHeadToHead("a", "b", options as any);
+    expect(headToHead.sharedEditions).toBe(1);
+    expect(headToHead.aWins).toBe(0);
+    expect(headToHead.bWins).toBe(1);
+    expect(headToHead.rows[0]?.aRank).toBe(2);
+    expect(headToHead.rows[0]?.bRank).toBe(1);
+  });
+
+  it("counts a country once in a tied record while preserving all occurrence context", () => {
+    const holders = collapseFanRecordHolders([
+      {
+        countryId: "a",
+        countryName: "Aland",
+        shortCode: "ALA",
+        flagImage: null,
+        accentColor: "#123456",
+        context: "SSC 19",
+      },
+      {
+        countryId: "a",
+        countryName: "Aland",
+        shortCode: "ALA",
+        flagImage: null,
+        accentColor: "#123456",
+        context: "SSC 21",
+      },
+    ]);
+
+    expect(holders).toHaveLength(1);
+    expect(holders[0]?.countryId).toBe("a");
+    expect(holders[0]?.context).toContain("SSC 19");
+    expect(holders[0]?.context).toContain("SSC 21");
   });
 });
