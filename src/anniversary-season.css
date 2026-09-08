@@ -195,24 +195,29 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     white-space: nowrap;
   }
 
-  body.solaris-anniversary-day .solaris-anniversary-global-badge {
+  /* The anniversary badge is intentionally tiny by default on phones. It only
+     grows into the full status pill after the user taps it. */
+  body.solaris-anniversary-day .solaris-anniversary-global-badge,
+  body[data-solaris-anniversary-phase="countdown"] .solaris-anniversary-global-badge {
     top: 4rem !important;
-    left: .5rem;
-    right: .5rem;
-    width: auto;
-    max-width: none;
+    left: auto !important;
+    right: .6rem !important;
+    width: 2.65rem !important;
+    max-width: 2.65rem !important;
+    min-height: 2.65rem;
     justify-content: center;
+    gap: 0;
+    padding: 0 !important;
     white-space: nowrap;
   }
 
-  body[data-solaris-anniversary-phase="countdown"] .solaris-anniversary-global-badge {
-    left: .75rem;
-    right: .75rem;
-    width: auto;
-    max-width: none;
-    justify-content: center;
-    padding-inline: .75rem;
-    font-size: .6rem;
+  body.solaris-anniversary-day .solaris-anniversary-global-badge.is-expanded,
+  body[data-solaris-anniversary-phase="countdown"] .solaris-anniversary-global-badge.is-expanded {
+    width: min(20rem, calc(100vw - 1.2rem)) !important;
+    max-width: min(20rem, calc(100vw - 1.2rem)) !important;
+    justify-content: flex-start;
+    gap: .4rem;
+    padding: .45rem .68rem !important;
   }
 
   .solaris-anniversary-season-notice {
