@@ -19,7 +19,7 @@ const edition = (id: string, number: number, eventDate: string | null) => ({
 });
 
 describe("anniversary recap exact edition dates", () => {
-  it("includes only editions after the previous anniversary through the current anniversary", () => {
+  it("includes the previous anniversary through the day before the current anniversary", () => {
     const recap = buildAnniversaryRecap({
       anniversaryYear: 2026,
       editions: [
@@ -37,6 +37,8 @@ describe("anniversary recap exact edition dates", () => {
     });
 
     expect(recap.editionCount).toBe(3);
+    expect(recap.periodStart).toBe("2025-09-17");
+    expect(recap.periodEndExclusive).toBe("2026-09-17");
   });
 
   it("does not guess from year or edition number when event_date is missing", () => {
@@ -50,6 +52,7 @@ describe("anniversary recap exact edition dates", () => {
     });
 
     expect(recap.editionCount).toBe(0);
+    expect(recap.undatedPublishedEditionCount).toBe(1);
     expect(recap.stories[0]?.headline).toContain("dates are still being completed");
   });
 });
