@@ -18,7 +18,7 @@ describe("Voting Rounds & entries page runtime contract", () => {
     expect(page).not.toContain("<select");
   });
 
-  it("loads the page through one service-only database RPC", () => {
+  it("loads the page through one organizer-authenticated database RPC", () => {
     const functions = source("integrations/televoting/rounds.functions.ts");
 
     expect(functions).toContain("getMergedTelevotingRoundsPage");
@@ -34,11 +34,13 @@ describe("Voting Rounds & entries page runtime contract", () => {
     expect(server).toContain("autoSyncDraftTelevotingRoundsForEditionServer");
   });
 
-  it("keeps the page RPC invoker-scoped and browser-inaccessible", () => {
-    const migration = source("../supabase/migrations/20260908201316_add_televoting_rounds_page_overview.sql");
+  it("keeps the page RPC invoker-scoped and explicitly organizer-gated", () => {
+    const migration = source("../supabase/migrations/20260908202116_fix_televoting_rounds_page_overview_permissions.sql");
 
     expect(migration).toContain("security invoker");
-    expect(migration).toContain("revoke execute on function televoting.admin_rounds_page_overview(uuid) from public, anon, authenticated");
-    expect(migration).toContain("grant execute on function televoting.admin_rounds_page_overview(uuid) to service_role");
+    expect(migration).toContain("public.has_role(auth.uid(), 'organizer'::public.app_role)");
+    expect(migration).toContain("raise exception 'Organizer access required'");
+    expect(migration).toContain("revoke execute on function televoting.admin_rounds_page_overview(uuid) from public, anon, service_role");
+    expect(migration).toContain("grant execute on function televoting.admin_rounds_page_overview(uuid) to authenticated");
   });
 });
