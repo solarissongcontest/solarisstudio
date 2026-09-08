@@ -18,7 +18,6 @@ export type CanonicalTelevotingEdition = {
   edition_number: number;
   is_active: boolean;
   is_archived: boolean;
-  data_revision?: number;
 };
 
 async function solarisDb() {
@@ -33,7 +32,7 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
   const [solarisResult, remoteResult, linkResult] = await Promise.all([
     db
       .from("editions")
-      .select("id,name,edition_number,status,data_revision")
+      .select("id,name,edition_number,status")
       .not("edition_number", "is", null)
       .order("edition_number"),
     televotingAdmin
@@ -159,7 +158,6 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
       edition_number: editionNumber,
       is_active: isActive,
       is_archived: isArchived,
-      data_revision: Number(edition.data_revision ?? 0),
     });
   }
 
@@ -168,6 +166,7 @@ export async function ensureCanonicalTelevotingEditionsServer(): Promise<Canonic
 
 async function resolveRoundSource(roundId: string) {
   const db = await solarisDb();
+  const editions = await ensureCanonicalTelevotingEditionsServer();
 
   const { data: round, error: roundError } = await televotingAdmin
     .from("rounds")
@@ -177,43 +176,13 @@ async function resolveRoundSource(roundId: string) {
   if (roundError) throw new Error(roundError.message);
   if (!round) throw new Error("Round not found");
 
-  const { data: link, error: linkError } = await db
-    .from("integration_links")
-    .select("solaris_id")
-    .eq("service", "televoting")
-    .eq("entity_type", "edition")
-    .eq("remote_id", round.edition_id)
-    .maybeSingle();
-  if (linkError) throw new Error(linkError.message);
-  if (!link?.solaris_id) {
-    throw new Error("This Televoting round is not linked to a canonical Solaris edition");
-  }
-
-  const { data: canonicalEdition, error: editionError } = await db
-    .from("editions")
-    .select("id,name,edition_number,status,data_revision")
-    .eq("id", link.solaris_id)
-    .maybeSingle();
-  if (editionError) throw new Error(editionError.message);
-  if (!canonicalEdition) throw new Error("The linked Solaris edition no longer exists");
-
-  const editionNumber = Number(canonicalEdition.edition_number);
-  if (!Number.isInteger(editionNumber)) throw new Error("The linked Solaris edition has no edition number");
-
-  const edition: CanonicalTelevotingEdition = {
-    id: String(round.edition_id),
-    solaris_id: String(canonicalEdition.id),
-    name: String(canonicalEdition.name),
-    edition_number: editionNumber,
-    is_active: canonicalEdition.status === "active",
-    is_archived: canonicalEdition.status === "completed" || canonicalEdition.status === "finished",
-    data_revision: Number(canonicalEdition.data_revision ?? 0),
-  };
+  const edition = editions.find((candidate) => candidate.id === round.edition_id);
+  if (!edition) throw new Error("This Televoting round is not linked to a canonical Solaris edition");
 
   const [{ data: binding, error: bindingError }, { data: shows, error: showsError }] = await Promise.all([
     db
       .from("televoting_round_bindings")
-      .select("remote_round_id,remote_edition_id,edition_id,show_id,source_mode,last_synced_at,last_synced_revision,frozen_at")
+      .select("remote_round_id,remote_edition_id,edition_id,show_id,source_mode,last_synced_at,frozen_at")
       .eq("remote_round_id", roundId)
       .maybeSingle(),
     db
@@ -232,32 +201,34 @@ export async function getMergedRoundSolarisSourceServer(roundId: string) {
   await requireMergedTelevotingAdminServer();
   const source = await resolveRoundSource(roundId);
 
-  const { data: participants, error: participantError } = await source.db
+  const { count: editionParticipantCount, error: countError } = await source.db
     .from("participants")
-    .select("show_id")
+    .select("id", { count: "exact", head: true })
     .eq("edition_id", source.edition.solaris_id)
+    .is("show_id", null)
     .eq("participation_status", "confirmed");
-  if (participantError) throw new Error(participantError.message);
+  if (countError) throw new Error(countError.message);
 
-  const showCounts = new Map<string, number>();
-  let editionParticipantCount = 0;
-  for (const participant of participants ?? []) {
-    if (!participant.show_id) {
-      editionParticipantCount += 1;
-      continue;
-    }
-    const showId = String(participant.show_id);
-    showCounts.set(showId, (showCounts.get(showId) ?? 0) + 1);
+  const showCounts = [] as Array<{ show_id: string; count: number }>;
+  for (const show of source.shows) {
+    const { count, error } = await source.db
+      .from("participants")
+      .select("id", { count: "exact", head: true })
+      .eq("edition_id", source.edition.solaris_id)
+      .eq("show_id", show.id)
+      .eq("participation_status", "confirmed");
+    if (error) throw new Error(error.message);
+    showCounts.push({ show_id: show.id, count: count ?? 0 });
   }
 
   return {
     round: source.round,
     edition: source.edition,
     binding: source.binding,
-    edition_participant_count: editionParticipantCount,
+    edition_participant_count: editionParticipantCount ?? 0,
     shows: source.shows.map((show: any) => ({
       ...show,
-      participant_count: showCounts.get(String(show.id)) ?? 0,
+      participant_count: showCounts.find((row) => row.show_id === show.id)?.count ?? 0,
     })),
   };
 }
@@ -351,52 +322,51 @@ export async function syncMergedRoundFromSolarisServer(data: {
   if (existingCountryError) throw new Error(existingCountryError.message);
   const existingByCode = new Map((existingCountries ?? []).map((row) => [row.code, row]));
 
-  const countryUpserts = (lineup as any[]).map((row) => {
+  for (const row of lineup as any[]) {
     const code = String(row.country.short_code);
     const existing = existingByCode.get(code);
-    return {
-      code,
-      name: row.country.name,
-      flag: existing?.flag ?? "✦",
-      flag_url: row.country.flag_image ?? existing?.flag_url ?? null,
-    };
-  });
-
-  if (countryUpserts.length) {
-    const { error: countryUpsertError } = await televotingAdmin
-      .from("countries")
-      .upsert(countryUpserts, { onConflict: "code" });
-    if (countryUpsertError) throw new Error(countryUpsertError.message);
+    if (existing) {
+      const { error } = await televotingAdmin
+        .from("countries")
+        .update({ name: row.country.name, flag_url: row.country.flag_image ?? existing.flag_url })
+        .eq("code", code);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await televotingAdmin.from("countries").insert({
+        code,
+        name: row.country.name,
+        flag: "✦",
+        flag_url: row.country.flag_image ?? null,
+      });
+      if (error) throw new Error(error.message);
+    }
   }
 
   await saveMergedRoundCountriesServer({ roundId: data.roundId, countryCodes: codes });
 
   const { data: remoteEntries, error: remoteEntryError } = await televotingAdmin
     .from("round_entries")
-    .select("id,round_id,entry_type,entry_key,country_code,custom_name,short_name,entry_code,subtitle,image_url,description,display_order")
+    .select("id,country_code")
     .eq("round_id", data.roundId)
     .eq("entry_type", "country");
   if (remoteEntryError) throw new Error(remoteEntryError.message);
 
   const lineupByCode = new Map(lineup.map((row: any) => [String(row.country.short_code), row]));
-  const now = new Date().toISOString();
-  const subtitleUpserts = (remoteEntries ?? []).map((remoteEntry) => {
-    const canonical = remoteEntry.country_code
-      ? (lineupByCode.get(remoteEntry.country_code) as any)
-      : null;
-    const subtitle = canonical?.entry?.status === "confirmed" && canonical.entry?.artist && canonical.entry?.song_title
+  for (const remoteEntry of remoteEntries ?? []) {
+    if (!remoteEntry.country_code) continue;
+    const canonical = lineupByCode.get(remoteEntry.country_code) as any;
+    if (!canonical) continue;
+    const subtitle = canonical.entry?.status === "confirmed" && canonical.entry?.artist && canonical.entry?.song_title
       ? `${canonical.entry.artist} · ${canonical.entry.song_title}`
       : "Official entry pending";
-    return { ...remoteEntry, subtitle, updated_at: now };
-  });
-
-  if (subtitleUpserts.length) {
-    const { error: subtitleError } = await televotingAdmin
+    const { error } = await televotingAdmin
       .from("round_entries")
-      .upsert(subtitleUpserts, { onConflict: "id" });
-    if (subtitleError) throw new Error(subtitleError.message);
+      .update({ subtitle })
+      .eq("id", remoteEntry.id);
+    if (error) throw new Error(error.message);
   }
 
+  const now = new Date().toISOString();
   const binding = await source.db.from("televoting_round_bindings").upsert(
     {
       remote_round_id: data.roundId,
@@ -405,7 +375,6 @@ export async function syncMergedRoundFromSolarisServer(data: {
       show_id: showId,
       source_mode: sourceMode,
       last_synced_at: now,
-      last_synced_revision: Number(source.edition.data_revision ?? 0),
       frozen_at: null,
       updated_at: now,
     },
@@ -423,7 +392,6 @@ export async function syncMergedRoundFromSolarisServer(data: {
       show_id: showId,
       source_mode: sourceMode,
       countries: codes,
-      data_revision: Number(source.edition.data_revision ?? 0),
     },
     status: "completed",
     attempts: 1,
@@ -441,7 +409,6 @@ export async function syncMergedRoundFromSolarisServer(data: {
       show_id: showId,
       source_mode: sourceMode,
       country_codes: codes,
-      data_revision: Number(source.edition.data_revision ?? 0),
     },
   });
 
