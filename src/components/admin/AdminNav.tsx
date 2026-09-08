@@ -1,16 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  BarChart3,
-  CalendarDays,
-  CircleHelp,
+  BookOpen,
   ClipboardCheck,
+  Eye,
   LayoutDashboard,
-  MoreHorizontal,
+  Layers3,
   RadioTower,
-  RefreshCw,
-  Scale,
-  ShieldAlert,
-  Sparkles,
+  Settings2,
   Trophy,
   Vote,
   type LucideIcon,
@@ -37,9 +33,12 @@ export function AdminNav() {
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
 
-  const editionHref = activeEdition ? `/admin/${activeEdition.slug}` : "/admin";
+  const slug = activeEdition?.slug;
+  const editionHref = slug ? `/admin/${slug}` : "/admin";
+  const publishHref = slug ? `/admin/publication/${slug}` : "/admin";
+  const broadcastHref = slug ? `/admin/design/${slug}` : "/admin";
 
-  const primary: NavItem[] = [
+  const workflow: NavItem[] = [
     {
       label: "Overview",
       to: "/admin/operations",
@@ -47,66 +46,64 @@ export function AdminNav() {
       active: (path) => path.startsWith("/admin/operations"),
     },
     {
-      label: "Guide",
-      to: "/admin/guide",
-      icon: CircleHelp,
-      active: (path) => path.startsWith("/admin/guide"),
-    },
-    {
-      label: "Edition",
-      to: editionHref,
-      icon: Trophy,
-      active: (path) =>
-        editions.some((edition) => path === `/admin/${edition.slug}`) ||
-        path.startsWith("/admin/shows/") ||
-        path.startsWith("/admin/entries/") ||
-        path.startsWith("/admin/lineup-sync/") ||
-        path.startsWith("/admin/jury/") ||
-        path.startsWith("/admin/televote/") ||
-        path.startsWith("/admin/voting-system/") ||
-        path.startsWith("/admin/publication/"),
-    },
-    {
       label: "Delegations",
       to: "/confirmations/admin",
       icon: ClipboardCheck,
-      active: (path) => path.startsWith("/confirmations/admin") && !path.startsWith("/confirmations/admin/sync"),
+      active: (path) => path.startsWith("/confirmations/admin"),
     },
     {
-      label: "Line-up sync",
-      to: "/confirmations/admin/sync",
-      icon: RefreshCw,
-      active: (path) => path.startsWith("/confirmations/admin/sync") || path.startsWith("/admin/lineup-sync/"),
+      label: "Contest",
+      to: editionHref,
+      icon: Layers3,
+      active: (path) =>
+        (slug ? path === `/admin/${slug}` : false) ||
+        path.startsWith("/admin/shows/") ||
+        path.startsWith("/admin/entries/") ||
+        path.startsWith("/admin/lineup-sync/"),
     },
     {
-      label: "Friend-voting intelligence",
-      to: "/admin/friend-voting",
-      icon: ShieldAlert,
-      active: (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence"),
-    },
-    {
-      label: "Jury Integrity",
-      to: "/admin/jury-integrity",
-      icon: Scale,
-      active: (path) => path.startsWith("/admin/jury-integrity"),
-    },
-    {
-      label: "Televoting",
+      label: "Voting",
       to: "/televoting/admin",
       icon: Vote,
       active: (path) =>
-        (path.startsWith("/televoting/admin") && !path.startsWith("/televoting/admin/intelligence")) ||
-        path.startsWith("/admin/hod-history"),
+        path.startsWith("/televoting/admin") ||
+        path.startsWith("/admin/jury/") ||
+        path.startsWith("/admin/voting-system/") ||
+        path.startsWith("/admin/televote/") ||
+        path.startsWith("/admin/friend-voting") ||
+        path.startsWith("/admin/jury-integrity"),
+    },
+    {
+      label: "Publish",
+      to: publishHref,
+      icon: Eye,
+      active: (path) => path.startsWith("/admin/publication/"),
     },
     {
       label: "Broadcast",
-      to: activeEdition ? `/admin/design/${activeEdition.slug}` : "/admin",
+      to: broadcastHref,
       icon: RadioTower,
       active: (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/"),
     },
   ];
 
-  const secondary: NavItem[] = [
+  const administration: NavItem[] = [
+    {
+      label: "Administration",
+      to: "/admin/more",
+      icon: Settings2,
+      active: (path) =>
+        path.startsWith("/admin/more") ||
+        path.startsWith("/admin/country-accounts") ||
+        path.startsWith("/admin/hod-history") ||
+        path.startsWith("/admin/hosts") ||
+        path.startsWith("/admin/predictions") ||
+        path.startsWith("/admin/system") ||
+        path.startsWith("/admin/sync-health") ||
+        path.startsWith("/admin/beta") ||
+        path.startsWith("/admin/admin-beta") ||
+        path.startsWith("/admin/anniversary"),
+    },
     {
       label: "All editions",
       to: "/admin",
@@ -114,47 +111,24 @@ export function AdminNav() {
       active: (path) => path === "/admin" || path === "/admin/",
     },
     {
-      label: "Predictions",
-      to: "/admin/predictions",
-      icon: Sparkles,
-      active: (path) => path.startsWith("/admin/predictions"),
-    },
-    {
-      label: "Anniversary Preview",
-      to: "/admin/anniversary",
-      icon: CalendarDays,
-      active: (path) => path.startsWith("/admin/anniversary"),
-    },
-    {
-      label: "Beta feedback",
-      to: "/admin/beta-feedback",
-      icon: BarChart3,
-      active: (path) => path.startsWith("/admin/beta-feedback"),
-    },
-    {
-      label: "More",
-      to: "/admin/more",
-      icon: MoreHorizontal,
-      active: (path) =>
-        path.startsWith("/admin/more") ||
-        path.startsWith("/admin/country-accounts") ||
-        path.startsWith("/admin/hosts") ||
-        path.startsWith("/admin/system") ||
-        path.startsWith("/admin/sync-health"),
+      label: "Guide",
+      to: "/admin/guide",
+      icon: BookOpen,
+      active: (path) => path.startsWith("/admin/guide"),
     },
   ];
 
   return (
     <nav className="p-3" aria-label="Organizer navigation">
-      <p className="admin-section-label mb-2 px-2">Workspace</p>
+      <p className="admin-section-label mb-2 px-2">Current edition</p>
       <div className="space-y-1">
-        {primary.map((item) => <NavLink key={item.label} item={item} pathname={pathname} />)}
+        {workflow.map((item) => <NavLink key={item.label} item={item} pathname={pathname} />)}
       </div>
 
       <div className="my-5 border-t border-white/[0.07]" />
-      <p className="admin-section-label mb-2 px-2">More</p>
+      <p className="admin-section-label mb-2 px-2">Workspace</p>
       <div className="space-y-1">
-        {secondary.map((item) => <NavLink key={item.label} item={item} pathname={pathname} quiet />)}
+        {administration.map((item) => <NavLink key={item.label} item={item} pathname={pathname} quiet />)}
       </div>
     </nav>
   );
