@@ -34,9 +34,7 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   white-space: nowrap;
 }
 
-.solaris-anniversary-season-notice--countdown {
-  display: none !important;
-}
+.solaris-anniversary-season-notice--countdown { display: none !important; }
 
 .solaris-anniversary-season-notice {
   position: fixed;
@@ -94,19 +92,8 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   text-transform: uppercase;
 }
 .solaris-anniversary-season-notice--after .solaris-anniversary-season-copy p { color: var(--anniv-gold); }
-.solaris-anniversary-season-copy strong {
-  display: block;
-  color: #fff;
-  font-size: .96rem;
-  font-weight: 900;
-}
-.solaris-anniversary-season-copy span {
-  display: block;
-  margin-top: .18rem;
-  color: rgba(255,255,255,.56);
-  font-size: .69rem;
-  line-height: 1.4;
-}
+.solaris-anniversary-season-copy strong { display: block; color: #fff; font-size: .96rem; font-weight: 900; }
+.solaris-anniversary-season-copy span { display: block; margin-top: .18rem; color: rgba(255,255,255,.56); font-size: .69rem; line-height: 1.4; }
 
 .solaris-anniversary-season-action {
   display: inline-flex;
@@ -123,19 +110,9 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   white-space: nowrap;
   transition: transform .18s ease, border-color .18s ease, background .18s ease;
 }
-.solaris-anniversary-season-notice--after .solaris-anniversary-season-action {
-  border-color: rgba(255,227,110,.25);
-  background: rgba(255,227,110,.07);
-}
-.solaris-anniversary-season-action:hover {
-  transform: translateY(-1px);
-  border-color: rgba(116,231,255,.48);
-  background: rgba(116,231,255,.12);
-}
-.solaris-anniversary-season-notice--after .solaris-anniversary-season-action:hover {
-  border-color: rgba(255,227,110,.48);
-  background: rgba(255,227,110,.12);
-}
+.solaris-anniversary-season-notice--after .solaris-anniversary-season-action { border-color: rgba(255,227,110,.25); background: rgba(255,227,110,.07); }
+.solaris-anniversary-season-action:hover { transform: translateY(-1px); border-color: rgba(116,231,255,.48); background: rgba(116,231,255,.12); }
+.solaris-anniversary-season-notice--after .solaris-anniversary-season-action:hover { border-color: rgba(255,227,110,.48); background: rgba(255,227,110,.12); }
 
 @media (max-width: 1023px) {
   .solaris-anniversary-season-notice { bottom: 5.75rem; }
@@ -150,79 +127,34 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     font-size: .43rem;
   }
 
-  /* The homepage takeover is the first child of AppShell. Remove the shell's
-     own mobile padding on that one page, then let the takeover be a normal
-     100%-wide block. This avoids every viewport/margin compensation bug. */
+  /* Only the anniversary takeover gets edge-to-edge treatment. The normal
+     homepage below it is explicitly restored to the usual mobile width. */
   body.solaris-anniversary-day .app-main:has(> .solaris-anniversary-v2) {
     max-width: none !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+    overflow-x: clip;
   }
 
   body.solaris-anniversary-day .app-main:has(> .solaris-anniversary-v2) > :not(.solaris-anniversary-v2) {
-    margin-left: .75rem;
-    margin-right: .75rem;
+    width: calc(100% - 1.5rem) !important;
+    max-width: calc(100% - 1.5rem) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 
   body.solaris-anniversary-day .solaris-anniversary-v2 {
     left: auto !important;
     width: 100% !important;
     max-width: none !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+    margin: 0 !important;
     overflow-x: clip;
-    padding: .35rem 1rem 2.5rem !important;
+    padding: 4.35rem .85rem 2.5rem !important;
   }
 
-  body.solaris-anniversary-day .solaris-anniversary-v2 > div,
-  body.solaris-anniversary-day .anniversary-v2-hero,
-  body.solaris-anniversary-day .anniversary-v2-hero > * {
+  body.solaris-anniversary-day .solaris-anniversary-v2 > div {
     width: 100%;
     min-width: 0;
-    max-width: 100%;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-hero {
-    min-height: auto !important;
-    gap: 1rem !important;
-    padding-block: .7rem 2.25rem !important;
-    align-items: start !important;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-title {
-    max-width: 100%;
-    margin-top: .85rem;
-    font-size: clamp(3rem, 15vw, 4.35rem);
-    line-height: .82;
-    overflow-wrap: anywhere;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-lede {
-    margin-top: 1.05rem;
-    font-size: .96rem;
-    line-height: 1.55;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-kicker,
-  body.solaris-anniversary-day .anniversary-v2-actions {
-    max-width: 100%;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-kicker {
-    gap: .42rem;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-chip {
-    min-height: 1.95rem;
-    padding: .4rem .65rem;
-    font-size: .56rem;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-actions {
-    margin-top: 1.25rem;
-  }
-
-  body.solaris-anniversary-day .anniversary-v2-action {
     max-width: 100%;
   }
 
@@ -252,19 +184,10 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
     padding: .68rem;
     border-radius: 17px;
   }
-  .solaris-anniversary-season-mark {
-    width: 2.75rem;
-    height: 2.75rem;
-    font-size: .9rem;
-  }
+  .solaris-anniversary-season-mark { width: 2.75rem; height: 2.75rem; font-size: .9rem; }
   .solaris-anniversary-season-copy strong { font-size: .86rem; }
   .solaris-anniversary-season-copy span { font-size: .63rem; }
-  .solaris-anniversary-season-action {
-    grid-column: 1 / -1;
-    min-height: 2.3rem;
-    justify-content: center;
-    width: 100%;
-  }
+  .solaris-anniversary-season-action { grid-column: 1 / -1; min-height: 2.3rem; justify-content: center; width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
