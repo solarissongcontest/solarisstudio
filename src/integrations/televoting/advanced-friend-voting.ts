@@ -149,6 +149,7 @@ type PreparedHistory = {
 };
 
 const preparedHistoryCache = new WeakMap<AdvancedFriendVotingObservation[], PreparedHistory>();
+const currentEditionNumberCache = new WeakMap<AdvancedFriendVotingObservation[], number | null>();
 const clamp = (n: number, min = 0, max = 100) => Math.max(min, Math.min(max, Number.isFinite(n) ? n : min));
 const clamp01 = (n: number) => clamp(n, 0, 1);
 const mean = (v: number[]) => v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0;
@@ -265,6 +266,13 @@ function resolveCurrentEditionNumber(rows: AdvancedFriendVotingObservation[]) {
   return values.length ? Math.max(...values) : null;
 }
 
+function resolveCurrentEditionNumberCached(rows: AdvancedFriendVotingObservation[]) {
+  if (currentEditionNumberCache.has(rows)) return currentEditionNumberCache.get(rows) ?? null;
+  const currentEditionNumber = resolveCurrentEditionNumber(rows);
+  currentEditionNumberCache.set(rows, currentEditionNumber);
+  return currentEditionNumber;
+}
+
 function rowWeight(
   row: AdvancedFriendVotingObservation,
   currentEditionNumber: number | null,
@@ -343,7 +351,7 @@ export function calculateAdvancedFriendVotingRisk(
   const opportunities = pair.length;
   const voterId = pair[0]?.voterId ?? "";
   const targetCode = pair[0]?.targetCode ?? "";
-  const currentEditionNumber = resolveCurrentEditionNumber([...allObservations, ...pair]);
+  const currentEditionNumber = resolveCurrentEditionNumberCached(allObservations);
 
   const targetRows = history.byVoterTarget.get(`${voterId}\u0000${targetCode}`) ?? [];
   const targetHistory = targetRows.filter((row) => !editions.has(row.editionId));
