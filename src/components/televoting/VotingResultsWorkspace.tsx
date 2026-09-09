@@ -18,6 +18,30 @@ import {
 } from "@/integrations/televoting/rounds.functions";
 import { VotingResultsView } from "@/components/televoting/VotingResultsView";
 
+type ArchivedStoredResult = {
+  country_code: string;
+  original_votes: number;
+  original_rank: number | null;
+  robust_rank?: number | null;
+  weighted_score?: number | string | null;
+  exact_points?: number | string | null;
+  floored_points?: number | null;
+  decimal_remainder?: number | string | null;
+  final_points: number;
+  engine_version?: string | null;
+  calculation_config?: {
+    historical_import?: boolean;
+    activity_points?: number;
+    country_contributions?: Record<string, number>;
+    normalised_percent?: number;
+    final_percent?: number;
+    display_diff?: number;
+    formula?: string;
+    point_pool?: number;
+    floor_total?: number;
+  } | null;
+};
+
 export function VotingResultsWorkspace() {
   const { editionId } = useAdminContext();
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
@@ -95,14 +119,7 @@ function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdit
   });
 
   const storedRows = useMemo(() => {
-    const rows = (data?.stored ?? []) as Array<{
-      country_code: string;
-      original_votes: number;
-      original_rank: number | null;
-      robust_rank?: number | null;
-      final_points: number;
-      engine_version?: string | null;
-    }>;
+    const rows = (data?.stored ?? []) as ArchivedStoredResult[];
     return [...rows].sort(
       (a, b) =>
         Number(b.final_points) - Number(a.final_points) ||
@@ -120,6 +137,10 @@ function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdit
       (a, b) => Number(b.originalVotes) - Number(a.originalVotes) || a.code.localeCompare(b.code),
     );
   }, [data?.originals]);
+
+  const hasDetailedHistoricalSource = storedRows.some(
+    (row) => row.calculation_config?.historical_import && row.calculation_config?.country_contributions,
+  );
 
   return (
     <div className="admin-page mx-auto max-w-5xl pb-5">
@@ -140,6 +161,11 @@ function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdit
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               Stored result rows are shown without modification. If a round was never historically converted, Solaris shows its preserved raw ballot totals instead of inventing a modern result.
             </p>
+            {hasDetailedHistoricalSource ? (
+              <p className="mt-2 text-xs leading-relaxed text-sky-100/75">
+                This archive also contains detailed historical source contributions. Expand any country below to inspect Activity Points and the original country-source breakdown.
+              </p>
+            ) : null}
           </div>
         </div>
       </AdminCard>
@@ -219,16 +245,7 @@ function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdit
                   </div>
                   <div className="divide-y divide-white/[0.06]">
                     {storedRows.map((row, index) => (
-                      <div key={row.country_code} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 px-4 py-3 text-sm sm:px-5">
-                        <span className="numeric text-center text-xs text-muted-foreground">{index + 1}</span>
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">{row.country_code}</p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
-                            {row.original_votes} raw votes · historical rank #{row.original_rank ?? row.robust_rank ?? "–"}
-                          </p>
-                        </div>
-                        <span className="numeric text-right font-bold text-sky-100">{row.final_points} pts</span>
-                      </div>
+                      <ArchivedStoredResultRow key={row.country_code} row={row} index={index} />
                     ))}
                   </div>
                 </AdminCard>
@@ -263,4 +280,92 @@ function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdit
       )}
     </div>
   );
+}
+
+function ArchivedStoredResultRow({ row, index }: { row: ArchivedStoredResult; index: number }) {
+  const historical = row.calculation_config?.historical_import ? row.calculation_config : null;
+  const contributions = historical?.country_contributions ?? {};
+  const contributionRows = Object.entries(contributions)
+    .filter(([, points]) => Number(points) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]) || a[0].localeCompare(b[0]));
+  const activityPoints = Number(historical?.activity_points ?? 0);
+
+  return (
+    <div className="px-4 py-3 sm:px-5">
+      <div className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2 text-sm">
+        <span className="numeric text-center text-xs text-muted-foreground">{index + 1}</span>
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{row.country_code}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {row.original_votes} raw votes · historical rank #{row.original_rank ?? row.robust_rank ?? "–"}
+          </p>
+        </div>
+        <span className="numeric text-right font-bold text-sky-100">{row.final_points} pts</span>
+      </div>
+
+      {historical ? (
+        <details className="ml-9 mt-2 rounded-xl border border-white/[0.07] bg-white/[0.018] px-3 py-2">
+          <summary className="cursor-pointer text-[11px] font-semibold text-sky-100/80">
+            Detailed source breakdown
+          </summary>
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <HistoricalMetric label="Activity Points" value={activityPoints} />
+              <HistoricalMetric label="Country sources" value={contributionRows.length} />
+              <HistoricalMetric label="Weighted score" value={formatHistoricalNumber(row.weighted_score)} />
+              <HistoricalMetric label="Exact points" value={formatHistoricalNumber(row.exact_points, 3)} />
+            </div>
+
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Country contributions</p>
+              {contributionRows.length ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {contributionRows.map(([code, points]) => (
+                    <span key={code} className="rounded-lg border border-white/[0.07] bg-white/[0.025] px-2 py-1 text-[11px]">
+                      <span className="font-semibold">{code}</span>
+                      <span className="numeric ml-1.5 text-sky-100">{points}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">No country-source contribution was recorded.</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <HistoricalMetric label="Normalised" value={formatPercent(historical.normalised_percent)} />
+              <HistoricalMetric label="Final share" value={formatPercent(historical.final_percent)} />
+              <HistoricalMetric label="Floor" value={row.floored_points ?? "–"} />
+              <HistoricalMetric label="Remainder" value={formatHistoricalNumber(row.decimal_remainder, 3)} />
+            </div>
+
+            {historical.formula ? (
+              <p className="text-[10px] leading-relaxed text-muted-foreground">Historical formula: {historical.formula}</p>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function HistoricalMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-white/[0.06] bg-black/10 px-2.5 py-2">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className="numeric mt-1 text-xs font-bold">{value}</p>
+    </div>
+  );
+}
+
+function formatHistoricalNumber(value: number | string | null | undefined, digits = 0) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "–";
+  return digits > 0 ? number.toFixed(digits) : Math.round(number).toString();
+}
+
+function formatPercent(value: number | null | undefined) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "–";
+  return `${number.toFixed(2)}%`;
 }
