@@ -8,8 +8,11 @@ function source(path: string) {
 describe("Friend Voting Worker budget", () => {
   it("does not race advanced analysis against an uncancellable timeout", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).not.toContain("Promise.race");
     expect(code).not.toContain("ADVANCED_ANALYSIS_TIMEOUT_MS");
+    expect(code).not.toContain("COORDINATION_TIMEOUT_MS");
+    expect(code).not.toContain("function withTimeout");
+    expect(code).not.toContain("withTimeout(");
+    expect(code).not.toContain("return Promise.race");
     expect(code).toContain("isBroadDefaultScope");
     expect(code).toContain("Full-history HOD + jury/televote scope uses the resource-safe historical model");
   });
