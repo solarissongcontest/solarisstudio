@@ -14,14 +14,16 @@ describe("Friend-voting resilience", () => {
     expect(code).not.toContain("const reverse = all.filter");
   });
 
-  it("keeps the lightweight payload bound and cannot spin forever in advanced scoring", () => {
+  it("keeps the lightweight payload bound without spawning an uncancellable timeout race", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
     expect(code).toContain("LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250");
-    expect(code).toContain("ADVANCED_ANALYSIS_TIMEOUT_MS = 7_000");
-    expect(code).toContain("withTimeout(");
+    expect(code).toContain("isBroadDefaultScope");
     expect(code).toContain("allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT)");
     expect(code).toContain("getMergedIntelligenceServer");
     expect(code).toContain("analysisDegraded: true");
+    expect(code).not.toContain("ADVANCED_ANALYSIS_TIMEOUT_MS");
+    expect(code).not.toContain("withTimeout(");
+    expect(code).not.toContain("Promise.race");
   });
 
   it("keeps Retry intact and makes all four page tabs visible on narrow mobile screens", () => {
