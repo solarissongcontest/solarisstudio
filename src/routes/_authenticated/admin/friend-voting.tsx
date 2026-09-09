@@ -188,7 +188,7 @@ function FriendVotingPage() {
               className={controlClass}
             >
               <option value="">All HODs</option>
-              {people.map((person) => <option key={person.id} value={person.id}>{person.displayName}</option>)}
+              {people.map((person: any) => <option key={person.id} value={person.id}>{person.displayName}</option>)}
             </select>
           </Filter>
         </div>
@@ -313,7 +313,7 @@ function FriendVotingPage() {
             <p className="mt-1 text-xs text-muted-foreground">These are explicit stored ballot flags such as suspicious status, technical risk score or VPN evidence. They are separate from friend-voting relationship pattern scores.</p>
           </div>
           <div className="grid gap-2 md:grid-cols-2">
-            {data.signals.map((signal) => (
+            {data.signals.map((signal: any) => (
               <div key={signal.key} className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
                 <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold">{signal.title}</p><AdminStatus tone={signal.severity === "high" || signal.severity === "critical" ? "attention" : "neutral"}>{signal.count}</AdminStatus></div>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{signal.description}</p>
