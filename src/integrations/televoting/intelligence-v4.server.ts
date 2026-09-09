@@ -40,7 +40,15 @@ type Observation = {
   participantCount: number;
 };
 
+type ReciprocalIndex = Map<string, Observation[]>;
+
 const upper = (value: unknown) => String(value ?? "").trim().toUpperCase();
+const reciprocalKey = (
+  editionId: string,
+  channel: Observation["channel"],
+  voterCountryCode: string,
+  targetCode: string,
+) => `${editionId}\u0000${channel}\u0000${voterCountryCode}\u0000${targetCode}`;
 
 function ranks(rows: Array<{ target: string; score: number }>) {
   const sorted = [...rows].sort((a, b) => b.score - a.score || a.target.localeCompare(b.target));
@@ -72,21 +80,44 @@ function advanced(row: Observation): AdvancedFriendVotingObservation {
   };
 }
 
-function reciprocalEvidence(pair: Observation[], all: Observation[]) {
-  const currentNumbers = all
-    .map((row) => row.editionNumber)
-    .filter((value): value is number => value != null && Number.isFinite(value));
-  const currentEdition = currentNumbers.length ? Math.max(...currentNumbers) : null;
+function buildReciprocalIndex(all: Observation[]) {
+  const index: ReciprocalIndex = new Map();
+  let currentEdition: number | null = null;
+  for (const row of all) {
+    if (row.editionNumber != null && Number.isFinite(row.editionNumber)) {
+      currentEdition = currentEdition == null
+        ? row.editionNumber
+        : Math.max(currentEdition, row.editionNumber);
+    }
+    const key = reciprocalKey(
+      row.editionId,
+      row.channel,
+      row.voterCountryCode,
+      row.targetCode,
+    );
+    const list = index.get(key) ?? [];
+    list.push(row);
+    index.set(key, list);
+  }
+  return { index, currentEdition };
+}
+
+function reciprocalEvidence(
+  pair: Observation[],
+  reverseIndex: ReciprocalIndex,
+  currentEdition: number | null,
+) {
   const byEdition = new Map<string, { weight: number; reciprocal: boolean }>();
 
   for (const row of pair) {
-    const reverse = all.filter(
-      (candidate) =>
-        candidate.editionId === row.editionId &&
-        candidate.channel === row.channel &&
-        candidate.voterCountryCode === row.targetCode &&
-        candidate.targetCode === row.voterCountryCode,
-    );
+    const reverse = reverseIndex.get(
+      reciprocalKey(
+        row.editionId,
+        row.channel,
+        row.targetCode,
+        row.voterCountryCode,
+      ),
+    ) ?? [];
     if (!reverse.length) continue;
 
     const age =
@@ -327,6 +358,7 @@ export async function getMergedIntelligenceV4Server(
   });
 
   const advancedAll = historicalScope.map(advanced);
+  const { index: reverseIndex, currentEdition } = buildReciprocalIndex(historicalScope);
   const pairMap = new Map<string, Observation[]>();
   for (const row of historicalScope) {
     if (options.editionId && row.editionId !== options.editionId) continue;
@@ -342,7 +374,7 @@ export async function getMergedIntelligenceV4Server(
     ReturnType<typeof calculateAdvancedFriendVotingRisk>
   >();
   for (const [key, pair] of pairMap) {
-    const reciprocal = reciprocalEvidence(pair, historicalScope);
+    const reciprocal = reciprocalEvidence(pair, reverseIndex, currentEdition);
     updated.set(
       key,
       calculateAdvancedFriendVotingRisk(
