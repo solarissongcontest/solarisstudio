@@ -6,6 +6,7 @@ import {
   BarChart3,
   Blend,
   Globe2,
+  Network,
   PlayCircle,
   ShieldAlert,
   Trophy,
@@ -90,7 +91,7 @@ function VotingAdminOverview() {
       <AdminPageHeader
         eyebrow="Current edition"
         title="Voting"
-        description="Jury, public voting, integrity and official results now live under one organizer section."
+        description="Jury, public voting, friend-voting intelligence, integrity and official results live under one organizer section."
         actions={
           <Link to="/televoting" target="_blank" className="admin-action-secondary">
             <Globe2 className="size-4" /> Public voting
@@ -162,9 +163,9 @@ function VotingAdminOverview() {
 
           <AdminCard>
             <AdminCardHeader
-              eyebrow="Public voting"
+              eyebrow="Voting workspace"
               title="What do you need to do?"
-              description="The three everyday public-voting tasks are kept here. Specialist analysis stays out of the way until you need it."
+              description="Everyday voting operations and relationship intelligence are available directly here."
             />
             <div className="divide-y divide-white/[0.07]">
               <WorkspaceRow
@@ -173,6 +174,13 @@ function VotingAdminOverview() {
                 title="Rounds & entries"
                 description="Choose eligible entries and countries, then open, close or schedule voting."
                 detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} configured`}
+              />
+              <WorkspaceRow
+                to="/admin/friend-voting"
+                icon={Network}
+                title="Friend-voting intelligence"
+                description="Historical relationships, reciprocity, repeated support, signals and HOD-aware network analysis."
+                detail="Historical analysis"
               />
               <WorkspaceRow
                 to="/televoting/admin/integrity"
@@ -193,7 +201,7 @@ function VotingAdminOverview() {
 
           <details className="admin-card group overflow-hidden">
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-semibold text-muted-foreground transition hover:text-foreground">
-              Analysis & advanced voting tools
+              Advanced voting tools
               <span className="text-xs transition group-open:rotate-90">›</span>
             </summary>
             <div className="border-t border-white/[0.07] px-1 pb-1">
@@ -202,12 +210,6 @@ function VotingAdminOverview() {
                 icon={BarChart3}
                 title="Voting analytics"
                 description="Turnout, point distribution and entry performance."
-              />
-              <WorkspaceRow
-                to="/admin/friend-voting"
-                icon={ShieldAlert}
-                title="Friend-voting intelligence"
-                description="Historical relationships, reciprocity, signals and network analysis."
               />
               <WorkspaceRow
                 to="/televoting/admin/combined"
