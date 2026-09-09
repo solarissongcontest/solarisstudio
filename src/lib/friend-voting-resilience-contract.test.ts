@@ -14,14 +14,17 @@ describe("Friend-voting resilience", () => {
     expect(code).not.toContain("const reverse = all.filter");
   });
 
-  it("keeps the lightweight payload bound and cannot spin forever in advanced scoring", () => {
-    const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250");
-    expect(code).toContain("ADVANCED_ANALYSIS_TIMEOUT_MS = 7_000");
-    expect(code).toContain("withTimeout(");
-    expect(code).toContain("allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT)");
-    expect(code).toContain("getMergedIntelligenceServer");
-    expect(code).toContain("analysisDegraded: true");
+  it("keeps the lightweight payload bound and uses a true historical fast path", () => {
+    const functions = source("integrations/televoting/intelligence.functions.ts");
+    const model = source("integrations/televoting/advanced-friend-voting.ts");
+    expect(functions).toContain("LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250");
+    expect(functions).toContain("allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT)");
+    expect(functions).toContain('mode: "historical" as const');
+    expect(functions).not.toContain("Promise.race");
+    expect(functions).not.toContain("ADVANCED_ANALYSIS_TIMEOUT_MS");
+    expect(model).toContain('if (config.mode === "historical")');
+    expect(model).toContain("calculateHistoricalPatternRisk");
+    expect(model).toContain("resolveCurrentEditionNumberCached");
   });
 
   it("keeps Retry intact and makes all four page tabs visible on narrow mobile screens", () => {
@@ -29,7 +32,8 @@ describe("Friend-voting resilience", () => {
     expect(code).toContain("whitespace-nowrap");
     expect(code).toContain("flex flex-col gap-3 sm:flex-row");
     expect(code).toContain("grid grid-cols-2 gap-2 sm:flex");
-    expect(code).toContain("Base analysis available");
+    expect(code).toContain("Historical relationship analysis");
+    expect(code).toContain("retry: 0");
   });
 
   it("exposes Friend voting as its own Voting section tab instead of Integrity", () => {
