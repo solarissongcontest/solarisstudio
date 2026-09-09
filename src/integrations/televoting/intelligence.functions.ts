@@ -54,6 +54,15 @@ function isWorkerHeavyDefaultScope(data: ReturnType<typeof normalizeInput>) {
   return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
 }
 
+function workerSafeHistoricalTelevoteScope() {
+  return {
+    lens: "country" as const,
+    channel: "televote" as const,
+    hodPersonId: null,
+    editionId: null,
+  };
+}
+
 async function resolveLatestCompletedEditionScope(data: ReturnType<typeof normalizeInput>) {
   if (!isWorkerHeavyDefaultScope(data)) return data;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -96,28 +105,25 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
   ]);
   const settings = await loadFriendVotingSettingsServer();
 
-  // The all-editions + combined + HOD scope is too large for one Worker request.
-  // Use the latest completed edition as the relationship scope and retain all
-  // older editions inside the model's historical baseline. Never point this
-  // fallback at the highest edition number: the active upcoming edition may
-  // legitimately have no ballots yet, which would produce an empty analysis.
+  // The broad HOD + combined scope still requires constructing too much jury and
+  // HOD history before the final edition filter can be applied. Do not start it
+  // on page load. Instead return the complete country-level televote history,
+  // which is the authoritative cross-edition relationship view and includes the
+  // corrected SSC20/SSC21 historical ballots. Organizers can narrow edition or
+  // HOD filters before requesting the heavier combined/HOD model.
   if (isWorkerHeavyDefaultScope(data)) {
-    const safeScope = await resolveLatestCompletedEditionScope(data);
+    const safeScope = workerSafeHistoricalTelevoteScope();
     const result = await getMergedIntelligenceServer({
       ...safeScope,
       advancedModel: settings.advancedModel,
     });
     if (!result) throw new Error("Friend-voting analysis returned no data");
-    const selected = result.filters.editions.find(
-      (edition: IntelligenceEditionFilter) => edition.id === safeScope.editionId,
-    );
-    const label = selected?.editionNumber != null ? `SSC ${selected.editionNumber}` : "the latest completed edition";
     return {
       result,
       settings,
       analysisDegraded: true,
       analysisWarning:
-        `Worker-safe mode: analysing ${label} with all older editions retained as historical baseline evidence. Narrow the edition, channel or HOD scope for full v4 scoring.`,
+        "Worker-safe default: showing country-level televote history across all editions, including historical ballots. Select a specific edition or HOD before enabling combined jury + televote HOD analysis.",
     };
   }
 
@@ -155,29 +161,28 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
     const { result, settings, analysisDegraded, analysisWarning } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
     if (data.lens === "hod") {
-      try {
-        const networkScope = isWorkerHeavyDefaultScope(data)
-          ? await resolveLatestCompletedEditionScope(data)
-          : data;
-        const network = isWorkerHeavyDefaultScope(data)
-          ? await getCoordinationGroupsServer(networkScope, settings)
-          : await withTimeout(
-              getCoordinationGroupsServer(networkScope, settings),
-              NETWORK_ANALYSIS_TIMEOUT_MS,
-              "Friend-voting network analysis",
-            );
-        coordination = {
-          ...network,
-          analysisDegraded: isWorkerHeavyDefaultScope(data),
-          analysisWarning: isWorkerHeavyDefaultScope(data)
-            ? "Worker-safe network scope uses the latest completed edition. Older editions still inform relationship history."
-            : null,
-        };
-      } catch (error) {
-        console.error("Friend-voting network analysis failed", error);
+      if (isWorkerHeavyDefaultScope(data)) {
         coordination = emptyCoordination(
-          error instanceof Error ? error.message : "Network analysis unavailable",
+          "Network analysis is paused for the all-editions combined HOD scope. Select an edition or a specific HOD to build the network safely.",
         );
+      } else {
+        try {
+          const network = await withTimeout(
+            getCoordinationGroupsServer(data, settings),
+            NETWORK_ANALYSIS_TIMEOUT_MS,
+            "Friend-voting network analysis",
+          );
+          coordination = {
+            ...network,
+            analysisDegraded: false,
+            analysisWarning: null,
+          };
+        } catch (error) {
+          console.error("Friend-voting network analysis failed", error);
+          coordination = emptyCoordination(
+            error instanceof Error ? error.message : "Network analysis unavailable",
+          );
+        }
       }
     }
     return {
@@ -221,30 +226,28 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (data.lens !== "hod") return emptyCoordination();
 
+    if (isWorkerHeavyDefaultScope(data)) {
+      return emptyCoordination(
+        "Network analysis requires a narrower scope. Select an edition or a specific HOD before opening Network.",
+      );
+    }
+
     const [{ getCoordinationGroupsServer }, { loadFriendVotingSettingsServer }] = await Promise.all([
       import("@/integrations/televoting/coordination-groups.server"),
       import("@/integrations/televoting/friend-voting-settings.server"),
     ]);
     const settings = await loadFriendVotingSettingsServer();
     try {
-      const safeDefault = isWorkerHeavyDefaultScope(data);
-      const networkScope = safeDefault
-        ? await resolveLatestCompletedEditionScope(data)
-        : data;
-      const result = safeDefault
-        ? await getCoordinationGroupsServer(networkScope, settings)
-        : await withTimeout(
-            getCoordinationGroupsServer(networkScope, settings),
-            NETWORK_ANALYSIS_TIMEOUT_MS,
-            "Friend-voting network analysis",
-          );
+      const result = await withTimeout(
+        getCoordinationGroupsServer(data, settings),
+        NETWORK_ANALYSIS_TIMEOUT_MS,
+        "Friend-voting network analysis",
+      );
       if (!result) throw new Error("Network analysis returned no data");
       return {
         ...result,
-        analysisDegraded: safeDefault,
-        analysisWarning: safeDefault
-          ? "Worker-safe network scope uses the latest completed edition. Select a specific edition, channel or HOD for an explicitly narrowed network."
-          : null,
+        analysisDegraded: false,
+        analysisWarning: null,
       };
     } catch (error) {
       console.error("Friend-voting network analysis failed", error);
