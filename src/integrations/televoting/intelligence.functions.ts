@@ -54,10 +54,10 @@ function isWorkerHeavyDefaultScope(data: ReturnType<typeof normalizeInput>) {
   return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
 }
 
-function workerSafeHistoricalTelevoteScope() {
+function workerSafeHistoricalScope() {
   return {
     lens: "country" as const,
-    channel: "televote" as const,
+    channel: "combined" as const,
     hodPersonId: null,
     editionId: null,
   };
@@ -105,14 +105,13 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
   ]);
   const settings = await loadFriendVotingSettingsServer();
 
-  // The broad HOD + combined scope still requires constructing too much jury and
-  // HOD history before the final edition filter can be applied. Do not start it
-  // on page load. Instead return the complete country-level televote history,
-  // which is the authoritative cross-edition relationship view and includes the
-  // corrected SSC20/SSC21 historical ballots. Organizers can narrow edition or
-  // HOD filters before requesting the heavier combined/HOD model.
+  // The all-editions HOD + combined model is too expensive for a page-load Worker
+  // request because it constructs controller history and jury/televote relationships
+  // together. Use the complete country-level combined history instead. This preserves
+  // the long jury baseline (where historical data exists) and adds televote evidence
+  // for editions whose public ballots are stored, including SSC20 and SSC21.
   if (isWorkerHeavyDefaultScope(data)) {
-    const safeScope = workerSafeHistoricalTelevoteScope();
+    const safeScope = workerSafeHistoricalScope();
     const result = await getMergedIntelligenceServer({
       ...safeScope,
       advancedModel: settings.advancedModel,
@@ -123,7 +122,7 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
       settings,
       analysisDegraded: true,
       analysisWarning:
-        "Worker-safe default: showing country-level televote history across all editions, including historical ballots. Select a specific edition or HOD before enabling combined jury + televote HOD analysis.",
+        "Worker-safe historical view: country-level jury + televote evidence is combined across all available editions. Historical jury data supplies the long baseline; televote evidence is included where public ballots are stored. Select a specific edition or HOD for the heavier HOD-aware model.",
     };
   }
 
