@@ -25,8 +25,6 @@ type CoordinationPayload = {
 };
 
 const LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250;
-const ADVANCED_ANALYSIS_TIMEOUT_MS = 7_000;
-const NETWORK_ANALYSIS_TIMEOUT_MS = 8_000;
 
 const normalizeInput = (data?: IntelligenceInput) => ({
   lens: data?.lens === "country" ? "country" as const : "hod" as const,
@@ -50,14 +48,8 @@ const emptyCoordination = (warning: string | null = null): CoordinationPayload =
   analysisWarning: warning,
 });
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} exceeded ${Math.round(timeoutMs / 1000)} seconds`)), timeoutMs);
-  });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer) clearTimeout(timer);
-  }) as Promise<T>;
+function isBroadDefaultScope(data: ReturnType<typeof normalizeInput>) {
+  return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
 }
 
 async function getResilientFriendVotingIntelligence(data: ReturnType<typeof normalizeInput>) {
@@ -72,12 +64,30 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
   ]);
   const settings = await loadFriendVotingSettingsServer();
 
+  // The all-editions + combined + HOD scope is intentionally served by the
+  // base historical model. Starting v4 and then racing a timeout is unsafe on
+  // Cloudflare because Promise.race does not cancel the expensive computation;
+  // a fallback would run concurrently and can push the Worker into Error 1102.
+  if (isBroadDefaultScope(data)) {
+    const result = await getMergedIntelligenceServer({
+      ...data,
+      advancedModel: settings.advancedModel,
+    });
+    if (!result) throw new Error("Friend-voting analysis returned no data");
+    return {
+      result,
+      settings,
+      analysisDegraded: true,
+      analysisWarning:
+        "Full-history HOD + jury/televote scope uses the resource-safe historical model. Narrow the edition, channel or HOD scope for full v4 scoring.",
+    };
+  }
+
   try {
-    const result = await withTimeout(
-      getMergedIntelligenceV4Server(data, settings),
-      ADVANCED_ANALYSIS_TIMEOUT_MS,
-      "Advanced friend-voting analysis",
-    );
+    // Do not use Promise.race timeouts here. A timed-out calculation would keep
+    // consuming Worker CPU while the fallback starts, which is worse than one
+    // bounded request and was the source of production Error 1102 failures.
+    const result = await getMergedIntelligenceV4Server(data, settings);
     if (!result) throw new Error("Advanced friend-voting analysis returned no data");
     return { result, settings, analysisDegraded: false, analysisWarning: null as string | null };
   } catch (error) {
@@ -107,12 +117,9 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
     let coordination: CoordinationPayload = emptyCoordination();
     if (data.lens === "hod") {
       try {
+        const network = await getCoordinationGroupsServer(data, settings);
         coordination = {
-          ...(await withTimeout(
-            getCoordinationGroupsServer(data, settings),
-            NETWORK_ANALYSIS_TIMEOUT_MS,
-            "Friend-voting network analysis",
-          )),
+          ...network,
           analysisDegraded: false,
           analysisWarning: null,
         };
@@ -169,11 +176,7 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
     ]);
     const settings = await loadFriendVotingSettingsServer();
     try {
-      const result = await withTimeout(
-        getCoordinationGroupsServer(data, settings),
-        NETWORK_ANALYSIS_TIMEOUT_MS,
-        "Friend-voting network analysis",
-      );
+      const result = await getCoordinationGroupsServer(data, settings);
       if (!result) throw new Error("Network analysis returned no data");
       return {
         ...result,
