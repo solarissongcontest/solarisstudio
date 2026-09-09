@@ -10,6 +10,7 @@ type IntelligenceInput = {
 };
 
 const LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250;
+const ADVANCED_ANALYSIS_TIMEOUT_MS = 7_000;
 
 const normalizeInput = (data?: IntelligenceInput) => ({
   lens: data?.lens === "country" ? "country" as const : "hod" as const,
@@ -31,6 +32,16 @@ const emptyCoordination = () => ({
   },
 });
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} exceeded ${Math.round(timeoutMs / 1000)} seconds`)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  }) as Promise<T>;
+}
+
 async function getResilientFriendVotingIntelligence(data: ReturnType<typeof normalizeInput>) {
   const [
     { getMergedIntelligenceV4Server },
@@ -44,7 +55,11 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
   const settings = await loadFriendVotingSettingsServer();
 
   try {
-    const result = await getMergedIntelligenceV4Server(data, settings);
+    const result = await withTimeout(
+      getMergedIntelligenceV4Server(data, settings),
+      ADVANCED_ANALYSIS_TIMEOUT_MS,
+      "Advanced friend-voting analysis",
+    );
     if (!result) throw new Error("Advanced friend-voting analysis returned no data");
     return { result, settings, analysisDegraded: false, analysisWarning: null as string | null };
   } catch (error) {
