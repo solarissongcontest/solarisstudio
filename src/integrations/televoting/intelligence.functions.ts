@@ -54,6 +54,25 @@ function isWorkerHeavyDefaultScope(data: ReturnType<typeof normalizeInput>) {
   return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
 }
 
+async function resolveLatestEditionScope(data: ReturnType<typeof normalizeInput>) {
+  if (!isWorkerHeavyDefaultScope(data)) return data;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const { data: edition, error } = await db
+    .from("editions")
+    .select("id,edition_number")
+    .not("edition_number", "is", null)
+    .order("edition_number", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!edition?.id) throw new Error("No current Solaris edition could be resolved for Friend Voting");
+  return {
+    ...data,
+    editionId: String(edition.id),
+  };
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<never>((_, reject) => {
@@ -76,13 +95,14 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
   ]);
   const settings = await loadFriendVotingSettingsServer();
 
-  // This exact default scope has enough history to exceed the Cloudflare
-  // Worker resource budget. Do not start v4 and then time it out: Promise.race
-  // does not cancel the underlying computation. Serve the complete base model
-  // immediately and let organizers narrow the scope for full v4 scoring.
+  // The browser can still arrive with the old All editions + combined + HOD
+  // default. Never calculate that full scope in one Worker invocation. Resolve
+  // the latest contest edition and let the intelligence model use older
+  // editions as its historical baseline for that selected edition.
   if (isWorkerHeavyDefaultScope(data)) {
+    const safeScope = await resolveLatestEditionScope(data);
     const result = await getMergedIntelligenceServer({
-      ...data,
+      ...safeScope,
       advancedModel: settings.advancedModel,
     });
     if (!result) throw new Error("Friend-voting analysis returned no data");
@@ -91,7 +111,7 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
       settings,
       analysisDegraded: true,
       analysisWarning:
-        "Full-history HOD + jury/televote scope uses the resource-safe historical model. Narrow the edition, channel or HOD scope for full v4 scoring.",
+        "The all-editions HOD + jury/televote scope is too large for one Worker request. Solaris is showing the current edition with older editions used as its historical baseline.",
     };
   }
 
@@ -131,7 +151,7 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
     if (data.lens === "hod") {
       if (isWorkerHeavyDefaultScope(data)) {
         coordination = emptyCoordination(
-          "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Narrow the edition, channel or HOD scope first.",
+          "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Select an edition, channel or HOD first.",
         );
       } else {
         try {
@@ -195,7 +215,7 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
 
     if (isWorkerHeavyDefaultScope(data)) {
       return emptyCoordination(
-        "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Narrow the edition, channel or HOD scope first.",
+        "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Select an edition, channel or HOD first.",
       );
     }
 
