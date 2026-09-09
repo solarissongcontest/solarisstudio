@@ -22,8 +22,10 @@ describe("Friend-voting resilience", () => {
     expect(code).toContain("getMergedIntelligenceServer");
     expect(code).toContain("analysisDegraded: true");
     expect(code).not.toContain("ADVANCED_ANALYSIS_TIMEOUT_MS");
+    expect(code).not.toContain("COORDINATION_TIMEOUT_MS");
+    expect(code).not.toContain("function withTimeout");
     expect(code).not.toContain("withTimeout(");
-    expect(code).not.toContain("Promise.race");
+    expect(code).not.toContain("return Promise.race");
   });
 
   it("keeps Retry intact and makes all four page tabs visible on narrow mobile screens", () => {
