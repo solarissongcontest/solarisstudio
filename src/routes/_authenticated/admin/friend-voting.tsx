@@ -39,12 +39,12 @@ function FriendVotingPage() {
   const getCoordination = useServerFn(getFriendVotingCoordination);
   const { data: editions = [] } = useEditions();
 
-  // The default is intentionally the complete historical country-level televote view.
-  // It includes the corrected SSC20 and SSC21 historical data without asking the
-  // Cloudflare Worker to build the much heavier jury + HOD graph on first paint.
+  // The default is the complete historical country-level baseline: jury history plus
+  // all stored televote evidence, including the corrected SSC20 and SSC21 imports.
+  // HOD/network analysis stays available after narrowing the scope explicitly.
   const [editionId, setEditionId] = useState(ALL_EDITIONS);
   const [lens, setLens] = useState<IntelligenceLens>("country");
-  const [channel, setChannel] = useState<IntelligenceChannel>("televote");
+  const [channel, setChannel] = useState<IntelligenceChannel>("combined");
   const [hodPersonId, setHodPersonId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [minPatternScore, setMinPatternScore] = useState(0);
@@ -159,9 +159,9 @@ function FriendVotingPage() {
 
           <Filter label="Evidence channel">
             <select value={channel} onChange={(event) => setChannel(event.target.value as IntelligenceChannel)} className={controlClass}>
+              <option value="combined">Jury + televote</option>
               <option value="televote">Televote only</option>
               <option value="jury">Jury only</option>
-              <option value="combined">Jury + televote</option>
             </select>
           </Filter>
 
