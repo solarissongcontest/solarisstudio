@@ -29,17 +29,49 @@ const emptyCoordination = () => ({
   },
 });
 
+async function getResilientFriendVotingIntelligence(data: ReturnType<typeof normalizeInput>) {
+  const [
+    { getMergedIntelligenceV4Server },
+    { getMergedIntelligenceServer },
+    { loadFriendVotingSettingsServer },
+  ] = await Promise.all([
+    import("@/integrations/televoting/intelligence-v4.server"),
+    import("@/integrations/televoting/intelligence.server"),
+    import("@/integrations/televoting/friend-voting-settings.server"),
+  ]);
+  const settings = await loadFriendVotingSettingsServer();
+
+  try {
+    const result = await getMergedIntelligenceV4Server(data, settings);
+    if (!result) throw new Error("Advanced friend-voting analysis returned no data");
+    return { result, settings, analysisDegraded: false, analysisWarning: null as string | null };
+  } catch (error) {
+    console.error("Advanced friend-voting analysis failed; falling back to base model", error);
+    const result = await getMergedIntelligenceServer({
+      ...data,
+      advancedModel: settings.advancedModel,
+    });
+    if (!result) throw new Error("Friend-voting analysis returned no data");
+    return {
+      result,
+      settings,
+      analysisDegraded: true,
+      analysisWarning: error instanceof Error ? error.message : "Advanced analysis unavailable",
+    };
+  }
+}
+
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const [{ getMergedIntelligenceV4Server }, { loadFriendVotingSettingsServer }, { getCoordinationGroupsServer }] = await Promise.all([
-      import("@/integrations/televoting/intelligence-v4.server"),
-      import("@/integrations/televoting/friend-voting-settings.server"),
+    const [{ getCoordinationGroupsServer }, resilient] = await Promise.all([
       import("@/integrations/televoting/coordination-groups.server"),
+      getResilientFriendVotingIntelligence(data),
     ]);
-    const settings = await loadFriendVotingSettingsServer();
-    const result = await getMergedIntelligenceV4Server(data, settings);
-    const coordination = data.lens === "hod" ? await getCoordinationGroupsServer(data, settings) : emptyCoordination();
+    const { result, settings, analysisDegraded, analysisWarning } = resilient;
+    const coordination = data.lens === "hod"
+      ? await getCoordinationGroupsServer(data, settings)
+      : emptyCoordination();
     return {
       ...result,
       stats: {
@@ -49,6 +81,8 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
       },
       settings,
       coordination,
+      analysisDegraded,
+      analysisWarning,
       filters: { ...result.filters, editions: result.filters.editions as IntelligenceEditionFilter[] },
     };
   });
@@ -56,13 +90,7 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
 export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const [{ getMergedIntelligenceV4Server }, { loadFriendVotingSettingsServer }] = await Promise.all([
-      import("@/integrations/televoting/intelligence-v4.server"),
-      import("@/integrations/televoting/friend-voting-settings.server"),
-    ]);
-    const settings = await loadFriendVotingSettingsServer();
-    const result = await getMergedIntelligenceV4Server(data, settings);
-    if (!result) throw new Error("Friend-voting analysis returned no data");
+    const { result, settings, analysisDegraded, analysisWarning } = await getResilientFriendVotingIntelligence(data);
     return {
       ...result,
       stats: {
@@ -72,6 +100,8 @@ export const getLightweightFriendVotingIntelligence = createServerFn({ method: "
       },
       settings,
       coordination: emptyCoordination(),
+      analysisDegraded,
+      analysisWarning,
       filters: { ...result.filters, editions: result.filters.editions as IntelligenceEditionFilter[] },
     };
   });
