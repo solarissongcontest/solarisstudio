@@ -9,8 +9,24 @@ type IntelligenceInput = {
   editionId?: string | null;
 };
 
+type CoordinationPayload = {
+  groups: any[];
+  edges: any[];
+  stats: {
+    modelVersion: string;
+    editionDecay: number;
+    knownControllerObservations: number;
+    knownControllerEdges: number;
+    qualifiedEdges: number;
+    groups: number;
+  };
+  analysisDegraded: boolean;
+  analysisWarning: string | null;
+};
+
 const LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250;
 const ADVANCED_ANALYSIS_TIMEOUT_MS = 7_000;
+const NETWORK_ANALYSIS_TIMEOUT_MS = 8_000;
 
 const normalizeInput = (data?: IntelligenceInput) => ({
   lens: data?.lens === "country" ? "country" as const : "hod" as const,
@@ -19,7 +35,7 @@ const normalizeInput = (data?: IntelligenceInput) => ({
   editionId: data?.editionId ? String(data.editionId) : null,
 });
 
-const emptyCoordination = () => ({
+const emptyCoordination = (warning: string | null = null): CoordinationPayload => ({
   groups: [],
   edges: [],
   stats: {
@@ -30,6 +46,8 @@ const emptyCoordination = () => ({
     qualifiedEdges: 0,
     groups: 0,
   },
+  analysisDegraded: Boolean(warning),
+  analysisWarning: warning,
 });
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
@@ -86,7 +104,25 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
       getResilientFriendVotingIntelligence(data),
     ]);
     const { result, settings, analysisDegraded, analysisWarning } = resilient;
-    const coordination = data.lens === "hod" ? await getCoordinationGroupsServer(data, settings) : emptyCoordination();
+    let coordination: CoordinationPayload = emptyCoordination();
+    if (data.lens === "hod") {
+      try {
+        coordination = {
+          ...(await withTimeout(
+            getCoordinationGroupsServer(data, settings),
+            NETWORK_ANALYSIS_TIMEOUT_MS,
+            "Friend-voting network analysis",
+          )),
+          analysisDegraded: false,
+          analysisWarning: null,
+        };
+      } catch (error) {
+        console.error("Friend-voting network analysis failed", error);
+        coordination = emptyCoordination(
+          error instanceof Error ? error.message : "Network analysis unavailable",
+        );
+      }
+    }
     return {
       ...result,
       stats: {
@@ -132,5 +168,22 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
       import("@/integrations/televoting/friend-voting-settings.server"),
     ]);
     const settings = await loadFriendVotingSettingsServer();
-    return getCoordinationGroupsServer(data, settings);
+    try {
+      const result = await withTimeout(
+        getCoordinationGroupsServer(data, settings),
+        NETWORK_ANALYSIS_TIMEOUT_MS,
+        "Friend-voting network analysis",
+      );
+      if (!result) throw new Error("Network analysis returned no data");
+      return {
+        ...result,
+        analysisDegraded: false,
+        analysisWarning: null,
+      };
+    } catch (error) {
+      console.error("Friend-voting network analysis failed", error);
+      return emptyCoordination(
+        error instanceof Error ? error.message : "Network analysis unavailable",
+      );
+    }
   });
