@@ -6,24 +6,32 @@ function source(path: string) {
 }
 
 describe("Friend Voting default scope", () => {
-  it("resolves the dangerous all-editions combined HOD request to the latest completed edition", () => {
+  it("serves the dangerous broad request from the all-editions country televote history", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("resolveLatestCompletedEditionScope");
-    expect(code).toContain('.from("editions")');
-    expect(code).toContain('.eq("status", "completed")');
-    expect(code).toContain('.order("edition_number", { ascending: false');
-    expect(code).toContain("const safeScope = await resolveLatestCompletedEditionScope(data)");
-    expect(code).toContain("all older editions retained as historical baseline evidence");
-    expect(code).not.toContain("resolveLatestEditionScope");
+    expect(code).toContain("workerSafeHistoricalTelevoteScope");
+    expect(code).toContain('lens: "country" as const');
+    expect(code).toContain('channel: "televote" as const');
+    expect(code).toContain("showing country-level televote history across all editions");
+    expect(code).not.toContain("const safeScope = await resolveLatestCompletedEditionScope(data)");
+    expect(code).not.toContain("all older editions retained as historical baseline evidence");
   });
 
   it("does not launch v4 for the known Worker-heavy default scope", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
     const heavyBranch = code.indexOf("if (isWorkerHeavyDefaultScope(data))");
-    const v4Call = code.indexOf("getMergedIntelligenceV4Server(data, settings)", heavyBranch);
-    const safeBaseCall = code.indexOf("getMergedIntelligenceServer({", heavyBranch);
+    const safeScope = code.indexOf("workerSafeHistoricalTelevoteScope()", heavyBranch);
+    const safeBaseCall = code.indexOf("getMergedIntelligenceServer({", safeScope);
+    const heavyBranchEnd = code.indexOf("try {", safeBaseCall);
+    const v4CallInsideHeavyBranch = code.slice(heavyBranch, heavyBranchEnd).includes("getMergedIntelligenceV4Server");
     expect(heavyBranch).toBeGreaterThan(-1);
-    expect(safeBaseCall).toBeGreaterThan(heavyBranch);
-    expect(v4Call).toBeGreaterThan(safeBaseCall);
+    expect(safeScope).toBeGreaterThan(heavyBranch);
+    expect(safeBaseCall).toBeGreaterThan(safeScope);
+    expect(v4CallInsideHeavyBranch).toBe(false);
+  });
+
+  it("does not run Network for the broad default scope", () => {
+    const code = source("integrations/televoting/intelligence.functions.ts");
+    expect(code).toContain("Network analysis requires a narrower scope");
+    expect(code).toContain("Select an edition or a specific HOD before opening Network");
   });
 });
