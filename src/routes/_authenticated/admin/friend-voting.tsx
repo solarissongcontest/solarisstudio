@@ -181,34 +181,51 @@ function FriendVotingPage() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <AdminStatus tone={intelligence.isFetching ? "neutral" : intelligence.error ? "attention" : "info"}>
-            {intelligence.isFetching ? "Analysing full history…" : intelligence.error ? "Analysis failed" : scopedEditionId ? "Edition + historical baseline" : "Full history"}
+          <AdminStatus tone={intelligence.isFetching ? "neutral" : intelligence.error ? "attention" : data?.analysisDegraded ? "attention" : "info"}>
+            {intelligence.isFetching
+              ? "Analysing full history…"
+              : intelligence.error
+                ? "Analysis failed"
+                : data?.analysisDegraded
+                  ? "Base analysis available"
+                  : scopedEditionId
+                    ? "Edition + historical baseline"
+                    : "Full history"}
           </AdminStatus>
           {data ? <span className="text-[11px] text-muted-foreground">Model {data.relationships[0]?.modelVersion ?? "friend-voting"}</span> : null}
         </div>
       </AdminCard>
 
+      {data?.analysisDegraded ? (
+        <AdminCard className="!border-amber-200/15 !bg-amber-200/[0.045]">
+          <p className="text-sm font-semibold text-amber-50">Advanced scoring is temporarily unavailable</p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-100/70">
+            The base historical relationship analysis is shown instead, so the page remains usable. Retry later to restore the full v4 scoring layer.
+          </p>
+        </AdminCard>
+      ) : null}
+
       {intelligence.error ? (
         <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-rose-50">Friend-voting analysis could not be completed</p>
-              <p className="mt-1 text-xs leading-relaxed text-rose-100/70">{intelligence.error instanceof Error ? intelligence.error.message : "Unknown analysis error"}</p>
+              <p className="mt-1 break-words text-xs leading-relaxed text-rose-100/70">{intelligence.error instanceof Error ? intelligence.error.message : "Unknown analysis error"}</p>
             </div>
-            <button type="button" onClick={() => void intelligence.refetch()} className="rounded-lg border border-rose-100/15 px-3 py-1.5 text-xs font-semibold text-rose-50">Retry</button>
+            <button type="button" onClick={() => void intelligence.refetch()} className="shrink-0 self-start whitespace-nowrap rounded-lg border border-rose-100/15 px-3 py-1.5 text-xs font-semibold text-rose-50">Retry</button>
           </div>
         </AdminCard>
       ) : null}
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:overflow-x-auto sm:pb-1">
         {tabs.map(([value, label, Icon]) => (
           <button
             key={value}
             type="button"
             onClick={() => setTab(value)}
-            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-xs font-semibold transition ${tab === value ? "border-sky-200/20 bg-sky-200/10 text-sky-50" : "border-white/10 bg-white/[0.03] text-muted-foreground"}`}
+            className={`inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition sm:w-auto sm:shrink-0 sm:rounded-full sm:px-4 ${tab === value ? "border-sky-200/20 bg-sky-200/10 text-sky-50" : "border-white/10 bg-white/[0.03] text-muted-foreground"}`}
           >
-            <Icon className="size-3.5" /> {label}
+            <Icon className="size-3.5 shrink-0" /> <span className="truncate">{label}</span>
           </button>
         ))}
       </div>
