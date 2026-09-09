@@ -54,13 +54,14 @@ export function AdminSectionNav() {
     ) {
       return {
         label: "Voting",
-        description: "Rules, juries, public voting, integrity and official results",
+        description: "Rules, juries, public voting, friend-voting intelligence, integrity and official results",
         tabs: [
           { label: "Overview", to: "/televoting/admin", active: (path) => path === "/televoting/admin" || path === "/televoting/admin/" },
           { label: "Rules", to: slug ? `/admin/voting-system/${slug}` : "/admin", active: (path) => path.startsWith("/admin/voting-system/") },
           { label: "Jury", to: slug ? `/admin/jury/${slug}` : "/admin", active: (path) => path.startsWith("/admin/jury/") || path.startsWith("/admin/jury-integrity") },
           { label: "Public voting", to: "/televoting/admin/rounds", active: (path) => path.startsWith("/televoting/admin/rounds") || path.startsWith("/televoting/admin/analytics") },
-          { label: "Integrity", to: "/televoting/admin/integrity", active: (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse") || path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence") },
+          { label: "Friend voting", to: "/admin/friend-voting", active: (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence") },
+          { label: "Integrity", to: "/televoting/admin/integrity", active: (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse") },
           { label: "Results", to: "/televoting/admin/results", active: (path) => path.startsWith("/televoting/admin/results") || path.startsWith("/televoting/admin/combined") || path.startsWith("/televoting/admin/backtest") || path.startsWith("/admin/televote/") },
         ],
       };
@@ -144,7 +145,7 @@ export function AdminSectionNav() {
         <p className="shrink-0 text-xs font-bold uppercase tracking-[0.14em] text-sky-100/85">{section.label}</p>
         <p className="hidden min-w-0 truncate text-[11px] text-muted-foreground sm:block">{section.description}</p>
       </div>
-      <nav className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 scroll-slim">
+      <nav className="-mx-1 flex flex-wrap gap-1 px-1 pb-0.5 sm:flex-nowrap sm:overflow-x-auto scroll-slim">
         {section.tabs.map((tab) => {
           const active = tab.active(pathname);
           return (
