@@ -15,6 +15,7 @@ import {
 
 /** Pure, explainable friend-voting model v4. Statistical signals are for review, never guilt findings. */
 export const FRIEND_VOTING_MODEL_VERSION = "friend-voting-model-v4";
+export const FRIEND_VOTING_HISTORICAL_MODEL_VERSION = "friend-voting-historical-pattern-v1";
 
 export type AdvancedFriendVotingObservation = {
   editionId: string;
@@ -43,6 +44,7 @@ export type AdvancedFriendVotingContext = {
 };
 
 export type AdvancedFriendVotingConfig = {
+  mode?: "advanced" | "historical";
   bayesianPriorAlpha: number;
   bayesianPriorBeta: number;
   relationshipAnomalyWeight: number;
@@ -67,6 +69,7 @@ export type AdvancedFriendVotingConfig = {
 };
 
 export const DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG: AdvancedFriendVotingConfig = {
+  mode: "advanced",
   bayesianPriorAlpha: 1,
   bayesianPriorBeta: 1,
   relationshipAnomalyWeight: 18,
@@ -260,10 +263,13 @@ function prepareHistory(allObservations: AdvancedFriendVotingObservation[]): Pre
 }
 
 function resolveCurrentEditionNumber(rows: AdvancedFriendVotingObservation[]) {
-  const values = rows
-    .map((row) => Number(row.editionNumber))
-    .filter((value) => Number.isFinite(value));
-  return values.length ? Math.max(...values) : null;
+  let current: number | null = null;
+  for (const row of rows) {
+    const value = Number(row.editionNumber);
+    if (!Number.isFinite(value)) continue;
+    if (current == null || value > current) current = value;
+  }
+  return current;
 }
 
 function resolveCurrentEditionNumberCached(rows: AdvancedFriendVotingObservation[]) {
@@ -331,6 +337,114 @@ function consecutiveSupportStreak(rows: AdvancedFriendVotingObservation[]) {
   return streak;
 }
 
+function calculateHistoricalPatternRisk(
+  pair: AdvancedFriendVotingObservation[],
+  reciprocalSupportRate: number,
+  reciprocalEditions: number,
+): AdvancedFriendVotingResult {
+  const editions = new Set(pair.map((row) => row.editionId));
+  const jury = pair.filter((row) => row.channel === "jury");
+  const televote = pair.filter((row) => row.channel === "televote");
+  const supportedRows = pair.filter((row) => row.supported ?? row.score > 0);
+  const supported = supportedRows.length;
+  const maximum = pair.filter((row) => row.maximum ?? (row.score > 0 && row.score === row.maxScore)).length;
+  const opportunities = pair.length;
+  const supportRate = opportunities ? supported / opportunities : 0;
+  const maximumRate = opportunities ? maximum / opportunities : 0;
+  const averageScore = opportunities ? pair.reduce((sum, row) => sum + Number(row.score || 0), 0) / opportunities : 0;
+  const normalizedAverage = opportunities
+    ? pair.reduce((sum, row) => sum + (row.maxScore > 0 ? clamp01(row.score / row.maxScore) : 0), 0) / opportunities
+    : 0;
+
+  const channelsByEdition = new Map<string, Set<string>>();
+  for (const row of supportedRows) {
+    const channels = channelsByEdition.get(row.editionId) ?? new Set<string>();
+    channels.add(row.channel);
+    channelsByEdition.set(row.editionId, channels);
+  }
+  const crossChannelEditions = [...channelsByEdition.values()].filter(
+    (channels) => channels.has("jury") && channels.has("televote"),
+  ).length;
+  const crossChannelRate = editions.size ? crossChannelEditions / editions.size : 0;
+  const evidenceFactor = Math.min(1, editions.size / 5);
+  const channelFactor = jury.length && televote.length ? 1 : 0.8;
+  const relationshipPattern = clamp(100 * supportRate * evidenceFactor);
+  const intensityRisk = clamp(100 * normalizedAverage * evidenceFactor);
+  const reciprocityRisk = clamp(100 * clamp01(reciprocalSupportRate) * Math.min(1, reciprocalEditions / 4));
+  const crossChannelRisk = clamp(100 * crossChannelRate * evidenceFactor);
+  const overallRisk = clamp(100 * (
+    0.5 * supportRate
+    + 0.2 * maximumRate
+    + 0.15 * clamp01(reciprocalSupportRate)
+    + 0.1 * crossChannelRate
+    + 0.05 * normalizedAverage
+  ) * evidenceFactor);
+  const confidence = clamp(100 * evidenceFactor * channelFactor);
+  const jurySupportRate = jury.length ? jury.filter((row) => row.supported ?? row.score > 0).length / jury.length : 0;
+  const televoteSupportRate = televote.length ? televote.filter((row) => row.supported ?? row.score > 0).length / televote.length : 0;
+  const juryRisk = clamp(100 * jurySupportRate * Math.min(1, new Set(jury.map((row) => row.editionId)).size / 5));
+  const televoteRisk = clamp(100 * televoteSupportRate * Math.min(1, new Set(televote.map((row) => row.editionId)).size / 5));
+  const reasons: string[] = [];
+  if (editions.size >= 2 && supportRate >= 0.6) reasons.push(`Support appears in ${pct(supportRate)} of the available relationship observations`);
+  if (editions.size >= 2 && maximumRate >= 0.3) reasons.push(`Maximum-score support appears in ${pct(maximumRate)} of the available relationship observations`);
+  if (reciprocalEditions > 0 && reciprocalSupportRate >= 0.5) reasons.push(`Reciprocal support appears in ${pct(reciprocalSupportRate)} of comparable editions`);
+  if (crossChannelEditions > 0) reasons.push(`Support appears in both jury and televote in ${crossChannelEditions} edition${crossChannelEditions === 1 ? "" : "s"}`);
+
+  const warnings = [
+    "Historical summary mode uses descriptive relationship-pattern strength only; advanced anomaly, baseline-deviation, similarity and network signals are not calculated.",
+  ];
+  if (editions.size < 3) warnings.push("Limited edition history; pattern score is deliberately capped by the available evidence.");
+
+  return {
+    overallRisk: Math.round(overallRisk),
+    recentRisk: Math.round(overallRisk),
+    lifetimeRisk: Math.round(overallRisk),
+    confidence: Math.round(confidence),
+    juryRisk: Math.round(juryRisk),
+    televoteRisk: Math.round(televoteRisk),
+    crossChannelRisk: Math.round(crossChannelRisk),
+    relationshipAnomaly: Math.round(relationshipPattern),
+    reciprocityRisk: Math.round(reciprocityRisk),
+    intensityRisk: Math.round(intensityRisk),
+    historicalDeviationRisk: 0,
+    rankPatternRisk: 0,
+    networkRisk: 0,
+    countryStrengthRisk: 0,
+    similarityRisk: 0,
+    continuityRisk: 0,
+    reasons,
+    warnings,
+    sampleSize: {
+      editions: editions.size,
+      opportunities,
+      juryOpportunities: jury.length,
+      televoteOpportunities: televote.length,
+      historicalBaseline: 0,
+      effectiveRecentEditions: editions.size,
+      effectiveLifetimeEditions: editions.size,
+    },
+    evidence: {
+      observedSupport: supported,
+      eligibleSupport: opportunities,
+      smoothedSupportRate: supportRate,
+      recentSupportRate: supportRate,
+      lifetimeSupportRate: supportRate,
+      averageScore,
+      expectedAverageScore: 0,
+      maximumScores: maximum,
+      reciprocalEditions,
+      reciprocalSupportEditions: Math.round(clamp01(reciprocalSupportRate) * reciprocalEditions),
+      crossChannelEditions,
+      historicalMaxScoreRate: 0,
+      observedRankPercentile: 0,
+      expectedRankPercentile: 0,
+      currentStreak: 0,
+      effectiveHistoricalEvidence: editions.size,
+    },
+    modelVersion: FRIEND_VOTING_HISTORICAL_MODEL_VERSION,
+  };
+}
+
 export function calculateAdvancedFriendVotingRisk(
   pairObservations: AdvancedFriendVotingObservation[],
   allObservations: AdvancedFriendVotingObservation[],
@@ -342,6 +456,10 @@ export function calculateAdvancedFriendVotingRisk(
 ): AdvancedFriendVotingResult {
   const config = { ...DEFAULT_ADVANCED_FRIEND_VOTING_CONFIG, ...configInput };
   const pair = dedupe(pairObservations, true);
+  if (config.mode === "historical") {
+    return calculateHistoricalPatternRisk(pair, reciprocalSupportRate, reciprocalEditions);
+  }
+
   const history = prepareHistory(allObservations);
   const editions = new Set(pair.map((row) => row.editionId));
   const jury = pair.filter((row) => row.channel === "jury");
