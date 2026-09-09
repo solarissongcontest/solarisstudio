@@ -108,7 +108,9 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
       advancedModel: settings.advancedModel,
     });
     if (!result) throw new Error("Friend-voting analysis returned no data");
-    const selected = result.filters.editions.find((edition) => edition.id === safeScope.editionId);
+    const selected = result.filters.editions.find(
+      (edition: IntelligenceEditionFilter) => edition.id === safeScope.editionId,
+    );
     const label = selected?.editionNumber != null ? `SSC ${selected.editionNumber}` : "the latest completed edition";
     return {
       result,
