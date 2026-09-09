@@ -6,19 +6,19 @@ function source(path: string) {
 }
 
 describe("Friend Voting Worker-safe scope", () => {
-  it("uses the latest completed edition instead of the highest edition number", () => {
+  it("serves the broad default from the country-level historical televote path", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("resolveLatestCompletedEditionScope");
-    expect(code).toContain('.eq("status", "completed")');
-    expect(code).toContain("analysing ${label} with all older editions retained as historical baseline evidence");
-    expect(code).not.toContain("resolveLatestEditionScope");
+    expect(code).toContain("workerSafeHistoricalTelevoteScope");
+    expect(code).toContain('lens: "country" as const');
+    expect(code).toContain('channel: "televote" as const');
+    expect(code).toContain("showing country-level televote history across all editions");
+    expect(code).not.toContain("analysing ${label} with all older editions retained as historical baseline evidence");
   });
 
-  it("runs the broad network on the same completed-edition safe scope", () => {
+  it("does not launch network analysis for the dangerous broad HOD scope", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("networkScope = isWorkerHeavyDefaultScope(data)");
-    expect(code).toContain("await resolveLatestCompletedEditionScope(data)");
-    expect(code).not.toContain("Network analysis is disabled for the full-history HOD + jury/televote scope");
+    expect(code).toContain("Network analysis requires a narrower scope");
+    expect(code).toContain("Select an edition or a specific HOD before opening Network");
   });
 
   it("surfaces Friend Voting as a primary Voting workspace", () => {
