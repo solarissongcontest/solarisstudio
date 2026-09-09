@@ -57,13 +57,13 @@ function isWorkerHeavyDefaultScope(data: NormalizedInput) {
 }
 
 function isHistoricalAllEditionsScope(data: NormalizedInput) {
-  return data.lens === "country" && data.channel === "televote" && !data.editionId && !data.hodPersonId;
+  return data.lens === "country" && !data.editionId && !data.hodPersonId && (data.channel === "combined" || data.channel === "televote");
 }
 
-function workerSafeHistoricalTelevoteScope(): NormalizedInput {
+function workerSafeHistoricalScope(): NormalizedInput {
   return {
     lens: "country",
-    channel: "televote",
+    channel: "combined",
     hodPersonId: null,
     editionId: null,
   };
@@ -130,12 +130,12 @@ async function getResilientFriendVotingIntelligence(
   const settings = await loadFriendVotingSettingsServer();
 
   const effectiveScope = isWorkerHeavyDefaultScope(requested)
-    ? workerSafeHistoricalTelevoteScope()
+    ? workerSafeHistoricalScope()
     : requested;
 
-  // The lightweight organizer page must never launch an expensive v4 computation and
-  // then race it against a fallback. Promise.race does not cancel the losing work, which
-  // was enough to exhaust the Cloudflare Worker. Historical mode is deliberate, not an error.
+  // Lightweight Organizer requests deliberately use the historical relationship model.
+  // Do not start an expensive v4 computation and race it against a fallback: Promise.race
+  // does not cancel the losing work and previously exhausted the Cloudflare Worker.
   if (!options.allowAdvanced || isWorkerHeavyDefaultScope(requested) || isHistoricalAllEditionsScope(effectiveScope)) {
     const result = await runHistoricalAnalysis(effectiveScope, settings);
     return {
@@ -146,7 +146,7 @@ async function getResilientFriendVotingIntelligence(
       riskSemantics: "pattern" as RiskSemantics,
       analysisDegraded: false,
       analysisWarning: isWorkerHeavyDefaultScope(requested)
-        ? "Showing the worker-safe country-level televote history. This includes the corrected SSC20 and SSC21 historical ballots."
+        ? "Showing the worker-safe country-level jury + televote history across all editions. This includes the corrected SSC20 and SSC21 historical televote ballots plus the longer jury baseline."
         : null,
     };
   }
