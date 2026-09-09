@@ -10,7 +10,7 @@ export type CanonicalJuryVote = {
   points: number;
 };
 
-export async function loadCanonicalVotingContextServer() {
+async function loadCanonicalVotingContextUncached() {
   const db = supabaseAdmin as any;
   const hod = await loadHodResolverServer();
   const [linksResult, bindingsResult, juryResult, participantsResult, showsResult] = await Promise.all([
@@ -82,6 +82,36 @@ export async function loadCanonicalVotingContextServer() {
     showsById,
     showsByEdition,
   };
+}
+
+type CanonicalVotingContext = Awaited<ReturnType<typeof loadCanonicalVotingContextUncached>>;
+
+let canonicalCache: {
+  expiresAt: number;
+  promise: Promise<CanonicalVotingContext>;
+} | null = null;
+
+/**
+ * Canonical voting context is requested more than once by the friend-voting
+ * v4 pipeline. Reuse the same short-lived promise instead of issuing the same
+ * HOD, jury, participant and integration queries twice in one Worker request.
+ * The cache is deliberately tiny so organizer edits appear almost immediately.
+ */
+export async function loadCanonicalVotingContextServer() {
+  const now = Date.now();
+  if (canonicalCache && canonicalCache.expiresAt > now) {
+    return canonicalCache.promise;
+  }
+
+  const promise = loadCanonicalVotingContextUncached();
+  canonicalCache = { expiresAt: now + 10_000, promise };
+
+  try {
+    return await promise;
+  } catch (error) {
+    if (canonicalCache?.promise === promise) canonicalCache = null;
+    throw error;
+  }
 }
 
 export function canonicalEditionForRound(
