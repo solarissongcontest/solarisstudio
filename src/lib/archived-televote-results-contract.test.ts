@@ -24,7 +24,7 @@ describe("Archived Televote results", () => {
   it("keeps archived editions read-only", () => {
     const workspace = source("components/televoting/VotingResultsWorkspace.tsx");
     expect(workspace).toContain("if (data.edition.is_archived)");
-    expect(workspace).toContain('Read only');
+    expect(workspace).toContain("Read only");
     expect(workspace).toContain("Archived editions are read-only and are never recalculated automatically");
     expect(workspace).not.toContain("recalculateMergedConversion");
     expect(workspace).not.toContain("updateMergedConversionConfig");
@@ -38,5 +38,15 @@ describe("Archived Televote results", () => {
     expect(workspace).toContain("No point conversion has been fabricated");
     expect(workspace).toContain("data?.originals");
     expect(workspace).toContain("data?.stored");
+  });
+
+  it("exposes imported detailed historical source contributions without treating AP as a country", () => {
+    const workspace = source("components/televoting/VotingResultsWorkspace.tsx");
+    expect(workspace).toContain("Detailed source breakdown");
+    expect(workspace).toContain("Activity Points");
+    expect(workspace).toContain("country_contributions");
+    expect(workspace).toContain("historical_import");
+    expect(workspace).toContain("Country contributions");
+    expect(workspace).not.toContain('country_contributions?.AP');
   });
 });
