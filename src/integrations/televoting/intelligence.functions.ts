@@ -9,6 +9,10 @@ type IntelligenceInput = {
   editionId?: string | null;
 };
 
+type NormalizedInput = ReturnType<typeof normalizeInput>;
+type AnalysisMode = "historical" | "advanced" | "fallback";
+type RiskSemantics = "pattern" | "advanced-risk";
+
 type CoordinationPayload = {
   groups: any[];
   edges: any[];
@@ -25,8 +29,6 @@ type CoordinationPayload = {
 };
 
 const LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250;
-const ADVANCED_ANALYSIS_TIMEOUT_MS = 7_000;
-const NETWORK_ANALYSIS_TIMEOUT_MS = 8_000;
 
 const normalizeInput = (data?: IntelligenceInput) => ({
   lens: data?.lens === "country" ? "country" as const : "hod" as const,
@@ -50,127 +52,167 @@ const emptyCoordination = (warning: string | null = null): CoordinationPayload =
   analysisWarning: warning,
 });
 
-function isWorkerHeavyDefaultScope(data: ReturnType<typeof normalizeInput>) {
+function isWorkerHeavyDefaultScope(data: NormalizedInput) {
   return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
 }
 
-function workerSafeHistoricalScope() {
+function isHistoricalAllEditionsScope(data: NormalizedInput) {
+  return data.lens === "country" && !data.editionId && !data.hodPersonId && (data.channel === "combined" || data.channel === "televote");
+}
+
+function workerSafeHistoricalScope(): NormalizedInput {
   return {
-    lens: "country" as const,
-    channel: "combined" as const,
+    lens: "country",
+    channel: "combined",
     hodPersonId: null,
     editionId: null,
   };
 }
 
-async function resolveLatestCompletedEditionScope(data: ReturnType<typeof normalizeInput>) {
-  if (!isWorkerHeavyDefaultScope(data)) return data;
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const db = supabaseAdmin as any;
-  const { data: edition, error } = await db
-    .from("editions")
-    .select("id,edition_number,name,status")
-    .eq("status", "completed")
-    .not("edition_number", "is", null)
-    .order("edition_number", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!edition?.id) throw new Error("No completed Solaris edition could be resolved for Friend Voting");
+function sanitizeResultForScope(result: any, scope: NormalizedInput) {
+  const stats = { ...result.stats };
+
+  if (scope.channel === "televote") {
+    stats.juryBallots = 0;
+    stats.juryVotes = 0;
+  }
+
+  if (scope.channel === "jury") {
+    stats.ballots = 0;
+    stats.active = 0;
+    stats.deleted = 0;
+    stats.suspicious = 0;
+    stats.verified = 0;
+    stats.highRisk = 0;
+    stats.vpn = 0;
+  }
+
+  const technicalTelevoteSignalKeys = new Set([
+    "suspicious",
+    "high-risk",
+    "vpn",
+    "username-cross-country",
+  ]);
+
+  const signals = scope.channel === "jury"
+    ? (result.signals ?? []).filter((signal: any) => !technicalTelevoteSignalKeys.has(String(signal.key)))
+    : (result.signals ?? []);
+
   return {
-    ...data,
-    editionId: String(edition.id),
+    ...result,
+    stats,
+    signals,
+    filters: {
+      ...result.filters,
+      lens: scope.lens,
+      channel: scope.channel,
+      hodPersonId: scope.hodPersonId,
+      editionId: scope.editionId,
+    },
   };
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} exceeded ${Math.round(timeoutMs / 1000)} seconds`)), timeoutMs);
+async function runHistoricalAnalysis(data: NormalizedInput, settings: any) {
+  const { getMergedIntelligenceServer } = await import("@/integrations/televoting/intelligence.server");
+  const result = await getMergedIntelligenceServer({
+    ...data,
+    advancedModel: {
+      ...settings.advancedModel,
+      mode: "historical" as const,
+    },
   });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer) clearTimeout(timer);
-  }) as Promise<T>;
+  if (!result) throw new Error("Friend-voting analysis returned no data");
+  return sanitizeResultForScope(result, data);
 }
 
-async function getResilientFriendVotingIntelligence(data: ReturnType<typeof normalizeInput>) {
-  const [
-    { getMergedIntelligenceV4Server },
-    { getMergedIntelligenceServer },
-    { loadFriendVotingSettingsServer },
-  ] = await Promise.all([
-    import("@/integrations/televoting/intelligence-v4.server"),
-    import("@/integrations/televoting/intelligence.server"),
-    import("@/integrations/televoting/friend-voting-settings.server"),
-  ]);
+async function getResilientFriendVotingIntelligence(
+  requested: NormalizedInput,
+  options: { allowAdvanced?: boolean } = {},
+) {
+  const { loadFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
   const settings = await loadFriendVotingSettingsServer();
 
-  // The all-editions HOD + combined model is too expensive for a page-load Worker
-  // request because it constructs controller history and jury/televote relationships
-  // together. Use the complete country-level combined history instead. This preserves
-  // the long jury baseline (where historical data exists) and adds televote evidence
-  // for editions whose public ballots are stored, including SSC20 and SSC21.
-  if (isWorkerHeavyDefaultScope(data)) {
-    const safeScope = workerSafeHistoricalScope();
-    const result = await getMergedIntelligenceServer({
-      ...safeScope,
-      advancedModel: settings.advancedModel,
-    });
-    if (!result) throw new Error("Friend-voting analysis returned no data");
+  const effectiveScope = isWorkerHeavyDefaultScope(requested)
+    ? workerSafeHistoricalScope()
+    : requested;
+
+  // Lightweight Organizer requests deliberately use a descriptive historical relationship model.
+  // It returns before the expensive advanced baseline/deviation/network calculations and therefore
+  // does not need a timeout race that leaves the losing Worker computation running in the background.
+  if (!options.allowAdvanced || isWorkerHeavyDefaultScope(requested) || isHistoricalAllEditionsScope(effectiveScope)) {
+    const result = await runHistoricalAnalysis(effectiveScope, settings);
     return {
       result,
       settings,
-      analysisDegraded: true,
-      analysisWarning:
-        "Worker-safe historical view: country-level jury + televote evidence is combined across all available editions. Historical jury data supplies the long baseline; televote evidence is included where public ballots are stored. Select a specific edition or HOD for the heavier HOD-aware model.",
+      effectiveScope,
+      analysisMode: "historical" as AnalysisMode,
+      riskSemantics: "pattern" as RiskSemantics,
+      analysisDegraded: false,
+      analysisWarning: isWorkerHeavyDefaultScope(requested)
+        ? "Showing the worker-safe country-level jury + televote history across all editions. This includes the corrected SSC20 and SSC21 historical televote ballots plus the longer jury baseline."
+        : null,
     };
   }
 
   try {
-    const result = await withTimeout(
-      getMergedIntelligenceV4Server(data, settings),
-      ADVANCED_ANALYSIS_TIMEOUT_MS,
-      "Advanced friend-voting analysis",
-    );
-    if (!result) throw new Error("Advanced friend-voting analysis returned no data");
-    return { result, settings, analysisDegraded: false, analysisWarning: null as string | null };
+    const { getMergedIntelligenceV4Server } = await import("@/integrations/televoting/intelligence-v4.server");
+    const advanced = await getMergedIntelligenceV4Server(effectiveScope, settings);
+    if (!advanced) throw new Error("Advanced friend-voting analysis returned no data");
+    return {
+      result: sanitizeResultForScope(advanced, effectiveScope),
+      settings,
+      effectiveScope,
+      analysisMode: "advanced" as AnalysisMode,
+      riskSemantics: "advanced-risk" as RiskSemantics,
+      analysisDegraded: false,
+      analysisWarning: null as string | null,
+    };
   } catch (error) {
-    console.error("Advanced friend-voting analysis failed; falling back to base model", error);
-    const result = await getMergedIntelligenceServer({
-      ...data,
-      advancedModel: settings.advancedModel,
-    });
-    if (!result) throw new Error("Friend-voting analysis returned no data");
+    console.error("Advanced friend-voting analysis failed; using historical relationship analysis", error);
+    const result = await runHistoricalAnalysis(effectiveScope, settings);
     return {
       result,
       settings,
+      effectiveScope,
+      analysisMode: "fallback" as AnalysisMode,
+      riskSemantics: "pattern" as RiskSemantics,
       analysisDegraded: true,
       analysisWarning: error instanceof Error ? error.message : "Advanced analysis unavailable",
     };
   }
 }
 
+function addCommonMetadata(payload: any, resilient: Awaited<ReturnType<typeof getResilientFriendVotingIntelligence>>) {
+  const { settings, effectiveScope, analysisMode, riskSemantics, analysisDegraded, analysisWarning } = resilient;
+  return {
+    ...payload,
+    settings,
+    effectiveScope,
+    analysisMode,
+    riskSemantics,
+    technicalIntegrityAvailable: effectiveScope.channel !== "jury",
+    analysisDegraded,
+    analysisWarning,
+    filters: { ...payload.filters, editions: payload.filters.editions as IntelligenceEditionFilter[] },
+  };
+}
+
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const [{ getCoordinationGroupsServer }, resilient] = await Promise.all([
-      import("@/integrations/televoting/coordination-groups.server"),
-      getResilientFriendVotingIntelligence(data),
-    ]);
-    const { result, settings, analysisDegraded, analysisWarning } = resilient;
+    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: true });
+    const { result, settings, effectiveScope } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
-    if (data.lens === "hod") {
-      if (isWorkerHeavyDefaultScope(data)) {
+
+    if (effectiveScope.lens === "hod") {
+      if (!effectiveScope.editionId && !effectiveScope.hodPersonId) {
         coordination = emptyCoordination(
-          "Network analysis is paused for the all-editions combined HOD scope. Select an edition or a specific HOD to build the network safely.",
+          "Network analysis requires a narrower scope. Select an edition or a specific HOD before opening Network.",
         );
       } else {
         try {
-          const network = await withTimeout(
-            getCoordinationGroupsServer(data, settings),
-            NETWORK_ANALYSIS_TIMEOUT_MS,
-            "Friend-voting network analysis",
-          );
+          const { getCoordinationGroupsServer } = await import("@/integrations/televoting/coordination-groups.server");
+          const network = await getCoordinationGroupsServer(effectiveScope, settings);
           coordination = {
             ...network,
             analysisDegraded: false,
@@ -184,40 +226,37 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
         }
       }
     }
-    return {
+
+    const payload = {
       ...result,
       stats: {
         ...result.stats,
         relationships: result.relationships.length,
-        attentionRelationships: result.relationships.filter((row) => row.riskScore >= settings.riskReview).length,
+        attentionRelationships: result.relationships.filter((row: any) => row.riskScore >= settings.riskReview).length,
       },
-      settings,
       coordination,
-      analysisDegraded,
-      analysisWarning,
-      filters: { ...result.filters, editions: result.filters.editions as IntelligenceEditionFilter[] },
     };
+
+    return addCommonMetadata(payload, resilient);
   });
 
 export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const { result, settings, analysisDegraded, analysisWarning } = await getResilientFriendVotingIntelligence(data);
+    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: false });
+    const { result, settings } = resilient;
     const allRelationships = result.relationships;
-    return {
+    const payload = {
       ...result,
       relationships: allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT),
       stats: {
         ...result.stats,
         relationships: allRelationships.length,
-        attentionRelationships: allRelationships.filter((row) => row.riskScore >= settings.riskReview).length,
+        attentionRelationships: allRelationships.filter((row: any) => row.riskScore >= settings.riskReview).length,
       },
-      settings,
       coordination: emptyCoordination(),
-      analysisDegraded,
-      analysisWarning,
-      filters: { ...result.filters, editions: result.filters.editions as IntelligenceEditionFilter[] },
     };
+    return addCommonMetadata(payload, resilient);
   });
 
 export const getFriendVotingCoordination = createServerFn({ method: "POST" })
@@ -225,7 +264,7 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (data.lens !== "hod") return emptyCoordination();
 
-    if (isWorkerHeavyDefaultScope(data)) {
+    if (!data.editionId && !data.hodPersonId) {
       return emptyCoordination(
         "Network analysis requires a narrower scope. Select an edition or a specific HOD before opening Network.",
       );
@@ -236,12 +275,9 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
       import("@/integrations/televoting/friend-voting-settings.server"),
     ]);
     const settings = await loadFriendVotingSettingsServer();
+
     try {
-      const result = await withTimeout(
-        getCoordinationGroupsServer(data, settings),
-        NETWORK_ANALYSIS_TIMEOUT_MS,
-        "Friend-voting network analysis",
-      );
+      const result = await getCoordinationGroupsServer(data, settings);
       if (!result) throw new Error("Network analysis returned no data");
       return {
         ...result,

@@ -6,27 +6,26 @@ function source(path: string) {
 }
 
 describe("Friend Voting default scope", () => {
-  it("serves the dangerous broad request from the all-editions country televote history", () => {
+  it("serves the broad request from the all-editions country jury + televote history", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("workerSafeHistoricalTelevoteScope");
-    expect(code).toContain('lens: "country" as const');
-    expect(code).toContain('channel: "televote" as const');
-    expect(code).toContain("showing country-level televote history across all editions");
+    expect(code).toContain("workerSafeHistoricalScope");
+    expect(code).toContain('lens: "country"');
+    expect(code).toContain('channel: "combined"');
+    expect(code).toContain('mode: "historical" as const');
+    expect(code).toContain("worker-safe country-level jury + televote history across all editions");
+    expect(code).not.toContain("workerSafeHistoricalTelevoteScope");
     expect(code).not.toContain("const safeScope = await resolveLatestCompletedEditionScope(data)");
     expect(code).not.toContain("all older editions retained as historical baseline evidence");
   });
 
   it("does not launch v4 for the known Worker-heavy default scope", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    const heavyBranch = code.indexOf("if (isWorkerHeavyDefaultScope(data))");
-    const safeScope = code.indexOf("workerSafeHistoricalTelevoteScope()", heavyBranch);
-    const safeBaseCall = code.indexOf("getMergedIntelligenceServer({", safeScope);
-    const heavyBranchEnd = code.indexOf("try {", safeBaseCall);
-    const v4CallInsideHeavyBranch = code.slice(heavyBranch, heavyBranchEnd).includes("getMergedIntelligenceV4Server");
-    expect(heavyBranch).toBeGreaterThan(-1);
-    expect(safeScope).toBeGreaterThan(heavyBranch);
-    expect(safeBaseCall).toBeGreaterThan(safeScope);
-    expect(v4CallInsideHeavyBranch).toBe(false);
+    const heavyScope = code.indexOf("isWorkerHeavyDefaultScope(requested)");
+    const historicalBranch = code.indexOf("runHistoricalAnalysis(effectiveScope, settings)", heavyScope);
+    const advancedImport = code.indexOf('import("@/integrations/televoting/intelligence-v4.server")', historicalBranch);
+    expect(heavyScope).toBeGreaterThan(-1);
+    expect(historicalBranch).toBeGreaterThan(heavyScope);
+    expect(advancedImport).toBeGreaterThan(historicalBranch);
   });
 
   it("does not run Network for the broad default scope", () => {

@@ -6,12 +6,14 @@ function source(path: string) {
 }
 
 describe("Friend Voting Worker-safe scope", () => {
-  it("serves the broad default from the country-level historical televote path", () => {
+  it("serves the broad default from the country-level combined historical path", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("workerSafeHistoricalTelevoteScope");
-    expect(code).toContain('lens: "country" as const');
-    expect(code).toContain('channel: "televote" as const');
-    expect(code).toContain("showing country-level televote history across all editions");
+    expect(code).toContain("workerSafeHistoricalScope");
+    expect(code).toContain('lens: "country"');
+    expect(code).toContain('channel: "combined"');
+    expect(code).toContain('mode: "historical" as const');
+    expect(code).toContain("worker-safe country-level jury + televote history across all editions");
+    expect(code).not.toContain("workerSafeHistoricalTelevoteScope");
     expect(code).not.toContain("analysing ${label} with all older editions retained as historical baseline evidence");
   });
 

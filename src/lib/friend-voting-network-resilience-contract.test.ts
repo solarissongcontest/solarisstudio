@@ -15,12 +15,13 @@ describe("Friend-voting network resilience", () => {
     expect(code).not.toContain("submissions.find((submission)");
   });
 
-  it("never returns null when network analysis times out or fails", () => {
+  it("never returns null when network analysis fails and refuses the broad HOD scope", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("NETWORK_ANALYSIS_TIMEOUT_MS = 8_000");
     expect(code).toContain("Friend-voting network analysis failed");
     expect(code).toContain("return emptyCoordination(");
     expect(code).toContain("analysisDegraded: Boolean(warning)");
+    expect(code).toContain("Network analysis requires a narrower scope");
+    expect(code).toContain("Select an edition or a specific HOD before opening Network");
   });
 
   it("keeps Friend Voting as its own Voting section tab", () => {
