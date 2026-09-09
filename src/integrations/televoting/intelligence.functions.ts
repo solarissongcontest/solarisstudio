@@ -116,7 +116,10 @@ async function runHistoricalAnalysis(data: NormalizedInput, settings: any) {
   const { getMergedIntelligenceServer } = await import("@/integrations/televoting/intelligence.server");
   const result = await getMergedIntelligenceServer({
     ...data,
-    advancedModel: settings.advancedModel,
+    advancedModel: {
+      ...settings.advancedModel,
+      mode: "historical" as const,
+    },
   });
   if (!result) throw new Error("Friend-voting analysis returned no data");
   return sanitizeResultForScope(result, data);
@@ -133,9 +136,9 @@ async function getResilientFriendVotingIntelligence(
     ? workerSafeHistoricalScope()
     : requested;
 
-  // Lightweight Organizer requests deliberately use the historical relationship model.
-  // Do not start an expensive v4 computation and race it against a fallback: Promise.race
-  // does not cancel the losing work and previously exhausted the Cloudflare Worker.
+  // Lightweight Organizer requests deliberately use a descriptive historical relationship model.
+  // It returns before the expensive advanced baseline/deviation/network calculations and therefore
+  // does not need a timeout race that leaves the losing Worker computation running in the background.
   if (!options.allowAdvanced || isWorkerHeavyDefaultScope(requested) || isHistoricalAllEditionsScope(effectiveScope)) {
     const result = await runHistoricalAnalysis(effectiveScope, settings);
     return {
