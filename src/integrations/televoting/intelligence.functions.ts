@@ -54,19 +54,20 @@ function isWorkerHeavyDefaultScope(data: ReturnType<typeof normalizeInput>) {
   return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
 }
 
-async function resolveLatestEditionScope(data: ReturnType<typeof normalizeInput>) {
+async function resolveLatestCompletedEditionScope(data: ReturnType<typeof normalizeInput>) {
   if (!isWorkerHeavyDefaultScope(data)) return data;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
   const { data: edition, error } = await db
     .from("editions")
-    .select("id,edition_number")
+    .select("id,edition_number,name,status")
+    .eq("status", "completed")
     .not("edition_number", "is", null)
     .order("edition_number", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!edition?.id) throw new Error("No current Solaris edition could be resolved for Friend Voting");
+  if (!edition?.id) throw new Error("No completed Solaris edition could be resolved for Friend Voting");
   return {
     ...data,
     editionId: String(edition.id),
@@ -95,23 +96,28 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
   ]);
   const settings = await loadFriendVotingSettingsServer();
 
-  // The browser can still arrive with the old All editions + combined + HOD
-  // default. Never calculate that full scope in one Worker invocation. Resolve
-  // the latest contest edition and let the intelligence model use older
-  // editions as its historical baseline for that selected edition.
+  // The all-editions + combined + HOD scope is too large for one Worker request.
+  // Use the latest completed edition as the relationship scope and retain all
+  // older editions inside the model's historical baseline. Never point this
+  // fallback at the highest edition number: the active upcoming edition may
+  // legitimately have no ballots yet, which would produce an empty analysis.
   if (isWorkerHeavyDefaultScope(data)) {
-    const safeScope = await resolveLatestEditionScope(data);
+    const safeScope = await resolveLatestCompletedEditionScope(data);
     const result = await getMergedIntelligenceServer({
       ...safeScope,
       advancedModel: settings.advancedModel,
     });
     if (!result) throw new Error("Friend-voting analysis returned no data");
+    const selected = result.filters.editions.find(
+      (edition: IntelligenceEditionFilter) => edition.id === safeScope.editionId,
+    );
+    const label = selected?.editionNumber != null ? `SSC ${selected.editionNumber}` : "the latest completed edition";
     return {
       result,
       settings,
       analysisDegraded: true,
       analysisWarning:
-        "The all-editions HOD + jury/televote scope is too large for one Worker request. Solaris is showing the current edition with older editions used as its historical baseline.",
+        `Worker-safe mode: analysing ${label} with all older editions retained as historical baseline evidence. Narrow the edition, channel or HOD scope for full v4 scoring.`,
     };
   }
 
@@ -149,27 +155,29 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
     const { result, settings, analysisDegraded, analysisWarning } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
     if (data.lens === "hod") {
-      if (isWorkerHeavyDefaultScope(data)) {
-        coordination = emptyCoordination(
-          "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Select an edition, channel or HOD first.",
-        );
-      } else {
-        try {
-          coordination = {
-            ...(await withTimeout(
-              getCoordinationGroupsServer(data, settings),
+      try {
+        const networkScope = isWorkerHeavyDefaultScope(data)
+          ? await resolveLatestCompletedEditionScope(data)
+          : data;
+        const network = isWorkerHeavyDefaultScope(data)
+          ? await getCoordinationGroupsServer(networkScope, settings)
+          : await withTimeout(
+              getCoordinationGroupsServer(networkScope, settings),
               NETWORK_ANALYSIS_TIMEOUT_MS,
               "Friend-voting network analysis",
-            )),
-            analysisDegraded: false,
-            analysisWarning: null,
-          };
-        } catch (error) {
-          console.error("Friend-voting network analysis failed", error);
-          coordination = emptyCoordination(
-            error instanceof Error ? error.message : "Network analysis unavailable",
-          );
-        }
+            );
+        coordination = {
+          ...network,
+          analysisDegraded: isWorkerHeavyDefaultScope(data),
+          analysisWarning: isWorkerHeavyDefaultScope(data)
+            ? "Worker-safe network scope uses the latest completed edition. Older editions still inform relationship history."
+            : null,
+        };
+      } catch (error) {
+        console.error("Friend-voting network analysis failed", error);
+        coordination = emptyCoordination(
+          error instanceof Error ? error.message : "Network analysis unavailable",
+        );
       }
     }
     return {
@@ -213,28 +221,30 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     if (data.lens !== "hod") return emptyCoordination();
 
-    if (isWorkerHeavyDefaultScope(data)) {
-      return emptyCoordination(
-        "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Select an edition, channel or HOD first.",
-      );
-    }
-
     const [{ getCoordinationGroupsServer }, { loadFriendVotingSettingsServer }] = await Promise.all([
       import("@/integrations/televoting/coordination-groups.server"),
       import("@/integrations/televoting/friend-voting-settings.server"),
     ]);
     const settings = await loadFriendVotingSettingsServer();
     try {
-      const result = await withTimeout(
-        getCoordinationGroupsServer(data, settings),
-        NETWORK_ANALYSIS_TIMEOUT_MS,
-        "Friend-voting network analysis",
-      );
+      const safeDefault = isWorkerHeavyDefaultScope(data);
+      const networkScope = safeDefault
+        ? await resolveLatestCompletedEditionScope(data)
+        : data;
+      const result = safeDefault
+        ? await getCoordinationGroupsServer(networkScope, settings)
+        : await withTimeout(
+            getCoordinationGroupsServer(networkScope, settings),
+            NETWORK_ANALYSIS_TIMEOUT_MS,
+            "Friend-voting network analysis",
+          );
       if (!result) throw new Error("Network analysis returned no data");
       return {
         ...result,
-        analysisDegraded: false,
-        analysisWarning: null,
+        analysisDegraded: safeDefault,
+        analysisWarning: safeDefault
+          ? "Worker-safe network scope uses the latest completed edition. Select a specific edition, channel or HOD for an explicitly narrowed network."
+          : null,
       };
     } catch (error) {
       console.error("Friend-voting network analysis failed", error);
