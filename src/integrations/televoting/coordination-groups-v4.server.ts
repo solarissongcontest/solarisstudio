@@ -29,7 +29,15 @@ type Observation = {
   participantCount: number;
 };
 
+type ReverseIndex = Map<string, Observation[]>;
+
 const upper = (value: unknown) => String(value ?? "").trim().toUpperCase();
+const reverseKey = (
+  editionId: string,
+  channel: Observation["channel"],
+  sourcePersonId: string,
+  targetPersonId: string,
+) => `${editionId}\u0000${channel}\u0000${sourcePersonId}\u0000${targetPersonId}`;
 
 function ranks(rows: Array<{ target: string; score: number }>) {
   const sorted = [...rows].sort((a, b) => b.score - a.score || a.target.localeCompare(b.target));
@@ -76,13 +84,31 @@ function advanced(row: Observation): AdvancedFriendVotingObservation {
 }
 
 function currentEditionNumber(observations: Observation[]) {
-  const values = observations.map((row) => row.editionNumber).filter((value): value is number => value != null && Number.isFinite(value));
+  const values = observations
+    .map((row) => row.editionNumber)
+    .filter((value): value is number => value != null && Number.isFinite(value));
   return values.length ? Math.max(...values) : null;
 }
 
 function editionWeight(row: Observation, current: number | null) {
   if (current == null || row.editionNumber == null) return 1;
   return recentEditionWeight(Math.max(0, current - row.editionNumber));
+}
+
+function buildReverseIndex(observations: Observation[]) {
+  const index: ReverseIndex = new Map();
+  for (const row of observations) {
+    const key = reverseKey(
+      row.editionId,
+      row.channel,
+      row.sourcePersonId,
+      row.targetPersonId,
+    );
+    const list = index.get(key) ?? [];
+    list.push(row);
+    index.set(key, list);
+  }
+  return index;
 }
 
 export async function getCoordinationGroupsV4Server(
@@ -114,9 +140,13 @@ export async function getCoordinationGroupsV4Server(
 
   const canonicalEditionByRound = new Map<string, string>();
   for (const row of roundResult.data ?? []) {
-    const id = canonicalEditionForRound(canonical, { id: String(row.id), edition_id: String(row.edition_id) });
+    const id = canonicalEditionForRound(canonical, {
+      id: String(row.id),
+      edition_id: String(row.edition_id),
+    });
     if (id) canonicalEditionByRound.set(String(row.id), id);
   }
+
   const entryCountry = new Map<string, string>();
   const participantCodesByRound = new Map<string, Set<string>>();
   for (const row of roundEntryResult.data ?? []) {
@@ -134,20 +164,36 @@ export async function getCoordinationGroupsV4Server(
     if (!editionId) return false;
     if (options.editionId && editionId !== options.editionId) return false;
     const sourceCountry = canonical.hod.countriesByCode.get(upper(row.country_code)) as any;
-    const source = sourceCountry?.id ? canonical.hod.resolve(editionId, String(sourceCountry.id), "televote") : null;
+    const source = sourceCountry?.id
+      ? canonical.hod.resolve(editionId, String(sourceCountry.id), "televote")
+      : null;
     return Boolean(source && (!options.hodPersonId || source.personId === options.hodPersonId));
   });
-  const ids = submissions.map((row) => String(row.id));
+
+  const submissionRound = new Map(
+    submissions.map((submission) => [String(submission.id), String(submission.round_id)]),
+  );
+  const ids = [...submissionRound.keys()];
   const voteEntryResult = ids.length
-    ? await televotingAdmin.from("vote_entries").select("submission_id,target_country_code,points").in("submission_id", ids).limit(250000)
+    ? await televotingAdmin
+        .from("vote_entries")
+        .select("submission_id,target_country_code,points")
+        .in("submission_id", ids)
+        .limit(250000)
     : { data: [], error: null };
   if (voteEntryResult.error) throw new Error(voteEntryResult.error.message);
+
   const entriesBySubmission = new Map<string, Map<string, number>>();
   for (const row of voteEntryResult.data ?? []) {
-    const map = entriesBySubmission.get(String(row.submission_id)) ?? new Map<string, number>();
-    const code = entryCountry.get(`${submissions.find((submission) => String(submission.id) === String(row.submission_id))?.round_id}:${row.target_country_code}`) ?? upper(row.target_country_code);
+    const submissionId = String(row.submission_id);
+    const map = entriesBySubmission.get(submissionId) ?? new Map<string, number>();
+    const roundId = submissionRound.get(submissionId);
+    const code =
+      (roundId
+        ? entryCountry.get(`${roundId}:${row.target_country_code}`)
+        : null) ?? upper(row.target_country_code);
     map.set(code, Number(row.points ?? 0));
-    entriesBySubmission.set(String(row.submission_id), map);
+    entriesBySubmission.set(submissionId, map);
   }
 
   const observations: Observation[] = [];
@@ -158,35 +204,53 @@ export async function getCoordinationGroupsV4Server(
       if (!editionId) continue;
       const sourceCode = upper(submission.country_code);
       const sourceCountry = canonical.hod.countriesByCode.get(sourceCode) as any;
-      const source = sourceCountry?.id ? canonical.hod.resolve(editionId, String(sourceCountry.id), "televote") : null;
+      const source = sourceCountry?.id
+        ? canonical.hod.resolve(editionId, String(sourceCountry.id), "televote")
+        : null;
       if (!source) continue;
+
       const scores = entriesBySubmission.get(String(submission.id)) ?? new Map<string, number>();
-      const targets = [...(participantCodesByRound.get(roundId) ?? new Set<string>())].filter((code) => code !== sourceCode);
-      const scoreRows: Array<{ target: string; score: number; targetPersonId: string; targetName: string }> = [];
+      const targets = [...(participantCodesByRound.get(roundId) ?? new Set<string>())]
+        .filter((code) => code !== sourceCode);
+      const scoreRows: Array<{
+        target: string;
+        score: number;
+        targetPersonId: string;
+        targetName: string;
+      }> = [];
+
       for (const targetCode of targets) {
         const targetCountry = canonical.hod.countriesByCode.get(targetCode) as any;
         if (!targetCountry?.id) continue;
         const target = resolveTarget(editionId, String(targetCountry.id), "televote");
         if (!target || target.personId === source.personId) continue;
-        scoreRows.push({ target: target.personId, score: scores.get(targetCode) ?? 0, targetPersonId: target.personId, targetName: target.displayName });
+        scoreRows.push({
+          target: target.personId,
+          score: scores.get(targetCode) ?? 0,
+          targetPersonId: target.personId,
+          targetName: target.displayName,
+        });
       }
+
       const rankMap = ranks(scoreRows);
       const maxScore = Math.max(0, ...scoreRows.map((row) => row.score));
-      for (const row of scoreRows) observations.push({
-        sourcePersonId: source.personId,
-        sourceName: source.displayName,
-        targetPersonId: row.targetPersonId,
-        targetName: row.targetName,
-        editionId,
-        editionNumber: editionNumber(editionId),
-        channel: "televote",
-        score: row.score,
-        maxScore,
-        supported: row.score > 0,
-        maximum: row.score > 0 && row.score === maxScore,
-        rank: rankMap.get(row.targetPersonId) ?? null,
-        participantCount: scoreRows.length,
-      });
+      for (const row of scoreRows) {
+        observations.push({
+          sourcePersonId: source.personId,
+          sourceName: source.displayName,
+          targetPersonId: row.targetPersonId,
+          targetName: row.targetName,
+          editionId,
+          editionNumber: editionNumber(editionId),
+          channel: "televote",
+          score: row.score,
+          maxScore,
+          supported: row.score > 0,
+          maximum: row.score > 0 && row.score === maxScore,
+          rank: rankMap.get(row.targetPersonId) ?? null,
+          participantCount: scoreRows.length,
+        });
+      }
     }
   }
 
@@ -194,9 +258,14 @@ export async function getCoordinationGroupsV4Server(
     const filtered = canonical.juryVotes.filter((vote) => {
       if (!vote.voter_country_id) return false;
       if (options.editionId && String(vote.edition_id) !== options.editionId) return false;
-      const source = canonical.hod.resolve(String(vote.edition_id), String(vote.voter_country_id), "jury");
+      const source = canonical.hod.resolve(
+        String(vote.edition_id),
+        String(vote.voter_country_id),
+        "jury",
+      );
       return Boolean(source && (!options.hodPersonId || source.personId === options.hodPersonId));
     });
+
     const byBallot = new Map<string, typeof filtered>();
     for (const vote of filtered) {
       const key = `${vote.edition_id}:${vote.show_id ?? "edition"}:${vote.voter_country_id}`;
@@ -204,40 +273,54 @@ export async function getCoordinationGroupsV4Server(
       list.push(vote);
       byBallot.set(key, list);
     }
+
     for (const ballot of byBallot.values()) {
       const first = ballot[0];
       if (!first?.voter_country_id) continue;
       const editionId = String(first.edition_id);
       const source = canonical.hod.resolve(editionId, String(first.voter_country_id), "jury");
       if (!source) continue;
-      const scores = new Map(ballot.filter((vote) => vote.receiving_country_id).map((vote) => [String(vote.receiving_country_id), Number(vote.points ?? 0)]));
+
+      const scores = new Map(
+        ballot
+          .filter((vote) => vote.receiving_country_id)
+          .map((vote) => [String(vote.receiving_country_id), Number(vote.points ?? 0)]),
+      );
       const participants = first.show_id
         ? canonical.participantsByShow.get(String(first.show_id)) ?? new Set<string>()
         : canonical.editionParticipants.get(editionId) ?? new Set<string>();
       const scoreRows: Array<{ target: string; score: number; targetName: string }> = [];
+
       for (const targetCountryId of participants) {
         if (targetCountryId === first.voter_country_id) continue;
         const target = resolveTarget(editionId, targetCountryId, "jury");
         if (!target || target.personId === source.personId) continue;
-        scoreRows.push({ target: target.personId, score: scores.get(targetCountryId) ?? 0, targetName: target.displayName });
+        scoreRows.push({
+          target: target.personId,
+          score: scores.get(targetCountryId) ?? 0,
+          targetName: target.displayName,
+        });
       }
+
       const rankMap = ranks(scoreRows);
       const maxScore = Math.max(0, ...scoreRows.map((row) => row.score));
-      for (const row of scoreRows) observations.push({
-        sourcePersonId: source.personId,
-        sourceName: source.displayName,
-        targetPersonId: row.target,
-        targetName: row.targetName,
-        editionId,
-        editionNumber: editionNumber(editionId),
-        channel: "jury",
-        score: row.score,
-        maxScore,
-        supported: row.score > 0,
-        maximum: row.score > 0 && row.score === maxScore,
-        rank: rankMap.get(row.target) ?? null,
-        participantCount: scoreRows.length,
-      });
+      for (const row of scoreRows) {
+        observations.push({
+          sourcePersonId: source.personId,
+          sourceName: source.displayName,
+          targetPersonId: row.target,
+          targetName: row.targetName,
+          editionId,
+          editionNumber: editionNumber(editionId),
+          channel: "jury",
+          score: row.score,
+          maxScore,
+          supported: row.score > 0,
+          maximum: row.score > 0 && row.score === maxScore,
+          rank: rankMap.get(row.target) ?? null,
+          participantCount: scoreRows.length,
+        });
+      }
     }
   }
 
@@ -250,26 +333,41 @@ export async function getCoordinationGroupsV4Server(
     list.push(row);
     byPair.set(key, list);
   }
+  const reverseIndex = buildReverseIndex(observations);
 
   const edges: CoordinationEdge[] = [];
   for (const pair of byPair.values()) {
     const first = pair[0]!;
     const reciprocalEditions = new Map<string, { weight: number; reciprocal: boolean }>();
+
     for (const row of pair) {
-      const reverse = observations.filter((candidate) =>
-        candidate.editionId === row.editionId && candidate.channel === row.channel &&
-        candidate.sourcePersonId === row.targetPersonId && candidate.targetPersonId === row.sourcePersonId,
-      );
+      const reverse = reverseIndex.get(
+        reverseKey(
+          row.editionId,
+          row.channel,
+          row.targetPersonId,
+          row.sourcePersonId,
+        ),
+      ) ?? [];
       if (!reverse.length) continue;
-      const item = reciprocalEditions.get(row.editionId) ?? { weight: editionWeight(row, current), reciprocal: false };
-      if (row.supported && reverse.some((candidate) => candidate.supported)) item.reciprocal = true;
+      const item = reciprocalEditions.get(row.editionId) ?? {
+        weight: editionWeight(row, current),
+        reciprocal: false,
+      };
+      if (row.supported && reverse.some((candidate) => candidate.supported)) {
+        item.reciprocal = true;
+      }
       reciprocalEditions.set(row.editionId, item);
     }
+
     const reciprocalRows = [...reciprocalEditions.values()];
     const reciprocalWeight = reciprocalRows.reduce((sum, row) => sum + row.weight, 0);
     const reciprocalSupport = reciprocalWeight
-      ? reciprocalRows.filter((row) => row.reciprocal).reduce((sum, row) => sum + row.weight, 0) / reciprocalWeight
+      ? reciprocalRows
+          .filter((row) => row.reciprocal)
+          .reduce((sum, row) => sum + row.weight, 0) / reciprocalWeight
       : 0;
+
     const result = calculateAdvancedFriendVotingRisk(
       pair.map(advanced),
       advancedAll,
@@ -281,8 +379,12 @@ export async function getCoordinationGroupsV4Server(
     const editions = new Set(pair.map((row) => row.editionId));
     const supportedByEdition = new Map<string, number>();
     for (const row of pair.filter((item) => item.supported)) {
-      supportedByEdition.set(row.editionId, Math.max(supportedByEdition.get(row.editionId) ?? 0, editionWeight(row, current)));
+      supportedByEdition.set(
+        row.editionId,
+        Math.max(supportedByEdition.get(row.editionId) ?? 0, editionWeight(row, current)),
+      );
     }
+
     edges.push({
       sourcePersonId: first.sourcePersonId,
       sourceName: first.sourceName,
@@ -307,7 +409,9 @@ export async function getCoordinationGroupsV4Server(
 
   return {
     groups,
-    edges: edges.sort((a, b) => b.riskScore - a.riskScore || b.confidence - a.confidence).slice(0, 500),
+    edges: edges
+      .sort((a, b) => b.riskScore - a.riskScore || b.confidence - a.confidence)
+      .slice(0, 500),
     stats: {
       modelVersion: "friend-voting-model-v4",
       editionDecay: 0.88,
