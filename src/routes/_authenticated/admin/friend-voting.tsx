@@ -39,12 +39,15 @@ function FriendVotingPage() {
   const getCoordination = useServerFn(getFriendVotingCoordination);
   const { data: editions = [] } = useEditions();
 
+  // The default is intentionally the complete historical country-level televote view.
+  // It includes the corrected SSC20 and SSC21 historical data without asking the
+  // Cloudflare Worker to build the much heavier jury + HOD graph on first paint.
   const [editionId, setEditionId] = useState(ALL_EDITIONS);
-  const [lens, setLens] = useState<IntelligenceLens>("hod");
-  const [channel, setChannel] = useState<IntelligenceChannel>("combined");
+  const [lens, setLens] = useState<IntelligenceLens>("country");
+  const [channel, setChannel] = useState<IntelligenceChannel>("televote");
   const [hodPersonId, setHodPersonId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [minRisk, setMinRisk] = useState(0);
+  const [minPatternScore, setMinPatternScore] = useState(0);
   const [tab, setTab] = useState<Tab>("overview");
 
   const sortedEditions = useMemo(
@@ -63,7 +66,7 @@ function FriendVotingPage() {
       return result;
     },
     staleTime: 120_000,
-    retry: 1,
+    retry: 0,
   });
 
   const coordination = useQuery({
@@ -77,13 +80,18 @@ function FriendVotingPage() {
     },
     enabled: tab === "network" && lens === "hod",
     staleTime: 120_000,
-    retry: 1,
+    retry: 0,
   });
+
+  const data = intelligence.data;
+  const people = data?.filters.people ?? [];
+  const effectiveScope = data?.effectiveScope ?? data?.filters;
+  const scoreLabel = data?.riskSemantics === "advanced-risk" ? "Risk" : "Pattern";
 
   const relationships = useMemo(() => {
     const term = search.trim().toLowerCase();
     return [...(intelligence.data?.relationships ?? [])]
-      .filter((row) => row.riskScore >= minRisk)
+      .filter((row) => row.riskScore >= minPatternScore)
       .filter((row) => {
         if (!term) return true;
         return `${row.votingCountries.join(" ")} ${row.controllerName ?? ""} ${row.targetCountry}`
@@ -91,10 +99,8 @@ function FriendVotingPage() {
           .includes(term);
       })
       .sort((a, b) => b.riskScore - a.riskScore || b.confidence - a.confidence);
-  }, [intelligence.data?.relationships, minRisk, search]);
+  }, [intelligence.data?.relationships, minPatternScore, search]);
 
-  const data = intelligence.data;
-  const people = data?.filters.people ?? [];
   const totalHodUnits = (data?.stats.hodAssignedEditionCountries ?? 0) + (data?.stats.hodUnknownEditionCountries ?? 0);
   const hodCoverage = totalHodUnits
     ? Math.round(((data?.stats.hodAssignedEditionCountries ?? 0) / totalHodUnits) * 100)
@@ -107,23 +113,30 @@ function FriendVotingPage() {
     ["network", "Network", Network],
   ];
 
-  const riskOptions = data
+  const patternOptions = data
     ? [...new Map([
         [0, "All relationships"],
         [data.settings.riskNotable, `Notable ${data.settings.riskNotable}+`],
         [data.settings.riskReview, `Review ${data.settings.riskReview}+`],
         [data.settings.riskStrong, `Strong ${data.settings.riskStrong}+`],
-        [data.settings.riskHigh, `High ${data.settings.riskHigh}+`],
-        [data.settings.riskCritical, `Critical ${data.settings.riskCritical}+`],
+        [data.settings.riskHigh, `Very strong ${data.settings.riskHigh}+`],
+        [data.settings.riskCritical, `Extreme ${data.settings.riskCritical}+`],
       ]).entries()]
     : [[0, "All relationships"]] as Array<[number, string]>;
+
+  const effectiveChannelLabel = effectiveScope?.channel === "jury"
+    ? "Jury only"
+    : effectiveScope?.channel === "combined"
+      ? "Jury + televote"
+      : "Televote only";
+  const effectiveLensLabel = effectiveScope?.lens === "hod" ? "HOD tenure" : "Country history";
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
       <AdminPageHeader
-        eyebrow="Integrity intelligence"
+        eyebrow="Voting intelligence"
         title="Friend-voting intelligence"
-        description="Country-first jury and televote relationship analysis with historical baselines, reciprocity, rank patterns, cross-channel evidence, confidence and HOD-aware network detection."
+        description="Historical relationship analysis for jury and televote support. Pattern scores identify relationships worth reviewing; they are not findings that a country or HOD cheated."
         actions={
           <Link to="/admin/hod-history" className="admin-action-secondary">
             <UserRoundCog className="size-4" /> HOD history
@@ -146,9 +159,9 @@ function FriendVotingPage() {
 
           <Filter label="Evidence channel">
             <select value={channel} onChange={(event) => setChannel(event.target.value as IntelligenceChannel)} className={controlClass}>
-              <option value="combined">Jury + televote</option>
-              <option value="jury">Jury only</option>
               <option value="televote">Televote only</option>
+              <option value="jury">Jury only</option>
+              <option value="combined">Jury + televote</option>
             </select>
           </Filter>
 
@@ -162,8 +175,8 @@ function FriendVotingPage() {
               }}
               className={controlClass}
             >
-              <option value="hod">HOD tenure</option>
               <option value="country">Country history</option>
+              <option value="hod">HOD tenure</option>
             </select>
           </Filter>
 
@@ -181,27 +194,27 @@ function FriendVotingPage() {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <AdminStatus tone={intelligence.isFetching ? "neutral" : intelligence.error ? "attention" : data?.analysisDegraded ? "attention" : "info"}>
+          <AdminStatus tone={intelligence.isFetching ? "neutral" : intelligence.error ? "attention" : "info"}>
             {intelligence.isFetching
-              ? "Analysing full history…"
+              ? "Analysing historical voting…"
               : intelligence.error
                 ? "Analysis failed"
-                : data?.analysisDegraded
-                  ? "Base analysis available"
-                  : scopedEditionId
-                    ? "Edition + historical baseline"
-                    : "Full history"}
+                : data?.analysisMode === "advanced"
+                  ? "Advanced relationship analysis"
+                  : "Historical relationship analysis"}
           </AdminStatus>
-          {data ? <span className="text-[11px] text-muted-foreground">Model {data.relationships[0]?.modelVersion ?? "friend-voting"}</span> : null}
+          {data ? (
+            <span className="text-[11px] text-muted-foreground">
+              Effective scope: {effectiveChannelLabel} · {effectiveLensLabel}
+            </span>
+          ) : null}
         </div>
       </AdminCard>
 
-      {data?.analysisDegraded ? (
-        <AdminCard className="!border-amber-200/15 !bg-amber-200/[0.045]">
-          <p className="text-sm font-semibold text-amber-50">Advanced scoring is temporarily unavailable</p>
-          <p className="mt-1 text-xs leading-relaxed text-amber-100/70">
-            The base historical relationship analysis is shown instead, so the page remains usable. Retry later to restore the full v4 scoring layer.
-          </p>
+      {data?.analysisWarning ? (
+        <AdminCard className={data.analysisDegraded ? "!border-amber-200/15 !bg-amber-200/[0.045]" : "!border-sky-200/15 !bg-sky-200/[0.04]"}>
+          <p className="text-sm font-semibold">{data.analysisDegraded ? "Advanced layer unavailable" : "Historical analysis mode"}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{data.analysisWarning}</p>
         </AdminCard>
       ) : null}
 
@@ -230,18 +243,20 @@ function FriendVotingPage() {
         ))}
       </div>
 
-      {intelligence.isLoading && !data ? <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Building HOD-aware historical voting intelligence…</p></AdminCard> : null}
+      {intelligence.isLoading && !data ? (
+        <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Building historical voting relationships…</p></AdminCard>
+      ) : null}
 
       {data && tab === "overview" ? (
         <div className="space-y-4">
           <AdminCard>
             <div className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3 lg:grid-cols-6">
-              <CompactMetric label="TV ballots" value={data.stats.ballots} />
-              <CompactMetric label="Jury ballots" value={data.stats.juryBallots} />
+              <CompactMetric label="TV ballots" value={effectiveScope?.channel === "jury" ? "—" : data.stats.ballots} />
+              <CompactMetric label="Jury ballots" value={effectiveScope?.channel === "televote" ? "—" : data.stats.juryBallots} />
               <CompactMetric label="Relationships" value={data.stats.relationships} />
-              <CompactMetric label="Need attention" value={data.stats.attentionRelationships} />
-              <CompactMetric label="High-risk ballots" value={data.stats.highRisk} />
-              <CompactMetric label="HOD coverage" value={`${hodCoverage}%`} />
+              <CompactMetric label="Patterns to review" value={data.stats.attentionRelationships} />
+              <CompactMetric label="Stored high-risk ballots" value={data.technicalIntegrityAvailable ? data.stats.highRisk : "N/A"} />
+              <CompactMetric label="HOD coverage" value={effectiveScope?.lens === "hod" ? `${hodCoverage}%` : "N/A"} />
             </div>
           </AdminCard>
 
@@ -249,28 +264,20 @@ function FriendVotingPage() {
             <div className="flex items-start gap-3">
               <Activity className="mt-0.5 size-5 shrink-0 text-sky-100" />
               <div>
-                <h2 className="text-base font-semibold">What the model checks</h2>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Overall risk combines relationship anomaly, historical deviation, repeated support, reciprocity, score intensity, jury evidence, televote evidence, cross-channel agreement and rank-pattern deviation. Confidence is calculated separately from risk so a dramatic one-off result cannot pretend to be strong historical evidence.</p>
+                <h2 className="text-base font-semibold">How to read these scores</h2>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Relationship scores combine repeated support, reciprocity, intensity, historical deviation and rank patterns. A high score means “review this relationship”, not “this country is suspicious”. Technical suspicious/high-risk ballot flags come only from stored integrity metadata and are shown separately under Signals.
+                </p>
               </div>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Feature label="Jury + televote" />
-              <Feature label="Cross-channel" />
-              <Feature label="Historical deviation" />
-              <Feature label="Reciprocity" />
-              <Feature label="Rank patterns" />
-              <Feature label="Target strength" />
-              <Feature label="Confidence" />
-              <Feature label="Network groups" />
             </div>
           </AdminCard>
 
           <AdminCard>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div><p className="admin-section-label">Priority review</p><h2 className="mt-1 text-xl font-bold">Highest-risk country relationships</h2></div>
+              <div><p className="admin-section-label">Priority review</p><h2 className="mt-1 text-xl font-bold">Strongest relationship patterns</h2></div>
               <button type="button" onClick={() => setTab("relationships")} className="text-xs font-semibold text-sky-100">View all</button>
             </div>
-            <RelationshipList rows={relationships.slice(0, 8)} />
+            <RelationshipList rows={relationships.slice(0, 8)} scoreLabel={scoreLabel} />
           </AdminCard>
         </div>
       ) : null}
@@ -284,9 +291,9 @@ function FriendVotingPage() {
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search relationships" className={`${controlClass} pl-9`} />
               </span>
             </Filter>
-            <Filter label="Minimum risk">
-              <select value={minRisk} onChange={(event) => setMinRisk(Number(event.target.value))} className={controlClass}>
-                {riskOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            <Filter label="Minimum pattern score">
+              <select value={minPatternScore} onChange={(event) => setMinPatternScore(Number(event.target.value))} className={controlClass}>
+                {patternOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Filter>
           </div>
@@ -294,13 +301,17 @@ function FriendVotingPage() {
             <div><p className="admin-section-label">Relationship evidence</p><h2 className="mt-1 text-xl font-bold">Country relationships</h2></div>
             <AdminStatus tone="info">{relationships.length} shown</AdminStatus>
           </div>
-          <div className="mt-2"><RelationshipList rows={relationships} detailed /></div>
+          <div className="mt-2"><RelationshipList rows={relationships} detailed scoreLabel={scoreLabel} /></div>
         </AdminCard>
       ) : null}
 
       {data && tab === "signals" ? (
         <AdminCard>
-          <div className="mb-4"><p className="admin-section-label">Integrity detection</p><h2 className="mt-1 text-xl font-bold">Detection signals</h2><p className="mt-1 text-xs text-muted-foreground">Technical and moderation signals support review; they are not proof of coordinated voting.</p></div>
+          <div className="mb-4">
+            <p className="admin-section-label">Stored ballot metadata</p>
+            <h2 className="mt-1 text-xl font-bold">Technical integrity signals</h2>
+            <p className="mt-1 text-xs text-muted-foreground">These are explicit stored ballot flags such as suspicious status, technical risk score or VPN evidence. They are separate from friend-voting relationship pattern scores.</p>
+          </div>
           <div className="grid gap-2 md:grid-cols-2">
             {data.signals.map((signal) => (
               <div key={signal.key} className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
@@ -309,14 +320,14 @@ function FriendVotingPage() {
                 {signal.countries.length ? <p className="mt-2 text-[11px] text-sky-100/70">{signal.countries.join(" · ")}</p> : null}
               </div>
             ))}
-            {!data.signals.length ? <p className="py-8 text-sm text-muted-foreground">No detection signals in this scope.</p> : null}
+            {!data.signals.length ? <p className="py-8 text-sm text-muted-foreground">No stored technical integrity flags in this scope.</p> : null}
           </div>
         </AdminCard>
       ) : null}
 
       {tab === "network" ? (
         lens !== "hod" ? (
-          <AdminCard><div className="py-10 text-center"><Network className="mx-auto size-7 text-violet-100/70" /><h2 className="mt-3 text-lg font-semibold">HOD lens required</h2><p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">Network groups connect real controllers, so switch Identity lens to HOD tenure.</p></div></AdminCard>
+          <AdminCard><div className="py-10 text-center"><Network className="mx-auto size-7 text-violet-100/70" /><h2 className="mt-3 text-lg font-semibold">HOD lens required</h2><p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">Network groups connect known controllers. Switch Identity lens to HOD tenure, then narrow to an edition or a specific HOD.</p></div></AdminCard>
         ) : coordination.isLoading ? (
           <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Building HOD coordination network…</p></AdminCard>
         ) : coordination.error ? (
@@ -335,7 +346,7 @@ function Filter({ label, children }: { label: string; children: React.ReactNode 
   return <label className="block min-w-0"><span className="admin-section-label">{label}</span><span className="mt-2 block">{children}</span></label>;
 }
 
-function RelationshipList({ rows, detailed = false }: { rows: any[]; detailed?: boolean }) {
+function RelationshipList({ rows, detailed = false, scoreLabel = "Pattern" }: { rows: any[]; detailed?: boolean; scoreLabel?: string }) {
   return (
     <div className="divide-y divide-white/[0.07]">
       {rows.map((row, index) => {
@@ -349,13 +360,13 @@ function RelationshipList({ rows, detailed = false }: { rows: any[]; detailed?: 
                 <p className="mt-1 text-[11px] text-muted-foreground">{row.uniqueEditions} edition{row.uniqueEditions === 1 ? "" : "s"} · {row.opportunities} opportunities</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold">Risk {row.riskScore}</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold">{scoreLabel} {row.riskScore}</span>
                 <span className="hidden rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-muted-foreground sm:inline">{row.confidence}% conf.</span>
                 <ChevronDown className="size-4 text-muted-foreground transition group-open:rotate-180" />
               </div>
             </summary>
             <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-              <p className="text-xs leading-relaxed text-muted-foreground">{row.reasons?.join(" · ") || "No elevated evidence signal."}</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">{row.reasons?.join(" · ") || "No elevated relationship pattern."}</p>
               {row.warnings?.length ? <p className="mt-2 text-[11px] leading-relaxed text-amber-100/70">Caution: {row.warnings.join(" · ")}</p> : null}
               <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
                 <RiskMetric label="Jury" value={row.juryRisk} />
@@ -384,6 +395,9 @@ function NetworkView({ data }: { data: any }) {
   const edges = data.edges ?? [];
   return (
     <div className="space-y-4">
+      {data.analysisWarning ? (
+        <AdminCard className="!border-amber-200/15 !bg-amber-200/[0.045]"><p className="text-sm text-amber-50">{data.analysisWarning}</p></AdminCard>
+      ) : null}
       <AdminCard>
         <div className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
           <CompactMetric label="Known observations" value={data.stats?.knownControllerObservations ?? 0} />
@@ -393,17 +407,17 @@ function NetworkView({ data }: { data: any }) {
         </div>
       </AdminCard>
       <AdminCard>
-        <div className="mb-3"><p className="admin-section-label">Network detection</p><h2 className="mt-1 text-xl font-bold">Coordination groups</h2><p className="mt-1 text-xs text-muted-foreground">Dense HOD-to-HOD support networks are corroborating evidence, not findings of misconduct.</p></div>
+        <div className="mb-3"><p className="admin-section-label">Network detection</p><h2 className="mt-1 text-xl font-bold">Coordination groups</h2><p className="mt-1 text-xs text-muted-foreground">Dense HOD-to-HOD support networks are corroborating evidence only, not findings of misconduct.</p></div>
         <div className="space-y-2">
           {groups.map((group: any) => (
             <div key={group.id} className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
-              <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{group.memberNames?.join(" · ") || "HOD group"}</p><p className="mt-1 text-[11px] text-muted-foreground">{group.memberIds?.length ?? 0} HODs · density {group.density ?? 0}% · internal support {group.internalSupportShare ?? 0}%</p></div><span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold">Signal {group.riskScore ?? 0}</span></div>
+              <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold">{group.memberNames?.join(" · ") || "HOD group"}</p><p className="mt-1 text-[11px] text-muted-foreground">{group.memberIds?.length ?? 0} HODs · density {group.density ?? 0}% · internal support {group.internalSupportShare ?? 0}%</p></div><span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold">Pattern {group.riskScore ?? 0}</span></div>
             </div>
           ))}
-          {!groups.length ? <p className="py-6 text-center text-sm text-muted-foreground">No qualifying coordination groups in this scope.</p> : null}
+          {!groups.length && !data.analysisWarning ? <p className="py-6 text-center text-sm text-muted-foreground">No qualifying coordination groups in this scope.</p> : null}
         </div>
       </AdminCard>
-      {edges.length ? <AdminCard><div className="mb-3"><p className="admin-section-label">Strongest network edges</p><h2 className="mt-1 text-xl font-bold">HOD connections</h2></div><div className="divide-y divide-white/[0.07]">{edges.slice(0, 30).map((edge: any, index: number) => <div key={`${edge.sourcePersonId}:${edge.targetPersonId}:${index}`} className="flex items-center justify-between gap-3 py-2.5"><p className="min-w-0 truncate text-sm">{edge.sourceName} → {edge.targetName}</p><span className="shrink-0 text-xs font-semibold text-sky-100">Risk {edge.riskScore}</span></div>)}</div></AdminCard> : null}
+      {edges.length ? <AdminCard><div className="mb-3"><p className="admin-section-label">Strongest network edges</p><h2 className="mt-1 text-xl font-bold">HOD connections</h2></div><div className="divide-y divide-white/[0.07]">{edges.slice(0, 30).map((edge: any, index: number) => <div key={`${edge.sourcePersonId}:${edge.targetPersonId}:${index}`} className="flex items-center justify-between gap-3 py-2.5"><p className="min-w-0 truncate text-sm">{edge.sourceName} → {edge.targetName}</p><span className="shrink-0 text-xs font-semibold text-sky-100">Pattern {edge.riskScore}</span></div>)}</div></AdminCard> : null}
     </div>
   );
 }
@@ -418,8 +432,4 @@ function SmallMetric({ label, value }: { label: string; value: string | number }
 
 function RiskMetric({ label, value }: { label: string; value: number }) {
   return <div className="rounded-lg border border-white/[0.06] bg-white/[0.025] px-2.5 py-2"><p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p><p className="mt-1 font-semibold text-foreground">{Math.round(Number(value ?? 0))}</p></div>;
-}
-
-function Feature({ label }: { label: string }) {
-  return <div className="rounded-lg border border-sky-200/10 bg-sky-200/[0.035] px-3 py-2 text-xs font-semibold text-sky-50">{label}</div>;
 }
