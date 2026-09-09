@@ -9,6 +9,8 @@ type IntelligenceInput = {
   editionId?: string | null;
 };
 
+const LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250;
+
 const normalizeInput = (data?: IntelligenceInput) => ({
   lens: data?.lens === "country" ? "country" as const : "hod" as const,
   channel: data?.channel === "jury" || data?.channel === "televote" ? data.channel : "combined" as const,
@@ -63,12 +65,14 @@ export const getLightweightFriendVotingIntelligence = createServerFn({ method: "
     const settings = await loadFriendVotingSettingsServer();
     const result = await getMergedIntelligenceV4Server(data, settings);
     if (!result) throw new Error("Friend-voting analysis returned no data");
+    const allRelationships = result.relationships;
     return {
       ...result,
+      relationships: allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT),
       stats: {
         ...result.stats,
-        relationships: result.relationships.length,
-        attentionRelationships: result.relationships.filter((row) => row.riskScore >= settings.riskReview).length,
+        relationships: allRelationships.length,
+        attentionRelationships: allRelationships.filter((row) => row.riskScore >= settings.riskReview).length,
       },
       settings,
       coordination: emptyCoordination(),
