@@ -43,6 +43,13 @@ with historical_round as (
   where name='[Historical analytics] SSC20 Grand Final detailed country voting'
     and edition_id=(select id from televoting.editions where name='Solaris Song Contest 20' order by created_at limit 1)
   order by created_at limit 1
+), official_round as (
+  select r.id
+  from televoting.rounds r
+  where r.edition_id=(select id from televoting.editions where name='Solaris Song Contest 20' order by created_at limit 1)
+    and r.name='Grand Final'
+  order by r.created_at
+  limit 1
 )
 insert into televoting.round_entries (
   round_id,entry_type,entry_key,country_code,custom_name,short_name,entry_code,
@@ -53,7 +60,8 @@ select
   re.subtitle,re.image_url,re.description,re.display_order
 from televoting.round_entries re
 cross join historical_round hr
-where re.round_id='ebafa324-b1cd-4ed0-be3a-23e5974e41ed'::uuid;
+cross join official_round official
+where re.round_id=official.id;
 
 with historical_round as (
   select id from televoting.rounds
