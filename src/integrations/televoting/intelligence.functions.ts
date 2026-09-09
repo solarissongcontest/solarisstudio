@@ -9,6 +9,21 @@ type IntelligenceInput = {
   editionId?: string | null;
 };
 
+type CoordinationPayload = {
+  groups: any[];
+  edges: any[];
+  stats: {
+    modelVersion: string;
+    editionDecay: number;
+    knownControllerObservations: number;
+    knownControllerEdges: number;
+    qualifiedEdges: number;
+    groups: number;
+  };
+  analysisDegraded: boolean;
+  analysisWarning: string | null;
+};
+
 const LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250;
 const ADVANCED_ANALYSIS_TIMEOUT_MS = 7_000;
 const NETWORK_ANALYSIS_TIMEOUT_MS = 8_000;
@@ -20,7 +35,7 @@ const normalizeInput = (data?: IntelligenceInput) => ({
   editionId: data?.editionId ? String(data.editionId) : null,
 });
 
-const emptyCoordination = (warning: string | null = null) => ({
+const emptyCoordination = (warning: string | null = null): CoordinationPayload => ({
   groups: [],
   edges: [],
   stats: {
@@ -89,7 +104,7 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
       getResilientFriendVotingIntelligence(data),
     ]);
     const { result, settings, analysisDegraded, analysisWarning } = resilient;
-    let coordination = emptyCoordination();
+    let coordination: CoordinationPayload = emptyCoordination();
     if (data.lens === "hod") {
       try {
         coordination = {
