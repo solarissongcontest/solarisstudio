@@ -50,6 +50,10 @@ const emptyCoordination = (warning: string | null = null): CoordinationPayload =
   analysisWarning: warning,
 });
 
+function isWorkerHeavyDefaultScope(data: ReturnType<typeof normalizeInput>) {
+  return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<never>((_, reject) => {
@@ -71,6 +75,25 @@ async function getResilientFriendVotingIntelligence(data: ReturnType<typeof norm
     import("@/integrations/televoting/friend-voting-settings.server"),
   ]);
   const settings = await loadFriendVotingSettingsServer();
+
+  // This exact default scope has enough history to exceed the Cloudflare
+  // Worker resource budget. Do not start v4 and then time it out: Promise.race
+  // does not cancel the underlying computation. Serve the complete base model
+  // immediately and let organizers narrow the scope for full v4 scoring.
+  if (isWorkerHeavyDefaultScope(data)) {
+    const result = await getMergedIntelligenceServer({
+      ...data,
+      advancedModel: settings.advancedModel,
+    });
+    if (!result) throw new Error("Friend-voting analysis returned no data");
+    return {
+      result,
+      settings,
+      analysisDegraded: true,
+      analysisWarning:
+        "Full-history HOD + jury/televote scope uses the resource-safe historical model. Narrow the edition, channel or HOD scope for full v4 scoring.",
+    };
+  }
 
   try {
     const result = await withTimeout(
@@ -106,21 +129,27 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
     const { result, settings, analysisDegraded, analysisWarning } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
     if (data.lens === "hod") {
-      try {
-        coordination = {
-          ...(await withTimeout(
-            getCoordinationGroupsServer(data, settings),
-            NETWORK_ANALYSIS_TIMEOUT_MS,
-            "Friend-voting network analysis",
-          )),
-          analysisDegraded: false,
-          analysisWarning: null,
-        };
-      } catch (error) {
-        console.error("Friend-voting network analysis failed", error);
+      if (isWorkerHeavyDefaultScope(data)) {
         coordination = emptyCoordination(
-          error instanceof Error ? error.message : "Network analysis unavailable",
+          "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Narrow the edition, channel or HOD scope first.",
         );
+      } else {
+        try {
+          coordination = {
+            ...(await withTimeout(
+              getCoordinationGroupsServer(data, settings),
+              NETWORK_ANALYSIS_TIMEOUT_MS,
+              "Friend-voting network analysis",
+            )),
+            analysisDegraded: false,
+            analysisWarning: null,
+          };
+        } catch (error) {
+          console.error("Friend-voting network analysis failed", error);
+          coordination = emptyCoordination(
+            error instanceof Error ? error.message : "Network analysis unavailable",
+          );
+        }
       }
     }
     return {
@@ -163,6 +192,13 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
     if (data.lens !== "hod") return emptyCoordination();
+
+    if (isWorkerHeavyDefaultScope(data)) {
+      return emptyCoordination(
+        "Network analysis is disabled for the full-history HOD + jury/televote scope to protect the Worker resource budget. Narrow the edition, channel or HOD scope first.",
+      );
+    }
+
     const [{ getCoordinationGroupsServer }, { loadFriendVotingSettingsServer }] = await Promise.all([
       import("@/integrations/televoting/coordination-groups.server"),
       import("@/integrations/televoting/friend-voting-settings.server"),
