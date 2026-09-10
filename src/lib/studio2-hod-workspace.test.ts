@@ -25,6 +25,7 @@ const completeContext: Studio2HodContext = {
   },
   juryMembersRequired: 5,
   juryMembersAssigned: 5,
+  juryMembers: [],
   juryBallotSubmitted: true,
   notices: [],
 };
