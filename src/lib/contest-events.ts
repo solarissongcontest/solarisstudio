@@ -2,6 +2,8 @@ export const CONTEST_EVENT_TYPES = [
   'edition.created',
   'edition.state_changed',
   'edition.archived',
+  'edition.transition_approval_requested',
+  'edition.transition_approval_granted',
   'confirmation.opened',
   'confirmation.closed',
   'country.confirmed',
