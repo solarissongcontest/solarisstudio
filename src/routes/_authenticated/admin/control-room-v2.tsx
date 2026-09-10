@@ -5,7 +5,13 @@ import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-rea
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
-import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import {
+  AdminCard,
+  AdminCardHeader,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminStatus,
+} from '@/components/admin/AdminUI';
 import { EDITION_STATES, getEditionTransition, type EditionState } from '@/lib/edition-state';
 import {
   INCIDENT_SEVERITIES,
@@ -30,7 +36,6 @@ function ControlRoomV2() {
   const { editionId } = useAdminContext();
   const queryClient = useQueryClient();
   const [reason, setReason] = useState('');
-  const [secondApprover, setSecondApprover] = useState('');
   const [incidentTitle, setIncidentTitle] = useState('');
   const [incidentSeverity, setIncidentSeverity] = useState<IncidentSeverity>('sev3');
 
@@ -41,25 +46,49 @@ function ControlRoomV2() {
     refetchInterval: 15_000,
   });
 
+  const approvalsQuery = useQuery({
+    queryKey: ['studio2-transition-approvals', editionId ?? 'none'],
+    enabled: Boolean(editionId),
+    queryFn: () => studio2ControlRoom.listTransitionApprovals(editionId!),
+    refetchInterval: 10_000,
+  });
+
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['studio2-control-room', editionId ?? 'none'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['studio2-control-room', editionId ?? 'none'] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-transition-approvals', editionId ?? 'none'] }),
+    ]);
   };
 
   const transitionEdition = useMutation({
-    mutationFn: (to: EditionState) => {
+    mutationFn: ({ to, approvalRequestId }: { to: EditionState; approvalRequestId?: string | null }) => {
       if (!editionId) throw new Error('Choose an edition before changing its state.');
       return studio2ControlRoom.transitionEdition({
         editionId,
         to,
         reason: reason.trim() || null,
-        secondApproverUserId: secondApprover.trim() || null,
+        approvalRequestId: approvalRequestId ?? null,
       });
     },
     onSuccess: async () => {
       setReason('');
-      setSecondApprover('');
       await refresh();
     },
+  });
+
+  const requestApproval = useMutation({
+    mutationFn: (to: EditionState) => {
+      if (!editionId) throw new Error('Choose an edition before requesting approval.');
+      const requestReason = reason.trim();
+      if (!requestReason) throw new Error('A reason is required before requesting second approval.');
+      return studio2ControlRoom.requestTransitionApproval(editionId, to, requestReason);
+    },
+    onSuccess: refresh,
+  });
+
+  const approveTransition = useMutation({
+    mutationFn: (requestId: string) => studio2ControlRoom.approveTransition(requestId),
+    onSuccess: refresh,
   });
 
   const createIncident = useMutation({
@@ -97,7 +126,14 @@ function ControlRoomV2() {
         (transition): transition is NonNullable<typeof transition> => transition !== null,
       )
     : [];
-  const commandError = transitionEdition.error ?? createIncident.error ?? transitionIncident.error;
+  const approvals = approvalsQuery.data ?? [];
+  const commandError =
+    transitionEdition.error ??
+    requestApproval.error ??
+    approveTransition.error ??
+    createIncident.error ??
+    transitionIncident.error ??
+    approvalsQuery.error;
 
   return (
     <AdminPage>
@@ -187,38 +223,81 @@ function ControlRoomV2() {
                 <AdminCardHeader
                   eyebrow="Edition command"
                   title={transitions.length ? 'Available state transitions' : 'No further transitions'}
-                  description="Elevated transitions require a reason. Critical rollbacks also require a second authorized approver."
+                  description="Elevated transitions require a reason. Critical rollbacks require a short-lived approval from a different authorized operator."
                 />
+
+                {approvals.length ? (
+                  <div className="mb-4 space-y-2 rounded-xl border border-amber-200/15 bg-amber-200/[0.04] p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-100/80">
+                      Active critical-transition approvals
+                    </p>
+                    {approvals.map((approval) => (
+                      <div
+                        key={approval.id}
+                        className="flex flex-col gap-2 rounded-lg border border-white/[0.06] bg-black/10 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold">
+                              {humanize(approval.from)} → {humanize(approval.to)}
+                            </p>
+                            <AdminStatus tone={approval.approvedBy ? 'ready' : 'attention'}>
+                              {approval.approvedBy ? 'approved' : 'awaiting approval'}
+                            </AdminStatus>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">{approval.reason}</p>
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Expires {formatTimestamp(approval.expiresAt)}
+                          </p>
+                        </div>
+                        {approval.canApprove ? (
+                          <button
+                            type="button"
+                            disabled={approveTransition.isPending}
+                            onClick={() => approveTransition.mutate(approval.id)}
+                            className="min-h-10 shrink-0 rounded-xl border border-amber-200/25 bg-amber-200/10 px-3 text-xs font-semibold text-amber-50 disabled:opacity-45"
+                          >
+                            {approveTransition.isPending ? 'Approving…' : 'Approve as second operator'}
+                          </button>
+                        ) : approval.canApply ? (
+                          <AdminStatus tone="ready">ready for requester to apply</AdminStatus>
+                        ) : (
+                          <AdminStatus tone="neutral">waiting for another operator</AdminStatus>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
 
                 {transitions.length ? (
                   <div className="space-y-3">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <label className="text-xs font-semibold text-muted-foreground">
-                        Reason for rollback / exception
-                        <textarea
-                          value={reason}
-                          onChange={(event) => setReason(event.target.value)}
-                          rows={3}
-                          maxLength={500}
-                          className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground"
-                          placeholder="Required for elevated and critical transitions"
-                        />
-                      </label>
-                      <label className="text-xs font-semibold text-muted-foreground">
-                        Second approver user ID
-                        <input
-                          value={secondApprover}
-                          onChange={(event) => setSecondApprover(event.target.value)}
-                          className="mt-1.5 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
-                          placeholder="Required only for critical rollback"
-                        />
-                      </label>
-                    </div>
+                    <label className="block text-xs font-semibold text-muted-foreground">
+                      Reason for rollback / exception
+                      <textarea
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        rows={3}
+                        maxLength={500}
+                        className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground"
+                        placeholder="Required for elevated and critical transitions"
+                      />
+                    </label>
 
                     <div className="space-y-2">
                       {transitions.map((transition) => {
                         const missingReason = transition.risk !== 'normal' && !reason.trim();
-                        const missingApprover = transition.risk === 'critical' && !secondApprover.trim();
+                        const matchingApprovals = approvals.filter(
+                          (approval) =>
+                            approval.from === transition.from &&
+                            approval.to === transition.to &&
+                            approval.reason === reason.trim(),
+                        );
+                        const approvedForRequester = matchingApprovals.find((approval) => approval.canApply);
+                        const requesterWaiting = matchingApprovals.some(
+                          (approval) => !approval.approvedBy && !approval.canApprove,
+                        );
+                        const busy = transitionEdition.isPending || requestApproval.isPending;
+
                         return (
                           <div
                             key={transition.to}
@@ -236,17 +315,49 @@ function ControlRoomV2() {
                                   ? 'Normal lifecycle progression.'
                                   : transition.risk === 'elevated'
                                     ? 'Rollback or exceptional transition. A reason is mandatory.'
-                                    : 'Critical rollback. A reason and independent second approval are mandatory.'}
+                                    : 'Critical rollback. The requester and second approver must be different authenticated operators.'}
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              disabled={transitionEdition.isPending || missingReason || missingApprover}
-                              onClick={() => transitionEdition.mutate(transition.to)}
-                              className="min-h-10 shrink-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-foreground disabled:opacity-45"
-                            >
-                              {transitionEdition.isPending ? 'Applying…' : `Move to ${humanize(transition.to)}`}
-                            </button>
+
+                            {transition.risk === 'critical' ? (
+                              approvedForRequester ? (
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() =>
+                                    transitionEdition.mutate({
+                                      to: transition.to,
+                                      approvalRequestId: approvedForRequester.id,
+                                    })
+                                  }
+                                  className="min-h-10 shrink-0 rounded-xl border border-emerald-200/25 bg-emerald-200/10 px-3 text-xs font-semibold text-emerald-50 disabled:opacity-45"
+                                >
+                                  {transitionEdition.isPending ? 'Applying…' : 'Apply approved rollback'}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={busy || missingReason || requesterWaiting}
+                                  onClick={() => requestApproval.mutate(transition.to)}
+                                  className="min-h-10 shrink-0 rounded-xl border border-amber-200/25 bg-amber-200/10 px-3 text-xs font-semibold text-amber-50 disabled:opacity-45"
+                                >
+                                  {requestApproval.isPending
+                                    ? 'Requesting…'
+                                    : requesterWaiting
+                                      ? 'Waiting for second approval'
+                                      : 'Request second approval'}
+                                </button>
+                              )
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={busy || missingReason}
+                                onClick={() => transitionEdition.mutate({ to: transition.to })}
+                                className="min-h-10 shrink-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-foreground disabled:opacity-45"
+                              >
+                                {transitionEdition.isPending ? 'Applying…' : `Move to ${humanize(transition.to)}`}
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -397,7 +508,11 @@ function formatTimestamp(value: string) {
 }
 
 function riskTone(risk: 'normal' | 'elevated' | 'critical') {
-  return risk === 'critical' ? ('blocked' as const) : risk === 'elevated' ? ('attention' as const) : ('info' as const);
+  return risk === 'critical'
+    ? ('blocked' as const)
+    : risk === 'elevated'
+      ? ('attention' as const)
+      : ('info' as const);
 }
 
 function errorMessage(error: unknown, fallback: string) {
