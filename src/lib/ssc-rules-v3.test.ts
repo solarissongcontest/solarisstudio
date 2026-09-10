@@ -26,8 +26,10 @@ describe("SSC online-first General Regulations", () => {
 
   it("does not use subjective mainstream status as a hidden eligibility rule", () => {
     const rule = getRuleById("6.4");
-    expect(rule?.body.join(" ").toLowerCase()).toContain("subjectively described as mainstream");
-    expect(rule?.body.join(" ").toLowerCase()).toContain("published objective");
+    const body = rule?.body.join(" ").toLowerCase() ?? "";
+    expect(body).toContain("subjectively described as mainstream");
+    expect(body).toContain("published measurable requirements");
+    expect(body).toContain("objective restriction");
   });
 
   it("keeps automated friend-voting analysis as a human-review signal", () => {
@@ -56,11 +58,16 @@ describe("SSC online-first General Regulations", () => {
     expect(getRuleById("20.2")?.title).toContain("Hierarchy");
   });
 
-  it("keeps old numbering available for migration and search without overriding new official ids", () => {
+  it("keeps old numbering available for migration and search without overriding current ids", () => {
     expect(LEGACY_RULE_ALIASES["14.8"]).toBe("16.3");
     expect(LEGACY_RULE_ALIASES["8.7"]).toBe("4.6");
+
+    // 14.8 now exists in v4, so the current official rule wins that URL.
     expect(getRuleById("14.8")?.id).toBe("14.8");
-    expect(getRuleById("8.7")?.id).toBe("8.7");
+
+    // There is no current 8.7, so this non-colliding legacy id can still resolve.
+    expect(getRuleById("8.7")?.id).toBe("4.6");
+
     expect(searchSscRules("legacy rule 14.8").some((rule) => rule.id === "16.3")).toBe(true);
   });
 
