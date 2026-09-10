@@ -94,15 +94,14 @@ describe('Studio 2 control room', () => {
   });
 
   it('does not enter crisis mode for lower-severity active incidents', async () => {
+    const lowerSeverityIncident: Studio2IncidentRecord = {
+      ...incident,
+      id: 'incident-2',
+      severity: 'sev2',
+      status: 'monitoring',
+    };
     const source = makeSource({
-      listActiveIncidents: vi.fn(async () => [
-        {
-          ...incident,
-          id: 'incident-2',
-          severity: 'sev2',
-          status: 'monitoring',
-        },
-      ]),
+      listActiveIncidents: vi.fn(async () => [lowerSeverityIncident]),
     });
 
     const snapshot = await loadStudio2ControlRoomSnapshot('edition-1', source);
