@@ -1,8 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
+  ArrowDown,
   ArrowRight,
   BookOpen,
+  Bot,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -13,19 +15,27 @@ import {
   Flag,
   Gavel,
   Globe2,
+  HeartHandshake,
   Landmark,
   Lightbulb,
+  ListOrdered,
+  LockKeyhole,
   Map,
+  MonitorSmartphone,
   Music2,
   PanelsTopLeft,
+  Radio,
   RefreshCcw,
   Scale,
   Search,
+  SearchCheck,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Trophy,
   UsersRound,
   Vote,
+  Wifi,
   X,
   XCircle,
   type LucideIcon,
@@ -51,18 +61,23 @@ const ICONS: Record<string, LucideIcon> = {
   Globe2,
   BookOpen,
   Landmark,
+  MonitorSmartphone,
   UsersRound,
   Music2,
   PanelsTopLeft,
   Trophy,
+  ListOrdered,
   Vote,
   ShieldCheck,
   Clock3,
   Sparkles,
+  HeartHandshake,
   RefreshCcw,
+  SearchCheck,
   Scale,
   Gavel,
   CloudLightning,
+  SlidersHorizontal,
   FileClock,
 };
 
@@ -138,17 +153,19 @@ export function RulesExperience() {
 
 function Hero({ query, setQuery }: { query: string; setQuery: (value: string) => void }) {
   return (
-    <section className="relative isolate overflow-hidden rounded-[2.2rem] border border-sky-200/15 bg-[#06162f] shadow-[0_32px_90px_rgba(0,3,24,.34)]">
-      <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_82%_14%,rgba(72,173,255,.19),transparent_26%),radial-gradient(circle_at_20%_88%,rgba(135,93,255,.14),transparent_31%)]" />
-      <div className="relative grid min-h-[31rem] lg:grid-cols-[1fr_19rem]">
+    <section className="relative isolate overflow-hidden rounded-[2.35rem] border border-sky-200/15 bg-[#04142b] shadow-[0_32px_90px_rgba(0,3,24,.38)]">
+      <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_80%_12%,rgba(72,173,255,.22),transparent_27%),radial-gradient(circle_at_16%_90%,rgba(135,93,255,.16),transparent_30%)]" />
+      <div aria-hidden="true" className="absolute right-[8%] top-10 hidden h-64 w-64 rounded-full border border-white/[0.04] lg:block"><div className="absolute inset-8 rounded-full border border-sky-200/[0.06]" /><div className="absolute inset-[4.5rem] rounded-full border border-violet-200/[0.06]" /><div className="absolute inset-[6.5rem] rounded-full bg-sky-200/[0.04]" /></div>
+      <div className="relative grid min-h-[34rem] lg:grid-cols-[1fr_21rem]">
         <div className="flex flex-col justify-center p-6 sm:p-9 lg:p-11">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-sky-200/16 bg-sky-200/[0.07] px-3 py-1 text-[10px] font-black uppercase tracking-[.18em] text-sky-100">TSBC · GENERAL REGULATIONS</span>
+            <span className="rounded-full border border-emerald-200/15 bg-emerald-200/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-emerald-100">ONLINE-FIRST</span>
             <span className="font-mono text-[10px] uppercase tracking-[.14em] text-muted-foreground">v{SSC_RULEBOOK.version}</span>
           </div>
-          <p className="mt-8 text-[10px] font-black uppercase tracking-[.3em] text-sky-200/55">SOLARIS SONG CONTEST</p>
-          <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-[-.065em] text-white sm:text-6xl lg:text-7xl">The rules, as a system.</h1>
-          <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-200/75 sm:text-base">Twenty-one purpose-built chapters for a completely online fan contest. Explore by system, contest stage, quick decision or exact regulation.</p>
+          <p className="mt-9 text-[10px] font-black uppercase tracking-[.3em] text-sky-200/55">SOLARIS SONG CONTEST</p>
+          <h1 className="mt-3 max-w-3xl text-5xl font-black tracking-[-.065em] text-white sm:text-6xl lg:text-7xl">Rules you can actually navigate.</h1>
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-200/75 sm:text-base">SSC is a completely online fan contest. The visual layers below explain what matters first; the official 21-chapter regulations remain one click underneath.</p>
           <label className="mt-8 flex min-h-14 max-w-3xl items-center gap-3 rounded-2xl border border-white/[0.09] bg-black/20 px-4 backdrop-blur-sm">
             <Search className="size-5 shrink-0 text-sky-200" />
             <span className="sr-only">Search SSC rules</span>
@@ -157,7 +174,15 @@ function Hero({ query, setQuery }: { query: string; setQuery: (value: string) =>
           </label>
         </div>
         <div className="relative hidden border-l border-white/[0.06] p-7 lg:flex lg:flex-col lg:justify-end">
-          <div aria-hidden="true" className="absolute left-1/2 top-16 size-48 -translate-x-1/2 rounded-full border border-sky-200/[0.08]"><div className="absolute inset-7 rounded-full border border-violet-200/[0.08]" /><div className="absolute inset-16 rounded-full border border-emerald-200/[0.09]" /></div>
+          <div className="mb-auto mt-5 rounded-[1.6rem] border border-sky-200/10 bg-black/15 p-4 backdrop-blur-sm">
+            <p className="text-[9px] font-black uppercase tracking-[.18em] text-sky-200/70">THE SHORT VERSION</p>
+            <div className="mt-4 space-y-3 text-xs leading-5 text-slate-200/85">
+              <p className="flex gap-2"><Wifi className="mt-0.5 size-3.5 shrink-0 text-sky-200" />Entirely online</p>
+              <p className="flex gap-2"><Flag className="mt-0.5 size-3.5 shrink-0 text-sky-200" />Fictional countries</p>
+              <p className="flex gap-2"><UsersRound className="mt-0.5 size-3.5 shrink-0 text-sky-200" />Real people administer them</p>
+              <p className="flex gap-2"><ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-sky-200" />Human-reviewed integrity</p>
+            </div>
+          </div>
           <Stat value={String(RULEBOOK_STATS.chapters)} label="purpose-built chapters" />
           <Stat value={String(RULEBOOK_STATS.rules)} label="official regulations" />
           <Stat value="100%" label="online fan contest" />
@@ -181,7 +206,7 @@ function ModeRail({ mode, setMode }: { mode: Mode; setMode: (mode: Mode) => void
   return (
     <nav className="sticky top-2 z-30 mt-5 overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#07182f]/94 p-1.5 backdrop-blur-xl" aria-label="Rules views">
       <div className="grid min-w-[42rem] grid-cols-4 gap-1">{items.map(([id, label, eyebrow, Icon]) => (
-        <button key={id} type="button" onClick={() => setMode(id)} className={cn("flex min-h-14 items-center gap-3 rounded-xl px-3 text-left transition", mode === id ? "bg-white/[0.08] text-white" : "text-muted-foreground hover:bg-white/[0.035] hover:text-white")}>
+        <button key={id} type="button" onClick={() => setMode(id)} className={cn("flex min-h-14 items-center gap-3 rounded-xl px-3 text-left transition", mode === id ? "bg-white/[0.09] text-white shadow-inner" : "text-muted-foreground hover:bg-white/[0.035] hover:text-white")}>
           <span className="grid size-9 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.025]"><Icon className="size-4" /></span>
           <span><span className="block text-[8px] font-black tracking-[.15em] opacity-60">{eyebrow}</span><span className="block text-xs font-bold">{label}</span></span>
         </button>
@@ -192,9 +217,14 @@ function ModeRail({ mode, setMode }: { mode: Mode; setMode: (mode: Mode) => void
 
 function RuleMap({ openChapter }: { openChapter: (chapter: number) => void }) {
   return (
-    <div className="mt-10 space-y-10">
-      <SectionHeading eyebrow="RULE MAP" title="Four systems. Twenty-one chapters." description="The overview is organised by what the rules actually control, while the official chapter numbering stays precise underneath." />
-      <div className="grid gap-5 xl:grid-cols-2">{ZONES.map((zone) => <ZoneCard key={zone.code} zone={zone} openChapter={openChapter} />)}</div>
+    <div className="mt-10 space-y-12">
+      <IdentityBoard openChapter={openChapter} />
+      <EligibilityFlow />
+      <OperationalLogic />
+      <section>
+        <SectionHeading eyebrow="RULE MAP" title="Four systems. Twenty-one chapters." description="The visual overview is grouped by what the rules control. The legal numbering stays precise underneath." />
+        <div className="mt-6 grid gap-5 xl:grid-cols-2">{ZONES.map((zone) => <ZoneCard key={zone.code} zone={zone} openChapter={openChapter} />)}</div>
+      </section>
       <section className="grid gap-5 xl:grid-cols-[1.4fr_.75fr]">
         <div>
           <SectionHeading eyebrow="HIGH TRAFFIC" title="Rules people actually need" />
@@ -204,12 +234,63 @@ function RuleMap({ openChapter }: { openChapter: (chapter: number) => void }) {
           <ShieldCheck className="size-7 text-emerald-200" />
           <p className="mt-6 text-[9px] font-black uppercase tracking-[.2em] text-emerald-200/70">INTEGRITY PATH</p>
           <h2 className="mt-2 text-3xl font-black tracking-[-.045em]">A concern is not a conviction.</h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">Reporting, investigation, findings, sanctions and appeals are separate stages, so one suspicious graph cannot become judge, jury and executioner.</p>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">Reporting, investigation, findings, sanctions and appeals are separate stages. A suspicious graph is evidence to inspect, not an automated guillotine.</p>
           <div className="mt-5 space-y-2">{["Report or signal", "Human review", "Finding", "Proportionate action", "Appeal where applicable"].map((label, index) => <div key={label} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2.5"><span className="font-mono text-[10px] font-black text-emerald-200">{String(index + 1).padStart(2, "0")}</span><span className="text-xs font-semibold">{label}</span></div>)}</div>
           <Link to="/integrity" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-200 px-4 text-sm font-black text-emerald-950">Open Integrity Centre <ArrowRight className="size-4" /></Link>
         </aside>
       </section>
     </div>
+  );
+}
+
+function IdentityBoard({ openChapter }: { openChapter: (chapter: number) => void }) {
+  const identity = [
+    { icon: Wifi, kicker: "FORMAT", value: "100% online", detail: "No physical attendance, travel or venue is required to participate." },
+    { icon: Flag, kicker: "COUNTRIES", value: "Fictional", detail: "A Country is an SSC identity. The Participant behind it is a real person." },
+    { icon: Radio, kicker: "PRESENTATION", value: "Creative fiction", detail: "Hosting, stages and broadcasts describe the online contest presentation." },
+    { icon: LockKeyhole, kicker: "REAL-WORLD RIGHTS", value: "Stay external", detail: "Artists, songs, labels and platforms do not become SSC property or partners." },
+  ];
+  return (
+    <section>
+      <SectionHeading eyebrow="START HERE" title="What Solaris Song Contest actually is" description="The rulebook should establish its identity before throwing participants into definitions, sanctions and subsection numbers like a tax return." />
+      <div className="mt-6 grid overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#07182f] md:grid-cols-2 xl:grid-cols-4">
+        {identity.map((item, index) => { const Icon = item.icon; return <div key={item.value} className={cn("relative min-h-56 p-6", index > 0 && "border-t border-white/[0.07] md:border-l", index > 1 && "md:border-t xl:border-t-0")}><span className="grid size-12 place-items-center rounded-2xl border border-sky-200/12 bg-sky-200/[0.06]"><Icon className="size-5 text-sky-100" /></span><p className="mt-7 text-[9px] font-black uppercase tracking-[.2em] text-sky-200/55">{item.kicker}</p><h3 className="mt-2 text-2xl font-black tracking-[-.04em]">{item.value}</h3><p className="mt-3 text-xs leading-5 text-muted-foreground">{item.detail}</p></div>; })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => openChapter(1)} className="rounded-full border border-sky-200/12 bg-sky-200/[0.05] px-3 py-1.5 text-[10px] font-black text-sky-100">READ CHAPTER 01</button><button type="button" onClick={() => openChapter(2)} className="rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1.5 text-[10px] font-black text-muted-foreground hover:text-white">OPEN DEFINITIONS</button></div>
+    </section>
+  );
+}
+
+function EligibilityFlow() {
+  const gates = [
+    { step: "01", title: "Song available", detail: "Official studio recording on Spotify and suitable presentation media.", rule: "6.2" },
+    { step: "02", title: "Popularity check", detail: "Under 25M Spotify monthly listeners and under 20M official-video views at the official check time.", rule: "6.4" },
+    { step: "03", title: "Contest-history check", detail: "Eurovision and relevant National Selection restrictions are applied.", rule: "6.5" },
+    { step: "04", title: "Reuse check", detail: "SSC artist reuse and previous-winner restrictions are checked as contest mechanics.", rule: "6.6" },
+    { step: "05", title: "Verified entry", detail: "TSBC records the eligibility reference time. Later popularity growth does not retroactively invalidate acceptance.", rule: "6.10" },
+  ];
+  return (
+    <section>
+      <SectionHeading eyebrow="ENTRY ELIGIBILITY" title="One entry. Five gates." description="Instead of making participants reverse-engineer eligibility from ten paragraphs, the rule path shows the order in which an entry is actually checked." />
+      <div className="mt-6 grid gap-3 lg:grid-cols-5">
+        {gates.map((gate, index) => <div key={gate.step} className="relative"><Link to="/rules/$ruleId" params={{ ruleId: gate.rule }} className="group block h-full min-h-56 rounded-[1.6rem] border border-white/[0.08] bg-[linear-gradient(155deg,rgba(17,49,82,.82),rgba(5,18,39,.95))] p-5 transition hover:-translate-y-1 hover:border-sky-200/20"><div className="flex items-center justify-between"><span className="font-mono text-3xl font-black text-white/[0.14]">{gate.step}</span><span className="grid size-8 place-items-center rounded-full border border-emerald-300/15 bg-emerald-300/[0.06]"><Check className="size-3.5 text-emerald-200" /></span></div><h3 className="mt-7 text-lg font-black tracking-[-.025em]">{gate.title}</h3><p className="mt-2 text-xs leading-5 text-muted-foreground">{gate.detail}</p><p className="mt-5 font-mono text-[10px] font-black text-sky-200">RULE {gate.rule}</p></Link>{index < gates.length - 1 ? <ArrowRight aria-hidden="true" className="absolute -right-[1.05rem] top-1/2 z-10 hidden size-5 -translate-y-1/2 text-sky-200/35 lg:block" /> : null}</div>)}
+      </div>
+    </section>
+  );
+}
+
+function OperationalLogic() {
+  const columns = [
+    { icon: Clock3, label: "CONFIRMATIONS", title: "Server time wins", body: "Published opening time → valid submission → trusted server receipt order.", footer: "A phone countdown is not the legal clock.", rule: "4.6" },
+    { icon: Bot, label: "FRIEND VOTING", title: "Flag ≠ guilt", body: "Pattern signal → human review → evidence in context → finding.", footer: "Friendship itself remains allowed.", rule: "11.5" },
+    { icon: Scale, label: "SANCTIONS", title: "Fix the actual breach", body: "Invalid vote → correct the vote. Ineligible entry → address the entry. Harassment → address the person.", footer: "Random point deductions are not the default.", rule: "17.1" },
+    { icon: Trophy, label: "HOSTING", title: "Creative, not physical", body: "Winner → creative hosting rights → theme, artwork, fictional stage and presentation.", footer: "TSBC keeps operational authority.", rule: "8.1" },
+  ];
+  return (
+    <section>
+      <SectionHeading eyebrow="THE LOGIC OF THE RULES" title="Four rules people should understand in ten seconds" />
+      <div className="mt-6 grid gap-4 xl:grid-cols-4">{columns.map((item) => { const Icon = item.icon; return <Link key={item.label} to="/rules/$ruleId" params={{ ruleId: item.rule }} className="group rounded-[1.7rem] border border-white/[0.08] bg-[#081a35]/84 p-5 transition hover:border-sky-200/18"><div className="flex items-center justify-between"><span className="grid size-11 place-items-center rounded-2xl border border-white/[0.08] bg-black/10"><Icon className="size-5 text-sky-100" /></span><span className="font-mono text-[10px] font-black text-sky-200">{item.rule}</span></div><p className="mt-6 text-[9px] font-black uppercase tracking-[.17em] text-muted-foreground">{item.label}</p><h3 className="mt-2 text-xl font-black tracking-[-.035em]">{item.title}</h3><div className="mt-5 rounded-xl border border-white/[0.06] bg-black/10 p-3 text-xs font-semibold leading-5 text-slate-200/85">{item.body}</div><p className="mt-4 text-[11px] leading-5 text-muted-foreground">{item.footer}</p></Link>; })}</div>
+    </section>
   );
 }
 
@@ -239,7 +320,7 @@ function Journey() {
       <SectionHeading eyebrow="CONTEST JOURNEY" title="One edition, from confirmation to hosting" description="Select a stage to see the regulations that actually matter there." />
       <div className="mt-6 overflow-x-auto pb-2"><div className="relative flex min-w-[58rem] rounded-2xl border border-white/[0.07] bg-[#07182f] p-2"><div className="absolute left-8 right-8 top-[1.85rem] h-px bg-white/[0.09]" />{JOURNEY.map((item, index) => { const Icon = item.icon; return <button key={item.title} type="button" onClick={() => setActive(index)} className="relative z-10 flex flex-1 flex-col items-center py-1.5"><span className={cn("grid size-11 place-items-center rounded-2xl border bg-[#0b2241] transition", active === index ? "scale-110 border-sky-200/25 text-sky-100 shadow-[0_0_0_5px_#07182f]" : "border-white/[0.08] text-muted-foreground")}><Icon className="size-4" /></span><span className={cn("mt-2 text-[10px] font-black uppercase tracking-[.11em]", active === index ? "text-white" : "text-muted-foreground")}>{item.title}</span></button>; })}</div></div>
       <div className="mt-4 grid gap-5 xl:grid-cols-[.72fr_1.28fr]">
-        <div className="relative overflow-hidden rounded-[1.9rem] border border-sky-300/14 bg-[linear-gradient(145deg,rgba(24,59,94,.55),rgba(5,18,39,.94))] p-7"><span className="grid size-14 place-items-center rounded-2xl border border-sky-200/16 bg-sky-200/[0.07] text-sky-100"><ActiveIcon className="size-6" /></span><p className="mt-6 text-[9px] font-black uppercase tracking-[.2em] text-sky-200/60">CURRENT STAGE</p><h2 className="mt-2 text-4xl font-black tracking-[-.05em]">{stage.title}</h2><p className="mt-4 text-sm leading-7 text-muted-foreground">{stage.detail}</p></div>
+        <div className="relative overflow-hidden rounded-[1.9rem] border border-sky-300/14 bg-[linear-gradient(145deg,rgba(24,59,94,.55),rgba(5,18,39,.94))] p-7"><span className="grid size-14 place-items-center rounded-2xl border border-sky-200/16 bg-sky-200/[0.07] text-sky-100"><ActiveIcon className="size-6" /></span><p className="mt-6 text-[9px] font-black uppercase tracking-[.2em] text-sky-200/60">CURRENT STAGE</p><h2 className="mt-2 text-4xl font-black tracking-[-.05em]">{stage.title}</h2><p className="mt-4 text-sm leading-7 text-muted-foreground">{stage.detail}</p><div className="mt-7 flex justify-center"><ArrowDown className="size-5 text-sky-200/35" /></div></div>
         <div className="rounded-[1.9rem] border border-white/[0.08] bg-[#081a35]/78 p-5"><p className="text-[9px] font-black uppercase tracking-[.18em] text-muted-foreground">RULES ACTIVE HERE</p><div className="mt-4 grid gap-3 md:grid-cols-2">{stage.rules.map((id, index) => { const rule = getRuleById(id); return rule ? <RuleCard key={id} rule={rule} index={index} /> : null; })}</div></div>
       </div>
     </section>
@@ -249,7 +330,7 @@ function Journey() {
 function CanICheck() {
   return (
     <section className="mt-10">
-      <SectionHeading eyebrow="FAST DECISIONS" title="Can I…?" description="The useful answer first, the legal text one click behind it. A revolutionary concept apparently." />
+      <SectionHeading eyebrow="FAST DECISIONS" title="Can I…?" description="The useful answer first, the legal text one click behind it." />
       <div className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{CHECKS.map((item, index) => {
         const yes = item.tone === "yes";
         const no = item.tone === "no";
@@ -307,5 +388,5 @@ function List({ title, icon: Icon, items, className }: { title: string; icon: Lu
 }
 
 function SectionHeading({ eyebrow, title, description }: { eyebrow: string; title: string; description?: string }) {
-  return <div><p className="text-[10px] font-black uppercase tracking-[.22em] text-sky-200/65">{eyebrow}</p><h2 className="mt-2 text-3xl font-black tracking-[-.05em] sm:text-4xl">{title}</h2>{description ? <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p> : null}</div>;
+  return <div><p className="text-[10px] font-black uppercase tracking-[.22em] text-sky-200/65">{eyebrow}</p><h2 className="mt-2 text-3xl font-black tracking-[-.05em] sm:text-4xl">{title}</h2>{description ? <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">{description}</p> : null}</div>;
 }
