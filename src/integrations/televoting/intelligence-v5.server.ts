@@ -1,3 +1,4 @@
+import { FRIEND_VOTING_MODEL_VERSION } from "@/integrations/televoting/advanced-friend-voting";
 import type { FriendVotingSettings } from "@/integrations/televoting/friend-voting-settings.server";
 import {
   getMergedIntelligenceServer,
@@ -40,12 +41,9 @@ export async function getMergedIntelligenceV5Server(
       diagnostics: {
         requestId,
         engineVersion: FRIEND_VOTING_ENGINE_VERSION,
-        modelVersion: result.historyWeighting.modelVersion,
+        modelVersion: FRIEND_VOTING_MODEL_VERSION,
         durationMs: Date.now() - startedAt,
         relationships: result.relationships.length,
-        // Cross-era scoring is normalized inside the advanced model from score/maxScore,
-        // so SSC20 legacy values, SSC21 Story ratings, jury points and modern televote
-        // points are compared on relative intensity/rank rather than raw-point magnitude.
         normalizedCrossScaleScores: true,
         historicalSourcesIncluded: true,
       },
