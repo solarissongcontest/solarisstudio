@@ -21,7 +21,7 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
 } from './incident-command';
-import type { SolarisCapability } from './permissions-v2';
+import { SOLARIS_CAPABILITIES, type SolarisCapability } from './permissions-v2';
 
 export type Studio2RuntimeRecord = {
   editionId: string;
@@ -94,6 +94,7 @@ const SUBSYSTEM_STATE_SET = new Set<string>(SUBSYSTEM_STATES);
 const INCIDENT_SEVERITY_SET = new Set<string>(INCIDENT_SEVERITIES);
 const INCIDENT_STATUS_SET = new Set<string>(INCIDENT_STATUSES);
 const CONTEST_EVENT_TYPE_SET = new Set<string>(CONTEST_EVENT_TYPES);
+const SOLARIS_CAPABILITY_SET = new Set<string>(SOLARIS_CAPABILITIES);
 
 function expectObject(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -129,6 +130,14 @@ function expectSubsystemState(value: unknown, key: keyof EditionSubsystemStates)
   const state = expectString(value, `${key} subsystem state`);
   if (!SUBSYSTEM_STATE_SET.has(state)) throw new Error(`Unknown subsystem state for ${key}: ${state}`);
   return state as SubsystemState;
+}
+
+function expectSolarisCapability(value: unknown): SolarisCapability {
+  const capability = expectString(value, 'capability');
+  if (!SOLARIS_CAPABILITY_SET.has(capability)) {
+    throw new Error(`Unknown Solaris capability: ${capability}`);
+  }
+  return capability as SolarisCapability;
 }
 
 function mapSubsystems(value: unknown): EditionSubsystemStates {
@@ -205,7 +214,7 @@ export function mapStudio2CapabilityGrantRow(value: unknown): Studio2CapabilityG
   return {
     id: expectString(row.id, 'capability grant id'),
     userId: expectString(row.user_id, 'capability grant user id'),
-    capability: expectString(row.capability, 'capability') as SolarisCapability,
+    capability: expectSolarisCapability(row.capability),
     editionId: expectNullableString(row.edition_id, 'capability grant edition id'),
     expiresAt: expectNullableString(row.expires_at, 'capability grant expires_at'),
     grantedBy: expectNullableString(row.granted_by, 'capability grant granted_by'),
