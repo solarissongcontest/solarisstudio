@@ -1,8 +1,60 @@
 begin;
 
--- Read-only compatibility bridge for the HOD workspace. This exposes only the
--- current delegation's required legacy data without broadening RLS on entries
--- or unpublished editions.
+-- Read-only compatibility bridge for the HOD workspace. These functions expose
+-- only the current delegation's required legacy data without broadening RLS on
+-- canonical entries or unpublished editions.
+create or replace function public.studio2_hod_editions(p_country_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_is_service boolean := coalesce(auth.role(), '') = 'service_role';
+  v_editions jsonb := '[]'::jsonb;
+begin
+  if p_country_id is null then
+    raise exception 'Country id is required' using errcode = '22023';
+  end if;
+
+  if not v_is_service
+     and not public.has_role(v_actor, 'organizer'::public.app_role)
+     and not public.owns_country(v_actor, p_country_id) then
+    raise exception 'Country ownership or organizer role required' using errcode = '42501';
+  end if;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', e.id,
+        'name', e.name,
+        'editionNumber', e.edition_number,
+        'status', e.status
+      ) order by e.edition_number desc nulls last, e.created_at desc
+    ),
+    '[]'::jsonb
+  )
+  into v_editions
+  from public.editions e
+  where exists (
+      select 1
+      from public.participants p
+      where p.edition_id = e.id
+        and p.country_id = p_country_id
+    )
+    or exists (
+      select 1
+      from public.entries en
+      where en.edition_id = e.id
+        and en.country_id = p_country_id
+    );
+
+  return v_editions;
+end
+$$;
+
 create or replace function public.studio2_hod_context(
   p_edition_id uuid,
   p_country_id uuid
@@ -23,6 +75,7 @@ declare
   v_entry jsonb;
   v_jury_required integer := 5;
   v_jury_assigned integer := 0;
+  v_jury_members jsonb := '[]'::jsonb;
   v_jury_ballot_submitted boolean := false;
   v_notices jsonb := '[]'::jsonb;
 begin
@@ -36,7 +89,7 @@ begin
     raise exception 'Country ownership or organizer role required' using errcode = '42501';
   end if;
 
-  select e.edition_name
+  select e.name
   into v_edition_name
   from public.editions e
   where e.id = p_edition_id;
@@ -85,8 +138,20 @@ begin
 
   v_jury_required := coalesce(v_jury_required, 5);
 
-  select count(*)::integer
-  into v_jury_assigned
+  select
+    count(*)::integer,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', jm.id,
+          'displayName', jm.display_name,
+          'memberUserId', jm.member_user_id,
+          'createdAt', jm.created_at
+        ) order by jm.created_at, jm.id
+      ),
+      '[]'::jsonb
+    )
+  into v_jury_assigned, v_jury_members
   from public.studio2_jury_members jm
   where jm.edition_id = p_edition_id
     and jm.country_id = p_country_id
@@ -144,11 +209,17 @@ begin
     'entry', v_entry,
     'juryMembersRequired', v_jury_required,
     'juryMembersAssigned', v_jury_assigned,
+    'juryMembers', v_jury_members,
     'juryBallotSubmitted', v_jury_ballot_submitted,
     'notices', v_notices
   );
 end
 $$;
+
+revoke all on function public.studio2_hod_editions(uuid)
+  from public, anon, authenticated;
+grant execute on function public.studio2_hod_editions(uuid)
+  to authenticated, service_role;
 
 revoke all on function public.studio2_hod_context(uuid, uuid)
   from public, anon, authenticated;
