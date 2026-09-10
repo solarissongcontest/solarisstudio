@@ -13,10 +13,8 @@ import {
   Flag,
   Gavel,
   Globe2,
-  Handshake,
   Landmark,
   Lightbulb,
-  LockKeyhole,
   Map,
   Music2,
   PanelsTopLeft,
@@ -44,7 +42,7 @@ import {
   type RuleTone,
   type SscRule,
   type SscRuleChapter,
-} from "@/lib/ssc-rules";
+} from "@/lib/ssc-rules-v3";
 import { cn } from "@/lib/utils";
 
 type RulesMode = "overview" | "journey" | "check" | "rulebook";
@@ -127,7 +125,7 @@ const MODE_ITEMS: Array<{ id: RulesMode; label: string; eyebrow: string; icon: L
 ];
 
 const JOURNEY: JourneyStage[] = [
-  { step: "01", title: "Confirm", kicker: "ENTER", detail: "Secure participation, represent your country and know what your delegation is responsible for.", icon: Flag, rules: ["1.5", "1.6", "8.1"] },
+  { step: "01", title: "Confirm", kicker: "ENTER", detail: "Secure participation, represent your country and know what your delegation is responsible for.", icon: Flag, rules: ["1.5", "8.7", "8.8"] },
   { step: "02", title: "Select", kicker: "CREATE", detail: "Find a song and artist that actually pass SSC eligibility before becoming emotionally attached to them.", icon: Music2, rules: ["4.2", "4.4", "4.5", "4.6"] },
   { step: "03", title: "Submit", kicker: "VERIFY", detail: "Submit the entry, video and required information before the official deadline.", icon: CheckCircle2, rules: ["4.3", "4.10", "8.3"] },
   { step: "04", title: "Compete", kicker: "SHOW", detail: "Your fictional delegation enters the online show, running order and official SSC presentation.", icon: Sparkles, rules: ["5.1", "5.3", "10.1"] },
@@ -185,7 +183,7 @@ const RULE_ZONES = [
     number: "D",
     eyebrow: "THE SYSTEM",
     title: "Operations & enforcement",
-    description: "Deadlines, withdrawals, media, sanctions, appeals, emergencies and the official administration of SSC.",
+    description: "Deadlines, confirmations, withdrawals, media, sanctions, appeals, emergencies and edition regulations.",
     icon: Gavel,
     chapters: [8, 9, 10, 11, 12, 13, 15],
     rail: "from-amber-300/70 to-rose-300/70",
@@ -256,7 +254,7 @@ function RulesHero({ query, setQuery }: { query: string; setQuery: (value: strin
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Ask the Rulebook: friend voting, artist reuse, late vote, anonymous report…"
+                placeholder="Ask the Rulebook: friend voting, artist reuse, confirmation slot, anonymous report…"
                 className="min-w-0 flex-1 border-0 !bg-transparent text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground/65 focus-visible:!shadow-none sm:text-base"
               />
               {query ? <button type="button" onClick={() => setQuery("")} className="grid size-9 place-items-center rounded-xl text-muted-foreground hover:bg-white/[0.06] hover:text-white" aria-label="Clear search"><X className="size-4" /></button> : null}
@@ -267,7 +265,7 @@ function RulesHero({ query, setQuery }: { query: string; setQuery: (value: strin
             {[
               ["Artist eligibility", "artist eligibility"],
               ["Friend voting", "friend voting"],
-              ["Deadlines", "deadline"],
+              ["Confirmations", "confirmation slot"],
               ["Sanctions", "sanctions"],
             ].map(([label, search]) => <button key={label} type="button" onClick={() => setQuery(search)} className="rounded-full border border-white/[0.07] bg-white/[0.025] px-3 py-1.5 text-[11px] font-semibold text-muted-foreground transition hover:border-sky-200/20 hover:text-sky-100">{label}</button>)}
           </div>
@@ -377,12 +375,12 @@ function RuleZone({ zone }: { zone: (typeof RULE_ZONES)[number] }) {
           {chapters.map((chapter) => {
             const Icon = ICONS[chapter.icon] ?? BookOpen;
             return (
-              <a key={chapter.number} href={`#chapter-${chapter.number}`} className="relative flex items-center gap-3 rounded-xl border border-white/[0.06] bg-black/10 p-3 transition hover:border-white/[0.12] hover:bg-white/[0.035]">
+              <button key={chapter.number} type="button" onClick={() => document.getElementById(`chapter-${chapter.number}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="relative flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-black/10 p-3 text-left transition hover:border-white/[0.12] hover:bg-white/[0.035]">
                 <span className="relative z-10 grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-[#0c2345]"><Icon className="size-4 text-sky-100" /></span>
                 <span className="min-w-0 flex-1"><span className="block text-[9px] font-black uppercase tracking-[.13em] text-muted-foreground">CHAPTER {String(chapter.number).padStart(2, "0")}</span><span className="mt-0.5 block truncate text-sm font-bold">{chapter.title}</span></span>
                 <span className="text-[10px] text-muted-foreground">{chapter.rules.length} rules</span>
                 <ChevronRight className="size-4 text-muted-foreground" />
-              </a>
+              </button>
             );
           })}
         </div>
@@ -412,7 +410,7 @@ function SearchResults({ query, results, clear }: { query: string; results: Retu
   return (
     <section className="mt-9">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <SectionHeading eyebrow="Rulebook search" title={results.length ? `${results.length} matches for “${query}”` : `No match for “${query}”`} description={results.length ? "Search checks rule titles, explanations, official wording, examples and participant-friendly terms." : "Try a simpler situation such as artist, vote trading, deadline, Eurovision, anonymous or sanctions."} />
+        <SectionHeading eyebrow="Rulebook search" title={results.length ? `${results.length} matches for “${query}”` : `No match for “${query}”`} description={results.length ? "Search checks rule titles, explanations, official wording, examples and participant-friendly terms." : "Try a simpler situation such as artist, vote trading, confirmation, deadline, Eurovision, anonymous or sanctions."} />
         <button type="button" onClick={clear} className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-white">Clear search</button>
       </div>
       {results.length ? <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{results.map((rule, index) => <SpotlightRule key={rule.id} rule={rule} index={index} />)}</div> : <div className="mt-6 rounded-[1.8rem] border border-dashed border-white/10 bg-white/[0.02] p-10 text-center"><Search className="mx-auto size-8 text-muted-foreground" /><p className="mt-4 font-black">No regulation found</p><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">This is either a terminology problem or you have discovered a spectacularly specific loophole. Try broader wording first.</p></div>}
@@ -436,7 +434,7 @@ function Journey() {
             const selected = index === active;
             return (
               <button key={item.step} type="button" onClick={() => setActive(index)} className="relative z-10 flex flex-1 flex-col items-center px-1 py-2 text-center">
-                <span className={cn("grid size-11 place-items-center rounded-2xl border transition", selected ? "scale-110 border-sky-200/25 bg-sky-200/[0.12] text-sky-100 shadow-[0_0_0_5px_rgba(7,24,47,.95)]" : "border-white/[0.08] bg-[#0b2241] text-muted-foreground hover:text-white")}><Icon className="size-4.5" /></span>
+                <span className={cn("grid size-11 place-items-center rounded-2xl border transition", selected ? "scale-110 border-sky-200/25 bg-sky-200/[0.12] text-sky-100 shadow-[0_0_0_5px_rgba(7,24,47,.95)]" : "border-white/[0.08] bg-[#0b2241] text-muted-foreground hover:text-white")}><Icon className="size-4" /></span>
                 <span className={cn("mt-2 text-[10px] font-black uppercase tracking-[.12em]", selected ? "text-white" : "text-muted-foreground")}>{item.title}</span>
               </button>
             );
