@@ -1,11 +1,25 @@
 import { supabase } from "@/integrations/supabase/client";
 
-import type { EditionPhase, EditionRuntimeState } from "./edition-state";
+import type {
+  EditionPhase,
+  EditionRuntimeState,
+  OperationalSubsystemState,
+  ResultsSubsystemState,
+} from "./edition-state";
 
 // The Supabase schema types are generated and must not be hand-edited. Keep the
 // narrow cast here until the platform-foundations migration is applied and the
 // generated database types are refreshed.
 const platformDb = supabase as any;
+
+export type EditionSubsystem =
+  | "confirmations"
+  | "submissions"
+  | "jury_voting"
+  | "televoting"
+  | "results";
+
+export type EditionSubsystemState = OperationalSubsystemState | ResultsSubsystemState;
 
 export type PlatformEvent = {
   id: string;
@@ -76,6 +90,23 @@ export async function transitionEditionRuntimeState(
   });
 
   if (error) throwPlatformError("Transitioning edition runtime state", error);
+  return data as EditionRuntimeState;
+}
+
+export async function updateEditionSubsystemState(
+  editionId: string,
+  subsystem: EditionSubsystem,
+  state: EditionSubsystemState,
+  reason?: string,
+): Promise<EditionRuntimeState> {
+  const { data, error } = await platformDb.rpc("update_edition_subsystem_state", {
+    p_edition_id: editionId,
+    p_subsystem: subsystem,
+    p_state: state,
+    p_reason: reason ?? null,
+  });
+
+  if (error) throwPlatformError(`Updating ${subsystem} runtime state`, error);
   return data as EditionRuntimeState;
 }
 
