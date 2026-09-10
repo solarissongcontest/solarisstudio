@@ -11,7 +11,7 @@ type IntelligenceInput = {
 
 type NormalizedInput = ReturnType<typeof normalizeInput>;
 type AnalysisMode = "historical" | "advanced" | "fallback";
-type RiskSemantics = "pattern" | "advanced-risk";
+type RiskSemantics = "pattern";
 
 type CoordinationPayload = {
   groups: any[];
@@ -32,12 +32,17 @@ const LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250;
 
 const normalizeInput = (data?: IntelligenceInput) => ({
   lens: data?.lens === "country" ? "country" as const : "hod" as const,
-  channel: data?.channel === "jury" || data?.channel === "televote" ? data.channel : "combined" as const,
+  channel:
+    data?.channel === "jury" || data?.channel === "televote"
+      ? data.channel
+      : "combined" as const,
   hodPersonId: data?.hodPersonId ? String(data.hodPersonId) : null,
   editionId: data?.editionId ? String(data.editionId) : null,
 });
 
-const emptyCoordination = (warning: string | null = null): CoordinationPayload => ({
+const emptyCoordination = (
+  warning: string | null = null,
+): CoordinationPayload => ({
   groups: [],
   edges: [],
   stats: {
@@ -51,23 +56,6 @@ const emptyCoordination = (warning: string | null = null): CoordinationPayload =
   analysisDegraded: Boolean(warning),
   analysisWarning: warning,
 });
-
-function isWorkerHeavyDefaultScope(data: NormalizedInput) {
-  return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
-}
-
-function isHistoricalAllEditionsScope(data: NormalizedInput) {
-  return data.lens === "country" && !data.editionId && !data.hodPersonId && (data.channel === "combined" || data.channel === "televote");
-}
-
-function workerSafeHistoricalScope(): NormalizedInput {
-  return {
-    lens: "country",
-    channel: "combined",
-    hodPersonId: null,
-    editionId: null,
-  };
-}
 
 function sanitizeResultForScope(result: any, scope: NormalizedInput) {
   const stats = { ...result.stats };
@@ -94,9 +82,13 @@ function sanitizeResultForScope(result: any, scope: NormalizedInput) {
     "username-cross-country",
   ]);
 
-  const signals = scope.channel === "jury"
-    ? (result.signals ?? []).filter((signal: any) => !technicalTelevoteSignalKeys.has(String(signal.key)))
-    : (result.signals ?? []);
+  const signals =
+    scope.channel === "jury"
+      ? (result.signals ?? []).filter(
+          (signal: any) =>
+            !technicalTelevoteSignalKeys.has(String(signal.key)),
+        )
+      : (result.signals ?? []);
 
   return {
     ...result,
@@ -112,8 +104,13 @@ function sanitizeResultForScope(result: any, scope: NormalizedInput) {
   };
 }
 
-async function runHistoricalAnalysis(data: NormalizedInput, settings: any) {
-  const { getMergedIntelligenceServer } = await import("@/integrations/televoting/intelligence.server");
+async function runHistoricalAnalysis(
+  data: NormalizedInput,
+  settings: any,
+) {
+  const { getMergedIntelligenceServer } = await import(
+    "@/integrations/televoting/intelligence.server"
+  );
   const result = await getMergedIntelligenceServer({
     ...data,
     advancedModel: {
@@ -125,65 +122,91 @@ async function runHistoricalAnalysis(data: NormalizedInput, settings: any) {
   return sanitizeResultForScope(result, data);
 }
 
+async function runAdvancedAnalysis(
+  data: NormalizedInput,
+  settings: any,
+) {
+  const { getMergedIntelligenceV5Server } = await import(
+    "@/integrations/televoting/intelligence-v5.server"
+  );
+  const result = await getMergedIntelligenceV5Server(data, settings);
+  if (!result) {
+    throw new Error("Advanced Friend Voting analysis returned no data");
+  }
+  return sanitizeResultForScope(result, data);
+}
+
 async function getResilientFriendVotingIntelligence(
   requested: NormalizedInput,
   options: { allowAdvanced?: boolean } = {},
 ) {
-  const { loadFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
+  const { loadFriendVotingSettingsServer } = await import(
+    "@/integrations/televoting/friend-voting-settings.server"
+  );
   const settings = await loadFriendVotingSettingsServer();
+  const effectiveScope = requested;
 
-  const effectiveScope = isWorkerHeavyDefaultScope(requested)
-    ? workerSafeHistoricalScope()
-    : requested;
-
-  // Lightweight Organizer requests deliberately use a descriptive historical relationship model.
-  // It returns before the expensive advanced baseline/deviation/network calculations and therefore
-  // does not need a timeout race that leaves the losing Worker computation running in the background.
-  if (!options.allowAdvanced || isWorkerHeavyDefaultScope(requested) || isHistoricalAllEditionsScope(effectiveScope)) {
-    const result = await runHistoricalAnalysis(effectiveScope, settings);
-    return {
-      result,
-      settings,
-      effectiveScope,
-      analysisMode: "historical" as AnalysisMode,
-      riskSemantics: "pattern" as RiskSemantics,
-      analysisDegraded: false,
-      analysisWarning: isWorkerHeavyDefaultScope(requested)
-        ? "Showing the worker-safe country-level jury + televote history across all editions. This includes the corrected SSC20 and SSC21 historical televote ballots plus the longer jury baseline."
-        : null,
-    };
+  if (options.allowAdvanced !== false) {
+    try {
+      const result = await runAdvancedAnalysis(effectiveScope, settings);
+      return {
+        result,
+        settings,
+        effectiveScope,
+        analysisMode: "advanced" as AnalysisMode,
+        // The advanced score is a relationship-pattern score for review.
+        // Technical integrity flags remain separate evidence.
+        riskSemantics: "pattern" as RiskSemantics,
+        analysisDegraded: false,
+        analysisWarning: null as string | null,
+      };
+    } catch (error) {
+      console.error(
+        "Advanced Friend Voting analysis failed; using historical relationship fallback",
+        error,
+      );
+      const result = await runHistoricalAnalysis(effectiveScope, settings);
+      return {
+        result,
+        settings,
+        effectiveScope,
+        analysisMode: "fallback" as AnalysisMode,
+        riskSemantics: "pattern" as RiskSemantics,
+        analysisDegraded: true,
+        analysisWarning:
+          error instanceof Error
+            ? error.message
+            : "Advanced analysis unavailable",
+      };
+    }
   }
 
-  try {
-    const { getMergedIntelligenceV4Server } = await import("@/integrations/televoting/intelligence-v4.server");
-    const advanced = await getMergedIntelligenceV4Server(effectiveScope, settings);
-    if (!advanced) throw new Error("Advanced friend-voting analysis returned no data");
-    return {
-      result: sanitizeResultForScope(advanced, effectiveScope),
-      settings,
-      effectiveScope,
-      analysisMode: "advanced" as AnalysisMode,
-      riskSemantics: "advanced-risk" as RiskSemantics,
-      analysisDegraded: false,
-      analysisWarning: null as string | null,
-    };
-  } catch (error) {
-    console.error("Advanced friend-voting analysis failed; using historical relationship analysis", error);
-    const result = await runHistoricalAnalysis(effectiveScope, settings);
-    return {
-      result,
-      settings,
-      effectiveScope,
-      analysisMode: "fallback" as AnalysisMode,
-      riskSemantics: "pattern" as RiskSemantics,
-      analysisDegraded: true,
-      analysisWarning: error instanceof Error ? error.message : "Advanced analysis unavailable",
-    };
-  }
+  const result = await runHistoricalAnalysis(effectiveScope, settings);
+  return {
+    result,
+    settings,
+    effectiveScope,
+    analysisMode: "historical" as AnalysisMode,
+    riskSemantics: "pattern" as RiskSemantics,
+    analysisDegraded: false,
+    analysisWarning: null as string | null,
+  };
 }
 
-function addCommonMetadata(payload: any, resilient: Awaited<ReturnType<typeof getResilientFriendVotingIntelligence>>) {
-  const { settings, effectiveScope, analysisMode, riskSemantics, analysisDegraded, analysisWarning } = resilient;
+function addCommonMetadata(
+  payload: any,
+  resilient: Awaited<
+    ReturnType<typeof getResilientFriendVotingIntelligence>
+  >,
+) {
+  const {
+    settings,
+    effectiveScope,
+    analysisMode,
+    riskSemantics,
+    analysisDegraded,
+    analysisWarning,
+  } = resilient;
   return {
     ...payload,
     settings,
@@ -193,26 +216,40 @@ function addCommonMetadata(payload: any, resilient: Awaited<ReturnType<typeof ge
     technicalIntegrityAvailable: effectiveScope.channel !== "jury",
     analysisDegraded,
     analysisWarning,
-    filters: { ...payload.filters, editions: payload.filters.editions as IntelligenceEditionFilter[] },
+    filters: {
+      ...payload.filters,
+      editions:
+        payload.filters.editions as IntelligenceEditionFilter[],
+    },
   };
 }
 
-export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
+export const getMergedTelevotingIntelligence = createServerFn({
+  method: "POST",
+})
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: true });
+    const resilient =
+      await getResilientFriendVotingIntelligence(data, {
+        allowAdvanced: true,
+      });
     const { result, settings, effectiveScope } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
 
     if (effectiveScope.lens === "hod") {
       if (!effectiveScope.editionId && !effectiveScope.hodPersonId) {
         coordination = emptyCoordination(
-          "Network analysis requires a narrower scope. Select an edition or a specific HOD before opening Network.",
+          "Network analysis across every HOD and edition is intentionally loaded only from the Network tab. Narrow to an edition or HOD for the detailed controller graph.",
         );
       } else {
         try {
-          const { getCoordinationGroupsServer } = await import("@/integrations/televoting/coordination-groups.server");
-          const network = await getCoordinationGroupsServer(effectiveScope, settings);
+          const { getCoordinationGroupsServer } = await import(
+            "@/integrations/televoting/coordination-groups.server"
+          );
+          const network = await getCoordinationGroupsServer(
+            effectiveScope,
+            settings,
+          );
           coordination = {
             ...network,
             analysisDegraded: false,
@@ -221,7 +258,9 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
         } catch (error) {
           console.error("Friend-voting network analysis failed", error);
           coordination = emptyCoordination(
-            error instanceof Error ? error.message : "Network analysis unavailable",
+            error instanceof Error
+              ? error.message
+              : "Network analysis unavailable",
           );
         }
       }
@@ -232,7 +271,9 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
       stats: {
         ...result.stats,
         relationships: result.relationships.length,
-        attentionRelationships: result.relationships.filter((row: any) => row.riskScore >= settings.riskReview).length,
+        attentionRelationships: result.relationships.filter(
+          (row: any) => row.riskScore >= settings.riskReview,
+        ).length,
       },
       coordination,
     };
@@ -240,39 +281,62 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
     return addCommonMetadata(payload, resilient);
   });
 
-export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
+/**
+ * "Lightweight" now refers only to response size.
+ * It uses the same advanced v5 model as the full endpoint and trims the
+ * relationship payload after scoring, so the UI never silently downgrades
+ * intelligence quality.
+ */
+export const getLightweightFriendVotingIntelligence = createServerFn({
+  method: "POST",
+})
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: false });
+    const resilient =
+      await getResilientFriendVotingIntelligence(data, {
+        allowAdvanced: true,
+      });
     const { result, settings } = resilient;
     const allRelationships = result.relationships;
     const payload = {
       ...result,
-      relationships: allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT),
+      relationships: allRelationships.slice(
+        0,
+        LIGHTWEIGHT_RELATIONSHIP_LIMIT,
+      ),
       stats: {
         ...result.stats,
         relationships: allRelationships.length,
-        attentionRelationships: allRelationships.filter((row: any) => row.riskScore >= settings.riskReview).length,
+        attentionRelationships: allRelationships.filter(
+          (row: any) => row.riskScore >= settings.riskReview,
+        ).length,
       },
       coordination: emptyCoordination(),
     };
     return addCommonMetadata(payload, resilient);
   });
 
-export const getFriendVotingCoordination = createServerFn({ method: "POST" })
+export const getFriendVotingCoordination = createServerFn({
+  method: "POST",
+})
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
     if (data.lens !== "hod") return emptyCoordination();
 
     if (!data.editionId && !data.hodPersonId) {
       return emptyCoordination(
-        "Network analysis requires a narrower scope. Select an edition or a specific HOD before opening Network.",
+        "Network analysis requires a narrower HOD scope. Select an edition or a specific HOD before opening Network.",
       );
     }
 
-    const [{ getCoordinationGroupsServer }, { loadFriendVotingSettingsServer }] = await Promise.all([
+    const [
+      { getCoordinationGroupsServer },
+      { loadFriendVotingSettingsServer },
+    ] = await Promise.all([
       import("@/integrations/televoting/coordination-groups.server"),
-      import("@/integrations/televoting/friend-voting-settings.server"),
+      import(
+        "@/integrations/televoting/friend-voting-settings.server"
+      ),
     ]);
     const settings = await loadFriendVotingSettingsServer();
 
@@ -287,7 +351,9 @@ export const getFriendVotingCoordination = createServerFn({ method: "POST" })
     } catch (error) {
       console.error("Friend-voting network analysis failed", error);
       return emptyCoordination(
-        error instanceof Error ? error.message : "Network analysis unavailable",
+        error instanceof Error
+          ? error.message
+          : "Network analysis unavailable",
       );
     }
   });
