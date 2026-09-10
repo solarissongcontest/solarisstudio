@@ -101,6 +101,7 @@ $$;
 
 create or replace function private.studio2_user_can_receive_notice(
   p_user_id uuid,
+  p_edition_id uuid,
   p_audience text,
   p_country_ids uuid[]
 )
@@ -108,7 +109,7 @@ returns boolean
 language plpgsql
 stable
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog, public, private
 as $$
 declare
   v_country_id uuid;
@@ -132,10 +133,47 @@ begin
         return true;
       end if;
     end loop;
+    return false;
   end if;
 
+  if p_audience = 'jurors' then
+    return exists (
+      select 1
+      from public.studio2_jury_members jm
+      where jm.member_user_id = p_user_id
+        and jm.status = 'assigned'
+        and (p_edition_id is null or jm.edition_id = p_edition_id)
+    );
+  end if;
+
+  if p_audience = 'staff' then
+    return private.studio2_user_has_capability(p_user_id, 'edition.read', p_edition_id)
+      or private.studio2_user_has_capability(p_user_id, 'edition.manage', p_edition_id);
+  end if;
+
+  -- A dedicated press role/capability does not exist yet. Press notices stay
+  -- organizer-only until that authorization surface is introduced explicitly.
   return false;
 end
+$$;
+
+create or replace function public.studio2_can_receive_notice(
+  p_edition_id uuid,
+  p_audience text,
+  p_country_ids uuid[] default '{}'::uuid[]
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $$
+  select private.studio2_user_can_receive_notice(
+    auth.uid(),
+    p_edition_id,
+    p_audience,
+    coalesce(p_country_ids, '{}'::uuid[])
+  )
 $$;
 
 create trigger studio2_delegation_settings_touch_updated_at
@@ -192,8 +230,8 @@ for select
 to authenticated
 using (
   sent_at is not null
-  and private.studio2_user_can_receive_notice(
-    (select auth.uid()),
+  and public.studio2_can_receive_notice(
+    edition_id,
     audience,
     country_ids
   )
@@ -289,6 +327,12 @@ begin
   if not found then
     raise exception 'Edition not found: %', p_edition_id using errcode = 'P0002';
   end if;
+
+  -- Serialize roster-size checks for one delegation so two concurrent inserts
+  -- cannot both observe four members and become the fifth and sixth.
+  perform pg_advisory_xact_lock(
+    hashtextextended(p_edition_id::text || ':' || p_country_id::text, 0)
+  );
 
   select coalesce(s.jury_members_required, 5)
   into v_required
@@ -489,7 +533,12 @@ begin
     raise exception 'Notice not found: %', p_notice_id using errcode = 'P0002';
   end if;
 
-  if not private.studio2_user_can_receive_notice(v_actor, v_notice.audience, v_notice.country_ids) then
+  if not private.studio2_user_can_receive_notice(
+    v_actor,
+    v_notice.edition_id,
+    v_notice.audience,
+    v_notice.country_ids
+  ) then
     raise exception 'Notice is not available to this user' using errcode = '42501';
   end if;
 
@@ -537,8 +586,13 @@ $$;
 
 revoke all on function private.studio2_user_has_country_account(uuid)
   from public, anon, authenticated;
-revoke all on function private.studio2_user_can_receive_notice(uuid, text, uuid[])
+revoke all on function private.studio2_user_can_receive_notice(uuid, uuid, text, uuid[])
   from public, anon, authenticated;
+
+revoke all on function public.studio2_can_receive_notice(uuid, text, uuid[])
+  from public, anon, authenticated;
+grant execute on function public.studio2_can_receive_notice(uuid, text, uuid[])
+  to authenticated, service_role;
 
 revoke all on function public.studio2_set_jury_requirement(uuid, uuid, smallint)
   from public, anon, authenticated;
