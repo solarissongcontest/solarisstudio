@@ -49,11 +49,26 @@ export type Studio2IncidentRecord = Incident & {
   updatedAt: string;
 };
 
+export type Studio2TransitionApprovalRecord = {
+  id: string;
+  editionId: string;
+  from: EditionState;
+  to: EditionState;
+  reason: string;
+  requestedBy: string;
+  requestedAt: string;
+  expiresAt: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  canApprove: boolean;
+  canApply: boolean;
+};
+
 export type Studio2TransitionEditionRequest = {
   editionId: string;
   to: EditionState;
   reason?: string | null;
-  secondApproverUserId?: string | null;
+  approvalRequestId?: string | null;
 };
 
 export type Studio2CreateIncidentRequest = {
@@ -111,6 +126,11 @@ function expectString(value: unknown, label: string): string {
 function expectNullableString(value: unknown, label: string): string | null {
   if (value === null || value === undefined) return null;
   return expectString(value, label);
+}
+
+function expectBoolean(value: unknown, label: string): boolean {
+  if (typeof value !== 'boolean') throw new Error(`Invalid ${label}: expected a boolean`);
+  return value;
 }
 
 function expectNumber(value: unknown, label: string): number {
@@ -222,6 +242,24 @@ export function mapStudio2CapabilityGrantRow(value: unknown): Studio2CapabilityG
   };
 }
 
+export function mapStudio2TransitionApproval(value: unknown): Studio2TransitionApprovalRecord {
+  const row = expectObject(value, 'Studio 2 transition approval');
+  return {
+    id: expectString(row.id, 'transition approval id'),
+    editionId: expectString(row.editionId, 'transition approval edition id'),
+    from: expectEditionState(row.from),
+    to: expectEditionState(row.to),
+    reason: expectString(row.reason, 'transition approval reason'),
+    requestedBy: expectString(row.requestedBy, 'transition approval requester'),
+    requestedAt: expectString(row.requestedAt, 'transition approval requested_at'),
+    expiresAt: expectString(row.expiresAt, 'transition approval expires_at'),
+    approvedBy: expectNullableString(row.approvedBy, 'transition approval approver'),
+    approvedAt: expectNullableString(row.approvedAt, 'transition approval approved_at'),
+    canApprove: expectBoolean(row.canApprove, 'transition approval canApprove'),
+    canApply: expectBoolean(row.canApply, 'transition approval canApply'),
+  };
+}
+
 function throwIfError(error: unknown): void {
   if (error) throw error;
 }
@@ -239,14 +277,42 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
     },
 
     async transitionEdition(request: Studio2TransitionEditionRequest): Promise<Studio2RuntimeRecord> {
-      const { data, error } = await client.rpc('studio2_transition_edition', {
+      const { data, error } = await client.rpc('studio2_transition_edition_v2', {
         p_edition_id: request.editionId,
         p_to: request.to,
         p_reason: request.reason ?? null,
-        p_second_approver: request.secondApproverUserId ?? null,
+        p_approval_request_id: request.approvalRequestId ?? null,
       });
       throwIfError(error);
       return mapStudio2RuntimeRow(data);
+    },
+
+    async listTransitionApprovals(editionId: string): Promise<Studio2TransitionApprovalRecord[]> {
+      const { data, error } = await client.rpc('studio2_list_transition_approvals', {
+        p_edition_id: editionId,
+      });
+      throwIfError(error);
+      return Array.isArray(data) ? data.map(mapStudio2TransitionApproval) : [];
+    },
+
+    async requestTransitionApproval(
+      editionId: string,
+      to: EditionState,
+      reason: string,
+    ): Promise<void> {
+      const { error } = await client.rpc('studio2_request_transition_approval', {
+        p_edition_id: editionId,
+        p_to: to,
+        p_reason: reason,
+      });
+      throwIfError(error);
+    },
+
+    async approveTransition(requestId: string): Promise<void> {
+      const { error } = await client.rpc('studio2_approve_transition', {
+        p_request_id: requestId,
+      });
+      throwIfError(error);
     },
 
     async listEditionEvents(editionId: string, limit = 50): Promise<ContestEvent[]> {
@@ -262,9 +328,7 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
     },
 
     async listActiveIncidents(editionId?: string | null): Promise<Studio2IncidentRecord[]> {
-      let query = client
-        .from('studio2_incidents')
-        .select('*');
+      let query = client.from('studio2_incidents').select('*');
 
       if (editionId) query = query.eq('edition_id', editionId);
       else if (editionId === null) query = query.is('edition_id', null);
@@ -296,9 +360,7 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
     },
 
     async listMyCapabilityGrants(editionId?: string | null): Promise<Studio2CapabilityGrantRecord[]> {
-      let query = client
-        .from('studio2_capability_grants')
-        .select('*');
+      let query = client.from('studio2_capability_grants').select('*');
       if (editionId) query = query.eq('edition_id', editionId);
       else if (editionId === null) query = query.is('edition_id', null);
 
