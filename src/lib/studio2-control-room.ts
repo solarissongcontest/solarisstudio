@@ -1,6 +1,7 @@
 import type { ContestEvent } from './contest-events';
 import type { EditionState } from './edition-state';
 import { summarizeIncidents, type IncidentStatus } from './incident-command';
+import { isStudio2FeatureEnabled } from './studio2-feature-flags';
 import {
   studio2Persistence,
   type Studio2CreateIncidentRequest,
@@ -54,33 +55,52 @@ export async function loadStudio2ControlRoomSnapshot(
   };
 }
 
-export function createStudio2ControlRoom(source: Studio2ControlRoomDataSource = studio2Persistence) {
+type Studio2FeatureGate = (key: 'live_control_room', editionId?: string | null) => Promise<boolean>;
+
+export function createStudio2ControlRoom(
+  source: Studio2ControlRoomDataSource = studio2Persistence,
+  featureGate: Studio2FeatureGate = isStudio2FeatureEnabled,
+) {
+  async function requireEnabled(editionId: string) {
+    if (!(await featureGate('live_control_room', editionId))) {
+      throw new Error('Live Control Room v2 is disabled by the Studio 2 rollout flag.');
+    }
+  }
+
   return {
-    loadSnapshot(editionId: string, eventLimit = 50) {
+    async loadSnapshot(editionId: string, eventLimit = 50) {
+      await requireEnabled(editionId);
       return loadStudio2ControlRoomSnapshot(editionId, source, eventLimit);
     },
 
-    transitionEdition(request: Studio2TransitionEditionRequest) {
+    async transitionEdition(request: Studio2TransitionEditionRequest) {
+      await requireEnabled(request.editionId);
       return source.transitionEdition(request);
     },
 
-    listTransitionApprovals(editionId: string) {
+    async listTransitionApprovals(editionId: string) {
+      await requireEnabled(editionId);
       return source.listTransitionApprovals(editionId);
     },
 
-    requestTransitionApproval(editionId: string, to: EditionState, reason: string) {
+    async requestTransitionApproval(editionId: string, to: EditionState, reason: string) {
+      await requireEnabled(editionId);
       return source.requestTransitionApproval(editionId, to, reason);
     },
 
-    approveTransition(requestId: string) {
+    async approveTransition(requestId: string) {
+      // The approval RPC itself resolves and authorizes the edition from the request.
+      // A disabled flag still prevents reaching this from the default UI because the
+      // approval list is gated by edition before any request id is exposed.
       return source.approveTransition(requestId);
     },
 
-    createIncident(request: Studio2CreateIncidentRequest) {
+    async createIncident(request: Studio2CreateIncidentRequest) {
+      if (request.editionId) await requireEnabled(request.editionId);
       return source.createIncident(request);
     },
 
-    transitionIncident(incidentId: string, to: IncidentStatus) {
+    async transitionIncident(incidentId: string, to: IncidentStatus) {
       return source.transitionIncident(incidentId, to);
     },
   };
