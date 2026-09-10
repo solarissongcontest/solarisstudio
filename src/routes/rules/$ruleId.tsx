@@ -3,7 +3,7 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { RuleDetail } from "@/components/rules/RulesExperience";
-import { getRuleById } from "@/lib/ssc-rules";
+import { getRuleById } from "@/lib/ssc-rules-v3";
 
 export const Route = createFileRoute("/rules/$ruleId")({
   head: ({ params }) => {
