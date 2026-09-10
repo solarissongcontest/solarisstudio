@@ -26,6 +26,20 @@ const HOD_ELIGIBILITY_CONFIG: EligibilityConfig = {
 
 const NOTICE_SEVERITY_SET = new Set<string>(NOTICE_SEVERITIES);
 
+export type Studio2HodEditionSummary = {
+  id: string;
+  name: string;
+  editionNumber: number | null;
+  status: string;
+};
+
+export type Studio2HodJuryMember = {
+  id: string;
+  displayName: string;
+  memberUserId: string | null;
+  createdAt: string;
+};
+
 export type Studio2HodEntryContext = {
   artist: string | null;
   songTitle: string | null;
@@ -46,6 +60,7 @@ export type Studio2HodContext = {
   entry: Studio2HodEntryContext | null;
   juryMembersRequired: number;
   juryMembersAssigned: number;
+  juryMembers: Studio2HodJuryMember[];
   juryBallotSubmitted: boolean;
   notices: HodWorkspaceNotice[];
 };
@@ -94,6 +109,11 @@ function expectNonNegativeInteger(value: unknown, label: string): number {
   return value;
 }
 
+function nullableInteger(value: unknown, label: string): number | null {
+  if (value === null || value === undefined) return null;
+  return expectNonNegativeInteger(value, label);
+}
+
 function mapEntry(value: unknown): Studio2HodEntryContext | null {
   if (value === null || value === undefined) return null;
   const row = expectObject(value, 'HOD entry context');
@@ -125,9 +145,30 @@ function mapNotice(value: unknown): HodWorkspaceNotice {
   };
 }
 
+function mapJuryMember(value: unknown): Studio2HodJuryMember {
+  const row = expectObject(value, 'HOD jury member');
+  return {
+    id: expectString(row.id, 'jury member id'),
+    displayName: expectString(row.displayName, 'jury member display name'),
+    memberUserId: nullableString(row.memberUserId, 'jury member user id'),
+    createdAt: expectString(row.createdAt, 'jury member created_at'),
+  };
+}
+
+function mapEditionSummary(value: unknown): Studio2HodEditionSummary {
+  const row = expectObject(value, 'HOD edition summary');
+  return {
+    id: expectString(row.id, 'edition id'),
+    name: expectString(row.name, 'edition name'),
+    editionNumber: nullableInteger(row.editionNumber, 'edition number'),
+    status: expectString(row.status, 'edition status'),
+  };
+}
+
 export function mapStudio2HodContext(value: unknown): Studio2HodContext {
   const row = expectObject(value, 'Studio 2 HOD context');
   const notices = Array.isArray(row.notices) ? row.notices.map(mapNotice) : [];
+  const juryMembers = Array.isArray(row.juryMembers) ? row.juryMembers.map(mapJuryMember) : [];
   const juryMembersRequired = expectNonNegativeInteger(
     row.juryMembersRequired,
     'jury members required',
@@ -146,6 +187,7 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
     entry: mapEntry(row.entry),
     juryMembersRequired,
     juryMembersAssigned: expectNonNegativeInteger(row.juryMembersAssigned, 'jury members assigned'),
+    juryMembers,
     juryBallotSubmitted: expectBoolean(row.juryBallotSubmitted, 'jury ballot state'),
     notices,
   };
@@ -162,6 +204,56 @@ export function createStudio2HodWorkspaceSource(client: SupabaseRpcClient): Stud
       return mapStudio2HodContext(data);
     },
   };
+}
+
+async function runRpc(
+  name: string,
+  args: Record<string, unknown>,
+  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
+): Promise<unknown> {
+  const { data, error } = await client.rpc(name, args);
+  if (error) throw error;
+  return data;
+}
+
+export async function listStudio2HodEditions(
+  countryId: string,
+  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
+): Promise<Studio2HodEditionSummary[]> {
+  const data = await runRpc('studio2_hod_editions', { p_country_id: countryId }, client);
+  return Array.isArray(data) ? data.map(mapEditionSummary) : [];
+}
+
+export async function assignStudio2JuryMember(
+  editionId: string,
+  countryId: string,
+  displayName: string,
+  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
+): Promise<void> {
+  await runRpc(
+    'studio2_assign_jury_member',
+    {
+      p_edition_id: editionId,
+      p_country_id: countryId,
+      p_display_name: displayName,
+      p_member_user_id: null,
+    },
+    client,
+  );
+}
+
+export async function removeStudio2JuryMember(
+  memberId: string,
+  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
+): Promise<void> {
+  await runRpc('studio2_remove_jury_member', { p_member_id: memberId }, client);
+}
+
+export async function acknowledgeStudio2Notice(
+  noticeId: string,
+  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
+): Promise<void> {
+  await runRpc('studio2_acknowledge_notice', { p_notice_id: noticeId }, client);
 }
 
 function completed(condition: boolean): WorkflowTaskStatus {
