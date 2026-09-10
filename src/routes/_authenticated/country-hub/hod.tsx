@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { AppShell, PageHeader, Panel } from '@/components/AppShell';
 import { useCountries } from '@/lib/data';
 import { useMyCountryAccount } from '@/lib/country-account';
+import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 import {
   acknowledgeStudio2Notice,
   assignStudio2JuryMember,
@@ -42,9 +43,15 @@ function HodWorkspacePage() {
   const [editionId, setEditionId] = useState('');
   const [jurorName, setJurorName] = useState('');
 
+  const featureQuery = useQuery({
+    queryKey: ['studio2-feature', 'hod_workspace_v2'],
+    queryFn: () => isStudio2FeatureEnabled('hod_workspace_v2'),
+    staleTime: 30_000,
+  });
+
   const editionsQuery = useQuery({
     queryKey: ['studio2-hod-editions', country?.id ?? 'none'],
-    enabled: Boolean(country?.id),
+    enabled: featureQuery.data === true && Boolean(country?.id),
     queryFn: () => listStudio2HodEditions(country!.id),
   });
 
@@ -61,7 +68,7 @@ function HodWorkspacePage() {
 
   const workspaceQuery = useQuery({
     queryKey: ['studio2-hod-workspace', country?.id ?? 'none', editionId || 'none'],
-    enabled: Boolean(country?.id && editionId),
+    enabled: featureQuery.data === true && Boolean(country?.id && editionId),
     queryFn: () => loadStudio2HodWorkspace(editionId, country!.id),
   });
 
@@ -92,14 +99,39 @@ function HodWorkspacePage() {
   const submitJuror = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const displayName = jurorName.trim();
-    if (!displayName || !country || !editionId) return;
+    if (!displayName || !country || !editionId || featureQuery.data !== true) return;
     assignJuror.mutate(displayName);
   };
 
-  if (account.isLoading || (targetCountryId && access?.isOrganizer && countries.isLoading)) {
+  if (
+    featureQuery.isLoading ||
+    account.isLoading ||
+    (targetCountryId && access?.isOrganizer && countries.isLoading)
+  ) {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">Loading delegation workspace…</p>
+      </AppShell>
+    );
+  }
+
+  if (featureQuery.data !== true) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Solaris Studio 2"
+          title="Delegation workspace is not enabled"
+          description="The HOD workspace is behind a Studio 2 rollout flag and is disabled for this account until an organizer enables it."
+          actions={
+            <Link
+              to="/country-hub"
+              search={countrySearch}
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
+            >
+              Back to My Solaris
+            </Link>
+          }
+        />
       </AppShell>
     );
   }
