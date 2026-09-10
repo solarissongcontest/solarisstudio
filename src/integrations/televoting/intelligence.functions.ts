@@ -57,7 +57,7 @@ function isWorkerHeavyDefaultScope(data: NormalizedInput) {
 }
 
 function isHistoricalAllEditionsScope(data: NormalizedInput) {
-  return data.lens === "country" && !data.editionId && !data.hodPersonId && (data.channel === "combined" || data.channel === "televote");
+  return data.lens === "country" && !data.editionId && !data.hodPersonId;
 }
 
 function workerSafeHistoricalScope(): NormalizedInput {
@@ -243,7 +243,7 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
 export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: false });
+    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: true });
     const { result, settings } = resilient;
     const allRelationships = result.relationships;
     const payload = {

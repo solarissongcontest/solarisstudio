@@ -309,6 +309,12 @@ function weightedRate(
   return successes / total;
 }
 
+function normalizedScore(row: AdvancedFriendVotingObservation) {
+  const score = Number(row.score) || 0;
+  const maxScore = Number(row.maxScore) || 0;
+  return maxScore > 0 ? clamp01(score / maxScore) : 0;
+}
+
 function weightedAverageScore(
   rows: AdvancedFriendVotingObservation[],
   currentEditionNumber: number | null,
@@ -316,7 +322,7 @@ function weightedAverageScore(
   lifetime = false,
 ) {
   return weightedMean(rows.map((row) => ({
-    value: Number(row.score) || 0,
+    value: normalizedScore(row),
     weight: rowWeight(row, currentEditionNumber, config, lifetime),
   })));
 }
@@ -503,11 +509,11 @@ export function calculateAdvancedFriendVotingRisk(
   const expectedAverageRecent = weightedAverageScore(baseline, currentEditionNumber, config, false);
   const expectedAverageLifetime = weightedAverageScore(baseline, currentEditionNumber, config, true);
   const baselineRecentScores = baseline.map((row) => ({
-    value: Number(row.score) || 0,
+    value: normalizedScore(row),
     weight: rowWeight(row, currentEditionNumber, config, false),
   }));
   const baselineLifetimeScores = baseline.map((row) => ({
-    value: Number(row.score) || 0,
+    value: normalizedScore(row),
     weight: rowWeight(row, currentEditionNumber, config, true),
   }));
   const recentDeviation = baseline.length >= 2 && expectedAverageRecent !== 0

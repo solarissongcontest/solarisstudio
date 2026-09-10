@@ -33,4 +33,19 @@ describe("Friend Voting Worker-safe scope", () => {
     expect(advanced).toBeGreaterThan(friendVoting);
     expect(overview).toContain('to="/admin/friend-voting"');
   });
+
+  it("routes narrowed scopes to advanced analysis while keeping the all-editions country view historical", () => {
+    const code = source("integrations/televoting/intelligence.functions.ts");
+    expect(code).not.toContain("allowAdvanced: false");
+    expect(code).toContain('return data.lens === "country" && !data.editionId && !data.hodPersonId;');
+    expect(code).toContain("isHistoricalAllEditionsScope(effectiveScope)");
+  });
+
+  it("keeps later editions out of a selected-edition advanced baseline", () => {
+    const code = source("integrations/televoting/intelligence-v4.server.ts");
+    expect(code).toContain("const selectedEditionNumber = options.editionId ? editionNumber(options.editionId) : null;");
+    expect(code).toContain("return row.editionNumber < selectedEditionNumber;");
+    expect(code).toContain("const advancedAll = historicalScope.map(advanced);");
+  });
+
 });
