@@ -205,14 +205,14 @@ function IntegrityHome({
 
         <Link
           to="/rules/$ruleId"
-          params={{ ruleId: "14.8" }}
+          params={{ ruleId: "16.3" }}
           className="group rounded-[1.7rem] border border-violet-300/14 bg-[linear-gradient(150deg,rgba(75,55,125,.22),rgba(6,22,43,.93))] p-5 transition hover:-translate-y-0.5 hover:border-violet-200/25 sm:p-6"
         >
           <ShieldCheck className="size-7 text-violet-200" />
           <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-violet-200/75">Understand</p>
           <h2 className="mt-1 text-xl font-black tracking-[-.03em]">How protection works</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">See the official rules on anonymity, evidence, anti-retaliation and the difference between a report and a finding.</p>
-          <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-violet-200">Read Rule 14.8 <ArrowRight className="size-4 transition group-hover:translate-x-1" /></span>
+          <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-violet-200">Read Rule 16.3 <ArrowRight className="size-4 transition group-hover:translate-x-1" /></span>
         </Link>
       </section>
 
@@ -399,7 +399,7 @@ function AnonymousReportFlow({
             <p className="text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">Remember</p>
             <p className="mt-2 text-sm font-bold">You do not need to prove the case.</p>
             <p className="mt-1.5 text-xs leading-5 text-muted-foreground">Submit information you genuinely believe may matter. A concern that cannot later be proven is not automatically a false report.</p>
-            <Link to="/rules/$ruleId" params={{ ruleId: "14.7" }} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-200">Read reporting rule <ArrowRight className="size-3.5" /></Link>
+            <Link to="/rules/$ruleId" params={{ ruleId: "16.2" }} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-sky-200">Read reporting rule <ArrowRight className="size-3.5" /></Link>
           </div>
         </aside>
       </div>
@@ -605,7 +605,7 @@ function AnonymousCaseView({ credential, snapshot, setSnapshot, back }: { creden
             </div>
           </div>
 
-          <Link to="/rules/$ruleId" params={{ ruleId: "14.11" }} className="block rounded-[1.4rem] border border-violet-300/14 bg-violet-300/[0.04] p-4 transition hover:bg-violet-300/[0.07]"><ShieldCheck className="size-5 text-violet-200" /><p className="mt-3 text-sm font-bold">Case fairness</p><p className="mt-1 text-xs leading-5 text-muted-foreground">A report and an investigation are not findings of misconduct.</p></Link>
+          <Link to="/rules/$ruleId" params={{ ruleId: "16.6" }} className="block rounded-[1.4rem] border border-violet-300/14 bg-violet-300/[0.04] p-4 transition hover:bg-violet-300/[0.07]"><ShieldCheck className="size-5 text-violet-200" /><p className="mt-3 text-sm font-bold">Case fairness</p><p className="mt-1 text-xs leading-5 text-muted-foreground">A report and an investigation are not findings of misconduct.</p></Link>
         </aside>
       </div>
     </section>
