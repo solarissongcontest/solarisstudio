@@ -80,12 +80,12 @@ function HodWorkspacePage() {
   });
 
   const removeJuror = useMutation({
-    mutationFn: removeStudio2JuryMember,
+    mutationFn: (memberId: string) => removeStudio2JuryMember(memberId),
     onSuccess: refreshWorkspace,
   });
 
   const acknowledgeNotice = useMutation({
-    mutationFn: acknowledgeStudio2Notice,
+    mutationFn: (noticeId: string) => acknowledgeStudio2Notice(noticeId),
     onSuccess: refreshWorkspace,
   });
 
