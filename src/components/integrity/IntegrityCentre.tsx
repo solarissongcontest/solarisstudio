@@ -20,6 +20,7 @@ import {
   MessageCircleWarning,
   Music2,
   RefreshCw,
+  Scale,
   Send,
   ShieldCheck,
   Siren,
@@ -27,7 +28,7 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -252,16 +253,12 @@ function IntegrityHome({
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Principle icon={EyeOff} title="Identity minimised" text="Fully anonymous case records do not contain a reporter Solaris account ID." />
           <Principle icon={MessageCircle} title="Two-way" text="TSBC can ask questions and the reporter can answer without abandoning anonymity." />
-          <Principle icon={ScaleIcon} title="No instant guilt" text="A report, allegation or automated flag does not itself establish misconduct." />
+          <Principle icon={Scale} title="No instant guilt" text="A report, allegation or automated flag does not itself establish misconduct." />
           <Principle icon={LockKeyhole} title="Need-to-know" text="Sensitive evidence and technical data should not be exposed unnecessarily." />
         </div>
       </section>
     </div>
   );
-}
-
-function ScaleIcon(props: React.ComponentProps<"svg">) {
-  return <ShieldCheck {...(props as any)} />;
 }
 
 function Principle({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
