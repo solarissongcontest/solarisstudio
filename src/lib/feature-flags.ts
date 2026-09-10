@@ -35,10 +35,30 @@ export type FeatureFlagRule = {
   editionIds?: readonly string[];
 };
 
+/**
+ * Every Studio 2 feature starts disabled. The domain code can ship before a UI
+ * or database migration is made active, which keeps unfinished work from
+ * leaking into a live edition.
+ */
+export const DEFAULT_SOLARIS_FEATURE_RULES: Readonly<Record<SolarisFeatureFlag, FeatureFlagRule>> =
+  Object.freeze(
+    Object.fromEntries(
+      SOLARIS_FEATURE_FLAGS.map((key) => [key, Object.freeze({ enabled: false })]),
+    ) as Record<SolarisFeatureFlag, FeatureFlagRule>,
+  );
+
 export function evaluateFeatureFlag(rule: FeatureFlagRule | undefined, context: FeatureFlagContext): boolean {
   if (!rule?.enabled) return false;
   if (rule.adminsOnly && !context.isAdmin) return false;
   if (rule.userIds?.length && (!context.userId || !rule.userIds.includes(context.userId))) return false;
   if (rule.editionIds?.length && (!context.editionId || !rule.editionIds.includes(context.editionId))) return false;
   return true;
+}
+
+export function evaluateSolarisFeatureFlag(
+  key: SolarisFeatureFlag,
+  context: FeatureFlagContext,
+  overrides: Partial<Record<SolarisFeatureFlag, FeatureFlagRule>> = {},
+): boolean {
+  return evaluateFeatureFlag(overrides[key] ?? DEFAULT_SOLARIS_FEATURE_RULES[key], context);
 }
