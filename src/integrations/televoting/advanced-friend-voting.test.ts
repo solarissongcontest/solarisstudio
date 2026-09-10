@@ -10,4 +10,13 @@ describe("friend-voting model v2", () => {
   it("warns when target-specific historical baseline is unavailable", () => { const pair = [obs("1", 5), obs("2", 7), obs("3", 6)]; const result = calculateAdvancedFriendVotingRisk(pair, pair); expect(result.warnings.some((warning) => warning.includes("historical baseline"))).toBe(true); expect(result.historicalDeviationRisk).toBe(0); });
   it("supports reciprocal evidence without treating mutual popularity as proof", () => { const pair = [obs("1", 8), obs("2", 8), obs("3", 8)]; const result = calculateAdvancedFriendVotingRisk(pair, pair, 1, 3); expect(result.reciprocityRisk).toBeGreaterThan(0); expect(result.overallRisk).toBeLessThan(100); });
   it("does not automatically make a broadly popular target high risk", () => { const pair = [obs("1", 10), obs("2", 10), obs("3", 10), obs("4", 10)]; const field = ["1", "2", "3", "4"].flatMap((id) => [obs(id, 10, 12, "jury", "X", id), obs(id, 9, 12, "jury", "Y", id), obs(id, 8, 12, "jury", "Z", id)]); const result = calculateAdvancedFriendVotingRisk(pair, field); expect(result.countryStrengthRisk).toBeLessThan(50); expect(result.overallRisk).toBeLessThan(80); });
+  it("normalizes historical deviation across different voting scales", () => {
+    const pair = [obs("3", 8, 10)];
+    const history = [obs("1", 8, 10), obs("2", 80, 100), ...pair];
+    const result = calculateAdvancedFriendVotingRisk(pair, history);
+    expect(result.historicalDeviationRisk).toBe(0);
+    expect(result.evidence.averageScore).toBeCloseTo(0.8, 6);
+    expect(result.evidence.expectedAverageScore).toBeCloseTo(0.8, 6);
+  });
+
 });
