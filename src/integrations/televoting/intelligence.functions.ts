@@ -57,7 +57,7 @@ function isWorkerHeavyDefaultScope(data: NormalizedInput) {
 }
 
 function isHistoricalAllEditionsScope(data: NormalizedInput) {
-  return data.lens === "country" && !data.editionId && !data.hodPersonId && (data.channel === "combined" || data.channel === "televote");
+  return data.lens === "country" && !data.editionId && !data.hodPersonId;
 }
 
 function workerSafeHistoricalScope(): NormalizedInput {
@@ -112,33 +112,87 @@ function sanitizeResultForScope(result: any, scope: NormalizedInput) {
   };
 }
 
+function friendVotingServerError(stage: string, error: unknown) {
+  const requestId = crypto.randomUUID();
+  console.error(`[friend-voting:${requestId}] ${stage}`, error);
+  return Object.assign(
+    new Error(`Friend-voting analysis failed during ${stage}. Reference ${requestId}.`),
+    { statusCode: 500 },
+  );
+}
+
+function isStructuredServerError(error: unknown): error is { statusCode: number } {
+  return error != null && typeof error === "object" && "statusCode" in error;
+}
+
+function relationshipStats(result: any, settings: any) {
+  const relationships = Array.isArray(result.relationships) ? result.relationships : [];
+  return {
+    ...result.stats,
+    relationships: Number.isFinite(Number(result.stats?.relationships))
+      ? Number(result.stats.relationships)
+      : relationships.length,
+    attentionRelationships: Number.isFinite(Number(result.stats?.attentionRelationships))
+      ? Number(result.stats.attentionRelationships)
+      : relationships.filter((row: any) => row.riskScore >= settings.riskReview).length,
+  };
+}
+
 async function runHistoricalAnalysis(data: NormalizedInput, settings: any) {
-  const { getMergedIntelligenceServer } = await import("@/integrations/televoting/intelligence.server");
-  const result = await getMergedIntelligenceServer({
-    ...data,
-    advancedModel: {
-      ...settings.advancedModel,
-      mode: "historical" as const,
-    },
-  });
-  if (!result) throw new Error("Friend-voting analysis returned no data");
-  return sanitizeResultForScope(result, data);
+  if (data.lens === "country" && !data.hodPersonId) {
+    try {
+      const { getHistoricalCountryIntelligenceServer } = await import(
+        "@/integrations/televoting/historical-country-intelligence.server"
+      );
+      const result = await getHistoricalCountryIntelligenceServer({
+        channel: data.channel,
+        editionId: data.editionId,
+      });
+      if (!result) throw new Error("Database historical aggregation returned no data");
+      return sanitizeResultForScope(result, data);
+    } catch (error) {
+      if (isStructuredServerError(error)) throw error;
+      throw friendVotingServerError("historical country aggregation", error);
+    }
+  }
+
+  try {
+    const { getMergedIntelligenceServer } = await import("@/integrations/televoting/intelligence.server");
+    const result = await getMergedIntelligenceServer({
+      ...data,
+      advancedModel: {
+        ...settings.advancedModel,
+        mode: "historical" as const,
+      },
+    });
+    if (!result) throw new Error("Historical HOD aggregation returned no data");
+    return sanitizeResultForScope(result, data);
+  } catch (error) {
+    if (isStructuredServerError(error)) throw error;
+    throw friendVotingServerError("historical HOD aggregation", error);
+  }
 }
 
 async function getResilientFriendVotingIntelligence(
   requested: NormalizedInput,
   options: { allowAdvanced?: boolean } = {},
 ) {
-  const { loadFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
-  const settings = await loadFriendVotingSettingsServer();
+  let settings: any;
+  try {
+    const { loadFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
+    settings = await loadFriendVotingSettingsServer();
+  } catch (error) {
+    if (isStructuredServerError(error)) throw error;
+    throw friendVotingServerError("settings load", error);
+  }
 
   const effectiveScope = isWorkerHeavyDefaultScope(requested)
     ? workerSafeHistoricalScope()
     : requested;
 
-  // Lightweight Organizer requests deliberately use a descriptive historical relationship model.
-  // It returns before the expensive advanced baseline/deviation/network calculations and therefore
-  // does not need a timeout race that leaves the losing Worker computation running in the background.
+  // Broad country history is aggregated in Postgres and returned as a compact payload.
+  // This keeps the Cloudflare Worker out of the 20k-observation / 3.5k-relationship construction path.
+  // Narrow HOD scopes still use the canonical assignment-aware model where that identity context is required.
   if (!options.allowAdvanced || isWorkerHeavyDefaultScope(requested) || isHistoricalAllEditionsScope(effectiveScope)) {
     const result = await runHistoricalAnalysis(effectiveScope, settings);
     return {
@@ -149,7 +203,7 @@ async function getResilientFriendVotingIntelligence(
       riskSemantics: "pattern" as RiskSemantics,
       analysisDegraded: false,
       analysisWarning: isWorkerHeavyDefaultScope(requested)
-        ? "Showing the worker-safe country-level jury + televote history across all editions. This includes the corrected SSC20 and SSC21 historical televote ballots plus the longer jury baseline."
+        ? "Showing the worker-safe country-level jury + televote history across all editions. Historical relationship aggregation runs in the database so the Organizer Worker only receives a compact result set."
         : null,
     };
   }
@@ -168,6 +222,7 @@ async function getResilientFriendVotingIntelligence(
       analysisWarning: null as string | null,
     };
   } catch (error) {
+    if (isStructuredServerError(error)) throw error;
     console.error("Advanced friend-voting analysis failed; using historical relationship analysis", error);
     const result = await runHistoricalAnalysis(effectiveScope, settings);
     return {
@@ -200,63 +255,65 @@ function addCommonMetadata(payload: any, resilient: Awaited<ReturnType<typeof ge
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: true });
-    const { result, settings, effectiveScope } = resilient;
-    let coordination: CoordinationPayload = emptyCoordination();
+    try {
+      const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: true });
+      const { result, settings, effectiveScope } = resilient;
+      let coordination: CoordinationPayload = emptyCoordination();
 
-    if (effectiveScope.lens === "hod") {
-      if (!effectiveScope.editionId && !effectiveScope.hodPersonId) {
-        coordination = emptyCoordination(
-          "Network analysis requires a narrower scope. Select an edition or a specific HOD before opening Network.",
-        );
-      } else {
-        try {
-          const { getCoordinationGroupsServer } = await import("@/integrations/televoting/coordination-groups.server");
-          const network = await getCoordinationGroupsServer(effectiveScope, settings);
-          coordination = {
-            ...network,
-            analysisDegraded: false,
-            analysisWarning: null,
-          };
-        } catch (error) {
-          console.error("Friend-voting network analysis failed", error);
+      if (effectiveScope.lens === "hod") {
+        if (!effectiveScope.editionId && !effectiveScope.hodPersonId) {
           coordination = emptyCoordination(
-            error instanceof Error ? error.message : "Network analysis unavailable",
+            "Network analysis requires a narrower scope. Select an edition or a specific HOD before opening Network.",
           );
+        } else {
+          try {
+            const { getCoordinationGroupsServer } = await import("@/integrations/televoting/coordination-groups.server");
+            const network = await getCoordinationGroupsServer(effectiveScope, settings);
+            coordination = {
+              ...network,
+              analysisDegraded: false,
+              analysisWarning: null,
+            };
+          } catch (error) {
+            console.error("Friend-voting network analysis failed", error);
+            coordination = emptyCoordination(
+              error instanceof Error ? error.message : "Network analysis unavailable",
+            );
+          }
         }
       }
+
+      const payload = {
+        ...result,
+        stats: relationshipStats(result, settings),
+        coordination,
+      };
+
+      return addCommonMetadata(payload, resilient);
+    } catch (error) {
+      if (isStructuredServerError(error)) throw error;
+      throw friendVotingServerError("merged intelligence request", error);
     }
-
-    const payload = {
-      ...result,
-      stats: {
-        ...result.stats,
-        relationships: result.relationships.length,
-        attentionRelationships: result.relationships.filter((row: any) => row.riskScore >= settings.riskReview).length,
-      },
-      coordination,
-    };
-
-    return addCommonMetadata(payload, resilient);
   });
 
 export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: false });
-    const { result, settings } = resilient;
-    const allRelationships = result.relationships;
-    const payload = {
-      ...result,
-      relationships: allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT),
-      stats: {
-        ...result.stats,
-        relationships: allRelationships.length,
-        attentionRelationships: allRelationships.filter((row: any) => row.riskScore >= settings.riskReview).length,
-      },
-      coordination: emptyCoordination(),
-    };
-    return addCommonMetadata(payload, resilient);
+    try {
+      const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: false });
+      const { result, settings } = resilient;
+      const allRelationships = Array.isArray(result.relationships) ? result.relationships : [];
+      const payload = {
+        ...result,
+        relationships: allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT),
+        stats: relationshipStats(result, settings),
+        coordination: emptyCoordination(),
+      };
+      return addCommonMetadata(payload, resilient);
+    } catch (error) {
+      if (isStructuredServerError(error)) throw error;
+      throw friendVotingServerError("lightweight intelligence request", error);
+    }
   });
 
 export const getFriendVotingCoordination = createServerFn({ method: "POST" })
