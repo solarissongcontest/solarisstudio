@@ -1,4 +1,5 @@
 import type { ContestEvent } from './contest-events';
+import type { EditionState } from './edition-state';
 import { summarizeIncidents, type IncidentStatus } from './incident-command';
 import {
   studio2Persistence,
@@ -22,6 +23,9 @@ export type Studio2ControlRoomDataSource = Pick<
   | 'listEditionEvents'
   | 'listActiveIncidents'
   | 'transitionEdition'
+  | 'listTransitionApprovals'
+  | 'requestTransitionApproval'
+  | 'approveTransition'
   | 'createIncident'
   | 'transitionIncident'
 >;
@@ -58,6 +62,18 @@ export function createStudio2ControlRoom(source: Studio2ControlRoomDataSource = 
 
     transitionEdition(request: Studio2TransitionEditionRequest) {
       return source.transitionEdition(request);
+    },
+
+    listTransitionApprovals(editionId: string) {
+      return source.listTransitionApprovals(editionId);
+    },
+
+    requestTransitionApproval(editionId: string, to: EditionState, reason: string) {
+      return source.requestTransitionApproval(editionId, to, reason);
+    },
+
+    approveTransition(requestId: string) {
+      return source.approveTransition(requestId);
     },
 
     createIncident(request: Studio2CreateIncidentRequest) {
