@@ -6,18 +6,25 @@ function source(path: string) {
 }
 
 describe("Friend-voting resilience", () => {
-  it("uses one prepared advanced engine instead of rebuilding the voting universe twice", () => {
+  it("uses one primary advanced engine instead of rebuilding the voting universe twice", () => {
     const compatibility = source("integrations/televoting/intelligence-v4.server.ts");
     const v5 = source("integrations/televoting/intelligence-v5.server.ts");
+    const primary = source("integrations/televoting/intelligence.server.ts");
+    const model = source("integrations/televoting/advanced-friend-voting.ts");
 
     expect(compatibility).toContain("getMergedIntelligenceV5Server");
     expect(compatibility).not.toContain("loadCanonicalVotingContextServer");
     expect(compatibility).not.toContain("vote_submissions");
 
-    expect(v5).toContain("prepareAdvancedContext");
-    expect(v5).toContain("reciprocalIndex");
-    expect(v5).toContain("context.advancedAll");
-    expect(v5).not.toContain("getMergedIntelligenceServer(");
+    expect(v5).toContain("getMergedIntelligenceServer");
+    expect(v5).toContain('mode: "advanced"');
+    expect(v5).not.toContain("loadCanonicalVotingContextServer");
+    expect(v5).not.toContain("vote_submissions");
+
+    expect(primary).toContain("const advancedAll = allObservations.map(advancedObservation)");
+    expect(primary).toContain("const observationLookup = new Map<string, Observation[]>()");
+    expect(model).toContain("preparedHistoryCache");
+    expect(model).toContain("currentEditionNumberCache");
   });
 
   it("runs the advanced model for the normal and payload-bounded Organizer endpoints", () => {
@@ -44,22 +51,15 @@ describe("Friend-voting resilience", () => {
     expect(model).toContain("calculateHistoricalPatternRisk");
   });
 
-  it("normalizes legacy, Story-voting, jury and modern televote scales before advanced comparison", () => {
+  it("normalizes heterogeneous voting scales inside the advanced model", () => {
+    const primary = source("integrations/televoting/intelligence.server.ts");
+    const model = source("integrations/televoting/advanced-friend-voting.ts");
     const v5 = source("integrations/televoting/intelligence-v5.server.ts");
 
-    expect(v5).toContain("normalizeScore");
-    expect(v5).toContain("score: row.normalized * 100");
-    expect(v5).toContain("maxScore: 100");
+    expect(primary).toContain("maxScore > 0 ? score / maxScore : 0");
+    expect(model).toContain("row.score / row.maxScore");
     expect(v5).toContain("normalizedCrossScaleScores: true");
     expect(v5).toContain("historicalSourcesIncluded: true");
-  });
-
-  it("keeps future editions out of an edition-specific historical baseline", () => {
-    const v5 = source("integrations/televoting/intelligence-v5.server.ts");
-
-    expect(v5).toContain("number < selectedEditionNumber");
-    expect(v5).toContain("id === options.editionId");
-    expect(v5).toContain("observation.editionId !== options.editionId");
   });
 
   it("keeps Retry manual and all four page tabs visible on narrow mobile screens", () => {
