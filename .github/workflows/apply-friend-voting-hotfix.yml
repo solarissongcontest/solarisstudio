@@ -53,7 +53,6 @@ jobs:
           raw_baseline = 'value: Number(row.score) || 0,'
           if model.count(raw_baseline) < 2:
               raise SystemExit("Expected raw baseline score vectors not found")
-          # Only the two advanced historical-deviation baseline vectors remain after the helper replacement.
           model = model.replace(raw_baseline, 'value: normalizedScore(row),', 2)
           model_path.write_text(model)
 
@@ -79,6 +78,9 @@ jobs:
 
       - name: Run focused regression tests
         run: bun test src/integrations/televoting/advanced-friend-voting.test.ts src/lib/friend-voting-safe-scope-contract.test.ts src/lib/friend-voting-default-scope-contract.test.ts
+
+      - name: Generate route tree and production build
+        run: bun run build
 
       - name: Typecheck
         run: bun run typecheck
