@@ -56,10 +56,12 @@ describe("SSC online-first General Regulations", () => {
     expect(getRuleById("20.2")?.title).toContain("Hierarchy");
   });
 
-  it("keeps old deep-link ids resolvable as migration aliases", () => {
+  it("keeps old numbering available for migration and search without overriding new official ids", () => {
     expect(LEGACY_RULE_ALIASES["14.8"]).toBe("16.3");
-    expect(getRuleById("14.8")?.id).toBe("16.3");
-    expect(getRuleById("8.7")?.id).toBe("4.6");
+    expect(LEGACY_RULE_ALIASES["8.7"]).toBe("4.6");
+    expect(getRuleById("14.8")?.id).toBe("14.8");
+    expect(getRuleById("8.7")?.id).toBe("8.7");
+    expect(searchSscRules("legacy rule 14.8").some((rule) => rule.id === "16.3")).toBe(true);
   });
 
   it("searches the online-first concepts under their new official ids", () => {
