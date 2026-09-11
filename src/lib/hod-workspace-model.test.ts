@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getCountryOperationalReadiness } from './country-operational-readiness';
 import { evaluateEntryEligibility } from './eligibility-engine';
 import { buildHodWorkspaceModel } from './hod-workspace-model';
 import { evaluateWorkflow } from './workflow-engine';
@@ -15,6 +16,16 @@ describe('HOD workspace model', () => {
       broadcasterApproved: false,
     });
     const workflow = evaluateWorkflow(entrySubmissionWorkflow());
+    const operationalReadiness = getCountryOperationalReadiness({
+      participationConfirmed: false,
+      entryPresent: true,
+      entryEligibility: eligibility,
+      entryApproved: false,
+      mediaAvailable: false,
+      juryComplete: false,
+      deadlines: [],
+      unresolvedOrganizerIssues: 0,
+    });
 
     const model = buildHodWorkspaceModel({
       editionId: 'ssc21',
@@ -36,6 +47,7 @@ describe('HOD workspace model', () => {
           acknowledged: false,
         },
       ],
+      operationalReadiness,
     });
 
     expect(model.actions[0].priority).toBe('critical');
@@ -46,7 +58,8 @@ describe('HOD workspace model', () => {
       '/country-hub/notices',
     );
     expect(model.outstandingAcknowledgements).toBe(1);
-    expect(model.readiness).toBeLessThan(50);
+    expect(model.readiness).toBe(operationalReadiness.score);
+    expect(model.readinessState).toBe('blocked');
   });
 
   it('becomes clear when delegation requirements are complete', () => {
@@ -69,6 +82,16 @@ describe('HOD workspace model', () => {
         'entry.lock': 'completed',
       }),
     );
+    const operationalReadiness = getCountryOperationalReadiness({
+      participationConfirmed: true,
+      entryPresent: true,
+      entryEligibility: eligibility,
+      entryApproved: true,
+      mediaAvailable: true,
+      juryComplete: true,
+      deadlines: [],
+      unresolvedOrganizerIssues: 0,
+    });
 
     const model = buildHodWorkspaceModel({
       editionId: 'ssc21',
@@ -82,9 +105,11 @@ describe('HOD workspace model', () => {
       juryMembersAssigned: 5,
       juryBallotSubmitted: true,
       notices: [],
+      operationalReadiness,
     });
 
     expect(model.readiness).toBe(100);
+    expect(model.readinessState).toBe('ready');
     expect(model.actions).toEqual([]);
   });
 });
