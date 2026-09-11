@@ -18,6 +18,10 @@ const expiry = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911160800_integrity_sealed_identity_expiry.sql"),
   "utf8",
 );
+const stateHardening = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161000_integrity_sealed_identity_state_hardening.sql"),
+  "utf8",
+);
 const identityModel = readFileSync(
   resolve(process.cwd(), "src/lib/integrity.ts"),
   "utf8",
@@ -88,6 +92,15 @@ describe("sealed identity break-glass governance", () => {
     expect(expiry).toContain("approval_expires_at <= now()");
     expect(expiry).toContain("set status = 'expired'");
     expect(expiry).toContain("d.status = 'approved' and d.approval_expires_at > now()");
+  });
+
+  it("persists stale approval expiry when organizer queues or new requests are used", () => {
+    expect(stateHardening).toContain("integrity_expire_stale_identity_approvals");
+    expect(stateHardening).toContain("set status = 'expired'");
+    expect(stateHardening).toContain("approval_expires_at <= now()");
+    expect(stateHardening).toContain("'identity.disclosure_expired'");
+    expect(stateHardening).toContain("perform public.integrity_expire_stale_identity_approvals()");
+    expect(stateHardening).toContain("revoke all on function public.integrity_expire_stale_identity_approvals() from public");
   });
 
   it("does not make historical publication depend on an organizer account surviving forever", () => {
