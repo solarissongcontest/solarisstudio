@@ -51,7 +51,7 @@ export function IntegrityInvestigations() {
     });
   }, [cases, filter, query]);
 
-  return <AdminPage><div className="mx-auto max-w-[1480px]"><AdminPageHeader eyebrow="Trust & Integrity" title="Investigation desk" description="Triage cases, assign reviewers, examine evidence, link exact rules, record findings and publish anonymised precedent without mixing allegations with verdicts." actions={<Link to="/integrity" target="_blank" className="admin-action-secondary"><ShieldCheck className="size-4"/>Reporter view</Link>}/>
+  return <AdminPage><div className="mx-auto max-w-[1480px]"><AdminPageHeader eyebrow="Trust & Integrity" title="Investigation desk" description="Triage cases, assign reviewers, examine evidence, link exact rules, record findings and publish anonymised precedent without mixing allegations with verdicts." actions={<div className="flex flex-wrap gap-2"><Link to="/admin/integrity-appeals" className="admin-action-secondary"><Gavel className="size-4"/>Appeal queue</Link><Link to="/integrity" target="_blank" className="admin-action-secondary"><ShieldCheck className="size-4"/>Reporter view</Link></div>}/>
     <RuleDecisionStrip
       title="Evidence, findings & investigator independence"
       description="A report starts a review, not a presumption of guilt. Keep reporter-visible material separate from internal notes, record which rules were actually supported by the evidence, use the official sanction scale and recuse conflicted investigators."
