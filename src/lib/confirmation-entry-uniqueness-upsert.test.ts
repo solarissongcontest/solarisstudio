@@ -6,6 +6,10 @@ const sql = readFileSync(
   resolve(process.cwd(), 'scripts/confirmations-entry-uniqueness-internal-upsert.sql'),
   'utf8',
 );
+const rls = readFileSync(
+  resolve(process.cwd(), 'scripts/confirmations-submission-version-rls-performance.sql'),
+  'utf8',
+);
 
 describe('Confirmations internal entry uniqueness trigger', () => {
   it('excludes the same submission during internal-entry upserts', () => {
@@ -19,5 +23,10 @@ describe('Confirmations internal entry uniqueness trigger', () => {
     expect(sql).toContain('s.id <> current_submission_id');
     expect(sql).toContain("raise exception 'duplicate_song'");
     expect(sql).toContain("raise exception 'duplicate_artist'");
+  });
+
+  it('uses an initplan-safe auth uid lookup in the version-history RLS policy', () => {
+    expect(rls).toContain('public.has_role((select auth.uid())');
+    expect(rls).not.toContain('public.has_role(auth.uid()');
   });
 });
