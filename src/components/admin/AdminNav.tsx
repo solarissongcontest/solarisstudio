@@ -5,6 +5,7 @@ import {
   Database,
   Eye,
   FileClock,
+  FileLock2,
   Flag,
   FlaskConical,
   Gavel,
@@ -123,6 +124,12 @@ export function AdminNav() {
         path.startsWith("/admin/integrity-resolution/"),
     },
     {
+      label: "Rule rulings",
+      to: "/admin/integrity-preclearance",
+      icon: MessageCircleQuestion,
+      active: (path) => path.startsWith("/admin/integrity-preclearance"),
+    },
+    {
       label: "Appeals",
       to: "/admin/integrity-appeals",
       icon: Gavel,
@@ -133,6 +140,12 @@ export function AdminNav() {
       to: "/admin/integrity-evidence",
       icon: Database,
       active: (path) => path.startsWith("/admin/integrity-evidence"),
+    },
+    {
+      label: "Disclosure",
+      to: "/admin/integrity-disclosure",
+      icon: FileLock2,
+      active: (path) => path.startsWith("/admin/integrity-disclosure"),
     },
     {
       label: "Identity access",
