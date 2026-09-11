@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { ContestEvent } from './contest-events';
 import type { Country, Edition, Participant, Show } from './data';
 import type { EditionRuntimeState } from './edition-state';
 import { buildStudio2WorkflowModel, filterStudio2Workflows } from './studio2-workflows';
@@ -72,6 +73,17 @@ const runtime: EditionRuntimeState = {
   },
 };
 
+const broadcastEvent: ContestEvent = {
+  id: 'event-1',
+  editionId: 'edition-1',
+  type: 'broadcast.segment_started',
+  occurredAt: '2026-09-11T17:00:00.000Z',
+  actorUserId: null,
+  entityType: 'show',
+  entityId: 'show-1',
+  payload: {},
+};
+
 describe('Studio 2 workflow operations model', () => {
   it('derives edition, entry and show workflow instances from canonical state', () => {
     const model = buildStudio2WorkflowModel({
@@ -84,11 +96,14 @@ describe('Studio 2 workflow operations model', () => {
     });
 
     expect(model.workflows).toHaveLength(3);
-    expect(model.workflows.some((workflow) => workflow.id === 'edition:edition-1')).toBe(true);
+    const editionWorkflow = model.workflows.find((workflow) => workflow.id === 'edition:edition-1');
+    expect(editionWorkflow?.kindLabel).toBe('Broadcast preparation');
+    expect(editionWorkflow?.trigger).toMatch(/pre-show/i);
 
     const entry = model.workflows.find((workflow) => workflow.id === 'entry:participant-1');
     expect(entry?.countryName).toBe('Oland');
     expect(entry?.owner).toBe('delegation');
+    expect(entry?.assignedRole).toMatch(/Delegation/);
     expect(entry?.status).toBe('ready');
     expect(entry?.tasks.find((task) => task.id === 'entry.song-info')?.effectiveStatus).toBe('ready');
     expect(entry?.tasks.find((task) => task.id === 'entry.running-order')?.effectiveStatus).toBe('ready');
@@ -96,9 +111,38 @@ describe('Studio 2 workflow operations model', () => {
     const showWorkflow = model.workflows.find((workflow) => workflow.id === 'show:show-1');
     expect(showWorkflow?.href).toBe('/admin/broadcast-rundown');
     expect(showWorkflow?.tasks.find((task) => task.id === 'show.rundown')?.effectiveStatus).toBe('blocked');
+    expect(showWorkflow?.failureReason).toMatch(/Studio 2 rundown present/);
   });
 
-  it('marks complete canonical entry readiness as complete', () => {
+  it('preserves canonical deadlines and event history in workflow detail and task board', () => {
+    const model = buildStudio2WorkflowModel({
+      edition,
+      participants: [{ ...participant, song: 'Song', running_order: 1 }],
+      shows: [show],
+      countries: [country],
+      runtime,
+      deadlines: [{
+        id: 'deadline-1',
+        kind: 'broadcast',
+        label: 'Broadcast readiness',
+        due_at: '2026-09-12T20:00:00.000Z',
+        show_id: 'show-1',
+        completed_at: null,
+      }],
+      events: [broadcastEvent],
+      now: new Date('2026-09-11T18:00:00.000Z'),
+    });
+
+    const showWorkflow = model.workflows.find((workflow) => workflow.id === 'show:show-1');
+    expect(showWorkflow?.dueAt).toBe('2026-09-12T20:00:00.000Z');
+    expect(showWorkflow?.history).toEqual([
+      { id: 'event-1', type: 'broadcast.segment_started', occurredAt: '2026-09-11T17:00:00.000Z' },
+    ]);
+    const rundownTask = model.taskBoard.pending.find((item) => item.label === 'Studio 2 rundown present');
+    expect(rundownTask?.dueAt).toBe('2026-09-12T20:00:00.000Z');
+  });
+
+  it('marks complete canonical entry readiness as complete and recommends safe downstream work', () => {
     const model = buildStudio2WorkflowModel({
       edition,
       participants: [{ ...participant, song: 'Song', running_order: 1 }],
@@ -113,6 +157,7 @@ describe('Studio 2 workflow operations model', () => {
 
     const showWorkflow = model.workflows.find((workflow) => workflow.id === 'show:show-1');
     expect(showWorkflow?.status).toBe('completed');
+    expect(model.automations.some((automation) => automation.id === 'submission-readiness')).toBe(true);
   });
 
   it('adds voting and results tasks only when the edition lifecycle makes them relevant', () => {
@@ -140,6 +185,8 @@ describe('Studio 2 workflow operations model', () => {
       'show.results',
     ]));
     expect(showWorkflow?.status).toBe('completed');
+    expect(model.automations.some((automation) => automation.id === 'prepare-publication')).toBe(true);
+    expect(model.automations.find((automation) => automation.id === 'prepare-publication')?.description).toMatch(/explicit organizer action/i);
   });
 
   it('supports URL-friendly status, type, owner, country and text filters', () => {
@@ -156,6 +203,7 @@ describe('Studio 2 workflow operations model', () => {
     ]);
     expect(filterStudio2Workflows(model.workflows, { owner: 'delegation', countryId: 'country-1' })).toHaveLength(1);
     expect(filterStudio2Workflows(model.workflows, { q: 'oland' })).toHaveLength(1);
+    expect(filterStudio2Workflows(model.workflows, { q: 'broadcast preparation' }).length).toBeGreaterThan(0);
     expect(filterStudio2Workflows(model.workflows, { status: 'completed' })).toHaveLength(0);
   });
 });
