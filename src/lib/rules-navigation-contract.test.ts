@@ -39,13 +39,18 @@ describe("Rules and Integrity navigation", () => {
     expect(addon).not.toContain("data-solaris-rules-nav-host");
   });
 
-  it("exposes organizer Integrity, Appeals, Evidence, Rules and Interpretations workspaces", () => {
+  it("exposes organizer Integrity governance workspaces", () => {
     expect(adminNav).toContain('label: "Integrity"');
     expect(adminNav).toContain('to: "/admin/integrity-investigations"');
     expect(adminNav).toContain('label: "Appeals"');
     expect(adminNav).toContain('to: "/admin/integrity-appeals"');
     expect(adminNav).toContain('label: "Evidence"');
     expect(adminNav).toContain('to: "/admin/integrity-evidence"');
+    expect(adminNav).toContain('label: "Identity access"');
+    expect(adminNav).toContain('to: "/admin/integrity-identity"');
+  });
+
+  it("exposes organizer Rules and Interpretations workspaces", () => {
     expect(adminNav).toContain('label: "Rules manager"');
     expect(adminNav).toContain('to: "/admin/rules-manager"');
     expect(adminNav).toContain('label: "Interpretations"');
