@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeEvidenceFile, type EvidenceUploadDescriptor } from "@/lib/integrity-portal";
 
 export type DueEvidenceDeletion = {
   id: string;
@@ -26,6 +27,16 @@ export type EvidenceAccessLogItem = {
   action: "access_descriptor" | "download_requested";
   detail: string | null;
   created_at: string;
+};
+
+export type EvidenceDerivativeKind = "redacted" | "disclosure" | "redacted_disclosure";
+
+export type EvidenceDerivativeResult = {
+  ok: true;
+  evidence_id: string;
+  source_evidence_id: string;
+  kind: EvidenceDerivativeKind;
+  visible_to_reporter: boolean;
 };
 
 type SignedEvidenceDownload = {
@@ -154,4 +165,61 @@ export async function deleteDueEvidence(item: DueEvidenceDeletion) {
 
 export async function cleanExpiredEvidenceUpload(item: ExpiredEvidenceUpload) {
   return runEvidenceLifecycle({ mode: "clean_expired_upload", tokenId: item.token_id });
+}
+
+export async function uploadOrganizerEvidenceDerivative(
+  sourceEvidenceId: string,
+  sourceFile: File,
+  kind: EvidenceDerivativeKind,
+  title: string,
+  description: string,
+  reason: string,
+): Promise<EvidenceDerivativeResult> {
+  const file = await sanitizeEvidenceFile(sourceFile);
+  const descriptor = await rpc<EvidenceUploadDescriptor & { source_evidence_id: string; kind: EvidenceDerivativeKind }>(
+    "admin_create_integrity_evidence_derivative_upload",
+    {
+      _source_evidence_id: sourceEvidenceId,
+      _name: file.name,
+      _mime: file.type || "text/plain",
+      _size: file.size,
+      _kind: kind,
+    },
+  );
+
+  const { error: uploadError } = await supabase.storage
+    .from(descriptor.bucket)
+    .upload(descriptor.object_path, file, {
+      upsert: false,
+      contentType: file.type || "text/plain",
+      cacheControl: "0",
+    });
+  if (uploadError) throw new Error(uploadError.message);
+
+  return rpc<EvidenceDerivativeResult>("admin_finalize_integrity_evidence_derivative", {
+    _token_id: descriptor.token_id,
+    _title: title,
+    _description: description || null,
+    _reason: reason,
+  });
+}
+
+export async function createOrganizerEvidenceDisclosureCopy(
+  sourceEvidenceId: string,
+  input: {
+    title: string;
+    description: string;
+    externalUrl?: string;
+    redacted?: boolean;
+    reason: string;
+  },
+): Promise<EvidenceDerivativeResult> {
+  return rpc<EvidenceDerivativeResult>("admin_create_integrity_evidence_disclosure_copy", {
+    _source_evidence_id: sourceEvidenceId,
+    _title: input.title,
+    _description: input.description,
+    _external_url: input.externalUrl || null,
+    _redacted: input.redacted ?? false,
+    _reason: input.reason,
+  });
 }
