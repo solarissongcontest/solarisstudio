@@ -5,14 +5,22 @@ import {
   Database,
   Eye,
   FileClock,
+  Flag,
+  FlaskConical,
   Gavel,
+  History,
   KeyRound,
   LayoutDashboard,
   Layers3,
+  ListVideo,
+  Mail,
   MessageCircleQuestion,
+  PlayCircle,
   RadioTower,
   Settings2,
+  ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Trophy,
   Vote,
   type LucideIcon,
@@ -52,10 +60,28 @@ export function AdminNav() {
       active: (path) => path.startsWith("/admin/operations"),
     },
     {
+      label: "Control Room",
+      to: "/admin/control-room",
+      icon: ShieldAlert,
+      active: (path) => path.startsWith("/admin/control-room"),
+    },
+    {
+      label: "Simulator",
+      to: "/admin/edition-simulator",
+      icon: PlayCircle,
+      active: (path) => path.startsWith("/admin/edition-simulator"),
+    },
+    {
       label: "Delegations",
       to: "/confirmations/admin",
       icon: ClipboardCheck,
       active: (path) => path.startsWith("/confirmations/admin"),
+    },
+    {
+      label: "Submission history",
+      to: "/admin/submission-versions",
+      icon: History,
+      active: (path) => path.startsWith("/admin/submission-versions"),
     },
     {
       label: "Contest",
@@ -79,6 +105,12 @@ export function AdminNav() {
         path.startsWith("/admin/televote/") ||
         path.startsWith("/admin/friend-voting") ||
         path.startsWith("/admin/jury-integrity"),
+    },
+    {
+      label: "Voting Lab",
+      to: "/admin/voting-lab",
+      icon: FlaskConical,
+      active: (path) => path.startsWith("/admin/voting-lab"),
     },
     {
       label: "Integrity",
@@ -109,6 +141,18 @@ export function AdminNav() {
       active: (path) => path.startsWith("/admin/integrity-identity"),
     },
     {
+      label: "Reveal Director",
+      to: "/admin/results-reveal",
+      icon: Sparkles,
+      active: (path) => path.startsWith("/admin/results-reveal"),
+    },
+    {
+      label: "Rundown",
+      to: "/admin/broadcast-rundown",
+      icon: ListVideo,
+      active: (path) => path.startsWith("/admin/broadcast-rundown"),
+    },
+    {
       label: "Publish",
       to: publishHref,
       icon: Eye,
@@ -124,6 +168,12 @@ export function AdminNav() {
 
   const administration: NavItem[] = [
     {
+      label: "Communications",
+      to: "/admin/communications",
+      icon: Mail,
+      active: (path) => path.startsWith("/admin/communications"),
+    },
+    {
       label: "Administration",
       to: "/admin/more",
       icon: Settings2,
@@ -138,6 +188,12 @@ export function AdminNav() {
         path.startsWith("/admin/beta") ||
         path.startsWith("/admin/admin-beta") ||
         path.startsWith("/admin/anniversary"),
+    },
+    {
+      label: "Feature rollout",
+      to: "/admin/feature-rollout",
+      icon: Flag,
+      active: (path) => path.startsWith("/admin/feature-rollout"),
     },
     {
       label: "All editions",
