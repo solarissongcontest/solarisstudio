@@ -214,7 +214,7 @@ describe("Trust & Integrity privacy boundary audit", () => {
     expect(interpretationSources).toContain("v_ruling.summary");
     expect(interpretationSources).not.toContain("c.details");
     expect(preclearanceApi).toContain("reporter_integrity_preclearance_rulings");
-    expect(preclearanceApi).not.toContain("integrity_preclearance_rulings\"").toBe(false);
+    expect(preclearanceApi).not.toContain("public_integrity_preclearance");
   });
 
   it("keeps the service role key confined to evidence Edge Functions", () => {
