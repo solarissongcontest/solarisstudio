@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910214000_rulebook_governance.sql"),
   "utf8",
 );
+const chainMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910214500_rulebook_release_chain.sql"),
+  "utf8",
+);
 const runtime = readFileSync(
   resolve(process.cwd(), "src/lib/rules-governance.ts"),
   "utf8",
@@ -49,6 +53,7 @@ describe("rulebook governance contract", () => {
   it("makes published releases immutable through the editor RPCs", () => {
     expect(migration).toMatch(/if v_status <> 'draft' then raise exception 'Only draft releases can be edited'/i);
     expect(migration).toMatch(/if v_status <> 'draft' then raise exception 'Only draft releases can be published'/i);
+    expect(chainMigration).toContain("Published rulebook history cannot be archived");
   });
 
   it("requires explicit rationale and preserves a public version history", () => {
@@ -57,8 +62,17 @@ describe("rulebook governance contract", () => {
     expect(migration).toContain("'rationale', c.rationale");
   });
 
+  it("resolves inherited rule changes across a version chain", () => {
+    expect(chainMigration).toContain("with recursive current_release as");
+    expect(chainMigration).toContain("release_chain as");
+    expect(chainMigration).toContain("partition by c.rule_id");
+    expect(chainMigration).toContain("'effective_changes'");
+    expect(runtime).toContain("release.effective_changes ?? release.changes ?? []");
+  });
+
   it("applies only safe existing-rule changes at runtime", () => {
     expect(runtime).toContain('change.change_kind !== "modified" && change.change_kind !== "interpretation"');
+    expect(runtime).toContain("resetRulebookBaseline");
     expect(runtime).toContain("SSC_RULES.find");
     expect(runtime).toContain("SSC_RULE_CHAPTERS");
     expect(runtime).toContain("public_current_rulebook_release");
