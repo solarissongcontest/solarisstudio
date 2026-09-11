@@ -23,6 +23,7 @@ import {
   Settings2,
   ShieldAlert,
   ShieldCheck,
+  Siren,
   Sparkles,
   Trophy,
   Vote,
@@ -123,6 +124,12 @@ export function AdminNav() {
       to: "/admin/workflows",
       icon: GitBranch,
       active: (path) => path.startsWith("/admin/workflows"),
+    },
+    {
+      label: "Incidents",
+      to: "/admin/incidents",
+      icon: Siren,
+      active: (path) => path.startsWith("/admin/incidents"),
     },
     {
       label: "Simulator",
