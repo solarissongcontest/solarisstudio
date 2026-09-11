@@ -15,6 +15,14 @@ const libraryProvider = readFileSync(
   resolve(process.cwd(), "src/lib/public-library-governance.ts"),
   "utf8",
 );
+const libraryResults = readFileSync(
+  resolve(process.cwd(), "src/components/library/GovernanceLibraryResults.tsx"),
+  "utf8",
+);
+const publicLibrary = readFileSync(
+  resolve(process.cwd(), "src/routes/library.tsx"),
+  "utf8",
+);
 
 describe("Rules and Integrity navigation", () => {
   it("keeps global rule state and contextual workflow help mounted", () => {
@@ -43,6 +51,16 @@ describe("Rules and Integrity navigation", () => {
     expect(libraryProvider).toContain('group: "Rules & governance"');
     expect(libraryProvider).toContain('group: "Trust & Integrity"');
     expect(libraryProvider).toContain("searchSscRules");
+  });
+
+  it("provides a real public Library host for governance discovery", () => {
+    expect(publicLibrary).toContain('createFileRoute("/library")');
+    expect(publicLibrary).toContain("Search Solaris");
+    expect(publicLibrary).toContain("<GovernanceLibraryResults");
+    expect(publicLibrary).toContain("getPublicRuleInterpretations");
+    expect(publicLibrary).toContain('aria-label="Search Solaris Library"');
+    expect(libraryResults).toContain("searchGovernanceLibrary");
+    expect(libraryResults).toContain('aria-label="Rules and Integrity Library results"');
   });
 
   it("exposes organizer Integrity governance workspaces", () => {
