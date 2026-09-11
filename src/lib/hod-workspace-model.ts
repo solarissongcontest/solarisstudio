@@ -1,3 +1,4 @@
+import type { CountryOperationalReadiness, CountryReadinessState } from './country-operational-readiness';
 import type { EligibilityResult } from './eligibility-engine';
 import type { NoticeSeverity } from './official-communications';
 import type { WorkflowSummary } from './workflow-engine';
@@ -22,6 +23,7 @@ export type HodWorkspaceInput = {
   juryMembersAssigned: number;
   juryBallotSubmitted: boolean;
   notices: readonly HodWorkspaceNotice[];
+  operationalReadiness: CountryOperationalReadiness;
 };
 
 export type HodActionPriority = 'critical' | 'high' | 'normal';
@@ -40,6 +42,7 @@ export type HodWorkspaceModel = {
   countryId: string;
   countryName: string;
   readiness: number;
+  readinessState: CountryReadinessState;
   actions: HodWorkspaceAction[];
   outstandingAcknowledgements: number;
   jury: {
@@ -113,17 +116,17 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
     });
   }
 
-  const weighted = [
-    input.confirmationComplete ? 1 : 0,
-    input.entryEligibility.status === 'ready' ? 1 : input.entryEligibility.status === 'warning' ? 0.75 : 0,
-    input.entryWorkflow.progress / 100,
-    juryComplete ? 1 : Math.min(1, input.juryMembersAssigned / Math.max(1, input.juryMembersRequired)),
-    input.juryBallotSubmitted ? 1 : 0,
-  ];
+  if (input.operationalReadiness.overdueDeadlines.length) {
+    actions.push({
+      id: 'overdue-deadlines',
+      label: 'Resolve overdue deadline requirements',
+      description: `${input.operationalReadiness.overdueDeadlines.length} open deadline${input.operationalReadiness.overdueDeadlines.length === 1 ? ' is' : 's are'} overdue.`,
+      priority: 'critical',
+      href: '/country-hub/hod',
+    });
+  }
 
-  const readiness = Math.round((weighted.reduce((sum, value) => sum + value, 0) / weighted.length) * 100);
   const priorityRank: Record<HodActionPriority, number> = { critical: 3, high: 2, normal: 1 };
-
   actions.sort((a, b) => priorityRank[b.priority] - priorityRank[a.priority]);
 
   return {
@@ -131,7 +134,8 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
     editionName: input.editionName,
     countryId: input.countryId,
     countryName: input.countryName,
-    readiness,
+    readiness: input.operationalReadiness.score,
+    readinessState: input.operationalReadiness.state,
     actions,
     outstandingAcknowledgements: unacknowledged.length,
     jury: {
