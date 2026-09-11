@@ -49,20 +49,28 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}) {
   return data as T;
 }
 
-async function createSignedDownload(request: EvidenceDownloadRequest) {
+async function createSignedDownload(request: EvidenceDownloadRequest): Promise<SignedEvidenceDownload> {
   const { data, error } = await supabase.functions.invoke("integrity-evidence-download", {
     body: request,
   });
   if (error) throw new Error(error.message || "Could not create a secure evidence download.");
 
-  const result = data as SignedEvidenceDownload | { error?: string } | null;
-  if (!result || "error" in result) {
-    throw new Error(result?.error || "Could not create a secure evidence download.");
-  }
-  if (!result.url || result.expiresInSeconds !== 60) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Evidence download service returned an invalid secure link.");
   }
-  return result;
+  const result = data as Record<string, unknown>;
+  if (typeof result.error === "string") {
+    throw new Error(result.error || "Could not create a secure evidence download.");
+  }
+  if (typeof result.url !== "string" || !result.url.trim() || result.expiresInSeconds !== 60) {
+    throw new Error("Evidence download service returned an invalid secure link.");
+  }
+  return {
+    url: result.url,
+    expiresInSeconds: 60,
+    originalName: typeof result.originalName === "string" ? result.originalName : null,
+    mimeType: typeof result.mimeType === "string" ? result.mimeType : null,
+  };
 }
 
 async function runEvidenceLifecycle(request: EvidenceLifecycleRequest) {
