@@ -7,6 +7,11 @@ const migration = readFileSync(
   "utf8",
 );
 const evidenceApi = readFileSync(resolve(process.cwd(), "src/lib/integrity-evidence.ts"), "utf8");
+const disclosureRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-disclosure.tsx"),
+  "utf8",
+);
+const adminNav = readFileSync(resolve(process.cwd(), "src/components/admin/AdminNav.tsx"), "utf8");
 
 describe("Integrity evidence disclosure and redaction", () => {
   it("keeps evidence derivatives append-only and linked to an original", () => {
@@ -51,5 +56,21 @@ describe("Integrity evidence disclosure and redaction", () => {
     expect(evidenceApi).toContain("admin_create_integrity_evidence_derivative_upload");
     expect(evidenceApi).toContain("admin_finalize_integrity_evidence_derivative");
     expect(evidenceApi).not.toContain("createSignedUrl");
+  });
+
+  it("provides an organizer disclosure desk that uses secure downloads and derivative APIs", () => {
+    expect(disclosureRoute).toContain("getOrganizerEvidenceDownloadUrl");
+    expect(disclosureRoute).toContain("uploadOrganizerEvidenceDerivative");
+    expect(disclosureRoute).toContain("createOrganizerEvidenceDisclosureCopy");
+    expect(disclosureRoute).toContain("Evidence disclosure desk");
+    expect(disclosureRoute).toContain("The source row stays unchanged");
+    expect(disclosureRoute).toContain("Reporter-visible derivative");
+    expect(disclosureRoute).not.toContain("storage_path");
+    expect(disclosureRoute).not.toContain("createSignedUrl");
+  });
+
+  it("makes the disclosure desk discoverable in Organizer navigation", () => {
+    expect(adminNav).toContain('label: "Disclosure"');
+    expect(adminNav).toContain('to: "/admin/integrity-disclosure"');
   });
 });
