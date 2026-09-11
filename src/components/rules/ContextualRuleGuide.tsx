@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 const RULE_EVENT = "solaris:open-rule";
 
-type RuleContext = {
+export type RuleContext = {
   title: string;
   intro: string;
   ruleIds: string[];
@@ -37,7 +37,7 @@ const TONE: Record<RuleTone, { label: string; icon: LucideIcon; className: strin
   information: { label: "Information", icon: Info, className: "border-cyan-300/20 bg-cyan-300/10 text-cyan-100" },
 };
 
-function routeContext(pathname: string): RuleContext | null {
+export function routeContext(pathname: string): RuleContext | null {
   if (pathname.startsWith("/confirmations")) {
     return {
       title: "Confirmation rules",
@@ -50,7 +50,15 @@ function routeContext(pathname: string): RuleContext | null {
     return {
       title: "Televoting rules",
       intro: "Official-system voting, duplicate or invalid votes, independence and integrity review.",
-      ruleIds: ["10.1", "10.2", "10.3", "11.2", "11.4", "11.5", "11.7"],
+      ruleIds: ["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"],
+      icon: ShieldCheck,
+    };
+  }
+  if (pathname.startsWith("/admin/friend-voting") || pathname.startsWith("/admin/jury-integrity")) {
+    return {
+      title: "Voting-integrity rules",
+      intro: "Friendships are allowed. Coordination is not. Statistical and automated signals only decide what deserves human review.",
+      ruleIds: ["11.2", "11.3", "11.4", "11.5", "11.6", "11.7", "16.5", "16.6"],
       icon: ShieldCheck,
     };
   }
@@ -60,14 +68,6 @@ function routeContext(pathname: string): RuleContext | null {
       intro: "How jury rankings stay independent and how integrity concerns are reviewed without treating a flag as guilt.",
       ruleIds: ["9.1", "9.2", "11.2", "11.4", "11.5", "11.7"],
       icon: Scale,
-    };
-  }
-  if (pathname.startsWith("/admin/friend-voting") || pathname.startsWith("/admin/jury-integrity")) {
-    return {
-      title: "Voting-integrity rules",
-      intro: "Friendships are allowed. Coordination is not. Statistical and automated signals only decide what deserves human review.",
-      ruleIds: ["11.2", "11.3", "11.4", "11.5", "11.6", "11.7", "16.5", "16.6"],
-      icon: ShieldCheck,
     };
   }
   if (pathname.startsWith("/admin/integrity")) {
@@ -238,6 +238,7 @@ function RuleDetail({ rule, onBack, onOpenRule }: { rule: SscRule; onBack: () =>
       </section>
 
       {rule.important ? <div className="mt-5 rounded-2xl border border-amber-200/15 bg-amber-200/[0.055] p-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-amber-100">Important</p><p className="mt-2 text-xs leading-5 text-amber-50/80">{rule.important}</p></div> : null}
+
       {rule.allowed?.length ? <ListBlock title="Allowed" icon={CheckCircle2} items={rule.allowed} className="text-emerald-100" /> : null}
       {rule.prohibited?.length ? <ListBlock title="Not allowed" icon={XCircle} items={rule.prohibited} className="text-rose-100" /> : null}
 
