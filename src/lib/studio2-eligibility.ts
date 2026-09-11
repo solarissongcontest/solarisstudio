@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { CountryOperationalReadiness, CountryReadinessSignal } from './country-operational-readiness';
 import type { Studio2CountryCockpitRow } from './studio2-country-cockpit';
 
 export type Studio2EligibilityStatus = 'eligible' | 'incomplete' | 'warning' | 'blocked' | 'overridden';
@@ -154,7 +155,9 @@ export function buildStudio2EligibilityCountry(
       isStudio2EligibilityOverrideActive(override, now),
   );
   const overrideByRule = new Map(activeOverrides.map((override) => [override.affectedRule, override]));
-  const signals = new Map(row.operationalReadiness.signals.map((signal) => [signal.id, signal]));
+  const signals = new Map<string, CountryReadinessSignal>(
+    row.operationalReadiness.signals.map((signal) => [signal.id, signal]),
+  );
 
   const definitions: Array<{
     id: string;
@@ -172,7 +175,7 @@ export function buildStudio2EligibilityCountry(
   ];
 
   const rules: Studio2EligibilityRule[] = definitions.map((definition) => {
-    const signal = signals.get(definition.id as Parameters<typeof signals.get>[0]);
+    const signal = signals.get(definition.id);
     const factualStatus = signal
       ? statusFromSignal(signal.state, definition.attention)
       : 'incomplete';
@@ -219,6 +222,40 @@ export function buildStudio2EligibilityMatrix(
   return rows
     .map((row) => buildStudio2EligibilityCountry(row, overrides, now))
     .sort((a, b) => a.countryName.localeCompare(b.countryName));
+}
+
+export function applyStudio2EligibilityOverridesToReadiness(
+  row: Studio2CountryCockpitRow,
+  overrides: readonly Studio2EligibilityOverride[],
+  now = new Date(),
+): CountryOperationalReadiness {
+  const eligibility = buildStudio2EligibilityCountry(row, overrides, now);
+  const ruleById = new Map(eligibility.rules.map((rule) => [rule.id, rule]));
+  const signals = row.operationalReadiness.signals.map((signal) => {
+    const rule = ruleById.get(signal.id);
+    if (rule?.effectiveStatus !== 'overridden') return signal;
+    return {
+      ...signal,
+      state: 'ready' as const,
+      message: `${signal.message} An organizer eligibility override is active.`,
+    };
+  });
+  const blockers = signals.filter((signal) => signal.state === 'blocked');
+  const attention = signals.filter((signal) => signal.state === 'attention');
+  const readyCount = signals.filter((signal) => signal.state === 'ready').length;
+  const score = signals.length
+    ? Math.round(((readyCount + attention.length * 0.5) / signals.length) * 100)
+    : 100;
+  const state = blockers.length ? 'blocked' as const : attention.length ? 'attention_required' as const : 'ready' as const;
+
+  return {
+    ...row.operationalReadiness,
+    state,
+    score,
+    signals,
+    blockers,
+    attention,
+  };
 }
 
 async function rpc(
