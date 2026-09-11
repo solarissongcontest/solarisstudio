@@ -15,8 +15,9 @@ import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { useEditions, useParticipants, useShows } from '@/lib/data';
-import { studio2ControlRoom } from '@/lib/studio2-control-room';
 import { buildStudio2ActionCenter, type Studio2ActionItem, type Studio2ActionLane } from '@/lib/studio2-action-center';
+import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
+import { studio2ControlRoom } from '@/lib/studio2-control-room';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 
 export const Route = createFileRoute('/_authenticated/admin/action-center')({
@@ -68,6 +69,13 @@ function ActionCenterPage() {
     refetchInterval: 15_000,
   });
 
+  const countryCockpitQuery = useQuery({
+    queryKey: ['studio2-action-center-country-readiness', resolvedEditionId || 'none'],
+    enabled: Boolean(resolvedEditionId),
+    queryFn: () => loadStudio2CountryCockpit(resolvedEditionId),
+    refetchInterval: 30_000,
+  });
+
   const model = useMemo(() => {
     if (!snapshotQuery.data) return null;
     return buildStudio2ActionCenter({
@@ -79,9 +87,15 @@ function ActionCenterPage() {
       recentEvents: snapshotQuery.data.recentEvents,
       editionSlug: selectedEdition?.slug ?? null,
       broadcastRundownEnabled: featureQuery.data?.rundown === true,
+      countryReadiness: (countryCockpitQuery.data ?? []).map((row) => ({
+        countryId: row.context.countryId,
+        countryName: row.context.countryName,
+        readiness: row.operationalReadiness,
+      })),
     });
   }, [
     approvalsQuery.data,
+    countryCockpitQuery.data,
     featureQuery.data?.rundown,
     participantsQuery.data,
     selectedEdition?.slug,
@@ -94,13 +108,15 @@ function ActionCenterPage() {
     || snapshotQuery.isLoading
     || participantsQuery.isLoading
     || showsQuery.isLoading
-    || approvalsQuery.isLoading;
+    || approvalsQuery.isLoading
+    || countryCockpitQuery.isLoading;
   const error = editionsQuery.error
     || featureQuery.error
     || snapshotQuery.error
     || participantsQuery.error
     || showsQuery.error
-    || approvalsQuery.error;
+    || approvalsQuery.error
+    || countryCockpitQuery.error;
 
   return (
     <AdminPage>
@@ -108,7 +124,7 @@ function ActionCenterPage() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2 · Operations"
           title="Action Center"
-          description="One operational queue for the selected edition: urgent incidents, approvals, incomplete contest data, broadcast preparation, lifecycle options and recent Studio 2 activity."
+          description="One operational queue for the selected edition: urgent incidents, delegation readiness, approvals, contest data, broadcast preparation, lifecycle options and recent Studio 2 activity."
           actions={
             <a href="/admin/control-room" className="admin-action-secondary">
               Open Control Room
@@ -162,7 +178,7 @@ function ActionCenterPage() {
                   </span>
                   <div>
                     <p className="font-semibold">No active blocker needs organizer attention</p>
-                    <p className="mt-1 text-sm text-muted-foreground">The current Action Center checks found no critical incident, actionable approval, paused subsystem, incomplete canonical entry or missing broadcast rundown.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">The current Action Center checks found no critical incident, blocked delegation, actionable approval, paused subsystem, incomplete canonical entry or missing broadcast rundown.</p>
                   </div>
                 </div>
               </AdminCard>
@@ -178,7 +194,7 @@ function ActionCenterPage() {
               <ActionLaneCard
                 lane="attention"
                 title="Needs attention"
-                description="Operational issues, approvals and incomplete data that need an organizer decision."
+                description="Operational issues, delegation readiness, approvals and incomplete data that need an organizer decision."
                 items={model.attention}
               />
             </div>
