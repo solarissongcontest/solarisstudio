@@ -9,6 +9,7 @@ import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from '@/lib/feature-fl
 import {
   STUDIO2_PRODUCT_SURFACE_LIST,
   studio2SurfaceFor,
+  studio2SurfaceRolloutEligible,
   studio2SurfaceStateLabel,
   type Studio2SurfaceState,
 } from '@/lib/studio2-product-surfaces';
@@ -69,13 +70,9 @@ async function loadFlags(): Promise<FeatureFlagRow[]> {
     }));
 }
 
-function canEnableSurface(state: Studio2SurfaceState) {
-  return state !== 'planned' && state !== 'external_workstream';
-}
-
 async function setFlag(row: FeatureFlagRow, enabled: boolean) {
   const surface = studio2SurfaceFor(row.key);
-  if (enabled && !canEnableSurface(surface.state)) {
+  if (enabled && !studio2SurfaceRolloutEligible(surface)) {
     throw new Error(`${surface.label} is not eligible for rollout from this workstream.`);
   }
 
@@ -156,7 +153,7 @@ function FeatureRolloutPage() {
               {rows.map((row) => {
                 const surface = studio2SurfaceFor(row.key);
                 const busy = toggleFlag.isPending && toggleFlag.variables?.row.key === row.key;
-                const enableAllowed = canEnableSurface(surface.state);
+                const enableAllowed = studio2SurfaceRolloutEligible(surface);
                 const toggleAllowed = row.enabled || enableAllowed;
 
                 return (
