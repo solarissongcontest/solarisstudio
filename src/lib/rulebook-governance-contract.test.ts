@@ -147,7 +147,8 @@ describe("rulebook governance contract", () => {
     expect(televotingReceipt).toContain("Independent voting & integrity");
     expect(televotingReceipt).toContain('["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"]');
     expect(investigations).toContain("Evidence, findings & investigator independence");
-    expect(investigations).toContain('["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"]');
+    for (const ruleId of ["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"])
+      expect(investigations).toContain(`"${ruleId}"`);
     expect(navigation).toContain('<ContextualRuleGuide />');
     expect(navigation).toContain('/rules/changes');
   });
