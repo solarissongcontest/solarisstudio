@@ -82,6 +82,24 @@ describe('Studio 2 eligibility decision model', () => {
     expect(result.overall).toBe('overridden');
   });
 
+  it('assigns dedicated eligibility failures to their operational rules only', () => {
+    const snapshot = buildStudio2HodWorkspaceSnapshot({
+      ...context,
+      confirmationComplete: false,
+      entry: {
+        ...context.entry!,
+        songUrl: null,
+        status: 'pending',
+      },
+    });
+    const result = buildStudio2EligibilityCountry(snapshot, [], new Date('2026-09-11T10:00:00Z'));
+
+    expect(result.rules.find((rule) => rule.id === 'participation')?.factualStatus).toBe('blocked');
+    expect(result.rules.find((rule) => rule.id === 'entry-approval')?.factualStatus).toBe('incomplete');
+    expect(result.rules.find((rule) => rule.id === 'media')?.factualStatus).toBe('incomplete');
+    expect(result.rules.find((rule) => rule.id === 'entry-validity')?.factualStatus).toBe('eligible');
+  });
+
   it('does not let one override hide an unrelated blocker', () => {
     const snapshot = buildStudio2HodWorkspaceSnapshot({
       ...context,
@@ -122,6 +140,7 @@ describe('Studio 2 eligibility decision model', () => {
     );
 
     expect(effective.blockers.map((signal) => signal.id)).not.toContain('participation');
+    expect(effective.blockers.map((signal) => signal.id)).not.toContain('entry-validity');
     expect(effective.state).toBe('attention_required');
     expect(effective.attention.map((signal) => signal.id)).toContain('jury');
   });
