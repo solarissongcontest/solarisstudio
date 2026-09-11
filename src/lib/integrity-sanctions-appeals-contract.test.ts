@@ -6,6 +6,22 @@ const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910220000_integrity_sanctions_and_appeals.sql"),
   "utf8",
 );
+const reporterMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910220100_integrity_reporter_appeals.sql"),
+  "utf8",
+);
+const portal = readFileSync(
+  resolve(process.cwd(), "src/lib/integrity-portal.ts"),
+  "utf8",
+);
+const organizerRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-resolution.$caseId.tsx"),
+  "utf8",
+);
+const investigationsRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-investigations.tsx"),
+  "utf8",
+);
 
 const EXPECTED_LEVELS = [
   "Official Warning",
@@ -34,6 +50,7 @@ describe("Integrity sanctions and appeals contract", () => {
   it("maps every canonical sanction level to the exact SSC label", () => {
     EXPECTED_LEVELS.forEach((label, index) => {
       expect(migration).toContain(`when ${index + 1} then '${label}'`);
+      expect(organizerRoute).toContain(`"${label}"`);
     });
     expect(migration).toContain("sanction_label_matches_level");
   });
@@ -42,12 +59,17 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(migration).toContain("Finding does not belong to this case");
     expect(migration).toContain("A sanction requires a confirmed violation finding");
     expect(migration).toContain("where id = _finding_id and case_id = _case_id");
+    expect(organizerRoute).toContain('finding.outcome === "violation"');
   });
 
   it("records both the normal starting level and the final human decision", () => {
     expect(migration).toContain("_typical_level integer");
     expect(migration).toContain("_final_level integer");
     expect(migration).toContain("Sanction rationale must be between 20 and 12000 characters");
+    expect(organizerRoute).toContain("Typical starting level");
+    expect(organizerRoute).toContain("Final level");
+    expect(organizerRoute).toContain("Aggravating factors");
+    expect(organizerRoute).toContain("Mitigating factors");
   });
 
   it("implements the 48-hour appeal deadline for protected and anonymous reporters", () => {
@@ -56,12 +78,29 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(migration).toContain("public_submit_anonymous_integrity_appeal");
     expect(migration).toContain("recovery_secret_hash = v_hash");
     expect(migration).toContain("case when v_timely then 'submitted' else 'rejected_late' end");
+    expect(reporterMigration).toContain("'appeal_deadline', s.effective_at + interval '48 hours'");
   });
 
-  it("requires a fresh appeal reviewer rather than the original sanction decision-maker", () => {
-    expect(migration).toContain("The original sanction decision-maker cannot be the appeal reviewer");
+  it("gives protected and anonymous reporters narrow APIs to inspect and submit appeals", () => {
+    expect(reporterMigration).toContain("reporter_integrity_case_resolution");
+    expect(reporterMigration).toContain("public_get_anonymous_integrity_resolution");
+    expect(portal).toContain("getProtectedIntegrityResolution");
+    expect(portal).toContain("submitProtectedIntegrityAppeal");
+    expect(portal).toContain("getAnonymousIntegrityResolution");
+    expect(portal).toContain("submitAnonymousIntegrityAppeal");
+  });
+
+  it("prevents duplicate reporter appeals for one sanction", () => {
+    expect(reporterMigration).toContain("integrity_case_one_reporter_appeal_per_sanction_idx");
+    expect(reporterMigration).toContain("where submitted_via in ('protected_reporter', 'anonymous_recovery')");
+  });
+
+  it("requires a fresh appeal reviewer rather than the original finding or sanction decision-maker", () => {
+    expect(reporterMigration).toContain("The original sanction decision-maker cannot be the appeal reviewer");
+    expect(reporterMigration).toContain("The original finding author cannot be the appeal reviewer");
     expect(migration).toContain("Only the assigned appeal reviewer may decide this appeal");
     expect(migration).toContain("'appeal_reviewer'");
+    expect(organizerRoute).toContain("Fresh appeal reviewer");
   });
 
   it("preserves the original sanction when an appeal changes the level", () => {
@@ -78,10 +117,15 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(migration).toContain("revoke all on public.integrity_case_appeals from anon, authenticated");
   });
 
-  it("exposes organizer resolution data through a narrow organizer-gated RPC", () => {
+  it("exposes organizer resolution data through a narrow organizer-gated RPC and visible workspace", () => {
     expect(migration).toContain("admin_integrity_case_resolution");
     expect(migration).toContain("if not public.integrity_is_organizer() then raise exception 'Organizer access required'");
     expect(migration).toContain("'sanctions'");
     expect(migration).toContain("'appeals'");
+    expect(organizerRoute).toContain("admin_integrity_case_resolution");
+    expect(organizerRoute).toContain("admin_record_integrity_sanction");
+    expect(organizerRoute).toContain("admin_assign_integrity_appeal_reviewer");
+    expect(organizerRoute).toContain("admin_decide_integrity_appeal");
+    expect(investigationsRoute).toContain('to="/admin/integrity-resolution/$caseId"');
   });
 });
