@@ -2,6 +2,33 @@ begin;
 
 create sequence if not exists public.ssc_rule_interpretation_number_seq;
 
+-- Exact registry of rule IDs in the current v4 21-chapter architecture. The
+-- current Rules Manager intentionally cannot add/remove rule IDs, so a formal
+-- interpretation may only reference one of these existing regulations.
+create table if not exists public.ssc_rule_registry (
+  rule_id text primary key,
+  chapter_number integer not null,
+  rule_number integer not null,
+  unique(chapter_number, rule_number)
+);
+
+insert into public.ssc_rule_registry(rule_id, chapter_number, rule_number)
+select
+  spec.chapter_number::text || '.' || generated.rule_number::text,
+  spec.chapter_number,
+  generated.rule_number
+from (
+  values
+    (1, 1), (2, 1), (3, 3), (4, 7), (5, 4), (6, 10), (7, 6),
+    (8, 5), (9, 2), (10, 1), (11, 8), (12, 6), (13, 6), (14, 8),
+    (15, 5), (16, 6), (17, 8), (18, 6), (19, 4), (20, 2), (21, 4)
+) as spec(chapter_number, max_rule)
+cross join lateral generate_series(1, spec.max_rule) as generated(rule_number)
+on conflict (rule_id) do nothing;
+
+alter table public.ssc_rule_registry enable row level security;
+revoke all on public.ssc_rule_registry from anon, authenticated;
+
 create table if not exists public.ssc_rule_interpretations (
   id uuid primary key default extensions.gen_random_uuid(),
   code text not null unique,
@@ -22,9 +49,9 @@ create table if not exists public.ssc_rule_interpretations (
   constraint ssc_rule_interpretation_publication_consistency check (
     (status = 'draft' and published_at is null and published_by is null and superseded_by is null)
     or
-    (status = 'published' and published_at is not null and published_by is not null and superseded_by is null)
+    (status = 'published' and published_at is not null and superseded_by is null)
     or
-    (status = 'superseded' and published_at is not null and published_by is not null and superseded_by is not null)
+    (status = 'superseded' and published_at is not null and superseded_by is not null)
   ),
   constraint ssc_rule_interpretation_not_self_superseded check (superseded_by is null or superseded_by <> id)
 );
@@ -41,17 +68,24 @@ revoke all on sequence public.ssc_rule_interpretation_number_seq from anon, auth
 create or replace function public.integrity_validate_rule_ids(_rule_ids text[])
 returns void
 language plpgsql
-immutable
+stable
 set search_path = public, pg_temp
 as $$
-declare v_rule text;
+declare
+  v_rule text;
+  v_normalized text;
 begin
   if coalesce(cardinality(_rule_ids), 0) < 1 or cardinality(_rule_ids) > 12 then
     raise exception 'An interpretation must reference between 1 and 12 rules';
   end if;
+
   foreach v_rule in array _rule_ids loop
-    if trim(coalesce(v_rule, '')) !~ '^[0-9]+\.[0-9]+$' then
+    v_normalized := trim(coalesce(v_rule, ''));
+    if v_normalized !~ '^[0-9]+\.[0-9]+$' then
       raise exception 'Invalid SSC rule id: %', v_rule;
+    end if;
+    if not exists (select 1 from public.ssc_rule_registry where rule_id = v_normalized) then
+      raise exception 'Unknown current SSC rule id: %', v_normalized;
     end if;
   end loop;
 end;
@@ -198,7 +232,9 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
-declare v_status text; v_effective timestamptz;
+declare
+  v_status text;
+  v_effective timestamptz;
 begin
   if not public.integrity_is_organizer() then raise exception 'Organizer access required'; end if;
   select status, effective_from into v_status, v_effective
