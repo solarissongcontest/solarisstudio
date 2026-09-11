@@ -64,7 +64,7 @@ language plpgsql
 stable
 security definer
 set search_path = public, pg_temp
-as $$;
+as $$
 begin
   if not public.integrity_is_organizer() then raise exception 'Organizer access required'; end if;
   return coalesce((
@@ -108,6 +108,7 @@ as $$
 declare
   v_id uuid;
   v_code text;
+  v_rules text[];
 begin
   if not public.integrity_is_organizer() then raise exception 'Organizer access required'; end if;
   perform public.integrity_validate_rule_ids(_rule_ids);
@@ -120,12 +121,16 @@ begin
   if char_length(_interpretation) < 20 or char_length(_interpretation) > 8000 then raise exception 'Interpretation must be between 20 and 8000 characters'; end if;
   if char_length(_rationale) < 20 or char_length(_rationale) > 12000 then raise exception 'Rationale must be between 20 and 12000 characters'; end if;
 
+  select array_agg(distinct trim(u.rule_id) order by trim(u.rule_id))
+  into v_rules
+  from unnest(_rule_ids) as u(rule_id);
+
   v_code := 'SSC-INT-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('public.ssc_rule_interpretation_number_seq')::text, 4, '0');
   insert into public.ssc_rule_interpretations(
     code, title, question, interpretation, rationale, rule_ids, effective_from, created_by
   ) values (
     v_code, _title, _question, _interpretation, _rationale,
-    (select array_agg(distinct trim(x) order by trim(x)) from unnest(_rule_ids) x),
+    v_rules,
     _effective_from,
     auth.uid()
   ) returning id into v_id;
@@ -150,7 +155,9 @@ language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
-declare v_status text;
+declare
+  v_status text;
+  v_rules text[];
 begin
   if not public.integrity_is_organizer() then raise exception 'Organizer access required'; end if;
   select status into v_status from public.ssc_rule_interpretations where id = _id for update;
@@ -166,12 +173,16 @@ begin
   if char_length(_interpretation) < 20 or char_length(_interpretation) > 8000 then raise exception 'Interpretation must be between 20 and 8000 characters'; end if;
   if char_length(_rationale) < 20 or char_length(_rationale) > 12000 then raise exception 'Rationale must be between 20 and 12000 characters'; end if;
 
+  select array_agg(distinct trim(u.rule_id) order by trim(u.rule_id))
+  into v_rules
+  from unnest(_rule_ids) as u(rule_id);
+
   update public.ssc_rule_interpretations
   set title = _title,
       question = _question,
       interpretation = _interpretation,
       rationale = _rationale,
-      rule_ids = (select array_agg(distinct trim(x) order by trim(x)) from unnest(_rule_ids) x),
+      rule_ids = v_rules,
       effective_from = _effective_from,
       updated_at = now()
   where id = _id;
