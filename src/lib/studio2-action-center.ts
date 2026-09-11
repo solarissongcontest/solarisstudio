@@ -151,7 +151,9 @@ export function buildStudio2ActionCenter(input: Studio2ActionCenterInput): Studi
 
   const editionState = input.runtime.runtime.edition;
   const submissionRelevant = stateIndex(editionState) >= stateIndex('submissions') && editionState !== 'archived';
-  if (submissionRelevant) {
+  // Country readiness supersedes this legacy aggregate. Keep the old check only
+  // as a fallback for callers that have not loaded the country cockpit yet.
+  if (submissionRelevant && !(input.countryReadiness?.length)) {
     const incomplete = input.participants.filter((participant) => !participant.artist?.trim() || !participant.song?.trim());
     if (incomplete.length) {
       attention.push({
