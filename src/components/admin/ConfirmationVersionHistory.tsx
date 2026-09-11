@@ -18,32 +18,20 @@ type VersionRow = {
   created_at: string;
 };
 
-type QueryBuilder = {
-  select(columns: string): QueryBuilder;
-  eq(column: string, value: unknown): QueryBuilder;
-  order(column: string, options?: { ascending?: boolean }): PromiseLike<{ data: unknown; error: unknown }>;
-};
-type VersionClient = { from(table: string): QueryBuilder };
-const client = confirmationsSupabase as unknown as VersionClient;
-
 async function loadVersions(submissionId: string): Promise<StoredConfirmationVersion[]> {
-  const { data, error } = await client
-    .from('submission_versions')
-    .select('id,submission_id,version,snapshot,created_at')
-    .eq('submission_id', submissionId)
-    .order('version', { ascending: true });
+  const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_versions', {
+    _submission_id: submissionId,
+  });
 
   if (error) throw error;
-  const rows = Array.isArray(data) ? data : [];
-  return rows
-    .filter((row): row is VersionRow => Boolean(row) && typeof row === 'object')
-    .map((row) => ({
-      id: row.id,
-      submissionId: row.submission_id,
-      version: Number(row.version),
-      snapshot: row.snapshot ?? {},
-      createdAt: row.created_at,
-    }));
+  const rows = Array.isArray(data) ? data as unknown as VersionRow[] : [];
+  return rows.map((row) => ({
+    id: row.id,
+    submissionId: row.submission_id,
+    version: Number(row.version),
+    snapshot: row.snapshot ?? {},
+    createdAt: row.created_at,
+  }));
 }
 
 export function ConfirmationVersionHistory({
@@ -74,7 +62,7 @@ export function ConfirmationVersionHistory({
       <AdminCardHeader
         eyebrow="Audit"
         title="Submission versions"
-        description="Edit-by-edit history reconstructed from immutable pre-edit snapshots. Sensitive IP, token, recovery and browser-session fields are intentionally excluded."
+        description="Edit-by-edit history reconstructed from immutable pre-edit snapshots. The legacy backend whitelists contest fields before returning history; the UI applies the same privacy projection again before rendering."
         action={<History className="size-4 text-muted-foreground" />}
       />
 
