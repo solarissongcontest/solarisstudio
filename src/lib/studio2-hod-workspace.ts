@@ -1,6 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 import {
+  getCountryOperationalReadiness,
+  type CountryOperationalReadiness,
+  type CountryReadinessDeadline,
+} from './country-operational-readiness';
+import {
   evaluateEntryEligibility,
   type EligibilityConfig,
   type EligibilityResult,
@@ -41,12 +46,30 @@ export type Studio2HodJuryMember = {
 };
 
 export type Studio2HodEntryContext = {
+  id: string;
   artist: string | null;
   songTitle: string | null;
   songUrl: string | null;
   status: string | null;
   source: string | null;
   metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Studio2HodDeadline = CountryReadinessDeadline & {
+  kind: string;
+  notes: string | null;
+};
+
+export type Studio2HodReviewHistoryItem = {
+  id: string;
+  action: string;
+  targetType: string;
+  artist: string | null;
+  songTitle: string | null;
+  reason: string | null;
+  createdAt: string;
 };
 
 export type Studio2HodContext = {
@@ -63,12 +86,16 @@ export type Studio2HodContext = {
   juryMembers: Studio2HodJuryMember[];
   juryBallotSubmitted: boolean;
   notices: HodWorkspaceNotice[];
+  deadlines: Studio2HodDeadline[];
+  reviewHistory: Studio2HodReviewHistoryItem[];
+  unresolvedOrganizerIssues: number;
 };
 
 export type Studio2HodWorkspaceSnapshot = {
   context: Studio2HodContext;
   eligibility: EligibilityResult;
   workflow: WorkflowSummary;
+  operationalReadiness: CountryOperationalReadiness;
   model: HodWorkspaceModel;
 };
 
@@ -119,12 +146,15 @@ function mapEntry(value: unknown): Studio2HodEntryContext | null {
   const row = expectObject(value, 'HOD entry context');
   const metadata = row.metadata == null ? {} : expectObject(row.metadata, 'HOD entry metadata');
   return {
+    id: expectString(row.id, 'entry id'),
     artist: nullableString(row.artist, 'entry artist'),
     songTitle: nullableString(row.songTitle, 'entry song title'),
     songUrl: nullableString(row.songUrl, 'entry song URL'),
     status: nullableString(row.status, 'entry status'),
     source: nullableString(row.source, 'entry source'),
     metadata,
+    createdAt: expectString(row.createdAt, 'entry created_at'),
+    updatedAt: expectString(row.updatedAt, 'entry updated_at'),
   };
 }
 
@@ -155,6 +185,31 @@ function mapJuryMember(value: unknown): Studio2HodJuryMember {
   };
 }
 
+function mapDeadline(value: unknown): Studio2HodDeadline {
+  const row = expectObject(value, 'HOD deadline');
+  return {
+    id: expectString(row.id, 'deadline id'),
+    kind: expectString(row.kind, 'deadline kind'),
+    label: expectString(row.label, 'deadline label'),
+    dueAt: expectString(row.dueAt, 'deadline due_at'),
+    completedAt: nullableString(row.completedAt, 'deadline completed_at'),
+    notes: nullableString(row.notes, 'deadline notes'),
+  };
+}
+
+function mapReviewHistory(value: unknown): Studio2HodReviewHistoryItem {
+  const row = expectObject(value, 'HOD review history item');
+  return {
+    id: expectString(row.id, 'review history id'),
+    action: expectString(row.action, 'review action'),
+    targetType: expectString(row.targetType, 'review target type'),
+    artist: nullableString(row.artist, 'review artist'),
+    songTitle: nullableString(row.songTitle, 'review song title'),
+    reason: nullableString(row.reason, 'review reason'),
+    createdAt: expectString(row.createdAt, 'review created_at'),
+  };
+}
+
 function mapEditionSummary(value: unknown): Studio2HodEditionSummary {
   const row = expectObject(value, 'HOD edition summary');
   return {
@@ -169,6 +224,8 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
   const row = expectObject(value, 'Studio 2 HOD context');
   const notices = Array.isArray(row.notices) ? row.notices.map(mapNotice) : [];
   const juryMembers = Array.isArray(row.juryMembers) ? row.juryMembers.map(mapJuryMember) : [];
+  const deadlines = Array.isArray(row.deadlines) ? row.deadlines.map(mapDeadline) : [];
+  const reviewHistory = Array.isArray(row.reviewHistory) ? row.reviewHistory.map(mapReviewHistory) : [];
   const juryMembersRequired = expectNonNegativeInteger(
     row.juryMembersRequired,
     'jury members required',
@@ -190,6 +247,12 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
     juryMembers,
     juryBallotSubmitted: expectBoolean(row.juryBallotSubmitted, 'jury ballot state'),
     notices,
+    deadlines,
+    reviewHistory,
+    unresolvedOrganizerIssues: expectNonNegativeInteger(
+      row.unresolvedOrganizerIssues,
+      'unresolved organizer issues',
+    ),
   };
 }
 
@@ -275,6 +338,8 @@ export function deriveHodEligibility(context: Studio2HodContext): EligibilityRes
       artworkUrl: null,
       broadcasterApproved: entry?.status === 'confirmed',
       duplicateEntryDetected: false,
+      // Operational deadlines are evaluated once by the shared country readiness
+      // model below; eligibility must not invent a second deadline algorithm.
       deadlinePassed: false,
       editingExceptionGranted: false,
     },
@@ -315,6 +380,16 @@ export function deriveHodEntryWorkflow(
 export function buildStudio2HodWorkspaceSnapshot(context: Studio2HodContext): Studio2HodWorkspaceSnapshot {
   const eligibility = deriveHodEligibility(context);
   const workflow = deriveHodEntryWorkflow(context, eligibility);
+  const operationalReadiness = getCountryOperationalReadiness({
+    participationConfirmed: context.confirmationComplete,
+    entryPresent: Boolean(context.entry),
+    entryEligibility: eligibility,
+    entryApproved: context.entry?.status === 'confirmed',
+    mediaAvailable: Boolean(context.entry?.songUrl?.trim()),
+    juryComplete: context.juryMembersAssigned >= context.juryMembersRequired,
+    deadlines: context.deadlines,
+    unresolvedOrganizerIssues: context.unresolvedOrganizerIssues,
+  });
   const model = buildHodWorkspaceModel({
     editionId: context.editionId,
     editionName: context.editionName,
@@ -327,9 +402,10 @@ export function buildStudio2HodWorkspaceSnapshot(context: Studio2HodContext): St
     juryMembersAssigned: context.juryMembersAssigned,
     juryBallotSubmitted: context.juryBallotSubmitted,
     notices: context.notices,
+    operationalReadiness,
   });
 
-  return { context, eligibility, workflow, model };
+  return { context, eligibility, workflow, operationalReadiness, model };
 }
 
 export async function loadStudio2HodWorkspace(
