@@ -16,12 +16,12 @@ as $$
 declare
   v_actor uuid := auth.uid();
   v_is_service boolean := coalesce(auth.jwt() ->> 'role', '') = 'service_role';
+  v_is_organizer boolean := false;
   v_edition_name text;
   v_country_name text;
   v_participant_status text;
   v_publication_status text;
   v_entry jsonb;
-  v_entry_id uuid;
   v_jury_required integer := 5;
   v_jury_assigned integer := 0;
   v_jury_members jsonb := '[]'::jsonb;
@@ -35,8 +35,10 @@ begin
     raise exception 'Edition id and country id are required' using errcode = '22023';
   end if;
 
+  v_is_organizer := coalesce(public.has_role(v_actor, 'organizer'::public.app_role), false);
+
   if not v_is_service
-     and not public.has_role(v_actor, 'organizer'::public.app_role)
+     and not v_is_organizer
      and not public.owns_country(v_actor, p_country_id) then
     raise exception 'Country ownership or organizer role required' using errcode = '42501';
   end if;
@@ -68,9 +70,7 @@ begin
   order by p.updated_at desc, p.created_at desc
   limit 1;
 
-  select
-    e.id,
-    jsonb_build_object(
+  select jsonb_build_object(
       'id', e.id,
       'artist', e.artist,
       'songTitle', e.song_title,
@@ -81,7 +81,7 @@ begin
       'createdAt', e.created_at,
       'updatedAt', e.updated_at
     )
-  into v_entry_id, v_entry
+  into v_entry
   from public.entries e
   where e.edition_id = p_edition_id
     and e.country_id = p_country_id
@@ -124,6 +124,9 @@ begin
   )
   into v_jury_ballot_submitted;
 
+  -- HOD context is a delegation surface, so only delegation-addressable notices
+  -- belong here. Organizer inspection evaluates the target country rather than
+  -- the organizer's own broad notice visibility or receipt state.
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
@@ -131,13 +134,24 @@ begin
         'title', n.title,
         'severity', n.severity,
         'acknowledgementRequired', n.acknowledgement_required,
-        'acknowledged', exists (
-          select 1
-          from public.studio2_notice_receipts r
-          where r.notice_id = n.id
-            and r.recipient_user_id = v_actor
-            and r.acknowledged_at is not null
-        )
+        'acknowledged', case
+          when v_is_service or v_is_organizer then exists (
+            select 1
+            from public.studio2_notice_receipts r
+            join public.country_accounts ca on ca.user_id = r.recipient_user_id
+            where r.notice_id = n.id
+              and ca.country_id = p_country_id
+              and ca.status = 'active'
+              and r.acknowledged_at is not null
+          )
+          else exists (
+            select 1
+            from public.studio2_notice_receipts r
+            where r.notice_id = n.id
+              and r.recipient_user_id = v_actor
+              and r.acknowledged_at is not null
+          )
+        end
       ) order by n.sent_at desc, n.created_at desc
     ),
     '[]'::jsonb
@@ -147,20 +161,28 @@ begin
   where n.status = 'published'
     and n.sent_at is not null
     and (n.edition_id is null or n.edition_id = p_edition_id)
+    and n.audience in ('all_delegations', 'participating_countries', 'specific_countries', 'hods')
     and (
-      v_is_service
-      or private.studio2_user_can_receive_notice_v2(
-        v_actor,
-        n.edition_id,
-        n.audience,
-        n.country_ids,
-        n.audience_group
+      n.audience in ('all_delegations', 'hods')
+      or (
+        n.audience = 'participating_countries'
+        and exists (
+          select 1
+          from public.participants p
+          left join public.contest_entities ce on ce.id = p.contest_entity_id
+          where p.edition_id = p_edition_id
+            and coalesce(p.country_id, ce.country_id) = p_country_id
+        )
+      )
+      or (
+        n.audience = 'specific_countries'
+        and p_country_id = any(coalesce(n.country_ids, '{}'::uuid[]))
       )
     );
 
-  -- admin_deadlines has edition/show scope but no country dimension. The HOD
-  -- cockpit therefore exposes edition-wide delegation deadlines, never inventing
-  -- country-specific deadlines that the source system cannot represent.
+  -- admin_deadlines is edition/show-scoped rather than country-scoped. Only
+  -- deadline kinds that represent delegation work are projected here. Organizer
+  -- reminders for televote/broadcast/other operations never affect country readiness.
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
@@ -176,7 +198,8 @@ begin
   )
   into v_deadlines
   from public.admin_deadlines d
-  where d.edition_id is null or d.edition_id = p_edition_id;
+  where d.edition_id = p_edition_id
+    and d.kind in ('entry', 'jury', 'publication');
 
   -- The legacy confirmations subsystem stores submission country as text. Match
   -- it to the canonical country name explicitly rather than pretending target_entry_id
@@ -206,12 +229,22 @@ begin
     limit 30
   ) history;
 
+  -- Incidents only become a country-readiness signal when Incident Command has
+  -- explicitly scoped the affected_systems entry to this country. Edition-wide
+  -- delegation incidents remain visible in Incident Command but do not paint
+  -- every delegation amber/red.
   select count(*)::integer
   into v_unresolved_organizer_issues
   from public.studio2_incidents i
   where i.edition_id = p_edition_id
     and i.status <> 'resolved'
-    and i.category in ('delegation', 'publication');
+    and i.category in ('delegation', 'publication')
+    and exists (
+      select 1
+      from unnest(i.affected_systems) affected(value)
+      where lower(affected.value) = lower('country:' || p_country_id::text)
+         or lower(affected.value) = lower('country:' || v_country_name)
+    );
 
   return jsonb_build_object(
     'editionId', p_edition_id,
