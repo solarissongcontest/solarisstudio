@@ -11,11 +11,11 @@ const governance = readFileSync(
   "utf8",
 );
 const breakglass = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220700_integrity_sealed_identity_breakglass.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160700_integrity_sealed_identity_breakglass.sql"),
   "utf8",
 );
 const expiry = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220800_integrity_sealed_identity_expiry.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160800_integrity_sealed_identity_expiry.sql"),
   "utf8",
 );
 const identityModel = readFileSync(
