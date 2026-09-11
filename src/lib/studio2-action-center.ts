@@ -1,3 +1,4 @@
+import type { CountryOperationalReadiness } from './country-operational-readiness';
 import type { ContestEvent } from './contest-events';
 import { EDITION_STATES, getEditionTransition, type EditionSubsystem } from './edition-state';
 import type { Participant, Show } from './data';
@@ -8,7 +9,7 @@ import type {
 } from './studio2-persistence';
 
 export type Studio2ActionLane = 'critical' | 'attention' | 'upcoming' | 'recent';
-export type Studio2ActionSource = 'incident' | 'transition' | 'subsystem' | 'entry' | 'broadcast' | 'event';
+export type Studio2ActionSource = 'incident' | 'transition' | 'subsystem' | 'entry' | 'broadcast' | 'event' | 'country';
 
 export type Studio2ActionItem = {
   id: string;
@@ -33,6 +34,12 @@ export type Studio2ActionCenterModel = {
   };
 };
 
+export type Studio2ActionCenterCountryReadiness = {
+  countryId: string;
+  countryName: string;
+  readiness: CountryOperationalReadiness;
+};
+
 export type Studio2ActionCenterInput = {
   runtime: Studio2RuntimeRecord;
   incidents: readonly Studio2IncidentRecord[];
@@ -42,6 +49,7 @@ export type Studio2ActionCenterInput = {
   recentEvents: readonly ContestEvent[];
   editionSlug?: string | null;
   broadcastRundownEnabled?: boolean;
+  countryReadiness?: readonly Studio2ActionCenterCountryReadiness[];
 };
 
 const SUBSYSTEM_LABELS: Record<EditionSubsystem, string> = {
@@ -104,7 +112,7 @@ export function buildStudio2ActionCenter(input: Studio2ActionCenterInput): Studi
       source: 'incident',
       title: `${incident.severity.toUpperCase()} · ${incident.title}`,
       description: `Incident is ${humanize(incident.status)} and has been active since ${new Date(incident.startedAt).toLocaleString()}.`,
-      href: '/admin/control-room',
+      href: '/admin/incidents',
       occurredAt: incident.startedAt,
     });
   }
@@ -155,6 +163,23 @@ export function buildStudio2ActionCenter(input: Studio2ActionCenterInput): Studi
         href: input.editionSlug ? `/admin/participant-status/${input.editionSlug}` : '/admin',
       });
     }
+  }
+
+  for (const country of input.countryReadiness ?? []) {
+    const { readiness } = country;
+    if (readiness.state === 'ready') continue;
+    const target = readiness.state === 'blocked' ? critical : attention;
+    const issues = readiness.state === 'blocked' ? readiness.blockers : readiness.attention;
+    target.push({
+      id: `country:${country.countryId}`,
+      lane: readiness.state === 'blocked' ? 'critical' : 'attention',
+      source: 'country',
+      title: `${country.countryName} · ${readiness.state === 'blocked' ? 'delegation blocked' : 'attention required'}`,
+      description: issues.length
+        ? issues.map((issue) => issue.label).join(' · ')
+        : 'Country readiness requires organizer review.',
+      href: `/admin/countries/${country.countryId}`,
+    });
   }
 
   const broadcastRelevant = stateIndex(editionState) >= stateIndex('pre_show') && editionState !== 'archived';
