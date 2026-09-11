@@ -10,12 +10,28 @@ const chainMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910214500_rulebook_release_chain.sql"),
   "utf8",
 );
+const validationMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910215000_rulebook_release_validation.sql"),
+  "utf8",
+);
 const runtime = readFileSync(
   resolve(process.cwd(), "src/lib/rules-governance.ts"),
   "utf8",
 );
 const contextualGuide = readFileSync(
   resolve(process.cwd(), "src/components/rules/ContextualRuleGuide.tsx"),
+  "utf8",
+);
+const decisionStrip = readFileSync(
+  resolve(process.cwd(), "src/components/rules/RuleDecisionStrip.tsx"),
+  "utf8",
+);
+const confirmationReceipt = readFileSync(
+  resolve(process.cwd(), "src/components/ConfirmationFormWithReceipt.tsx"),
+  "utf8",
+);
+const televotingReceipt = readFileSync(
+  resolve(process.cwd(), "src/components/televoting/TelevotingBoothWithReceipt.tsx"),
   "utf8",
 );
 const navigation = readFileSync(
@@ -52,7 +68,7 @@ describe("rulebook governance contract", () => {
 
   it("makes published releases immutable through the editor RPCs", () => {
     expect(migration).toMatch(/if v_status <> 'draft' then raise exception 'Only draft releases can be edited'/i);
-    expect(migration).toMatch(/if v_status <> 'draft' then raise exception 'Only draft releases can be published'/i);
+    expect(validationMigration).toMatch(/if v_status <> 'draft' then\s+raise exception 'Only draft releases can be published'/i);
     expect(chainMigration).toContain("Published rulebook history cannot be archived");
   });
 
@@ -60,6 +76,14 @@ describe("rulebook governance contract", () => {
     expect(migration).toContain("Rationale must be between 5 and 4000 characters");
     expect(migration).toContain("where r.status = 'published'");
     expect(migration).toContain("'rationale', c.rationale");
+  });
+
+  it("validates release ancestry even when governance RPCs are called directly", () => {
+    expect(validationMigration).toContain("Base rulebook version must be a published release");
+    expect(validationMigration).toContain("A rulebook release cannot inherit from itself");
+    expect(validationMigration).toContain("with recursive ancestry as");
+    expect(validationMigration).toContain("Rulebook release ancestry contains a cycle");
+    expect(validationMigration).toContain("The draft base version is no longer a published rulebook release");
   });
 
   it("resolves inherited rule changes across a version chain", () => {
@@ -84,6 +108,12 @@ describe("rulebook governance contract", () => {
     expect(contextualGuide).toContain('/admin/friend-voting');
     expect(contextualGuide).toContain('/admin/integrity');
     expect(contextualGuide).toContain('Rules for this page');
+    expect(decisionStrip).toContain("RuleChip");
+    expect(decisionStrip).toContain("Rules at this decision");
+    expect(confirmationReceipt).toContain("Confirmation fairness & submission rules");
+    expect(confirmationReceipt).toContain('["4.3", "4.4", "4.6", "4.7", "20.1"]');
+    expect(televotingReceipt).toContain("Independent voting & integrity");
+    expect(televotingReceipt).toContain('["10.1", "10.2", "11.2", "11.4", "11.5", "11.7"]');
     expect(navigation).toContain('<ContextualRuleGuide />');
     expect(navigation).toContain('/rules/changes');
   });
