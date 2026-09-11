@@ -9,6 +9,24 @@ import {
 } from './official-communications';
 import { isStudio2FeatureEnabled } from './studio2-feature-flags';
 
+type SupabaseResult = PromiseLike<{ data: unknown; error: unknown }>;
+type QueryBuilder = {
+  select(columns: string): QueryBuilder;
+  eq(column: string, value: unknown): QueryBuilder;
+  in(column: string, values: readonly unknown[]): QueryBuilder;
+  order(column: string, options?: { ascending?: boolean; nullsFirst?: boolean }): QueryBuilder;
+  then<TResult1 = { data: unknown; error: unknown }, TResult2 = never>(
+    onfulfilled?: ((value: { data: unknown; error: unknown }) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): PromiseLike<TResult1 | TResult2>;
+};
+type CommunicationsClient = {
+  from(table: string): QueryBuilder;
+  rpc(name: string, args?: Record<string, unknown>): SupabaseResult;
+};
+
+const client = supabase as unknown as CommunicationsClient;
+
 type NoticeRow = {
   id: string;
   edition_id: string | null;
@@ -46,6 +64,10 @@ export type SendStudio2NoticeInput = {
   acknowledgementRequired: boolean;
 };
 
+function asRows<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 function mapNotice(row: NoticeRow): OfficialNotice {
   return {
     id: row.id,
@@ -79,7 +101,7 @@ async function requireEnabled() {
 export async function loadStudio2Notices(editionId?: string | null): Promise<Studio2NoticeSummary[]> {
   await requireEnabled();
 
-  let noticeQuery = supabase
+  let noticeQuery = client
     .from('studio2_official_notices')
     .select('id,edition_id,title,body,severity,audience,country_ids,acknowledgement_required,sent_at,created_at')
     .order('sent_at', { ascending: false, nullsFirst: false });
@@ -89,17 +111,17 @@ export async function loadStudio2Notices(editionId?: string | null): Promise<Stu
   const { data: noticeData, error: noticeError } = await noticeQuery;
   if (noticeError) throw noticeError;
 
-  const noticeRows = (noticeData ?? []) as NoticeRow[];
+  const noticeRows = asRows<NoticeRow>(noticeData);
   if (!noticeRows.length) return [];
 
   const noticeIds = noticeRows.map((row) => row.id);
-  const { data: receiptData, error: receiptError } = await supabase
+  const { data: receiptData, error: receiptError } = await client
     .from('studio2_notice_receipts')
     .select('notice_id,recipient_user_id,delivered_at,opened_at,acknowledged_at')
     .in('notice_id', noticeIds);
 
   if (receiptError) throw receiptError;
-  const receipts = ((receiptData ?? []) as ReceiptRow[]).map(mapReceipt);
+  const receipts = asRows<ReceiptRow>(receiptData).map(mapReceipt);
 
   return noticeRows.map((row) => {
     const notice = mapNotice(row);
@@ -127,7 +149,7 @@ export async function sendStudio2Notice(input: SendStudio2NoticeInput): Promise<
   };
   validateOfficialNotice(candidate);
 
-  const { data, error } = await supabase.rpc('studio2_send_notice', {
+  const { data, error } = await client.rpc('studio2_send_notice', {
     p_edition_id: input.editionId,
     p_title: input.title.trim(),
     p_body: input.body.trim(),
