@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  INCIDENT_CATEGORIES,
   assertIncidentTransition,
   canTransitionIncident,
   isCrisisModeRequired,
@@ -29,11 +30,19 @@ const incidents: Incident[] = [
 ];
 
 describe('incident command engine', () => {
-  it('enforces a one-way resolved state', () => {
+  it('supports controlled reopen into monitoring while rejecting illegal jumps', () => {
     expect(canTransitionIncident('open', 'mitigating')).toBe(true);
     expect(canTransitionIncident('monitoring', 'resolved')).toBe(true);
+    expect(canTransitionIncident('resolved', 'monitoring')).toBe(true);
     expect(canTransitionIncident('resolved', 'open')).toBe(false);
     expect(() => assertIncidentTransition('resolved', 'open')).toThrow(/Illegal incident transition/);
+  });
+
+  it('keeps the canonical incident category vocabulary stable', () => {
+    expect(INCIDENT_CATEGORIES).toEqual([
+      'voting', 'broadcast', 'delegation', 'technical', 'results',
+      'security', 'integrity', 'publication', 'other',
+    ]);
   });
 
   it('activates crisis mode only for unresolved SEV-1 incidents', () => {
