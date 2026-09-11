@@ -107,10 +107,19 @@ join televoting.vote_submissions vs
 where h.source_key='ssc20_grand_final_country_detailed_pdf_2026_09_09'
   and h.score>0;
 
-update televoting.legacy_import_metadata lim
-set metadata = lim.metadata || jsonb_build_object(
-  'friend_voting_enabled',true,
-  'analytics_round_name','[Historical analytics] SSC20 Grand Final detailed country voting',
-  'analytics_storage','televoting.vote_submissions + televoting.vote_entries with is_historical=true'
-), imported_at=now()
-where lim.import_key='ssc20_grand_final_detailed_televote_2026_09_09';
+-- legacy_import_metadata exists only on some deployed histories. The
+-- historical analytics round is complete without it, so enrich it only when
+-- the optional legacy table is present.
+do $$
+begin
+  if to_regclass('televoting.legacy_import_metadata') is not null then
+    update televoting.legacy_import_metadata lim
+    set metadata = lim.metadata || jsonb_build_object(
+      'friend_voting_enabled',true,
+      'analytics_round_name','[Historical analytics] SSC20 Grand Final detailed country voting',
+      'analytics_storage','televoting.vote_submissions + televoting.vote_entries with is_historical=true'
+    ), imported_at=now()
+    where lim.import_key='ssc20_grand_final_detailed_televote_2026_09_09';
+  end if;
+end
+$$;
