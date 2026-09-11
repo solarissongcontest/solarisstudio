@@ -25,19 +25,30 @@ export function HodWorkspaceLauncher() {
 
   if (!target || featureQuery.data !== true) return null;
 
+  const countrySearch = country ? { country } : {};
+
   return createPortal(
     <section className="mt-6 border-t border-border/60 pt-6" data-hod-workspace-launcher>
       <Panel
         title="Delegation operations"
-        description="Open the Studio 2 HOD workspace for confirmation readiness, entry workflow, jury roster and official TSBC notices."
+        description="Open the Studio 2 workspace for confirmation, entry readiness, jury operations and official TSBC notices."
       >
-        <Link
-          to="/country-hub/hod"
-          search={country ? { country } : {}}
-          className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
-        >
-          Open delegation workspace →
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/country-hub/hod"
+            search={countrySearch}
+            className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            Open delegation workspace →
+          </Link>
+          <Link
+            to="/country-hub/readiness"
+            search={countrySearch}
+            className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
+          >
+            Entry readiness
+          </Link>
+        </div>
       </Panel>
     </section>,
     target,
