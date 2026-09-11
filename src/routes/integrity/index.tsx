@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
-import { IntegrityCentre } from "@/components/integrity/IntegrityCentre";
+import { TrustIntegrityHub } from "@/components/integrity/TrustIntegrityHub";
 
 export const Route = createFileRoute("/integrity/")({
   head: () => ({
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/integrity/")({
       {
         name: "description",
         content:
-          "Report possible SSC rule violations anonymously, continue protected two-way cases and understand the Solaris Song Contest integrity process.",
+          "Report concerns anonymously, use sealed or confidential reporting, ask TSBC privately, follow protected cases and review anonymised SSC integrity decisions.",
       },
     ],
   }),
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/integrity/")({
 function IntegrityPage() {
   return (
     <AppShell>
-      <IntegrityCentre />
+      <TrustIntegrityHub />
     </AppShell>
   );
 }
