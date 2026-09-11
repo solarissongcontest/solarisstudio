@@ -67,6 +67,50 @@ jobs:
           git fetch origin main --no-tags
           git worktree add /tmp/solaris-main origin/main
 
+      - name: Overlay historical clean-replay compatibility fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Current main contains two historical migrations whose timestamps
+          # precede the migrations that create their dependencies. Production
+          # already has those versions recorded, but a disposable local main
+          # baseline cannot be reconstructed from the raw files without the
+          # replay-only compatibility scaffolds carried by this PR.
+          #
+          # Copy ONLY these historical compatibility files. Do not copy any
+          # Rules/Integrity feature migration into the baseline before reset.
+          compatibility_files=(
+            "20260811113856_complete_prediction_arena_and_start_pulse.sql"
+            "20260817205500_audit_friend_voting_settings_updates.sql"
+          )
+
+          for file in "${compatibility_files[@]}"; do
+            test -f "$GITHUB_WORKSPACE/supabase/migrations/$file"
+            test -f "/tmp/solaris-main/supabase/migrations/$file"
+            cp "$GITHUB_WORKSPACE/supabase/migrations/$file" "/tmp/solaris-main/supabase/migrations/$file"
+          done
+
+          # Guard against accidentally turning this baseline step into a copy
+          # of the feature migration set. Only the two files above may differ
+          # from origin/main at this point.
+          mapfile -t changed < <(
+            git -C /tmp/solaris-main diff --name-only -- supabase/migrations \
+              | sed 's#^supabase/migrations/##' \
+              | sort
+          )
+          expected=(
+            "20260811113856_complete_prediction_arena_and_start_pulse.sql"
+            "20260817205500_audit_friend_voting_settings_updates.sql"
+          )
+          mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
+
+          if [[ "${changed[*]}" != "${expected[*]}" ]]; then
+            printf 'Unexpected baseline migration overlay.\nExpected: %s\nActual: %s\n' \
+              "${expected[*]}" "${changed[*]}" >&2
+            exit 1
+          fi
+
       - name: Build current main database locally
         shell: bash
         run: |
