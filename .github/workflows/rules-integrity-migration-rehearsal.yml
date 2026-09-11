@@ -72,35 +72,38 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Current main contains two historical migrations whose timestamps
-          # precede the migrations that create their dependencies. Production
-          # already has those versions recorded, but a disposable local main
-          # baseline cannot be reconstructed from the raw files without the
-          # replay-only compatibility scaffolds carried by this PR.
+          # Current main cannot be reconstructed cleanly from its raw migration
+          # directory. Two historical migrations precede dependencies they use,
+          # and production records an August 16 Confirmations schema migration
+          # whose repository file disappeared from main. Production already has
+          # all three versions recorded; this disposable baseline needs the
+          # replay-safe forms carried by this PR before it can represent main.
           #
           # Copy ONLY these historical compatibility files. Do not copy any
           # Rules/Integrity feature migration into the baseline before reset.
           compatibility_files=(
             "20260811113856_complete_prediction_arena_and_start_pulse.sql"
+            "20260816200158_integrate_confirmations_schema.sql"
             "20260817205500_audit_friend_voting_settings_updates.sql"
           )
 
           for file in "${compatibility_files[@]}"; do
             test -f "$GITHUB_WORKSPACE/supabase/migrations/$file"
-            test -f "/tmp/solaris-main/supabase/migrations/$file"
             cp "$GITHUB_WORKSPACE/supabase/migrations/$file" "/tmp/solaris-main/supabase/migrations/$file"
           done
 
           # Guard against accidentally turning this baseline step into a copy
-          # of the feature migration set. Only the two files above may differ
-          # from origin/main at this point.
+          # of the feature migration set. Include untracked files because the
+          # restored Confirmations migration is intentionally absent on main.
           mapfile -t changed < <(
-            git -C /tmp/solaris-main diff --name-only -- supabase/migrations \
+            git -C /tmp/solaris-main status --porcelain --untracked-files=all -- supabase/migrations \
+              | sed -E 's/^.. //' \
               | sed 's#^supabase/migrations/##' \
               | sort
           )
           expected=(
             "20260811113856_complete_prediction_arena_and_start_pulse.sql"
+            "20260816200158_integrate_confirmations_schema.sql"
             "20260817205500_audit_friend_voting_settings_updates.sql"
           )
           mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
