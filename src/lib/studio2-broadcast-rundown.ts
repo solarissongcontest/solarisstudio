@@ -1,9 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
-  BROADCAST_RUNDOWN_STATUSES,
+  RUNDOWN_SEGMENT_STATUSES,
   buildBroadcastRundown,
-  type BroadcastRundownSegment,
-  type BroadcastRundownStatus,
+  type RundownSegment,
+  type RundownSegmentStatus,
 } from './broadcast-rundown';
 import { isStudio2FeatureEnabled } from './studio2-feature-flags';
 
@@ -12,7 +12,7 @@ export const STUDIO2_RUNDOWN_CONFIG_KEY = 'studio2Rundown';
 export type Studio2BroadcastRundownConfig = {
   version: 1;
   startAt: string;
-  segments: BroadcastRundownSegment[];
+  segments: RundownSegment[];
 };
 
 type ShowConfigRow = {
@@ -34,7 +34,7 @@ type QueryBuilder = {
 type RundownClient = { from(table: string): QueryBuilder };
 const client = supabase as unknown as RundownClient;
 
-const statusSet = new Set<string>(BROADCAST_RUNDOWN_STATUSES);
+const statusSet = new Set<string>(RUNDOWN_SEGMENT_STATUSES);
 
 function readString(value: unknown) {
   return typeof value === 'string' ? value : null;
@@ -44,19 +44,19 @@ function readDuration(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : null;
 }
 
-function parseSegment(value: unknown, index: number): BroadcastRundownSegment | null {
+function parseSegment(value: unknown, index: number): RundownSegment | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   const id = readString(row.id) ?? `segment-${index + 1}`;
-  const title = readString(row.title)?.trim();
+  const label = (readString(row.label) ?? readString(row.title))?.trim();
   const duration = readDuration(row.plannedDurationSeconds);
   const status = readString(row.status);
-  if (!title || duration == null || !status || !statusSet.has(status)) return null;
+  if (!label || duration == null || !status || !statusSet.has(status)) return null;
 
   return {
     id,
-    title,
-    status: status as BroadcastRundownStatus,
+    label,
+    status: status as RundownSegmentStatus,
     plannedDurationSeconds: duration,
     actualStartedAt: readString(row.actualStartedAt),
     actualCompletedAt: readString(row.actualCompletedAt),
@@ -73,7 +73,7 @@ export function parseStudio2BroadcastRundown(
   const rawSegments = Array.isArray(value.segments) ? value.segments : [];
   const segments = rawSegments
     .map((segment, index) => parseSegment(segment, index))
-    .filter((segment): segment is BroadcastRundownSegment => segment !== null);
+    .filter((segment): segment is RundownSegment => segment !== null);
 
   if (!startAt || !Number.isFinite(new Date(startAt).getTime())) return null;
   return { version: 1, startAt, segments };
@@ -84,11 +84,11 @@ export function createDefaultBroadcastRundown(startAt = new Date().toISOString()
     version: 1,
     startAt,
     segments: [
-      { id: 'opening', title: 'Opening sequence', status: 'planned', plannedDurationSeconds: 180 },
-      { id: 'performances', title: 'Performances', status: 'planned', plannedDurationSeconds: 3600 },
-      { id: 'voting', title: 'Voting window', status: 'planned', plannedDurationSeconds: 900 },
-      { id: 'results', title: 'Results sequence', status: 'planned', plannedDurationSeconds: 1200 },
-      { id: 'closing', title: 'Closing sequence', status: 'planned', plannedDurationSeconds: 300 },
+      { id: 'opening', label: 'Opening sequence', status: 'planned', plannedDurationSeconds: 180 },
+      { id: 'performances', label: 'Performances', status: 'planned', plannedDurationSeconds: 3600 },
+      { id: 'voting', label: 'Voting window', status: 'planned', plannedDurationSeconds: 900 },
+      { id: 'results', label: 'Results sequence', status: 'planned', plannedDurationSeconds: 1200 },
+      { id: 'closing', label: 'Closing sequence', status: 'planned', plannedDurationSeconds: 300 },
     ],
   };
 }
@@ -100,12 +100,12 @@ export function validateStudio2BroadcastRundown(config: Studio2BroadcastRundownC
     if (!segment.id.trim()) throw new Error('Every rundown segment needs an id.');
     if (ids.has(segment.id)) throw new Error(`Duplicate rundown segment id: ${segment.id}`);
     ids.add(segment.id);
-    if (!segment.title.trim()) throw new Error('Every rundown segment needs a title.');
+    if (!segment.label.trim()) throw new Error('Every rundown segment needs a label.');
     if (!Number.isFinite(segment.plannedDurationSeconds) || segment.plannedDurationSeconds <= 0) {
-      throw new Error(`Invalid duration for ${segment.title}.`);
+      throw new Error(`Invalid duration for ${segment.label}.`);
     }
   }
-  buildBroadcastRundown(config.segments, config.startAt);
+  buildBroadcastRundown(config.startAt, config.segments);
 }
 
 async function requireEnabled() {
