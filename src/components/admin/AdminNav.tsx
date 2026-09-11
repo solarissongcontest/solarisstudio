@@ -16,6 +16,7 @@ import {
   RadioTower,
   Settings2,
   ShieldAlert,
+  ShieldCheck,
   Siren,
   Sparkles,
   Trophy,
@@ -123,6 +124,12 @@ export function AdminNav() {
       to: "/admin/incidents",
       icon: Siren,
       active: (path) => path.startsWith("/admin/incidents"),
+    },
+    {
+      label: "Eligibility",
+      to: "/admin/eligibility",
+      icon: ShieldCheck,
+      active: (path) => path.startsWith("/admin/eligibility"),
     },
     {
       label: "Simulator",
