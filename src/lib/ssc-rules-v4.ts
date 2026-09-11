@@ -26,7 +26,7 @@ const PLANS: Plan[] = [
   { number: 14, slug: "community-conduct-safety-privacy", title: "Community Conduct, Safety & Privacy", shortTitle: "Safety & Privacy", description: "Respect, criticism, harassment, discrimination, jurisdiction and data minimisation.", icon: "HeartHandshake", accent: "emerald", atAGlance: ["Good-faith criticism of songs, results, rules and TSBC is allowed.", "Harassment, discrimination, threats and doxxing are prohibited.", "SSC rules do not claim authority over unrelated private life.", "Sensitive technical information is restricted to legitimate operational or integrity purposes."], sourceIds: ["3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "14.6", "14.13"] },
   { number: 15, slug: "withdrawals-replacements", title: "Withdrawals & Replacements", shortTitle: "Withdrawals", description: "Voluntary withdrawal, disruption after publication, replacement entries and host changes.", icon: "RefreshCcw", accent: "amber", atAGlance: ["Pre-deadline withdrawal is normally penalty-free.", "Late withdrawal matters mainly when it materially disrupts the edition.", "Compliant replacements are normally possible before the submission deadline.", "Post-deadline replacement requires TSBC approval."], sourceIds: ["9.1", "9.2", "9.3", "9.4", "9.5"] },
   { number: 16, slug: "investigations-evidence", title: "Investigations & Evidence", shortTitle: "Investigations", description: "Reporting, protected sources, evidence handling, disclosure and the distinction between allegations and findings.", icon: "SearchCheck", accent: "violet", atAGlance: ["Anyone may report a genuine concern without proving guilt first.", "Anonymous reporting must match the privacy promise made to the reporter.", "Evidence can be redacted when necessary to protect sources and private data.", "A report, flag or investigation is not a finding of misconduct."], sourceIds: ["11.3", "14.7", "14.8", "14.9", "14.10", "14.11"] },
-  { number: 17, slug: "sanctions", title: "Sanctions", shortTitle: "Sanctions", description: "Proportionate measures that target the actual violation and the correct person, ballot, entry or delegation.", icon: "Scale", accent: "rose", atAGlance: ["A remedy should target the problem it is correcting.", "Invalid votes, entries, people and delegations can be treated separately.", "Unrelated song-point penalties are not the default response to community misconduct.", "Serious decisions record the rules, facts, evidence and proportionality reasoning."], sourceIds: ["11.1", "11.2", "11.4", "11.5", "11.6", "11.7", "11.8", "11.9"] },
+  { number: 17, slug: "sanctions", title: "Sanctions", shortTitle: "Sanctions", description: "The official ten-level SSC sanction scale, proportionality factors, scope and decision-record requirements.", icon: "Scale", accent: "rose", atAGlance: ["SSC retains its ten-level sanction ladder from Official Warning to Lifetime Ban.", "Typical violations provide starting levels rather than automatic outcomes.", "Intent, history, cooperation and impact can aggravate or mitigate the level.", "A sanction should identify the correct person, ballot, entry or delegation and explain the decision."], sourceIds: ["11.1", "11.2", "11.4", "11.5", "11.6", "11.7", "11.8", "11.9"] },
   { number: 18, slug: "appeals-conflicts", title: "Appeals & Conflicts of Interest", shortTitle: "Appeals", description: "The appeal window, fresh review, decision outcomes and reviewer independence.", icon: "Gavel", accent: "amber", atAGlance: ["Official sanctions may normally be appealed within 48 hours.", "A serious appeal should receive genuine fresh review where possible.", "Officials with significant conflicts should recuse where another reviewer is available.", "Appeal outcomes may uphold, reduce, increase or overturn a sanction."], sourceIds: ["12.1", "12.2", "12.3", "12.4", "12.5", "14.12"] },
   { number: 19, slug: "force-majeure-emergency-administration", title: "Force Majeure & Emergency Administration", shortTitle: "Emergencies", description: "Outages and exceptional real-world events that prevent normal online Contest operation.", icon: "CloudLightning", accent: "rose", atAGlance: ["Major technical and real-world emergencies can require temporary changes.", "TSBC may extend, postpone, reopen, suspend or cancel where necessary.", "Unavailable accepted media can be replaced where fair.", "Emergency measures aim to restore rather than distort competitive conditions."], sourceIds: ["13.1", "13.2", "13.3", "13.4"] },
   { number: 20, slug: "edition-specific-regulations", title: "Edition-Specific Regulations", shortTitle: "Edition Rules", description: "The compact official configuration for variables such as confirmation rounds, formats, vote limits and deadlines.", icon: "SlidersHorizontal", accent: "sky", atAGlance: ["Permanent General Regulations are not rewritten for every edition.", "Each edition publishes the variables that genuinely change.", "Confirmation slots, qualification, voting systems and dates belong here.", "Edition rules supplement the General Regulations only where variation is allowed."], sourceIds: ["15.2", "15.6"] },
@@ -36,11 +36,62 @@ const PLANS: Plan[] = [
 const sourceById = new Map(SOURCE_RULES.map((rule) => [rule.id, rule]));
 const legacyToCurrent = new Map<string, string>();
 
+function canonicalSourceRule(sourceId: string, source: SscRule): SscRule {
+  if (sourceId === "11.2") {
+    return {
+      ...source,
+      title: "Sanction Levels",
+      summary: "SSC uses a ten-level scale from an Official Warning to a Lifetime Ban.",
+      body: ["The standard ten-level sanction scale is retained. TSBC selects the appropriate level after considering the seriousness, intent, history, cooperation and impact of the established violation."],
+      bullets: [
+        "Level 1 · Official Warning",
+        "Level 2 · Loss of 50% of Bonus Points",
+        "Level 3 · No Bonus Points Awarded",
+        "Level 4 · −5 Contest Points",
+        "Level 5 · −25 Contest Points",
+        "Level 6 · −50 Contest Points",
+        "Level 7 · −100 Contest Points",
+        "Level 8 · Disqualification",
+        "Level 9 · Disqualification + One-Edition Ban",
+        "Level 10 · Lifetime Ban",
+      ],
+      important: "The ladder defines the available sanction levels. It does not make the typical starting levels automatic, and aggravating or mitigating factors may justify a different level.",
+      tags: ["levels", "warning", "bonus points", "minus points", "disqualification", "ban", "lifetime ban", "sanction ladder"],
+    };
+  }
+
+  if (sourceId === "11.4") {
+    return {
+      ...source,
+      title: "Typical Violation Levels",
+      summary: "Recurring violations have normal starting levels, while the actual circumstances still control the final sanction.",
+      body: ["The following are typical starting points rather than automatic outcomes. TSBC may move upward or downward on the sanction scale where aggravating or mitigating factors justify it."],
+      bullets: [
+        "Minor misconduct · Level 1",
+        "Repeated spam · Level 3",
+        "Failure to vote on time · Level 4",
+        "Late submission materially disrupting SSC · Level 5",
+        "Falsifying Spotify or YouTube statistics · Level 6",
+        "Continued harassment following warning · Level 7",
+        "Submitting an ineligible artist · Level 8",
+        "Submitting an ineligible Eurovision song · Level 8",
+        "Vote trading or coordinated voting · Level 9",
+        "Manipulating the televote · Level 9",
+        "Serious threats toward SSC or participants · Level 10",
+      ],
+      tags: ["typical level", "vote trading", "harassment", "ineligible artist", "televote manipulation", "late jury", "starting level"],
+    };
+  }
+
+  return source;
+}
+
 export const SSC_RULE_CHAPTERS: SscRuleChapter[] = PLANS.map(({ sourceIds, ...chapter }) => ({
   ...chapter,
   rules: sourceIds.map((sourceId, index) => {
-    const source = sourceById.get(sourceId);
-    if (!source) throw new Error(`SSC v4 references missing source rule ${sourceId}`);
+    const rawSource = sourceById.get(sourceId);
+    if (!rawSource) throw new Error(`SSC v4 references missing source rule ${sourceId}`);
+    const source = canonicalSourceRule(sourceId, rawSource);
     const id = `${chapter.number}.${index + 1}`;
     legacyToCurrent.set(sourceId, id);
     return { ...source, id, tags: Array.from(new Set([...source.tags, `legacy rule ${sourceId}`])) };
@@ -76,7 +127,7 @@ export const SSC_RULEBOOK = {
 } as const;
 
 const SYNONYMS: Record<string, string[]> = {
-  friend: ["friend voting", "coordination", "relationships", "alliance"], friends: ["friend voting", "coordination", "relationships", "alliance"], esc: ["eurovision"], ns: ["national selection"], late: ["deadline", "extension"], deadline: ["late", "schedule", "time", "server timestamp"], timer: ["countdown", "server time", "timestamp"], confirmation: ["slot", "place", "first come", "opening time"], slot: ["confirmation", "place", "first come"], ban: ["sanction", "suspension", "permanent exclusion"], cheating: ["integrity", "manipulation", "vote trading", "fake account"], cheat: ["integrity", "manipulation", "vote trading", "fake account"], report: ["anonymous", "integrity", "evidence"], anonymous: ["report", "confidential", "privacy", "recovery key"], bot: ["automation", "script"], bug: ["exploit", "technical", "vulnerability"], host: ["hosting", "creative director", "winner"], artist: ["eligibility", "spotify", "reuse", "eurovision"], copyright: ["third party", "rights holder", "music rights"], appeal: ["review", "sanction", "conflict of interest"],
+  friend: ["friend voting", "coordination", "relationships", "alliance"], friends: ["friend voting", "coordination", "relationships", "alliance"], esc: ["eurovision"], ns: ["national selection"], late: ["deadline", "extension"], deadline: ["late", "schedule", "time", "server timestamp"], timer: ["countdown", "server time", "timestamp"], confirmation: ["slot", "place", "first come", "opening time"], slot: ["confirmation", "place", "first come"], ban: ["sanction", "suspension", "lifetime ban", "permanent exclusion"], cheating: ["integrity", "manipulation", "vote trading", "fake account"], cheat: ["integrity", "manipulation", "vote trading", "fake account"], report: ["anonymous", "integrity", "evidence"], anonymous: ["report", "confidential", "privacy", "recovery key"], bot: ["automation", "script"], bug: ["exploit", "technical", "vulnerability"], host: ["hosting", "creative director", "winner"], artist: ["eligibility", "spotify", "reuse", "eurovision"], copyright: ["third party", "rights holder", "music rights"], appeal: ["review", "sanction", "conflict of interest"],
 };
 
 const normalize = (value: string) => value.trim().toLowerCase();
