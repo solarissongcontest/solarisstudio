@@ -5,10 +5,12 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleDot,
+  Clock3,
   GitBranch,
   ListChecks,
   Search,
   ShieldAlert,
+  Sparkles,
 } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -23,16 +25,19 @@ import {
   AdminSheet,
   AdminStatus,
 } from '@/components/admin/AdminUI';
+import { useAdminDeadlines } from '@/lib/admin-ops';
 import { useCountries, useEditions, useParticipants, useShows } from '@/lib/data';
 import { defaultSubsystemStatesForEdition, normalizeLegacyEditionStatus } from '@/lib/edition-state';
 import { studio2ControlRoom } from '@/lib/studio2-control-room';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 import {
+  buildStudio2TaskBoard,
   buildStudio2WorkflowModel,
   filterStudio2Workflows,
   STUDIO2_WORKFLOW_KINDS,
   STUDIO2_WORKFLOW_OWNERS,
   STUDIO2_WORKFLOW_STATUSES,
+  type Studio2TaskBoardItem,
   type Studio2WorkflowInstance,
   type Studio2WorkflowKind,
   type Studio2WorkflowOwner,
@@ -90,6 +95,7 @@ function WorkflowsPage() {
 
   const participantsQuery = useParticipants(resolvedEditionId || undefined);
   const showsQuery = useShows(resolvedEditionId || undefined);
+  const deadlinesQuery = useAdminDeadlines(resolvedEditionId || null);
 
   const featureQuery = useQuery({
     queryKey: ['studio2-workflow-flags', resolvedEditionId || 'none'],
@@ -107,7 +113,7 @@ function WorkflowsPage() {
   const snapshotQuery = useQuery({
     queryKey: ['studio2-workflow-runtime', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId) && featureQuery.data?.controlRoom === true,
-    queryFn: () => studio2ControlRoom.loadSnapshot(resolvedEditionId, 10),
+    queryFn: () => studio2ControlRoom.loadSnapshot(resolvedEditionId, 100),
     refetchInterval: 20_000,
   });
 
@@ -126,8 +132,18 @@ function WorkflowsPage() {
       shows: showsQuery.data ?? [],
       countries: countriesQuery.data ?? [],
       runtime,
+      deadlines: deadlinesQuery.data ?? [],
+      events: snapshotQuery.data?.recentEvents ?? [],
     });
-  }, [countriesQuery.data, participantsQuery.data, runtime, selectedEdition, showsQuery.data]);
+  }, [
+    countriesQuery.data,
+    deadlinesQuery.data,
+    participantsQuery.data,
+    runtime,
+    selectedEdition,
+    showsQuery.data,
+    snapshotQuery.data?.recentEvents,
+  ]);
 
   const filtered = useMemo(() => model ? filterStudio2Workflows(model.workflows, {
     status: search.status,
@@ -137,6 +153,7 @@ function WorkflowsPage() {
     q: search.q,
   }) : [], [model, search.country, search.kind, search.owner, search.q, search.status]);
 
+  const taskBoard = useMemo(() => buildStudio2TaskBoard(filtered), [filtered]);
   const selectedWorkflow = model?.workflows.find((workflow) => workflow.id === search.workflow) ?? null;
   const countriesInWorkflows = useMemo(() => {
     if (!model) return [];
@@ -159,12 +176,14 @@ function WorkflowsPage() {
     || countriesQuery.isLoading
     || participantsQuery.isLoading
     || showsQuery.isLoading
+    || deadlinesQuery.isLoading
     || featureQuery.isLoading
     || (featureQuery.data?.controlRoom === true && snapshotQuery.isLoading);
   const error = editionsQuery.error
     || countriesQuery.error
     || participantsQuery.error
     || showsQuery.error
+    || deadlinesQuery.error
     || featureQuery.error
     || snapshotQuery.error;
 
@@ -174,7 +193,7 @@ function WorkflowsPage() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2 · Operations"
           title="Workflows"
-          description="A derived operations queue built from canonical edition, entry, show and runtime state. The workflow engine evaluates dependencies; authoritative specialist tools still own the underlying data."
+          description="Operational workflow state derived from canonical contest data and evaluated by the shared Workflow Engine. Automations may recommend work; irreversible actions stay explicit."
           actions={
             <a href="/admin/action-center" className="admin-action-secondary">
               Open Action Center
@@ -223,9 +242,37 @@ function WorkflowsPage() {
 
             <AdminCard>
               <AdminCardHeader
+                eyebrow="Active workflows"
+                title="Operational flow"
+                description="The current edition stage drives confirmation, submission, jury, broadcast, verification and publication work. Entry and show workflows stay attached to their canonical records."
+              />
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {filtered.filter((workflow) => workflow.status !== 'completed').slice(0, 9).map((workflow) => (
+                  <button
+                    key={workflow.id}
+                    type="button"
+                    onClick={() => patchSearch({ workflow: workflow.id })}
+                    className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-left hover:bg-white/[0.045]"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{workflow.kindLabel}</p>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{workflow.entityLabel}</p>
+                      </div>
+                      <AdminStatus tone={workflowTone(workflow.status)}>{humanize(workflow.status)}</AdminStatus>
+                    </div>
+                    <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Stage: {workflow.currentStage}</p>
+                    {workflow.dueAt ? <p className="mt-1 text-[11px] text-muted-foreground">Due {formatDateTime(workflow.dueAt)}</p> : null}
+                  </button>
+                ))}
+              </div>
+            </AdminCard>
+
+            <AdminCard>
+              <AdminCardHeader
                 eyebrow="Queue controls"
                 title="Filter operational workflows"
-                description="Filters are kept in the URL so this view survives reloads and can be shared."
+                description="Filters are URL-driven, so reload, browser history and shared links preserve the operator view."
                 action={hasFilters(search) ? (
                   <button type="button" onClick={clearFilters} className="admin-action-secondary !min-h-9 !px-3">
                     Clear filters
@@ -292,17 +339,12 @@ function WorkflowsPage() {
               <AdminCardHeader
                 eyebrow="Operational queue"
                 title={`${filtered.length} workflow${filtered.length === 1 ? '' : 's'}`}
-                description="Blocked work is sorted first. Select a workflow to inspect dependency state and the authoritative surface that owns the underlying data."
+                description="Blocked work is sorted first. Open a workflow to inspect trigger, stage, dependencies, ownership, due time, history, failure reason and safe next actions."
               />
               {filtered.length ? (
                 <div className="overflow-hidden rounded-xl border border-white/[0.08]">
                   <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_110px_100px_90px_30px] gap-3 border-b border-white/[0.08] bg-white/[0.025] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground lg:grid">
-                    <span>Workflow</span>
-                    <span>Entity</span>
-                    <span>Status</span>
-                    <span>Owner</span>
-                    <span>Progress</span>
-                    <span />
+                    <span>Workflow</span><span>Entity</span><span>Status</span><span>Owner</span><span>Progress</span><span />
                   </div>
                   <div className="divide-y divide-white/[0.07]">
                     {filtered.map((workflow) => (
@@ -314,7 +356,7 @@ function WorkflowsPage() {
                       >
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold text-foreground">{workflow.title}</span>
-                          <span className="mt-1 block text-xs text-muted-foreground">{workflow.kindLabel ?? humanize(workflow.kind)} · {workflow.tasks.length} tasks</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">{workflow.kindLabel} · {workflow.tasks.length} tasks</span>
                         </span>
                         <span className="min-w-0 truncate text-sm text-muted-foreground">{workflow.entityLabel}</span>
                         <span><AdminStatus tone={workflowTone(workflow.status)}>{humanize(workflow.status)}</AdminStatus></span>
@@ -329,11 +371,46 @@ function WorkflowsPage() {
                   </div>
                 </div>
               ) : (
-                <AdminEmptyState
-                  icon={ListChecks}
-                  title="No workflows match these filters"
-                  description="Clear or change the filters to return to the operational queue."
-                />
+                <AdminEmptyState icon={ListChecks} title="No workflows match these filters" description="Clear or change the filters to return to the operational queue." />
+              )}
+            </AdminCard>
+
+            <AdminCard>
+              <AdminCardHeader
+                eyebrow="Task board"
+                title="Execution state"
+                description="Tasks are grouped after dependency evaluation. Pending means ready to be picked up; blocked tasks show unmet dependencies in workflow detail."
+              />
+              <div className="grid gap-3 lg:grid-cols-4">
+                <TaskColumn title="Pending" items={taskBoard.pending} tone="attention" onOpen={(id) => patchSearch({ workflow: id })} />
+                <TaskColumn title="In progress" items={taskBoard.inProgress} tone="info" onOpen={(id) => patchSearch({ workflow: id })} />
+                <TaskColumn title="Blocked" items={taskBoard.blocked} tone="blocked" onOpen={(id) => patchSearch({ workflow: id })} />
+                <TaskColumn title="Completed" items={taskBoard.completed} tone="ready" onOpen={(id) => patchSearch({ workflow: id })} />
+              </div>
+            </AdminCard>
+
+            <AdminCard>
+              <AdminCardHeader
+                eyebrow="Automations"
+                title="Safe recommendations"
+                description="Automation can create or recommend work. It never silently publishes results or performs another irreversible contest action."
+              />
+              {model.automations.length ? (
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                  {model.automations.map((automation) => (
+                    <a key={automation.id} href={automation.href} className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 hover:bg-white/[0.045]">
+                      <div className="flex items-start gap-3">
+                        <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.06] text-sky-100"><Sparkles className="size-4" /></span>
+                        <span>
+                          <span className="block text-sm font-semibold">{automation.title}</span>
+                          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{automation.description}</span>
+                        </span>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No automation recommendations are active for the current edition state.</p>
               )}
             </AdminCard>
 
@@ -343,9 +420,7 @@ function WorkflowsPage() {
                   <CircleDot className="mt-0.5 size-5 shrink-0 text-sky-200" />
                   <div>
                     <p className="text-sm font-semibold">Compatibility runtime in use</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      Live Control Room is disabled, so edition workflow state is derived from the legacy edition status. Entry and show workflow data still comes from canonical records.
-                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Live Control Room is disabled, so lifecycle state is derived from the legacy edition status. Entry, show and deadline data still comes from canonical records.</p>
                   </div>
                 </div>
               </AdminCard>
@@ -354,10 +429,7 @@ function WorkflowsPage() {
         ) : null}
       </div>
 
-      <WorkflowDetailSheet
-        workflow={selectedWorkflow}
-        onClose={() => patchSearch({ workflow: undefined })}
-      />
+      <WorkflowDetailSheet workflow={selectedWorkflow} onClose={() => patchSearch({ workflow: undefined })} />
     </AdminPage>
   );
 }
@@ -368,23 +440,31 @@ function WorkflowDetailSheet({ workflow, onClose }: { workflow: Studio2WorkflowI
       open={Boolean(workflow)}
       onClose={onClose}
       title={workflow?.title ?? 'Workflow'}
-      description={workflow ? `${workflow.entityLabel} · ${humanize(workflow.kind)} workflow` : undefined}
+      description={workflow ? `${workflow.entityLabel} · ${workflow.kindLabel}` : undefined}
     >
       {workflow ? (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
             <DetailMetric label="Status" value={humanize(workflow.status)} />
-            <DetailMetric label="Owner" value={humanize(workflow.owner)} />
-            <DetailMetric label="Progress" value={`${workflow.progress}%`} />
-            <DetailMetric label="Blocked tasks" value={String(workflow.blockedCount)} />
+            <DetailMetric label="Current stage" value={workflow.currentStage} />
+            <DetailMetric label="Assigned role" value={workflow.assignedRole} />
+            <DetailMetric label="Due" value={workflow.dueAt ? formatDateTime(workflow.dueAt) : 'No deadline'} />
           </div>
 
           <AdminCard>
-            <AdminCardHeader
-              eyebrow="Dependency evaluation"
-              title="Tasks"
-              description="Effective status comes from the shared Workflow Engine after dependency evaluation."
-            />
+            <AdminCardHeader eyebrow="Trigger" title="Why this workflow exists" />
+            <p className="text-sm leading-relaxed text-muted-foreground">{workflow.trigger}</p>
+          </AdminCard>
+
+          {workflow.failureReason ? (
+            <div className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.1em] text-amber-100">Failure / blocker reason</p>
+              <p className="mt-1 text-sm leading-relaxed text-amber-50/80">{workflow.failureReason}</p>
+            </div>
+          ) : null}
+
+          <AdminCard>
+            <AdminCardHeader eyebrow="Dependencies" title="Tasks" description="Effective status comes from the shared Workflow Engine after dependency evaluation." />
             <div className="space-y-2">
               {workflow.tasks.map((task) => (
                 <div key={task.id} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
@@ -395,57 +475,84 @@ function WorkflowDetailSheet({ workflow, onClose }: { workflow: Studio2WorkflowI
                     </div>
                     <AdminStatus tone={taskTone(task.effectiveStatus)}>{humanize(task.effectiveStatus)}</AdminStatus>
                   </div>
-                  {task.blockers.length ? (
-                    <p className="mt-2 text-xs leading-relaxed text-amber-100/80">
-                      Blocked by {task.blockers.join(', ')}
-                    </p>
-                  ) : null}
+                  {task.blockers.length ? <p className="mt-2 text-xs text-amber-100/80">Waiting for {task.blockers.join(', ')}</p> : null}
+                  {task.dueAt ? <p className="mt-1 text-[11px] text-muted-foreground">Due {formatDateTime(task.dueAt)}</p> : null}
                 </div>
               ))}
             </div>
           </AdminCard>
 
-          <a href={workflow.href} className="admin-action-primary flex w-full items-center justify-center gap-2">
-            Open authoritative surface
-            <ChevronRight className="size-4" />
-          </a>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Studio 2 Workflows is intentionally an operational view over canonical state. Update the underlying entry, show, broadcast or lifecycle data in its authoritative tool; this queue will re-evaluate from that source.
-          </p>
+          <AdminCard>
+            <AdminCardHeader eyebrow="History" title="Recent workflow events" />
+            {workflow.history.length ? (
+              <div className="space-y-2">
+                {workflow.history.map((event) => (
+                  <div key={event.id} className="flex items-start gap-3 rounded-xl border border-white/[0.07] p-3">
+                    <Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-semibold">{humanize(event.type.replace('.', ' '))}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(event.occurredAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-sm text-muted-foreground">No matching persisted events are available for this workflow yet.</p>}
+          </AdminCard>
+
+          <AdminCard>
+            <AdminCardHeader eyebrow="Available actions" title="Continue in authoritative tools" />
+            <div className="space-y-2">
+              {workflow.availableActions.map((action) => (
+                <a key={`${action.label}:${action.href}`} href={action.href} className="admin-action-row flex w-full items-center gap-3">
+                  <span className="min-w-0 flex-1 text-sm font-semibold">{action.label}</span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                </a>
+              ))}
+            </div>
+          </AdminCard>
+
+          <p className="text-xs leading-relaxed text-muted-foreground">Workflow state is derived from authoritative edition, entry, show, deadline and event data. The workflow UI does not create a second copy of contest truth.</p>
         </div>
       ) : null}
     </AdminSheet>
   );
 }
 
-function FilterSelect({ label, value, options, onChange }: {
-  label: string;
-  value: string;
-  options: [string, string][];
-  onChange: (value: string) => void;
+function TaskColumn({ title, items, tone, onOpen }: {
+  title: string;
+  items: Studio2TaskBoardItem[];
+  tone: 'ready' | 'attention' | 'blocked' | 'info';
+  onOpen: (workflowId: string) => void;
 }) {
+  return (
+    <section className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+      <div className="mb-3 flex items-center justify-between gap-2"><p className="text-sm font-bold">{title}</p><AdminStatus tone={tone}>{items.length}</AdminStatus></div>
+      <div className="space-y-2">
+        {items.slice(0, 10).map((item) => (
+          <button key={item.id} type="button" onClick={() => onOpen(item.workflowId)} className="w-full rounded-lg border border-white/[0.06] bg-white/[0.025] p-2.5 text-left hover:bg-white/[0.045]">
+            <p className="text-xs font-semibold leading-snug">{item.label}</p>
+            <p className="mt-1 truncate text-[10px] text-muted-foreground">{item.workflowTitle}</p>
+            {item.dueAt ? <p className={`mt-1 text-[10px] ${item.overdue ? 'text-rose-200' : 'text-muted-foreground'}`}>{item.overdue ? 'Overdue · ' : 'Due '}{formatDateTime(item.dueAt)}</p> : null}
+          </button>
+        ))}
+        {!items.length ? <p className="py-4 text-center text-xs text-muted-foreground">No tasks</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: [string, string][]; onChange: (value: string) => void }) {
   return (
     <label className="block">
       <span className="sr-only">{label}</span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#081326] px-3 text-sm outline-none focus:border-sky-200/30"
-      >
-        {options.map(([optionValue, optionLabel]) => (
-          <option key={optionValue} value={optionValue}>{optionLabel}</option>
-        ))}
+      <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#081326] px-3 text-sm outline-none focus:border-sky-200/30">
+        {options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
       </select>
     </label>
   );
 }
 
-function Metric({ label, value, tone }: {
-  label: string;
-  value: number;
-  tone: 'ready' | 'attention' | 'blocked' | 'info' | 'neutral';
-}) {
+function Metric({ label, value, tone }: { label: string; value: number; tone: 'ready' | 'attention' | 'blocked' | 'info' | 'neutral' }) {
   return (
     <AdminCard>
       <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
@@ -458,12 +565,7 @@ function Metric({ label, value, tone }: {
 }
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm font-bold">{value}</p>
-    </div>
-  );
+  return <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className="mt-1 text-sm font-bold">{value}</p></div>;
 }
 
 function workflowTone(status: Studio2WorkflowStatus): 'ready' | 'attention' | 'blocked' | 'info' | 'neutral' {
@@ -480,14 +582,7 @@ function taskTone(status: string): 'ready' | 'attention' | 'blocked' | 'info' | 
   return 'info';
 }
 
-function hasFilters(search: WorkflowSearch) {
-  return Boolean(search.status || search.kind || search.owner || search.country || search.q);
-}
-
-function humanize(value: string) {
-  return value.replace(/_/g, ' ').replace(/^./, (character) => character.toUpperCase());
-}
-
-function errorText(error: unknown) {
-  return error instanceof Error && error.message ? error.message : 'Studio 2 could not evaluate the workflow queue.';
-}
+function hasFilters(search: WorkflowSearch) { return Boolean(search.status || search.kind || search.owner || search.country || search.q); }
+function humanize(value: string) { return value.replace(/_/g, ' ').replace(/^./, (character) => character.toUpperCase()); }
+function formatDateTime(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
+function errorText(error: unknown) { return error instanceof Error && error.message ? error.message : 'Studio 2 could not evaluate the workflow queue.'; }
