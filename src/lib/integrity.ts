@@ -23,8 +23,8 @@ export const INTEGRITY_IDENTITY_MODES = {
   },
   sealed: {
     label: "Sealed identity",
-    short: "Your account recovers the case, but reviewers cannot reveal your identity.",
-    detail: "Solaris links the case to your account for recovery and notifications, while the organizer identity-reveal function refuses sealed cases.",
+    short: "Your account recovers the case, but ordinary reviewers cannot reveal your identity.",
+    detail: "Solaris links the case to your account for recovery and notifications. The normal organizer identity function refuses sealed cases. In an exceptional break-glass situation, disclosure requires a written reason, approval by a second different organizer, a 30-minute one-use approval and a reporter-visible audit event if the identity is actually revealed.",
   },
   confidential: {
     label: "Confidential",
