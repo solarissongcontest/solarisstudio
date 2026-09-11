@@ -179,6 +179,10 @@ export function studio2SurfaceFor(key: SolarisFeatureFlag): Studio2ProductSurfac
   return STUDIO2_PRODUCT_SURFACES[key];
 }
 
+export function studio2SurfaceRolloutEligible(surface: Studio2ProductSurface): boolean {
+  return surface.state !== 'planned' && surface.state !== 'external_workstream';
+}
+
 export function studio2SurfaceStateLabel(state: Studio2SurfaceState): string {
   switch (state) {
     case 'product_surface':
