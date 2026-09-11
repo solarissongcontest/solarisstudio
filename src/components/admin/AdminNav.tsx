@@ -7,6 +7,7 @@ import {
   Layers3,
   RadioTower,
   Settings2,
+  ShieldAlert,
   Trophy,
   Vote,
   type LucideIcon,
@@ -44,6 +45,12 @@ export function AdminNav() {
       to: "/admin/operations",
       icon: LayoutDashboard,
       active: (path) => path.startsWith("/admin/operations"),
+    },
+    {
+      label: "Control Room",
+      to: "/admin/control-room",
+      icon: ShieldAlert,
+      active: (path) => path.startsWith("/admin/control-room"),
     },
     {
       label: "Delegations",
