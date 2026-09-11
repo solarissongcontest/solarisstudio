@@ -7,6 +7,7 @@ import {
   Layers3,
   RadioTower,
   Settings2,
+  ShieldCheck,
   Trophy,
   Vote,
   type LucideIcon,
@@ -75,6 +76,12 @@ export function AdminNav() {
         path.startsWith("/admin/jury-integrity"),
     },
     {
+      label: "Integrity",
+      to: "/admin/integrity",
+      icon: ShieldCheck,
+      active: (path) => path.startsWith("/admin/integrity"),
+    },
+    {
       label: "Publish",
       to: publishHref,
       icon: Eye,
@@ -110,6 +117,12 @@ export function AdminNav() {
       to: "/admin",
       icon: Trophy,
       active: (path) => path === "/admin" || path === "/admin/",
+    },
+    {
+      label: "Public rules",
+      to: "/rules",
+      icon: BookOpen,
+      active: (path) => path.startsWith("/rules"),
     },
     {
       label: "Guide",
