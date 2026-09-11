@@ -59,8 +59,8 @@ function CommunicationsCentre() {
   });
 
   const notices = noticesQuery.data ?? [];
-  const acknowledgementOutstanding = useMemo(
-    () => notices.reduce((sum, item) => sum + item.receipts.acknowledgementOutstanding, 0),
+  const acknowledgementCount = useMemo(
+    () => notices.reduce((sum, item) => sum + item.receipts.acknowledged, 0),
     [notices],
   );
 
@@ -92,8 +92,8 @@ function CommunicationsCentre() {
             <p className="mt-2 text-sm text-muted-foreground">For the currently selected edition.</p>
           </AdminCard>
           <AdminCard>
-            <AdminCardHeader eyebrow="Outstanding" title={`${acknowledgementOutstanding}`} />
-            <p className="mt-2 text-sm text-muted-foreground">Required acknowledgements not yet received.</p>
+            <AdminCardHeader eyebrow="Acknowledged" title={`${acknowledgementCount}`} />
+            <p className="mt-2 text-sm text-muted-foreground">Explicit acknowledgement receipts recorded for these notices.</p>
           </AdminCard>
           <AdminCard>
             <AdminCardHeader eyebrow="Audit" title="Event-backed" />
@@ -183,7 +183,7 @@ function CommunicationsCentre() {
                 />
                 <span>
                   <span className="block font-semibold">Require acknowledgement</span>
-                  <span className="text-muted-foreground">Track recipients who must explicitly acknowledge this notice.</span>
+                  <span className="text-muted-foreground">Recipients can explicitly acknowledge the notice from their delegation workspace.</span>
                 </span>
               </label>
 
@@ -232,8 +232,8 @@ function CommunicationsCentre() {
                           </p>
                         </div>
                         {notice.acknowledgementRequired ? (
-                          <AdminStatus tone={receipts.acknowledgementOutstanding ? 'attention' : 'ready'}>
-                            {receipts.acknowledged}/{receipts.total} acknowledged
+                          <AdminStatus tone={receipts.acknowledged ? 'ready' : 'attention'}>
+                            {receipts.acknowledged} acknowledged
                           </AdminStatus>
                         ) : null}
                       </div>
