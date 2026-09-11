@@ -7,11 +7,11 @@ const vault = readFileSync(
   "utf8",
 );
 const lifecycle = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220500_integrity_evidence_lifecycle.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160500_integrity_evidence_lifecycle.sql"),
   "utf8",
 );
 const cleanup = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220600_integrity_evidence_cleanup.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160600_integrity_evidence_cleanup.sql"),
   "utf8",
 );
 const api = readFileSync(
