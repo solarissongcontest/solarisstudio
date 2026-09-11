@@ -104,10 +104,10 @@ describe('Studio 2 workflow operations model', () => {
     expect(entry?.countryName).toBe('Oland');
     expect(entry?.owner).toBe('delegation');
     expect(entry?.assignedRole).toMatch(/Delegation/);
-    expect(entry?.status).toBe('blocked');
+    expect(entry?.status).toBe('ready');
     expect(entry?.tasks.find((task) => task.id === 'entry.song-info')?.effectiveStatus).toBe('ready');
-    expect(entry?.tasks.find((task) => task.id === 'entry.show-allocation')?.effectiveStatus).toBe('blocked');
-    expect(entry?.tasks.find((task) => task.id === 'entry.running-order')?.effectiveStatus).toBe('blocked');
+    expect(entry?.tasks.find((task) => task.id === 'entry.show-allocation')?.effectiveStatus).toBe('completed');
+    expect(entry?.tasks.find((task) => task.id === 'entry.running-order')?.effectiveStatus).toBe('ready');
 
     const showWorkflow = model.workflows.find((workflow) => workflow.id === 'show:show-1');
     expect(showWorkflow?.href).toBe('/admin/broadcast-rundown');
