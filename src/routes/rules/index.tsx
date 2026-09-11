@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import { RulesExperience } from "@/components/rules/RulesExperience";
+import { RulebookVersionBanner } from "@/components/rules/RulebookVersionBanner";
 
 export const Route = createFileRoute("/rules/")({
   head: () => ({
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/rules/")({
 function RulesPage() {
   return (
     <AppShell>
+      <RulebookVersionBanner />
       <RulesExperience />
     </AppShell>
   );
