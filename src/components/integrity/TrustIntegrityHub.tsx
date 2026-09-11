@@ -1,14 +1,12 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
   Bug,
-  Check,
+  Download,
   EyeOff,
-  FileQuestion,
   FileUp,
   KeyRound,
   LockKeyhole,
@@ -21,22 +19,21 @@ import {
   UserRoundCheck,
   Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { IntegrityCentre } from "@/components/integrity/IntegrityCentre";
-import { supabase } from "@/integrations/supabase/client";
 import {
   INTEGRITY_CATEGORIES,
   INTEGRITY_IDENTITY_MODES,
   formatIntegrityStatus,
   getIntegrityCategory,
   type IntegrityCaseKind,
-  type IntegrityCaseSnapshot,
   type IntegrityCategory,
   type IntegrityIdentityMode,
   type ProtectedCaseListItem,
 } from "@/lib/integrity";
+import { getProtectedEvidenceDownloadUrl } from "@/lib/integrity-evidence";
 import {
   createProtectedIntegrityCase,
   getCurrentIntegrityUser,
@@ -288,8 +285,13 @@ function ProtectedCaseThread({ caseId }: { caseId: string }) {
   const [message, setMessage] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const query = useQuery({ queryKey: ["integrity-protected-case", caseId], queryFn: () => getProtectedIntegrityCase(caseId) });
-  const replyMutation = useMutation({ mutationFn: () => replyProtectedIntegrityCase(caseId, message), onSuccess: (snapshot) => { query.refetch(); setMessage(""); toast.success("Response sent"); }, onError: (error) => toast.error(error instanceof Error ? error.message : "Could not reply") });
+  const replyMutation = useMutation({ mutationFn: () => replyProtectedIntegrityCase(caseId, message), onSuccess: () => { query.refetch(); setMessage(""); toast.success("Response sent"); }, onError: (error) => toast.error(error instanceof Error ? error.message : "Could not reply") });
   const evidenceMutation = useMutation({ mutationFn: () => { if (!file) throw new Error("Choose a file"); return uploadProtectedEvidence(caseId, file); }, onSuccess: () => { setFile(null); query.refetch(); toast.success("Evidence added"); }, onError: (error) => toast.error(error instanceof Error ? error.message : "Could not upload evidence") });
+  const downloadMutation = useMutation({
+    mutationFn: (evidenceId: string) => getProtectedEvidenceDownloadUrl(caseId, evidenceId),
+    onSuccess: ({ url }) => window.location.assign(url),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not prepare secure evidence download"),
+  });
 
   if (query.isLoading) return <LoadingFrame label="Opening case…" />;
   if (!query.data) return <div className="rounded-xl border border-rose-300/15 bg-rose-300/[0.04] p-5">Could not open this case.</div>;
@@ -299,7 +301,7 @@ function ProtectedCaseThread({ caseId }: { caseId: string }) {
   return <section className="space-y-4"><div className="rounded-[1.5rem] border border-sky-300/14 bg-sky-300/[0.035] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-xs font-black text-sky-200">{snapshot.case.public_code}</p><h2 className="mt-2 text-2xl font-black">{snapshot.case.summary}</h2><p className="mt-1 text-xs text-muted-foreground">{INTEGRITY_IDENTITY_MODES[snapshot.case.identity_mode].label} · {getIntegrityCategory(snapshot.case.category).label}</p></div><span className="rounded-full border border-white/[0.08] px-3 py-1 text-xs font-bold">{status.label}</span></div></div>
     {snapshot.requests.filter((item) => item.status === "open").map((request) => <div key={request.id} className="rounded-xl border border-amber-300/16 bg-amber-300/[0.05] p-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-amber-200">TSBC REQUEST</p><p className="mt-2 text-sm font-semibold">{request.prompt}</p></div>)}
     <div className="rounded-[1.5rem] border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5"><h3 className="font-black">Secure thread</h3><div className="mt-4 space-y-3">{snapshot.messages.map((item) => <div key={item.id} className={cn("max-w-[85%] rounded-xl border p-3", item.author_role === "reporter" ? "ml-auto border-emerald-300/12 bg-emerald-300/[0.04]" : "border-sky-300/12 bg-sky-300/[0.04]")}><p className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">{item.author_role === "reporter" ? "You" : "TSBC"}</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6">{item.body}</p></div>)}</div><textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={3} placeholder="Reply securely…" className="mt-4 w-full rounded-xl border p-3 text-sm"/><div className="mt-2 flex justify-end"><button type="button" disabled={message.trim().length < 2 || replyMutation.isPending} onClick={() => replyMutation.mutate()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-sky-200 px-3 text-xs font-black text-slate-950 disabled:opacity-40"><Send className="size-3.5" />Send</button></div></div>
-    <div className="grid gap-4 lg:grid-cols-2"><div className="rounded-[1.4rem] border border-white/[0.08] bg-white/[0.02] p-4"><div className="flex items-center gap-2"><FileUp className="size-4 text-emerald-200"/><h3 className="font-bold">Evidence vault</h3></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Images are re-encoded before upload to remove ordinary image metadata. PDFs and text files may still contain identifying information inside the document itself.</p><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf,text/plain" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-3 block w-full text-xs"/><button type="button" disabled={!file || evidenceMutation.isPending} onClick={() => evidenceMutation.mutate()} className="mt-3 rounded-xl border border-emerald-300/16 bg-emerald-300/[0.05] px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-40">{evidenceMutation.isPending ? "Uploading…" : "Add evidence"}</button><div className="mt-4 space-y-2">{snapshot.evidence.map((item) => <div key={item.id} className="rounded-lg border border-white/[0.06] p-2.5"><p className="text-xs font-bold">{item.title}</p><p className="text-[10px] text-muted-foreground">{item.evidence_type} · {item.source_role}</p></div>)}</div></div>
+    <div className="grid gap-4 lg:grid-cols-2"><div className="rounded-[1.4rem] border border-white/[0.08] bg-white/[0.02] p-4"><div className="flex items-center gap-2"><FileUp className="size-4 text-emerald-200"/><h3 className="font-bold">Evidence vault</h3></div><p className="mt-1 text-xs leading-5 text-muted-foreground">Images are re-encoded before upload to remove ordinary image metadata. PDFs and text files may still contain identifying information inside the document itself.</p><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf,text/plain" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-3 block w-full text-xs"/><button type="button" disabled={!file || evidenceMutation.isPending} onClick={() => evidenceMutation.mutate()} className="mt-3 rounded-xl border border-emerald-300/16 bg-emerald-300/[0.05] px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-40">{evidenceMutation.isPending ? "Uploading…" : "Add evidence"}</button><div className="mt-4 space-y-2">{snapshot.evidence.map((item) => <div key={item.id} className="rounded-lg border border-white/[0.06] p-2.5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-xs font-bold">{item.title}</p><p className="text-[10px] text-muted-foreground">{item.evidence_type} · {item.source_role}</p>{item.original_name ? <p className="mt-1 truncate text-[10px] text-muted-foreground">{item.original_name}</p> : null}</div>{item.evidence_type === "file" && item.original_name ? <button type="button" disabled={downloadMutation.isPending} onClick={() => downloadMutation.mutate(item.id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-sky-300/15 bg-sky-300/[0.05] px-2.5 py-1.5 text-[10px] font-bold text-sky-100 disabled:opacity-40"><Download className="size-3" />{downloadMutation.isPending && downloadMutation.variables === item.id ? "Preparing…" : "Secure download"}</button> : null}</div>{item.evidence_type === "file" && item.original_name ? <p className="mt-2 text-[9px] leading-4 text-muted-foreground">Audited access · signed link expires after 60 seconds.</p> : null}</div>)}</div></div>
       <div className="rounded-[1.4rem] border border-white/[0.08] bg-white/[0.02] p-4"><h3 className="font-bold">Findings</h3>{snapshot.findings.length ? <div className="mt-3 space-y-2">{snapshot.findings.map((finding) => <div key={finding.id} className="rounded-xl border border-violet-300/12 bg-violet-300/[0.035] p-3"><p className="text-[9px] font-black uppercase tracking-[.1em] text-violet-200">{finding.outcome.replaceAll("_", " ")}</p><p className="mt-1 text-sm font-bold">{finding.summary}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{finding.rationale}</p><div className="mt-2 flex flex-wrap gap-1">{finding.rule_ids.map((rule) => <Link key={rule} to="/rules/$ruleId" params={{ ruleId: rule }} className="rounded-md bg-white/[0.04] px-2 py-1 text-[10px] text-sky-200">Rule {rule}</Link>)}</div></div>)}</div> : <p className="mt-2 text-xs text-muted-foreground">No formal finding has been published to you yet.</p>}</div></div>
   </section>;
 }
