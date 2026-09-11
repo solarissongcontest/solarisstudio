@@ -41,6 +41,21 @@ const FEATURE_CHAIN = [
 const FEATURE_MIGRATION_VERSIONS = new Set(FEATURE_CHAIN.map((name) => name.slice(0, 14)));
 
 describe("Supabase migration sequence", () => {
+  it("never reuses a Supabase migration timestamp anywhere in the repository", () => {
+    const filesByVersion = new Map<string, string[]>();
+
+    for (const file of migrationFiles) {
+      const version = file.slice(0, 14);
+      filesByVersion.set(version, [...(filesByVersion.get(version) ?? []), file]);
+    }
+
+    const duplicates = [...filesByVersion.entries()]
+      .filter(([, files]) => files.length > 1)
+      .map(([version, files]) => ({ version, files }));
+
+    expect(duplicates).toEqual([]);
+  });
+
   it("never reuses a migration timestamp inside the Rules + Integrity feature chain", () => {
     expect(FEATURE_MIGRATION_VERSIONS.size).toBe(FEATURE_CHAIN.length);
   });
