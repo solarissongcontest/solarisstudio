@@ -6,6 +6,7 @@ import {
   Flag,
   LayoutDashboard,
   Layers3,
+  ListVideo,
   Mail,
   RadioTower,
   Settings2,
@@ -82,6 +83,12 @@ export function AdminNav() {
         path.startsWith("/admin/televote/") ||
         path.startsWith("/admin/friend-voting") ||
         path.startsWith("/admin/jury-integrity"),
+    },
+    {
+      label: "Rundown",
+      to: "/admin/broadcast-rundown",
+      icon: ListVideo,
+      active: (path) => path.startsWith("/admin/broadcast-rundown"),
     },
     {
       label: "Publish",
