@@ -3,6 +3,7 @@ import { BookOpen, ChevronDown, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { ContextualRuleGuide } from "@/components/rules/ContextualRuleGuide";
 import { cn } from "@/lib/utils";
 
 const DESKTOP_HOST_ATTR = "data-solaris-rules-nav-host";
@@ -156,6 +157,8 @@ export function GlobalRulesNavigationAddon() {
             mobileHost,
           )
         : null}
+
+      <ContextualRuleGuide />
     </>
   );
 }
