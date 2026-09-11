@@ -53,6 +53,7 @@ describe("public governance Library provider", () => {
         "/rules/interpretations",
         "/rules/changes",
         "/integrity",
+        "/integrity/preclearance",
         "/integrity/appeals",
       ]),
     );
@@ -85,6 +86,12 @@ describe("public governance Library provider", () => {
     expect(searchGovernanceLibrary("sealed identity").some((result) => result.to === "/integrity")).toBe(true);
   });
 
+  it("finds private rule rulings from pre-clearance and before-you-act language", () => {
+    expect(searchGovernanceLibrary("preclearance").some((result) => result.to === "/integrity/preclearance")).toBe(true);
+    expect(searchGovernanceLibrary("private ruling").some((result) => result.to === "/integrity/preclearance")).toBe(true);
+    expect(searchGovernanceLibrary("before you act").some((result) => result.to === "/integrity/preclearance")).toBe(true);
+  });
+
   it("indexes published Official Interpretations supplied by the Library host", () => {
     const results = searchGovernanceLibrary("statistical friend voting", [interpretation]);
     expect(results.some((result) => result.id === `interpretation-${interpretation.id}`)).toBe(true);
@@ -110,7 +117,7 @@ describe("public governance Library provider", () => {
   });
 
   it("never exposes organizer routes through the public Library provider", () => {
-    const queries = ["", "rule", "appeal", "integrity", "sanction", "interpretation"];
+    const queries = ["", "rule", "appeal", "integrity", "sanction", "interpretation", "preclearance"];
     const routes = queries.flatMap((query) => searchGovernanceLibrary(query, [interpretation], [release]).map((result) => result.to));
     expect(routes.some((route) => route.startsWith("/admin"))).toBe(false);
   });
