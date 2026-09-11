@@ -64,9 +64,9 @@ export function AdminNav() {
     },
     {
       label: "Delegations",
-      to: "/confirmations/admin",
+      to: "/admin/countries",
       icon: ClipboardCheck,
-      active: (path) => path.startsWith("/confirmations/admin"),
+      active: (path) => path.startsWith("/admin/countries") || path.startsWith("/confirmations/admin"),
     },
     {
       label: "Contest",
