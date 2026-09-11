@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -204,14 +204,17 @@ export async function fetchAdminRulebookReleases(): Promise<RulebookRelease[]> {
 export function usePublishedRulebook() {
   const query = useQuery({
     queryKey: ["public-rulebook-release"],
-    queryFn: fetchCurrentRulebookRelease,
+    queryFn: async () => {
+      const release = await fetchCurrentRulebookRelease();
+      // Apply the immutable overlay before React Query publishes `data` to
+      // subscribers. Otherwise sibling rule components can render one frame of
+      // bundled v4 text after the query has already resolved.
+      applyPublishedRulebookRelease(release);
+      return release;
+    },
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
-
-  useEffect(() => {
-    applyPublishedRulebookRelease(query.data);
-  }, [query.data]);
 
   return {
     ...query,
