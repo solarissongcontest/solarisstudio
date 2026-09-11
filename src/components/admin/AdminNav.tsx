@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Eye,
   FileClock,
+  Gavel,
   LayoutDashboard,
   Layers3,
   RadioTower,
@@ -81,8 +82,16 @@ export function AdminNav() {
       to: "/admin/integrity-investigations",
       icon: ShieldCheck,
       active: (path) =>
-        path.startsWith("/admin/integrity") ||
-        path.startsWith("/admin/integrity-case/"),
+        path === "/admin/integrity" ||
+        path.startsWith("/admin/integrity-investigations") ||
+        path.startsWith("/admin/integrity-case/") ||
+        path.startsWith("/admin/integrity-resolution/"),
+    },
+    {
+      label: "Appeals",
+      to: "/admin/integrity-appeals",
+      icon: Gavel,
+      active: (path) => path.startsWith("/admin/integrity-appeals"),
     },
     {
       label: "Publish",
