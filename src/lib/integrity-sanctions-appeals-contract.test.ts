@@ -1,0 +1,87 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const migration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910220000_integrity_sanctions_and_appeals.sql"),
+  "utf8",
+);
+
+const EXPECTED_LEVELS = [
+  "Official Warning",
+  "Loss of 50% of Bonus Points",
+  "No Bonus Points Awarded",
+  "−5 Contest Points",
+  "−25 Contest Points",
+  "−50 Contest Points",
+  "−100 Contest Points",
+  "Disqualification",
+  "Disqualification + One-Edition Ban",
+  "Lifetime Ban",
+];
+
+describe("Integrity sanctions and appeals contract", () => {
+  it("stores structured sanctions separately from findings", () => {
+    expect(migration).toContain("create table if not exists public.integrity_case_sanctions");
+    expect(migration).toContain("finding_id uuid not null references public.integrity_case_findings");
+    expect(migration).toContain("typical_level integer");
+    expect(migration).toContain("final_level integer not null");
+    expect(migration).toContain("aggravating_factors text[]");
+    expect(migration).toContain("mitigating_factors text[]");
+    expect(migration).toContain("target_type text not null");
+  });
+
+  it("maps every canonical sanction level to the exact SSC label", () => {
+    EXPECTED_LEVELS.forEach((label, index) => {
+      expect(migration).toContain(`when ${index + 1} then '${label}'`);
+    });
+    expect(migration).toContain("sanction_label_matches_level");
+  });
+
+  it("requires a confirmed violation finding before imposing a sanction", () => {
+    expect(migration).toContain("Finding does not belong to this case");
+    expect(migration).toContain("A sanction requires a confirmed violation finding");
+    expect(migration).toContain("where id = _finding_id and case_id = _case_id");
+  });
+
+  it("records both the normal starting level and the final human decision", () => {
+    expect(migration).toContain("_typical_level integer");
+    expect(migration).toContain("_final_level integer");
+    expect(migration).toContain("Sanction rationale must be between 20 and 12000 characters");
+  });
+
+  it("implements the 48-hour appeal deadline for protected and anonymous reporters", () => {
+    expect(migration.match(/interval '48 hours'/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(migration).toContain("reporter_submit_integrity_appeal");
+    expect(migration).toContain("public_submit_anonymous_integrity_appeal");
+    expect(migration).toContain("recovery_secret_hash = v_hash");
+    expect(migration).toContain("case when v_timely then 'submitted' else 'rejected_late' end");
+  });
+
+  it("requires a fresh appeal reviewer rather than the original sanction decision-maker", () => {
+    expect(migration).toContain("The original sanction decision-maker cannot be the appeal reviewer");
+    expect(migration).toContain("Only the assigned appeal reviewer may decide this appeal");
+    expect(migration).toContain("'appeal_reviewer'");
+  });
+
+  it("preserves the original sanction when an appeal changes the level", () => {
+    expect(migration).toContain("supersedes_sanction_id");
+    expect(migration).toContain("modified_on_appeal");
+    expect(migration).toContain("replacement_sanction_id");
+    expect(migration).toContain("update public.integrity_case_sanctions set status = 'overturned'");
+  });
+
+  it("keeps sanction and appeal tables inaccessible through direct client table access", () => {
+    expect(migration).toContain("alter table public.integrity_case_sanctions enable row level security");
+    expect(migration).toContain("alter table public.integrity_case_appeals enable row level security");
+    expect(migration).toContain("revoke all on public.integrity_case_sanctions from anon, authenticated");
+    expect(migration).toContain("revoke all on public.integrity_case_appeals from anon, authenticated");
+  });
+
+  it("exposes organizer resolution data through a narrow organizer-gated RPC", () => {
+    expect(migration).toContain("admin_integrity_case_resolution");
+    expect(migration).toContain("if not public.integrity_is_organizer() then raise exception 'Organizer access required'");
+    expect(migration).toContain("'sanctions'");
+    expect(migration).toContain("'appeals'");
+  });
+});
