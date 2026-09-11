@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, ChevronDown, FileClock, ShieldCheck } from "lucide-react";
+import { BookOpen, ChevronDown, FileClock, MessageCircleQuestion, ShieldCheck } from "lucide-react";
 
 import { ContextualRuleGuide } from "@/components/rules/ContextualRuleGuide";
 import { usePublishedRulebook } from "@/lib/rules-governance";
@@ -52,7 +52,7 @@ function RulesShortcutMenu({ pathname, mobile = false }: { pathname: string; mob
         <p className="px-3 pb-2 pt-1 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground/70">
           Rules & integrity
         </p>
-        <Link to="/rules" className={shortcutLink(rulesActive)}>
+        <Link to="/rules" className={shortcutLink(pathname === "/rules" || pathname === "/rules/")}>
           <BookOpen className="mt-0.5 size-4 shrink-0 text-sky-200" />
           <span>
             <span className="block text-xs font-semibold text-foreground">Official SSC rules</span>
@@ -67,6 +67,15 @@ function RulesShortcutMenu({ pathname, mobile = false }: { pathname: string; mob
             <span className="block text-xs font-semibold text-foreground">Rulebook changes</span>
             <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">
               Published versions, effective dates and rule-by-rule change reasons
+            </span>
+          </span>
+        </Link>
+        <Link to="/rules/interpretations" className={shortcutLink(pathMatches(pathname, "/rules/interpretations"))}>
+          <MessageCircleQuestion className="mt-0.5 size-4 shrink-0 text-violet-200" />
+          <span>
+            <span className="block text-xs font-semibold text-foreground">Official interpretations</span>
+            <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">
+              Formal TSBC rulings explaining how existing rules apply
             </span>
           </span>
         </Link>
