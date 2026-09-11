@@ -1,8 +1,9 @@
 import type { RuleInterpretation } from "@/lib/rule-interpretations";
-import { searchSscRules } from "@/lib/ssc-rules-v4";
+import type { RulebookRelease } from "@/lib/rules-governance";
+import { searchSscRules, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules-v4";
 
 export type GovernanceLibraryGroup = "Rules & governance" | "Trust & Integrity";
-export type GovernanceLibraryKind = "destination" | "rule" | "interpretation";
+export type GovernanceLibraryKind = "destination" | "chapter" | "rule" | "interpretation" | "release";
 
 export type GovernanceLibraryResult = {
   id: string;
@@ -24,15 +25,7 @@ export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
     description: "Explore the complete 21-chapter Solaris Song Contest General Regulations.",
     to: "/rules",
     badge: "Rulebook",
-    keywords: [
-      "rules",
-      "rulebook",
-      "regulations",
-      "ssc rules",
-      "contest rules",
-      "general regulations",
-      "rule map",
-    ],
+    keywords: ["rules", "rulebook", "regulations", "ssc rules", "contest rules", "general regulations", "rule map"],
   },
   {
     id: "governance-interpretations",
@@ -42,16 +35,7 @@ export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
     description: "Published TSBC rulings explaining how existing SSC rules apply to recurring or unusual situations.",
     to: "/rules/interpretations",
     badge: "Rulings",
-    keywords: [
-      "interpretation",
-      "interpretations",
-      "ruling",
-      "rulings",
-      "guidance",
-      "precedent",
-      "clarification",
-      "what does rule mean",
-    ],
+    keywords: ["interpretation", "interpretations", "ruling", "rulings", "guidance", "precedent", "clarification", "what does rule mean"],
   },
   {
     id: "governance-changes",
@@ -61,16 +45,7 @@ export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
     description: "See published rulebook versions, effective dates and rule-by-rule change reasons.",
     to: "/rules/changes",
     badge: "History",
-    keywords: [
-      "rule changes",
-      "rulebook changes",
-      "history",
-      "versions",
-      "amendment",
-      "amendments",
-      "effective date",
-      "old rules",
-    ],
+    keywords: ["rule changes", "rulebook changes", "history", "versions", "amendment", "amendments", "effective date", "old rules"],
   },
   {
     id: "integrity-centre",
@@ -80,20 +55,7 @@ export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
     description: "Report a concern, ask TSBC privately, self-report an issue or return to a protected case.",
     to: "/integrity",
     badge: "Integrity",
-    keywords: [
-      "integrity",
-      "report",
-      "report concern",
-      "anonymous report",
-      "sealed identity",
-      "confidential report",
-      "safety",
-      "harassment",
-      "doxxing",
-      "self report",
-      "private question",
-      "ask tsbc",
-    ],
+    keywords: ["integrity", "report", "report concern", "anonymous report", "sealed identity", "confidential report", "safety", "harassment", "doxxing", "self report", "private question", "ask tsbc"],
   },
   {
     id: "integrity-appeals",
@@ -103,15 +65,7 @@ export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
     description: "Review protected-case decisions and submit an eligible appeal within the SSC appeal process.",
     to: "/integrity/appeals",
     badge: "Appeals",
-    keywords: [
-      "appeal",
-      "appeals",
-      "sanction appeal",
-      "decision",
-      "48 hours",
-      "review sanction",
-      "challenge decision",
-    ],
+    keywords: ["appeal", "appeals", "sanction appeal", "decision", "48 hours", "review sanction", "challenge decision"],
   },
 ];
 
@@ -149,9 +103,7 @@ function queryTerms(query: string) {
 
 function scoreText(result: GovernanceLibraryResult, terms: string[]) {
   const title = normalize(result.title);
-  const searchable = normalize(
-    [result.title, result.description, result.badge ?? "", ...result.keywords].join(" "),
-  );
+  const searchable = normalize([result.title, result.description, result.badge ?? "", ...result.keywords].join(" "));
   let score = 0;
   for (const term of terms) {
     if (title === term) score += 18;
@@ -159,6 +111,23 @@ function scoreText(result: GovernanceLibraryResult, terms: string[]) {
     if (searchable.includes(term)) score += term.includes(" ") ? 5 : 3;
   }
   return score;
+}
+
+function chapterResult(chapter: (typeof SSC_RULE_CHAPTERS)[number]): GovernanceLibraryResult {
+  return {
+    id: `chapter-${chapter.number}`,
+    kind: "chapter",
+    group: "Rules & governance",
+    title: `Chapter ${chapter.number} · ${chapter.title}`,
+    description: chapter.description,
+    to: `/rules#chapter-${chapter.number}`,
+    badge: `Chapter ${chapter.number}`,
+    keywords: [
+      chapter.shortTitle,
+      ...chapter.atAGlance,
+      ...chapter.rules.flatMap((rule) => [rule.id, rule.title, rule.summary, ...rule.tags]),
+    ],
+  };
 }
 
 function interpretationResult(interpretation: RuleInterpretation): GovernanceLibraryResult {
@@ -170,25 +139,55 @@ function interpretationResult(interpretation: RuleInterpretation): GovernanceLib
     description: interpretation.interpretation,
     to: "/rules/interpretations",
     badge: "Interpretation",
+    keywords: [interpretation.code, interpretation.question, interpretation.rationale, ...interpretation.rule_ids.map((ruleId) => `rule ${ruleId}`)],
+  };
+}
+
+export function rulebookReleaseAnchor(version: string) {
+  return `release-${version.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "")}`;
+}
+
+function releaseResult(release: RulebookRelease): GovernanceLibraryResult {
+  const changes = release.changes ?? [];
+  return {
+    id: `release-${release.id ?? release.version}`,
+    kind: "release",
+    group: "Rules & governance",
+    title: `Rulebook v${release.version} · ${release.title}`,
+    description: release.summary,
+    to: `/rules/changes#${rulebookReleaseAnchor(release.version)}`,
+    badge: `v${release.version}`,
     keywords: [
-      interpretation.code,
-      interpretation.question,
-      interpretation.rationale,
-      ...interpretation.rule_ids.map((ruleId) => `rule ${ruleId}`),
-    ],
+      release.version,
+      `version ${release.version}`,
+      release.base_version ? `based on ${release.base_version}` : "",
+      ...changes.flatMap((change) => [
+        `rule ${change.rule_id}`,
+        change.rule_id,
+        change.rationale,
+        change.after_snapshot?.title ?? "",
+        change.after_snapshot?.summary ?? "",
+        change.before_snapshot?.title ?? "",
+      ]),
+    ].filter(Boolean),
   };
 }
 
 export function searchGovernanceLibrary(
   query: string,
   interpretations: RuleInterpretation[] = [],
+  releases: RulebookRelease[] = [],
 ): GovernanceLibraryResult[] {
   const normalized = normalize(query);
-
   if (!normalized) return [...GOVERNANCE_LIBRARY_DESTINATIONS];
 
   const terms = queryTerms(query);
   const destinationMatches = GOVERNANCE_LIBRARY_DESTINATIONS
+    .map((result) => ({ result, score: scoreText(result, terms) }))
+    .filter(({ score }) => score > 0);
+
+  const chapterMatches = SSC_RULE_CHAPTERS
+    .map(chapterResult)
     .map((result) => ({ result, score: scoreText(result, terms) }))
     .filter(({ score }) => score > 0);
 
@@ -212,7 +211,13 @@ export function searchGovernanceLibrary(
     .map((result) => ({ result, score: scoreText(result, terms) }))
     .filter(({ score }) => score > 0);
 
-  const combined = [...destinationMatches, ...ruleMatches, ...interpretationMatches]
+  const releaseMatches = releases
+    .filter((release) => release.status !== "draft")
+    .map(releaseResult)
+    .map((result) => ({ result, score: scoreText(result, terms) }))
+    .filter(({ score }) => score > 0);
+
+  const combined = [...destinationMatches, ...chapterMatches, ...ruleMatches, ...interpretationMatches, ...releaseMatches]
     .sort((a, b) => b.score - a.score || a.result.title.localeCompare(b.result.title))
     .map(({ result }) => result);
 
