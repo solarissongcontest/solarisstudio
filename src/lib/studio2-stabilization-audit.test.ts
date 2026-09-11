@@ -7,6 +7,7 @@ import {
   STUDIO2_PRODUCT_SURFACES,
   studio2EnabledDependents,
   studio2MissingDependencies,
+  studio2RolloutDecision,
   studio2SurfaceRolloutEligible,
 } from './studio2-product-surfaces';
 
@@ -109,6 +110,38 @@ describe('Studio 2 stabilization contract', () => {
     expect(studio2EnabledDependents('live_control_room', enabled)).toEqual(expect.arrayContaining(['incident_command', 'edition_simulator']));
     expect(studio2EnabledDependents('contest_event_engine', enabled)).toEqual(['live_control_room']);
     expect(studio2EnabledDependents('incident_command', enabled)).toEqual([]);
+  });
+
+  it('makes rollout decisions from product state and dependency state rather than route-source strings', () => {
+    expect(studio2RolloutDecision('rules_engine', false, new Set())).toEqual({
+      allowed: false,
+      blockingKeys: [],
+      reason: 'rollout_locked',
+    });
+
+    expect(studio2RolloutDecision('live_control_room', false, new Set())).toEqual({
+      allowed: false,
+      blockingKeys: ['edition_state_engine', 'contest_event_engine'],
+      reason: 'missing_dependencies',
+    });
+
+    const foundations = new Set<SolarisFeatureFlag>(['edition_state_engine', 'contest_event_engine']);
+    expect(studio2RolloutDecision('live_control_room', false, foundations)).toEqual({
+      allowed: true,
+      blockingKeys: [],
+      reason: 'allowed',
+    });
+
+    const activeControlRoom = new Set<SolarisFeatureFlag>([
+      'edition_state_engine',
+      'contest_event_engine',
+      'live_control_room',
+    ]);
+    expect(studio2RolloutDecision('edition_state_engine', true, activeControlRoom)).toEqual({
+      allowed: false,
+      blockingKeys: ['live_control_room'],
+      reason: 'active_dependents',
+    });
   });
 
   it('keeps the separate Rules workstream explicitly isolated', () => {
