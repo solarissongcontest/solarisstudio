@@ -27,6 +27,7 @@ export const STATIC_PUBLIC_ROUTES = [
   "/results",
   "/rules",
   "/rules/changes",
+  "/rules/interpretations",
   "/rules/17.2",
   "/scorecharts",
   "/shows",
