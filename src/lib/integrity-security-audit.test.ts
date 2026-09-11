@@ -10,6 +10,10 @@ const reporting = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910213100_integrity_reporting_and_review.sql"),
   "utf8",
 );
+const governance = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910213200_integrity_case_governance.sql"),
+  "utf8",
+);
 const evidence = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910213300_integrity_evidence_vault.sql"),
   "utf8",
@@ -39,12 +43,14 @@ describe("Trust & Integrity privacy boundary audit", () => {
     expect(anonymousFns).not.toContain("supabase.auth.getSession");
   });
 
-  it("uses a separate sessionless browser client for anonymous evidence uploads", () => {
+  it("uses a separate sessionless browser client for anonymous evidence and appeal recovery", () => {
     expect(portal).toContain("function anonymousBrowserClient()");
     expect(portal).toContain("persistSession: false");
     expect(portal).toContain("detectSessionInUrl: false");
     expect(portal).toContain("public_create_anonymous_evidence_upload");
     expect(portal).toContain("public_finalize_anonymous_evidence");
+    expect(portal).toContain("public_get_anonymous_integrity_resolution");
+    expect(portal).toContain("public_submit_anonymous_integrity_appeal");
   });
 
   it("stores only a SHA-256 digest of anonymous recovery secrets", () => {
@@ -86,9 +92,10 @@ describe("Trust & Integrity privacy boundary audit", () => {
   });
 
   it("prevents ordinary case reviewers from revealing sealed identities", () => {
-    expect(reporting).toContain("Reporter identity is sealed and cannot be revealed to case reviewers");
-    expect(reporting).toContain("Fully anonymous cases have no reporter identity");
-    expect(reporting).toContain("Confidential reporter identity was accessed by an organizer");
+    expect(governance).toContain("Reporter identity is sealed and cannot be revealed to case reviewers");
+    expect(governance).toContain("Fully anonymous cases have no reporter identity");
+    expect(governance).toContain("Confidential reporter identity was accessed by an organizer");
+    expect(governance).toContain("'identity.accessed'");
   });
 
   it("requires ownership for protected reporter reads and replies", () => {
@@ -98,11 +105,12 @@ describe("Trust & Integrity privacy boundary audit", () => {
   });
 
   it("keeps evidence storage private and token-gated", () => {
-    expect(evidence).toContain("integrity-evidence");
-    expect(evidence).toMatch(/public\s*=\s*false/i);
+    expect(evidence).toContain("insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)");
+    expect(evidence).toMatch(/'integrity-evidence',\s*'integrity-evidence',\s*false,/i);
     expect(evidence).toContain("integrity_evidence_upload_tokens");
-    expect(evidence).toContain("expires_at");
-    expect(evidence).toContain("used_at");
+    expect(evidence).toContain("expires_at > now()");
+    expect(evidence).toContain("used_at is null");
+    expect(evidence).toContain("bucket_id = 'integrity-evidence'");
   });
 
   it("re-encodes image evidence before upload to remove ordinary embedded metadata", () => {
