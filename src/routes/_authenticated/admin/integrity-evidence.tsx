@@ -129,6 +129,11 @@ function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onCha
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not delete evidence"),
   });
 
+  const confirmDeletion = () => {
+    if (!window.confirm(`Permanently delete this private evidence item for ${item.case_code}? The audit record will remain, but the stored file cannot be recovered.`)) return;
+    mutation.mutate();
+  };
+
   return (
     <article className="rounded-xl border border-rose-200/10 bg-rose-200/[0.025] p-4">
       <div className="flex items-start justify-between gap-3">
@@ -142,7 +147,7 @@ function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onCha
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{item.deletion_reason}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link to="/admin/integrity-case/$caseId" params={{ caseId: item.case_id }} className="admin-action-secondary">Open case <ArrowRight className="size-3.5" /></Link>
-        <button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate()} className="admin-action-secondary text-rose-100"><Trash2 className="size-3.5" />{mutation.isPending ? "Deleting…" : "Delete private evidence"}</button>
+        <button type="button" disabled={mutation.isPending} onClick={confirmDeletion} className="admin-action-secondary text-rose-100"><Trash2 className="size-3.5" />{mutation.isPending ? "Deleting…" : "Delete private evidence"}</button>
       </div>
     </article>
   );
@@ -158,6 +163,11 @@ function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; o
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not clean expired upload"),
   });
 
+  const confirmCleanup = () => {
+    if (!window.confirm(`Clean this expired unfinished upload? ${item.object_exists ? "Its orphaned private storage object will be permanently removed first." : "No storage object remains; the expired token will be discarded."}`)) return;
+    mutation.mutate();
+  };
+
   return (
     <article className="rounded-xl border border-amber-200/10 bg-amber-200/[0.025] p-4">
       <div className="flex items-start justify-between gap-3">
@@ -167,8 +177,8 @@ function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; o
         </div>
         <ArchiveRestore className="size-4 shrink-0 text-amber-200" />
       </div>
-      <p className="mt-2 break-all font-mono text-[9px] leading-4 text-muted-foreground">{item.object_path}</p>
-      <button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate()} className="admin-action-secondary mt-4"><Trash2 className="size-3.5" />{mutation.isPending ? "Cleaning…" : "Clean expired upload"}</button>
+      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">Private storage location hidden from the interface.</p>
+      <button type="button" disabled={mutation.isPending} onClick={confirmCleanup} className="admin-action-secondary mt-4"><Trash2 className="size-3.5" />{mutation.isPending ? "Cleaning…" : "Clean expired upload"}</button>
     </article>
   );
 }
