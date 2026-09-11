@@ -1,6 +1,19 @@
 export const INCIDENT_SEVERITIES = ['sev1', 'sev2', 'sev3', 'sev4'] as const;
 export type IncidentSeverity = (typeof INCIDENT_SEVERITIES)[number];
 
+export const INCIDENT_CATEGORIES = [
+  'voting',
+  'broadcast',
+  'delegation',
+  'technical',
+  'results',
+  'security',
+  'integrity',
+  'publication',
+  'other',
+] as const;
+export type IncidentCategory = (typeof INCIDENT_CATEGORIES)[number];
+
 export const INCIDENT_STATUSES = ['open', 'mitigating', 'monitoring', 'resolved'] as const;
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 
@@ -23,7 +36,7 @@ const NEXT_INCIDENT_STATES: Record<IncidentStatus, readonly IncidentStatus[]> = 
   open: ['mitigating', 'monitoring', 'resolved'],
   mitigating: ['monitoring', 'resolved'],
   monitoring: ['mitigating', 'resolved'],
-  resolved: [],
+  resolved: ['monitoring'],
 };
 
 export function canTransitionIncident(from: IncidentStatus, to: IncidentStatus): boolean {
