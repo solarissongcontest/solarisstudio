@@ -5,7 +5,6 @@ export type DueEvidenceDeletion = {
   case_id: string;
   case_code: string;
   title: string;
-  storage_path: string | null;
   original_name: string | null;
   mime_type: string | null;
   retention_until: string;
@@ -15,7 +14,6 @@ export type DueEvidenceDeletion = {
 export type ExpiredEvidenceUpload = {
   token_id: string;
   case_id: string;
-  object_path: string;
   original_name: string;
   expires_at: string;
   object_exists: boolean;
@@ -41,6 +39,10 @@ type EvidenceDownloadRequest =
   | { mode: "reporter"; caseId: string; evidenceId: string }
   | { mode: "organizer"; evidenceId: string };
 
+type EvidenceLifecycleRequest =
+  | { mode: "delete_evidence"; evidenceId: string }
+  | { mode: "clean_expired_upload"; tokenId: string };
+
 async function rpc<T>(name: string, args: Record<string, unknown> = {}) {
   const { data, error } = await (supabase as any).rpc(name, args);
   if (error) throw new Error(error.message);
@@ -59,6 +61,19 @@ async function createSignedDownload(request: EvidenceDownloadRequest) {
   }
   if (!result.url || result.expiresInSeconds !== 60) {
     throw new Error("Evidence download service returned an invalid secure link.");
+  }
+  return result;
+}
+
+async function runEvidenceLifecycle(request: EvidenceLifecycleRequest) {
+  const { data, error } = await supabase.functions.invoke("integrity-evidence-lifecycle", {
+    body: request,
+  });
+  if (error) throw new Error(error.message || "Could not complete the evidence lifecycle action.");
+
+  const result = data as { ok?: boolean; error?: string } | null;
+  if (!result?.ok) {
+    throw new Error(result?.error || "Could not complete the evidence lifecycle action.");
   }
   return result;
 }
@@ -126,27 +141,9 @@ export async function getEvidenceAccessLog(caseId: string) {
 }
 
 export async function deleteDueEvidence(item: DueEvidenceDeletion) {
-  if (item.storage_path) {
-    const { error } = await supabase.storage
-      .from("integrity-evidence")
-      .remove([item.storage_path]);
-    if (error) throw new Error(error.message);
-  }
-  return rpc<{ ok: true; evidence_id: string; status: "deleted" }>(
-    "admin_finalize_integrity_evidence_deletion",
-    { _evidence_id: item.id },
-  );
+  return runEvidenceLifecycle({ mode: "delete_evidence", evidenceId: item.id });
 }
 
 export async function cleanExpiredEvidenceUpload(item: ExpiredEvidenceUpload) {
-  if (item.object_exists) {
-    const { error } = await supabase.storage
-      .from("integrity-evidence")
-      .remove([item.object_path]);
-    if (error) throw new Error(error.message);
-  }
-  return rpc<{ ok: true; token_id: string }>(
-    "admin_discard_expired_evidence_upload",
-    { _token_id: item.token_id },
-  );
+  return runEvidenceLifecycle({ mode: "clean_expired_upload", tokenId: item.token_id });
 }
