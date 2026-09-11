@@ -1,15 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Archive, CheckCircle2, Inbox, MailOpen, Undo2 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { AppShell, PageHeader, Panel } from '@/components/AppShell';
 import { useMyCountryAccount } from '@/lib/country-account';
-import {
-  type NoticeInboxState,
-  type OperationalNotice,
-  noticeTypeLabel,
-} from '@/lib/official-communications';
+import { type NoticeInboxState, noticeTypeLabel } from '@/lib/official-communications';
 import {
   acknowledgeStudio2InboxNotice,
   archiveStudio2Notice,
@@ -71,7 +67,7 @@ function CountryNoticeInbox() {
       Boolean(access?.userId && country?.id) &&
       access?.isOrganizer !== true &&
       access?.countryStatus === 'active',
-    queryFn: () => loadStudio2NoticeInbox(undefined, access!.userId),
+    queryFn: () => loadStudio2NoticeInbox(),
     refetchInterval: 30_000,
   });
 
@@ -102,10 +98,18 @@ function CountryNoticeInbox() {
   );
   const selected = items.find((item) => item.notice.id === search.notice) ?? null;
 
-  useEffect(() => {
-    if (!selected || selected.inboxState !== 'unread' || markOpened.isPending) return;
-    markOpened.mutate(selected.notice.id);
-  }, [selected?.notice.id, selected?.inboxState]);
+  const openNotice = (item: Studio2NoticeInboxItem) => {
+    void navigate({
+      search: {
+        ...(search.state ? { state: search.state } : {}),
+        notice: item.notice.id,
+      },
+      replace: true,
+    });
+    if (item.inboxState === 'unread' && !markOpened.isPending) {
+      markOpened.mutate(item.notice.id);
+    }
+  };
 
   if (account.isLoading || featureQuery.isLoading) {
     return (
@@ -200,7 +204,9 @@ function CountryNoticeInbox() {
             <FilterButton
               active={!search.state}
               label="All"
-              onClick={() => void navigate({ search: search.notice ? { notice: search.notice } : {}, replace: true })}
+              onClick={() =>
+                void navigate({ search: search.notice ? { notice: search.notice } : {}, replace: true })
+              }
             />
             {INBOX_STATES.map((state) => (
               <FilterButton
@@ -247,15 +253,7 @@ function CountryNoticeInbox() {
                     key={item.notice.id}
                     item={item}
                     selected={item.notice.id === selected?.notice.id}
-                    onOpen={() =>
-                      void navigate({
-                        search: {
-                          ...(search.state ? { state: search.state } : {}),
-                          notice: item.notice.id,
-                        },
-                        replace: true,
-                      })
-                    }
+                    onOpen={() => openNotice(item)}
                   />
                 ))}
               </div>
@@ -305,7 +303,13 @@ function NoticeRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={item.inboxState === 'unread' ? 'font-bold text-foreground' : 'font-semibold text-foreground'}>
+            <span
+              className={
+                item.inboxState === 'unread'
+                  ? 'font-bold text-foreground'
+                  : 'font-semibold text-foreground'
+              }
+            >
               {item.notice.title}
             </span>
             <InboxBadge state={item.inboxState} />
@@ -350,7 +354,9 @@ function NoticeDetail({
         <span>{formatTimestamp(notice.sentAt)}</span>
       </div>
 
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{notice.body}</p>
+      <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+        {notice.body}
+      </p>
 
       {notice.acknowledgementRequired ? (
         <div className="rounded-xl border border-border bg-muted/20 p-3 text-sm">
@@ -404,7 +410,9 @@ function NoticeDetail({
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
       <p className="mt-2 text-2xl font-semibold">{value}</p>
     </div>
   );
@@ -416,7 +424,9 @@ function FilterButton({ active, label, onClick }: { active: boolean; label: stri
       type="button"
       onClick={onClick}
       className={`min-h-9 rounded-xl border px-3 text-sm font-semibold ${
-        active ? 'border-primary/40 bg-primary/10 text-foreground' : 'border-border bg-background text-muted-foreground'
+        active
+          ? 'border-primary/40 bg-primary/10 text-foreground'
+          : 'border-border bg-background text-muted-foreground'
       }`}
     >
       {label}
@@ -425,13 +435,14 @@ function FilterButton({ active, label, onClick }: { active: boolean; label: stri
 }
 
 function InboxBadge({ state }: { state: NoticeInboxState }) {
-  const tone = state === 'unread'
-    ? 'border-sky-400/30 bg-sky-400/10 text-sky-300'
-    : state === 'acknowledgement_required'
-      ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
-      : state === 'acknowledged'
-        ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
-        : 'border-border bg-muted/20 text-muted-foreground';
+  const tone =
+    state === 'unread'
+      ? 'border-sky-400/30 bg-sky-400/10 text-sky-300'
+      : state === 'acknowledgement_required'
+        ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+        : state === 'acknowledged'
+          ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
+          : 'border-border bg-muted/20 text-muted-foreground';
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
       {inboxStateLabel(state)}
