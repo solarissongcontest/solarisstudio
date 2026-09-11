@@ -139,7 +139,7 @@ function FeatureRolloutPage() {
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{humanize(row.key)}</p>
-                        <AdminStatus tone={row.enabled ? 'success' : 'neutral'}>{row.enabled ? 'Enabled' : 'Disabled'}</AdminStatus>
+                        <AdminStatus tone={row.enabled ? 'ready' : 'neutral'}>{row.enabled ? 'Enabled' : 'Disabled'}</AdminStatus>
                         {row.admins_only ? <AdminStatus tone="info">Admins only</AdminStatus> : null}
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
