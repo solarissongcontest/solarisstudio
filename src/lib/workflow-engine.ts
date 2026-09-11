@@ -24,6 +24,7 @@ export type WorkflowEvaluation = {
   storedStatus: WorkflowTaskStatus;
   effectiveStatus: WorkflowTaskStatus;
   blockers: string[];
+  dueAt: string | null;
   overdue: boolean;
   ready: boolean;
 };
@@ -109,6 +110,7 @@ export function evaluateWorkflow(tasks: readonly WorkflowTask[], now = new Date(
       storedStatus: task.status,
       effectiveStatus,
       blockers,
+      dueAt: task.dueAt ?? null,
       overdue,
       ready: effectiveStatus === 'ready',
     };
