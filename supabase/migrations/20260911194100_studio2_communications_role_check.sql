@@ -1,8 +1,8 @@
 begin;
 
--- Supabase now recommends role-scoped authorization instead of auth.role().
--- Keep the existing authenticated capability model, while allowing service-role
--- maintenance calls without depending on the deprecated JWT helper.
+-- auth.role() is deprecated for new authorization code. Read the immutable
+-- role claim from the signed request JWT instead; authenticated users still
+-- need organizer status or the communications.send capability.
 create or replace function private.studio2_require_communications_access(p_edition_id uuid)
 returns void
 language plpgsql
@@ -12,7 +12,11 @@ set search_path = pg_catalog, public, private
 as $$
 declare
   v_actor uuid := auth.uid();
-  v_is_service boolean := current_user = 'service_role';
+  v_request_role text := coalesce(
+    current_setting('request.jwt.claims', true)::jsonb ->> 'role',
+    ''
+  );
+  v_is_service boolean := v_request_role = 'service_role';
 begin
   if not v_is_service
      and not public.has_role(v_actor, 'organizer'::public.app_role)
