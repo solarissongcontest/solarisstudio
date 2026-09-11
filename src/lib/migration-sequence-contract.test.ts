@@ -21,6 +21,7 @@ const FEATURE_CHAIN = [
   "20260910220100_integrity_reporter_appeals.sql",
   "20260910220200_integrity_appeal_extensions.sql",
   "20260910220300_integrity_appeal_queue.sql",
+  "20260910220400_rule_interpretations.sql",
 ] as const;
 
 describe("Supabase migration sequence", () => {
@@ -58,5 +59,12 @@ describe("Supabase migration sequence", () => {
     expect(reporterAppealPosition).toBeGreaterThan(resolutionPosition);
     expect(extensionPosition).toBeGreaterThan(reporterAppealPosition);
     expect(queuePosition).toBeGreaterThan(extensionPosition);
+  });
+
+  it("creates interpretation governance after the base rulebook architecture exists", () => {
+    const rulebookPosition = migrationFiles.indexOf("20260910214000_rulebook_governance.sql");
+    const interpretationPosition = migrationFiles.indexOf("20260910220400_rule_interpretations.sql");
+    expect(rulebookPosition).toBeGreaterThanOrEqual(0);
+    expect(interpretationPosition).toBeGreaterThan(rulebookPosition);
   });
 });
