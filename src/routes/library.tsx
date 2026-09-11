@@ -21,6 +21,7 @@ import {
 } from "@/components/library/GovernanceLibraryResults";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { getPublicRuleInterpretations } from "@/lib/rule-interpretations";
+import { useRulebookReleaseHistory } from "@/lib/rules-governance";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/library")({
@@ -177,13 +178,7 @@ const LIBRARY_DESTINATIONS: LibraryDestination[] = [
   },
 ];
 
-const GROUP_ORDER: LibraryDestination["group"][] = [
-  "Explore",
-  "Insights",
-  "Participate",
-  "Tools",
-  "My Solaris",
-];
+const GROUP_ORDER: LibraryDestination["group"][] = ["Explore", "Insights", "Participate", "Tools", "My Solaris"];
 
 function normalize(value: string) {
   return value.toLowerCase().trim().replace(/\s+/g, " ");
@@ -192,9 +187,7 @@ function normalize(value: string) {
 function destinationMatches(destination: LibraryDestination, query: string) {
   const needle = normalize(query);
   if (!needle) return true;
-  const searchable = normalize(
-    [destination.title, destination.description, destination.group, ...destination.keywords].join(" "),
-  );
+  const searchable = normalize([destination.title, destination.description, destination.group, ...destination.keywords].join(" "));
   return needle.split(" ").every((term) => searchable.includes(term));
 }
 
@@ -206,12 +199,13 @@ function LibraryPage() {
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
+  const releases = useRulebookReleaseHistory();
 
   const destinationResults = useMemo(
     () => LIBRARY_DESTINATIONS.filter((destination) => destinationMatches(destination, query)),
     [query],
   );
-  const governanceResults = searchGovernanceLibrary(query, interpretations.data ?? []);
+  const governanceResults = searchGovernanceLibrary(query, interpretations.data ?? [], releases.data ?? []);
   const hasResults = destinationResults.length > 0 || governanceResults.length > 0;
 
   return (
@@ -270,9 +264,7 @@ function LibraryPage() {
                     <div key={group}>
                       <p className="mb-1.5 px-1 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground/70">{group}</p>
                       <div className="space-y-1">
-                        {items.map((destination) => (
-                          <DestinationRow key={destination.to} destination={destination} />
-                        ))}
+                        {items.map((destination) => <DestinationRow key={destination.to} destination={destination} />)}
                       </div>
                     </div>
                   );
@@ -290,20 +282,21 @@ function LibraryPage() {
               <p className="text-[9px] font-black uppercase tracking-[0.16em] text-sky-200/65">Official guidance</p>
               <h2 className="mt-1 text-lg font-black">Rules & Integrity</h2>
               <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
-                Search the current rulebook and published TSBC interpretations, or open protected reporting and appeals.
+                Search chapters, current rules, published TSBC interpretations and rulebook releases, or open protected reporting and appeals.
               </p>
             </div>
 
             <GovernanceLibraryResults
               query={query}
               interpretations={interpretations.data ?? []}
+              releases={releases.data ?? []}
               limit={16}
             />
             {governanceResults.length === 0 ? <GovernanceLibraryEmptyHint query={query} /> : null}
 
-            {interpretations.isError ? (
+            {interpretations.isError || releases.isError ? (
               <p className="mt-3 rounded-xl border border-amber-200/10 bg-amber-200/[0.035] px-3 py-2 text-[10px] leading-4 text-amber-50/80">
-                Published interpretation search is temporarily unavailable. Rulebook and Integrity search still works.
+                Some published governance history is temporarily unavailable. Current rulebook and Integrity search still works.
               </p>
             ) : null}
           </section>
@@ -327,7 +320,7 @@ function DestinationRow({ destination }: { destination: LibraryDestination }) {
       to={destination.to as any}
       className="group flex items-start gap-3 rounded-xl border border-transparent px-3 py-3 transition-colors hover:border-white/[0.07] hover:bg-white/[0.04]"
     >
-      <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.025] text-sky-100") }>
+      <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.025] text-sky-100")}>
         <Icon className="size-4" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
