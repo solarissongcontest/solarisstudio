@@ -1,9 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BookOpen, ChevronDown, ShieldCheck } from "lucide-react";
+import { BookOpen, ChevronDown, FileClock, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ContextualRuleGuide } from "@/components/rules/ContextualRuleGuide";
+import { usePublishedRulebook } from "@/lib/rules-governance";
 import { cn } from "@/lib/utils";
 
 const DESKTOP_HOST_ATTR = "data-solaris-rules-nav-host";
@@ -75,6 +76,7 @@ function getOrCreateMobileHost() {
 }
 
 export function GlobalRulesNavigationAddon() {
+  usePublishedRulebook();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [desktopHost, setDesktopHost] = useState<HTMLElement | null>(null);
   const [mobileHost, setMobileHost] = useState<HTMLElement | null>(null);
@@ -127,6 +129,14 @@ export function GlobalRulesNavigationAddon() {
                     Explore the visual Rule Map or open the complete 21-chapter regulations
                   </span>
                 </Link>
+                <Link to="/rules/changes" className="nav-menu-item">
+                  <span className="flex items-center gap-2 font-semibold text-foreground">
+                    <FileClock className="size-4 text-violet-200" /> Rulebook changes
+                  </span>
+                  <span className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                    See published versions, effective dates and rule-by-rule change reasons
+                  </span>
+                </Link>
                 <Link to="/integrity" className="nav-menu-item">
                   <span className="flex items-center gap-2 font-semibold text-foreground">
                     <ShieldCheck className="size-4 text-emerald-200" /> Trust & Integrity
@@ -147,8 +157,11 @@ export function GlobalRulesNavigationAddon() {
               <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
                 Rules & integrity
               </p>
-              <Link to="/rules" className={mobileDrawerLink(rulesActive)}>
+              <Link to="/rules" className={mobileDrawerLink(pathname === "/rules" || pathname === "/rules/")}>
                 <BookOpen className="mr-2 size-4" /> Official SSC rules
+              </Link>
+              <Link to="/rules/changes" className={mobileDrawerLink(pathMatches(pathname, "/rules/changes"))}>
+                <FileClock className="mr-2 size-4" /> Rulebook changes
               </Link>
               <Link to="/integrity" className={mobileDrawerLink(integrityActive)}>
                 <ShieldCheck className="mr-2 size-4" /> Trust & Integrity
