@@ -27,6 +27,7 @@ const FEATURE_CHAIN = [
   "20260911160700_integrity_sealed_identity_breakglass.sql",
   "20260911160800_integrity_sealed_identity_expiry.sql",
   "20260911160900_integrity_evidence_interface_hardening.sql",
+  "20260911161000_integrity_sealed_identity_state_hardening.sql",
 ] as const;
 
 const FEATURE_MIGRATION_VERSIONS = new Set(FEATURE_CHAIN.map((name) => name.slice(0, 14)));
@@ -98,8 +99,10 @@ describe("Supabase migration sequence", () => {
     const governancePosition = migrationFiles.indexOf("20260910213200_integrity_case_governance.sql");
     const breakglassPosition = migrationFiles.indexOf("20260911160700_integrity_sealed_identity_breakglass.sql");
     const expiryPosition = migrationFiles.indexOf("20260911160800_integrity_sealed_identity_expiry.sql");
+    const stateHardeningPosition = migrationFiles.indexOf("20260911161000_integrity_sealed_identity_state_hardening.sql");
     expect(governancePosition).toBeGreaterThanOrEqual(0);
     expect(breakglassPosition).toBeGreaterThan(governancePosition);
     expect(expiryPosition).toBeGreaterThan(breakglassPosition);
+    expect(stateHardeningPosition).toBeGreaterThan(expiryPosition);
   });
 });
