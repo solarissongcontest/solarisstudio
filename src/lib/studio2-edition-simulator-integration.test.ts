@@ -6,10 +6,16 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
+const nav = source('src/components/admin/AdminNav.tsx');
 const route = source('src/routes/_authenticated/admin/edition-simulator.tsx');
 const engine = source('src/lib/edition-simulator.ts');
 
 describe('Studio 2 Edition Simulator integration', () => {
+  it('is discoverable from Organizer navigation', () => {
+    expect(nav).toContain('label: "Simulator"');
+    expect(nav).toContain('to: "/admin/edition-simulator"');
+  });
+
   it('starts from the existing Control Room read model', () => {
     expect(route).toContain('getControlRoomModel');
     expect(route).toContain('controlRoomQuery.data.editionState');
