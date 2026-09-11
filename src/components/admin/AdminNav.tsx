@@ -7,6 +7,7 @@ import {
   Gavel,
   LayoutDashboard,
   Layers3,
+  MessageCircleQuestion,
   RadioTower,
   Settings2,
   ShieldCheck,
@@ -135,6 +136,12 @@ export function AdminNav() {
       to: "/admin/rules-manager",
       icon: FileClock,
       active: (path) => path.startsWith("/admin/rules-manager"),
+    },
+    {
+      label: "Interpretations",
+      to: "/admin/rule-interpretations",
+      icon: MessageCircleQuestion,
+      active: (path) => path.startsWith("/admin/rule-interpretations"),
     },
     {
       label: "Public rules",
