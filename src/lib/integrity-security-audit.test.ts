@@ -138,7 +138,7 @@ describe("Trust & Integrity privacy boundary audit", () => {
   });
 
   it("removes authenticated browser SELECT access after audited server-side signing is introduced", () => {
-    expect(evidenceLifecycle).toContain('create policy "integrity evidence protected read"');
+    expect(evidence).toContain('create policy "integrity evidence protected read"');
     expect(evidenceBoundary).toContain('drop policy if exists "integrity evidence protected read" on storage.objects');
     expect(evidenceBoundary).toContain("revoke all on function public.integrity_can_read_evidence_object(text) from authenticated");
     expect(evidenceApi).not.toContain("createSignedUrl(");
