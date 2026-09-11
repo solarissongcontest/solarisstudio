@@ -14,6 +14,10 @@ const extensionMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910220200_integrity_appeal_extensions.sql"),
   "utf8",
 );
+const queueMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910220300_integrity_appeal_queue.sql"),
+  "utf8",
+);
 const portal = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-portal.ts"),
   "utf8",
@@ -26,12 +30,28 @@ const investigationsRoute = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-investigations.tsx"),
   "utf8",
 );
+const appealsQueueRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-appeals.tsx"),
+  "utf8",
+);
 const protectedAppealRoute = readFileSync(
   resolve(process.cwd(), "src/routes/integrity/appeal.$caseId.tsx"),
   "utf8",
 );
+const appealsLandingRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/integrity/appeals.tsx"),
+  "utf8",
+);
 const anonymousAppealRoute = readFileSync(
   resolve(process.cwd(), "src/routes/integrity/anonymous-appeal.tsx"),
+  "utf8",
+);
+const integrityIndex = readFileSync(
+  resolve(process.cwd(), "src/routes/integrity/index.tsx"),
+  "utf8",
+);
+const adminNav = readFileSync(
+  resolve(process.cwd(), "src/components/admin/AdminNav.tsx"),
   "utf8",
 );
 
@@ -96,13 +116,16 @@ describe("Integrity sanctions and appeals contract", () => {
   it("allows exceptional late-appeal extensions only through an audited organizer action", () => {
     expect(extensionMigration).toContain("admin_grant_integrity_appeal_extension");
     expect(extensionMigration).toContain("Only an appeal rejected as late can receive an exceptional deadline extension");
+    expect(extensionMigration).toContain("Extended deadline must cover the already-submitted appeal");
     expect(extensionMigration).toContain("Exceptional appeal extensions cannot exceed 14 days without a rulebook change");
     expect(extensionMigration).toContain("extension_granted_by = auth.uid()");
     expect(extensionMigration).toContain("'appeal.extension_granted'");
     expect(extensionMigration).toContain("visible_to_reporter");
+    expect(appealsQueueRoute).toContain("Exceptional extension");
+    expect(appealsQueueRoute).toContain("admin_grant_integrity_appeal_extension");
   });
 
-  it("gives protected and anonymous reporters narrow APIs and pages to inspect and submit appeals", () => {
+  it("gives protected and anonymous reporters narrow APIs and discoverable pages to inspect and submit appeals", () => {
     expect(reporterMigration).toContain("reporter_integrity_case_resolution");
     expect(reporterMigration).toContain("public_get_anonymous_integrity_resolution");
     expect(portal).toContain("getProtectedIntegrityResolution");
@@ -113,6 +136,10 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(protectedAppealRoute).toContain("48 hours");
     expect(anonymousAppealRoute).toContain("submitAnonymousIntegrityAppeal");
     expect(anonymousAppealRoute).toContain("recovery key");
+    expect(appealsLandingRoute).toContain('to="/integrity/appeal/$caseId"');
+    expect(appealsLandingRoute).toContain('to="/integrity/anonymous-appeal"');
+    expect(integrityIndex).toContain('to="/integrity/appeals"');
+    expect(integrityIndex).toContain('to="/integrity/anonymous-appeal"');
   });
 
   it("prevents duplicate reporter appeals for one sanction", () => {
@@ -140,6 +167,16 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(migration).toContain("alter table public.integrity_case_appeals enable row level security");
     expect(migration).toContain("revoke all on public.integrity_case_sanctions from anon, authenticated");
     expect(migration).toContain("revoke all on public.integrity_case_appeals from anon, authenticated");
+  });
+
+  it("exposes an organizer appeal queue through an organizer-gated RPC and dedicated navigation", () => {
+    expect(queueMigration).toContain("admin_integrity_appeals");
+    expect(queueMigration).toContain("if not public.integrity_is_organizer()");
+    expect(queueMigration).toContain("join public.integrity_case_sanctions");
+    expect(appealsQueueRoute).toContain("admin_integrity_appeals");
+    expect(appealsQueueRoute).toContain('to="/admin/integrity-resolution/$caseId"');
+    expect(adminNav).toContain('label: "Appeals"');
+    expect(adminNav).toContain('to: "/admin/integrity-appeals"');
   });
 
   it("exposes organizer resolution data through a narrow organizer-gated RPC and visible workspace", () => {
