@@ -126,7 +126,7 @@ describe('Studio 2 Action Center', () => {
     expect(model.recent[0]?.title).toBe('Entry changed');
   });
 
-  it('surfaces the shared country readiness model as organizer work', () => {
+  it('surfaces the shared country readiness model as organizer work without duplicating the legacy entry alert', () => {
     const blockedReadiness = getCountryOperationalReadiness({
       participationConfirmed: false,
       entryPresent: false,
@@ -152,7 +152,7 @@ describe('Studio 2 Action Center', () => {
       runtime,
       incidents: [],
       approvals: [],
-      participants: [],
+      participants: [participant],
       shows: [],
       recentEvents: [],
       countryReadiness: [
@@ -171,6 +171,7 @@ describe('Studio 2 Action Center', () => {
         expect.objectContaining({ id: 'country:cilestia', source: 'country', href: '/admin/countries/cilestia' }),
       ]),
     );
+    expect(model.attention.some((item) => item.id === 'entry:incomplete-participants')).toBe(false);
   });
 
   it('does not flag missing entry details before submissions are operationally relevant', () => {
