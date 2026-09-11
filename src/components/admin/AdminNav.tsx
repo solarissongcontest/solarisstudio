@@ -3,6 +3,7 @@ import {
   BookOpen,
   ClipboardCheck,
   Eye,
+  FileClock,
   LayoutDashboard,
   Layers3,
   RadioTower,
@@ -119,6 +120,12 @@ export function AdminNav() {
       to: "/admin",
       icon: Trophy,
       active: (path) => path === "/admin" || path === "/admin/",
+    },
+    {
+      label: "Rules manager",
+      to: "/admin/rules-manager",
+      icon: FileClock,
+      active: (path) => path.startsWith("/admin/rules-manager"),
     },
     {
       label: "Public rules",
