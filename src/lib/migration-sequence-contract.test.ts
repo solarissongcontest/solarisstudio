@@ -29,6 +29,7 @@ const FEATURE_CHAIN = [
   "20260911160900_integrity_evidence_interface_hardening.sql",
   "20260911161000_integrity_sealed_identity_state_hardening.sql",
   "20260911161100_integrity_appeal_reviewer_hardening.sql",
+  "20260911161200_rule_interpretation_supersession_hardening.sql",
 ] as const;
 
 const FEATURE_MIGRATION_VERSIONS = new Set(FEATURE_CHAIN.map((name) => name.slice(0, 14)));
@@ -83,8 +84,10 @@ describe("Supabase migration sequence", () => {
   it("creates interpretation governance after the base rulebook architecture exists", () => {
     const rulebookPosition = migrationFiles.indexOf("20260910214000_rulebook_governance.sql");
     const interpretationPosition = migrationFiles.indexOf("20260911160400_rule_interpretations.sql");
+    const supersessionHardeningPosition = migrationFiles.indexOf("20260911161200_rule_interpretation_supersession_hardening.sql");
     expect(rulebookPosition).toBeGreaterThanOrEqual(0);
     expect(interpretationPosition).toBeGreaterThan(rulebookPosition);
+    expect(supersessionHardeningPosition).toBeGreaterThan(interpretationPosition);
   });
 
   it("adds evidence lifecycle governance only after the private evidence vault exists", () => {
