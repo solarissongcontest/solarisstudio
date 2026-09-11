@@ -22,6 +22,8 @@ const FEATURE_CHAIN = [
   "20260910220200_integrity_appeal_extensions.sql",
   "20260910220300_integrity_appeal_queue.sql",
   "20260910220400_rule_interpretations.sql",
+  "20260910220500_integrity_evidence_lifecycle.sql",
+  "20260910220600_integrity_evidence_cleanup.sql",
 ] as const;
 
 describe("Supabase migration sequence", () => {
@@ -66,5 +68,14 @@ describe("Supabase migration sequence", () => {
     const interpretationPosition = migrationFiles.indexOf("20260910220400_rule_interpretations.sql");
     expect(rulebookPosition).toBeGreaterThanOrEqual(0);
     expect(interpretationPosition).toBeGreaterThan(rulebookPosition);
+  });
+
+  it("adds evidence lifecycle governance only after the private evidence vault exists", () => {
+    const vaultPosition = migrationFiles.indexOf("20260910213300_integrity_evidence_vault.sql");
+    const lifecyclePosition = migrationFiles.indexOf("20260910220500_integrity_evidence_lifecycle.sql");
+    const cleanupPosition = migrationFiles.indexOf("20260910220600_integrity_evidence_cleanup.sql");
+    expect(vaultPosition).toBeGreaterThanOrEqual(0);
+    expect(lifecyclePosition).toBeGreaterThan(vaultPosition);
+    expect(cleanupPosition).toBeGreaterThan(lifecyclePosition);
   });
 });
