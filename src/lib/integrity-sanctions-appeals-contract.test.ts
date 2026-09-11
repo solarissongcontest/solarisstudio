@@ -18,6 +18,10 @@ const queueMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911160300_integrity_appeal_queue.sql"),
   "utf8",
 );
+const reviewerHardening = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161100_integrity_appeal_reviewer_hardening.sql"),
+  "utf8",
+);
 const portal = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-portal.ts"),
   "utf8",
@@ -153,6 +157,15 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(migration).toContain("Only the assigned appeal reviewer may decide this appeal");
     expect(migration).toContain("'appeal_reviewer'");
     expect(organizerRoute).toContain("Fresh appeal reviewer");
+  });
+
+  it("only assigns reviewers to active appeals and blocks self-review by an organizer submitter", () => {
+    expect(reviewerHardening).toContain("v_status not in ('submitted', 'under_review')");
+    expect(reviewerHardening).toContain("Only an active submitted appeal can receive a reviewer");
+    expect(reviewerHardening).toContain("The appeal submitter cannot review their own appeal");
+    expect(reviewerHardening).toContain("The original sanction decision-maker cannot be the appeal reviewer");
+    expect(reviewerHardening).toContain("The original finding author cannot be the appeal reviewer");
+    expect(reviewerHardening).toContain("status = 'under_review'");
   });
 
   it("preserves the original sanction when an appeal changes the level", () => {
