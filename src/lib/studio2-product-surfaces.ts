@@ -20,6 +20,12 @@ export type Studio2ProductSurface = {
   dependsOn?: readonly SolarisFeatureFlag[];
 };
 
+export type Studio2RolloutDecision = {
+  allowed: boolean;
+  blockingKeys: SolarisFeatureFlag[];
+  reason: 'allowed' | 'rollout_locked' | 'missing_dependencies' | 'active_dependents';
+};
+
 export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studio2ProductSurface>> = {
   edition_state_engine: {
     key: 'edition_state_engine',
@@ -197,6 +203,34 @@ export function studio2EnabledDependents(
   return STUDIO2_PRODUCT_SURFACE_LIST
     .filter((surface) => enabledKeys.has(surface.key) && surface.dependsOn?.includes(key))
     .map((surface) => surface.key);
+}
+
+export function studio2RolloutDecision(
+  key: SolarisFeatureFlag,
+  currentlyEnabled: boolean,
+  enabledKeys: ReadonlySet<SolarisFeatureFlag>,
+): Studio2RolloutDecision {
+  const surface = studio2SurfaceFor(key);
+
+  if (!currentlyEnabled) {
+    if (!studio2SurfaceRolloutEligible(surface)) {
+      return { allowed: false, blockingKeys: [], reason: 'rollout_locked' };
+    }
+
+    const missing = studio2MissingDependencies(key, enabledKeys);
+    if (missing.length) {
+      return { allowed: false, blockingKeys: missing, reason: 'missing_dependencies' };
+    }
+
+    return { allowed: true, blockingKeys: [], reason: 'allowed' };
+  }
+
+  const dependents = studio2EnabledDependents(key, enabledKeys);
+  if (dependents.length) {
+    return { allowed: false, blockingKeys: dependents, reason: 'active_dependents' };
+  }
+
+  return { allowed: true, blockingKeys: [], reason: 'allowed' };
 }
 
 export function studio2SurfaceStateLabel(state: Studio2SurfaceState): string {
