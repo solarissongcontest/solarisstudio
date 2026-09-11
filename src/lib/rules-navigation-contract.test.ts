@@ -11,32 +11,38 @@ const adminNav = readFileSync(
   resolve(process.cwd(), "src/components/admin/AdminNav.tsx"),
   "utf8",
 );
+const libraryProvider = readFileSync(
+  resolve(process.cwd(), "src/lib/public-library-governance.ts"),
+  "utf8",
+);
 
 describe("Rules and Integrity navigation", () => {
-  it("mounts the global public navigation addon", () => {
+  it("keeps global rule state and contextual workflow help mounted", () => {
     expect(root).toContain('import { GlobalRulesNavigationAddon }');
     expect(root).toContain("<GlobalRulesNavigationAddon />");
+    expect(addon).toContain("usePublishedRulebook");
+    expect(addon).toContain("<ContextualRuleGuide />");
   });
 
-  it("puts Rules, Interpretations and Trust & Integrity in desktop and mobile quick access", () => {
-    expect(addon).toContain('to="/rules"');
-    expect(addon).toContain('to="/rules/changes"');
-    expect(addon).toContain('to="/rules/interpretations"');
-    expect(addon).toContain('to="/integrity"');
-    expect(addon).toContain("Rules & integrity");
-    expect(addon).toContain("Official SSC rules");
-    expect(addon).toContain("Official interpretations");
-    expect(addon).toContain("Trust & Integrity");
-    expect(addon).toContain("lg:hidden");
-    expect(addon).toContain("hidden lg:block");
-  });
-
-  it("uses normal React rendering instead of mutating the AppShell DOM", () => {
+  it("does not render a permanent public Rules or Integrity launcher", () => {
+    expect(addon).not.toContain('to="/rules"');
+    expect(addon).not.toContain('to="/integrity"');
+    expect(addon).not.toContain("fixed");
     expect(addon).not.toContain("createPortal");
     expect(addon).not.toContain("MutationObserver");
     expect(addon).not.toContain("document.querySelector");
     expect(addon).not.toContain("document.createElement");
-    expect(addon).not.toContain("data-solaris-rules-nav-host");
+  });
+
+  it("publishes Rules and Integrity destinations to the shared Library search provider", () => {
+    expect(libraryProvider).toContain('to: "/rules"');
+    expect(libraryProvider).toContain('to: "/rules/changes"');
+    expect(libraryProvider).toContain('to: "/rules/interpretations"');
+    expect(libraryProvider).toContain('to: "/integrity"');
+    expect(libraryProvider).toContain('to: "/integrity/appeals"');
+    expect(libraryProvider).toContain('group: "Rules & governance"');
+    expect(libraryProvider).toContain('group: "Trust & Integrity"');
+    expect(libraryProvider).toContain("searchSscRules");
   });
 
   it("exposes organizer Integrity governance workspaces", () => {
