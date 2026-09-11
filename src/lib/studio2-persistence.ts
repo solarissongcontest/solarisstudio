@@ -15,9 +15,11 @@ import {
   type SubsystemState,
 } from './edition-state';
 import {
+  INCIDENT_CATEGORIES,
   INCIDENT_SEVERITIES,
   INCIDENT_STATUSES,
   type Incident,
+  type IncidentCategory,
   type IncidentSeverity,
   type IncidentStatus,
 } from './incident-command';
@@ -43,6 +45,16 @@ export type Studio2CapabilityGrantRecord = {
 };
 
 export type Studio2IncidentRecord = Incident & {
+  category: IncidentCategory;
+  affectedSystems: string[];
+  description: string;
+  commanderId: string | null;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+  resolution: string | null;
+  postmortem: string | null;
+  crisisDeclaredAt: string | null;
+  crisisDeclaredBy: string | null;
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: string;
@@ -77,6 +89,25 @@ export type Studio2CreateIncidentRequest = {
   severity: IncidentSeverity;
 };
 
+export type Studio2CreateIncidentFullRequest = Studio2CreateIncidentRequest & {
+  category: IncidentCategory;
+  description: string;
+  affectedSystems: string[];
+};
+
+export type Studio2UpdateIncidentRequest = {
+  id: string;
+  title?: string | null;
+  severity?: IncidentSeverity | null;
+  category?: IncidentCategory | null;
+  description?: string | null;
+  affectedSystems?: string[] | null;
+  commanderId?: string | null;
+  setCommander?: boolean;
+  resolution?: string | null;
+  postmortem?: string | null;
+};
+
 export type Studio2GrantCapabilityRequest = {
   userId: string;
   capability: SolarisCapability;
@@ -107,6 +138,7 @@ export type Studio2SupabaseClient = {
 const EDITION_STATE_SET = new Set<string>(EDITION_STATES);
 const SUBSYSTEM_STATE_SET = new Set<string>(SUBSYSTEM_STATES);
 const INCIDENT_SEVERITY_SET = new Set<string>(INCIDENT_SEVERITIES);
+const INCIDENT_CATEGORY_SET = new Set<string>(INCIDENT_CATEGORIES);
 const INCIDENT_STATUS_SET = new Set<string>(INCIDENT_STATUSES);
 const CONTEST_EVENT_TYPE_SET = new Set<string>(CONTEST_EVENT_TYPES);
 const SOLARIS_CAPABILITY_SET = new Set<string>(SOLARIS_CAPABILITIES);
@@ -126,6 +158,14 @@ function expectString(value: unknown, label: string): string {
 function expectNullableString(value: unknown, label: string): string | null {
   if (value === null || value === undefined) return null;
   return expectString(value, label);
+}
+
+function expectStringArray(value: unknown, label: string): string[] {
+  if (value === null || value === undefined) return [];
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw new Error(`Invalid ${label}: expected a string array`);
+  }
+  return value as string[];
 }
 
 function expectBoolean(value: unknown, label: string): boolean {
@@ -210,16 +250,28 @@ export function mapStudio2IncidentRow(value: unknown): Studio2IncidentRecord {
   const row = expectObject(value, 'Studio 2 incident row');
   const severity = expectString(row.severity, 'incident severity');
   const status = expectString(row.status, 'incident status');
+  const category = row.category === undefined ? 'other' : expectString(row.category, 'incident category');
 
   if (!INCIDENT_SEVERITY_SET.has(severity)) throw new Error(`Unknown incident severity: ${severity}`);
   if (!INCIDENT_STATUS_SET.has(status)) throw new Error(`Unknown incident status: ${status}`);
+  if (!INCIDENT_CATEGORY_SET.has(category)) throw new Error(`Unknown incident category: ${category}`);
 
   return {
     id: expectString(row.id, 'incident id'),
     editionId: expectNullableString(row.edition_id, 'incident edition id'),
     title: expectString(row.title, 'incident title'),
     severity: severity as IncidentSeverity,
+    category: category as IncidentCategory,
     status: status as IncidentStatus,
+    affectedSystems: expectStringArray(row.affected_systems, 'incident affected systems'),
+    description: row.description === undefined ? '' : String(row.description ?? ''),
+    commanderId: expectNullableString(row.commander_id, 'incident commander id'),
+    acknowledgedAt: expectNullableString(row.acknowledged_at, 'incident acknowledged_at'),
+    acknowledgedBy: expectNullableString(row.acknowledged_by, 'incident acknowledged_by'),
+    resolution: expectNullableString(row.resolution, 'incident resolution'),
+    postmortem: expectNullableString(row.postmortem, 'incident postmortem'),
+    crisisDeclaredAt: expectNullableString(row.crisis_declared_at, 'incident crisis_declared_at'),
+    crisisDeclaredBy: expectNullableString(row.crisis_declared_by, 'incident crisis_declared_by'),
     startedAt: expectString(row.started_at, 'incident started_at'),
     resolvedAt: expectNullableString(row.resolved_at, 'incident resolved_at'),
     createdBy: expectNullableString(row.created_by, 'incident created_by'),
@@ -295,11 +347,7 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
       return Array.isArray(data) ? data.map(mapStudio2TransitionApproval) : [];
     },
 
-    async requestTransitionApproval(
-      editionId: string,
-      to: EditionState,
-      reason: string,
-    ): Promise<void> {
+    async requestTransitionApproval(editionId: string, to: EditionState, reason: string): Promise<void> {
       const { error } = await client.rpc('studio2_request_transition_approval', {
         p_edition_id: editionId,
         p_to: to,
@@ -327,17 +375,18 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
       return Array.isArray(data) ? data.map(mapStudio2EventRow) : [];
     },
 
-    async listActiveIncidents(editionId?: string | null): Promise<Studio2IncidentRecord[]> {
+    async listIncidents(editionId?: string | null): Promise<Studio2IncidentRecord[]> {
       let query = client.from('studio2_incidents').select('*');
-
       if (editionId) query = query.eq('edition_id', editionId);
       else if (editionId === null) query = query.is('edition_id', null);
-
       const { data, error } = await query.order('started_at', { ascending: false });
       throwIfError(error);
-      return Array.isArray(data)
-        ? data.map(mapStudio2IncidentRow).filter((incident) => incident.status !== 'resolved')
-        : [];
+      return Array.isArray(data) ? data.map(mapStudio2IncidentRow) : [];
+    },
+
+    async listActiveIncidents(editionId?: string | null): Promise<Studio2IncidentRecord[]> {
+      const incidents = await this.listIncidents(editionId);
+      return incidents.filter((incident) => incident.status !== 'resolved');
     },
 
     async createIncident(request: Studio2CreateIncidentRequest): Promise<Studio2IncidentRecord> {
@@ -348,6 +397,56 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
       });
       throwIfError(error);
       return mapStudio2IncidentRow(data);
+    },
+
+    async createIncidentFull(request: Studio2CreateIncidentFullRequest): Promise<Studio2IncidentRecord> {
+      const { data, error } = await client.rpc('studio2_create_incident_v2', {
+        p_edition_id: request.editionId,
+        p_title: request.title,
+        p_severity: request.severity,
+        p_category: request.category,
+        p_description: request.description,
+        p_affected_systems: request.affectedSystems,
+      });
+      throwIfError(error);
+      return mapStudio2IncidentRow(data);
+    },
+
+    async updateIncident(request: Studio2UpdateIncidentRequest): Promise<Studio2IncidentRecord> {
+      const { data, error } = await client.rpc('studio2_update_incident', {
+        p_incident_id: request.id,
+        p_title: request.title ?? null,
+        p_severity: request.severity ?? null,
+        p_category: request.category ?? null,
+        p_description: request.description ?? null,
+        p_affected_systems: request.affectedSystems ?? null,
+        p_commander_id: request.commanderId ?? null,
+        p_set_commander: request.setCommander ?? false,
+        p_resolution: request.resolution ?? null,
+        p_postmortem: request.postmortem ?? null,
+      });
+      throwIfError(error);
+      return mapStudio2IncidentRow(data);
+    },
+
+    async acknowledgeIncident(id: string): Promise<Studio2IncidentRecord> {
+      const { data, error } = await client.rpc('studio2_acknowledge_incident', { p_incident_id: id });
+      throwIfError(error);
+      return mapStudio2IncidentRow(data);
+    },
+
+    async declareIncidentCrisis(id: string): Promise<Studio2IncidentRecord> {
+      const { data, error } = await client.rpc('studio2_declare_incident_crisis', { p_incident_id: id });
+      throwIfError(error);
+      return mapStudio2IncidentRow(data);
+    },
+
+    async addIncidentTimelineEvent(id: string, message: string): Promise<void> {
+      const { error } = await client.rpc('studio2_add_incident_timeline_event', {
+        p_incident_id: id,
+        p_message: message,
+      });
+      throwIfError(error);
     },
 
     async transitionIncident(id: string, to: IncidentStatus): Promise<Studio2IncidentRecord> {
@@ -363,7 +462,6 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
       let query = client.from('studio2_capability_grants').select('*');
       if (editionId) query = query.eq('edition_id', editionId);
       else if (editionId === null) query = query.is('edition_id', null);
-
       const { data, error } = await query.order('created_at', { ascending: false });
       throwIfError(error);
       return Array.isArray(data) ? data.map(mapStudio2CapabilityGrantRow) : [];
@@ -396,4 +494,6 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
   };
 }
 
-export const studio2Persistence = createStudio2Persistence(supabase as unknown as Studio2SupabaseClient);
+export const studio2Persistence = createStudio2Persistence(
+  supabase as unknown as Studio2SupabaseClient,
+);

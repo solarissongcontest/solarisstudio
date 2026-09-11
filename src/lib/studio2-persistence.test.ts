@@ -81,7 +81,7 @@ describe('Studio 2 persistence row mapping', () => {
     ).toThrow(/Unknown subsystem state/);
   });
 
-  it('maps event and incident rows', () => {
+  it('maps event and full incident rows', () => {
     expect(
       mapStudio2EventRow({
         id: 'event-1',
@@ -106,7 +106,17 @@ describe('Studio 2 persistence row mapping', () => {
         edition_id: 'edition-1',
         title: 'Vote feed unavailable',
         severity: 'sev1',
+        category: 'voting',
         status: 'mitigating',
+        affected_systems: ['televote', 'results'],
+        description: 'Primary vote feed stopped responding.',
+        commander_id: 'user-3',
+        acknowledged_at: timestamp,
+        acknowledged_by: 'user-2',
+        resolution: null,
+        postmortem: null,
+        crisis_declared_at: timestamp,
+        crisis_declared_by: 'user-3',
         started_at: timestamp,
         resolved_at: null,
         created_by: 'user-1',
@@ -118,7 +128,36 @@ describe('Studio 2 persistence row mapping', () => {
       id: 'incident-1',
       editionId: 'edition-1',
       severity: 'sev1',
+      category: 'voting',
       status: 'mitigating',
+      affectedSystems: ['televote', 'results'],
+      commanderId: 'user-3',
+      acknowledgedBy: 'user-2',
+      crisisDeclaredBy: 'user-3',
+    });
+  });
+
+  it('keeps old incident rows readable while the schema migration rolls out', () => {
+    expect(
+      mapStudio2IncidentRow({
+        id: 'incident-legacy',
+        edition_id: 'edition-1',
+        title: 'Legacy incident',
+        severity: 'sev3',
+        status: 'open',
+        started_at: timestamp,
+        resolved_at: null,
+        created_by: null,
+        updated_by: null,
+        created_at: timestamp,
+        updated_at: timestamp,
+      }),
+    ).toMatchObject({
+      category: 'other',
+      affectedSystems: [],
+      description: '',
+      commanderId: null,
+      acknowledgedAt: null,
     });
   });
 
@@ -151,6 +190,23 @@ describe('Studio 2 persistence row mapping', () => {
         updated_at: timestamp,
       }),
     ).toThrow(/Unknown incident severity/);
+
+    expect(() =>
+      mapStudio2IncidentRow({
+        id: 'incident-2',
+        edition_id: null,
+        title: 'Unknown category',
+        severity: 'sev4',
+        category: 'weather',
+        status: 'open',
+        started_at: timestamp,
+        resolved_at: null,
+        created_by: null,
+        updated_by: null,
+        created_at: timestamp,
+        updated_at: timestamp,
+      }),
+    ).toThrow(/Unknown incident category/);
 
     expect(() =>
       mapStudio2CapabilityGrantRow({
