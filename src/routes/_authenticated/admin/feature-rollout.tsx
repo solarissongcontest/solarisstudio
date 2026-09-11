@@ -8,10 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from '@/lib/feature-flags';
 import {
   STUDIO2_PRODUCT_SURFACE_LIST,
-  studio2EnabledDependents,
-  studio2MissingDependencies,
+  studio2RolloutDecision,
   studio2SurfaceFor,
-  studio2SurfaceRolloutEligible,
   studio2SurfaceStateLabel,
   type Studio2SurfaceState,
 } from '@/lib/studio2-product-surfaces';
@@ -77,22 +75,20 @@ function enabledKeySet(rows: readonly FeatureFlagRow[]) {
 }
 
 async function setFlag(row: FeatureFlagRow, enabled: boolean, currentRows: readonly FeatureFlagRow[]) {
-  const surface = studio2SurfaceFor(row.key);
   const enabledKeys = enabledKeySet(currentRows);
+  const decision = studio2RolloutDecision(row.key, row.enabled, enabledKeys);
+  const surface = studio2SurfaceFor(row.key);
 
-  if (enabled) {
-    if (!studio2SurfaceRolloutEligible(surface)) {
+  if (!decision.allowed) {
+    const labels = decision.blockingKeys.map((key) => studio2SurfaceFor(key).label).join(', ');
+    if (decision.reason === 'rollout_locked') {
       throw new Error(`${surface.label} is not eligible for rollout from this workstream.`);
     }
-
-    const missing = studio2MissingDependencies(row.key, enabledKeys);
-    if (missing.length) {
-      throw new Error(`Enable ${missing.map((key) => studio2SurfaceFor(key).label).join(', ')} before ${surface.label}.`);
+    if (decision.reason === 'missing_dependencies') {
+      throw new Error(`Enable ${labels} before ${surface.label}.`);
     }
-  } else {
-    const activeDependents = studio2EnabledDependents(row.key, enabledKeys);
-    if (activeDependents.length) {
-      throw new Error(`Disable ${activeDependents.map((key) => studio2SurfaceFor(key).label).join(', ')} before disabling ${surface.label}.`);
+    if (decision.reason === 'active_dependents') {
+      throw new Error(`Disable ${labels} before disabling ${surface.label}.`);
     }
   }
 
@@ -175,12 +171,8 @@ function FeatureRolloutPage() {
               {rows.map((row) => {
                 const surface = studio2SurfaceFor(row.key);
                 const busy = toggleFlag.isPending && toggleFlag.variables?.row.key === row.key;
-                const missingDependencies = studio2MissingDependencies(row.key, enabledKeys);
-                const activeDependents = studio2EnabledDependents(row.key, enabledKeys);
-                const rolloutEligible = studio2SurfaceRolloutEligible(surface);
-                const enableAllowed = rolloutEligible && missingDependencies.length === 0;
-                const disableAllowed = activeDependents.length === 0;
-                const toggleAllowed = row.enabled ? disableAllowed : enableAllowed;
+                const decision = studio2RolloutDecision(row.key, row.enabled, enabledKeys);
+                const blockingLabels = decision.blockingKeys.map((key) => studio2SurfaceFor(key).label);
 
                 return (
                   <div key={row.key} className="flex flex-col gap-4 py-4 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between">
@@ -198,15 +190,11 @@ function FeatureRolloutPage() {
                         <span>{row.user_ids.length ? `${row.user_ids.length} user restriction(s)` : 'All eligible users'}</span>
                         {surface.dependsOn?.length ? <><span>·</span><span>Depends on {surface.dependsOn.map((key) => studio2SurfaceFor(key).label).join(', ')}</span></> : null}
                       </div>
-                      {!row.enabled && missingDependencies.length ? (
-                        <p className="mt-2 text-xs font-medium text-amber-200">
-                          Enable first: {missingDependencies.map((key) => studio2SurfaceFor(key).label).join(', ')}
-                        </p>
+                      {!decision.allowed && decision.reason === 'missing_dependencies' ? (
+                        <p className="mt-2 text-xs font-medium text-amber-200">Enable first: {blockingLabels.join(', ')}</p>
                       ) : null}
-                      {row.enabled && activeDependents.length ? (
-                        <p className="mt-2 text-xs font-medium text-sky-100">
-                          Required by: {activeDependents.map((key) => studio2SurfaceFor(key).label).join(', ')}
-                        </p>
+                      {!decision.allowed && decision.reason === 'active_dependents' ? (
+                        <p className="mt-2 text-xs font-medium text-sky-100">Required by: {blockingLabels.join(', ')}</p>
                       ) : null}
                     </div>
 
@@ -222,21 +210,11 @@ function FeatureRolloutPage() {
                       ) : null}
                       <button
                         type="button"
-                        disabled={busy || !toggleAllowed}
+                        disabled={busy || !decision.allowed}
                         onClick={() => toggleFlag.mutate({ row, enabled: !row.enabled })}
                         className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.035] px-4 text-sm font-semibold transition-colors hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
                       >
-                        {busy
-                          ? 'Saving…'
-                          : row.enabled
-                            ? disableAllowed
-                              ? 'Disable'
-                              : 'Required by active features'
-                            : !rolloutEligible
-                              ? 'Rollout locked'
-                              : missingDependencies.length
-                                ? 'Enable prerequisites first'
-                                : 'Enable'}
+                        {busy ? 'Saving…' : rolloutButtonLabel(row.enabled, decision.reason)}
                       </button>
                     </div>
                   </div>
@@ -254,6 +232,13 @@ function FeatureRolloutPage() {
       </div>
     </AdminPage>
   );
+}
+
+function rolloutButtonLabel(enabled: boolean, reason: 'allowed' | 'rollout_locked' | 'missing_dependencies' | 'active_dependents') {
+  if (reason === 'active_dependents') return 'Required by active features';
+  if (reason === 'rollout_locked') return 'Rollout locked';
+  if (reason === 'missing_dependencies') return 'Enable prerequisites first';
+  return enabled ? 'Disable' : 'Enable';
 }
 
 function surfaceTone(state: Studio2SurfaceState): 'neutral' | 'info' | 'ready' | 'attention' {
