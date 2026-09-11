@@ -5,6 +5,7 @@ import {
   Eye,
   Flag,
   FlaskConical,
+  History,
   LayoutDashboard,
   Layers3,
   ListVideo,
@@ -69,6 +70,12 @@ export function AdminNav() {
       to: "/confirmations/admin",
       icon: ClipboardCheck,
       active: (path) => path.startsWith("/confirmations/admin"),
+    },
+    {
+      label: "Submission history",
+      to: "/admin/submission-versions",
+      icon: History,
+      active: (path) => path.startsWith("/admin/submission-versions"),
     },
     {
       label: "Contest",
