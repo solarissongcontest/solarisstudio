@@ -52,7 +52,10 @@ export type RulebookRelease = {
   updated_at?: string;
   published_at?: string | null;
   change_count?: number;
+  /** Changes introduced by this release only. Used by history and review UI. */
   changes: RulebookChange[];
+  /** Cumulative inherited overrides needed to render the current rulebook. */
+  effective_changes?: RulebookChange[];
   events?: Array<{
     id: string;
     event_type: string;
@@ -139,6 +142,12 @@ function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
  * because getRuleById keeps stable object references, and without a reset an
  * optional field removed by a newer release could survive from an older one.
  *
+ * The RPC returns effective_changes as the de-duplicated release ancestry.
+ * This keeps v4.2 from accidentally forgetting a v4.1 override just because
+ * v4.2 itself changed a different rule. Local changes remain separate so the
+ * public history still means "what changed in this release" rather than an
+ * ever-growing pile of inherited records.
+ *
  * The current editor intentionally limits live publishing to modifications and
  * interpretations of existing rule IDs. The database schema already models
  * additions/removals for a later major-version editor, but those need a full
@@ -150,7 +159,8 @@ export function applyPublishedRulebookRelease(release: RulebookRelease | null | 
 
   resetRulebookBaseline();
 
-  for (const change of release.changes ?? []) {
+  const runtimeChanges = release.effective_changes ?? release.changes ?? [];
+  for (const change of runtimeChanges) {
     if (!change.after_snapshot) continue;
     if (change.change_kind !== "modified" && change.change_kind !== "interpretation") continue;
 
