@@ -74,10 +74,11 @@ jobs:
 
           # Current main cannot be reconstructed cleanly from its raw migration
           # directory. Several historical migrations either precede dependencies
-          # they use, assume legacy trigger helpers exist, or disappeared from
-          # the repository after being recorded in deployed migration history.
-          # Main also contains two files with version 20260822204500; a migration
-          # table can record that version only once.
+          # they use, assume legacy trigger helpers or optional legacy metadata
+          # tables exist, or disappeared from the repository after being recorded
+          # in deployed migration history. Main also contains two files with
+          # version 20260822204500; a migration table can record that version only
+          # once.
           #
           # This disposable baseline receives only narrowly-scoped replay fixes.
           # Rules/Integrity feature migrations must not enter the baseline before
@@ -88,6 +89,8 @@ jobs:
             "20260816200158_integrate_confirmations_schema.sql"
             "20260817205500_audit_friend_voting_settings_updates.sql"
             "20260821180000_harden_legacy_trigger_rpc_surface.sql"
+            "20260909073500_import_ssc20_historical_televote.sql"
+            "20260909074500_wire_ssc20_historical_ballots_into_analytics.sql"
           )
 
           for file in "${compatibility_files[@]}"; do
@@ -126,6 +129,8 @@ jobs:
             "20260817205500_audit_friend_voting_settings_updates.sql"
             "20260821180000_harden_legacy_trigger_rpc_surface.sql"
             "20260822204500_result_driven_qualifier_sync.sql"
+            "20260909073500_import_ssc20_historical_televote.sql"
+            "20260909074500_wire_ssc20_historical_ballots_into_analytics.sql"
           )
           mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
 
