@@ -22,6 +22,10 @@ const protectedPortal = readFileSync(
   resolve(process.cwd(), "src/components/integrity/TrustIntegrityHub.tsx"),
   "utf8",
 );
+const investigationRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-case.$caseId.tsx"),
+  "utf8",
+);
 const adminRoute = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-evidence.tsx"),
   "utf8",
@@ -72,6 +76,14 @@ describe("Integrity evidence lifecycle", () => {
     expect(protectedPortal).toContain("Secure download");
     expect(protectedPortal).toContain("Audited access · signed link expires after 60 seconds.");
     expect(protectedPortal).not.toContain("getOrganizerEvidenceDownloadUrl");
+  });
+
+  it("lets organizers retrieve file evidence through the audited vault instead of exposing storage paths", () => {
+    expect(investigationRoute).toContain("getOrganizerEvidenceDownloadUrl");
+    expect(investigationRoute).toContain("downloadMutation.mutate(item.id)");
+    expect(investigationRoute).toContain("Private file retrieval is audit-logged");
+    expect(investigationRoute).toContain('to="/admin/integrity-evidence"');
+    expect(investigationRoute).not.toContain("storage_path");
   });
 
   it("inherits case retention and supports explicit schedule/cancel lifecycle", () => {
