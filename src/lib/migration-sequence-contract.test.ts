@@ -33,6 +33,7 @@ const FEATURE_CHAIN = [
   "20260911161300_rulebook_publication_state_hardening.sql",
   "20260911161400_integrity_evidence_signed_url_boundary.sql",
   "20260911161500_integrity_evidence_deletion_boundary.sql",
+  "20260911161600_integrity_evidence_disclosure.sql",
 ] as const;
 
 const FEATURE_MIGRATION_VERSIONS = new Set(FEATURE_CHAIN.map((name) => name.slice(0, 14)));
@@ -102,12 +103,14 @@ describe("Supabase migration sequence", () => {
     const hardeningPosition = migrationFiles.indexOf("20260911160900_integrity_evidence_interface_hardening.sql");
     const signingBoundaryPosition = migrationFiles.indexOf("20260911161400_integrity_evidence_signed_url_boundary.sql");
     const deletionBoundaryPosition = migrationFiles.indexOf("20260911161500_integrity_evidence_deletion_boundary.sql");
+    const disclosurePosition = migrationFiles.indexOf("20260911161600_integrity_evidence_disclosure.sql");
     expect(vaultPosition).toBeGreaterThanOrEqual(0);
     expect(lifecyclePosition).toBeGreaterThan(vaultPosition);
     expect(cleanupPosition).toBeGreaterThan(lifecyclePosition);
     expect(hardeningPosition).toBeGreaterThan(cleanupPosition);
     expect(signingBoundaryPosition).toBeGreaterThan(hardeningPosition);
     expect(deletionBoundaryPosition).toBeGreaterThan(signingBoundaryPosition);
+    expect(disclosurePosition).toBeGreaterThan(deletionBoundaryPosition);
   });
 
   it("adds sealed identity break-glass only after protected case governance exists", () => {
