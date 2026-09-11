@@ -51,6 +51,14 @@ type SupabaseRpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
 
+const ENTRY_VALIDITY_DEDICATED_CHECK_IDS = new Set([
+  'country-confirmed',
+  'broadcaster-approval',
+  'video',
+  'artwork',
+  'deadline',
+]);
+
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid ${label}`);
   return value as Record<string, unknown>;
@@ -120,9 +128,32 @@ function factualStrongest(
   return 'eligible';
 }
 
+function entryValidityChecks(row: Studio2CountryCockpitRow) {
+  return row.eligibility.checks.filter((check) => !ENTRY_VALIDITY_DEDICATED_CHECK_IDS.has(check.id));
+}
+
+function entryValidityStatus(
+  row: Studio2CountryCockpitRow,
+): Exclude<Studio2EligibilityStatus, 'overridden'> {
+  const checks = entryValidityChecks(row);
+  if (checks.some((check) => check.level === 'blocked')) return 'blocked';
+  if (checks.some((check) => check.level === 'warning')) return 'warning';
+  return 'eligible';
+}
+
+function entryValidityMessage(
+  row: Studio2CountryCockpitRow,
+  status: Exclude<Studio2EligibilityStatus, 'overridden'>,
+): string {
+  if (!row.context.entry) return 'No current entry is available.';
+  if (status === 'blocked') return 'The current entry has blocking content eligibility requirements.';
+  if (status === 'warning') return 'The current entry has content eligibility warnings.';
+  return 'The current entry passes entry-content eligibility checks.';
+}
+
 function detailEvidence(row: Studio2CountryCockpitRow, ruleId: string, fallback: string): string[] {
   if (ruleId === 'entry-validity') {
-    const checks = row.eligibility.checks
+    const checks = entryValidityChecks(row)
       .filter((check) => check.level !== 'pass')
       .map((check) => `${check.label}: ${check.message}`);
     return checks.length ? checks : [fallback];
@@ -176,9 +207,16 @@ export function buildStudio2EligibilityCountry(
 
   const rules: Studio2EligibilityRule[] = definitions.map((definition) => {
     const signal = signals.get(definition.id);
-    const factualStatus = signal
+    let factualStatus = signal
       ? statusFromSignal(signal.state, definition.attention)
       : 'incomplete';
+    let message = signal?.message ?? 'Operational status is unavailable.';
+
+    if (definition.id === 'entry-validity') {
+      factualStatus = entryValidityStatus(row);
+      message = entryValidityMessage(row, factualStatus);
+    }
+
     const override = factualStatus === 'eligible' ? null : overrideByRule.get(definition.id) ?? null;
     return {
       id: definition.id,
@@ -186,8 +224,8 @@ export function buildStudio2EligibilityCountry(
       domain: definition.domain,
       factualStatus,
       effectiveStatus: override ? 'overridden' : factualStatus,
-      message: signal?.message ?? 'Operational status is unavailable.',
-      evidence: detailEvidence(row, definition.id, signal?.message ?? 'Operational status is unavailable.'),
+      message,
+      evidence: detailEvidence(row, definition.id, message),
       override,
     };
   });
@@ -224,6 +262,14 @@ export function buildStudio2EligibilityMatrix(
     .sort((a, b) => a.countryName.localeCompare(b.countryName));
 }
 
+function readinessStateFromEligibilityStatus(
+  status: Studio2EligibilityStatus,
+): CountryReadinessSignal['state'] {
+  if (status === 'blocked') return 'blocked';
+  if (status === 'incomplete' || status === 'warning') return 'attention';
+  return 'ready';
+}
+
 export function applyStudio2EligibilityOverridesToReadiness(
   row: Studio2CountryCockpitRow,
   overrides: readonly Studio2EligibilityOverride[],
@@ -233,12 +279,15 @@ export function applyStudio2EligibilityOverridesToReadiness(
   const ruleById = new Map(eligibility.rules.map((rule) => [rule.id, rule]));
   const signals = row.operationalReadiness.signals.map((signal) => {
     const rule = ruleById.get(signal.id);
-    if (rule?.effectiveStatus !== 'overridden') return signal;
-    return {
-      ...signal,
-      state: 'ready' as const,
-      message: `${signal.message} An organizer eligibility override is active.`,
-    };
+    if (!rule) return signal;
+
+    const state = readinessStateFromEligibilityStatus(rule.effectiveStatus);
+    const message = rule.effectiveStatus === 'overridden'
+      ? `${rule.message} An organizer eligibility override is active.`
+      : rule.message;
+
+    if (state === signal.state && message === signal.message) return signal;
+    return { ...signal, state, message };
   });
   const blockers = signals.filter((signal) => signal.state === 'blocked');
   const attention = signals.filter((signal) => signal.state === 'attention');
