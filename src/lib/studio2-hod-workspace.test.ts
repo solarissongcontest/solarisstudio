@@ -16,18 +16,24 @@ const completeContext: Studio2HodContext = {
   participantStatus: 'confirmed',
   publicationStatus: 'published',
   entry: {
+    id: 'entry-1',
     artist: 'Artist',
     songTitle: 'Song',
     songUrl: 'https://example.com/song',
     status: 'confirmed',
     source: 'confirmations',
     metadata: {},
+    createdAt: '2026-09-11T10:00:00.000Z',
+    updatedAt: '2026-09-11T11:00:00.000Z',
   },
   juryMembersRequired: 5,
   juryMembersAssigned: 5,
   juryMembers: [],
   juryBallotSubmitted: true,
   notices: [],
+  deadlines: [],
+  reviewHistory: [],
+  unresolvedOrganizerIssues: 0,
 };
 
 describe('Studio 2 HOD workspace adapter', () => {
@@ -47,12 +53,15 @@ describe('Studio 2 HOD workspace adapter', () => {
       participantStatus: 'pending',
       publicationStatus: 'draft',
       entry: {
+        id: 'entry-1',
         artist: 'Artist',
         songTitle: 'Song',
         songUrl: null,
         status: 'pending',
         source: 'confirmations',
         metadata: {},
+        createdAt: '2026-09-11T10:00:00.000Z',
+        updatedAt: '2026-09-11T11:00:00.000Z',
       },
       juryMembersAssigned: 3,
       juryBallotSubmitted: false,
@@ -91,6 +100,26 @@ describe('Studio 2 HOD workspace adapter', () => {
     expect(snapshot.model.readiness).toBe(100);
   });
 
+  it('passes canonical operational deadlines into the shared readiness engine', () => {
+    const snapshot = buildStudio2HodWorkspaceSnapshot({
+      ...completeContext,
+      deadlines: [
+        {
+          id: 'deadline-1',
+          kind: 'entry',
+          label: 'Entry deadline',
+          dueAt: '2026-01-01T00:00:00.000Z',
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+
+    expect(snapshot.operationalReadiness.state).toBe('blocked');
+    expect(snapshot.operationalReadiness.overdueDeadlines).toHaveLength(1);
+    expect(snapshot.model.actions.map((action) => action.id)).toContain('overdue-deadlines');
+  });
+
   it('validates the secure RPC payload before it reaches the domain engines', () => {
     expect(() =>
       mapStudio2HodContext({
@@ -104,6 +133,7 @@ describe('Studio 2 HOD workspace adapter', () => {
         entry: null,
         juryMembersRequired: 5,
         juryMembersAssigned: 5,
+        juryMembers: [],
         juryBallotSubmitted: true,
         notices: [
           {
@@ -114,6 +144,9 @@ describe('Studio 2 HOD workspace adapter', () => {
             acknowledged: false,
           },
         ],
+        deadlines: [],
+        reviewHistory: [],
+        unresolvedOrganizerIssues: 0,
       }),
     ).toThrow(/Unknown notice severity/);
   });
