@@ -38,11 +38,30 @@ describe("SSC online-first General Regulations", () => {
     expect(rule?.important?.toLowerCase()).toContain("human decision");
   });
 
-  it("uses targeted remedies instead of a mandatory numerical sanction ladder", () => {
+  it("preserves the canonical ten-level sanction ladder", () => {
     const rule = getRuleById("17.2");
-    expect(rule?.title).toBe("Available Measures");
-    expect(rule?.bullets?.join(" ").toLowerCase()).toContain("invalidation of an affected vote");
-    expect(rule?.important?.toLowerCase()).toContain("restore fairness");
+    expect(rule?.title).toBe("Sanction Levels");
+    expect(rule?.bullets).toEqual([
+      "Level 1 · Official Warning",
+      "Level 2 · Loss of 50% of Bonus Points",
+      "Level 3 · No Bonus Points Awarded",
+      "Level 4 · −5 Contest Points",
+      "Level 5 · −25 Contest Points",
+      "Level 6 · −50 Contest Points",
+      "Level 7 · −100 Contest Points",
+      "Level 8 · Disqualification",
+      "Level 9 · Disqualification + One-Edition Ban",
+      "Level 10 · Lifetime Ban",
+    ]);
+    expect(rule?.important?.toLowerCase()).toContain("aggravating or mitigating");
+  });
+
+  it("keeps typical sanctions as starting levels rather than automatic outcomes", () => {
+    const rule = getRuleById("17.3");
+    expect(rule?.title).toBe("Typical Violation Levels");
+    expect(rule?.body.join(" ").toLowerCase()).toContain("starting points rather than automatic outcomes");
+    expect(rule?.bullets?.join(" ")).toContain("Vote trading or coordinated voting · Level 9");
+    expect(rule?.bullets?.join(" ")).toContain("Serious threats toward SSC or participants · Level 10");
   });
 
   it("separates people, delegations, countries, entries and votes when sanctioning", () => {
@@ -75,5 +94,6 @@ describe("SSC online-first General Regulations", () => {
     expect(searchSscRules("confirmation slot").some((rule) => rule.id === "4.6")).toBe(true);
     expect(searchSscRules("server timestamp").some((rule) => ["4.5", "4.6", "12.2"].includes(rule.id))).toBe(true);
     expect(searchSscRules("copyright").some((rule) => rule.id === "13.3")).toBe(true);
+    expect(searchSscRules("lifetime ban").some((rule) => rule.id === "17.2")).toBe(true);
   });
 });
