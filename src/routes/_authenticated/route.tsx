@@ -3,6 +3,7 @@ import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/rea
 import { CountryFlagLayerEditorAddon } from "@/components/CountryFlagLayerEditorAddon";
 import { CountrySystemFunFactsEditorAddon } from "@/components/CountrySystemFunFactsEditorAddon";
 import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalFinalManager";
+import { HodWorkspaceLauncher } from "@/components/HodWorkspaceLauncher";
 import { MySolarisPortalExtension } from "@/components/MySolarisPortalExtension";
 import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultOrderAddon";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,11 +28,17 @@ function AuthenticatedLayout() {
   return (
     <>
       <Outlet />
-      {isMySolaris && <MySolarisPortalExtension />}
+      {isMySolaris && (
+        <>
+          <MySolarisPortalExtension />
+          <HodWorkspaceLauncher />
+        </>
+      )}
       {isCountryHub && (
         <>
           <HistoricalNationalFinalManager />
           <NationalFinalResultOrderAddon />
+          <HodWorkspaceLauncher />
         </>
       )}
       {isCountryTheme && <CountryFlagLayerEditorAddon />}
