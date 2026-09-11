@@ -18,11 +18,14 @@ describe("Rules and Integrity navigation", () => {
     expect(root).toContain("<GlobalRulesNavigationAddon />");
   });
 
-  it("puts both public destinations in desktop and mobile quick access", () => {
+  it("puts Rules, Interpretations and Trust & Integrity in desktop and mobile quick access", () => {
     expect(addon).toContain('to="/rules"');
+    expect(addon).toContain('to="/rules/changes"');
+    expect(addon).toContain('to="/rules/interpretations"');
     expect(addon).toContain('to="/integrity"');
     expect(addon).toContain("Rules & integrity");
     expect(addon).toContain("Official SSC rules");
+    expect(addon).toContain("Official interpretations");
     expect(addon).toContain("Trust & Integrity");
     expect(addon).toContain("lg:hidden");
     expect(addon).toContain("hidden lg:block");
@@ -36,9 +39,15 @@ describe("Rules and Integrity navigation", () => {
     expect(addon).not.toContain("data-solaris-rules-nav-host");
   });
 
-  it("adds the organizer Integrity workspace and a public Rules shortcut", () => {
+  it("exposes organizer Integrity, Appeals, Rules and Interpretations workspaces", () => {
     expect(adminNav).toContain('label: "Integrity"');
-    expect(adminNav).toContain('to: "/admin/integrity"');
+    expect(adminNav).toContain('to: "/admin/integrity-investigations"');
+    expect(adminNav).toContain('label: "Appeals"');
+    expect(adminNav).toContain('to: "/admin/integrity-appeals"');
+    expect(adminNav).toContain('label: "Rules manager"');
+    expect(adminNav).toContain('to: "/admin/rules-manager"');
+    expect(adminNav).toContain('label: "Interpretations"');
+    expect(adminNav).toContain('to: "/admin/rule-interpretations"');
     expect(adminNav).toContain('label: "Public rules"');
     expect(adminNav).toContain('to: "/rules"');
   });
