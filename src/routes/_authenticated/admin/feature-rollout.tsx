@@ -1,11 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { Flag, ShieldCheck } from 'lucide-react';
+import { ExternalLink, Flag, ShieldCheck } from 'lucide-react';
 
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { supabase } from '@/integrations/supabase/client';
 import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from '@/lib/feature-flags';
+import {
+  STUDIO2_PRODUCT_SURFACE_LIST,
+  studio2SurfaceFor,
+  studio2SurfaceStateLabel,
+  type Studio2SurfaceState,
+} from '@/lib/studio2-product-surfaces';
 
 export const Route = createFileRoute('/_authenticated/admin/feature-rollout')({
   head: () => ({
@@ -63,7 +69,16 @@ async function loadFlags(): Promise<FeatureFlagRow[]> {
     }));
 }
 
+function canEnableSurface(state: Studio2SurfaceState) {
+  return state !== 'planned' && state !== 'external_workstream';
+}
+
 async function setFlag(row: FeatureFlagRow, enabled: boolean) {
+  const surface = studio2SurfaceFor(row.key);
+  if (enabled && !canEnableSurface(surface.state)) {
+    throw new Error(`${surface.label} is not eligible for rollout from this workstream.`);
+  }
+
   const { data, error } = await client.rpc('studio2_set_feature_flag', {
     p_key: row.key,
     p_enabled: enabled,
@@ -93,6 +108,8 @@ function FeatureRolloutPage() {
 
   const rows = flagsQuery.data ?? [];
   const enabledCount = rows.filter((row) => row.enabled).length;
+  const productSurfaceCount = STUDIO2_PRODUCT_SURFACE_LIST.filter((surface) => surface.state === 'product_surface').length;
+  const plannedCount = STUDIO2_PRODUCT_SURFACE_LIST.filter((surface) => surface.state === 'planned').length;
 
   return (
     <AdminPage>
@@ -100,24 +117,28 @@ function FeatureRolloutPage() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2"
           title="Feature rollout"
-          description="See which Studio 2 capabilities are exposed in the live product. Features remain independently gated so infrastructure can exist without silently becoming user-facing."
+          description="Control live rollout while keeping product surfaces, shared foundations and unfinished work visibly distinct. Planned and externally owned features cannot be enabled from this page."
         />
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <AdminCard strong>
             <AdminCardHeader eyebrow="Enabled" title={`${enabledCount} / ${rows.length || SOLARIS_FEATURE_FLAGS.length}`} />
-            <p className="mt-2 text-sm text-muted-foreground">Features currently allowed through the rollout gate.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Capabilities currently allowed through the production rollout gate.</p>
+          </AdminCard>
+          <AdminCard>
+            <AdminCardHeader eyebrow="Product surfaces" title={`${productSurfaceCount}`} />
+            <p className="mt-2 text-sm text-muted-foreground">Studio 2 capabilities with dedicated user-facing routes.</p>
+          </AdminCard>
+          <AdminCard>
+            <AdminCardHeader eyebrow="Planned" title={`${plannedCount}`} />
+            <p className="mt-2 text-sm text-muted-foreground">Reserved flags that remain rollout-locked until their product slice exists.</p>
           </AdminCard>
           <AdminCard>
             <AdminCardHeader eyebrow="Safety" title="Fail closed" />
             <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               <ShieldCheck className="size-4" />
-              Unknown or disabled features stay unavailable.
+              Unknown, unfinished and disabled features stay unavailable.
             </div>
-          </AdminCard>
-          <AdminCard>
-            <AdminCardHeader eyebrow="Rules" title="Separate workstream" />
-            <p className="mt-2 text-sm text-muted-foreground">The Rules Hub and Trust & Integrity implementation are managed independently and are not duplicated here.</p>
           </AdminCard>
         </div>
 
@@ -133,28 +154,54 @@ function FeatureRolloutPage() {
           <AdminCard>
             <div className="divide-y divide-white/[0.07]">
               {rows.map((row) => {
+                const surface = studio2SurfaceFor(row.key);
                 const busy = toggleFlag.isPending && toggleFlag.variables?.row.key === row.key;
+                const enableAllowed = canEnableSurface(surface.state);
+                const toggleAllowed = row.enabled || enableAllowed;
+
                 return (
-                  <div key={row.key} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
+                  <div key={row.key} className="flex flex-col gap-4 py-4 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold">{humanize(row.key)}</p>
+                        <p className="font-semibold">{surface.label}</p>
                         <AdminStatus tone={row.enabled ? 'ready' : 'neutral'}>{row.enabled ? 'Enabled' : 'Disabled'}</AdminStatus>
+                        <AdminStatus tone={surfaceTone(surface.state)}>{studio2SurfaceStateLabel(surface.state)}</AdminStatus>
                         {row.admins_only ? <AdminStatus tone="info">Admins only</AdminStatus> : null}
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {row.edition_ids.length ? `${row.edition_ids.length} edition restriction(s)` : 'All editions'} ·{' '}
-                        {row.user_ids.length ? `${row.user_ids.length} user restriction(s)` : 'All eligible users'}
-                      </p>
+                      <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{surface.description}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span>{row.edition_ids.length ? `${row.edition_ids.length} edition restriction(s)` : 'All editions'}</span>
+                        <span>·</span>
+                        <span>{row.user_ids.length ? `${row.user_ids.length} user restriction(s)` : 'All eligible users'}</span>
+                        {surface.dependsOn?.length ? <><span>·</span><span>Depends on {surface.dependsOn.map((key) => studio2SurfaceFor(key).label).join(', ')}</span></> : null}
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => toggleFlag.mutate({ row, enabled: !row.enabled })}
-                      className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.035] px-4 text-sm font-semibold transition-colors hover:bg-white/[0.07] disabled:cursor-wait disabled:opacity-60"
-                    >
-                      {busy ? 'Saving…' : row.enabled ? 'Disable' : 'Enable'}
-                    </button>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {surface.route ? (
+                        <a
+                          href={surface.route}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.025] px-3 text-sm font-semibold hover:bg-white/[0.06]"
+                        >
+                          {surface.surfaceLabel ?? 'Open surface'}
+                          <ExternalLink className="size-3.5" />
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={busy || !toggleAllowed}
+                        onClick={() => toggleFlag.mutate({ row, enabled: !row.enabled })}
+                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/[0.09] bg-white/[0.035] px-4 text-sm font-semibold transition-colors hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        {busy
+                          ? 'Saving…'
+                          : row.enabled
+                            ? 'Disable'
+                            : enableAllowed
+                              ? 'Enable'
+                              : 'Rollout locked'}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -164,7 +211,7 @@ function FeatureRolloutPage() {
 
         {toggleFlag.error ? (
           <div className="rounded-xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">
-            Could not update the rollout flag. Organizer permission is required.
+            {toggleFlag.error instanceof Error ? toggleFlag.error.message : 'Could not update the rollout flag. Organizer permission is required.'}
           </div>
         ) : null}
       </div>
@@ -172,9 +219,9 @@ function FeatureRolloutPage() {
   );
 }
 
-function humanize(value: string) {
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+function surfaceTone(state: Studio2SurfaceState): 'neutral' | 'info' | 'ready' | 'attention' {
+  if (state === 'product_surface' || state === 'integrated') return 'ready';
+  if (state === 'foundation') return 'info';
+  if (state === 'external_workstream') return 'attention';
+  return 'neutral';
 }
