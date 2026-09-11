@@ -30,17 +30,23 @@ const adminRoute = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-identity.tsx"),
   "utf8",
 );
+const caseRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-case.$caseId.tsx"),
+  "utf8",
+);
 
 describe("sealed identity break-glass governance", () => {
   it("keeps fully anonymous cases structurally identity-less", () => {
     expect(core).toContain("fully_anonymous_has_no_reporter_identity");
     expect(core).toContain("identity_mode <> 'anonymous' or reporter_user_id is null");
+    expect(caseRoute).toContain("There is no reporter account ID to reveal.");
   });
 
   it("keeps ordinary organizer identity access blocked for sealed cases", () => {
     expect(governance).toContain("Reporter identity is sealed and cannot be revealed to case reviewers");
     expect(governance).toContain("Fully anonymous cases have no reporter identity");
     expect(governance).toContain("Confidential reporter identity was accessed by an organizer");
+    expect(caseRoute).toContain("Ordinary reviewers cannot reveal this identity");
   });
 
   it("stores break-glass requests behind RLS and no direct client grants", () => {
@@ -54,6 +60,8 @@ describe("sealed identity break-glass governance", () => {
     expect(breakglass).toContain("The requesting organizer cannot approve or reject their own sealed identity request");
     expect(breakglass).toContain("if v_requester = auth.uid()");
     expect(adminRoute).toContain("A different organizer must approve or reject this request");
+    expect(caseRoute).toContain("A different organizer must approve or reject it");
+    expect(caseRoute).toContain("self-approval is not available");
   });
 
   it("uses a short one-time approval instead of standing identity access", () => {
@@ -63,12 +71,15 @@ describe("sealed identity break-glass governance", () => {
     expect(breakglass).toContain("set status = 'used', disclosed_at = now()");
     expect(adminRoute).toContain("One-time disclosure window");
     expect(adminRoute).toContain("Reveal sealed identity once");
+    expect(caseRoute).toContain("One-time disclosure window");
+    expect(caseRoute).toContain("Reveal sealed identity once");
   });
 
   it("makes actual sealed identity disclosure visible to the reporter", () => {
     expect(breakglass).toContain("'identity.sealed_disclosed'");
     expect(breakglass).toContain("The sealed reporter identity was disclosed through the two-organizer break-glass process");
     expect(breakglass).toMatch(/identity\.sealed_disclosed'[\s\S]*?true,[\s\S]*?auth\.uid\(\)/);
+    expect(caseRoute).toContain("audit event recorded");
   });
 
   it("expires stale approvals so they cannot block future requests forever", () => {
@@ -100,9 +111,12 @@ describe("sealed identity break-glass governance", () => {
     expect(api).toContain("admin_reveal_sealed_identity");
   });
 
-  it("keeps revealed identity transient in the organizer UI", () => {
+  it("keeps revealed identity transient in both organizer surfaces", () => {
     expect(adminRoute).toContain("useState<RevealedSealedIdentity | null>(null)");
     expect(adminRoute).toContain("Identity revealed in this browser session");
     expect(adminRoute).toContain("not written back into the case UI model");
+    expect(caseRoute).toContain("useState<RevealedSealedIdentity | null>(null)");
+    expect(caseRoute).toContain("Transient reveal");
+    expect(caseRoute).toContain("It is not copied into the case model.");
   });
 });
