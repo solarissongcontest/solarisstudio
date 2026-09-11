@@ -17,6 +17,7 @@ export const STATIC_PUBLIC_ROUTES = [
   "/integrity/anonymous-appeal",
   "/integrity/appeals",
   "/jury-voting",
+  "/library",
   "/next-in-line",
   "/participate",
   "/predictions",
@@ -75,9 +76,6 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   const onPageError = (error: Error) => pageErrors.push(error.message);
   const onRequestFailed = (request: { url(): string; failure(): { errorText: string } | null }) => {
     const failure = request.failure()?.errorText;
-    // Browser navigation deliberately aborts in-flight fetches from the previous
-    // route. Treat those as cancellations, not network failures. Real DNS,
-    // connection, HTTP and asset failures still fail the audit.
     if (!ignorableRequest(request.url()) && !isNavigationCancellation(failure)) {
       failedRequests.push(`${request.url()} — ${failure ?? "failed"}`);
     }
@@ -91,9 +89,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     const response = await page.goto(path, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${path} should return a successful document`).toBeLessThan(400);
     await expect(page.locator("main").first()).toBeVisible();
-    await expect(page.locator("h1").first(), `${path} needs one visible page heading`).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(page.locator("h1").first(), `${path} needs one visible page heading`).toBeVisible({ timeout: 15_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
     await page.waitForTimeout(250);
 
@@ -146,8 +142,6 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(failedRequests, `${path} had failed requests`).toEqual([]);
   } catch (error) {
     await testInfo.attach(`page-${path.replace(/\W+/g, "-") || "home"}`, {
-      // The viewport is enough to diagnose layout/a11y failures and avoids
-      // generating hundreds of megabytes of full-page PNGs on route sweeps.
       body: await page.screenshot(),
       contentType: "image/png",
     });
