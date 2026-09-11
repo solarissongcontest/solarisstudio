@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, BookOpen, CalendarClock, FileClock, GitCompareArrows } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { rulebookReleaseAnchor } from "@/lib/public-library-governance";
 import { useRulebookReleaseHistory, type RulebookChange, type RulebookRelease } from "@/lib/rules-governance";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +54,7 @@ function RulebookChangesPage() {
 function ReleaseCard({ release }: { release: RulebookRelease }) {
   const changes = release.changes ?? [];
   return (
-    <article className={cn("overflow-hidden rounded-[1.8rem] border bg-white/[0.025]", release.is_current ? "border-emerald-200/18" : "border-white/[0.08]")}> 
+    <article id={rulebookReleaseAnchor(release.version)} className={cn("scroll-mt-24 overflow-hidden rounded-[1.8rem] border bg-white/[0.025]", release.is_current ? "border-emerald-200/18" : "border-white/[0.08]")}> 
       <header className="grid gap-5 border-b border-white/[0.07] p-5 sm:grid-cols-[1fr_auto] sm:p-6">
         <div>
           <div className="flex flex-wrap items-center gap-2">
