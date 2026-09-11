@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { AlertTriangle, Flag, Search } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
@@ -11,13 +11,21 @@ import {
   summarizeCountryCockpit,
 } from '@/lib/studio2-country-cockpit';
 
+type CountryReadinessFilter = 'ready' | 'attention_required' | 'blocked';
+type CountriesSearch = {
+  q?: string;
+  state?: 'all' | CountryReadinessFilter;
+};
+
 export const Route = createFileRoute('/_authenticated/admin/countries')({
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === 'string' ? search.q : '',
+  validateSearch: (search: Record<string, unknown>): CountriesSearch => ({
+    q: typeof search.q === 'string' ? search.q : undefined,
     state:
       search.state === 'ready' || search.state === 'attention_required' || search.state === 'blocked'
         ? search.state
-        : 'all',
+        : search.state === 'all'
+          ? 'all'
+          : undefined,
   }),
   head: () => ({
     meta: [
@@ -25,8 +33,14 @@ export const Route = createFileRoute('/_authenticated/admin/countries')({
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: CountriesCockpitPage,
+  component: CountriesRoute,
 });
+
+function CountriesRoute() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  if (pathname.startsWith('/admin/countries/')) return <Outlet />;
+  return <CountriesCockpitPage />;
+}
 
 function CountriesCockpitPage() {
   const { editionId } = useAdminContext();
@@ -47,9 +61,11 @@ function CountriesCockpitPage() {
   });
 
   const rows = cockpitQuery.data ?? [];
-  const normalizedQuery = search.q.trim().toLocaleLowerCase();
+  const queryValue = search.q ?? '';
+  const stateFilter = search.state ?? 'all';
+  const normalizedQuery = queryValue.trim().toLocaleLowerCase();
   const filteredRows = rows.filter((row) => {
-    if (search.state !== 'all' && row.operationalReadiness.state !== search.state) return false;
+    if (stateFilter !== 'all' && row.operationalReadiness.state !== stateFilter) return false;
     if (!normalizedQuery) return true;
     return row.context.countryName.toLocaleLowerCase().includes(normalizedQuery);
   });
@@ -105,18 +121,18 @@ function CountriesCockpitPage() {
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
-                    value={search.q}
+                    value={queryValue}
                     onChange={(event) => navigate({ search: (previous) => ({ ...previous, q: event.target.value }), replace: true })}
                     placeholder="Search country…"
                     className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] pl-10 pr-3 text-sm"
                   />
                 </label>
                 <select
-                  value={search.state}
+                  value={stateFilter}
                   onChange={(event) => navigate({
                     search: (previous) => ({
                       ...previous,
-                      state: event.target.value as 'all' | 'ready' | 'attention_required' | 'blocked',
+                      state: event.target.value as 'all' | CountryReadinessFilter,
                     }),
                     replace: true,
                   })}
@@ -190,6 +206,7 @@ function CountriesCockpitPage() {
                               <Link
                                 to="/admin/countries/$countryId"
                                 params={{ countryId: row.context.countryId }}
+                                search={{ tab: 'overview' }}
                                 className="admin-action-secondary"
                               >
                                 Inspect
