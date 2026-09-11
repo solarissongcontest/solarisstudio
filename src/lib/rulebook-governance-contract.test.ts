@@ -30,6 +30,10 @@ const contextualGuide = readFileSync(
   resolve(process.cwd(), "src/components/rules/ContextualRuleGuide.tsx"),
   "utf8",
 );
+const ruleContext = readFileSync(
+  resolve(process.cwd(), "src/lib/rule-context.ts"),
+  "utf8",
+);
 const decisionStrip = readFileSync(
   resolve(process.cwd(), "src/components/rules/RuleDecisionStrip.tsx"),
   "utf8",
@@ -135,11 +139,12 @@ describe("rulebook governance contract", () => {
   });
 
   it("puts contextual rules inside the workflows where decisions happen", () => {
-    expect(contextualGuide).toContain('/confirmations');
-    expect(contextualGuide).toContain('/televoting');
-    expect(contextualGuide).toContain('/admin/friend-voting');
-    expect(contextualGuide).toContain('/admin/integrity');
+    expect(contextualGuide).toContain('getRuleContext');
     expect(contextualGuide).toContain('Rules for this page');
+    expect(ruleContext).toContain('/confirmations');
+    expect(ruleContext).toContain('/televoting');
+    expect(ruleContext).toContain('/admin/friend-voting');
+    expect(ruleContext).toContain('/admin/integrity');
     expect(decisionStrip).toContain("RuleChip");
     expect(decisionStrip).toContain("Rules at this decision");
     expect(confirmationReceipt).toContain("Confirmation fairness & submission rules");
