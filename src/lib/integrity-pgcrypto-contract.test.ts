@@ -2,34 +2,30 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const prerequisite = readFileSync(
-  resolve(
-    process.cwd(),
-    "supabase/migrations/20260910211400_integrity_pgcrypto_prerequisite.sql",
-  ),
+const core = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910213000_integrity_core.sql"),
   "utf8",
 );
-
-const caseMigration = readFileSync(
+const reporting = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20260910211500_integrity_case_center.sql",
+    "supabase/migrations/20260910213100_integrity_reporting_and_review.sql",
   ),
   "utf8",
 );
 
 describe("integrity cryptography migration order", () => {
   it("installs pgcrypto before anonymous case functions depend on it", () => {
-    expect(prerequisite).toContain(
+    expect(core).toContain(
       "create extension if not exists pgcrypto with schema extensions",
     );
-    expect(prerequisite).toContain("alter extension pgcrypto set schema extensions");
-    expect(caseMigration).toContain("extensions.gen_random_bytes");
-    expect(caseMigration).toContain("extensions.digest");
+    expect(core).toContain("alter extension pgcrypto set schema extensions");
+    expect(reporting).toContain("extensions.gen_random_bytes");
+    expect(reporting).toContain("extensions.digest");
   });
 
-  it("keeps the crypto prerequisite transaction-scoped", () => {
-    expect(prerequisite.trimStart()).toMatch(/^begin;/i);
-    expect(prerequisite.trimEnd()).toMatch(/commit;$/i);
+  it("keeps the core crypto setup transaction-scoped", () => {
+    expect(core.trimStart()).toMatch(/^begin;/i);
+    expect(core.trimEnd()).toMatch(/commit;$/i);
   });
 });
