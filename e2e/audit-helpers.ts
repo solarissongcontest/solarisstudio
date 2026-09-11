@@ -16,6 +16,7 @@ export const STATIC_PUBLIC_ROUTES = [
   "/integrity",
   "/integrity/anonymous-appeal",
   "/integrity/appeals",
+  "/integrity/preclearance",
   "/jury-voting",
   "/library",
   "/next-in-line",
