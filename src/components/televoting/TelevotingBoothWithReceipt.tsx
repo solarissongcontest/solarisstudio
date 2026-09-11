@@ -66,7 +66,7 @@ export function TelevotingBoothWithReceipt({
       <RuleDecisionStrip
         title="Independent voting & integrity"
         description="Vote for the songs you genuinely prefer. Friendships are allowed; coordinated, reciprocal or manipulated voting is not. Automated signals can trigger review but are not proof of misconduct."
-        ruleIds={["10.1", "10.2", "11.2", "11.4", "11.5", "11.7"]}
+        ruleIds={["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"]}
         integrity
       />
       <TelevotingBooth
