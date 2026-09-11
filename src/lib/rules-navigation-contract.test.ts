@@ -7,6 +7,7 @@ const addon = readFileSync(
   "utf8",
 );
 const root = readFileSync(resolve(process.cwd(), "src/routes/__root.tsx"), "utf8");
+const appShell = readFileSync(resolve(process.cwd(), "src/components/AppShell.tsx"), "utf8");
 const adminNav = readFileSync(
   resolve(process.cwd(), "src/components/admin/AdminNav.tsx"),
   "utf8",
@@ -54,6 +55,8 @@ describe("Rules and Integrity navigation", () => {
   });
 
   it("provides a real public Library host for governance discovery", () => {
+    expect(appShell).toContain('to: "/library"');
+    expect(appShell).toContain('label: "Library"');
     expect(publicLibrary).toContain('createFileRoute("/library")');
     expect(publicLibrary).toContain("Search Solaris");
     expect(publicLibrary).toContain("<GovernanceLibraryResults");
