@@ -29,6 +29,50 @@ export type ProtectedCaseInput = {
   editionReference?: string;
 };
 
+export type IntegritySanctionRecord = {
+  id: string;
+  finding_id: string;
+  typical_level: number | null;
+  final_level: number;
+  sanction_label: string;
+  target_type: "participant" | "delegation" | "ballot" | "entry" | "account" | "other";
+  target_reference: string | null;
+  aggravating_factors: string[];
+  mitigating_factors: string[];
+  rationale: string;
+  status: "active" | "modified_on_appeal" | "overturned";
+  supersedes_sanction_id: string | null;
+  effective_at: string;
+  created_at: string;
+  appeal_deadline: string;
+};
+
+export type IntegrityAppealRecord = {
+  id: string;
+  sanction_id: string;
+  grounds: string;
+  submitted_at: string;
+  deadline_at: string;
+  was_timely: boolean;
+  status:
+    | "submitted"
+    | "under_review"
+    | "upheld"
+    | "reduced"
+    | "increased"
+    | "overturned"
+    | "rejected_late"
+    | "rejected_ineligible";
+  decision_rationale: string | null;
+  replacement_sanction_id: string | null;
+  decided_at: string | null;
+};
+
+export type IntegrityResolutionSnapshot = {
+  sanctions: IntegritySanctionRecord[];
+  appeals: IntegrityAppealRecord[];
+};
+
 export async function createProtectedIntegrityCase(input: ProtectedCaseInput) {
   return rpc<{ ok: true; case_id: string; case_code: string }>(
     "create_protected_integrity_case",
@@ -61,6 +105,27 @@ export async function replyProtectedIntegrityCase(caseId: string, body: string) 
     _case_id: caseId,
     _body: body,
   });
+}
+
+export async function getProtectedIntegrityResolution(caseId: string) {
+  return rpc<IntegrityResolutionSnapshot>("reporter_integrity_case_resolution", {
+    _case_id: caseId,
+  });
+}
+
+export async function submitProtectedIntegrityAppeal(
+  caseId: string,
+  sanctionId: string,
+  grounds: string,
+) {
+  return rpc<{ ok: true; appeal_id: string; was_timely: boolean; deadline_at: string }>(
+    "reporter_submit_integrity_appeal",
+    {
+      _case_id: caseId,
+      _sanction_id: sanctionId,
+      _grounds: grounds,
+    },
+  );
 }
 
 export async function getCurrentIntegrityUser() {
@@ -116,6 +181,65 @@ function anonymousBrowserClient() {
       storage: undefined,
     },
   });
+}
+
+export async function getAnonymousIntegrityResolution(
+  caseCode: string,
+  recoveryKey: string,
+): Promise<IntegrityResolutionSnapshot> {
+  const client = anonymousBrowserClient();
+  const { data, error } = await (client as any).rpc(
+    "public_get_anonymous_integrity_resolution",
+    {
+      _case_code: caseCode,
+      _recovery_key: recoveryKey,
+    },
+  );
+  if (error) throw new Error(error.message);
+  const result = data as {
+    ok: boolean;
+    error?: string;
+    resolution?: IntegrityResolutionSnapshot;
+  };
+  if (!result.ok || !result.resolution) {
+    throw new Error(result.error ?? "Could not load case resolution.");
+  }
+  return result.resolution;
+}
+
+export async function submitAnonymousIntegrityAppeal(
+  caseCode: string,
+  recoveryKey: string,
+  sanctionId: string,
+  grounds: string,
+) {
+  const client = anonymousBrowserClient();
+  const { data, error } = await (client as any).rpc(
+    "public_submit_anonymous_integrity_appeal",
+    {
+      _case_code: caseCode,
+      _recovery_key: recoveryKey,
+      _sanction_id: sanctionId,
+      _grounds: grounds,
+    },
+  );
+  if (error) throw new Error(error.message);
+  const result = data as {
+    ok: boolean;
+    error?: string;
+    appeal_id?: string;
+    was_timely?: boolean;
+    deadline_at?: string;
+  };
+  if (!result.ok || !result.appeal_id) {
+    throw new Error(result.error ?? "Could not submit appeal.");
+  }
+  return result as {
+    ok: true;
+    appeal_id: string;
+    was_timely: boolean;
+    deadline_at: string;
+  };
 }
 
 export async function uploadAnonymousEvidence(
