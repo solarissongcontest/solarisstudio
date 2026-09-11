@@ -192,7 +192,7 @@ export function searchGovernanceLibrary(
     .map((result) => ({ result, score: scoreText(result, terms) }))
     .filter(({ score }) => score > 0);
 
-  const ruleMatches = searchSscRules(query).slice(0, 10).map((rule, index) => ({
+  const ruleMatches = searchSscRules(terms.join(" ")).slice(0, 10).map((rule, index) => ({
     score: Math.max(2, 14 - index),
     result: {
       id: `rule-${rule.id}`,
