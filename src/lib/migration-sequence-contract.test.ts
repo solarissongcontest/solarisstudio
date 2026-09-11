@@ -20,6 +20,7 @@ const FEATURE_CHAIN = [
   "20260910220000_integrity_sanctions_and_appeals.sql",
   "20260910220100_integrity_reporter_appeals.sql",
   "20260910220200_integrity_appeal_extensions.sql",
+  "20260910220300_integrity_appeal_queue.sql",
 ] as const;
 
 describe("Supabase migration sequence", () => {
@@ -46,14 +47,16 @@ describe("Supabase migration sequence", () => {
     }
   });
 
-  it("creates core case tables before sanctions, reporter appeals and extension governance", () => {
+  it("creates core case tables before sanctions, reporter appeals, extensions and organizer queues", () => {
     const corePosition = migrationFiles.indexOf("20260910213000_integrity_core.sql");
     const resolutionPosition = migrationFiles.indexOf("20260910220000_integrity_sanctions_and_appeals.sql");
     const reporterAppealPosition = migrationFiles.indexOf("20260910220100_integrity_reporter_appeals.sql");
     const extensionPosition = migrationFiles.indexOf("20260910220200_integrity_appeal_extensions.sql");
+    const queuePosition = migrationFiles.indexOf("20260910220300_integrity_appeal_queue.sql");
     expect(corePosition).toBeGreaterThanOrEqual(0);
     expect(resolutionPosition).toBeGreaterThan(corePosition);
     expect(reporterAppealPosition).toBeGreaterThan(resolutionPosition);
     expect(extensionPosition).toBeGreaterThan(reporterAppealPosition);
+    expect(queuePosition).toBeGreaterThan(extensionPosition);
   });
 });
