@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Eye,
   Flag,
+  FlaskConical,
   LayoutDashboard,
   Layers3,
   ListVideo,
@@ -84,6 +85,12 @@ export function AdminNav() {
         path.startsWith("/admin/televote/") ||
         path.startsWith("/admin/friend-voting") ||
         path.startsWith("/admin/jury-integrity"),
+    },
+    {
+      label: "Voting Lab",
+      to: "/admin/voting-lab",
+      icon: FlaskConical,
+      active: (path) => path.startsWith("/admin/voting-lab"),
     },
     {
       label: "Reveal Director",
