@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import {
+  STUDIO2_PRODUCT_SURFACES,
+  studio2SurfaceRolloutEligible,
+} from './studio2-product-surfaces';
+
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
@@ -19,11 +24,15 @@ describe('Studio 2 product integration', () => {
     expect(controlRoomAlias).not.toContain('to: "/admin/operations"');
   });
 
-  it('keeps rollout controls discoverable for organizers', () => {
+  it('keeps rollout controls discoverable while preserving Rules as a separate workstream', () => {
     expect(adminNav).toContain('label: "Feature rollout"');
     expect(adminNav).toContain('to: "/admin/feature-rollout"');
     expect(rollout).toContain('studio2_set_feature_flag');
-    expect(rollout).toContain('Rules Hub and Trust & Integrity implementation are managed independently');
+
+    const rules = STUDIO2_PRODUCT_SURFACES.rules_engine;
+    expect(rules.state).toBe('external_workstream');
+    expect(rules.route).toBeUndefined();
+    expect(studio2SurfaceRolloutEligible(rules)).toBe(false);
   });
 
   it('preserves the existing HOD workspace launcher instead of duplicating its route', () => {
