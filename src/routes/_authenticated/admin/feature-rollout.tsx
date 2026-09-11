@@ -8,6 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from '@/lib/feature-flags';
 import {
   STUDIO2_PRODUCT_SURFACE_LIST,
+  studio2EnabledDependents,
+  studio2MissingDependencies,
   studio2SurfaceFor,
   studio2SurfaceRolloutEligible,
   studio2SurfaceStateLabel,
@@ -70,10 +72,28 @@ async function loadFlags(): Promise<FeatureFlagRow[]> {
     }));
 }
 
-async function setFlag(row: FeatureFlagRow, enabled: boolean) {
+function enabledKeySet(rows: readonly FeatureFlagRow[]) {
+  return new Set(rows.filter((candidate) => candidate.enabled).map((candidate) => candidate.key));
+}
+
+async function setFlag(row: FeatureFlagRow, enabled: boolean, currentRows: readonly FeatureFlagRow[]) {
   const surface = studio2SurfaceFor(row.key);
-  if (enabled && !studio2SurfaceRolloutEligible(surface)) {
-    throw new Error(`${surface.label} is not eligible for rollout from this workstream.`);
+  const enabledKeys = enabledKeySet(currentRows);
+
+  if (enabled) {
+    if (!studio2SurfaceRolloutEligible(surface)) {
+      throw new Error(`${surface.label} is not eligible for rollout from this workstream.`);
+    }
+
+    const missing = studio2MissingDependencies(row.key, enabledKeys);
+    if (missing.length) {
+      throw new Error(`Enable ${missing.map((key) => studio2SurfaceFor(key).label).join(', ')} before ${surface.label}.`);
+    }
+  } else {
+    const activeDependents = studio2EnabledDependents(row.key, enabledKeys);
+    if (activeDependents.length) {
+      throw new Error(`Disable ${activeDependents.map((key) => studio2SurfaceFor(key).label).join(', ')} before disabling ${surface.label}.`);
+    }
   }
 
   const { data, error } = await client.rpc('studio2_set_feature_flag', {
@@ -95,15 +115,17 @@ function FeatureRolloutPage() {
     queryFn: loadFlags,
   });
 
+  const rows = flagsQuery.data ?? [];
+  const enabledKeys = enabledKeySet(rows);
+
   const toggleFlag = useMutation({
-    mutationFn: ({ row, enabled }: { row: FeatureFlagRow; enabled: boolean }) => setFlag(row, enabled),
+    mutationFn: ({ row, enabled }: { row: FeatureFlagRow; enabled: boolean }) => setFlag(row, enabled, rows),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['studio2-feature-flags-admin'] });
       await queryClient.invalidateQueries({ queryKey: ['studio2-feature'] });
     },
   });
 
-  const rows = flagsQuery.data ?? [];
   const enabledCount = rows.filter((row) => row.enabled).length;
   const productSurfaceCount = STUDIO2_PRODUCT_SURFACE_LIST.filter((surface) => surface.state === 'product_surface').length;
   const plannedCount = STUDIO2_PRODUCT_SURFACE_LIST.filter((surface) => surface.state === 'planned').length;
@@ -114,7 +136,7 @@ function FeatureRolloutPage() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2"
           title="Feature rollout"
-          description="Control live rollout while keeping product surfaces, shared foundations and unfinished work visibly distinct. Planned and externally owned features cannot be enabled from this page."
+          description="Control live rollout while keeping product surfaces, shared foundations and unfinished work visibly distinct. Planned and externally owned features cannot be enabled, and active dependencies cannot be broken."
         />
 
         <div className="grid gap-4 md:grid-cols-4">
@@ -131,10 +153,10 @@ function FeatureRolloutPage() {
             <p className="mt-2 text-sm text-muted-foreground">Reserved flags that remain rollout-locked until their product slice exists.</p>
           </AdminCard>
           <AdminCard>
-            <AdminCardHeader eyebrow="Safety" title="Fail closed" />
+            <AdminCardHeader eyebrow="Safety" title="Dependency-safe" />
             <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               <ShieldCheck className="size-4" />
-              Unknown, unfinished and disabled features stay unavailable.
+              Rollout cannot enable missing dependencies or disable foundations still in use.
             </div>
           </AdminCard>
         </div>
@@ -153,8 +175,12 @@ function FeatureRolloutPage() {
               {rows.map((row) => {
                 const surface = studio2SurfaceFor(row.key);
                 const busy = toggleFlag.isPending && toggleFlag.variables?.row.key === row.key;
-                const enableAllowed = studio2SurfaceRolloutEligible(surface);
-                const toggleAllowed = row.enabled || enableAllowed;
+                const missingDependencies = studio2MissingDependencies(row.key, enabledKeys);
+                const activeDependents = studio2EnabledDependents(row.key, enabledKeys);
+                const rolloutEligible = studio2SurfaceRolloutEligible(surface);
+                const enableAllowed = rolloutEligible && missingDependencies.length === 0;
+                const disableAllowed = activeDependents.length === 0;
+                const toggleAllowed = row.enabled ? disableAllowed : enableAllowed;
 
                 return (
                   <div key={row.key} className="flex flex-col gap-4 py-4 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between">
@@ -172,6 +198,16 @@ function FeatureRolloutPage() {
                         <span>{row.user_ids.length ? `${row.user_ids.length} user restriction(s)` : 'All eligible users'}</span>
                         {surface.dependsOn?.length ? <><span>·</span><span>Depends on {surface.dependsOn.map((key) => studio2SurfaceFor(key).label).join(', ')}</span></> : null}
                       </div>
+                      {!row.enabled && missingDependencies.length ? (
+                        <p className="mt-2 text-xs font-medium text-amber-200">
+                          Enable first: {missingDependencies.map((key) => studio2SurfaceFor(key).label).join(', ')}
+                        </p>
+                      ) : null}
+                      {row.enabled && activeDependents.length ? (
+                        <p className="mt-2 text-xs font-medium text-sky-100">
+                          Required by: {activeDependents.map((key) => studio2SurfaceFor(key).label).join(', ')}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -193,10 +229,14 @@ function FeatureRolloutPage() {
                         {busy
                           ? 'Saving…'
                           : row.enabled
-                            ? 'Disable'
-                            : enableAllowed
-                              ? 'Enable'
-                              : 'Rollout locked'}
+                            ? disableAllowed
+                              ? 'Disable'
+                              : 'Required by active features'
+                            : !rolloutEligible
+                              ? 'Rollout locked'
+                              : missingDependencies.length
+                                ? 'Enable prerequisites first'
+                                : 'Enable'}
                       </button>
                     </div>
                   </div>
