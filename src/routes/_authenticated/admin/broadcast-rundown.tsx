@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { ArrowDown, ArrowUp, Clock3, Plus, Save, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
-import { buildBroadcastRundown, type BroadcastRundownSegment } from '@/lib/broadcast-rundown';
+import { buildBroadcastRundown, type RundownSegment } from '@/lib/broadcast-rundown';
 import { useShows } from '@/lib/data';
 import {
   createDefaultBroadcastRundown,
@@ -66,7 +66,7 @@ function BroadcastRundownPage() {
   const calculated = useMemo(() => {
     if (!draft) return null;
     try {
-      return buildBroadcastRundown(draft.segments, draft.startAt);
+      return buildBroadcastRundown(draft.startAt, draft.segments);
     } catch {
       return null;
     }
@@ -74,7 +74,7 @@ function BroadcastRundownPage() {
 
   const selectedShow = shows.find((show) => show.id === showId) ?? null;
 
-  const updateSegment = (index: number, patch: Partial<BroadcastRundownSegment>) => {
+  const updateSegment = (index: number, patch: Partial<RundownSegment>) => {
     setDraft((current) => current ? {
       ...current,
       segments: current.segments.map((segment, segmentIndex) => segmentIndex === index ? { ...segment, ...patch } : segment),
@@ -89,7 +89,7 @@ function BroadcastRundownPage() {
         ...current,
         segments: [...current.segments, {
           id: `segment-${Date.now()}-${sequence}`,
-          title: `New segment ${sequence}`,
+          label: `New segment ${sequence}`,
           status: 'planned',
           plannedDurationSeconds: 300,
         }],
@@ -203,8 +203,8 @@ function BroadcastRundownPage() {
                         <label className="space-y-1 text-sm">
                           <span className="text-xs text-muted-foreground">Segment</span>
                           <input
-                            value={segment.title}
-                            onChange={(event) => updateSegment(index, { title: event.target.value })}
+                            value={segment.label}
+                            onChange={(event) => updateSegment(index, { label: event.target.value })}
                             className="min-h-10 w-full rounded-lg border border-white/[0.08] bg-background px-3 font-semibold"
                           />
                         </label>
@@ -246,7 +246,7 @@ function BroadcastRundownPage() {
                     {calculated.segments.map((segment, index) => (
                       <tr key={segment.id}>
                         <td className="py-3 text-muted-foreground">{index + 1}</td>
-                        <td className="py-3 font-semibold">{segment.title}</td>
+                        <td className="py-3 font-semibold">{segment.label}</td>
                         <td className="py-3 tabular-nums">{formatClock(segment.plannedStartedAt)}</td>
                         <td className="py-3 tabular-nums">{formatClock(segment.estimatedStartedAt)}</td>
                         <td className="py-3 tabular-nums">{formatClock(segment.plannedCompletedAt)}</td>
@@ -273,11 +273,11 @@ function Metric({ label, value, tone = 'neutral' }: { label: string; value: stri
   );
 }
 
-function IconButton({ label, disabled = false, onClick, children }: { label: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
+function IconButton({ label, disabled = false, onClick, children }: { label: string; disabled?: boolean; onClick: () => void; children: ReactNode }) {
   return <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className="grid size-10 place-items-center rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] disabled:opacity-30">{children}</button>;
 }
 
-function statusTone(status: BroadcastRundownSegment['status']): 'neutral' | 'info' | 'attention' | 'ready' {
+function statusTone(status: RundownSegment['status']): 'neutral' | 'info' | 'attention' | 'ready' {
   if (status === 'completed') return 'ready';
   if (status === 'live') return 'attention';
   if (status === 'ready') return 'info';
