@@ -20,6 +20,7 @@ export type EntryReadinessModel = {
   passedChecks: number;
   totalChecks: number;
   blockerCount: number;
+  dependencyBlockedCount: number;
   warningCount: number;
   completedWorkflowTasks: number;
   totalWorkflowTasks: number;
@@ -65,7 +66,10 @@ export function buildEntryReadinessModel(
   const workflowActions = nextTasks.map(workflowAction);
   const actions = [...eligibilityActions, ...workflowActions];
 
-  const blockerCount = eligibility.blockers.length + workflow.blockedCount;
+  // Dependency-blocked workflow tasks are normal future steps, not entry-level
+  // hard blockers. Only failed eligibility checks stop the entry itself.
+  const blockerCount = eligibility.blockers.length;
+  const dependencyBlockedCount = workflow.blockedCount;
   const warningCount = eligibility.warnings.length + workflow.overdueCount;
   const status: EntryReadinessStatus = blockerCount > 0
     ? 'blocked'
@@ -81,6 +85,7 @@ export function buildEntryReadinessModel(
     passedChecks,
     totalChecks: eligibility.checks.length,
     blockerCount,
+    dependencyBlockedCount,
     warningCount,
     completedWorkflowTasks,
     totalWorkflowTasks: workflow.tasks.length,
