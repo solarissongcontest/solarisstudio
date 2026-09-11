@@ -89,9 +89,9 @@ describe('Studio 2 workflow operations model', () => {
     const entry = model.workflows.find((workflow) => workflow.id === 'entry:participant-1');
     expect(entry?.countryName).toBe('Oland');
     expect(entry?.owner).toBe('delegation');
-    expect(entry?.status).toBe('blocked');
+    expect(entry?.status).toBe('ready');
     expect(entry?.tasks.find((task) => task.id === 'entry.song-info')?.effectiveStatus).toBe('ready');
-    expect(entry?.tasks.find((task) => task.id === 'entry.running-order')?.effectiveStatus).toBe('blocked');
+    expect(entry?.tasks.find((task) => task.id === 'entry.running-order')?.effectiveStatus).toBe('ready');
 
     const showWorkflow = model.workflows.find((workflow) => workflow.id === 'show:show-1');
     expect(showWorkflow?.href).toBe('/admin/broadcast-rundown');
