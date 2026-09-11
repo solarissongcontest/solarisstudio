@@ -18,6 +18,14 @@ const hardening = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911160900_integrity_evidence_interface_hardening.sql"),
   "utf8",
 );
+const signedBoundary = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161400_integrity_evidence_signed_url_boundary.sql"),
+  "utf8",
+);
+const downloadFunction = readFileSync(
+  resolve(process.cwd(), "supabase/functions/integrity-evidence-download/index.ts"),
+  "utf8",
+);
 const api = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-evidence.ts"),
   "utf8",
@@ -45,13 +53,14 @@ describe("Integrity evidence lifecycle", () => {
     expect(vault).toContain("text/plain");
   });
 
-  it("never grants anonymous direct evidence reads", () => {
+  it("removes final browser SELECT access to private evidence objects", () => {
     expect(vault).toContain('create policy "integrity evidence protected read"');
-    expect(vault).toContain("on storage.objects for select to authenticated");
-    expect(vault).not.toContain("on storage.objects for select to anon");
+    expect(signedBoundary).toContain('drop policy if exists "integrity evidence protected read" on storage.objects');
+    expect(signedBoundary).toContain("revoke all on function public.integrity_can_read_evidence_object(text) from authenticated");
+    expect(signedBoundary).not.toContain("grant execute");
   });
 
-  it("requires protected evidence to be explicitly reporter-visible before storage read", () => {
+  it("keeps the pre-signing reporter policy narrow while migrations transition to server signing", () => {
     expect(lifecycle).toContain("join public.integrity_case_evidence e");
     expect(lifecycle).toContain("e.storage_path = _name");
     expect(lifecycle).toContain("e.visible_to_reporter = true");
@@ -67,11 +76,23 @@ describe("Integrity evidence lifecycle", () => {
     expect(lifecycle).toContain("admin_integrity_evidence_access_descriptor");
   });
 
-  it("logs download requests before minting short-lived signed URLs", () => {
+  it("authorizes and logs the request before the server mints a 60-second signed URL", () => {
     expect(lifecycle).toContain("insert into public.integrity_evidence_access_log");
-    expect(api).toContain('_action: "download_requested"');
-    expect(api).toContain("createSignedUrl(descriptor.storage_path, 60");
-    expect(api).toContain("expiresInSeconds: 60");
+    expect(downloadFunction).toContain('_action: "download_requested"');
+    expect(downloadFunction).toContain('"reporter_integrity_evidence_access_descriptor"');
+    expect(downloadFunction).toContain('"admin_integrity_evidence_access_descriptor"');
+    expect(downloadFunction).toContain("service.storage");
+    expect(downloadFunction).toContain("createSignedUrl(descriptor.storage_path, SIGNED_URL_TTL_SECONDS");
+    expect(downloadFunction).toContain("const SIGNED_URL_TTL_SECONDS = 60");
+  });
+
+  it("keeps service credentials and storage paths inside the Edge Function boundary", () => {
+    expect(downloadFunction).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
+    expect(downloadFunction).toContain("descriptor.storage_path");
+    expect(downloadFunction).not.toContain("storage_path: descriptor.storage_path");
+    expect(api).toContain('supabase.functions.invoke("integrity-evidence-download"');
+    expect(api).not.toContain("createSignedUrl(");
+    expect(api).not.toContain("storage_path");
   });
 
   it("lets protected reporters retrieve visible files only through the audited signed-download API", () => {
