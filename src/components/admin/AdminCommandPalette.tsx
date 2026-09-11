@@ -3,6 +3,7 @@ import { Command, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { editionLabel, useEditions } from "@/lib/data";
+import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { useAdminContext } from "./AdminContext";
 
 const FIXED = [
@@ -19,6 +20,12 @@ const FIXED = [
   ["Voting integrity declarations", "/televoting/admin/integrity-declarations", "Voting", "signed declarations attestations evidence review"],
   ["Friend-voting intelligence", "/admin/friend-voting", "Voting", "relationships reciprocity network signals"],
   ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout voting numbers"],
+  ["Integrity investigations", "/admin/integrity-investigations", "Integrity", "cases reports investigations findings rules evidence"],
+  ["Integrity appeals", "/admin/integrity-appeals", "Integrity", "appeals fresh review sanction decision extension"],
+  ["Evidence lifecycle", "/admin/integrity-evidence", "Integrity", "evidence files retention deletion signed access cleanup"],
+  ["Identity access", "/admin/integrity-identity", "Integrity", "sealed confidential identity break glass disclosure"],
+  ["Rules manager", "/admin/rules-manager", "Governance", "rulebook versions drafts publish regulation changes"],
+  ["Official interpretations", "/admin/rule-interpretations", "Governance", "rules interpretations rulings clarification precedent publish"],
   ["Country accounts", "/admin/country-accounts", "Administration", "country account access"],
   ["HOD history", "/admin/hod-history", "Administration", "delegation manager history"],
   ["Predictions", "/admin/predictions", "Administration", "prediction rounds"],
@@ -133,6 +140,36 @@ export function AdminCommandPalette() {
       `${item.label} ${item.group} ${item.keywords}`.toLowerCase().includes(needle),
   );
 
+  const publicGovernanceResults = useMemo(
+    () => searchGovernanceLibrary(query).slice(0, query.trim() ? 10 : 5),
+    [query],
+  );
+
+  const mergedResults = useMemo(() => {
+    const organizerResults = filtered.map((item) => ({
+      label: item.label,
+      href: item.href,
+      group: item.group,
+      description: "",
+      source: "organizer" as const,
+    }));
+    const publicResults = publicGovernanceResults.map((item) => ({
+      label: item.title,
+      href: item.to,
+      group: item.group,
+      description: item.description,
+      source: "library" as const,
+    }));
+
+    const seen = new Set<string>();
+    return [...publicResults, ...organizerResults].filter((item) => {
+      const key = `${item.href}|${item.label}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [filtered, publicGovernanceResults]);
+
   return (
     <>
       <button
@@ -160,7 +197,7 @@ export function AdminCommandPalette() {
                 autoFocus
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search sections, editions or tools…"
+                placeholder="Search Solaris, rules, cases or tools…"
                 className="min-h-14 min-w-0 flex-1 bg-transparent text-sm outline-none"
               />
               <button
@@ -174,22 +211,29 @@ export function AdminCommandPalette() {
             </div>
 
             <div className="max-h-[68dvh] overflow-y-auto p-2 scroll-slim">
-              {filtered.slice(0, 24).map((item) => (
+              {mergedResults.slice(0, 30).map((item) => (
                 <Link
                   key={`${item.group}-${item.href}-${item.label}`}
                   to={item.href as any}
                   onClick={() => setOpen(false)}
                   className="flex min-h-13 items-center rounded-xl px-3 transition hover:bg-white/[0.045]"
                 >
-                  <span className="min-w-0">
+                  <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{item.label}</span>
-                    <span className="mt-0.5 block text-[10px] font-semibold text-muted-foreground">{item.group}</span>
+                    {item.description ? (
+                      <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-muted-foreground">
+                        {item.description}
+                      </span>
+                    ) : null}
+                    <span className="mt-0.5 block text-[10px] font-semibold text-muted-foreground">
+                      {item.group}{item.source === "library" ? " · Library" : ""}
+                    </span>
                   </span>
                 </Link>
               ))}
-              {!filtered.length ? (
+              {!mergedResults.length ? (
                 <p className="p-7 text-center text-sm text-muted-foreground">
-                  Nothing in Solaris Organizer matches that search.
+                  Nothing in Solaris matches that search.
                 </p>
               ) : null}
             </div>
