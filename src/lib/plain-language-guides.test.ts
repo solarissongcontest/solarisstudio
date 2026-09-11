@@ -37,8 +37,9 @@ describe("Solaris Studio guides and country confirmation access", () => {
     for (const label of ["Overview", "Delegations", "Contest", "Voting", "Publish", "Broadcast", "Administration"])
       expect(adminNav).toContain(`label: "${label}"`);
 
-    expect(adminNav).toContain(">Current edition<");
-    expect(adminNav).toContain(">Workspace<");
+    expect(adminNav).toContain('<NavSection label="Current edition" items={currentEdition}');
+    expect(adminNav).toContain('<NavSection label="Operations" items={operations}');
+    expect(adminNav).toContain('<NavSection label="Workspace" items={workspace}');
     expect(adminNav).not.toContain('label: "More"');
     expect(commandPalette).toContain('["Delegations overview", "/confirmations/admin", "Delegations"');
     expect(commandPalette).toContain('["Public voting overview", "/televoting/admin", "Voting"');
