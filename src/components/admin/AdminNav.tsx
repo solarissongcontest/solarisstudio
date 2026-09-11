@@ -10,6 +10,7 @@ import {
   Flag,
   FlaskConical,
   Gavel,
+  GitBranch,
   History,
   KeyRound,
   LayoutDashboard,
@@ -116,6 +117,12 @@ export function AdminNav() {
       to: "/admin/control-room",
       icon: ShieldAlert,
       active: (path) => path.startsWith("/admin/control-room"),
+    },
+    {
+      label: "Workflows",
+      to: "/admin/workflows",
+      icon: GitBranch,
+      active: (path) => path.startsWith("/admin/workflows"),
     },
     {
       label: "Simulator",
