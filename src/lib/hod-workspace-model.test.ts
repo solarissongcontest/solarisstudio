@@ -42,6 +42,9 @@ describe('HOD workspace model', () => {
     expect(model.actions.map((action) => action.id)).toEqual(
       expect.arrayContaining(['confirmation', 'entry-blocked', 'jury-members', 'official-notices']),
     );
+    expect(model.actions.find((action) => action.id === 'official-notices')?.href).toBe(
+      '/country-hub/notices',
+    );
     expect(model.outstandingAcknowledgements).toBe(1);
     expect(model.readiness).toBeLessThan(50);
   });

@@ -109,7 +109,7 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
       label: 'Acknowledge official notices',
       description: `${unacknowledged.length} TSBC notice${unacknowledged.length === 1 ? '' : 's'} require acknowledgement.`,
       priority: unacknowledged.some((notice) => notice.severity === 'critical') ? 'critical' : 'normal',
-      href: '/my-solaris/messages',
+      href: '/country-hub/notices',
     });
   }
 
