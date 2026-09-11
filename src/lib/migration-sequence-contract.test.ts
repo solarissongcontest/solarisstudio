@@ -24,6 +24,8 @@ const FEATURE_CHAIN = [
   "20260910220400_rule_interpretations.sql",
   "20260910220500_integrity_evidence_lifecycle.sql",
   "20260910220600_integrity_evidence_cleanup.sql",
+  "20260910220700_integrity_sealed_identity_breakglass.sql",
+  "20260910220800_integrity_sealed_identity_expiry.sql",
 ] as const;
 
 describe("Supabase migration sequence", () => {
@@ -77,5 +79,14 @@ describe("Supabase migration sequence", () => {
     expect(vaultPosition).toBeGreaterThanOrEqual(0);
     expect(lifecyclePosition).toBeGreaterThan(vaultPosition);
     expect(cleanupPosition).toBeGreaterThan(lifecyclePosition);
+  });
+
+  it("adds sealed identity break-glass only after protected case governance exists", () => {
+    const governancePosition = migrationFiles.indexOf("20260910213200_integrity_case_governance.sql");
+    const breakglassPosition = migrationFiles.indexOf("20260910220700_integrity_sealed_identity_breakglass.sql");
+    const expiryPosition = migrationFiles.indexOf("20260910220800_integrity_sealed_identity_expiry.sql");
+    expect(governancePosition).toBeGreaterThanOrEqual(0);
+    expect(breakglassPosition).toBeGreaterThan(governancePosition);
+    expect(expiryPosition).toBeGreaterThan(breakglassPosition);
   });
 });
