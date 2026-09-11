@@ -6,6 +6,7 @@ import {
   searchGovernanceLibrary,
 } from "@/lib/public-library-governance";
 import type { RuleInterpretation } from "@/lib/rule-interpretations";
+import type { RulebookRelease } from "@/lib/rules-governance";
 
 const interpretation: RuleInterpretation = {
   id: "interpretation-1",
@@ -19,6 +20,28 @@ const interpretation: RuleInterpretation = {
   effective_from: "2026-09-11T00:00:00Z",
   published_at: "2026-09-11T00:00:00Z",
   superseded_by: null,
+};
+
+const release: RulebookRelease = {
+  id: "release-41",
+  version: "4.1",
+  status: "published",
+  is_current: false,
+  title: "Voting integrity clarifications",
+  summary: "Clarifies how automated review indicators are interpreted.",
+  base_version: "4.0",
+  effective_from: "2026-09-12T00:00:00Z",
+  published_at: "2026-09-11T00:00:00Z",
+  changes: [
+    {
+      id: "change-1",
+      rule_id: "11.5",
+      change_kind: "modified",
+      before_snapshot: null,
+      after_snapshot: { title: "Automated Integrity Analysis", summary: "Automated signals trigger review, not guilt." },
+      rationale: "Make the human-review safeguard explicit.",
+    },
+  ],
 };
 
 describe("public governance Library provider", () => {
@@ -38,6 +61,11 @@ describe("public governance Library provider", () => {
   it("finds the artist-reuse regulation directly", () => {
     const results = searchGovernanceLibrary("artist reuse");
     expect(results.some((result) => result.kind === "rule" && result.to === "/rules/6.6")).toBe(true);
+  });
+
+  it("returns a dedicated chapter result instead of only matching rules inside that chapter", () => {
+    const results = searchGovernanceLibrary("entry eligibility");
+    expect(results.some((result) => result.kind === "chapter" && result.id === "chapter-6")).toBe(true);
   });
 
   it("understands participant shorthand instead of requiring legal wording", () => {
@@ -68,9 +96,22 @@ describe("public governance Library provider", () => {
     expect(searchGovernanceLibrary("statistical friend voting", [draft]).some((result) => result.id === "interpretation-draft-1")).toBe(false);
   });
 
+  it("indexes individual published rulebook releases and their change rationale", () => {
+    const byVersion = searchGovernanceLibrary("v4.1", [], [release]);
+    expect(byVersion.some((result) => result.kind === "release" && result.id === "release-release-41")).toBe(true);
+
+    const byRationale = searchGovernanceLibrary("human review safeguard", [], [release]);
+    expect(byRationale.some((result) => result.kind === "release" && result.id === "release-release-41")).toBe(true);
+  });
+
+  it("never indexes draft rulebook releases", () => {
+    const draft = { ...release, id: "draft-release", version: "4.2-draft", status: "draft" as const };
+    expect(searchGovernanceLibrary("4.2 draft", [], [draft]).some((result) => result.kind === "release")).toBe(false);
+  });
+
   it("never exposes organizer routes through the public Library provider", () => {
     const queries = ["", "rule", "appeal", "integrity", "sanction", "interpretation"];
-    const routes = queries.flatMap((query) => searchGovernanceLibrary(query, [interpretation]).map((result) => result.to));
+    const routes = queries.flatMap((query) => searchGovernanceLibrary(query, [interpretation], [release]).map((result) => result.to));
     expect(routes.some((route) => route.startsWith("/admin"))).toBe(false);
   });
 
