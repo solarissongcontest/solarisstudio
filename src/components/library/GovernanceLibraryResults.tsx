@@ -15,28 +15,33 @@ import {
   type GovernanceLibraryResult,
 } from "@/lib/public-library-governance";
 import type { RuleInterpretation } from "@/lib/rule-interpretations";
+import type { RulebookRelease } from "@/lib/rules-governance";
 import { cn } from "@/lib/utils";
 
 const KIND_ICON: Record<GovernanceLibraryKind, LucideIcon> = {
   destination: BookOpen,
+  chapter: BookOpen,
   rule: Gavel,
   interpretation: FileClock,
+  release: FileClock,
 };
 
 export function GovernanceLibraryResults({
   query,
   interpretations = [],
+  releases = [],
   limit = 12,
   compact = false,
   onNavigate,
 }: {
   query: string;
   interpretations?: RuleInterpretation[];
+  releases?: RulebookRelease[];
   limit?: number;
   compact?: boolean;
   onNavigate?: () => void;
 }) {
-  const results = searchGovernanceLibrary(query, interpretations).slice(0, limit);
+  const results = searchGovernanceLibrary(query, interpretations, releases).slice(0, limit);
   const groups = governanceLibraryGroups(results);
 
   if (!groups.length) return null;
