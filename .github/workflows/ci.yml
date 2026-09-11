@@ -79,21 +79,7 @@ jobs:
         run: bun run typecheck
 
       - name: Unit tests
-        shell: bash
-        run: |
-          set +e
-          bun test 2>&1 | tee unit-test-output.txt
-          status=${PIPESTATUS[0]}
-          exit "$status"
-
-      - name: Upload unit test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-report
-          path: unit-test-output.txt
-          if-no-files-found: error
-          retention-days: 1
+        run: bun test
 
       - name: Prepare exact lint fix candidate
         shell: bash
