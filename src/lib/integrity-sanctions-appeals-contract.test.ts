@@ -10,6 +10,10 @@ const reporterMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910220100_integrity_reporter_appeals.sql"),
   "utf8",
 );
+const extensionMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910220200_integrity_appeal_extensions.sql"),
+  "utf8",
+);
 const portal = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-portal.ts"),
   "utf8",
@@ -20,6 +24,14 @@ const organizerRoute = readFileSync(
 );
 const investigationsRoute = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-investigations.tsx"),
+  "utf8",
+);
+const protectedAppealRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/integrity/appeal.$caseId.tsx"),
+  "utf8",
+);
+const anonymousAppealRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/integrity/anonymous-appeal.tsx"),
   "utf8",
 );
 
@@ -81,13 +93,26 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(reporterMigration).toContain("'appeal_deadline', s.effective_at + interval '48 hours'");
   });
 
-  it("gives protected and anonymous reporters narrow APIs to inspect and submit appeals", () => {
+  it("allows exceptional late-appeal extensions only through an audited organizer action", () => {
+    expect(extensionMigration).toContain("admin_grant_integrity_appeal_extension");
+    expect(extensionMigration).toContain("Only an appeal rejected as late can receive an exceptional deadline extension");
+    expect(extensionMigration).toContain("Exceptional appeal extensions cannot exceed 14 days without a rulebook change");
+    expect(extensionMigration).toContain("extension_granted_by = auth.uid()");
+    expect(extensionMigration).toContain("'appeal.extension_granted'");
+    expect(extensionMigration).toContain("visible_to_reporter");
+  });
+
+  it("gives protected and anonymous reporters narrow APIs and pages to inspect and submit appeals", () => {
     expect(reporterMigration).toContain("reporter_integrity_case_resolution");
     expect(reporterMigration).toContain("public_get_anonymous_integrity_resolution");
     expect(portal).toContain("getProtectedIntegrityResolution");
     expect(portal).toContain("submitProtectedIntegrityAppeal");
     expect(portal).toContain("getAnonymousIntegrityResolution");
     expect(portal).toContain("submitAnonymousIntegrityAppeal");
+    expect(protectedAppealRoute).toContain("submitProtectedIntegrityAppeal");
+    expect(protectedAppealRoute).toContain("48 hours");
+    expect(anonymousAppealRoute).toContain("submitAnonymousIntegrityAppeal");
+    expect(anonymousAppealRoute).toContain("recovery key");
   });
 
   it("prevents duplicate reporter appeals for one sanction", () => {
