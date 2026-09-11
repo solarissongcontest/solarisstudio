@@ -3,10 +3,12 @@ import {
   BookOpen,
   ClipboardCheck,
   Eye,
+  Flag,
   LayoutDashboard,
   Layers3,
   RadioTower,
   Settings2,
+  ShieldAlert,
   Trophy,
   Vote,
   type LucideIcon,
@@ -44,6 +46,12 @@ export function AdminNav() {
       to: "/admin/operations",
       icon: LayoutDashboard,
       active: (path) => path.startsWith("/admin/operations"),
+    },
+    {
+      label: "Control Room",
+      to: "/admin/control-room",
+      icon: ShieldAlert,
+      active: (path) => path.startsWith("/admin/control-room"),
     },
     {
       label: "Delegations",
@@ -104,6 +112,12 @@ export function AdminNav() {
         path.startsWith("/admin/beta") ||
         path.startsWith("/admin/admin-beta") ||
         path.startsWith("/admin/anniversary"),
+    },
+    {
+      label: "Feature rollout",
+      to: "/admin/feature-rollout",
+      icon: Flag,
+      active: (path) => path.startsWith("/admin/feature-rollout"),
     },
     {
       label: "All editions",
