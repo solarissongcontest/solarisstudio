@@ -1,8 +1,96 @@
 begin;
 
 -- Phase 6: enrich the existing HOD context with canonical operational signals.
--- Delegation users still receive only their own country context; organizers may
--- inspect a country through the same RPC, while the UI keeps inspection read-only.
+-- Delegation users still receive only their own country context; organizers and
+-- explicitly scoped country managers may inspect through the same server model.
+create or replace function public.studio2_hod_editions(p_country_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $$
+declare
+  v_actor uuid := auth.uid();
+  v_is_service boolean := coalesce(auth.jwt() ->> 'role', '') = 'service_role';
+  v_is_organizer boolean := false;
+  v_owns_country boolean := false;
+  v_editions jsonb := '[]'::jsonb;
+begin
+  if p_country_id is null then
+    raise exception 'Country id is required' using errcode = '22023';
+  end if;
+
+  v_is_organizer := coalesce(public.has_role(v_actor, 'organizer'::public.app_role), false);
+  v_owns_country := coalesce(public.owns_country(v_actor, p_country_id), false);
+
+  if not v_is_service
+     and not v_is_organizer
+     and not v_owns_country
+     and not exists (
+       select 1
+       from public.editions access_edition
+       where private.studio2_user_has_capability(
+         v_actor,
+         'confirmation.manage',
+         access_edition.id
+       )
+         and (
+           exists (
+             select 1
+             from public.participants p
+             where p.edition_id = access_edition.id
+               and p.country_id = p_country_id
+           )
+           or exists (
+             select 1
+             from public.entries en
+             where en.edition_id = access_edition.id
+               and en.country_id = p_country_id
+           )
+         )
+     ) then
+    raise exception 'Country ownership or country-management capability required' using errcode = '42501';
+  end if;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', e.id,
+        'name', e.name,
+        'editionNumber', e.edition_number,
+        'status', e.status
+      ) order by e.edition_number desc nulls last, e.created_at desc
+    ),
+    '[]'::jsonb
+  )
+  into v_editions
+  from public.editions e
+  where (
+      exists (
+        select 1
+        from public.participants p
+        where p.edition_id = e.id
+          and p.country_id = p_country_id
+      )
+      or exists (
+        select 1
+        from public.entries en
+        where en.edition_id = e.id
+          and en.country_id = p_country_id
+      )
+    )
+    and (
+      v_is_service
+      or v_is_organizer
+      or v_owns_country
+      or private.studio2_user_has_capability(v_actor, 'confirmation.manage', e.id)
+    );
+
+  return v_editions;
+end
+$$;
+
 create or replace function public.studio2_hod_context(
   p_edition_id uuid,
   p_country_id uuid
@@ -17,6 +105,7 @@ declare
   v_actor uuid := auth.uid();
   v_is_service boolean := coalesce(auth.jwt() ->> 'role', '') = 'service_role';
   v_is_organizer boolean := false;
+  v_can_manage_country boolean := false;
   v_edition_name text;
   v_country_name text;
   v_participant_status text;
@@ -36,11 +125,16 @@ begin
   end if;
 
   v_is_organizer := coalesce(public.has_role(v_actor, 'organizer'::public.app_role), false);
+  v_can_manage_country := coalesce(
+    private.studio2_user_has_capability(v_actor, 'confirmation.manage', p_edition_id),
+    false
+  );
 
   if not v_is_service
      and not v_is_organizer
+     and not v_can_manage_country
      and not public.owns_country(v_actor, p_country_id) then
-    raise exception 'Country ownership or organizer role required' using errcode = '42501';
+    raise exception 'Country ownership or country-management capability required' using errcode = '42501';
   end if;
 
   select e.name
@@ -125,8 +219,8 @@ begin
   into v_jury_ballot_submitted;
 
   -- HOD context is a delegation surface, so only delegation-addressable notices
-  -- belong here. Organizer inspection evaluates the target country rather than
-  -- the organizer's own broad notice visibility or receipt state.
+  -- belong here. Organizer/country-manager inspection evaluates the target country
+  -- rather than the inspector's broad notice visibility or personal receipt state.
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
@@ -135,7 +229,7 @@ begin
         'severity', n.severity,
         'acknowledgementRequired', n.acknowledgement_required,
         'acknowledged', case
-          when v_is_service or v_is_organizer then exists (
+          when v_is_service or v_is_organizer or v_can_manage_country then exists (
             select 1
             from public.studio2_notice_receipts r
             join public.country_accounts ca on ca.user_id = r.recipient_user_id
@@ -266,6 +360,11 @@ begin
   );
 end
 $$;
+
+revoke all on function public.studio2_hod_editions(uuid)
+  from public, anon, authenticated;
+grant execute on function public.studio2_hod_editions(uuid)
+  to authenticated, service_role;
 
 revoke all on function public.studio2_hod_context(uuid, uuid)
   from public, anon, authenticated;
