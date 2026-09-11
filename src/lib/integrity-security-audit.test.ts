@@ -26,8 +26,16 @@ const evidenceBoundary = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911161400_integrity_evidence_signed_url_boundary.sql"),
   "utf8",
 );
+const evidenceDeletionBoundary = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161500_integrity_evidence_deletion_boundary.sql"),
+  "utf8",
+);
 const evidenceDownloadFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/integrity-evidence-download/index.ts"),
+  "utf8",
+);
+const evidenceLifecycleFunction = readFileSync(
+  resolve(process.cwd(), "supabase/functions/integrity-evidence-lifecycle/index.ts"),
   "utf8",
 );
 const anonymousFns = readFileSync(
@@ -146,8 +154,26 @@ describe("Trust & Integrity privacy boundary audit", () => {
     expect(evidenceDownloadFunction).toContain('descriptor.bucket !== EVIDENCE_BUCKET');
   });
 
-  it("keeps the service role key confined to the Edge Function", () => {
+  it("removes generic organizer browser DELETE access and validates lifecycle deletion server-side", () => {
+    expect(evidence).toContain('create policy "integrity evidence organizer delete"');
+    expect(evidenceDeletionBoundary).toContain('drop policy if exists "integrity evidence organizer delete" on storage.objects');
+    expect(evidenceDeletionBoundary).toContain("admin_integrity_evidence_deletion_descriptor");
+    expect(evidenceDeletionBoundary).toContain("admin_integrity_expired_upload_deletion_descriptor");
+    expect(evidenceLifecycleFunction).toContain("authClient.auth.getUser(token)");
+    expect(evidenceLifecycleFunction).toContain("service.storage");
+    expect(evidenceApi).not.toContain('.remove([');
+  });
+
+  it("does not expose private evidence object paths through browser lifecycle data", () => {
+    expect(evidenceDeletionBoundary).not.toContain("'storage_path', e.storage_path");
+    expect(evidenceDeletionBoundary).not.toContain("'object_path', t.object_path");
+    expect(evidenceApi).not.toContain("storage_path:");
+    expect(evidenceApi).not.toContain("object_path:");
+  });
+
+  it("keeps the service role key confined to evidence Edge Functions", () => {
     expect(evidenceDownloadFunction).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
+    expect(evidenceLifecycleFunction).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
     expect(evidenceApi).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(portal).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
