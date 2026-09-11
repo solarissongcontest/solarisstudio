@@ -34,8 +34,9 @@ function HodWorkspacePage() {
   const countries = useCountries();
   const access = account.data?.access;
   const ownCountry = account.data?.country;
+  const organizerInspection = Boolean(access?.isOrganizer && targetCountryId);
   const organizerCountry =
-    access?.isOrganizer && targetCountryId
+    organizerInspection
       ? (countries.data ?? []).find((candidate) => candidate.id === targetCountryId)
       : undefined;
   const country = organizerCountry ?? ownCountry;
@@ -99,7 +100,13 @@ function HodWorkspacePage() {
   const submitJuror = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const displayName = jurorName.trim();
-    if (!displayName || !country || !editionId || featureQuery.data !== true) return;
+    if (
+      organizerInspection ||
+      !displayName ||
+      !country ||
+      !editionId ||
+      featureQuery.data !== true
+    ) return;
     assignJuror.mutate(displayName);
   };
 
@@ -176,19 +183,37 @@ function HodWorkspacePage() {
       <PageHeader
         eyebrow="Solaris Studio 2"
         title={`${country.name} delegation workspace`}
-        description="One operational view for confirmation, entry readiness, jury work and official TSBC notices."
+        description="One operational view for confirmation, entry readiness, deadlines, jury work, submission review and official TSBC notices."
         actions={
-          <Link
-            to="/country-hub"
-            search={countrySearch}
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
-          >
-            Back to My Solaris
-          </Link>
+          organizerInspection ? (
+            <Link
+              to="/admin"
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
+            >
+              Back to Organizer
+            </Link>
+          ) : (
+            <Link
+              to="/country-hub"
+              search={countrySearch}
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
+            >
+              Back to My Solaris
+            </Link>
+          )
         }
       />
 
       <div className="space-y-5">
+        {organizerInspection ? (
+          <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
+            <p className="text-sm font-semibold">Organizer inspection mode</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              You are inspecting this delegation without impersonating it. Delegation-side jury and acknowledgement mutations are disabled here.
+            </p>
+          </div>
+        ) : null}
+
         <Panel title="Edition" description="The workspace only shows editions linked to this delegation.">
           {editionsQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">Loading delegation editions…</p>
@@ -213,7 +238,7 @@ function HodWorkspacePage() {
           )}
         </Panel>
 
-        {mutationError ? <ErrorText error={mutationError} /> : null}
+        {!organizerInspection && mutationError ? <ErrorText error={mutationError} /> : null}
 
         {editionId && workspaceQuery.isLoading ? (
           <Panel title="Delegation status">
@@ -226,7 +251,10 @@ function HodWorkspacePage() {
         ) : snapshot ? (
           <>
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Readiness" value={`${snapshot.model.readiness}%`} />
+              <MetricCard
+                label="Operational readiness"
+                value={`${snapshot.model.readiness}% · ${readinessLabel(snapshot.model.readinessState)}`}
+              />
               <MetricCard
                 label="Confirmation"
                 value={snapshot.context.confirmationComplete ? 'Complete' : 'Required'}
@@ -242,10 +270,29 @@ function HodWorkspacePage() {
             </section>
 
             <Panel
+              title="Operational readiness"
+              description="The same country-level readiness model is used across delegation and organizer surfaces."
+            >
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                {snapshot.operationalReadiness.signals.map((signal) => (
+                  <div key={signal.id} className="rounded-xl border border-border bg-background/40 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold">{signal.label}</p>
+                      <StatusPill value={signal.state} />
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{signal.message}</p>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel
               title="Priority actions"
               description={
                 snapshot.model.actions.length
-                  ? 'Work these from top to bottom. Critical blockers are intentionally first.'
+                  ? organizerInspection
+                    ? 'These are the actions the delegation currently sees; inspection mode does not perform them.'
+                    : 'Work these from top to bottom. Critical blockers are intentionally first.'
                   : 'No outstanding delegation actions for this edition.'
               }
             >
@@ -270,6 +317,43 @@ function HodWorkspacePage() {
             </Panel>
 
             <Panel
+              title="Deadlines & alerts"
+              description={`${snapshot.operationalReadiness.overdueDeadlines.length} overdue · ${snapshot.operationalReadiness.upcomingDeadlines.length} upcoming · ${snapshot.context.unresolvedOrganizerIssues} organizer-side issue${snapshot.context.unresolvedOrganizerIssues === 1 ? '' : 's'}`}
+            >
+              {snapshot.context.deadlines.length ? (
+                <div className="space-y-2">
+                  {snapshot.context.deadlines.map((deadline) => {
+                    const overdue = snapshot.operationalReadiness.overdueDeadlines.some((item) => item.id === deadline.id);
+                    const completed = Boolean(deadline.completedAt);
+                    return (
+                      <div key={deadline.id} className="rounded-xl border border-border bg-background/40 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold">{deadline.label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Due {formatDateTime(deadline.dueAt)} · {deadline.kind.replace(/_/g, ' ')}
+                            </p>
+                          </div>
+                          <StatusPill value={completed ? 'completed' : overdue ? 'overdue' : 'upcoming'} />
+                        </div>
+                        {deadline.notes ? (
+                          <p className="mt-2 text-xs leading-5 text-muted-foreground">{deadline.notes}</p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No edition deadlines have been published to the delegation workspace.</p>
+              )}
+              {snapshot.context.unresolvedOrganizerIssues ? (
+                <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                  {snapshot.context.unresolvedOrganizerIssues} unresolved delegation/publication incident{snapshot.context.unresolvedOrganizerIssues === 1 ? ' is' : 's are'} being handled by organizers. This is an operational warning, not an instruction for the delegation unless TSBC contacts you.
+                </p>
+              ) : null}
+            </Panel>
+
+            <Panel
               title="Entry workflow"
               description={`${snapshot.workflow.progress}% complete · ${snapshot.workflow.blockedCount} blocked`}
             >
@@ -291,11 +375,43 @@ function HodWorkspacePage() {
             </Panel>
 
             <Panel
+              title="Submission review history"
+              description="Organizer review decisions from the canonical confirmations history for this country and edition."
+            >
+              {snapshot.context.reviewHistory.length ? (
+                <div className="space-y-2">
+                  {snapshot.context.reviewHistory.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-border bg-background/40 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {[item.artist, item.songTitle].filter(Boolean).join(' · ') || 'Submission review'}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {formatDateTime(item.createdAt)} · {item.targetType.replace(/_/g, ' ')}
+                          </p>
+                        </div>
+                        <StatusPill value={item.action} />
+                      </div>
+                      {item.reason ? (
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.reason}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No organizer review decisions are recorded for this delegation in the selected edition.</p>
+              )}
+            </Panel>
+
+            <Panel
               title="Delegation jury"
               description={
                 snapshot.context.juryBallotSubmitted
                   ? 'The jury ballot is submitted. The roster is frozen.'
-                  : `${snapshot.model.jury.assigned}/${snapshot.model.jury.required} jurors assigned.`
+                  : organizerInspection
+                    ? `${snapshot.model.jury.assigned}/${snapshot.model.jury.required} jurors assigned. Organizer inspection is read-only.`
+                    : `${snapshot.model.jury.assigned}/${snapshot.model.jury.required} jurors assigned.`
               }
             >
               <div className="space-y-2">
@@ -305,19 +421,22 @@ function HodWorkspacePage() {
                     className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-2.5"
                   >
                     <span className="text-sm font-medium">{member.displayName}</span>
-                    <button
-                      type="button"
-                      disabled={snapshot.context.juryBallotSubmitted || removeJuror.isPending}
-                      onClick={() => removeJuror.mutate(member.id)}
-                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
+                    {!organizerInspection ? (
+                      <button
+                        type="button"
+                        disabled={snapshot.context.juryBallotSubmitted || removeJuror.isPending}
+                        onClick={() => removeJuror.mutate(member.id)}
+                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
 
-              {!snapshot.context.juryBallotSubmitted &&
+              {!organizerInspection &&
+              !snapshot.context.juryBallotSubmitted &&
               snapshot.model.jury.assigned < snapshot.model.jury.required ? (
                 <form onSubmit={submitJuror} className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <input
@@ -362,7 +481,7 @@ function HodWorkspacePage() {
                             : 'Information only'}
                         </p>
                       </div>
-                      {notice.acknowledgementRequired && !notice.acknowledged ? (
+                      {!organizerInspection && notice.acknowledgementRequired && !notice.acknowledged ? (
                         <button
                           type="button"
                           disabled={acknowledgeNotice.isPending}
@@ -378,6 +497,14 @@ function HodWorkspacePage() {
               ) : (
                 <p className="text-sm text-muted-foreground">No official notices for this edition.</p>
               )}
+              {!organizerInspection ? (
+                <Link
+                  to="/country-hub/notices"
+                  className="mt-3 inline-flex rounded-lg border border-border px-3 py-2 text-xs font-semibold"
+                >
+                  Open notice inbox
+                </Link>
+              ) : null}
             </Panel>
           </>
         ) : null}
@@ -390,7 +517,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-bold">{value}</p>
+      <p className="mt-2 text-xl font-bold">{value}</p>
     </div>
   );
 }
@@ -401,6 +528,22 @@ function StatusPill({ value }: { value: string }) {
       {value.replace(/_/g, ' ')}
     </span>
   );
+}
+
+function readinessLabel(value: string) {
+  if (value === 'ready') return 'Ready';
+  if (value === 'blocked') return 'Blocked';
+  return 'Attention required';
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(date);
 }
 
 function ErrorText({ error }: { error: unknown }) {

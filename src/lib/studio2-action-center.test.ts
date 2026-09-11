@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { getCountryOperationalReadiness } from './country-operational-readiness';
 import type { ContestEvent } from './contest-events';
 import type { Participant, Show } from './data';
 import type { Studio2IncidentRecord, Studio2RuntimeRecord, Studio2TransitionApprovalRecord } from './studio2-persistence';
@@ -58,7 +59,17 @@ const incident: Studio2IncidentRecord = {
   editionId: 'edition-1',
   title: 'Voting outage',
   severity: 'sev1',
+  category: 'voting',
   status: 'open',
+  affectedSystems: ['televote'],
+  description: 'Voting feed is unavailable.',
+  commanderId: null,
+  acknowledgedAt: null,
+  acknowledgedBy: null,
+  resolution: null,
+  postmortem: null,
+  crisisDeclaredAt: null,
+  crisisDeclaredBy: null,
   startedAt: '2026-09-11T10:05:00.000Z',
   resolvedAt: null,
   createdBy: null,
@@ -113,6 +124,54 @@ describe('Studio 2 Action Center', () => {
     expect(model.attention.some((item) => item.id === 'transition:approval-1')).toBe(true);
     expect(model.upcoming.some((item) => item.title.includes('Rehearsals'))).toBe(true);
     expect(model.recent[0]?.title).toBe('Entry changed');
+  });
+
+  it('surfaces the shared country readiness model as organizer work without duplicating the legacy entry alert', () => {
+    const blockedReadiness = getCountryOperationalReadiness({
+      participationConfirmed: false,
+      entryPresent: false,
+      entryEligibility: { status: 'blocked' },
+      entryApproved: false,
+      mediaAvailable: false,
+      juryComplete: false,
+      deadlines: [],
+      unresolvedOrganizerIssues: 0,
+    });
+    const attentionReadiness = getCountryOperationalReadiness({
+      participationConfirmed: true,
+      entryPresent: true,
+      entryEligibility: { status: 'ready' },
+      entryApproved: true,
+      mediaAvailable: true,
+      juryComplete: false,
+      deadlines: [],
+      unresolvedOrganizerIssues: 0,
+    });
+
+    const model = buildStudio2ActionCenter({
+      runtime,
+      incidents: [],
+      approvals: [],
+      participants: [participant],
+      shows: [],
+      recentEvents: [],
+      countryReadiness: [
+        { countryId: 'oland', countryName: 'Oland', readiness: blockedReadiness },
+        { countryId: 'cilestia', countryName: 'Cilestia', readiness: attentionReadiness },
+      ],
+    });
+
+    expect(model.critical).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'country:oland', source: 'country', href: '/admin/countries/oland' }),
+      ]),
+    );
+    expect(model.attention).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'country:cilestia', source: 'country', href: '/admin/countries/cilestia' }),
+      ]),
+    );
+    expect(model.attention.some((item) => item.id === 'entry:incomplete-participants')).toBe(false);
   });
 
   it('does not flag missing entry details before submissions are operationally relevant', () => {
