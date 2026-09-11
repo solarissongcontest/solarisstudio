@@ -18,12 +18,28 @@ const evidence = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910213300_integrity_evidence_vault.sql"),
   "utf8",
 );
+const evidenceLifecycle = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911160500_integrity_evidence_lifecycle.sql"),
+  "utf8",
+);
+const evidenceBoundary = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161400_integrity_evidence_signed_url_boundary.sql"),
+  "utf8",
+);
+const evidenceDownloadFunction = readFileSync(
+  resolve(process.cwd(), "supabase/functions/integrity-evidence-download/index.ts"),
+  "utf8",
+);
 const anonymousFns = readFileSync(
   resolve(process.cwd(), "src/lib/integrity.functions.ts"),
   "utf8",
 );
 const portal = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-portal.ts"),
+  "utf8",
+);
+const evidenceApi = readFileSync(
+  resolve(process.cwd(), "src/lib/integrity-evidence.ts"),
   "utf8",
 );
 
@@ -104,13 +120,36 @@ describe("Trust & Integrity privacy boundary audit", () => {
     expect(reporting).toContain("reporter_reply_integrity_case(_case_id uuid, _body text)");
   });
 
-  it("keeps evidence storage private and token-gated", () => {
+  it("keeps evidence storage private and token-gated for uploads", () => {
     expect(evidence).toContain("insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)");
     expect(evidence).toMatch(/'integrity-evidence',\s*'integrity-evidence',\s*false,/i);
     expect(evidence).toContain("integrity_evidence_upload_tokens");
     expect(evidence).toContain("expires_at > now()");
     expect(evidence).toContain("used_at is null");
     expect(evidence).toContain("bucket_id = 'integrity-evidence'");
+  });
+
+  it("removes authenticated browser SELECT access after audited server-side signing is introduced", () => {
+    expect(evidenceLifecycle).toContain('create policy "integrity evidence protected read"');
+    expect(evidenceBoundary).toContain('drop policy if exists "integrity evidence protected read" on storage.objects');
+    expect(evidenceBoundary).toContain("revoke all on function public.integrity_can_read_evidence_object(text) from authenticated");
+    expect(evidenceApi).not.toContain("createSignedUrl(");
+  });
+
+  it("mints evidence links only after a caller-scoped descriptor RPC records the access request", () => {
+    expect(evidenceDownloadFunction).toContain("authClient.auth.getUser(token)");
+    expect(evidenceDownloadFunction).toContain('"reporter_integrity_evidence_access_descriptor"');
+    expect(evidenceDownloadFunction).toContain('"admin_integrity_evidence_access_descriptor"');
+    expect(evidenceDownloadFunction).toContain('_action: "download_requested"');
+    expect(evidenceDownloadFunction).toContain("service.storage");
+    expect(evidenceDownloadFunction).toContain("SIGNED_URL_TTL_SECONDS = 60");
+    expect(evidenceDownloadFunction).toContain('descriptor.bucket !== EVIDENCE_BUCKET');
+  });
+
+  it("keeps the service role key confined to the Edge Function", () => {
+    expect(evidenceDownloadFunction).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
+    expect(evidenceApi).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(portal).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 
   it("re-encodes image evidence before upload to remove ordinary embedded metadata", () => {
