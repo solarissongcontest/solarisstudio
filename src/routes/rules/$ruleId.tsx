@@ -3,7 +3,8 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { RuleDetail } from "@/components/rules/RulesExperience";
-import { getRuleById } from "@/lib/ssc-rules-v3";
+import { usePublishedRulebook } from "@/lib/rules-governance";
+import { getRuleById } from "@/lib/ssc-rules-v4";
 
 export const Route = createFileRoute("/rules/$ruleId")({
   head: ({ params }) => {
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/rules/$ruleId")({
 
 function RulePage() {
   const { ruleId } = Route.useParams();
+  const published = usePublishedRulebook();
   const rule = getRuleById(ruleId);
 
   if (!rule) {
@@ -62,7 +64,9 @@ function RulePage() {
 
   return (
     <AppShell>
-      <RuleDetail rule={rule} />
+      <div key={published.version}>
+        <RuleDetail rule={rule} />
+      </div>
     </AppShell>
   );
 }
