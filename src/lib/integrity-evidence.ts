@@ -1,12 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 
-type EvidenceDescriptor = {
-  bucket: string;
-  storage_path: string;
-  original_name: string | null;
-  mime_type: string | null;
-};
-
 export type DueEvidenceDeletion = {
   id: string;
   case_id: string;
@@ -37,49 +30,45 @@ export type EvidenceAccessLogItem = {
   created_at: string;
 };
 
+type SignedEvidenceDownload = {
+  url: string;
+  expiresInSeconds: number;
+  originalName: string | null;
+  mimeType: string | null;
+};
+
+type EvidenceDownloadRequest =
+  | { mode: "reporter"; caseId: string; evidenceId: string }
+  | { mode: "organizer"; evidenceId: string };
+
 async function rpc<T>(name: string, args: Record<string, unknown> = {}) {
   const { data, error } = await (supabase as any).rpc(name, args);
   if (error) throw new Error(error.message);
   return data as T;
 }
 
-async function createSignedDownload(descriptor: EvidenceDescriptor) {
-  const { data, error } = await supabase.storage
-    .from(descriptor.bucket)
-    .createSignedUrl(descriptor.storage_path, 60, {
-      download: descriptor.original_name || true,
-    });
-  if (error) throw new Error(error.message);
-  if (!data?.signedUrl) throw new Error("Could not create a signed evidence URL.");
-  return {
-    url: data.signedUrl,
-    expiresInSeconds: 60,
-    originalName: descriptor.original_name,
-    mimeType: descriptor.mime_type,
-  };
+async function createSignedDownload(request: EvidenceDownloadRequest) {
+  const { data, error } = await supabase.functions.invoke("integrity-evidence-download", {
+    body: request,
+  });
+  if (error) throw new Error(error.message || "Could not create a secure evidence download.");
+
+  const result = data as SignedEvidenceDownload | { error?: string } | null;
+  if (!result || "error" in result) {
+    throw new Error(result?.error || "Could not create a secure evidence download.");
+  }
+  if (!result.url || result.expiresInSeconds !== 60) {
+    throw new Error("Evidence download service returned an invalid secure link.");
+  }
+  return result;
 }
 
 export async function getProtectedEvidenceDownloadUrl(caseId: string, evidenceId: string) {
-  const descriptor = await rpc<EvidenceDescriptor>(
-    "reporter_integrity_evidence_access_descriptor",
-    {
-      _case_id: caseId,
-      _evidence_id: evidenceId,
-      _action: "download_requested",
-    },
-  );
-  return createSignedDownload(descriptor);
+  return createSignedDownload({ mode: "reporter", caseId, evidenceId });
 }
 
 export async function getOrganizerEvidenceDownloadUrl(evidenceId: string) {
-  const descriptor = await rpc<EvidenceDescriptor>(
-    "admin_integrity_evidence_access_descriptor",
-    {
-      _evidence_id: evidenceId,
-      _action: "download_requested",
-    },
-  );
-  return createSignedDownload(descriptor);
+  return createSignedDownload({ mode: "organizer", evidenceId });
 }
 
 export async function setCaseEvidenceRetention(
