@@ -40,13 +40,26 @@ type ResponseRow = {
   instagram_username: string;
   participating: boolean;
   selection_method: string | null;
-  edit_count: number;
   updated_at: string;
   editions: { id: string; name: string; edition_number: number } | null;
   submission_rounds: { id: string; name: string; edition_id: string } | null;
 };
 
-type ResponseDetail = ResponseRow & {
+type VersionSummaryRow = {
+  submission_id: string;
+  version_count: number;
+  latest_created_at: string | null;
+};
+
+type VersionedResponseRow = ResponseRow & {
+  versionCount: number;
+  latestVersionAt: string | null;
+};
+
+type ResponseDetail = {
+  id: string;
+  participating: boolean;
+  selection_method: string | null;
   entry_unknown: boolean;
   nf_entries_unknown: boolean;
   reveal_date_type: string | null;
@@ -68,10 +81,33 @@ type ResponseDetail = ResponseRow & {
   } | null;
 };
 
-async function loadResponses(): Promise<ResponseRow[]> {
-  const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_responses');
-  if (error) throw error;
-  return Array.isArray(data) ? data as unknown as ResponseRow[] : [];
+async function loadResponses(): Promise<VersionedResponseRow[]> {
+  const [responsesResult, summaryResult] = await Promise.all([
+    confirmationsSupabase.rpc('admin_confirmation_responses'),
+    confirmationsSupabase.rpc('admin_confirmation_version_summary'),
+  ]);
+
+  if (responsesResult.error) throw responsesResult.error;
+  if (summaryResult.error) throw summaryResult.error;
+
+  const responses = Array.isArray(responsesResult.data)
+    ? responsesResult.data as unknown as ResponseRow[]
+    : [];
+  const summaries = Array.isArray(summaryResult.data)
+    ? summaryResult.data as unknown as VersionSummaryRow[]
+    : [];
+  const bySubmission = new Map(
+    summaries.map((item) => [item.submission_id, item] as const),
+  );
+
+  return responses.map((row) => {
+    const summary = bySubmission.get(row.id);
+    return {
+      ...row,
+      versionCount: Number(summary?.version_count ?? 0),
+      latestVersionAt: summary?.latest_created_at ?? null,
+    };
+  });
 }
 
 async function loadResponse(id: string): Promise<ResponseDetail> {
@@ -102,7 +138,6 @@ function currentSnapshot(detail: ResponseDetail): SubmissionSnapshot {
     internal: detail.internal_entry,
     national_final: detail.national_final
       ? {
-          id: detail.national_final.id,
           nf_name: detail.national_final.nf_name,
           expected_entry_count: detail.national_final.expected_entry_count,
           winning_entry_id: detail.national_final.winning_entry_id,
@@ -125,14 +160,18 @@ function SubmissionVersionsPage() {
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     return rows
-      .filter((row) => row.edit_count > 0)
+      .filter((row) => row.versionCount > 0)
       .filter((row) => !term || [
         row.country,
         row.instagram_username,
         row.editions?.name ?? '',
         row.submission_rounds?.name ?? '',
       ].join(' ').toLowerCase().includes(term))
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      .sort((a, b) => {
+        const aTime = new Date(a.latestVersionAt ?? a.updated_at).getTime();
+        const bTime = new Date(b.latestVersionAt ?? b.updated_at).getTime();
+        return bTime - aTime;
+      });
   }, [query, rows]);
 
   const activeId = selectedId || filtered[0]?.id || '';
@@ -171,7 +210,7 @@ function SubmissionVersionsPage() {
         {responsesQuery.isLoading ? (
           <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading edited submissions…</p></AdminCard>
         ) : responsesQuery.error ? (
-          <AdminCard><AdminEmptyState icon={History} title="Submission history unavailable" description="The confirmation response index could not be loaded." /></AdminCard>
+          <AdminCard><AdminEmptyState icon={History} title="Submission history unavailable" description="The confirmation response index or version summary could not be loaded." /></AdminCard>
         ) : !filtered.length ? (
           <AdminCard><AdminEmptyState icon={History} title="No edited submissions" description={query ? 'No edited response matches this search.' : 'No confirmation response currently has captured edits.'} /></AdminCard>
         ) : (
@@ -195,7 +234,7 @@ function SubmissionVersionsPage() {
                             {row.editions ? `SSC ${row.editions.edition_number}` : 'SSC'} · {row.submission_rounds?.name ?? 'Confirmation'}
                           </p>
                         </div>
-                        <AdminStatus tone={active ? 'info' : 'neutral'}>{row.edit_count} {row.edit_count === 1 ? 'edit' : 'edits'}</AdminStatus>
+                        <AdminStatus tone={active ? 'info' : 'neutral'}>{row.versionCount} {row.versionCount === 1 ? 'edit' : 'edits'}</AdminStatus>
                       </div>
                     </button>
                   );
