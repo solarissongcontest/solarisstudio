@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { getRuleContext, type RuleContextKey } from "@/lib/rule-context";
 import { getRuleById, type RuleTone, type SscRule } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,16 @@ export type RuleContext = {
   icon: LucideIcon;
 };
 
+const CONTEXT_ICON: Record<RuleContextKey, LucideIcon> = {
+  confirmations: BookOpen,
+  televoting: ShieldCheck,
+  "voting-integrity": ShieldCheck,
+  jury: Scale,
+  integrity: ShieldCheck,
+  entries: BookOpen,
+  "hosting-media": BookOpen,
+};
+
 const TONE: Record<RuleTone, { label: string; icon: LucideIcon; className: string }> = {
   allowed: { label: "Allowed", icon: CheckCircle2, className: "border-emerald-300/20 bg-emerald-300/10 text-emerald-100" },
   prohibited: { label: "Not allowed", icon: XCircle, className: "border-rose-300/20 bg-rose-300/10 text-rose-100" },
@@ -38,63 +49,14 @@ const TONE: Record<RuleTone, { label: string; icon: LucideIcon; className: strin
 };
 
 export function routeContext(pathname: string): RuleContext | null {
-  if (pathname.startsWith("/confirmations")) {
-    return {
-      title: "Confirmation rules",
-      intro: "The rules that decide opening time, server order, automation and what information must be supplied immediately.",
-      ruleIds: ["4.3", "4.4", "4.6", "4.7", "12.1", "12.2", "20.1"],
-      icon: BookOpen,
-    };
-  }
-  if (pathname.startsWith("/televoting")) {
-    return {
-      title: "Televoting rules",
-      intro: "Official-system voting, duplicate or invalid votes, independence and integrity review.",
-      ruleIds: ["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"],
-      icon: ShieldCheck,
-    };
-  }
-  if (pathname.startsWith("/admin/friend-voting") || pathname.startsWith("/admin/jury-integrity")) {
-    return {
-      title: "Voting-integrity rules",
-      intro: "Friendships are allowed. Coordination is not. Statistical and automated signals only decide what deserves human review.",
-      ruleIds: ["11.2", "11.3", "11.4", "11.5", "11.6", "11.7", "16.5", "16.6"],
-      icon: ShieldCheck,
-    };
-  }
-  if (pathname.startsWith("/jury-voting") || pathname.startsWith("/admin/jury")) {
-    return {
-      title: "Jury rules",
-      intro: "How jury rankings stay independent and how integrity concerns are reviewed without treating a flag as guilt.",
-      ruleIds: ["9.1", "9.2", "11.2", "11.4", "11.5", "11.7"],
-      icon: Scale,
-    };
-  }
-  if (pathname.startsWith("/admin/integrity")) {
-    return {
-      title: "Investigation rules",
-      intro: "Protected reporting, evidence handling, findings, sanctions and conflicts of interest for organizer review.",
-      ruleIds: ["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"],
-      icon: ShieldCheck,
-    };
-  }
-  if (pathname.startsWith("/participate") || pathname.startsWith("/admin/entries") || pathname.startsWith("/admin/participant-status")) {
-    return {
-      title: "Entry rules",
-      intro: "Song and artist eligibility, objective popularity checks, reuse history and official verification.",
-      ruleIds: ["6.1", "6.2", "6.3", "6.4", "6.5", "6.6", "6.10"],
-      icon: BookOpen,
-    };
-  }
-  if (pathname.startsWith("/admin/design") || pathname.startsWith("/admin/edition-theme")) {
-    return {
-      title: "Hosting & media rules",
-      intro: "Creative hosting rights, TSBC operational authority, third-party rights, branding and AI-assisted production.",
-      ruleIds: ["8.1", "8.2", "8.4", "13.1", "13.2", "13.3", "13.5"],
-      icon: BookOpen,
-    };
-  }
-  return null;
+  const context = getRuleContext(pathname);
+  if (!context) return null;
+  return {
+    title: context.title,
+    intro: context.intro,
+    ruleIds: context.ruleIds,
+    icon: CONTEXT_ICON[context.key],
+  };
 }
 
 export function openRuleDrawer(ruleId: string) {
