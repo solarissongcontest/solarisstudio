@@ -46,7 +46,7 @@ describe('Studio 2 Workflows integration', () => {
     expect(model).toContain("href: '/admin/control-room'");
     expect(model).toContain("href: '/admin/broadcast-rundown'");
     expect(model).toContain('/admin/participant-status/');
-    expect(route).toContain('Open authoritative surface');
+    expect(route).toContain('Continue in authoritative tools');
     expect(route).not.toContain('.rpc(');
     expect(route).not.toContain('.insert(');
     expect(route).not.toContain('.update(');
