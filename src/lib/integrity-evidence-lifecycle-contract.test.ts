@@ -18,6 +18,10 @@ const api = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-evidence.ts"),
   "utf8",
 );
+const protectedPortal = readFileSync(
+  resolve(process.cwd(), "src/components/integrity/TrustIntegrityHub.tsx"),
+  "utf8",
+);
 const adminRoute = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-evidence.tsx"),
   "utf8",
@@ -60,6 +64,14 @@ describe("Integrity evidence lifecycle", () => {
     expect(api).toContain('_action: "download_requested"');
     expect(api).toContain("createSignedUrl(descriptor.storage_path, 60");
     expect(api).toContain("expiresInSeconds: 60");
+  });
+
+  it("lets protected reporters retrieve visible files only through the audited signed-download API", () => {
+    expect(protectedPortal).toContain("getProtectedEvidenceDownloadUrl");
+    expect(protectedPortal).toContain("downloadMutation.mutate(item.id)");
+    expect(protectedPortal).toContain("Secure download");
+    expect(protectedPortal).toContain("Audited access · signed link expires after 60 seconds.");
+    expect(protectedPortal).not.toContain("getOrganizerEvidenceDownloadUrl");
   });
 
   it("inherits case retention and supports explicit schedule/cancel lifecycle", () => {
