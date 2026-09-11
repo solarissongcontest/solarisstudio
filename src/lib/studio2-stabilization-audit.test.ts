@@ -2,9 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { SOLARIS_FEATURE_FLAGS } from './feature-flags';
+import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from './feature-flags';
 import {
   STUDIO2_PRODUCT_SURFACES,
+  studio2EnabledDependents,
+  studio2MissingDependencies,
   studio2SurfaceRolloutEligible,
 } from './studio2-product-surfaces';
 
@@ -78,6 +80,35 @@ describe('Studio 2 stabilization contract', () => {
       const shouldBeEligible = surface.state !== 'planned' && surface.state !== 'external_workstream';
       expect(studio2SurfaceRolloutEligible(surface), surface.key).toBe(shouldBeEligible);
     }
+  });
+
+  it('requires declared dependencies before a dependent feature can be enabled', () => {
+    const noDependencies = new Set<SolarisFeatureFlag>();
+    expect(studio2MissingDependencies('live_control_room', noDependencies).sort()).toEqual([
+      'contest_event_engine',
+      'edition_state_engine',
+    ]);
+
+    const controlRoomReady = new Set<SolarisFeatureFlag>(['edition_state_engine', 'contest_event_engine']);
+    expect(studio2MissingDependencies('live_control_room', controlRoomReady)).toEqual([]);
+
+    const simulatorIncomplete = new Set<SolarisFeatureFlag>(['edition_state_engine']);
+    expect(studio2MissingDependencies('edition_simulator', simulatorIncomplete)).toEqual(['live_control_room']);
+  });
+
+  it('protects enabled dependencies from being disabled underneath active features', () => {
+    const enabled = new Set<SolarisFeatureFlag>([
+      'edition_state_engine',
+      'contest_event_engine',
+      'live_control_room',
+      'incident_command',
+      'edition_simulator',
+    ]);
+
+    expect(studio2EnabledDependents('edition_state_engine', enabled)).toEqual(expect.arrayContaining(['live_control_room', 'edition_simulator']));
+    expect(studio2EnabledDependents('live_control_room', enabled)).toEqual(expect.arrayContaining(['incident_command', 'edition_simulator']));
+    expect(studio2EnabledDependents('contest_event_engine', enabled)).toEqual(['live_control_room']);
+    expect(studio2EnabledDependents('incident_command', enabled)).toEqual([]);
   });
 
   it('keeps the separate Rules workstream explicitly isolated', () => {
