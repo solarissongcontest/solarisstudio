@@ -18,12 +18,22 @@ describe("Rules and Integrity navigation", () => {
     expect(root).toContain("<GlobalRulesNavigationAddon />");
   });
 
-  it("puts both public destinations in desktop and mobile navigation", () => {
+  it("puts both public destinations in desktop and mobile quick access", () => {
     expect(addon).toContain('to="/rules"');
     expect(addon).toContain('to="/integrity"');
     expect(addon).toContain("Rules & integrity");
     expect(addon).toContain("Official SSC rules");
     expect(addon).toContain("Trust & Integrity");
+    expect(addon).toContain("lg:hidden");
+    expect(addon).toContain("hidden lg:block");
+  });
+
+  it("uses normal React rendering instead of mutating the AppShell DOM", () => {
+    expect(addon).not.toContain("createPortal");
+    expect(addon).not.toContain("MutationObserver");
+    expect(addon).not.toContain("document.querySelector");
+    expect(addon).not.toContain("document.createElement");
+    expect(addon).not.toContain("data-solaris-rules-nav-host");
   });
 
   it("adds the organizer Integrity workspace and a public Rules shortcut", () => {
