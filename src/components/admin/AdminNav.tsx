@@ -2,24 +2,18 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BookOpen,
   ClipboardCheck,
-  Database,
   Eye,
-  FileClock,
   Flag,
   FlaskConical,
-  Gavel,
   History,
-  KeyRound,
   LayoutDashboard,
   Layers3,
   ListVideo,
   Mail,
-  MessageCircleQuestion,
   PlayCircle,
   RadioTower,
   Settings2,
   ShieldAlert,
-  ShieldCheck,
   Sparkles,
   Trophy,
   Vote,
@@ -113,34 +107,6 @@ export function AdminNav() {
       active: (path) => path.startsWith("/admin/voting-lab"),
     },
     {
-      label: "Integrity",
-      to: "/admin/integrity-investigations",
-      icon: ShieldCheck,
-      active: (path) =>
-        path === "/admin/integrity" ||
-        path.startsWith("/admin/integrity-investigations") ||
-        path.startsWith("/admin/integrity-case/") ||
-        path.startsWith("/admin/integrity-resolution/"),
-    },
-    {
-      label: "Appeals",
-      to: "/admin/integrity-appeals",
-      icon: Gavel,
-      active: (path) => path.startsWith("/admin/integrity-appeals"),
-    },
-    {
-      label: "Evidence",
-      to: "/admin/integrity-evidence",
-      icon: Database,
-      active: (path) => path.startsWith("/admin/integrity-evidence"),
-    },
-    {
-      label: "Identity access",
-      to: "/admin/integrity-identity",
-      icon: KeyRound,
-      active: (path) => path.startsWith("/admin/integrity-identity"),
-    },
-    {
       label: "Reveal Director",
       to: "/admin/results-reveal",
       icon: Sparkles,
@@ -200,24 +166,6 @@ export function AdminNav() {
       to: "/admin",
       icon: Trophy,
       active: (path) => path === "/admin" || path === "/admin/",
-    },
-    {
-      label: "Rules manager",
-      to: "/admin/rules-manager",
-      icon: FileClock,
-      active: (path) => path.startsWith("/admin/rules-manager"),
-    },
-    {
-      label: "Interpretations",
-      to: "/admin/rule-interpretations",
-      icon: MessageCircleQuestion,
-      active: (path) => path.startsWith("/admin/rule-interpretations"),
-    },
-    {
-      label: "Public rules",
-      to: "/rules",
-      icon: BookOpen,
-      active: (path) => path.startsWith("/rules"),
     },
     {
       label: "Guide",
