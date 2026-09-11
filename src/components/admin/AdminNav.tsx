@@ -6,6 +6,7 @@ import {
   Eye,
   FileClock,
   Gavel,
+  KeyRound,
   LayoutDashboard,
   Layers3,
   MessageCircleQuestion,
@@ -100,6 +101,12 @@ export function AdminNav() {
       to: "/admin/integrity-evidence",
       icon: Database,
       active: (path) => path.startsWith("/admin/integrity-evidence"),
+    },
+    {
+      label: "Identity access",
+      to: "/admin/integrity-identity",
+      icon: KeyRound,
+      active: (path) => path.startsWith("/admin/integrity-identity"),
     },
     {
       label: "Publish",
