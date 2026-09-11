@@ -20,6 +20,7 @@ export type Studio2WorkflowOwner = (typeof STUDIO2_WORKFLOW_OWNERS)[number];
 export type Studio2WorkflowInstance = {
   id: string;
   kind: Studio2WorkflowKind;
+  kindLabel?: string;
   title: string;
   entityLabel: string;
   owner: Studio2WorkflowOwner;
@@ -175,6 +176,7 @@ function buildEditionWorkflow(input: Studio2WorkflowInput, now: Date): Studio2Wo
     {
       id: `edition:${edition.id}`,
       kind: 'edition',
+      kindLabel: 'Edition',
       title: 'Edition lifecycle',
       entityLabel: edition.name,
       owner: 'organizer',
@@ -210,6 +212,7 @@ function buildEntryWorkflow(
     {
       id: `entry:${participant.id}`,
       kind: 'entry',
+      kindLabel: 'Entry',
       title: `${title} entry workflow`,
       entityLabel: countryName ?? participant.country_id,
       owner: 'delegation',
@@ -262,6 +265,7 @@ function buildShowWorkflow(
     {
       id: `show:${show.id}`,
       kind: 'show',
+      kindLabel: 'Show',
       title: `${show.name} readiness`,
       entityLabel: show.name,
       owner: 'organizer',
