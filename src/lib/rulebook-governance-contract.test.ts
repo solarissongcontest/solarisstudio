@@ -14,6 +14,10 @@ const validationMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910215000_rulebook_release_validation.sql"),
   "utf8",
 );
+const ancestryMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260910215500_rulebook_ancestry_integrity.sql"),
+  "utf8",
+);
 const runtime = readFileSync(
   resolve(process.cwd(), "src/lib/rules-governance.ts"),
   "utf8",
@@ -32,6 +36,10 @@ const confirmationReceipt = readFileSync(
 );
 const televotingReceipt = readFileSync(
   resolve(process.cwd(), "src/components/televoting/TelevotingBoothWithReceipt.tsx"),
+  "utf8",
+);
+const investigations = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-investigations.tsx"),
   "utf8",
 );
 const navigation = readFileSync(
@@ -81,9 +89,10 @@ describe("rulebook governance contract", () => {
   it("validates release ancestry even when governance RPCs are called directly", () => {
     expect(validationMigration).toContain("Base rulebook version must be a published release");
     expect(validationMigration).toContain("A rulebook release cannot inherit from itself");
-    expect(validationMigration).toContain("with recursive ancestry as");
-    expect(validationMigration).toContain("Rulebook release ancestry contains a cycle");
-    expect(validationMigration).toContain("The draft base version is no longer a published rulebook release");
+    expect(ancestryMigration).toContain("with recursive ancestry as");
+    expect(ancestryMigration).toContain("Rulebook release ancestry contains a cycle");
+    expect(ancestryMigration).toContain("Rulebook release ancestry contains a missing or unpublished base version");
+    expect(ancestryMigration).toContain("Rulebook release ancestry exceeds the supported depth");
   });
 
   it("resolves inherited rule changes across a version chain", () => {
@@ -113,7 +122,9 @@ describe("rulebook governance contract", () => {
     expect(confirmationReceipt).toContain("Confirmation fairness & submission rules");
     expect(confirmationReceipt).toContain('["4.3", "4.4", "4.6", "4.7", "20.1"]');
     expect(televotingReceipt).toContain("Independent voting & integrity");
-    expect(televotingReceipt).toContain('["10.1", "10.2", "11.2", "11.4", "11.5", "11.7"]');
+    expect(televotingReceipt).toContain('["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"]');
+    expect(investigations).toContain("Evidence, findings & investigator independence");
+    expect(investigations).toContain('["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"]');
     expect(navigation).toContain('<ContextualRuleGuide />');
     expect(navigation).toContain('/rules/changes');
   });
