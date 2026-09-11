@@ -30,6 +30,18 @@ const evidenceDeletionBoundary = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911161500_integrity_evidence_deletion_boundary.sql"),
   "utf8",
 );
+const evidenceDisclosure = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161600_integrity_evidence_disclosure.sql"),
+  "utf8",
+);
+const preclearance = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161700_integrity_preclearance_rulings.sql"),
+  "utf8",
+);
+const interpretationSources = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161800_rule_interpretation_case_sources.sql"),
+  "utf8",
+);
 const evidenceDownloadFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/integrity-evidence-download/index.ts"),
   "utf8",
@@ -48,6 +60,14 @@ const portal = readFileSync(
 );
 const evidenceApi = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-evidence.ts"),
+  "utf8",
+);
+const disclosureRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-disclosure.tsx"),
+  "utf8",
+);
+const preclearanceApi = readFileSync(
+  resolve(process.cwd(), "src/lib/integrity-preclearance.ts"),
   "utf8",
 );
 
@@ -113,6 +133,10 @@ describe("Trust & Integrity privacy boundary audit", () => {
       expect(core).toContain(`alter table public.${table} enable row level security`);
       expect(core).toContain(`revoke all on public.${table} from anon, authenticated`);
     }
+    expect(preclearance).toContain("alter table public.integrity_preclearance_rulings enable row level security");
+    expect(preclearance).toContain("revoke all on public.integrity_preclearance_rulings from anon, authenticated");
+    expect(interpretationSources).toContain("alter table public.ssc_rule_interpretation_sources enable row level security");
+    expect(interpretationSources).toContain("revoke all on public.ssc_rule_interpretation_sources from anon, authenticated");
   });
 
   it("prevents ordinary case reviewers from revealing sealed identities", () => {
@@ -126,6 +150,7 @@ describe("Trust & Integrity privacy boundary audit", () => {
     expect(reporting).toContain("reporter_integrity_case(_case_id uuid)");
     expect(reporting).toContain("c.reporter_user_id = auth.uid()");
     expect(reporting).toContain("reporter_reply_integrity_case(_case_id uuid, _body text)");
+    expect(preclearance).toContain("c.id = _case_id and c.reporter_user_id = auth.uid()");
   });
 
   it("keeps evidence storage private and token-gated for uploads", () => {
@@ -169,6 +194,27 @@ describe("Trust & Integrity privacy boundary audit", () => {
     expect(evidenceDeletionBoundary).not.toContain("'object_path', t.object_path");
     expect(evidenceApi).not.toContain("storage_path:");
     expect(evidenceApi).not.toContain("object_path:");
+    expect(disclosureRoute).not.toContain("storage_path");
+  });
+
+  it("creates evidence disclosure copies without mutating original evidence", () => {
+    expect(evidenceDisclosure).toContain("derivative_source_evidence_id");
+    expect(evidenceDisclosure).toContain("disclosure_copy_of_id");
+    expect(evidenceDisclosure).toContain("redacted_from_id");
+    expect(evidenceDisclosure).toContain("Derivative source must belong to the upload case");
+    expect(evidenceDisclosure).not.toMatch(/update public\.integrity_case_evidence\s+set\s+(title|description|storage_path)/i);
+    expect(disclosureRoute).toContain("The source row stays unchanged");
+    expect(disclosureRoute).toContain("getOrganizerEvidenceDownloadUrl");
+  });
+
+  it("keeps private rule-question provenance out of public interpretations", () => {
+    expect(preclearance).toContain("Pre-clearance rulings are only available for private rule questions");
+    expect(interpretationSources).toContain("Only a private rule question can seed an Official Interpretation");
+    expect(interpretationSources).toContain("where r.id = _ruling_id and r.case_id = _case_id");
+    expect(interpretationSources).toContain("v_ruling.summary");
+    expect(interpretationSources).not.toContain("c.details");
+    expect(preclearanceApi).toContain("reporter_integrity_preclearance_rulings");
+    expect(preclearanceApi).not.toContain("integrity_preclearance_rulings\"").toBe(false);
   });
 
   it("keeps the service role key confined to evidence Edge Functions", () => {
@@ -176,6 +222,7 @@ describe("Trust & Integrity privacy boundary audit", () => {
     expect(evidenceLifecycleFunction).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
     expect(evidenceApi).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(portal).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(preclearanceApi).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 
   it("re-encodes image evidence before upload to remove ordinary embedded metadata", () => {
