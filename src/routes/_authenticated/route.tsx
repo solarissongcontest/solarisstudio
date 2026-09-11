@@ -28,7 +28,12 @@ function AuthenticatedLayout() {
   return (
     <>
       <Outlet />
-      {isMySolaris && <MySolarisPortalExtension />}
+      {isMySolaris && (
+        <>
+          <MySolarisPortalExtension />
+          <HodWorkspaceLauncher />
+        </>
+      )}
       {isCountryHub && (
         <>
           <HistoricalNationalFinalManager />
