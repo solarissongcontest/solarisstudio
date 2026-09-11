@@ -34,6 +34,8 @@ const FEATURE_CHAIN = [
   "20260911161400_integrity_evidence_signed_url_boundary.sql",
   "20260911161500_integrity_evidence_deletion_boundary.sql",
   "20260911161600_integrity_evidence_disclosure.sql",
+  "20260911161700_integrity_preclearance_rulings.sql",
+  "20260911161800_rule_interpretation_case_sources.sql",
 ] as const;
 
 const FEATURE_MIGRATION_VERSIONS = new Set(FEATURE_CHAIN.map((name) => name.slice(0, 14)));
@@ -90,10 +92,14 @@ describe("Supabase migration sequence", () => {
     const interpretationPosition = migrationFiles.indexOf("20260911160400_rule_interpretations.sql");
     const supersessionHardeningPosition = migrationFiles.indexOf("20260911161200_rule_interpretation_supersession_hardening.sql");
     const publicationHardeningPosition = migrationFiles.indexOf("20260911161300_rulebook_publication_state_hardening.sql");
+    const preclearancePosition = migrationFiles.indexOf("20260911161700_integrity_preclearance_rulings.sql");
+    const interpretationSourcePosition = migrationFiles.indexOf("20260911161800_rule_interpretation_case_sources.sql");
     expect(rulebookPosition).toBeGreaterThanOrEqual(0);
     expect(interpretationPosition).toBeGreaterThan(rulebookPosition);
     expect(supersessionHardeningPosition).toBeGreaterThan(interpretationPosition);
     expect(publicationHardeningPosition).toBeGreaterThan(rulebookPosition);
+    expect(preclearancePosition).toBeGreaterThan(interpretationPosition);
+    expect(interpretationSourcePosition).toBeGreaterThan(preclearancePosition);
   });
 
   it("adds evidence lifecycle governance only after the private evidence vault exists", () => {
@@ -122,5 +128,15 @@ describe("Supabase migration sequence", () => {
     expect(breakglassPosition).toBeGreaterThan(governancePosition);
     expect(expiryPosition).toBeGreaterThan(breakglassPosition);
     expect(stateHardeningPosition).toBeGreaterThan(expiryPosition);
+  });
+
+  it("adds pre-clearance rulings only after protected cases and links interpretation provenance last", () => {
+    const governancePosition = migrationFiles.indexOf("20260910213200_integrity_case_governance.sql");
+    const interpretationPosition = migrationFiles.indexOf("20260911160400_rule_interpretations.sql");
+    const preclearancePosition = migrationFiles.indexOf("20260911161700_integrity_preclearance_rulings.sql");
+    const sourcePosition = migrationFiles.indexOf("20260911161800_rule_interpretation_case_sources.sql");
+    expect(preclearancePosition).toBeGreaterThan(governancePosition);
+    expect(preclearancePosition).toBeGreaterThan(interpretationPosition);
+    expect(sourcePosition).toBeGreaterThan(preclearancePosition);
   });
 });
