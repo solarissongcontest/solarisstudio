@@ -141,6 +141,8 @@ function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
  * Every version switch resets the in-memory rule objects first. That matters
  * because getRuleById keeps stable object references, and without a reset an
  * optional field removed by a newer release could survive from an older one.
+ * A missing current release also resets the runtime back to bundled v4 so an
+ * archived or withdrawn current release cannot leave a stale in-memory ghost.
  *
  * The RPC returns effective_changes as the de-duplicated release ancestry.
  * This keeps v4.2 from accidentally forgetting a v4.1 override just because
@@ -155,7 +157,15 @@ function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
  * static rule map.
  */
 export function applyPublishedRulebookRelease(release: RulebookRelease | null | undefined) {
-  if (!release?.version || appliedReleaseVersion === release.version) return;
+  if (!release?.version) {
+    if (appliedReleaseVersion !== null) {
+      resetRulebookBaseline();
+      appliedReleaseVersion = null;
+    }
+    return;
+  }
+
+  if (appliedReleaseVersion === release.version) return;
 
   resetRulebookBaseline();
 
