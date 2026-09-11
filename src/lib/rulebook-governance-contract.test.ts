@@ -111,6 +111,12 @@ describe("rulebook governance contract", () => {
     expect(runtime).toContain("public_current_rulebook_release");
   });
 
+  it("resets to bundled v4 when no current published release remains", () => {
+    expect(runtime).toContain("if (!release?.version)");
+    expect(runtime).toContain("if (appliedReleaseVersion !== null)");
+    expect(runtime).toContain("appliedReleaseVersion = null");
+  });
+
   it("puts contextual rules inside the workflows where decisions happen", () => {
     expect(contextualGuide).toContain('/confirmations');
     expect(contextualGuide).toContain('/televoting');
