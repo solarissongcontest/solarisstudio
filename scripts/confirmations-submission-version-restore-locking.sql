@@ -3,6 +3,12 @@
 -- restores on the same lock order so a simultaneous edit/restore cannot race
 -- version allocation or deadlock on opposite row-lock ordering.
 
+-- The live legacy project used a broad authenticated ALL policy named
+-- "versions admin". Direct writes are already blocked by table grants after the
+-- first restore migration, but remove the broad policy as well so history is
+-- unambiguously select-only for direct authenticated table access.
+drop policy if exists "versions admin" on public.submission_versions;
+
 alter function public.admin_restore_confirmation_version(uuid, uuid, text)
   rename to admin_restore_confirmation_version_apply;
 
