@@ -18,6 +18,10 @@ const ancestryMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260910215500_rulebook_ancestry_integrity.sql"),
   "utf8",
 );
+const publicationHardening = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161300_rulebook_publication_state_hardening.sql"),
+  "utf8",
+);
 const runtime = readFileSync(
   resolve(process.cwd(), "src/lib/rules-governance.ts"),
   "utf8",
@@ -93,6 +97,19 @@ describe("rulebook governance contract", () => {
     expect(ancestryMigration).toContain("Rulebook release ancestry contains a cycle");
     expect(ancestryMigration).toContain("Rulebook release ancestry contains a missing or unpublished base version");
     expect(ancestryMigration).toContain("Rulebook release ancestry exceeds the supported depth");
+  });
+
+  it("does not let a stale branch silently replace changes from the current release", () => {
+    expect(publicationHardening).toContain("Draft base is no longer the current rulebook release; create or rebase the draft before publishing");
+    expect(publicationHardening).toContain("v_base_version is distinct from v_current_version");
+    expect(publicationHardening).toContain("A new rulebook version must be greater than its base version");
+  });
+
+  it("never makes a future-effective release current before its effective time", () => {
+    expect(publicationHardening).toContain("A rulebook release can only be published once its effective time has arrived");
+    expect(publicationHardening).toContain("_effective_from > now()");
+    expect(publicationHardening).toContain("r.effective_from <= now()");
+    expect(publicationHardening).toContain("Repair any legacy state where a future-effective release was marked current");
   });
 
   it("resolves inherited rule changes across a version chain", () => {
