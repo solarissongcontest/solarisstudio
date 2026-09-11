@@ -3,19 +3,19 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220000_integrity_sanctions_and_appeals.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160000_integrity_sanctions_and_appeals.sql"),
   "utf8",
 );
 const reporterMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220100_integrity_reporter_appeals.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160100_integrity_reporter_appeals.sql"),
   "utf8",
 );
 const extensionMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220200_integrity_appeal_extensions.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160200_integrity_appeal_extensions.sql"),
   "utf8",
 );
 const queueMigration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260910220300_integrity_appeal_queue.sql"),
+  resolve(process.cwd(), "supabase/migrations/20260911160300_integrity_appeal_queue.sql"),
   "utf8",
 );
 const portal = readFileSync(
