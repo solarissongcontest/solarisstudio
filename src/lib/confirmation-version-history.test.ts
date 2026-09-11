@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   diffConfirmationSnapshots,
+  formatConfirmationVersionSource,
   formatConfirmationVersionValue,
   projectConfirmationSnapshot,
 } from './confirmation-version-history';
@@ -57,5 +58,12 @@ describe('confirmation version history', () => {
     expect(formatConfirmationVersionValue(true)).toBe('Yes');
     expect(formatConfirmationVersionValue(false)).toBe('No');
     expect(formatConfirmationVersionValue([{ artist: 'A', song: 'B' }])).toBe('A — B');
+  });
+
+  it('labels version provenance in organizer language', () => {
+    expect(formatConfirmationVersionSource('organizer_restore')).toBe('Before organizer restore');
+    expect(formatConfirmationVersionSource('delegate_edit')).toBe('Before delegation edit');
+    expect(formatConfirmationVersionSource('legacy_edit')).toBe('Legacy edit');
+    expect(formatConfirmationVersionSource(null)).toBe('Legacy edit');
   });
 });

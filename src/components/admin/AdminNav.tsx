@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  BellRing,
   BookOpen,
   ClipboardCheck,
   Database,
@@ -53,7 +54,7 @@ export function AdminNav() {
   const publishHref = slug ? `/admin/publication/${slug}` : "/admin";
   const broadcastHref = slug ? `/admin/design/${slug}` : "/admin";
 
-  const workflow: NavItem[] = [
+  const currentEdition: NavItem[] = [
     {
       label: "Overview",
       to: "/admin/operations",
@@ -61,28 +62,16 @@ export function AdminNav() {
       active: (path) => path.startsWith("/admin/operations"),
     },
     {
-      label: "Control Room",
-      to: "/admin/control-room",
-      icon: ShieldAlert,
-      active: (path) => path.startsWith("/admin/control-room"),
-    },
-    {
-      label: "Simulator",
-      to: "/admin/edition-simulator",
-      icon: PlayCircle,
-      active: (path) => path.startsWith("/admin/edition-simulator"),
+      label: "Action Center",
+      to: "/admin/action-center",
+      icon: BellRing,
+      active: (path) => path.startsWith("/admin/action-center"),
     },
     {
       label: "Delegations",
       to: "/confirmations/admin",
       icon: ClipboardCheck,
       active: (path) => path.startsWith("/confirmations/admin"),
-    },
-    {
-      label: "Submission history",
-      to: "/admin/submission-versions",
-      icon: History,
-      active: (path) => path.startsWith("/admin/submission-versions"),
     },
     {
       label: "Contest",
@@ -106,6 +95,39 @@ export function AdminNav() {
         path.startsWith("/admin/televote/") ||
         path.startsWith("/admin/friend-voting") ||
         path.startsWith("/admin/jury-integrity"),
+    },
+    {
+      label: "Publish",
+      to: publishHref,
+      icon: Eye,
+      active: (path) => path.startsWith("/admin/publication/"),
+    },
+    {
+      label: "Broadcast",
+      to: broadcastHref,
+      icon: RadioTower,
+      active: (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/"),
+    },
+  ];
+
+  const operations: NavItem[] = [
+    {
+      label: "Control Room",
+      to: "/admin/control-room",
+      icon: ShieldAlert,
+      active: (path) => path.startsWith("/admin/control-room"),
+    },
+    {
+      label: "Simulator",
+      to: "/admin/edition-simulator",
+      icon: PlayCircle,
+      active: (path) => path.startsWith("/admin/edition-simulator"),
+    },
+    {
+      label: "Submission history",
+      to: "/admin/submission-versions",
+      icon: History,
+      active: (path) => path.startsWith("/admin/submission-versions"),
     },
     {
       label: "Voting Lab",
@@ -166,26 +188,14 @@ export function AdminNav() {
       active: (path) => path.startsWith("/admin/broadcast-rundown"),
     },
     {
-      label: "Publish",
-      to: publishHref,
-      icon: Eye,
-      active: (path) => path.startsWith("/admin/publication/"),
-    },
-    {
-      label: "Broadcast",
-      to: broadcastHref,
-      icon: RadioTower,
-      active: (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/"),
-    },
-  ];
-
-  const administration: NavItem[] = [
-    {
       label: "Communications",
       to: "/admin/communications",
       icon: Mail,
       active: (path) => path.startsWith("/admin/communications"),
     },
+  ];
+
+  const workspace: NavItem[] = [
     {
       label: "Administration",
       to: "/admin/more",
@@ -242,17 +252,28 @@ export function AdminNav() {
 
   return (
     <nav className="p-3" aria-label="Organizer navigation">
-      <p className="admin-section-label mb-2 px-2">Current edition</p>
-      <div className="space-y-1">
-        {workflow.map((item) => <NavLink key={item.label} item={item} pathname={pathname} />)}
-      </div>
-
+      <NavSection label="Current edition" items={currentEdition} pathname={pathname} />
       <div className="my-5 border-t border-white/[0.07]" />
-      <p className="admin-section-label mb-2 px-2">Workspace</p>
-      <div className="space-y-1">
-        {administration.map((item) => <NavLink key={item.label} item={item} pathname={pathname} quiet />)}
-      </div>
+      <NavSection label="Operations" items={operations} pathname={pathname} />
+      <div className="my-5 border-t border-white/[0.07]" />
+      <NavSection label="Workspace" items={workspace} pathname={pathname} quiet />
     </nav>
+  );
+}
+
+function NavSection({ label, items, pathname, quiet = false }: {
+  label: string;
+  items: NavItem[];
+  pathname: string;
+  quiet?: boolean;
+}) {
+  return (
+    <>
+      <p className="admin-section-label mb-2 px-2">{label}</p>
+      <div className="space-y-1">
+        {items.map((item) => <NavLink key={item.label} item={item} pathname={pathname} quiet={quiet} />)}
+      </div>
+    </>
   );
 }
 
