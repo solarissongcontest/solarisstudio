@@ -6,6 +6,7 @@ import {
   Flag,
   LayoutDashboard,
   Layers3,
+  Mail,
   RadioTower,
   Settings2,
   ShieldAlert,
@@ -97,6 +98,12 @@ export function AdminNav() {
   ];
 
   const administration: NavItem[] = [
+    {
+      label: "Communications",
+      to: "/admin/communications",
+      icon: Mail,
+      active: (path) => path.startsWith("/admin/communications"),
+    },
     {
       label: "Administration",
       to: "/admin/more",
