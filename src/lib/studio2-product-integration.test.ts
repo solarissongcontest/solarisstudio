@@ -22,12 +22,12 @@ describe('Studio 2 product integration', () => {
   it('keeps rollout controls discoverable for organizers', () => {
     expect(adminNav).toContain('label: "Feature rollout"');
     expect(adminNav).toContain('to: "/admin/feature-rollout"');
-    expect(rollout).toContain("studio2_set_feature_flag");
+    expect(rollout).toContain('studio2_set_feature_flag');
     expect(rollout).toContain('Rules Hub and Trust & Integrity implementation are managed independently');
   });
 
   it('preserves the existing HOD workspace launcher instead of duplicating its route', () => {
-    expect(hodLauncher).toContain("'/country-hub/hod'");
-    expect(hodLauncher).toContain("'hod_workspace_v2'");
+    expect(hodLauncher).toContain('/country-hub/hod');
+    expect(hodLauncher).toContain('hod_workspace_v2');
   });
 });
