@@ -9,6 +9,7 @@ import {
   Layers3,
   ListVideo,
   Mail,
+  PlayCircle,
   RadioTower,
   Settings2,
   ShieldAlert,
@@ -56,6 +57,12 @@ export function AdminNav() {
       to: "/admin/control-room",
       icon: ShieldAlert,
       active: (path) => path.startsWith("/admin/control-room"),
+    },
+    {
+      label: "Simulator",
+      to: "/admin/edition-simulator",
+      icon: PlayCircle,
+      active: (path) => path.startsWith("/admin/edition-simulator"),
     },
     {
       label: "Delegations",
