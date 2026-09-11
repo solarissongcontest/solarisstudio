@@ -17,20 +17,34 @@ describe('Studio 2 broadcast rundown persistence', () => {
         version: 1,
         startAt: '2026-09-17T18:00:00.000Z',
         segments: [
-          { id: 'open', title: 'Opening', status: 'planned', plannedDurationSeconds: 180 },
+          { id: 'open', label: 'Opening', status: 'planned', plannedDurationSeconds: 180 },
         ],
       },
     });
 
     expect(parsed?.segments).toHaveLength(1);
-    expect(parsed?.segments[0]?.title).toBe('Opening');
+    expect(parsed?.segments[0]?.label).toBe('Opening');
+  });
+
+  it('keeps backward compatibility with the first Studio 2 title field draft', () => {
+    const parsed = parseStudio2BroadcastRundown({
+      [STUDIO2_RUNDOWN_CONFIG_KEY]: {
+        version: 1,
+        startAt: '2026-09-17T18:00:00.000Z',
+        segments: [
+          { id: 'open', title: 'Opening', status: 'planned', plannedDurationSeconds: 180 },
+        ],
+      },
+    });
+
+    expect(parsed?.segments[0]?.label).toBe('Opening');
   });
 
   it('creates a valid default planner that the timing engine can evaluate', () => {
     const rundown = createDefaultBroadcastRundown('2026-09-17T18:00:00.000Z');
     expect(() => validateStudio2BroadcastRundown(rundown)).not.toThrow();
 
-    const calculated = buildBroadcastRundown(rundown.segments, rundown.startAt);
+    const calculated = buildBroadcastRundown(rundown.startAt, rundown.segments);
     expect(calculated.segments).toHaveLength(5);
     expect(calculated.totalPlannedSeconds).toBeGreaterThan(0);
   });
