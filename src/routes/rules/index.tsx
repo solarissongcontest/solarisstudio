@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { RulesExperience } from "@/components/rules/RulesExperience";
 import { RulebookVersionBanner } from "@/components/rules/RulebookVersionBanner";
+import { usePublishedRulebook } from "@/lib/rules-governance";
 
 export const Route = createFileRoute("/rules/")({
   head: () => ({
@@ -19,10 +20,12 @@ export const Route = createFileRoute("/rules/")({
 });
 
 function RulesPage() {
+  const published = usePublishedRulebook();
+
   return (
     <AppShell>
       <RulebookVersionBanner />
-      <RulesExperience />
+      <RulesExperience key={published.version} />
     </AppShell>
   );
 }
