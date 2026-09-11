@@ -10,6 +10,7 @@ const route = source('src/routes/_authenticated/admin/eligibility.tsx');
 const model = source('src/lib/studio2-eligibility.ts');
 const readiness = source('src/lib/country-operational-readiness.ts');
 const cockpit = source('src/lib/studio2-country-cockpit.ts');
+const actionCenterRoute = source('src/routes/_authenticated/admin/action-center.tsx');
 const nav = source('src/components/admin/AdminNav.tsx');
 const migration = source('supabase/migrations/20260911202500_studio2_eligibility_overrides.sql');
 
@@ -26,8 +27,8 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
   it('reuses the canonical country cockpit and readiness engines instead of reimplementing rules in the route', () => {
     expect(route).toContain('loadStudio2CountryCockpit(resolvedEditionId)');
     expect(route).toContain('buildStudio2EligibilityMatrix');
-    expect(model).toContain("row.operationalReadiness.signals");
-    expect(model).toContain("row.eligibility.checks");
+    expect(model).toContain('row.operationalReadiness.signals');
+    expect(model).toContain('row.eligibility.checks');
     expect(cockpit).toContain('buildStudio2HodWorkspaceSnapshot');
     expect(readiness).toContain('getCountryOperationalReadiness');
     expect(route).not.toContain('evaluateEntryEligibility(');
@@ -50,6 +51,12 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
     expect(route).not.toContain('.insert(');
     expect(route).not.toContain('.update(');
     expect(route).not.toContain('.delete(');
+  });
+
+  it('feeds effective override-aware readiness to Action Center instead of contradictory factual alerts', () => {
+    expect(actionCenterRoute).toContain('listStudio2EligibilityOverrides(resolvedEditionId)');
+    expect(actionCenterRoute).toContain('applyStudio2EligibilityOverridesToReadiness');
+    expect(model).toContain('An organizer eligibility override is active.');
   });
 
   it('requires reason, actor, timestamp, affected rule and optional expiry in persisted overrides', () => {
