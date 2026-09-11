@@ -14,6 +14,10 @@ const cleanup = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911160600_integrity_evidence_cleanup.sql"),
   "utf8",
 );
+const hardening = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911160900_integrity_evidence_interface_hardening.sql"),
+  "utf8",
+);
 const api = readFileSync(
   resolve(process.cwd(), "src/lib/integrity-evidence.ts"),
   "utf8",
@@ -84,6 +88,20 @@ describe("Integrity evidence lifecycle", () => {
     expect(investigationRoute).toContain("Private file retrieval is audit-logged");
     expect(investigationRoute).toContain('to="/admin/integrity-evidence"');
     expect(investigationRoute).not.toContain("storage_path");
+  });
+
+  it("sanitizes organizer case snapshots while exposing lifecycle metadata needed by the desk", () => {
+    expect(hardening).toContain("create or replace function public.admin_integrity_case(_case_id uuid)");
+    expect(hardening).toContain("'lifecycle_status', ev.lifecycle_status");
+    expect(hardening).toContain("'retention_until', ev.retention_until");
+    expect(hardening).toContain("'deletion_reason', ev.deletion_reason");
+    expect(hardening).not.toContain("jsonb_agg(to_jsonb(ev)");
+  });
+
+  it("stops minting organizer download descriptors after scheduled retention expires", () => {
+    expect(hardening).toContain("lifecycle_status = 'active'");
+    expect(hardening).toContain("lifecycle_status = 'scheduled_for_deletion' and retention_until > now()");
+    expect(hardening).toContain("Evidence file is not available");
   });
 
   it("inherits case retention and supports explicit schedule/cancel lifecycle", () => {
