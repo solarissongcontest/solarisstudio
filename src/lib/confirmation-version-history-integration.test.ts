@@ -9,7 +9,9 @@ function source(path: string) {
 const nav = source('src/components/admin/AdminNav.tsx');
 const route = source('src/routes/_authenticated/admin/submission-versions.tsx');
 const history = source('src/components/admin/ConfirmationVersionHistory.tsx');
-const rpc = source('scripts/confirmations-submission-version-history-rpcs.sql');
+const readRpc = source('scripts/confirmations-submission-version-history-rpcs.sql');
+const restoreRpc = source('scripts/confirmations-submission-version-restore.sql');
+const restoreLocking = source('scripts/confirmations-submission-version-restore-locking.sql');
 
 describe('confirmation version history integration', () => {
   it('keeps submission history discoverable in Organizer navigation', () => {
@@ -21,21 +23,36 @@ describe('confirmation version history integration', () => {
   it('uses organizer bridge RPCs instead of direct legacy table access', () => {
     expect(route).toContain("admin_confirmation_version_summary");
     expect(history).toContain("admin_confirmation_versions");
+    expect(history).toContain("admin_restore_confirmation_version");
     expect(history).not.toContain(".from('submission_versions')");
   });
 
-  it('keeps the first version-history slice read-only', () => {
-    expect(route).toContain('Version history is read-only here');
-    expect(rpc).not.toMatch(/\binsert\s+into\b/i);
-    expect(rpc).not.toMatch(/\bupdate\s+public\./i);
-    expect(rpc).not.toMatch(/\bdelete\s+from\b/i);
+  it('keeps raw legacy snapshots behind server-side privacy projections', () => {
+    expect(readRpc).not.toContain("#> '{submission,initial_ip}'");
+    expect(readRpc).not.toContain("#> '{submission,latest_ip}'");
+    expect(readRpc).not.toContain("#> '{submission,recovery_code}'");
+    expect(readRpc).not.toContain("#> '{submission,browser_session_id}'");
+    expect(readRpc).not.toContain("'snapshot', v.snapshot");
+    expect(restoreRpc).not.toContain("#> '{submission,initial_ip}'");
+    expect(restoreRpc).not.toContain("#> '{submission,recovery_code}'");
   });
 
-  it('does not expose transport, recovery or browser-session fields from legacy snapshots', () => {
-    expect(rpc).not.toContain("#> '{submission,initial_ip}'");
-    expect(rpc).not.toContain("#> '{submission,latest_ip}'");
-    expect(rpc).not.toContain("#> '{submission,recovery_code}'");
-    expect(rpc).not.toContain("#> '{submission,browser_session_id}'");
-    expect(rpc).not.toContain("'snapshot', v.snapshot");
+  it('makes restoration append-only and provenance-aware', () => {
+    expect(restoreRpc).toContain("'organizer_restore'");
+    expect(restoreRpc).toContain('restored_from_version_id');
+    expect(restoreRpc).toContain('change_reason');
+    expect(restoreRpc).toContain('unique (submission_id, version)');
+    expect(restoreRpc).toContain('current_snapshot');
+    expect(restoreRpc).toContain("review_status = 'pending'");
+    expect(restoreRpc).not.toMatch(/delete\s+from\s+public\.submission_versions/i);
+    expect(history).toContain('Restore reason');
+    expect(history).toContain('syncConfirmationSnapshotToSolaris');
+  });
+
+  it('serializes restore with the existing round-first confirmation edit lock order', () => {
+    expect(restoreLocking).toContain('from public.submission_rounds r');
+    expect(restoreLocking).toContain('for update');
+    expect(restoreLocking).toContain('admin_restore_confirmation_version_apply');
+    expect(restoreLocking).toContain('revoke all on function public.admin_restore_confirmation_version_apply');
   });
 });

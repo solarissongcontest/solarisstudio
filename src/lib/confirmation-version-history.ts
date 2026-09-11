@@ -1,11 +1,17 @@
 import { diffSubmissionSnapshots, type SubmissionChange, type SubmissionSnapshot } from './submission-versioning';
 
+export type ConfirmationVersionSource = 'legacy_edit' | 'delegate_edit' | 'organizer_restore';
+
 export type StoredConfirmationVersion = {
   id: string;
   submissionId: string;
   version: number;
   snapshot: SubmissionSnapshot;
   createdAt: string;
+  changeSource?: ConfirmationVersionSource | null;
+  changeReason?: string | null;
+  actorUserId?: string | null;
+  restoredFromVersionId?: string | null;
 };
 
 export type ConfirmationVersionChange = SubmissionChange & {
@@ -133,4 +139,10 @@ export function formatConfirmationVersionValue(value: unknown): string {
   }
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+export function formatConfirmationVersionSource(source: ConfirmationVersionSource | null | undefined) {
+  if (source === 'organizer_restore') return 'Before organizer restore';
+  if (source === 'delegate_edit') return 'Before delegation edit';
+  return 'Legacy edit';
 }

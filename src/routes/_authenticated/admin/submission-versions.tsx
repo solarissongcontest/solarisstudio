@@ -189,7 +189,7 @@ function SubmissionVersionsPage() {
         <AdminPageHeader
           eyebrow="Delegations · Audit"
           title="Submission history"
-          description="Inspect immutable pre-edit snapshots captured by the Confirmations system. Version history is read-only here; existing history is never rewritten."
+          description="Inspect immutable pre-edit snapshots captured by Confirmations. Organizers can restore a historical delegation state without rewriting history: the current state is archived first, the restore reason is recorded, and restored entries require review again."
         />
 
         <AdminCard strong>
