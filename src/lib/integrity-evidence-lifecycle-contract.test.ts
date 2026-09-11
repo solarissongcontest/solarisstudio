@@ -113,12 +113,20 @@ describe("Integrity evidence lifecycle", () => {
     expect(api).toContain("cleanExpiredEvidenceUpload");
   });
 
-  it("gives organizers an explicit operational lifecycle queue", () => {
+  it("gives organizers an explicit operational lifecycle queue without exposing private object paths", () => {
     expect(adminRoute).toContain("Evidence lifecycle");
     expect(adminRoute).toContain("listDueEvidenceDeletions");
     expect(adminRoute).toContain("listExpiredEvidenceUploads");
     expect(adminRoute).toContain("deleteDueEvidence");
     expect(adminRoute).toContain("cleanExpiredEvidenceUpload");
     expect(adminRoute).toContain("Deletion is deliberately two-step");
+    expect(adminRoute).toContain("Private storage location hidden from the interface.");
+    expect(adminRoute).not.toContain("item.object_path");
+  });
+
+  it("requires explicit confirmation before destructive evidence lifecycle actions", () => {
+    expect(adminRoute).toContain("window.confirm");
+    expect(adminRoute).toContain("Permanently delete this private evidence item");
+    expect(adminRoute).toContain("Clean this expired unfinished upload");
   });
 });
