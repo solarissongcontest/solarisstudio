@@ -54,6 +54,10 @@ const navigation = readFileSync(
   resolve(process.cwd(), "src/components/GlobalRulesNavigationAddon.tsx"),
   "utf8",
 );
+const publicLibrary = readFileSync(
+  resolve(process.cwd(), "src/lib/public-library-governance.ts"),
+  "utf8",
+);
 
 describe("rulebook governance contract", () => {
   it("stores releases, rule-level snapshots and an audit trail", () => {
@@ -138,13 +142,13 @@ describe("rulebook governance contract", () => {
     expect(runtime).toContain("appliedReleaseVersion = null");
   });
 
-  it("puts contextual rules inside the workflows where decisions happen", () => {
-    expect(contextualGuide).toContain('getRuleContext');
-    expect(contextualGuide).toContain('Rules for this page');
-    expect(ruleContext).toContain('/confirmations');
-    expect(ruleContext).toContain('/televoting');
-    expect(ruleContext).toContain('/admin/friend-voting');
-    expect(ruleContext).toContain('/admin/integrity');
+  it("puts contextual rules inside workflows and keeps rulebook history in Library discovery", () => {
+    expect(contextualGuide).toContain("getRuleContext");
+    expect(contextualGuide).toContain("Rules for this page");
+    expect(ruleContext).toContain("/confirmations");
+    expect(ruleContext).toContain("/televoting");
+    expect(ruleContext).toContain("/admin/friend-voting");
+    expect(ruleContext).toContain("/admin/integrity");
     expect(decisionStrip).toContain("RuleChip");
     expect(decisionStrip).toContain("Rules at this decision");
     expect(confirmationReceipt).toContain("Confirmation fairness & submission rules");
@@ -154,7 +158,9 @@ describe("rulebook governance contract", () => {
     expect(investigations).toContain("Evidence, findings & investigator independence");
     for (const ruleId of ["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"])
       expect(investigations).toContain(`"${ruleId}"`);
-    expect(navigation).toContain('<ContextualRuleGuide />');
-    expect(navigation).toContain('/rules/changes');
+    expect(navigation).toContain("<ContextualRuleGuide />");
+    expect(navigation).not.toContain('to="/rules/changes"');
+    expect(publicLibrary).toContain('to: "/rules/changes"');
+    expect(publicLibrary).toContain('kind: "release"');
   });
 });
