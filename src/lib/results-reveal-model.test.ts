@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ResultRow } from './data';
 import { buildResultsRevealModel, simulateCustomRevealOrder } from './results-reveal-model';
 
-function row(id: string, jury: number, televote: number, rank: number): ResultRow {
+function row(id: string, jury: number, televote: number, rank: number | null): ResultRow {
   return {
     id: `result-${id}`,
     edition_id: 'edition-1',
@@ -41,6 +41,28 @@ describe('Results Reveal Director model', () => {
     expect(model.recommendedStrategy).not.toBeNull();
     expect(model.simulations[model.recommendedStrategy!].finalWinner).toBe('b');
     expect(model.simulations[model.recommendedStrategy!].suspenseRatio).toBeGreaterThan(0);
+  });
+
+  it('prefers the operational jury-order strategy when suspense is tied', () => {
+    const tied = [
+      row('a', 10, 0, 1),
+      row('b', 0, 0, 2),
+    ];
+    const model = buildResultsRevealModel(tied);
+    expect(model.recommendedStrategy).toBe('jury_order');
+  });
+
+  it('keeps unranked rows after ranked rows in reverse-rank forensics', () => {
+    const model = buildResultsRevealModel([
+      row('winner', 100, 100, 1),
+      row('last', 10, 10, 20),
+      row('unranked', 0, 0, null),
+    ]);
+    expect(model.strategies.final_rank_reverse.map((award) => award.countryId)).toEqual([
+      'last',
+      'winner',
+      'unranked',
+    ]);
   });
 
   it('can simulate a custom reveal order', () => {
