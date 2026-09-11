@@ -183,6 +183,22 @@ export function studio2SurfaceRolloutEligible(surface: Studio2ProductSurface): b
   return surface.state !== 'planned' && surface.state !== 'external_workstream';
 }
 
+export function studio2MissingDependencies(
+  key: SolarisFeatureFlag,
+  enabledKeys: ReadonlySet<SolarisFeatureFlag>,
+): SolarisFeatureFlag[] {
+  return [...(STUDIO2_PRODUCT_SURFACES[key].dependsOn ?? [])].filter((dependency) => !enabledKeys.has(dependency));
+}
+
+export function studio2EnabledDependents(
+  key: SolarisFeatureFlag,
+  enabledKeys: ReadonlySet<SolarisFeatureFlag>,
+): SolarisFeatureFlag[] {
+  return STUDIO2_PRODUCT_SURFACE_LIST
+    .filter((surface) => enabledKeys.has(surface.key) && surface.dependsOn?.includes(key))
+    .map((surface) => surface.key);
+}
+
 export function studio2SurfaceStateLabel(state: Studio2SurfaceState): string {
   switch (state) {
     case 'product_surface':
