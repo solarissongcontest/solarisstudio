@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911160400_rule_interpretations.sql"),
   "utf8",
 );
+const supersessionHardening = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161200_rule_interpretation_supersession_hardening.sql"),
+  "utf8",
+);
 const api = readFileSync(
   resolve(process.cwd(), "src/lib/rule-interpretations.ts"),
   "utf8",
@@ -74,6 +78,13 @@ describe("Official Interpretations governance", () => {
     expect(adminRoute).toContain("supersedeRuleInterpretation");
     expect(publicIndex).toContain("Show superseded");
     expect(publicPanel).toContain("superseded interpretation");
+  });
+
+  it("does not retire current guidance before its replacement is actually effective", () => {
+    expect(supersessionHardening).toContain("Replacement interpretation must already be effective before superseding public guidance");
+    expect(supersessionHardening).toContain("v_new_effective > now()");
+    expect(supersessionHardening).toContain("Replacement interpretation cannot predate the interpretation it supersedes");
+    expect(supersessionHardening).toContain("v_new_published < v_old_published");
   });
 
   it("publishes only effective interpretations to participants", () => {
