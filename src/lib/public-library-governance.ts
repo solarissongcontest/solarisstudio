@@ -58,6 +58,16 @@ export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
     keywords: ["integrity", "report", "report concern", "anonymous report", "sealed identity", "confidential report", "safety", "harassment", "doxxing", "self report", "private question", "ask tsbc"],
   },
   {
+    id: "integrity-preclearance",
+    kind: "destination",
+    group: "Trust & Integrity",
+    title: "My Private Rule Rulings",
+    description: "Review TSBC pre-clearance rulings issued on your protected private rule questions before you act.",
+    to: "/integrity/preclearance",
+    badge: "Rule rulings",
+    keywords: ["pre-clearance", "preclearance", "private ruling", "rule ruling", "rule question", "ask tsbc", "before you act", "permission", "eligibility question", "private guidance"],
+  },
+  {
     id: "integrity-appeals",
     kind: "destination",
     group: "Trust & Integrity",
@@ -78,12 +88,13 @@ const NORMALIZED_ALIAS_TERMS: Record<string, string[]> = {
   alts: ["alternate account", "multiple accounts"],
   spotify: ["artist popularity", "monthly listeners"],
   views: ["youtube", "music video", "artist popularity"],
-  permission: ["artist reuse", "representation rights"],
+  permission: ["artist reuse", "representation rights", "private ruling"],
   ban: ["sanction", "suspension", "lifetime ban"],
   bot: ["automation", "confirmation", "technical abuse"],
   ai: ["artificial intelligence"],
   host: ["hosting", "creative hosting"],
   anonymous: ["anonymous report", "trust integrity"],
+  preclearance: ["pre-clearance", "private ruling", "rule question"],
 };
 
 function normalize(value: string) {
