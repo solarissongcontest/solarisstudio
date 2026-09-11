@@ -22,8 +22,16 @@ const signedBoundary = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20260911161400_integrity_evidence_signed_url_boundary.sql"),
   "utf8",
 );
+const deletionBoundary = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20260911161500_integrity_evidence_deletion_boundary.sql"),
+  "utf8",
+);
 const downloadFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/integrity-evidence-download/index.ts"),
+  "utf8",
+);
+const lifecycleFunction = readFileSync(
+  resolve(process.cwd(), "supabase/functions/integrity-evidence-lifecycle/index.ts"),
   "utf8",
 );
 const api = readFileSync(
@@ -86,13 +94,12 @@ describe("Integrity evidence lifecycle", () => {
     expect(downloadFunction).toContain("const SIGNED_URL_TTL_SECONDS = 60");
   });
 
-  it("keeps service credentials and storage paths inside the Edge Function boundary", () => {
+  it("keeps service credentials and storage paths inside the download Edge Function boundary", () => {
     expect(downloadFunction).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
     expect(downloadFunction).toContain("descriptor.storage_path");
     expect(downloadFunction).not.toContain("storage_path: descriptor.storage_path");
     expect(api).toContain('supabase.functions.invoke("integrity-evidence-download"');
     expect(api).not.toContain("createSignedUrl(");
-    expect(api).not.toContain("storage_path");
   });
 
   it("lets protected reporters retrieve visible files only through the audited signed-download API", () => {
@@ -134,22 +141,45 @@ describe("Integrity evidence lifecycle", () => {
     expect(lifecycle).toContain("retention.updated");
   });
 
+  it("removes generic browser DELETE permission from the evidence bucket", () => {
+    expect(vault).toContain('create policy "integrity evidence organizer delete"');
+    expect(deletionBoundary).toContain('drop policy if exists "integrity evidence organizer delete" on storage.objects');
+    expect(api).not.toContain('.remove([');
+  });
+
+  it("validates due evidence server-side before deleting storage bytes", () => {
+    expect(deletionBoundary).toContain("admin_integrity_evidence_deletion_descriptor");
+    expect(deletionBoundary).toContain("Evidence is not scheduled for deletion");
+    expect(deletionBoundary).toContain("Evidence retention period has not expired");
+    expect(lifecycleFunction).toContain('"admin_integrity_evidence_deletion_descriptor"');
+    expect(lifecycleFunction).toContain("service.storage");
+    expect(lifecycleFunction).toContain('"admin_finalize_integrity_evidence_deletion"');
+  });
+
+  it("cleans expired unfinished uploads only through a server-validated lifecycle action", () => {
+    expect(cleanup).toContain("admin_discard_expired_evidence_upload");
+    expect(cleanup).toContain("Finalised evidence upload tokens cannot be discarded");
+    expect(cleanup).toContain("Evidence upload token has not expired");
+    expect(cleanup).toContain("Delete the orphaned private storage object before discarding its upload token");
+    expect(deletionBoundary).toContain("admin_integrity_expired_upload_deletion_descriptor");
+    expect(lifecycleFunction).toContain('"admin_integrity_expired_upload_deletion_descriptor"');
+    expect(lifecycleFunction).toContain('"admin_discard_expired_evidence_upload"');
+    expect(api).toContain('supabase.functions.invoke("integrity-evidence-lifecycle"');
+  });
+
+  it("does not expose deletion storage paths through browser queue APIs", () => {
+    expect(deletionBoundary).not.toContain("'storage_path', e.storage_path");
+    expect(deletionBoundary).not.toContain("'object_path', t.object_path");
+    expect(api).not.toContain("storage_path:");
+    expect(api).not.toContain("object_path:");
+  });
+
   it("does not mark evidence deleted while private storage bytes still exist", () => {
     expect(lifecycle).toContain("Evidence retention period has not expired");
     expect(lifecycle).toContain("Delete the private storage object before finalising evidence deletion");
     expect(lifecycle).toContain("set lifecycle_status = 'deleted'");
     expect(lifecycle).toContain("visible_to_reporter = false");
-    expect(api).toContain('.from("integrity-evidence")');
-    expect(api).toContain("admin_finalize_integrity_evidence_deletion");
-  });
-
-  it("cleans abandoned uploads only after an orphaned storage object is gone", () => {
-    expect(lifecycle).toContain("admin_integrity_expired_evidence_uploads");
-    expect(cleanup).toContain("admin_discard_expired_evidence_upload");
-    expect(cleanup).toContain("Finalised evidence upload tokens cannot be discarded");
-    expect(cleanup).toContain("Evidence upload token has not expired");
-    expect(cleanup).toContain("Delete the orphaned private storage object before discarding its upload token");
-    expect(api).toContain("cleanExpiredEvidenceUpload");
+    expect(lifecycleFunction).toContain("Storage changed but finalization failed");
   });
 
   it("gives organizers an explicit operational lifecycle queue without exposing private object paths", () => {
