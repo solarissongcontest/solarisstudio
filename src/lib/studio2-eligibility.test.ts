@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildStudio2HodWorkspaceSnapshot, type Studio2HodContext } from './studio2-hod-workspace';
 import {
+  applyStudio2EligibilityOverridesToReadiness,
   buildStudio2EligibilityCountry,
   isStudio2EligibilityOverrideActive,
   type Studio2EligibilityOverride,
@@ -106,6 +107,23 @@ describe('Studio 2 eligibility decision model', () => {
     expect(result.rules.find((rule) => rule.id === 'jury')?.evidence).toEqual(
       expect.arrayContaining(['Required: 5', 'Assigned: 4']),
     );
+  });
+
+  it('removes only the overridden signal from Action Center effective readiness', () => {
+    const snapshot = buildStudio2HodWorkspaceSnapshot({
+      ...context,
+      confirmationComplete: false,
+      juryMembersAssigned: 4,
+    });
+    const effective = applyStudio2EligibilityOverridesToReadiness(
+      snapshot,
+      [override('participation')],
+      new Date('2026-09-11T10:00:00Z'),
+    );
+
+    expect(effective.blockers.map((signal) => signal.id)).not.toContain('participation');
+    expect(effective.state).toBe('attention_required');
+    expect(effective.attention.map((signal) => signal.id)).toContain('jury');
   });
 
   it('ignores expired and revoked overrides', () => {
