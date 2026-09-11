@@ -11,6 +11,7 @@ import {
   RadioTower,
   Settings2,
   ShieldAlert,
+  Sparkles,
   Trophy,
   Vote,
   type LucideIcon,
@@ -83,6 +84,12 @@ export function AdminNav() {
         path.startsWith("/admin/televote/") ||
         path.startsWith("/admin/friend-voting") ||
         path.startsWith("/admin/jury-integrity"),
+    },
+    {
+      label: "Reveal Director",
+      to: "/admin/results-reveal",
+      icon: Sparkles,
+      active: (path) => path.startsWith("/admin/results-reveal"),
     },
     {
       label: "Rundown",
