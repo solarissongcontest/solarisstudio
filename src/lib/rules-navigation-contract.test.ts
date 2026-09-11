@@ -1,0 +1,35 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const addon = readFileSync(
+  resolve(process.cwd(), "src/components/GlobalRulesNavigationAddon.tsx"),
+  "utf8",
+);
+const root = readFileSync(resolve(process.cwd(), "src/routes/__root.tsx"), "utf8");
+const adminNav = readFileSync(
+  resolve(process.cwd(), "src/components/admin/AdminNav.tsx"),
+  "utf8",
+);
+
+describe("Rules and Integrity navigation", () => {
+  it("mounts the global public navigation addon", () => {
+    expect(root).toContain('import { GlobalRulesNavigationAddon }');
+    expect(root).toContain("<GlobalRulesNavigationAddon />");
+  });
+
+  it("puts both public destinations in desktop and mobile navigation", () => {
+    expect(addon).toContain('to="/rules"');
+    expect(addon).toContain('to="/integrity"');
+    expect(addon).toContain("Rules & integrity");
+    expect(addon).toContain("Official SSC rules");
+    expect(addon).toContain("Trust & Integrity");
+  });
+
+  it("adds the organizer Integrity workspace and a public Rules shortcut", () => {
+    expect(adminNav).toContain('label: "Integrity"');
+    expect(adminNav).toContain('to: "/admin/integrity"');
+    expect(adminNav).toContain('label: "Public rules"');
+    expect(adminNav).toContain('to: "/rules"');
+  });
+});
