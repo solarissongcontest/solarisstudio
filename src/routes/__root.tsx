@@ -17,6 +17,7 @@ import anniversaryCss from "../anniversary.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
+import { GlobalRulesNavigationAddon } from "../components/GlobalRulesNavigationAddon";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
@@ -234,6 +235,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SolarisAnniversaryCelebration />
       <RouteVisualTheme />
+      <GlobalRulesNavigationAddon />
       {!fullAdmin ? <SolarisAmbientBackground /> : null}
       {content}
       <ToolQuickGuide pathname={pathname} />
