@@ -13,12 +13,19 @@ import {
 
 export type RulebookChangeKind = "added" | "modified" | "removed" | "interpretation";
 
-export type RuleSnapshot = Partial<SscRule> & {
+export type RuleSnapshot = {
   id?: string;
   title?: string;
   summary?: string;
   tone?: RuleTone;
   body?: string[];
+  bullets?: string[] | null;
+  allowed?: string[] | null;
+  prohibited?: string[] | null;
+  important?: string | null;
+  examples?: SscRule["examples"] | null;
+  tags?: string[];
+  relatedRules?: string[] | null;
 };
 
 export type RulebookChange = {
@@ -54,7 +61,7 @@ export type RulebookRelease = {
   }>;
 };
 
-const RULE_PATCH_FIELDS: Array<keyof SscRule> = [
+const RULE_PATCH_FIELDS = [
   "title",
   "summary",
   "tone",
@@ -66,21 +73,71 @@ const RULE_PATCH_FIELDS: Array<keyof SscRule> = [
   "examples",
   "tags",
   "relatedRules",
-];
+] as const;
+
+const BASE_FLAT_RULES_BY_ID = new Map(
+  SSC_RULES.map((rule) => [rule.id, cloneRecord(rule as unknown as Record<string, unknown>)]),
+);
+const BASE_CHAPTER_RULES_BY_ID = new Map(
+  SSC_RULE_CHAPTERS.flatMap((chapter) =>
+    chapter.rules.map((rule) => [rule.id, cloneRecord(rule as unknown as Record<string, unknown>)] as const),
+  ),
+);
+const BASE_RULEBOOK_META = {
+  version: SSC_RULEBOOK.version,
+  status: SSC_RULEBOOK.status,
+};
 
 let appliedReleaseVersion: string | null = null;
 
-function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
-  for (const field of RULE_PATCH_FIELDS) {
-    if (Object.prototype.hasOwnProperty.call(snapshot, field)) {
-      const value = snapshot[field];
-      (rule as unknown as Record<string, unknown>)[field] = value;
+function cloneRecord<T extends Record<string, unknown>>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function resetRecord(target: Record<string, unknown>, baseline: Record<string, unknown>) {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, cloneRecord(baseline));
+}
+
+function resetRulebookBaseline() {
+  for (const rule of SSC_RULES) {
+    const baseline = BASE_FLAT_RULES_BY_ID.get(rule.id);
+    if (baseline) resetRecord(rule as unknown as Record<string, unknown>, baseline);
+  }
+
+  for (const chapter of SSC_RULE_CHAPTERS) {
+    for (const rule of chapter.rules) {
+      const baseline = BASE_CHAPTER_RULES_BY_ID.get(rule.id);
+      if (baseline) resetRecord(rule as unknown as Record<string, unknown>, baseline);
     }
+  }
+
+  const mutableRulebook = SSC_RULEBOOK as unknown as {
+    version: string;
+    status: string;
+  };
+  mutableRulebook.version = BASE_RULEBOOK_META.version;
+  mutableRulebook.status = BASE_RULEBOOK_META.status;
+}
+
+function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
+  const target = rule as unknown as Record<string, unknown>;
+  const patch = snapshot as unknown as Record<string, unknown>;
+
+  for (const field of RULE_PATCH_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(patch, field)) continue;
+    const value = patch[field];
+    if (value === null) delete target[field];
+    else target[field] = value;
   }
 }
 
 /**
- * Applies published modifications over the bundled v4 baseline.
+ * Applies an immutable published release over the bundled v4 baseline.
+ *
+ * Every version switch resets the in-memory rule objects first. That matters
+ * because getRuleById keeps stable object references, and without a reset an
+ * optional field removed by a newer release could survive from an older one.
  *
  * The current editor intentionally limits live publishing to modifications and
  * interpretations of existing rule IDs. The database schema already models
@@ -90,6 +147,8 @@ function applySnapshotToRule(rule: SscRule, snapshot: RuleSnapshot) {
  */
 export function applyPublishedRulebookRelease(release: RulebookRelease | null | undefined) {
   if (!release?.version || appliedReleaseVersion === release.version) return;
+
+  resetRulebookBaseline();
 
   for (const change of release.changes ?? []) {
     if (!change.after_snapshot) continue;
@@ -168,13 +227,13 @@ export function buildRuleSnapshot(ruleId: string): RuleSnapshot | null {
     summary: rule.summary,
     tone: rule.tone,
     body: [...rule.body],
-    bullets: rule.bullets ? [...rule.bullets] : undefined,
-    allowed: rule.allowed ? [...rule.allowed] : undefined,
-    prohibited: rule.prohibited ? [...rule.prohibited] : undefined,
-    important: rule.important,
-    examples: rule.examples ? rule.examples.map((example) => ({ ...example })) : undefined,
+    bullets: rule.bullets ? [...rule.bullets] : null,
+    allowed: rule.allowed ? [...rule.allowed] : null,
+    prohibited: rule.prohibited ? [...rule.prohibited] : null,
+    important: rule.important ?? null,
+    examples: rule.examples ? rule.examples.map((example) => ({ ...example })) : null,
     tags: [...rule.tags],
-    relatedRules: rule.relatedRules ? [...rule.relatedRules] : undefined,
+    relatedRules: rule.relatedRules ? [...rule.relatedRules] : null,
   };
 }
 
