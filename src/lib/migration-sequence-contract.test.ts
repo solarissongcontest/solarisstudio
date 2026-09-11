@@ -28,6 +28,7 @@ const FEATURE_CHAIN = [
   "20260911160800_integrity_sealed_identity_expiry.sql",
   "20260911160900_integrity_evidence_interface_hardening.sql",
   "20260911161000_integrity_sealed_identity_state_hardening.sql",
+  "20260911161100_integrity_appeal_reviewer_hardening.sql",
 ] as const;
 
 const FEATURE_MIGRATION_VERSIONS = new Set(FEATURE_CHAIN.map((name) => name.slice(0, 14)));
@@ -70,11 +71,13 @@ describe("Supabase migration sequence", () => {
     const reporterAppealPosition = migrationFiles.indexOf("20260911160100_integrity_reporter_appeals.sql");
     const extensionPosition = migrationFiles.indexOf("20260911160200_integrity_appeal_extensions.sql");
     const queuePosition = migrationFiles.indexOf("20260911160300_integrity_appeal_queue.sql");
+    const reviewerHardeningPosition = migrationFiles.indexOf("20260911161100_integrity_appeal_reviewer_hardening.sql");
     expect(corePosition).toBeGreaterThanOrEqual(0);
     expect(resolutionPosition).toBeGreaterThan(corePosition);
     expect(reporterAppealPosition).toBeGreaterThan(resolutionPosition);
     expect(extensionPosition).toBeGreaterThan(reporterAppealPosition);
     expect(queuePosition).toBeGreaterThan(extensionPosition);
+    expect(reviewerHardeningPosition).toBeGreaterThan(queuePosition);
   });
 
   it("creates interpretation governance after the base rulebook architecture exists", () => {
