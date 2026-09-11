@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BookOpen,
   ClipboardCheck,
+  Database,
   Eye,
   FileClock,
   Gavel,
@@ -93,6 +94,12 @@ export function AdminNav() {
       to: "/admin/integrity-appeals",
       icon: Gavel,
       active: (path) => path.startsWith("/admin/integrity-appeals"),
+    },
+    {
+      label: "Evidence",
+      to: "/admin/integrity-evidence",
+      icon: Database,
+      active: (path) => path.startsWith("/admin/integrity-evidence"),
     },
     {
       label: "Publish",
