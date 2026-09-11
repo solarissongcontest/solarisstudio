@@ -34,11 +34,11 @@ function getOrCreateDesktopHost() {
   const nav = document.querySelector<HTMLElement>('nav[aria-label="Main navigation"]');
   if (!nav) return null;
 
-  const nativeRules = nav.querySelector('a[href="/rules"], details[data-native-rules-nav]');
-  if (nativeRules) return null;
-
   const existing = nav.querySelector<HTMLElement>(`[${DESKTOP_HOST_ATTR}]`);
   if (existing) return existing;
+
+  const nativeRules = nav.querySelector('a[href="/rules"], details[data-native-rules-nav]');
+  if (nativeRules) return null;
 
   const host = document.createElement("span");
   host.setAttribute(DESKTOP_HOST_ATTR, "true");
@@ -55,11 +55,11 @@ function getOrCreateMobileHost() {
   const nav = document.querySelector<HTMLElement>('nav[aria-label="Mobile navigation"]');
   if (!nav) return null;
 
-  const nativeRules = nav.querySelector('a[href="/rules"]');
-  if (nativeRules) return null;
-
   const existing = nav.querySelector<HTMLElement>(`[${MOBILE_HOST_ATTR}]`);
   if (existing) return existing;
+
+  const nativeRules = nav.querySelector('a[href="/rules"]');
+  if (nativeRules) return null;
 
   const host = document.createElement("div");
   host.setAttribute(MOBILE_HOST_ATTR, "true");
