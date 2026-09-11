@@ -77,9 +77,11 @@ export function AdminNav() {
     },
     {
       label: "Integrity",
-      to: "/admin/integrity",
+      to: "/admin/integrity-investigations",
       icon: ShieldCheck,
-      active: (path) => path.startsWith("/admin/integrity"),
+      active: (path) =>
+        path.startsWith("/admin/integrity") ||
+        path.startsWith("/admin/integrity-case/"),
     },
     {
       label: "Publish",
