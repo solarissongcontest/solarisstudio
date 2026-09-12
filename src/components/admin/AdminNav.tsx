@@ -108,6 +108,12 @@ export function AdminNav() {
       active: (path) => path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal"),
     },
     {
+      label: "Storytelling",
+      to: "/admin/storytelling",
+      icon: BookOpen,
+      active: (path) => path.startsWith("/admin/storytelling"),
+    },
+    {
       label: "Publish",
       to: publishHref,
       icon: Eye,
