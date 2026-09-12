@@ -17,6 +17,7 @@ import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStat
 import { useEditions, useParticipants, useShows } from '@/lib/data';
 import { buildStudio2ActionCenter, type Studio2ActionItem, type Studio2ActionLane } from '@/lib/studio2-action-center';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
+import { applyStudio2EligibilityOverridesToReadiness, listStudio2EligibilityOverrides } from '@/lib/studio2-eligibility';
 import { studio2ControlRoom } from '@/lib/studio2-control-room';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 
@@ -76,6 +77,13 @@ function ActionCenterPage() {
     refetchInterval: 30_000,
   });
 
+  const eligibilityOverridesQuery = useQuery({
+    queryKey: ['studio2-eligibility-overrides', resolvedEditionId || 'none', 'active'],
+    enabled: Boolean(resolvedEditionId),
+    queryFn: () => listStudio2EligibilityOverrides(resolvedEditionId),
+    refetchInterval: 30_000,
+  });
+
   const model = useMemo(() => {
     if (!snapshotQuery.data) return null;
     return buildStudio2ActionCenter({
@@ -87,15 +95,25 @@ function ActionCenterPage() {
       recentEvents: snapshotQuery.data.recentEvents,
       editionSlug: selectedEdition?.slug ?? null,
       broadcastRundownEnabled: featureQuery.data?.rundown === true,
-      countryReadiness: (countryCockpitQuery.data ?? []).map((row) => ({
-        countryId: row.context.countryId,
-        countryName: row.context.countryName,
-        readiness: row.operationalReadiness,
-      })),
+      countryReadiness: (countryCockpitQuery.data ?? []).map((row) => {
+        const countryReadiness = {
+          countryId: row.context.countryId,
+          countryName: row.context.countryName,
+          readiness: row.operationalReadiness,
+        };
+        return {
+          ...countryReadiness,
+          readiness: applyStudio2EligibilityOverridesToReadiness(
+            row,
+            eligibilityOverridesQuery.data ?? [],
+          ),
+        };
+      }),
     });
   }, [
     approvalsQuery.data,
     countryCockpitQuery.data,
+    eligibilityOverridesQuery.data,
     featureQuery.data?.rundown,
     participantsQuery.data,
     selectedEdition?.slug,
@@ -109,14 +127,16 @@ function ActionCenterPage() {
     || participantsQuery.isLoading
     || showsQuery.isLoading
     || approvalsQuery.isLoading
-    || countryCockpitQuery.isLoading;
+    || countryCockpitQuery.isLoading
+    || eligibilityOverridesQuery.isLoading;
   const error = editionsQuery.error
     || featureQuery.error
     || snapshotQuery.error
     || participantsQuery.error
     || showsQuery.error
     || approvalsQuery.error
-    || countryCockpitQuery.error;
+    || countryCockpitQuery.error
+    || eligibilityOverridesQuery.error;
 
   return (
     <AdminPage>
