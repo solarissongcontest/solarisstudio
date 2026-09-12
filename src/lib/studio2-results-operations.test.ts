@@ -84,13 +84,13 @@ describe('Studio 2 results operations model', () => {
     expect(availableStudio2ResultActions(locked)).toContain('unlock');
   });
 
-  it('removes destructive lifecycle actions once canonical result publication is live', () => {
+  it('makes published results fully read-only even if lifecycle metadata is stale', () => {
     const published = row({
       lifecycle: 'published',
       calculationVersion: 3,
-      reviewedVersion: 3,
+      reviewedVersion: null,
       lockedVersion: 3,
-      revealReadyVersion: 3,
+      revealReadyVersion: null,
       preconditions: {
         ...row().preconditions,
         resultRowCount: 10,
@@ -98,10 +98,27 @@ describe('Studio 2 results operations model', () => {
         publishedResults: true,
       },
     });
-    const actions = availableStudio2ResultActions(published);
-    expect(actions).not.toContain('calculate');
-    expect(actions).not.toContain('unlock');
-    expect(actions).not.toContain('clear_reveal_ready');
+
+    expect(availableStudio2ResultActions(published)).toEqual([]);
+  });
+
+  it('restores normal lifecycle availability once Publication makes results private', () => {
+    const privateAgain = row({
+      lifecycle: 'locked',
+      calculationVersion: 3,
+      reviewedVersion: 3,
+      lockedVersion: 3,
+      revealReadyVersion: null,
+      preconditions: {
+        ...row().preconditions,
+        resultRowCount: 10,
+        resultReady: true,
+        publishedResults: false,
+      },
+    });
+
+    expect(availableStudio2ResultActions(privateAgain)).toContain('unlock');
+    expect(availableStudio2ResultActions(privateAgain)).toContain('mark_reveal_ready');
   });
 
   it('summarizes operational readiness without inventing a second scoring model', () => {
