@@ -52,6 +52,16 @@ export default defineConfig({
       use: { viewport: { width, height: width < 768 ? 844 : 1000 } },
     })),
     {
+      name: "governance-mobile-390",
+      testMatch: /governance\.e2e\.ts/,
+      use: { viewport: { width: 390, height: 844 } },
+    },
+    {
+      name: "governance-tablet-768",
+      testMatch: /governance\.e2e\.ts/,
+      use: { viewport: { width: 768, height: 1024 } },
+    },
+    {
       name: "account-states",
       testMatch: /account-states\.e2e\.ts/,
       use: { viewport: { width: 1440, height: 1000 } },
