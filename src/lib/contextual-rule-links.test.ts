@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { routeContext } from "@/components/rules/ContextualRuleGuide";
+import { RULE_CONTEXT_PATHS, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { getRuleById } from "@/lib/ssc-rules-v4";
 
 const ROUTES = [
@@ -31,6 +32,17 @@ describe("contextual rule links", () => {
     const context = routeContext("/admin/jury-integrity");
     expect(context?.title).toBe("Voting-integrity rules");
     expect(context?.ruleIds).toContain("16.5");
+    expect(context?.sourcePath).toBe("/admin/friend-voting");
+  });
+
+  it("publishes only coarse route-family values for Library context", () => {
+    expect(RULE_CONTEXT_PATHS).toContain("/confirmations");
+    expect(RULE_CONTEXT_PATHS).toContain("/integrity");
+    expect(sanitizeRuleContextPath("/confirmations")).toBe("/confirmations");
+    expect(sanitizeRuleContextPath("/integrity")).toBe("/integrity");
+    expect(sanitizeRuleContextPath("/admin/integrity-case/secret-case-id")).toBeUndefined();
+    expect(sanitizeRuleContextPath("/integrity?case=secret-case-id")).toBeUndefined();
+    expect(sanitizeRuleContextPath("https://example.invalid/steal-context")).toBeUndefined();
   });
 
   it("does not create contextual help where no workflow context is defined", () => {
