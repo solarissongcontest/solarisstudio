@@ -25,6 +25,13 @@ const publicationHardening = readFileSync(
   ),
   "utf8",
 );
+const anonRpcHardening = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20260912202000_rules_integrity_anon_rpc_hardening.sql",
+  ),
+  "utf8",
+);
 const runtime = readFileSync(resolve(process.cwd(), "src/lib/rules-governance.ts"), "utf8");
 const runtimeOverlay = readFileSync(
   resolve(process.cwd(), "src/lib/ssc-rules/runtime-overlay.ts"),
@@ -63,6 +70,19 @@ const integrityRoute = readFileSync(
 );
 
 describe("rulebook governance contract", () => {
+  it("keeps privileged governance RPCs off the anonymous API surface", () => {
+    expect(anonRpcHardening).toContain("p.proname like 'admin\\_%'");
+    expect(anonRpcHardening).toContain("p.proname like 'reporter\\_%'");
+    expect(anonRpcHardening).toContain("p.proname like 'integrity\\_%'");
+    expect(anonRpcHardening).toContain("p.proname like 'rulebook\\_%'");
+    expect(anonRpcHardening).toContain(
+      "revoke execute on function %I.%I(%s) from public, anon",
+    );
+    expect(anonRpcHardening).toContain(
+      "p.proname <> 'integrity_can_upload_evidence'",
+    );
+  });
+
   it("stores releases, rule-level snapshots and an audit trail", () => {
     expect(migration).toContain("create table if not exists public.ssc_rulebook_releases");
     expect(migration).toContain("create table if not exists public.ssc_rulebook_change_items");
