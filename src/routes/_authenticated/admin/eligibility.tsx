@@ -107,9 +107,14 @@ function EligibilityPage() {
           title="Eligibility"
           description="Country-by-country operational eligibility using the same readiness and entry engines as the HOD workspace. Overrides accept a named exception; they never erase the underlying failed check."
           actions={
-            <a href="/admin/countries" className="admin-action-secondary">
-              Country cockpit <ExternalLink className="size-4" />
-            </a>
+            <div className="flex flex-wrap gap-2">
+              <a href="/televoting/admin/result-integrity" className="admin-action-secondary">
+                Result integrity <ExternalLink className="size-4" />
+              </a>
+              <a href="/admin/countries" className="admin-action-secondary">
+                Country cockpit <ExternalLink className="size-4" />
+              </a>
+            </div>
           }
         />
 
@@ -133,6 +138,28 @@ function EligibilityPage() {
               <Metric label="Blocked" value={counts.blocked} tone="blocked" />
               <Metric label="Overridden" value={counts.overridden} tone="info" />
             </section>
+
+            <AdminCard>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold">Integrity diagnostics stay in the specialist voting systems</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Detection is evidence for review, not adjudication. Statistical flags, friend-voting patterns and jury integrity evidence remain visible even when an operational eligibility exception is active.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a href="/televoting/admin/result-integrity" className="admin-action-secondary">
+                    Result integrity <ExternalLink className="size-4" />
+                  </a>
+                  <a href="/admin/friend-voting" className="admin-action-secondary">
+                    Friend-voting intelligence <ExternalLink className="size-4" />
+                  </a>
+                  <a href="/admin/jury-integrity" className="admin-action-secondary">
+                    Jury integrity <ExternalLink className="size-4" />
+                  </a>
+                </div>
+              </div>
+            </AdminCard>
 
             <AdminCard>
               <div className="grid gap-3 md:grid-cols-[1fr_220px]">
