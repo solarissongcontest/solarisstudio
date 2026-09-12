@@ -103,7 +103,10 @@ describe("Official Interpretations governance", () => {
   it("shows interpretations on both permanent rule pages and a searchable public archive", () => {
     expect(rulePage).toContain("<RuleInterpretationsPanel ruleId={rule.id} />");
     expect(publicPanel).toContain("How TSBC has formally applied this rule");
-    expect(publicIndex).toContain("Clarify the rule without rewriting it.");
-    expect(publicIndex).toContain("Search by rule, question, code or interpretation");
+    expect(publicIndex).toContain(">Interpretations</h1>");
+    expect(publicIndex).toContain('aria-label="Search official interpretations"');
+    expect(publicIndex).toContain('placeholder="Search interpretations"');
+    expect(publicIndex).toContain('item.status === "superseded"');
+    expect(publicIndex).toContain("Show superseded");
   });
 });
