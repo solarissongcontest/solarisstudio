@@ -43,9 +43,13 @@ describe("SSC v4 canon audit", () => {
     expect(ids.length).toBe(RULEBOOK_STATS.rules);
 
     for (const rule of SSC_RULES) {
-      const [chapter] = rule.id.split(".").map(Number);
-      expect(chapter).toBe(rule.chapterNumber);
-      expect(rule.chapterTitle).toBe(SSC_RULE_CHAPTERS[chapter - 1]?.title);
+      const chapterNumber = Number(rule.id.split(".")[0]);
+      const chapter = SSC_RULE_CHAPTERS.find((candidate) => candidate.number === chapterNumber);
+      expect(chapter, `Rule ${rule.id} points to missing chapter ${chapterNumber}`).toBeDefined();
+      expect(
+        chapter?.rules.some((candidate) => candidate.id === rule.id),
+        `Rule ${rule.id} is not contained by Chapter ${chapterNumber}`,
+      ).toBe(true);
     }
   });
 
@@ -62,8 +66,8 @@ describe("SSC v4 canon audit", () => {
       for (const rule of chapter.rules) {
         seen.set(rule.id, (seen.get(rule.id) ?? 0) + 1);
         expect(rule.id, `Invalid canonical rule id ${rule.id}`).toMatch(/^\d+\.\d+$/);
-        expect(rule.chapterNumber, `${rule.id} chapterNumber mismatch`).toBe(chapter.number);
-        expect(rule.chapterTitle, `${rule.id} chapterTitle mismatch`).toBe(chapter.title);
+        const idChapterNumber = Number(rule.id.split(".")[0]);
+        expect(idChapterNumber, `${rule.id} is stored under the wrong chapter`).toBe(chapter.number);
         expect(rule.title.trim(), `${rule.id} missing title`).not.toBe("");
         expect(rule.summary.trim(), `${rule.id} missing summary`).not.toBe("");
         expect(rule.body.length, `${rule.id} missing official wording`).toBeGreaterThan(0);
