@@ -12,6 +12,7 @@ import {
   Gavel,
   GitBranch,
   History,
+  Images,
   KeyRound,
   LayoutDashboard,
   Layers3,
@@ -130,6 +131,18 @@ export function AdminNav() {
       to: "/admin/incidents",
       icon: Siren,
       active: (path) => path.startsWith("/admin/incidents"),
+    },
+    {
+      label: "Eligibility",
+      to: "/admin/eligibility",
+      icon: ShieldCheck,
+      active: (path) => path.startsWith("/admin/eligibility"),
+    },
+    {
+      label: "Media assets",
+      to: "/admin/media-assets",
+      icon: Images,
+      active: (path) => path.startsWith("/admin/media-assets"),
     },
     {
       label: "Simulator",

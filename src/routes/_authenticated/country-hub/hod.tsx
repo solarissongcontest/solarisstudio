@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { AppShell, PageHeader, Panel } from '@/components/AppShell';
 import { useCountries } from '@/lib/data';
 import { useMyCountryAccount } from '@/lib/country-account';
+import { listStudio2EligibilityOverrides } from '@/lib/studio2-eligibility';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 import {
   acknowledgeStudio2Notice,
@@ -71,6 +72,13 @@ function HodWorkspacePage() {
     queryKey: ['studio2-hod-workspace', country?.id ?? 'none', editionId || 'none'],
     enabled: featureQuery.data === true && Boolean(country?.id && editionId),
     queryFn: () => loadStudio2HodWorkspace(editionId, country!.id),
+  });
+
+  const eligibilityOverridesQuery = useQuery({
+    queryKey: ['studio2-eligibility-overrides', editionId || 'none', country?.id ?? 'none', 'active'],
+    enabled: featureQuery.data === true && Boolean(country?.id && editionId),
+    queryFn: () => listStudio2EligibilityOverrides(editionId, { countryId: country!.id }),
+    staleTime: 15_000,
   });
 
   const refreshWorkspace = async () => {
@@ -284,6 +292,43 @@ function HodWorkspacePage() {
                   </div>
                 ))}
               </div>
+            </Panel>
+
+            <Panel
+              title="Organizer eligibility decisions"
+              description="Active organizer exceptions are shown here as a read-only overlay. The factual readiness checks above stay visible and unchanged."
+            >
+              {eligibilityOverridesQuery.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading organizer eligibility decisions…</p>
+              ) : eligibilityOverridesQuery.error ? (
+                <ErrorText error={eligibilityOverridesQuery.error} />
+              ) : (eligibilityOverridesQuery.data ?? []).length ? (
+                <div className="space-y-2">
+                  {(eligibilityOverridesQuery.data ?? []).map((override) => (
+                    <div key={override.id} className="rounded-xl border border-sky-300/20 bg-sky-300/[0.06] p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold">Organizer eligibility decision</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Affected rule: {override.affectedRule}</p>
+                        </div>
+                        <StatusPill value="overridden" />
+                      </div>
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">{override.reason}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Recorded {formatDateTime(override.createdAt)} · actor {override.createdBy ? shortId(override.createdBy) : 'service'}
+                      </p>
+                      {override.expiresAt ? (
+                        <p className="mt-1 text-xs text-muted-foreground">Expires {formatDateTime(override.expiresAt)}</p>
+                      ) : null}
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                        No delegation-side action can create, revoke, or edit this decision.
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No active organizer eligibility exception applies to this delegation.</p>
+              )}
             </Panel>
 
             <Panel
@@ -544,6 +589,10 @@ function formatDateTime(value: string) {
         dateStyle: 'medium',
         timeStyle: 'short',
       }).format(date);
+}
+
+function shortId(value: string) {
+  return value.length > 12 ? `${value.slice(0, 8)}…` : value;
 }
 
 function ErrorText({ error }: { error: unknown }) {
