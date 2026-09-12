@@ -49,28 +49,6 @@ revoke all on function private.studio2_can_manage_eligibility(uuid, uuid)
 grant execute on function private.studio2_can_manage_eligibility(uuid, uuid)
   to service_role;
 
--- Add explicit audit/event vocabulary before the command functions can emit it.
-alter table public.studio2_contest_events
-  drop constraint if exists studio2_contest_events_type_check;
-
-alter table public.studio2_contest_events
-  add constraint studio2_contest_events_type_check check (
-    type in (
-      'edition.created', 'edition.state_changed', 'edition.archived',
-      'edition.transition_approval_requested', 'edition.transition_approval_granted',
-      'confirmation.opened', 'confirmation.closed', 'country.confirmed',
-      'entry.submitted', 'entry.changed', 'entry.locked',
-      'eligibility.override_created', 'eligibility.override_revoked',
-      'jury.opened', 'jury.closed', 'jury.ballot_submitted',
-      'televote.opened', 'televote.closed', 'televote.ballot_submitted',
-      'vote.flagged', 'integrity.case_created', 'integrity.case_closed',
-      'results.calculated', 'results.verified', 'results.published',
-      'broadcast.segment_started', 'broadcast.segment_completed',
-      'incident.created', 'incident.updated', 'incident.resolved',
-      'notice.sent', 'notice.acknowledged', 'rule.changed'
-    )
-  );
-
 create or replace function public.studio2_list_eligibility_overrides(
   p_edition_id uuid,
   p_country_id uuid default null,
@@ -221,15 +199,19 @@ begin
   )
   returning * into v_override;
 
+  -- Eligibility exceptions are rule decisions, so use the already-canonical
+  -- rule.changed event and keep the more specific action in payload metadata.
+  -- This avoids widening or replacing the event-type CHECK constraint here.
   insert into public.studio2_contest_events (
     edition_id, type, actor_user_id, entity_type, entity_id, payload
   ) values (
     p_edition_id,
-    'eligibility.override_created',
+    'rule.changed',
     v_actor,
     'eligibility_override',
     v_override.id::text,
     jsonb_build_object(
+      'changeKind', 'eligibility.override_created',
       'countryId', p_country_id,
       'countryName', v_country_name,
       'affectedRule', v_rule,
@@ -306,11 +288,12 @@ begin
       edition_id, type, actor_user_id, entity_type, entity_id, payload
     ) values (
       v_override.edition_id,
-      'eligibility.override_revoked',
+      'rule.changed',
       v_actor,
       'eligibility_override',
       v_override.id::text,
       jsonb_build_object(
+        'changeKind', 'eligibility.override_revoked',
         'countryId', v_override.country_id,
         'countryName', v_country_name,
         'affectedRule', v_override.affected_rule,
