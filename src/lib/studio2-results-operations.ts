@@ -268,12 +268,17 @@ export function availableStudio2ResultActions(row: Studio2ResultOperationRow): S
   const actions: Studio2ResultAction[] = [];
   const { preconditions: pre, calculationVersion: version } = row;
 
-  if (!pre.publishedResults && pre.calculationReady && row.lockedVersion !== version) actions.push('calculate');
+  // Publication is authoritative and terminal for this control plane. Once the
+  // canonical result layer is public, every lifecycle mutation is unavailable
+  // until Publication makes that layer private again.
+  if (pre.publishedResults) return actions;
+
+  if (pre.calculationReady && row.lockedVersion !== version) actions.push('calculate');
   if (version > 0 && pre.resultReady && row.reviewedVersion !== version) actions.push('review');
   if (version > 0 && row.reviewedVersion === version && row.lockedVersion !== version) actions.push('lock');
-  if (version > 0 && row.lockedVersion === version && !pre.publishedResults) actions.push('unlock');
+  if (version > 0 && row.lockedVersion === version) actions.push('unlock');
   if (version > 0 && row.lockedVersion === version && row.revealReadyVersion !== version) actions.push('mark_reveal_ready');
-  if (version > 0 && row.revealReadyVersion === version && !pre.publishedResults) actions.push('clear_reveal_ready');
+  if (version > 0 && row.revealReadyVersion === version) actions.push('clear_reveal_ready');
   return actions;
 }
 
