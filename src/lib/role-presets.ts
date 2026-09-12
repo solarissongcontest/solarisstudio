@@ -22,6 +22,8 @@ export const SOLARIS_ROLE_PRESETS = {
     'rules.edit',
     'incident.manage',
     'communications.send',
+    'host.read',
+    'host.manage',
   ],
   tsbcExecutive: [
     'edition.read',
@@ -39,6 +41,8 @@ export const SOLARIS_ROLE_PRESETS = {
     'rules.edit',
     'incident.manage',
     'communications.send',
+    'host.read',
+    'host.manage',
   ],
   votingSupervisor: [
     'edition.read',
@@ -55,6 +59,7 @@ export const SOLARIS_ROLE_PRESETS = {
     'results.preview',
     'broadcast.control',
     'incident.manage',
+    'host.read',
   ],
   delegationManager: [
     'edition.read',
