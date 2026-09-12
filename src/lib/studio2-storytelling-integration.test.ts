@@ -70,9 +70,11 @@ describe('Studio 2 Phase 12 Storytelling & Anniversary architecture', () => {
     expect(service).toContain("rpc('studio2_storytelling_snapshot'");
     expect(service).toContain("rpc('studio2_execute_story_operation'");
     expect(service).toContain("rpc('studio2_public_storyline'");
-    expect(migration).toContain('select s, e into v_story, v_edition');
-    expect(hardening).toContain('select s, e into v_story, v_edition');
+    expect(migration).toContain('select s.* into v_story');
+    expect(hardening).toContain('select s.* into v_story');
+    expect(finalSql).toContain('select * into v_edition');
     expect(finalSql).not.toContain('select s.*, e.* into v_story, v_edition');
+    expect(finalSql).not.toContain('select s, e into v_story, v_edition');
     expect(finalSql).not.toContain("'canonicalFacts', i.canonical_facts\n    ) order by i.sort_order, i.occurred_at, i.id), '[]'::jsonb)\n  into v_items\n  from public.studio2_storyline_items i\n  where i.storyline_id = v_story.id\n    and i.included;");
     expect(publicStory).not.toContain('canonicalFacts');
   });
