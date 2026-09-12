@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - "supabase/migrations/**"
+      - "supabase/functions/integrity-evidence-download/**"
+      - "supabase/functions/integrity-evidence-lifecycle/**"
+      - ".github/scripts/rules-integrity-security-rehearsal.sh"
+      - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
 
@@ -18,9 +22,9 @@ concurrency:
 
 jobs:
   clean-replay:
-    name: Clean migration replay
+    name: Clean migration replay + hostile security
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - name: Checkout feature head
         uses: actions/checkout@v4
@@ -32,6 +36,15 @@ jobs:
         with:
           version: latest
 
+      - name: Ensure PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
       - name: Start isolated local Supabase stack
         run: supabase start
 
@@ -40,6 +53,14 @@ jobs:
 
       - name: Verify local migration history
         run: supabase migration list --local
+
+      - name: Run live Rules and Integrity adversarial rehearsal
+        shell: bash
+        run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
+
+      - name: Print local Evidence Edge Function log on failure
+        if: failure()
+        run: tail -n 300 /tmp/rules-integrity-functions.log || true
 
       - name: Stop local Supabase stack
         if: always()
