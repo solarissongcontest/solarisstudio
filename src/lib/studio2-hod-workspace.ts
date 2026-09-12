@@ -287,31 +287,6 @@ export async function listStudio2HodEditions(
   return Array.isArray(data) ? data.map(mapEditionSummary) : [];
 }
 
-export async function assignStudio2JuryMember(
-  editionId: string,
-  countryId: string,
-  displayName: string,
-  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<void> {
-  await runRpc(
-    'studio2_assign_jury_member',
-    {
-      p_edition_id: editionId,
-      p_country_id: countryId,
-      p_display_name: displayName,
-      p_member_user_id: null,
-    },
-    client,
-  );
-}
-
-export async function removeStudio2JuryMember(
-  memberId: string,
-  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<void> {
-  await runRpc('studio2_remove_jury_member', { p_member_id: memberId }, client);
-}
-
 export async function acknowledgeStudio2Notice(
   noticeId: string,
   client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
