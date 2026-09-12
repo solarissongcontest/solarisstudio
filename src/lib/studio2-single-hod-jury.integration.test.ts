@@ -8,6 +8,7 @@ function source(path: string) {
 
 const migration = source('supabase/migrations/20260912203000_studio2_single_hod_jury.sql');
 const noticeHardening = source('supabase/migrations/20260912203100_studio2_single_hod_jury_notice_scope.sql');
+const privilegeHardening = source('supabase/migrations/20260912203200_studio2_single_hod_jury_rpc_privileges.sql');
 const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
 const workspaceClient = source('src/lib/studio2-hod-workspace.ts');
 const workspaceModel = source('src/lib/hod-workspace-model.ts');
@@ -24,6 +25,9 @@ describe('Studio 2 single-HOD jury contract', () => {
     expect(migration).toContain('if p_required is distinct from 1 then');
     expect(migration).toContain('exactly one jury per country: the Head of Delegation');
     expect(migration).not.toContain('between 1 and 10');
+    expect(workspaceClient).toContain('juryMembersRequired: 1');
+    expect(workspaceClient).toContain("juryMembersAssigned: 0 | 1");
+    expect(workspaceClient).toContain('Solaris requires exactly one HOD jury');
   });
 
   it('projects jury identity from canonical HOD history with jury-channel override semantics', () => {
@@ -54,8 +58,10 @@ describe('Studio 2 single-HOD jury contract', () => {
     expect(hodRoute).not.toContain('Juror display name');
     expect(workspaceClient).not.toContain('assignStudio2JuryMember');
     expect(workspaceClient).not.toContain('removeStudio2JuryMember');
-    expect(migration).toContain('revoke execute on function public.studio2_assign_jury_member');
-    expect(migration).toContain('revoke execute on function public.studio2_remove_jury_member');
+    expect(privilegeHardening).toContain('from public, anon, authenticated');
+    expect(privilegeHardening).toContain('grant execute on function public.studio2_assign_jury_member');
+    expect(privilegeHardening).toContain('grant execute on function public.studio2_remove_jury_member');
+    expect(privilegeHardening).toContain('to service_role');
   });
 
   it('models the only pre-ballot blocker as a missing HOD', () => {
