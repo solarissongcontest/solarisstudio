@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -39,7 +39,20 @@ export async function fetchAdminRulebookReleases(): Promise<RulebookRelease[]> {
   return Array.isArray(data) ? (data as RulebookRelease[]) : [];
 }
 
+const subscribeToHydration = () => () => undefined;
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
+
 export function usePublishedRulebook() {
+  // The public Supabase client can resolve before React reaches this subtree in
+  // the browser, while SSR deliberately renders the bundled rulebook. Defer the
+  // query until after hydration so the server and first client snapshots are
+  // identical; React then refreshes the live release immediately after commit.
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot,
+  );
   const query = useQuery({
     queryKey: ["public-rulebook-release"],
     queryFn: async () => {
@@ -52,6 +65,7 @@ export function usePublishedRulebook() {
     },
     staleTime: 5 * 60 * 1000,
     retry: 1,
+    enabled: hydrated,
   });
 
   return {

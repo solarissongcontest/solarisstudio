@@ -181,6 +181,12 @@ describe("rulebook governance contract", () => {
     expect(runtime).toContain("public_current_rulebook_release");
   });
 
+  it("defers live rulebook data until after the first client hydration snapshot", () => {
+    expect(runtime).toContain("useSyncExternalStore");
+    expect(runtime).toContain("getServerHydrationSnapshot");
+    expect(runtime).toContain("enabled: hydrated");
+  });
+
   it("resets to bundled v4 when no current published release remains", () => {
     expect(runtimeOverlay).toContain("if (!release?.version)");
     expect(runtimeOverlay).toContain("if (appliedReleaseVersion !== null)");
