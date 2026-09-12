@@ -80,7 +80,7 @@ begin
   end if;
 
   if p_asset_type = 'logo' then
-    if p_asset_key <> 'edition:' || p_edition_id::text || ':logo'
+    if p_asset_key <> ('edition:' || p_edition_id::text || ':logo')
        or p_country_id is not null
        or p_entry_id is not null then
       raise exception 'Edition logo asset identity is invalid' using errcode = '22023';
@@ -112,7 +112,7 @@ begin
   end if;
 
   if p_asset_type = 'flag' then
-    if p_asset_key <> 'country:' || p_country_id::text || ':flag'
+    if p_asset_key <> ('country:' || p_country_id::text || ':flag')
        or p_entry_id is not null then
       raise exception 'Country flag asset identity is invalid' using errcode = '22023';
     end if;
@@ -144,7 +144,7 @@ begin
   if v_entry_country_id is distinct from p_country_id then
     raise exception 'Entry does not belong to the selected country' using errcode = '22023';
   end if;
-  if p_asset_key <> 'entry:' || p_entry_id::text || ':' || p_asset_type then
+  if p_asset_key <> ('entry:' || p_entry_id::text || ':' || p_asset_type) then
     raise exception 'Entry media asset identity is invalid' using errcode = '22023';
   end if;
 
@@ -329,6 +329,9 @@ begin
     end if;
     if btrim(v_current_source) <> v_expected_source then
       raise exception 'Media asset changed since it was loaded. Refresh before reviewing.' using errcode = '40001';
+    end if;
+    if v_decision = 'approved' and btrim(v_current_source) !~* '^https?://' then
+      raise exception 'Only HTTP(S) canonical media sources can be approved' using errcode = '22023';
     end if;
 
     update public.studio2_media_asset_reviews
