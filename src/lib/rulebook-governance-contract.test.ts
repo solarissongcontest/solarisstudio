@@ -185,6 +185,8 @@ describe("rulebook governance contract", () => {
     expect(runtime).toContain("useSyncExternalStore");
     expect(runtime).toContain("getServerHydrationSnapshot");
     expect(runtime).toContain("enabled: hydrated");
+    expect(runtime).toContain("const data = hydrated ? query.data : undefined");
+    expect(runtime).toContain("applyPublishedRulebookRelease(query.data ?? null)");
   });
 
   it("resets to bundled v4 when no current published release remains", () => {

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -57,10 +57,6 @@ export function usePublishedRulebook() {
     queryKey: ["public-rulebook-release"],
     queryFn: async () => {
       const release = await fetchCurrentRulebookRelease();
-      // Apply the immutable overlay before React Query publishes `data` to
-      // subscribers. Otherwise sibling rule components can render one frame of
-      // bundled v4 text after the query has already resolved.
-      applyPublishedRulebookRelease(release);
       return release;
     },
     staleTime: 5 * 60 * 1000,
@@ -68,9 +64,20 @@ export function usePublishedRulebook() {
     enabled: hydrated,
   });
 
+  useEffect(() => {
+    if (!hydrated) return;
+    // Apply the immutable overlay only after the first client snapshot is
+    // hydrated. This keeps sibling Rules consumers on the bundled baseline
+    // during hydration, even when a cached query is already available.
+    applyPublishedRulebookRelease(query.data ?? null);
+  }, [hydrated, query.data]);
+
+  const data = hydrated ? query.data : undefined;
+
   return {
     ...query,
-    version: query.data?.version ?? SSC_RULEBOOK.version,
+    data,
+    version: data?.version ?? SSC_RULEBOOK.version,
   };
 }
 
