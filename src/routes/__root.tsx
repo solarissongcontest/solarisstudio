@@ -17,10 +17,10 @@ import anniversaryCss from "../anniversary.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
-import { GlobalRulesNavigationAddon } from "../components/GlobalRulesNavigationAddon";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
+import { RulesGovernanceContext } from "../components/rules/RulesGovernanceContext";
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -235,7 +235,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SolarisAnniversaryCelebration />
       <RouteVisualTheme />
-      <GlobalRulesNavigationAddon />
+      <RulesGovernanceContext />
       {!fullAdmin ? <SolarisAmbientBackground /> : null}
       {content}
       <ToolQuickGuide pathname={pathname} />
