@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import { AdvancedRulesTools } from "@/components/rules/AdvancedRulesTools";
-import { RulesExperienceRefined } from "@/components/rules/RulesExperienceRefined";
+import { RulesExperience } from "@/components/rules/RulesExperience";
 import { RulebookVersionBanner } from "@/components/rules/RulebookVersionBanner";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 
@@ -25,7 +25,7 @@ function RulesPage() {
   return (
     <AppShell>
       <RulebookVersionBanner />
-      <RulesExperienceRefined key={published.version} />
+      <RulesExperience key={published.version} />
       <AdvancedRulesTools />
     </AppShell>
   );
