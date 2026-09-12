@@ -29,7 +29,14 @@ const context: Studio2HodContext = {
   },
   juryMembersRequired: 1,
   juryMembersAssigned: 1,
-  juryMembers: [],
+  juryMembers: [
+    {
+      id: 'hod-assignment-1',
+      displayName: 'Oland HOD',
+      memberUserId: 'user-1',
+      createdAt: '2026-09-01T10:00:00Z',
+    },
+  ],
   juryBallotSubmitted: false,
   notices: [],
   deadlines: [],
@@ -117,13 +124,17 @@ describe('Studio 2 eligibility decision model', () => {
   });
 
   it('treats a missing HOD jury separately from a hard blocker', () => {
-    const snapshot = buildStudio2HodWorkspaceSnapshot({ ...context, juryMembersAssigned: 0 });
+    const snapshot = buildStudio2HodWorkspaceSnapshot({
+      ...context,
+      juryMembersAssigned: 0,
+      juryMembers: [],
+    });
     const result = buildStudio2EligibilityCountry(snapshot, [], new Date('2026-09-11T10:00:00Z'));
 
     expect(result.jury).toBe('incomplete');
     expect(result.overall).toBe('incomplete');
     expect(result.rules.find((rule) => rule.id === 'jury')?.evidence).toEqual(
-      expect.arrayContaining(['Required: 1', 'Assigned: 0']),
+      expect.arrayContaining(['Jury model: one HOD per country', 'HOD assigned: no']),
     );
   });
 
@@ -132,6 +143,7 @@ describe('Studio 2 eligibility decision model', () => {
       ...context,
       confirmationComplete: false,
       juryMembersAssigned: 0,
+      juryMembers: [],
     });
     const effective = applyStudio2EligibilityOverridesToReadiness(
       snapshot,
