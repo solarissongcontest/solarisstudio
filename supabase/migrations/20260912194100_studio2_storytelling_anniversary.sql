@@ -806,7 +806,7 @@ declare
   v_edition public.editions%rowtype;
   v_items jsonb := '[]'::jsonb;
 begin
-  select s.*, e.* into v_story, v_edition
+  select s, e into v_story, v_edition
   from public.studio2_storylines s
   join public.editions e on e.id = s.edition_id
   where e.slug = p_edition_slug and e.published and s.status = 'published'
