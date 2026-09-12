@@ -11,6 +11,7 @@ const route = source('src/routes/_authenticated/admin/broadcast-rundown.tsx');
 const adapter = source('src/lib/studio2-broadcast-rundown.ts');
 const timingEngine = source('src/lib/broadcast-rundown.ts');
 const migration = source('supabase/migrations/20260912141000_studio2_advanced_broadcast_workflows.sql');
+const liveLockGuard = source('supabase/migrations/20260912141100_studio2_broadcast_live_lock_guard.sql');
 
 describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
   it('extends the existing Organizer rundown surface and timing engine', () => {
@@ -39,8 +40,10 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(migration).toContain("private.studio2_user_has_capability(p_user_id, 'edition.manage', p_edition_id)");
     expect(migration).toContain("public.has_role(p_user_id, 'organizer'::public.app_role)");
     expect(migration).toContain("length(v_reason) < 5");
-    expect(migration).toContain("p_to_status = 'live' and nullif(v_current ->> 'lockedAt', '') is null");
-    expect(migration).toContain('Lock the broadcast rundown before taking a segment live');
+    expect(liveLockGuard).toContain("segment ->> 'status' = 'live'");
+    expect(liveLockGuard).toContain("nullif(v_rundown ->> 'lockedAt', '') is null");
+    expect(liveLockGuard).toContain('Lock the broadcast rundown before taking a segment live');
+    expect(liveLockGuard).toContain('before update of broadcast_config on public.shows');
     expect(route).toContain('Lock rundown');
     expect(route).toContain('window.confirm');
     expect(route).toContain('window.prompt');
@@ -61,10 +64,12 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(migration).toContain("'broadcast.rundown_unlocked'");
     expect(migration).toContain('insert into public.studio2_contest_events');
     expect(migration).not.toContain('studio2_contest_events_type_check');
+    expect(liveLockGuard).not.toContain('studio2_contest_events_type_check');
   });
 
   it('does not create a parallel rundown table or duplicate the timing algorithm', () => {
     expect(migration).not.toContain('create table');
+    expect(liveLockGuard).not.toContain('create table');
     expect(adapter).toContain("from './broadcast-rundown'");
     expect(adapter).toContain('buildBroadcastRundown');
     expect(adapter).not.toContain('studio2_broadcast_rundown_segments');
