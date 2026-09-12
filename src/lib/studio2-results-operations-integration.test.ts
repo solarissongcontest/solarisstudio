@@ -10,6 +10,7 @@ const nav = source('src/components/admin/AdminNav.tsx');
 const route = source('src/routes/_authenticated/admin/results.tsx');
 const service = source('src/lib/studio2-results-operations.ts');
 const migration = source('supabase/migrations/20260912154500_studio2_results_operations.sql');
+const publishedGuard = source('supabase/migrations/20260912154600_studio2_results_published_guard.sql');
 
 describe('Studio 2 Phase 10 results operations', () => {
   it('adds one organizer results control plane and keeps specialist systems authoritative', () => {
@@ -69,11 +70,16 @@ describe('Studio 2 Phase 10 results operations', () => {
     expect(service).toContain("row.lockedVersion === version");
   });
 
-  it('will not silently mutate a live published result layer', () => {
+  it('makes published results terminal in both UI availability and the database', () => {
+    expect(service).toContain('if (pre.publishedResults) return actions;');
+    expect(publishedGuard).toContain('private.studio2_guard_published_result_operation_update');
+    expect(publishedGuard).toContain('if v_published and new is distinct from old then');
+    expect(publishedGuard).toContain('Make the published result layer private before changing result operations.');
+    expect(publishedGuard).toContain('before update on public.studio2_result_operations');
     expect(migration).toContain('Make the published result layer private before recalculating.');
     expect(migration).toContain('Make the published result layer private before unlocking results.');
     expect(migration).toContain('Make the published result layer private before clearing reveal readiness.');
-    expect(route).toContain('This does not publish anything.');
+    expect(route).toContain('/admin/publication/');
     expect(migration).not.toContain('update public.shows');
   });
 
