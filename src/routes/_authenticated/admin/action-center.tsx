@@ -95,11 +95,20 @@ function ActionCenterPage() {
       recentEvents: snapshotQuery.data.recentEvents,
       editionSlug: selectedEdition?.slug ?? null,
       broadcastRundownEnabled: featureQuery.data?.rundown === true,
-      countryReadiness: (countryCockpitQuery.data ?? []).map((row) => ({
-        countryId: row.context.countryId,
-        countryName: row.context.countryName,
-        readiness: applyStudio2EligibilityOverridesToReadiness(row, eligibilityOverridesQuery.data ?? []),
-      })),
+      countryReadiness: (countryCockpitQuery.data ?? []).map((row) => {
+        const countryReadiness = {
+          countryId: row.context.countryId,
+          countryName: row.context.countryName,
+          readiness: row.operationalReadiness,
+        };
+        return {
+          ...countryReadiness,
+          readiness: applyStudio2EligibilityOverridesToReadiness(
+            row,
+            eligibilityOverridesQuery.data ?? [],
+          ),
+        };
+      }),
     });
   }, [
     approvalsQuery.data,
