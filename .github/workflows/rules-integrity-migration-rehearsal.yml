@@ -1,0 +1,122 @@
+name: Rules + Integrity migration rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/functions/integrity-evidence-download/**"
+      - "supabase/functions/integrity-evidence-lifecycle/**"
+      - ".github/scripts/rules-integrity-security-rehearsal.sh"
+      - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
+      - ".github/workflows/rules-integrity-migration-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-rehearsal-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean migration replay + hostile security
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Ensure PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Start isolated local Supabase stack
+        run: supabase start
+
+      - name: Rebuild clean local database from migrations
+        run: supabase db reset --local --no-seed
+
+      - name: Verify local migration history
+        run: supabase migration list --local
+
+      - name: Run live Rules and Integrity adversarial rehearsal
+        shell: bash
+        run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
+
+      - name: Print local Evidence Edge Function log on failure
+        if: failure()
+        run: tail -n 300 /tmp/rules-integrity-functions.log || true
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Upgrade current main database
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Prepare current main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-main origin/main
+
+      - name: Verify current main is an unmodified baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git -C /tmp/solaris-main status --porcelain --untracked-files=all)"
+          test -f "/tmp/solaris-main/supabase/migrations/20260822204600_result_driven_qualifier_sync.sql"
+          test ! -e "/tmp/solaris-main/supabase/migrations/20260822204500_result_driven_qualifier_sync.sql"
+
+      - name: Build current main database locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-main
+          supabase start
+          supabase db reset --local --no-seed
+          supabase migration list --local
+
+      - name: Apply feature migration set as an upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-main/supabase/migrations/
+          cd /tmp/solaris-main
+          supabase migration up --local --include-all
+          supabase migration list --local
+
+      - name: Stop local Supabase stack
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
