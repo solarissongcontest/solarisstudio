@@ -8,6 +8,7 @@ import {
   FlaskConical,
   GitBranch,
   History,
+  Images,
   LayoutDashboard,
   Layers3,
   ListVideo,
@@ -130,6 +131,12 @@ export function AdminNav() {
       to: "/admin/eligibility",
       icon: ShieldCheck,
       active: (path) => path.startsWith("/admin/eligibility"),
+    },
+    {
+      label: "Media assets",
+      to: "/admin/media-assets",
+      icon: Images,
+      active: (path) => path.startsWith("/admin/media-assets"),
     },
     {
       label: "Simulator",
