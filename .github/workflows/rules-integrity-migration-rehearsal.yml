@@ -88,78 +88,13 @@ jobs:
           git fetch origin main --no-tags
           git worktree add /tmp/solaris-main origin/main
 
-      - name: Overlay historical clean-replay compatibility fixes
+      - name: Verify current main is an unmodified baseline
         shell: bash
         run: |
           set -euo pipefail
-
-          # Current main cannot be reconstructed cleanly from its raw migration
-          # directory. Several historical migrations either precede dependencies
-          # they use, assume legacy trigger helpers or optional legacy metadata
-          # tables exist, or disappeared from the repository after being recorded
-          # in deployed migration history. Main also contains two files with
-          # version 20260822204500; a migration table can record that version only
-          # once.
-          #
-          # This disposable baseline receives only narrowly-scoped replay fixes.
-          # Rules/Integrity feature migrations must not enter the baseline before
-          # reset, otherwise this job would no longer test a real main -> feature
-          # upgrade path.
-          compatibility_files=(
-            "20260811113856_complete_prediction_arena_and_start_pulse.sql"
-            "20260816200158_integrate_confirmations_schema.sql"
-            "20260817205500_audit_friend_voting_settings_updates.sql"
-            "20260821180000_harden_legacy_trigger_rpc_surface.sql"
-            "20260909073500_import_ssc20_historical_televote.sql"
-            "20260909074500_wire_ssc20_historical_ballots_into_analytics.sql"
-          )
-
-          for file in "${compatibility_files[@]}"; do
-            test -f "$GITHUB_WORKSPACE/supabase/migrations/$file"
-            cp "$GITHUB_WORKSPACE/supabase/migrations/$file" "/tmp/solaris-main/supabase/migrations/$file"
-          done
-
-          # Main has two different files named with migration version
-          # 20260822204500. Supabase applies the first version and then rejects
-          # the second migration-history insert. The feature branch preserves
-          # the first file at 204500 and retimestamps the qualifier-sync body to
-          # 204600. For the disposable main baseline, omit the duplicate body so
-          # it is applied later by the feature upgrade at its new unique version.
-          duplicate_main="20260822204500_result_driven_qualifier_sync.sql"
-          retimestamped_feature="20260822204600_result_driven_qualifier_sync.sql"
-          test -f "/tmp/solaris-main/supabase/migrations/$duplicate_main"
-          test -f "$GITHUB_WORKSPACE/supabase/migrations/$retimestamped_feature"
-          test ! -e "$GITHUB_WORKSPACE/supabase/migrations/$duplicate_main"
-          cmp "/tmp/solaris-main/supabase/migrations/$duplicate_main" \
-              "$GITHUB_WORKSPACE/supabase/migrations/$retimestamped_feature"
-          rm "/tmp/solaris-main/supabase/migrations/$duplicate_main"
-
-          # Guard against accidentally turning this baseline step into a copy
-          # of the feature migration set. Include untracked and deleted files
-          # because the restored Confirmations migration is absent on main and
-          # the duplicate 204500 qualifier migration is intentionally removed.
-          mapfile -t changed < <(
-            git -C /tmp/solaris-main status --porcelain --untracked-files=all -- supabase/migrations \
-              | sed -E 's/^.. //' \
-              | sed 's#^supabase/migrations/##' \
-              | sort
-          )
-          expected=(
-            "20260811113856_complete_prediction_arena_and_start_pulse.sql"
-            "20260816200158_integrate_confirmations_schema.sql"
-            "20260817205500_audit_friend_voting_settings_updates.sql"
-            "20260821180000_harden_legacy_trigger_rpc_surface.sql"
-            "20260822204500_result_driven_qualifier_sync.sql"
-            "20260909073500_import_ssc20_historical_televote.sql"
-            "20260909074500_wire_ssc20_historical_ballots_into_analytics.sql"
-          )
-          mapfile -t expected < <(printf '%s\n' "${expected[@]}" | sort)
-
-          if [[ "${changed[*]}" != "${expected[*]}" ]]; then
-            printf 'Unexpected baseline migration overlay.\nExpected: %s\nActual: %s\n' \
-              "${expected[*]}" "${changed[*]}" >&2
-            exit 1
-          fi
+          test -z "$(git -C /tmp/solaris-main status --porcelain --untracked-files=all)"
+          test -f "/tmp/solaris-main/supabase/migrations/20260822204600_result_driven_qualifier_sync.sql"
+          test ! -e "/tmp/solaris-main/supabase/migrations/20260822204500_result_driven_qualifier_sync.sql"
 
       - name: Build current main database locally
         shell: bash

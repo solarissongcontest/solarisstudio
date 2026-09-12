@@ -1,7 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ChevronDown,
-  CircleHelp,
   Compass,
   Home,
   Menu,
@@ -46,7 +45,7 @@ const EXPLORE_NAV: PublicNavItem[] = [
   { to: "/countries", label: "Countries", description: "See countries, entries and results" },
   { to: "/shows", label: "Shows", description: "Open semi-finals, finals and results" },
   { to: "/wiki", label: "Wiki", description: "Read detailed country pages" },
-  { to: "/library", label: "Library", description: "Search Solaris, official rules and Trust & Integrity" },
+  { to: "/library", label: "Library", description: "Rules, help and search" },
 ];
 
 const MOBILE_EXPLORE_NAV: PublicNavItem[] = EXPLORE_NAV;
@@ -54,8 +53,19 @@ const MOBILE_EXPLORE_NAV: PublicNavItem[] = EXPLORE_NAV;
 const INSIGHTS_NAV: PublicNavItem[] = [
   { to: "/analysis", label: "Analysis", description: "See what the results and votes show" },
   { to: "/pulse", label: "Pulse", description: "See what has changed recently" },
-  { to: "/relationships", label: "Relationships", description: "See which countries often vote alike" },
+  {
+    to: "/relationships",
+    label: "Relationships",
+    description: "See which countries often vote alike",
+  },
   { to: "/records", label: "Records", description: "See all-time records and milestones" },
+  { to: "/predictions", label: "Predictions", description: "Build and track predictions" },
+];
+
+const MOBILE_PARTICIPATE_NAV: PublicNavItem[] = [
+  { to: "/participate", label: "Participate", description: "Voting and submissions" },
+  { to: "/tools", label: "Tools", description: "Interactive Solaris tools" },
+  { to: "/guide", label: "Guide", description: "Help using Solaris" },
 ];
 
 const TOOL_ROUTES = [
@@ -67,10 +77,7 @@ const TOOL_ROUTES = [
   "/compare",
 ] as const;
 
-const INSIGHT_ROUTES = [
-  ...INSIGHTS_NAV.map((item) => item.to),
-  ...TOOL_ROUTES,
-] as string[];
+const INSIGHT_ROUTES = [...INSIGHTS_NAV.map((item) => item.to), ...TOOL_ROUTES] as string[];
 
 const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
 const RESULT_ROUTES = [
@@ -169,11 +176,19 @@ function publicLayoutForPath(pathname: string): PublicLayout {
 
   if (/^\/(guide|auth|reset|recover)(\/|$)/.test(pathname)) return "reading";
 
-  if (/^\/(analysis|relationships|records|scorecharts|pulse|broadcast-intelligence)(\/|$)/.test(pathname)) {
+  if (
+    /^\/(analysis|relationships|records|scorecharts|pulse|broadcast-intelligence)(\/|$)/.test(
+      pathname,
+    )
+  ) {
     return "data";
   }
 
-  if (/^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|jury-voting|televoting|next-in-line|my-solaris|country-hub)(\/|$)/.test(pathname)) {
+  if (
+    /^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|jury-voting|televoting|next-in-line|my-solaris|country-hub)(\/|$)/.test(
+      pathname,
+    )
+  ) {
     return "workspace";
   }
 
@@ -194,9 +209,11 @@ function anyPathMatches(pathname: string, routes: readonly string[]) {
 }
 
 function desktopContextForPath(pathname: string) {
-  return DESKTOP_CONTEXT_GROUPS.find((group) =>
-    group.items.some((item) => pathMatches(pathname, item.to)),
-  ) ?? null;
+  return (
+    DESKTOP_CONTEXT_GROUPS.find((group) =>
+      group.items.some((item) => pathMatches(pathname, item.to)),
+    ) ?? null
+  );
 }
 
 function productEyebrow(eyebrow?: string) {
@@ -234,9 +251,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (alive) setAccess(next);
     };
 
-    void supabase.auth.getUser().then(({ data }) =>
-      refresh(data.user?.id ?? null, data.user?.email ?? null),
-    );
+    void supabase.auth
+      .getUser()
+      .then(({ data }) => refresh(data.user?.id ?? null, data.user?.email ?? null));
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       window.setTimeout(
@@ -288,12 +305,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const accountHref = email ? "/my-solaris" : "/auth";
   const publicLayout = publicLayoutForPath(pathname);
-  const desktopContext = (
+  const desktopContext =
     ["directory", "data", "workspace"].includes(publicLayout) ||
     (publicLayout === "detail" && !pathname.startsWith("/wiki/"))
-  )
-    ? desktopContextForPath(pathname)
-    : null;
+      ? desktopContextForPath(pathname)
+      : null;
   const visibleAccountEmail =
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const resultsActive = pathMatches(pathname, "/results");
@@ -432,12 +448,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Link to="/my-solaris" className="nav-menu-item mt-1">
                     <span className="font-semibold">Open MySolaris</span>
                     <span className="text-[10px] text-muted-foreground">
-                      Dashboard, participation{access.countryId ? " & country tools" : " & country setup"}
+                      Dashboard, participation
+                      {access.countryId ? " & country tools" : " & country setup"}
                     </span>
                   </Link>
                   <Link to="/country-hub" className="nav-menu-item">
                     <span className="font-semibold">Country workspace</span>
-                    <span className="text-[10px] text-muted-foreground">Edit country, entries, page and media</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Edit country, entries, page and media
+                    </span>
                   </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className="nav-menu-item">
@@ -500,27 +519,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <nav className="scroll-slim flex-1 overflow-y-auto p-3" aria-label="Mobile navigation">
               <MobileNavSection title="Explore" items={MOBILE_EXPLORE_NAV} pathname={pathname} />
               <MobileNavSection title="Insights" items={INSIGHTS_NAV} pathname={pathname} />
-
-              <div className="mb-5">
-                <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
-                  Do something
-                </p>
-                <Link
-                  to="/predictions"
-                  className={mobileDrawerLink(pathMatches(pathname, "/predictions"))}
-                >
-                  Predictions
-                </Link>
-                <Link to="/tools" className={mobileDrawerLink(anyPathMatches(pathname, TOOL_ROUTES))}>
-                  Tools
-                </Link>
-                <Link to="/participate" className={mobileDrawerLink(participateActive)}>
-                  Participate
-                </Link>
-                <Link to="/guide" className={mobileDrawerLink(guideActive)}>
-                  <CircleHelp className="mr-2 h-4 w-4" /> Guide
-                </Link>
-              </div>
+              <MobileNavSection
+                title="Participate"
+                items={MOBILE_PARTICIPATE_NAV}
+                pathname={pathname}
+              />
 
               {email && (
                 <div className="mb-5 border-t border-border/55 pt-4">
@@ -649,13 +652,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function DesktopContextRail({
-  group,
-  pathname,
-}: {
-  group: DesktopContextGroup;
-  pathname: string;
-}) {
+function DesktopContextRail({ group, pathname }: { group: DesktopContextGroup; pathname: string }) {
   return (
     <aside className="desktop-context-rail hidden lg:block">
       <nav aria-label={`${group.label} navigation`}>
@@ -677,7 +674,9 @@ function DesktopContextRail({
             );
           })}
         </div>
-        <Link to="/guide" className="desktop-context-guide">Need help? Open the Guide →</Link>
+        <Link to="/guide" className="desktop-context-guide">
+          Need help? Open the Guide →
+        </Link>
       </nav>
     </aside>
   );
@@ -762,7 +761,7 @@ function MobileNavSection({
   pathname: string;
 }) {
   return (
-    <div className="mb-5">
+    <div className="mb-3">
       <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
         {title}
       </p>
@@ -775,7 +774,7 @@ function MobileNavSection({
           <span className="min-w-0">
             <span className="block truncate">{item.label}</span>
             {item.description && (
-              <span className="mt-0.5 block text-[10px] font-normal leading-relaxed text-muted-foreground/70">
+              <span className="mt-0.5 block text-[10px] font-normal leading-4 text-muted-foreground/70">
                 {item.description}
               </span>
             )}
@@ -852,7 +851,9 @@ export function PageHeader({
             </p>
           )}
         </div>
-        {actions && <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">{actions}</div>}
+        {actions && (
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">{actions}</div>
+        )}
       </div>
     </header>
   );
@@ -926,8 +927,12 @@ export function StatTile({
 }) {
   return (
     <div className="stat-line min-w-0 border-l border-border/60 pl-3 first:border-l-0 first:pl-0">
-      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
-      <p className="numeric mt-1 break-words text-2xl font-semibold leading-none sm:text-3xl">{value}</p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="numeric mt-1 break-words text-2xl font-semibold leading-none sm:text-3xl">
+        {value}
+      </p>
       {hint && <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
     </div>
   );

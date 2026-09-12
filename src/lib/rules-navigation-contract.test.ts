@@ -12,10 +12,7 @@ const contextualGuide = readFileSync(
 );
 const root = readFileSync(resolve(process.cwd(), "src/routes/__root.tsx"), "utf8");
 const appShell = readFileSync(resolve(process.cwd(), "src/components/AppShell.tsx"), "utf8");
-const adminNav = readFileSync(
-  resolve(process.cwd(), "src/components/admin/AdminNav.tsx"),
-  "utf8",
-);
+const adminNav = readFileSync(resolve(process.cwd(), "src/components/admin/AdminNav.tsx"), "utf8");
 const libraryProvider = readFileSync(
   resolve(process.cwd(), "src/lib/public-library-governance.ts"),
   "utf8",
@@ -24,14 +21,11 @@ const libraryResults = readFileSync(
   resolve(process.cwd(), "src/components/library/GovernanceLibraryResults.tsx"),
   "utf8",
 );
-const publicLibrary = readFileSync(
-  resolve(process.cwd(), "src/routes/library.tsx"),
-  "utf8",
-);
+const publicLibrary = readFileSync(resolve(process.cwd(), "src/routes/library.tsx"), "utf8");
 
 describe("Rules and Integrity navigation", () => {
   it("keeps published rulebook runtime state without mounting global Rules UI", () => {
-    expect(root).toContain('import { RulesGovernanceContext }');
+    expect(root).toContain("import { RulesGovernanceContext }");
     expect(root).toContain("<RulesGovernanceContext />");
     expect(root).not.toContain("GlobalRulesNavigationAddon");
     expect(runtimeContext).toContain("usePublishedRulebook");
@@ -70,7 +64,8 @@ describe("Rules and Integrity navigation", () => {
     expect(publicLibrary).toContain("Search Solaris");
     expect(publicLibrary).toContain("<GovernanceLibraryResults");
     expect(publicLibrary).toContain("getPublicRuleInterpretations");
-    expect(publicLibrary).toContain('aria-label="Search Solaris Library"');
+    expect(publicLibrary).toContain("<PublicSearchField");
+    expect(publicLibrary).toContain('ariaLabel="Search Solaris Library"');
     expect(libraryResults).toContain("searchGovernanceLibrary");
     expect(libraryResults).toContain("governanceRuleResults");
     expect(libraryResults).toContain("Relevant here");

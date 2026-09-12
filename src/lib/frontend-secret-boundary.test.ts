@@ -9,6 +9,7 @@ function sourceFiles(root: string): string[] {
     if (stat.isDirectory()) return sourceFiles(path);
     if (![".ts", ".tsx"].includes(extname(path))) return [];
     if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(path)) return [];
+    if (/\.server\.[cm]?[jt]sx?$/.test(path)) return [];
     return [path];
   });
 }

@@ -12,8 +12,7 @@ export const Route = createFileRoute("/rules/")({
       { title: "Official Rules — Solaris Song Contest" },
       {
         name: "description",
-        content:
-          "Explore the official Solaris Song Contest regulations through visual guides, fast rule checks, eligibility tools and the complete rulebook.",
+        content: "Read and search the official Solaris Song Contest regulations.",
       },
     ],
   }),

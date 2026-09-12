@@ -359,6 +359,10 @@ function_request "$REPORTER_A_TOKEN" integrity-evidence-download "{\"mode\":\"re
 expect_success "owner receives a server-authorized signed evidence URL"
 expect_json_value "signed evidence URL has the fixed one-minute TTL" expiresInSeconds 60
 SIGNED_URL="$(printf '%s' "$HTTP_BODY" | json_value url)"
+# Storage signs local URLs against Kong's container hostname. The rehearsal
+# runs curl on the host, where that name is not resolvable; route the same
+# signed path through the CLI's published API endpoint.
+SIGNED_URL="${SIGNED_URL/http:\/\/kong:8000/$API_URL}"
 SIGNED_STATUS="$(curl -sS -o /tmp/security-signed-evidence.txt -w '%{http_code}' "$SIGNED_URL")"
 [[ "$SIGNED_STATUS" == "200" ]] || fail "Signed evidence URL did not download the seeded object: HTTP $SIGNED_STATUS"
 [[ "$(cat /tmp/security-signed-evidence.txt)" == 'visible evidence body' ]] || fail "Signed evidence URL returned the wrong object body"

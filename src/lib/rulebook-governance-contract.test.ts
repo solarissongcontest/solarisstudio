@@ -19,21 +19,29 @@ const ancestryMigration = readFileSync(
   "utf8",
 );
 const publicationHardening = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20260911161300_rulebook_publication_state_hardening.sql"),
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20260911161300_rulebook_publication_state_hardening.sql",
+  ),
   "utf8",
 );
-const runtime = readFileSync(
-  resolve(process.cwd(), "src/lib/rules-governance.ts"),
+const anonRpcHardening = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20260912202000_rules_integrity_anon_rpc_hardening.sql",
+  ),
+  "utf8",
+);
+const runtime = readFileSync(resolve(process.cwd(), "src/lib/rules-governance.ts"), "utf8");
+const runtimeOverlay = readFileSync(
+  resolve(process.cwd(), "src/lib/ssc-rules/runtime-overlay.ts"),
   "utf8",
 );
 const contextualGuide = readFileSync(
   resolve(process.cwd(), "src/components/rules/ContextualRuleGuide.tsx"),
   "utf8",
 );
-const ruleContext = readFileSync(
-  resolve(process.cwd(), "src/lib/rule-context.ts"),
-  "utf8",
-);
+const ruleContext = readFileSync(resolve(process.cwd(), "src/lib/rule-context.ts"), "utf8");
 const decisionStrip = readFileSync(
   resolve(process.cwd(), "src/components/rules/RuleDecisionStrip.tsx"),
   "utf8",
@@ -50,16 +58,31 @@ const investigations = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-investigations.tsx"),
   "utf8",
 );
-const navigation = readFileSync(
-  resolve(process.cwd(), "src/components/GlobalRulesNavigationAddon.tsx"),
-  "utf8",
-);
+const root = readFileSync(resolve(process.cwd(), "src/routes/__root.tsx"), "utf8");
 const publicLibrary = readFileSync(
   resolve(process.cwd(), "src/lib/public-library-governance.ts"),
   "utf8",
 );
+const rulesRoute = readFileSync(resolve(process.cwd(), "src/routes/rules/index.tsx"), "utf8");
+const integrityRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/integrity/index.tsx"),
+  "utf8",
+);
 
 describe("rulebook governance contract", () => {
+  it("keeps privileged governance RPCs off the anonymous API surface", () => {
+    expect(anonRpcHardening).toContain("p.proname like 'admin\\_%'");
+    expect(anonRpcHardening).toContain("p.proname like 'reporter\\_%'");
+    expect(anonRpcHardening).toContain("p.proname like 'integrity\\_%'");
+    expect(anonRpcHardening).toContain("p.proname like 'rulebook\\_%'");
+    expect(anonRpcHardening).toContain(
+      "revoke execute on function %I.%I(%s) from public, anon",
+    );
+    expect(anonRpcHardening).toContain(
+      "p.proname <> 'integrity_can_upload_evidence'",
+    );
+  });
+
   it("stores releases, rule-level snapshots and an audit trail", () => {
     expect(migration).toContain("create table if not exists public.ssc_rulebook_releases");
     expect(migration).toContain("create table if not exists public.ssc_rulebook_change_items");
@@ -69,8 +92,12 @@ describe("rulebook governance contract", () => {
   });
 
   it("keeps direct rulebook-governance tables closed and exposes narrow RPCs", () => {
-    expect(migration).toContain("alter table public.ssc_rulebook_releases enable row level security");
-    expect(migration).toContain("revoke all on public.ssc_rulebook_releases from anon, authenticated");
+    expect(migration).toContain(
+      "alter table public.ssc_rulebook_releases enable row level security",
+    );
+    expect(migration).toContain(
+      "revoke all on public.ssc_rulebook_releases from anon, authenticated",
+    );
     expect(migration).toContain("public_current_rulebook_release");
     expect(migration).toContain("public_rulebook_release_history");
     expect(migration).toContain("admin_rulebook_releases");
@@ -83,12 +110,18 @@ describe("rulebook governance contract", () => {
     expect(migration).toContain("ssc_rulebook_one_current_idx");
     expect(migration).toMatch(/where is_current = true/i);
     expect(migration).toContain("not is_current or status = 'published'");
-    expect(migration).toContain("update public.ssc_rulebook_releases set is_current = false where is_current = true");
+    expect(migration).toContain(
+      "update public.ssc_rulebook_releases set is_current = false where is_current = true",
+    );
   });
 
   it("makes published releases immutable through the editor RPCs", () => {
-    expect(migration).toMatch(/if v_status <> 'draft' then raise exception 'Only draft releases can be edited'/i);
-    expect(validationMigration).toMatch(/if v_status <> 'draft' then\s+raise exception 'Only draft releases can be published'/i);
+    expect(migration).toMatch(
+      /if v_status <> 'draft' then raise exception 'Only draft releases can be edited'/i,
+    );
+    expect(validationMigration).toMatch(
+      /if v_status <> 'draft' then\s+raise exception 'Only draft releases can be published'/i,
+    );
     expect(chainMigration).toContain("Published rulebook history cannot be archived");
   });
 
@@ -103,21 +136,31 @@ describe("rulebook governance contract", () => {
     expect(validationMigration).toContain("A rulebook release cannot inherit from itself");
     expect(ancestryMigration).toContain("with recursive ancestry as");
     expect(ancestryMigration).toContain("Rulebook release ancestry contains a cycle");
-    expect(ancestryMigration).toContain("Rulebook release ancestry contains a missing or unpublished base version");
+    expect(ancestryMigration).toContain(
+      "Rulebook release ancestry contains a missing or unpublished base version",
+    );
     expect(ancestryMigration).toContain("Rulebook release ancestry exceeds the supported depth");
   });
 
   it("does not let a stale branch silently replace changes from the current release", () => {
-    expect(publicationHardening).toContain("Draft base is no longer the current rulebook release; create or rebase the draft before publishing");
+    expect(publicationHardening).toContain(
+      "Draft base is no longer the current rulebook release; create or rebase the draft before publishing",
+    );
     expect(publicationHardening).toContain("v_base_version is distinct from v_current_version");
-    expect(publicationHardening).toContain("A new rulebook version must be greater than its base version");
+    expect(publicationHardening).toContain(
+      "A new rulebook version must be greater than its base version",
+    );
   });
 
   it("never makes a future-effective release current before its effective time", () => {
-    expect(publicationHardening).toContain("A rulebook release can only be published once its effective time has arrived");
+    expect(publicationHardening).toContain(
+      "A rulebook release can only be published once its effective time has arrived",
+    );
     expect(publicationHardening).toContain("_effective_from > now()");
     expect(publicationHardening).toContain("r.effective_from <= now()");
-    expect(publicationHardening).toContain("Repair any legacy state where a future-effective release was marked current");
+    expect(publicationHardening).toContain(
+      "Repair any legacy state where a future-effective release was marked current",
+    );
   });
 
   it("resolves inherited rule changes across a version chain", () => {
@@ -125,26 +168,37 @@ describe("rulebook governance contract", () => {
     expect(chainMigration).toContain("release_chain as");
     expect(chainMigration).toContain("partition by c.rule_id");
     expect(chainMigration).toContain("'effective_changes'");
-    expect(runtime).toContain("release.effective_changes ?? release.changes ?? []");
+    expect(runtimeOverlay).toContain("release.effective_changes ?? release.changes ?? []");
   });
 
   it("applies only safe existing-rule changes at runtime", () => {
-    expect(runtime).toContain('change.change_kind !== "modified" && change.change_kind !== "interpretation"');
-    expect(runtime).toContain("resetRulebookBaseline");
-    expect(runtime).toContain("SSC_RULES.find");
-    expect(runtime).toContain("SSC_RULE_CHAPTERS");
+    expect(runtimeOverlay).toContain(
+      'change.change_kind !== "modified" && change.change_kind !== "interpretation"',
+    );
+    expect(runtimeOverlay).toContain("resetRulebookBaseline");
+    expect(runtimeOverlay).toContain("SSC_RULES.find");
+    expect(runtimeOverlay).toContain("SSC_RULE_CHAPTERS");
     expect(runtime).toContain("public_current_rulebook_release");
   });
 
+  it("defers live rulebook data until after the first client hydration snapshot", () => {
+    expect(runtime).toContain("useSyncExternalStore");
+    expect(runtime).toContain("getServerHydrationSnapshot");
+    expect(runtime).toContain("enabled: hydrated");
+    expect(runtime).toContain("const data = hydrated ? query.data : undefined");
+    expect(runtime).toContain("applyPublishedRulebookRelease(query.data ?? null)");
+  });
+
   it("resets to bundled v4 when no current published release remains", () => {
-    expect(runtime).toContain("if (!release?.version)");
-    expect(runtime).toContain("if (appliedReleaseVersion !== null)");
-    expect(runtime).toContain("appliedReleaseVersion = null");
+    expect(runtimeOverlay).toContain("if (!release?.version)");
+    expect(runtimeOverlay).toContain("if (appliedReleaseVersion !== null)");
+    expect(runtimeOverlay).toContain("appliedReleaseVersion = null");
   });
 
   it("puts contextual rules inside workflows and keeps rulebook history in Library discovery", () => {
     expect(contextualGuide).toContain("getRuleContext");
-    expect(contextualGuide).toContain("Rules for this page");
+    expect(contextualGuide).toContain("routeContext");
+    expect(contextualGuide).toContain('to="/rules/$ruleId"');
     expect(ruleContext).toContain("/confirmations");
     expect(ruleContext).toContain("/televoting");
     expect(ruleContext).toContain("/admin/friend-voting");
@@ -158,9 +212,17 @@ describe("rulebook governance contract", () => {
     expect(investigations).toContain("Evidence, findings & investigator independence");
     for (const ruleId of ["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"])
       expect(investigations).toContain(`"${ruleId}"`);
-    expect(navigation).toContain("<ContextualRuleGuide />");
-    expect(navigation).not.toContain('to="/rules/changes"');
+    expect(root).toContain("<RulesGovernanceContext />");
+    expect(root).not.toContain("GlobalRulesNavigationAddon");
+    expect(contextualGuide).not.toContain('className="fixed');
     expect(publicLibrary).toContain('to: "/rules/changes"');
     expect(publicLibrary).toContain('kind: "release"');
+  });
+
+  it("renders one canonical public Rules experience without structural CSS hiding", () => {
+    expect(rulesRoute).toContain("<RulesExperience");
+    expect(rulesRoute).not.toContain("[&>div>section:first-child]:hidden");
+    expect(integrityRoute).toContain("<TrustIntegrityHub />");
+    expect(integrityRoute).not.toContain("[&>div>section:first-child]:hidden");
   });
 });
