@@ -13,6 +13,10 @@ const workspaceClient = source('src/lib/studio2-hod-workspace.ts');
 const workspaceModel = source('src/lib/hod-workspace-model.ts');
 const canonicalJury = source('src/integrations/jury-voting/jury-voting.server.ts');
 
+const canonicalJurorResolver = migration.split(
+  'create or replace function private.studio2_user_can_receive_notice_v2('
+)[1] ?? '';
+
 describe('Studio 2 single-HOD jury contract', () => {
   it('persists exactly one jury per country instead of a configurable roster size', () => {
     expect(migration).toContain('set jury_members_required = 1');
@@ -32,12 +36,12 @@ describe('Studio 2 single-HOD jury contract', () => {
 
   it('routes juror communications through the same canonical HOD identity without broadening country scope', () => {
     expect(migration).toContain("p_audience <> 'jurors'");
-    expect(migration).toContain('v_selected_person_id');
-    expect(migration).toContain("p.identity_key = 'account:' || p_user_id::text");
-    expect(migration).toContain("case when a.channel = 'jury' then 0 else 1 end");
+    expect(canonicalJurorResolver).toContain('v_selected_person_id');
+    expect(canonicalJurorResolver).toContain("p.identity_key = 'account:' || p_user_id::text");
+    expect(canonicalJurorResolver).toContain("case when a.channel = 'jury' then 0 else 1 end");
+    expect(canonicalJurorResolver).not.toContain('from public.studio2_jury_members jm');
     expect(noticeHardening).toContain('coalesce(cardinality(p_country_ids), 0) > 0');
     expect(noticeHardening).toContain('v_country_id = any(p_country_ids)');
-    expect(migration).not.toContain("from public.studio2_jury_members jm\n      where jm.member_user_id = p_user_id");
   });
 
   it('retires delegation-side add/remove juror controls and obsolete roster writes', () => {
