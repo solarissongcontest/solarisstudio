@@ -26,6 +26,10 @@ const runtime = readFileSync(
   resolve(process.cwd(), "src/lib/rules-governance.ts"),
   "utf8",
 );
+const runtimeOverlay = readFileSync(
+  resolve(process.cwd(), "src/lib/ssc-rules/runtime-overlay.ts"),
+  "utf8",
+);
 const contextualGuide = readFileSync(
   resolve(process.cwd(), "src/components/rules/ContextualRuleGuide.tsx"),
   "utf8",
@@ -125,26 +129,27 @@ describe("rulebook governance contract", () => {
     expect(chainMigration).toContain("release_chain as");
     expect(chainMigration).toContain("partition by c.rule_id");
     expect(chainMigration).toContain("'effective_changes'");
-    expect(runtime).toContain("release.effective_changes ?? release.changes ?? []");
+    expect(runtimeOverlay).toContain("release.effective_changes ?? release.changes ?? []");
   });
 
   it("applies only safe existing-rule changes at runtime", () => {
-    expect(runtime).toContain('change.change_kind !== "modified" && change.change_kind !== "interpretation"');
-    expect(runtime).toContain("resetRulebookBaseline");
-    expect(runtime).toContain("SSC_RULES.find");
-    expect(runtime).toContain("SSC_RULE_CHAPTERS");
+    expect(runtimeOverlay).toContain('change.change_kind !== "modified" && change.change_kind !== "interpretation"');
+    expect(runtimeOverlay).toContain("resetRulebookBaseline");
+    expect(runtimeOverlay).toContain("SSC_RULES.find");
+    expect(runtimeOverlay).toContain("SSC_RULE_CHAPTERS");
     expect(runtime).toContain("public_current_rulebook_release");
   });
 
   it("resets to bundled v4 when no current published release remains", () => {
-    expect(runtime).toContain("if (!release?.version)");
-    expect(runtime).toContain("if (appliedReleaseVersion !== null)");
-    expect(runtime).toContain("appliedReleaseVersion = null");
+    expect(runtimeOverlay).toContain("if (!release?.version)");
+    expect(runtimeOverlay).toContain("if (appliedReleaseVersion !== null)");
+    expect(runtimeOverlay).toContain("appliedReleaseVersion = null");
   });
 
   it("puts contextual rules inside workflows and keeps rulebook history in Library discovery", () => {
     expect(contextualGuide).toContain("getRuleContext");
-    expect(contextualGuide).toContain("Rules for this page");
+    expect(contextualGuide).toContain("routeContext");
+    expect(contextualGuide).toContain('to="/rules/$ruleId"');
     expect(ruleContext).toContain("/confirmations");
     expect(ruleContext).toContain("/televoting");
     expect(ruleContext).toContain("/admin/friend-voting");
