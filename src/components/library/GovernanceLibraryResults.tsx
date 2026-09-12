@@ -10,10 +10,12 @@ import {
 
 import {
   governanceLibraryGroups,
+  governanceRuleResults,
   searchGovernanceLibrary,
   type GovernanceLibraryKind,
   type GovernanceLibraryResult,
 } from "@/lib/public-library-governance";
+import type { SharedRuleContext } from "@/lib/rule-context";
 import type { RuleInterpretation } from "@/lib/rule-interpretations";
 import type { RulebookRelease } from "@/lib/rules-governance";
 import { cn } from "@/lib/utils";
@@ -76,6 +78,29 @@ export function GovernanceLibraryResults({
   );
 }
 
+export function GovernanceLibraryContextResults({ context }: { context: SharedRuleContext }) {
+  const results = governanceRuleResults(context.ruleIds);
+  if (!results.length) return null;
+
+  return (
+    <section
+      aria-label="Rules relevant to the page you came from"
+      className="mb-4 rounded-2xl border border-sky-200/12 bg-sky-200/[0.045] p-3"
+    >
+      <div className="px-1 pb-2">
+        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-sky-200/70">Relevant here</p>
+        <h3 className="mt-1 text-sm font-black text-foreground">{context.title}</h3>
+        <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{context.intro}</p>
+      </div>
+      <div className="space-y-1">
+        {results.map((result) => (
+          <GovernanceLibraryResultRow key={result.id} result={result} compact />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function GovernanceLibraryEmptyHint({ query }: { query: string }) {
   if (!query.trim()) return null;
 
@@ -119,7 +144,7 @@ function GovernanceLibraryResultRow({
             : "border-sky-200/10 bg-sky-200/[0.045] text-sky-100",
         )}
       >
-        <Icon className={compact ? "size-3.5" : "size-4"} />
+        <Icon className={compact ? "size-3.5" : "size-4"} aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
