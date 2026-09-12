@@ -81,8 +81,9 @@ export type Studio2HodContext = {
   participantStatus: string | null;
   publicationStatus: string | null;
   entry: Studio2HodEntryContext | null;
-  juryMembersRequired: number;
-  juryMembersAssigned: number;
+  /** Compatibility count. Solaris always has exactly one jury per country: the HOD. */
+  juryMembersRequired: 1;
+  juryMembersAssigned: 0 | 1;
   juryMembers: Studio2HodJuryMember[];
   juryBallotSubmitted: boolean;
   notices: HodWorkspaceNotice[];
@@ -230,8 +231,20 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
     row.juryMembersRequired,
     'jury members required',
   );
+  const juryMembersAssigned = expectNonNegativeInteger(
+    row.juryMembersAssigned,
+    'jury members assigned',
+  );
 
-  if (juryMembersRequired < 1) throw new Error('Invalid jury members required: expected at least one');
+  if (juryMembersRequired !== 1) {
+    throw new Error('Invalid jury members required: Solaris requires exactly one HOD jury');
+  }
+  if (juryMembersAssigned !== 0 && juryMembersAssigned !== 1) {
+    throw new Error('Invalid jury members assigned: expected zero or one HOD');
+  }
+  if (juryMembers.length !== juryMembersAssigned || juryMembers.length > 1) {
+    throw new Error('Invalid jury member projection: expected exactly the assigned HOD');
+  }
 
   return {
     editionId: expectString(row.editionId, 'edition id'),
@@ -242,8 +255,8 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
     participantStatus: nullableString(row.participantStatus, 'participant status'),
     publicationStatus: nullableString(row.publicationStatus, 'publication status'),
     entry: mapEntry(row.entry),
-    juryMembersRequired,
-    juryMembersAssigned: expectNonNegativeInteger(row.juryMembersAssigned, 'jury members assigned'),
+    juryMembersRequired: 1,
+    juryMembersAssigned: juryMembersAssigned as 0 | 1,
     juryMembers,
     juryBallotSubmitted: expectBoolean(row.juryBallotSubmitted, 'jury ballot state'),
     notices,
@@ -287,84 +300,51 @@ export async function listStudio2HodEditions(
   return Array.isArray(data) ? data.map(mapEditionSummary) : [];
 }
 
-export async function acknowledgeStudio2Notice(
-  noticeId: string,
+export async function loadStudio2HodWorkspace(
+  editionId: string,
+  countryId: string,
   client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<void> {
-  await runRpc('studio2_acknowledge_notice', { p_notice_id: noticeId }, client);
-}
+): Promise<Studio2HodWorkspaceSnapshot> {
+  const source = createStudio2HodWorkspaceSource(client);
+  const context = await source.loadContext(editionId, countryId);
 
-function completed(condition: boolean): WorkflowTaskStatus {
-  return condition ? 'completed' : 'pending';
-}
-
-function metadataBoolean(metadata: Record<string, unknown>, ...keys: string[]): boolean {
-  return keys.some((key) => metadata[key] === true);
-}
-
-export function deriveHodEligibility(context: Studio2HodContext): EligibilityResult {
-  const entry = context.entry;
-  return evaluateEntryEligibility(
+  const eligibility = evaluateEntryEligibility(
     {
       countryConfirmed: context.confirmationComplete,
-      artistName: entry?.artist,
-      songTitle: entry?.songTitle,
-      videoUrl: entry?.songUrl,
+      artistName: context.entry?.artist ?? null,
+      songTitle: context.entry?.songTitle ?? null,
+      videoUrl: context.entry?.songUrl ?? null,
       artworkUrl: null,
-      broadcasterApproved: entry?.status === 'confirmed',
-      duplicateEntryDetected: false,
-      // Operational deadlines are evaluated once by the shared country readiness
-      // model below; eligibility must not invent a second deadline algorithm.
-      deadlinePassed: false,
-      editingExceptionGranted: false,
+      broadcasterApproved:
+        context.entry?.metadata.broadcasterApproved === true ||
+        context.entry?.status === 'approved' ||
+        context.publicationStatus === 'published',
+      durationSeconds:
+        typeof context.entry?.metadata.durationSeconds === 'number'
+          ? context.entry.metadata.durationSeconds
+          : null,
+      isDuplicate: context.entry?.metadata.isDuplicate === true,
     },
     HOD_ELIGIBILITY_CONFIG,
   );
-}
 
-export function deriveHodEntryWorkflow(
-  context: Studio2HodContext,
-  eligibility = deriveHodEligibility(context),
-): WorkflowSummary {
-  const entry = context.entry;
-  const metadata = entry?.metadata ?? {};
-  const confirmedEntry = entry?.status === 'confirmed';
-  const acceptedConfirmationEntry = entry?.source === 'confirmations' && confirmedEntry;
-  const reviewed =
-    acceptedConfirmationEntry || metadataBoolean(metadata, 'tsbc_reviewed', 'tsbcReviewed');
-  const explicitlyLocked = metadataBoolean(metadata, 'entry_locked', 'entryLocked', 'locked');
+  const workflow = evaluateWorkflow(
+    entrySubmissionWorkflow(deriveWorkflowStatuses(context, eligibility)),
+  );
 
-  const statuses: WorkflowTemplateStatusMap = {
-    'entry.song-info': completed(Boolean(entry?.songTitle?.trim())),
-    'entry.artist-info': completed(Boolean(entry?.artist?.trim())),
-    'entry.media': completed(Boolean(entry?.songUrl?.trim())),
-    'entry.eligibility': completed(eligibility.status !== 'blocked'),
-    'entry.broadcaster-approval': completed(confirmedEntry),
-    'entry.tsbc-review': completed(reviewed),
-    // Legacy confirmation sync has no independent lock column. Prefer an
-    // explicit metadata marker, but treat a reviewed confirmed entry that has
-    // already been published as effectively locked for compatibility.
-    'entry.lock': completed(
-      explicitlyLocked || (reviewed && context.publicationStatus === 'published'),
-    ),
-  };
-
-  return evaluateWorkflow(entrySubmissionWorkflow(statuses));
-}
-
-export function buildStudio2HodWorkspaceSnapshot(context: Studio2HodContext): Studio2HodWorkspaceSnapshot {
-  const eligibility = deriveHodEligibility(context);
-  const workflow = deriveHodEntryWorkflow(context, eligibility);
   const operationalReadiness = getCountryOperationalReadiness({
     participationConfirmed: context.confirmationComplete,
     entryPresent: Boolean(context.entry),
     entryEligibility: eligibility,
-    entryApproved: context.entry?.status === 'confirmed',
-    mediaAvailable: Boolean(context.entry?.songUrl?.trim()),
-    juryComplete: context.juryMembersAssigned >= context.juryMembersRequired,
+    entryApproved:
+      context.entry?.status === 'approved' || context.publicationStatus === 'published',
+    mediaAvailable: Boolean(context.entry?.songUrl),
+    juryComplete:
+      context.juryMembersAssigned >= context.juryMembersRequired && context.juryBallotSubmitted,
     deadlines: context.deadlines,
     unresolvedOrganizerIssues: context.unresolvedOrganizerIssues,
   });
+
   const model = buildHodWorkspaceModel({
     editionId: context.editionId,
     editionName: context.editionName,
@@ -380,18 +360,44 @@ export function buildStudio2HodWorkspaceSnapshot(context: Studio2HodContext): St
     operationalReadiness,
   });
 
-  return { context, eligibility, workflow, operationalReadiness, model };
+  return {
+    context,
+    eligibility,
+    workflow,
+    operationalReadiness,
+    model,
+  };
 }
 
-export async function loadStudio2HodWorkspace(
-  editionId: string,
-  countryId: string,
-  source: Studio2HodWorkspaceSource = studio2HodWorkspaceSource,
-): Promise<Studio2HodWorkspaceSnapshot> {
-  const context = await source.loadContext(editionId, countryId);
-  return buildStudio2HodWorkspaceSnapshot(context);
+export async function acknowledgeStudio2Notice(
+  noticeId: string,
+  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
+): Promise<void> {
+  await runRpc('studio2_acknowledge_notice', { p_notice_id: noticeId }, client);
 }
 
-export const studio2HodWorkspaceSource = createStudio2HodWorkspaceSource(
-  supabase as unknown as SupabaseRpcClient,
-);
+function deriveWorkflowStatuses(
+  context: Studio2HodContext,
+  eligibility: EligibilityResult,
+): WorkflowTemplateStatusMap {
+  const hasEntry = Boolean(context.entry);
+  const songInfoComplete = Boolean(context.entry?.artist && context.entry?.songTitle);
+  const artistInfoComplete = Boolean(context.entry?.artist);
+  const mediaComplete = Boolean(context.entry?.songUrl);
+  const broadcasterApproved =
+    context.entry?.metadata.broadcasterApproved === true ||
+    context.entry?.status === 'approved' ||
+    context.publicationStatus === 'published';
+  const tsbcReviewed = Boolean(context.reviewHistory.length) || context.entry?.status === 'approved';
+  const locked = context.entry?.status === 'locked' || context.publicationStatus === 'published';
+
+  return {
+    'entry.song-info': hasEntry && songInfoComplete ? 'completed' : hasEntry ? 'in_progress' : 'pending',
+    'entry.artist-info': hasEntry && artistInfoComplete ? 'completed' : hasEntry ? 'in_progress' : 'pending',
+    'entry.media': hasEntry && mediaComplete ? 'completed' : hasEntry ? 'in_progress' : 'pending',
+    'entry.eligibility': eligibility.status === 'ready' ? 'completed' : eligibility.status === 'blocked' ? 'blocked' : 'in_progress',
+    'entry.broadcaster-approval': broadcasterApproved ? 'completed' : 'pending',
+    'entry.tsbc-review': tsbcReviewed ? 'completed' : broadcasterApproved ? 'in_progress' : 'pending',
+    'entry.lock': locked ? 'completed' : tsbcReviewed ? 'in_progress' : 'pending',
+  } satisfies Record<string, WorkflowTaskStatus>;
+}
