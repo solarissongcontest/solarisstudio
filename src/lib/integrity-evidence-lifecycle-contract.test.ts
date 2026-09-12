@@ -113,7 +113,7 @@ describe("Integrity evidence lifecycle", () => {
   it("lets organizers retrieve file evidence through the audited vault instead of exposing storage paths", () => {
     expect(investigationRoute).toContain("getOrganizerEvidenceDownloadUrl");
     expect(investigationRoute).toContain("downloadMutation.mutate(item.id)");
-    expect(investigationRoute).toContain("Private file retrieval is audit-logged");
+    expect(investigationRoute).toContain("Private file retrieval uses audit-logged 60-second signed URLs");
     expect(investigationRoute).toContain('to="/admin/integrity-evidence"');
     expect(investigationRoute).not.toContain("storage_path");
   });
