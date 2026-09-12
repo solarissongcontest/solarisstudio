@@ -42,8 +42,18 @@ export const STATIC_PUBLIC_ROUTES = [
 const ignorableRequest = (url: string) =>
   /favicon|google-analytics|googletagmanager|browser-extension|chrome-extension/i.test(url);
 
+const criticalResourceTypes = new Set(["document", "script", "stylesheet", "font", "image"]);
+
 function isNavigationCancellation(errorText: string | undefined) {
   return /ERR_ABORTED|NS_BINDING_ABORTED|cancelled|canceled/i.test(errorText ?? "");
+}
+
+function isAnonymousResourceConsoleError(message: string) {
+  // Chromium reports HTTP resource failures to console without exposing the URL in
+  // message.text(). We audit critical HTTP responses separately below, where the
+  // URL and resource type are available. Counting this anonymous duplicate would
+  // make optional API 404s indistinguishable from missing application assets.
+  return /^Failed to load resource: the server responded with a status of \d{3} \(\)$/i.test(message.trim());
 }
 
 export async function sitemapRoutes(baseURL: string) {
@@ -65,11 +75,13 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
+  const failedCriticalResponses: string[] = [];
 
   const onConsole = (message: { type(): string; text(): string }) => {
     if (
       message.type() === "error" &&
-      !/favicon|hydration (?:failed because|completed but contains)/i.test(message.text())
+      !/favicon|hydration (?:failed because|completed but contains)/i.test(message.text()) &&
+      !isAnonymousResourceConsoleError(message.text())
     ) {
       consoleErrors.push(message.text());
     }
@@ -81,10 +93,21 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
       failedRequests.push(`${request.url()} — ${failure ?? "failed"}`);
     }
   };
+  const onResponse = (response: {
+    status(): number;
+    url(): string;
+    request(): { resourceType(): string };
+  }) => {
+    if (response.status() < 400 || ignorableRequest(response.url())) return;
+    const resourceType = response.request().resourceType();
+    if (!criticalResourceTypes.has(resourceType)) return;
+    failedCriticalResponses.push(`${response.status()} ${resourceType} ${response.url()}`);
+  };
 
   page.on("console", onConsole);
   page.on("pageerror", onPageError);
   page.on("requestfailed", onRequestFailed);
+  page.on("response", onResponse);
 
   try {
     const response = await page.goto(path, { waitUntil: "domcontentloaded" });
@@ -141,15 +164,25 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(pageErrors, `${path} raised browser errors`).toEqual([]);
     expect(consoleErrors, `${path} logged console errors`).toEqual([]);
     expect(failedRequests, `${path} had failed requests`).toEqual([]);
+    expect(failedCriticalResponses, `${path} returned failing critical resources`).toEqual([]);
   } catch (error) {
-    await testInfo.attach(`page-${path.replace(/\W+/g, "-") || "home"}`, {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
+    // Diagnostics must never replace the assertion that actually failed. Font or
+    // image loading can make Playwright screenshots time out on an already-broken
+    // page, so attach one only when capture succeeds promptly.
+    try {
+      const body = await page.screenshot({ timeout: 5_000 });
+      await testInfo.attach(`page-${path.replace(/\W+/g, "-") || "home"}`, {
+        body,
+        contentType: "image/png",
+      });
+    } catch {
+      // Preserve the original audit error.
+    }
     throw error;
   } finally {
     page.off("console", onConsole);
     page.off("pageerror", onPageError);
     page.off("requestfailed", onRequestFailed);
+    page.off("response", onResponse);
   }
 }
