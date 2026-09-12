@@ -160,8 +160,8 @@ function detailEvidence(row: Studio2CountryCockpitRow, ruleId: string, fallback:
   }
   if (ruleId === 'jury') {
     return [
-      `Required: ${row.context.juryMembersRequired}`,
-      `Assigned: ${row.context.juryMembersAssigned}`,
+      'Jury model: one HOD per country',
+      `HOD assigned: ${row.context.juryMembersAssigned === 1 ? 'yes' : 'no'}`,
       fallback,
     ];
   }
@@ -199,7 +199,7 @@ export function buildStudio2EligibilityCountry(
     { id: 'participation', label: 'Participation', domain: 'participation', attention: 'incomplete' },
     { id: 'entry-validity', label: 'Entry validity', domain: 'entry', attention: 'warning' },
     { id: 'entry-approval', label: 'Entry approval', domain: 'entry', attention: 'incomplete' },
-    { id: 'jury', label: 'Jury roster', domain: 'jury', attention: 'incomplete' },
+    { id: 'jury', label: 'HOD jury', domain: 'jury', attention: 'incomplete' },
     { id: 'media', label: 'Required media', domain: 'media', attention: 'incomplete' },
     { id: 'deadlines', label: 'Delegation deadlines', domain: 'deadlines', attention: 'warning' },
     { id: 'organizer-issues', label: 'Organizer issues', domain: 'operations', attention: 'warning' },

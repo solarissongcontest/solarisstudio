@@ -39,9 +39,9 @@ describe('Studio 2 Phase 6 country operations integration', () => {
 
   it('keeps organizer HOD inspection explicitly read-only', () => {
     expect(hodRoute).toContain('Organizer inspection mode');
-    expect(hodRoute).toContain('Delegation-side jury and acknowledgement mutations are disabled here.');
+    expect(hodRoute).toContain('delegation-side acknowledgement mutations are disabled.');
     expect(hodRoute).toContain('!organizerInspection &&');
-    expect(hodRoute).toContain('organizerInspection ||');
+    expect(hodRoute).toContain('organizerInspection ?');
   });
 
   it('shows the Phase 6 HOD operational data without creating a duplicate source of truth', () => {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 
 import { AppShell, PageHeader, Panel } from '@/components/AppShell';
 import { useCountries } from '@/lib/data';
@@ -9,10 +9,8 @@ import { listStudio2EligibilityOverrides } from '@/lib/studio2-eligibility';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 import {
   acknowledgeStudio2Notice,
-  assignStudio2JuryMember,
   listStudio2HodEditions,
   loadStudio2HodWorkspace,
-  removeStudio2JuryMember,
 } from '@/lib/studio2-hod-workspace';
 
 export const Route = createFileRoute('/_authenticated/country-hub/hod')({
@@ -43,7 +41,6 @@ function HodWorkspacePage() {
   const country = organizerCountry ?? ownCountry;
   const countrySearch = targetCountryId ? { country: targetCountryId } : {};
   const [editionId, setEditionId] = useState('');
-  const [jurorName, setJurorName] = useState('');
 
   const featureQuery = useQuery({
     queryKey: ['studio2-feature', 'hod_workspace_v2'],
@@ -87,36 +84,10 @@ function HodWorkspacePage() {
     });
   };
 
-  const assignJuror = useMutation({
-    mutationFn: (displayName: string) => assignStudio2JuryMember(editionId, country!.id, displayName),
-    onSuccess: async () => {
-      setJurorName('');
-      await refreshWorkspace();
-    },
-  });
-
-  const removeJuror = useMutation({
-    mutationFn: (memberId: string) => removeStudio2JuryMember(memberId),
-    onSuccess: refreshWorkspace,
-  });
-
   const acknowledgeNotice = useMutation({
     mutationFn: (noticeId: string) => acknowledgeStudio2Notice(noticeId),
     onSuccess: refreshWorkspace,
   });
-
-  const submitJuror = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const displayName = jurorName.trim();
-    if (
-      organizerInspection ||
-      !displayName ||
-      !country ||
-      !editionId ||
-      featureQuery.data !== true
-    ) return;
-    assignJuror.mutate(displayName);
-  };
 
   if (
     featureQuery.isLoading ||
@@ -184,14 +155,14 @@ function HodWorkspacePage() {
   }
 
   const snapshot = workspaceQuery.data;
-  const mutationError = assignJuror.error ?? removeJuror.error ?? acknowledgeNotice.error;
+  const mutationError = acknowledgeNotice.error;
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="Solaris Studio 2"
         title={`${country.name} delegation workspace`}
-        description="One operational view for confirmation, entry readiness, deadlines, jury work, submission review and official TSBC notices."
+        description="One operational view for confirmation, entry readiness, deadlines, HOD jury work, submission review and official TSBC notices."
         actions={
           organizerInspection ? (
             <Link
@@ -217,7 +188,7 @@ function HodWorkspacePage() {
           <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
             <p className="text-sm font-semibold">Organizer inspection mode</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              You are inspecting this delegation without impersonating it. Delegation-side jury and acknowledgement mutations are disabled here.
+              You are inspecting this delegation without impersonating it. HOD jury identity is read-only here and delegation-side acknowledgement mutations are disabled.
             </p>
           </div>
         ) : null}
@@ -273,7 +244,13 @@ function HodWorkspacePage() {
               />
               <MetricCard
                 label="Jury"
-                value={`${snapshot.model.jury.assigned}/${snapshot.model.jury.required}`}
+                value={
+                  snapshot.context.juryBallotSubmitted
+                    ? 'Ballot submitted'
+                    : snapshot.model.jury.complete
+                      ? 'HOD assigned'
+                      : 'HOD missing'
+                }
               />
             </section>
 
@@ -450,56 +427,47 @@ function HodWorkspacePage() {
             </Panel>
 
             <Panel
-              title="Delegation jury"
+              title="Country jury"
               description={
                 snapshot.context.juryBallotSubmitted
-                  ? 'The jury ballot is submitted. The roster is frozen.'
-                  : organizerInspection
-                    ? `${snapshot.model.jury.assigned}/${snapshot.model.jury.required} jurors assigned. Organizer inspection is read-only.`
-                    : `${snapshot.model.jury.assigned}/${snapshot.model.jury.required} jurors assigned.`
+                  ? 'The HOD has submitted the country jury ballot.'
+                  : snapshot.model.jury.complete
+                    ? organizerInspection
+                      ? 'The canonical HOD is the country’s sole jury. Organizer inspection is read-only.'
+                      : 'The Head of Delegation is the country’s sole jury for this edition.'
+                    : organizerInspection
+                      ? 'No canonical HOD is recorded for this country and edition. Correct HOD history before jury voting.'
+                      : 'No HOD assignment is recorded for this edition. HOD history must be corrected before jury voting.'
               }
             >
-              <div className="space-y-2">
-                {snapshot.context.juryMembers.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/40 px-3 py-2.5"
-                  >
-                    <span className="text-sm font-medium">{member.displayName}</span>
-                    {!organizerInspection ? (
-                      <button
-                        type="button"
-                        disabled={snapshot.context.juryBallotSubmitted || removeJuror.isPending}
-                        onClick={() => removeJuror.mutate(member.id)}
-                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50"
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-
-              {!organizerInspection &&
-              !snapshot.context.juryBallotSubmitted &&
-              snapshot.model.jury.assigned < snapshot.model.jury.required ? (
-                <form onSubmit={submitJuror} className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <input
-                    value={jurorName}
-                    onChange={(event) => setJurorName(event.target.value)}
-                    placeholder="Juror display name"
-                    maxLength={120}
-                    className="min-h-11 flex-1 rounded-xl border border-border bg-background px-3 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!jurorName.trim() || assignJuror.isPending}
-                    className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                  >
-                    {assignJuror.isPending ? 'Adding…' : 'Add juror'}
-                  </button>
-                </form>
-              ) : null}
+              {snapshot.context.juryMembers.length ? (
+                <div className="space-y-2">
+                  {snapshot.context.juryMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex flex-col gap-1 rounded-xl border border-border bg-background/40 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <span className="text-sm font-medium">{member.displayName}</span>
+                      <StatusPill value="Head of Delegation · sole jury" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 p-3">
+                  <p className="text-sm font-semibold">HOD assignment missing</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Solaris does not use a separate multi-member jury roster. Record the correct Head of Delegation for this country and edition instead.
+                  </p>
+                  {organizerInspection ? (
+                    <Link
+                      to="/admin/hod-history"
+                      className="mt-3 inline-flex rounded-lg border border-border px-3 py-2 text-xs font-semibold"
+                    >
+                      Open HOD history
+                    </Link>
+                  ) : null}
+                </div>
+              )}
             </Panel>
 
             <Panel

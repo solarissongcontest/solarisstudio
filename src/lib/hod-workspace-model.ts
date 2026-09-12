@@ -87,17 +87,17 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
   const juryComplete = input.juryMembersAssigned >= input.juryMembersRequired;
   if (!juryComplete) {
     actions.push({
-      id: 'jury-members',
-      label: 'Complete jury assignment',
-      description: `${input.juryMembersAssigned}/${input.juryMembersRequired} jury members assigned.`,
+      id: 'jury-hod',
+      label: 'Confirm HOD assignment',
+      description: 'No Head of Delegation is recorded for this country and edition. The HOD is the country’s sole jury.',
       priority: 'high',
-      href: '/my-solaris/jury',
+      href: '/country-hub/hod',
     });
   } else if (!input.juryBallotSubmitted) {
     actions.push({
       id: 'jury-ballot',
       label: 'Submit jury ballot',
-      description: 'The delegation jury is complete, but the ballot has not been submitted.',
+      description: 'The HOD is assigned as the country’s jury, but the jury ballot has not been submitted.',
       priority: 'high',
       href: '/jury',
     });

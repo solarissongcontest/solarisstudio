@@ -136,7 +136,7 @@ function CountryTabContent({
           <Metric label="Readiness" value={`${snapshot.operationalReadiness.score}%`} tone={readinessTone(snapshot.operationalReadiness.state)} />
           <Metric label="Confirmation" value={snapshot.context.confirmationComplete ? 'Complete' : 'Required'} tone={snapshot.context.confirmationComplete ? 'ready' : 'blocked'} />
           <Metric label="Entry workflow" value={`${snapshot.workflow.progress}%`} tone={snapshot.workflow.complete ? 'ready' : snapshot.workflow.blockedCount ? 'blocked' : 'attention'} />
-          <Metric label="Jury" value={`${snapshot.model.jury.assigned}/${snapshot.model.jury.required}`} tone={snapshot.model.jury.complete ? 'ready' : 'attention'} />
+          <Metric label="HOD jury" value={snapshot.model.jury.complete ? 'HOD assigned' : 'HOD missing'} tone={snapshot.model.jury.complete ? 'ready' : 'attention'} />
         </section>
         <AdminCard>
           <h2 className="text-base font-semibold">Operational signals</h2>
@@ -224,8 +224,8 @@ function CountryTabContent({
       <AdminCard>
         <SectionHeading title="Voting" href={editionSlug ? `/admin/jury/${editionSlug}` : '/televoting/admin'} action="Open voting operations" />
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <Info label="Jurors assigned" value={`${snapshot.model.jury.assigned}/${snapshot.model.jury.required}`} />
-          <Info label="Roster" value={snapshot.model.jury.complete ? 'Complete' : 'Incomplete'} />
+          <Info label="Jury identity" value={snapshot.model.jury.complete ? 'HOD assigned' : 'HOD missing'} />
+          <Info label="Jury model" value="Head of Delegation · sole jury" />
           <Info label="Ballot" value={snapshot.model.jury.ballotSubmitted ? 'Submitted' : 'Pending'} />
         </div>
       </AdminCard>

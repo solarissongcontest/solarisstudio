@@ -81,8 +81,9 @@ export type Studio2HodContext = {
   participantStatus: string | null;
   publicationStatus: string | null;
   entry: Studio2HodEntryContext | null;
-  juryMembersRequired: number;
-  juryMembersAssigned: number;
+  /** Compatibility count. Solaris always has exactly one jury per country: the HOD. */
+  juryMembersRequired: 1;
+  juryMembersAssigned: 0 | 1;
   juryMembers: Studio2HodJuryMember[];
   juryBallotSubmitted: boolean;
   notices: HodWorkspaceNotice[];
@@ -230,8 +231,20 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
     row.juryMembersRequired,
     'jury members required',
   );
+  const juryMembersAssigned = expectNonNegativeInteger(
+    row.juryMembersAssigned,
+    'jury members assigned',
+  );
 
-  if (juryMembersRequired < 1) throw new Error('Invalid jury members required: expected at least one');
+  if (juryMembersRequired !== 1) {
+    throw new Error('Invalid jury members required: Solaris requires exactly one HOD jury');
+  }
+  if (juryMembersAssigned !== 0 && juryMembersAssigned !== 1) {
+    throw new Error('Invalid jury members assigned: expected zero or one HOD');
+  }
+  if (juryMembers.length !== juryMembersAssigned || juryMembers.length > 1) {
+    throw new Error('Invalid jury member projection: expected exactly the assigned HOD');
+  }
 
   return {
     editionId: expectString(row.editionId, 'edition id'),
@@ -242,8 +255,8 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
     participantStatus: nullableString(row.participantStatus, 'participant status'),
     publicationStatus: nullableString(row.publicationStatus, 'publication status'),
     entry: mapEntry(row.entry),
-    juryMembersRequired,
-    juryMembersAssigned: expectNonNegativeInteger(row.juryMembersAssigned, 'jury members assigned'),
+    juryMembersRequired: 1,
+    juryMembersAssigned: juryMembersAssigned as 0 | 1,
     juryMembers,
     juryBallotSubmitted: expectBoolean(row.juryBallotSubmitted, 'jury ballot state'),
     notices,
@@ -285,31 +298,6 @@ export async function listStudio2HodEditions(
 ): Promise<Studio2HodEditionSummary[]> {
   const data = await runRpc('studio2_hod_editions', { p_country_id: countryId }, client);
   return Array.isArray(data) ? data.map(mapEditionSummary) : [];
-}
-
-export async function assignStudio2JuryMember(
-  editionId: string,
-  countryId: string,
-  displayName: string,
-  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<void> {
-  await runRpc(
-    'studio2_assign_jury_member',
-    {
-      p_edition_id: editionId,
-      p_country_id: countryId,
-      p_display_name: displayName,
-      p_member_user_id: null,
-    },
-    client,
-  );
-}
-
-export async function removeStudio2JuryMember(
-  memberId: string,
-  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<void> {
-  await runRpc('studio2_remove_jury_member', { p_member_id: memberId }, client);
 }
 
 export async function acknowledgeStudio2Notice(

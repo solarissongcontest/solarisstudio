@@ -108,11 +108,11 @@ export function getCountryOperationalReadiness(
     },
     {
       id: 'jury',
-      label: 'Jury',
+      label: 'HOD jury',
       state: input.juryComplete ? 'ready' : 'attention',
       message: input.juryComplete
-        ? 'The delegation jury roster is complete.'
-        : 'The delegation jury roster is incomplete.',
+        ? 'The country HOD is assigned as its sole jury.'
+        : 'The country HOD jury assignment is incomplete.',
     },
     {
       id: 'deadlines',
