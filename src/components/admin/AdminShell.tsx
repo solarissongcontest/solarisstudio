@@ -1,5 +1,6 @@
 import "@/admin.css";
 import "@/admin-desktop.css";
+import "@/admin-storytelling.css";
 
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
