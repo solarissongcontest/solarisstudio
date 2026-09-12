@@ -30,6 +30,10 @@ export const CONTEST_EVENT_TYPES = [
   'notice.sent',
   'notice.acknowledged',
   'rule.changed',
+  'storyline.generated',
+  'storyline.updated',
+  'storyline.published',
+  'storyline.unpublished',
 ] as const;
 
 export type ContestEventType = (typeof CONTEST_EVENT_TYPES)[number];
@@ -48,6 +52,7 @@ export type ContestEvent<TPayload extends Record<string, unknown> = Record<strin
 export const PUBLIC_EVENT_TYPES = new Set<ContestEventType>([
   'country.confirmed',
   'results.published',
+  'storyline.published',
 ]);
 
 export function isContestEventType(value: string): value is ContestEventType {
