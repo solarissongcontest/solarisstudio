@@ -141,6 +141,33 @@ function chapterResult(chapter: (typeof SSC_RULE_CHAPTERS)[number]): GovernanceL
   };
 }
 
+type CanonRule = (typeof SSC_RULE_CHAPTERS)[number]["rules"][number];
+
+function ruleResult(rule: CanonRule): GovernanceLibraryResult {
+  return {
+    id: `rule-${rule.id}`,
+    kind: "rule",
+    group: "Rules & governance",
+    title: `Rule ${rule.id} · ${rule.title}`,
+    description: rule.summary,
+    to: `/rules/${rule.id}`,
+    badge: `Rule ${rule.id}`,
+    keywords: [rule.id, rule.title, ...rule.tags],
+  };
+}
+
+const RULE_BY_ID = new Map(
+  SSC_RULE_CHAPTERS.flatMap((chapter) => chapter.rules).map((rule) => [rule.id, rule] as const),
+);
+
+/** Return canonical rule cards in caller-specified order, omitting no-longer-valid IDs. */
+export function governanceRuleResults(ruleIds: readonly string[]): GovernanceLibraryResult[] {
+  return ruleIds.flatMap((ruleId) => {
+    const rule = RULE_BY_ID.get(ruleId);
+    return rule ? [ruleResult(rule)] : [];
+  });
+}
+
 function interpretationResult(interpretation: RuleInterpretation): GovernanceLibraryResult {
   return {
     id: `interpretation-${interpretation.id}`,
@@ -204,16 +231,7 @@ export function searchGovernanceLibrary(
 
   const ruleMatches = searchSscRules(terms.join(" ")).slice(0, 10).map((rule, index) => ({
     score: Math.max(2, 14 - index),
-    result: {
-      id: `rule-${rule.id}`,
-      kind: "rule" as const,
-      group: "Rules & governance" as const,
-      title: `Rule ${rule.id} · ${rule.title}`,
-      description: rule.summary,
-      to: `/rules/${rule.id}`,
-      badge: `Rule ${rule.id}`,
-      keywords: [rule.id, rule.title, ...rule.tags],
-    },
+    result: ruleResult(rule),
   }));
 
   const interpretationMatches = interpretations
