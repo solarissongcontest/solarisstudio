@@ -50,8 +50,8 @@ const investigations = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-investigations.tsx"),
   "utf8",
 );
-const navigation = readFileSync(
-  resolve(process.cwd(), "src/components/GlobalRulesNavigationAddon.tsx"),
+const root = readFileSync(
+  resolve(process.cwd(), "src/routes/__root.tsx"),
   "utf8",
 );
 const publicLibrary = readFileSync(
@@ -158,8 +158,9 @@ describe("rulebook governance contract", () => {
     expect(investigations).toContain("Evidence, findings & investigator independence");
     for (const ruleId of ["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"])
       expect(investigations).toContain(`"${ruleId}"`);
-    expect(navigation).toContain("<ContextualRuleGuide />");
-    expect(navigation).not.toContain('to="/rules/changes"');
+    expect(root).toContain("<RulesGovernanceContext />");
+    expect(root).not.toContain("GlobalRulesNavigationAddon");
+    expect(contextualGuide).not.toContain('className="fixed');
     expect(publicLibrary).toContain('to: "/rules/changes"');
     expect(publicLibrary).toContain('kind: "release"');
   });
