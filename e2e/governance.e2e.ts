@@ -34,10 +34,14 @@ const SEARCH_CASES = [
 ] as const;
 
 test.describe("Rules and Integrity governance discovery", () => {
-  test("Library exposes context, aliases and only public destinations", async ({ page }) => {
+  test("Library carries safe workflow context, aliases and only public destinations", async ({ page }) => {
     const problems = failOnGovernanceConsoleProblems(page);
-    await page.goto("/library?from=%2Ftelevoting");
 
+    await page.goto("/televoting");
+    await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("solaris:rule-context-path"))).toBe("/televoting");
+
+    await page.goto("/library");
+    await expect(page).toHaveURL(/\/library\?from=%2Ftelevoting$/);
     await expect(page.getByRole("heading", { name: "Search Solaris" })).toBeVisible();
     await expect(page.getByText("Relevant here", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Televoting rules" })).toBeVisible();
@@ -50,7 +54,7 @@ test.describe("Rules and Integrity governance discovery", () => {
 
     for (const entry of SEARCH_CASES) {
       await search.fill(entry.query);
-      const matchingLinks = page.locator('main a').filter({
+      const matchingLinks = page.locator("main a").filter({
         has: page.locator("span"),
       });
       await expect(matchingLinks.filter({ hasText: /./ }).first()).toBeVisible();
@@ -84,7 +88,7 @@ test.describe("Rules and Integrity governance discovery", () => {
 
     await page.goto("/televoting");
     await expect(page.getByRole("button", { name: /rules for this page/i })).toHaveCount(0);
-    await expect(page.locator('button.fixed').filter({ hasText: /^Rules$/ })).toHaveCount(0);
+    await expect(page.locator("button.fixed").filter({ hasText: /^Rules$/ })).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
     expect(problems, "Rules and participant governance surfaces must stay hydration-clean").toEqual([]);
   });
