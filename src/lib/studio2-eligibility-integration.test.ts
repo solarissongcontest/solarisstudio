@@ -7,10 +7,12 @@ function source(path: string) {
 }
 
 const route = source('src/routes/_authenticated/admin/eligibility.tsx');
+const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
 const model = source('src/lib/studio2-eligibility.ts');
 const readiness = source('src/lib/country-operational-readiness.ts');
 const cockpit = source('src/lib/studio2-country-cockpit.ts');
 const actionCenterRoute = source('src/routes/_authenticated/admin/action-center.tsx');
+const eventContract = source('src/lib/contest-events.ts');
 const nav = source('src/components/admin/AdminNav.tsx');
 const migration = source('supabase/migrations/20260911202500_studio2_eligibility_overrides.sql');
 
@@ -53,10 +55,28 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
     expect(route).not.toContain('.delete(');
   });
 
-  it('feeds effective override-aware readiness to Action Center instead of contradictory factual alerts', () => {
+  it('feeds effective override-aware readiness to Action Center without replacing the shared readiness source', () => {
     expect(actionCenterRoute).toContain('listStudio2EligibilityOverrides(resolvedEditionId)');
+    expect(actionCenterRoute).toContain('readiness: row.operationalReadiness');
     expect(actionCenterRoute).toContain('applyStudio2EligibilityOverridesToReadiness');
     expect(model).toContain('An organizer eligibility override is active.');
+  });
+
+  it('shows active organizer decisions to HODs as a read-only overlay', () => {
+    expect(hodRoute).toContain('listStudio2EligibilityOverrides(editionId, { countryId: country!.id })');
+    expect(hodRoute).toContain('Organizer eligibility decision');
+    expect(hodRoute).toContain('The factual readiness checks above stay visible and unchanged.');
+    expect(hodRoute).toContain('No delegation-side action can create, revoke, or edit this decision.');
+    expect(hodRoute).not.toContain('createStudio2EligibilityOverride');
+    expect(hodRoute).not.toContain('revokeStudio2EligibilityOverride');
+  });
+
+  it('deep-links anti-cheat review to the existing specialist integrity systems', () => {
+    expect(route).toContain('href="/televoting/admin/result-integrity"');
+    expect(route).toContain('href="/admin/friend-voting"');
+    expect(route).toContain('href="/admin/jury-integrity"');
+    expect(route).toContain('Detection is evidence for review, not adjudication.');
+    expect(route).toContain('Statistical flags, friend-voting patterns and jury integrity evidence remain visible');
   });
 
   it('requires reason, actor, timestamp, affected rule and optional expiry in persisted overrides', () => {
@@ -68,10 +88,13 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
     expect(migration).toContain('pg_advisory_xact_lock');
   });
 
-  it('audits create and revoke through the canonical Studio 2 event stream', () => {
-    expect(migration).toContain("'eligibility.override_created'");
-    expect(migration).toContain("'eligibility.override_revoked'");
+  it('audits create and revoke through the existing canonical event vocabulary without narrowing it', () => {
+    expect(eventContract).toContain("'rule.changed'");
+    expect(migration).toContain("'rule.changed'");
+    expect(migration).toContain("'changeKind', 'eligibility.override_created'");
+    expect(migration).toContain("'changeKind', 'eligibility.override_revoked'");
     expect(migration).toContain('insert into public.studio2_contest_events');
     expect(migration).toContain("'eligibility_override'");
+    expect(migration).not.toContain('studio2_contest_events_type_check');
   });
 });
