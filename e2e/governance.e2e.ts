@@ -42,7 +42,7 @@ test.describe("Rules and Integrity governance discovery", () => {
 
     await page.goto("/library");
     await expect(page).toHaveURL(/\/library\?from=%2Ftelevoting$/);
-    await expect(page.getByRole("heading", { name: "Search Solaris" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
     await expect(page.getByText("Relevant here", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Televoting rules" })).toBeVisible();
     await expect(page.locator('a[href="/rules/10.1"]').first()).toBeVisible();
