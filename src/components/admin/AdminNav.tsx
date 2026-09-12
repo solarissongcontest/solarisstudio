@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   BellRing,
   BookOpen,
+  Calculator,
   ClipboardCheck,
   Eye,
   Flag,
@@ -94,6 +95,12 @@ export function AdminNav() {
         path.startsWith("/admin/jury-integrity"),
     },
     {
+      label: "Results",
+      to: "/admin/results",
+      icon: Calculator,
+      active: (path) => path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal"),
+    },
+    {
       label: "Publish",
       to: publishHref,
       icon: Eye,
@@ -108,72 +115,17 @@ export function AdminNav() {
   ];
 
   const operations: NavItem[] = [
-    {
-      label: "Control Room",
-      to: "/admin/control-room",
-      icon: ShieldAlert,
-      active: (path) => path.startsWith("/admin/control-room"),
-    },
-    {
-      label: "Workflows",
-      to: "/admin/workflows",
-      icon: GitBranch,
-      active: (path) => path.startsWith("/admin/workflows"),
-    },
-    {
-      label: "Incidents",
-      to: "/admin/incidents",
-      icon: Siren,
-      active: (path) => path.startsWith("/admin/incidents"),
-    },
-    {
-      label: "Eligibility",
-      to: "/admin/eligibility",
-      icon: ShieldCheck,
-      active: (path) => path.startsWith("/admin/eligibility"),
-    },
-    {
-      label: "Media assets",
-      to: "/admin/media-assets",
-      icon: Images,
-      active: (path) => path.startsWith("/admin/media-assets"),
-    },
-    {
-      label: "Simulator",
-      to: "/admin/edition-simulator",
-      icon: PlayCircle,
-      active: (path) => path.startsWith("/admin/edition-simulator"),
-    },
-    {
-      label: "Submission history",
-      to: "/admin/submission-versions",
-      icon: History,
-      active: (path) => path.startsWith("/admin/submission-versions"),
-    },
-    {
-      label: "Voting Lab",
-      to: "/admin/voting-lab",
-      icon: FlaskConical,
-      active: (path) => path.startsWith("/admin/voting-lab"),
-    },
-    {
-      label: "Reveal Director",
-      to: "/admin/results-reveal",
-      icon: Sparkles,
-      active: (path) => path.startsWith("/admin/results-reveal"),
-    },
-    {
-      label: "Rundown",
-      to: "/admin/broadcast-rundown",
-      icon: ListVideo,
-      active: (path) => path.startsWith("/admin/broadcast-rundown"),
-    },
-    {
-      label: "Communications",
-      to: "/admin/communications",
-      icon: Mail,
-      active: (path) => path.startsWith("/admin/communications"),
-    },
+    { label: "Control Room", to: "/admin/control-room", icon: ShieldAlert, active: (path) => path.startsWith("/admin/control-room") },
+    { label: "Workflows", to: "/admin/workflows", icon: GitBranch, active: (path) => path.startsWith("/admin/workflows") },
+    { label: "Incidents", to: "/admin/incidents", icon: Siren, active: (path) => path.startsWith("/admin/incidents") },
+    { label: "Eligibility", to: "/admin/eligibility", icon: ShieldCheck, active: (path) => path.startsWith("/admin/eligibility") },
+    { label: "Media assets", to: "/admin/media-assets", icon: Images, active: (path) => path.startsWith("/admin/media-assets") },
+    { label: "Simulator", to: "/admin/edition-simulator", icon: PlayCircle, active: (path) => path.startsWith("/admin/edition-simulator") },
+    { label: "Submission history", to: "/admin/submission-versions", icon: History, active: (path) => path.startsWith("/admin/submission-versions") },
+    { label: "Voting Lab", to: "/admin/voting-lab", icon: FlaskConical, active: (path) => path.startsWith("/admin/voting-lab") },
+    { label: "Reveal Director", to: "/admin/results-reveal", icon: Sparkles, active: (path) => path.startsWith("/admin/results-reveal") },
+    { label: "Rundown", to: "/admin/broadcast-rundown", icon: ListVideo, active: (path) => path.startsWith("/admin/broadcast-rundown") },
+    { label: "Communications", to: "/admin/communications", icon: Mail, active: (path) => path.startsWith("/admin/communications") },
   ];
 
   const workspace: NavItem[] = [
@@ -193,24 +145,9 @@ export function AdminNav() {
         path.startsWith("/admin/admin-beta") ||
         path.startsWith("/admin/anniversary"),
     },
-    {
-      label: "Feature rollout",
-      to: "/admin/feature-rollout",
-      icon: Flag,
-      active: (path) => path.startsWith("/admin/feature-rollout"),
-    },
-    {
-      label: "All editions",
-      to: "/admin",
-      icon: Trophy,
-      active: (path) => path === "/admin" || path === "/admin/",
-    },
-    {
-      label: "Guide",
-      to: "/admin/guide",
-      icon: BookOpen,
-      active: (path) => path.startsWith("/admin/guide"),
-    },
+    { label: "Feature rollout", to: "/admin/feature-rollout", icon: Flag, active: (path) => path.startsWith("/admin/feature-rollout") },
+    { label: "All editions", to: "/admin", icon: Trophy, active: (path) => path === "/admin" || path === "/admin/" },
+    { label: "Guide", to: "/admin/guide", icon: BookOpen, active: (path) => path.startsWith("/admin/guide") },
   ];
 
   return (
@@ -230,20 +167,17 @@ function NavSection({ label, items, pathname, quiet = false }: {
   pathname: string;
   quiet?: boolean;
 }) {
-  return (
-    <>
-      <p className="admin-section-label mb-2 px-2">{label}</p>
-      <div className="space-y-1">
-        {items.map((item) => <NavLink key={item.label} item={item} pathname={pathname} quiet={quiet} />)}
-      </div>
-    </>
-  );
+  return <>
+    <p className="admin-section-label mb-2 px-2">{label}</p>
+    <div className="space-y-1">
+      {items.map((item) => <NavLink key={item.label} item={item} pathname={pathname} quiet={quiet} />)}
+    </div>
+  </>;
 }
 
 function NavLink({ item, pathname, quiet = false }: { item: NavItem; pathname: string; quiet?: boolean }) {
   const Icon = item.icon;
   const active = item.active(pathname);
-
   return (
     <Link
       to={item.to as any}
@@ -256,14 +190,12 @@ function NavLink({ item, pathname, quiet = false }: { item: NavItem; pathname: s
         quiet && !active && "text-xs",
       )}
     >
-      <span
-        className={cn(
-          "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors",
-          active
-            ? "border-sky-200/10 bg-sky-200/[0.08] text-sky-100"
-            : "border-white/[0.06] bg-white/[0.025] text-muted-foreground group-hover:text-foreground",
-        )}
-      >
+      <span className={cn(
+        "grid size-8 shrink-0 place-items-center rounded-xl border transition-colors",
+        active
+          ? "border-sky-200/10 bg-sky-200/[0.08] text-sky-100"
+          : "border-white/[0.06] bg-white/[0.025] text-muted-foreground group-hover:text-foreground",
+      )}>
         <Icon className="size-4" />
       </span>
       <span className="truncate">{item.label}</span>
