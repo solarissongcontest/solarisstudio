@@ -34,7 +34,7 @@ Every mutation:
 - writes an immutable `studio2_host_operation_executions` receipt;
 - emits a canonical `studio2_contest_events` event using `rule.changed` with `changeKind = host.<action>`.
 
-Direct browser access to Host Management lifecycle tables is revoked.
+Direct browser access to Host Management lifecycle tables is revoked. Phase 11 also includes a dedicated leading index for the evaluation `bid_id` foreign key so the new schema does not reintroduce the FK advisor regression class removed in the previous Studio cleanup work.
 
 ## Organizer surfaces
 
@@ -48,4 +48,4 @@ Direct browser access to Host Management lifecycle tables is revoked.
 
 ## Deployment gate
 
-Do not apply `20260912171500_studio2_host_management.sql` until Quality and Browser Audit are green on the exact final PR head SHA. After migration, run a rollback-only production smoke test covering bid creation, stale revision rejection, lifecycle transition, selection, canonical edition update, show synchronization, readiness updates, execution replay, receipts and events before merge.
+Do not apply `20260912171500_studio2_host_management.sql` or `20260912171600_studio2_host_fk_indexes.sql` until Quality and Browser Audit are green on the exact final PR head SHA. Apply them in that order. After migration, run a rollback-only production smoke test covering bid creation, stale revision rejection, lifecycle transition, selection, canonical edition update, show synchronization, readiness updates, execution replay, receipts and events before merge.
