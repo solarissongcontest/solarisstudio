@@ -9,9 +9,13 @@ function source(path: string) {
 const migration = source('supabase/migrations/20260912203000_studio2_single_hod_jury.sql');
 const noticeHardening = source('supabase/migrations/20260912203100_studio2_single_hod_jury_notice_scope.sql');
 const privilegeHardening = source('supabase/migrations/20260912203200_studio2_single_hod_jury_rpc_privileges.sql');
+const guardCleanup = source('supabase/migrations/20260912203300_studio2_single_hod_jury_drop_roster_guard.sql');
 const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
+const countryRoute = source('src/routes/_authenticated/admin/countries.$countryId.tsx');
 const workspaceClient = source('src/lib/studio2-hod-workspace.ts');
 const workspaceModel = source('src/lib/hod-workspace-model.ts');
+const readiness = source('src/lib/country-operational-readiness.ts');
+const eligibility = source('src/lib/studio2-eligibility.ts');
 const canonicalJury = source('src/integrations/jury-voting/jury-voting.server.ts');
 
 const canonicalJurorResolver = migration.split(
@@ -62,6 +66,8 @@ describe('Studio 2 single-HOD jury contract', () => {
     expect(privilegeHardening).toContain('grant execute on function public.studio2_assign_jury_member');
     expect(privilegeHardening).toContain('grant execute on function public.studio2_remove_jury_member');
     expect(privilegeHardening).toContain('to service_role');
+    expect(guardCleanup).toContain('drop trigger if exists studio2_delegation_settings_guard_requirement');
+    expect(guardCleanup).toContain('drop function if exists private.studio2_guard_jury_requirement()');
   });
 
   it('models the only pre-ballot blocker as a missing HOD', () => {
@@ -70,5 +76,18 @@ describe('Studio 2 single-HOD jury contract', () => {
     expect(workspaceModel).toContain('The HOD is the country’s sole jury.');
     expect(workspaceModel).not.toContain('Complete jury assignment');
     expect(workspaceModel).not.toContain('jury members assigned');
+  });
+
+  it('removes multi-member roster language from current readiness and organizer surfaces', () => {
+    expect(readiness).toContain("label: 'HOD jury'");
+    expect(readiness).toContain('The country HOD is assigned as its sole jury.');
+    expect(readiness).not.toContain('jury roster');
+    expect(eligibility).toContain("label: 'HOD jury'");
+    expect(eligibility).toContain('Jury model: one HOD per country');
+    expect(eligibility).not.toContain("label: 'Jury roster'");
+    expect(countryRoute).toContain('Head of Delegation · sole jury');
+    expect(countryRoute).toContain('HOD missing');
+    expect(countryRoute).not.toContain('Jurors assigned');
+    expect(countryRoute).not.toContain('label="Roster"');
   });
 });
