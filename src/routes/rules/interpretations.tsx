@@ -73,7 +73,10 @@ function InterpretationsIndex() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <label className="flex min-h-11 flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3">
               <Search className="size-4 text-muted-foreground" />
+              <span className="sr-only">Search official interpretations</span>
               <input
+                type="search"
+                aria-label="Search official interpretations"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search by rule, question, code or interpretation…"
