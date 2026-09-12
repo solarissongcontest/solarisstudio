@@ -26,8 +26,8 @@ const completeContext: Studio2HodContext = {
     createdAt: '2026-09-11T10:00:00.000Z',
     updatedAt: '2026-09-11T11:00:00.000Z',
   },
-  juryMembersRequired: 5,
-  juryMembersAssigned: 5,
+  juryMembersRequired: 1,
+  juryMembersAssigned: 1,
   juryMembers: [],
   juryBallotSubmitted: true,
   notices: [],
@@ -46,7 +46,7 @@ describe('Studio 2 HOD workspace adapter', () => {
     expect(snapshot.model.actions).toEqual([]);
   });
 
-  it('surfaces entry, jury and notice blockers without inventing missing artwork requirements', () => {
+  it('surfaces entry, missing-HOD and notice blockers without inventing missing artwork requirements', () => {
     const snapshot = buildStudio2HodWorkspaceSnapshot({
       ...completeContext,
       confirmationComplete: false,
@@ -63,7 +63,8 @@ describe('Studio 2 HOD workspace adapter', () => {
         createdAt: '2026-09-11T10:00:00.000Z',
         updatedAt: '2026-09-11T11:00:00.000Z',
       },
-      juryMembersAssigned: 3,
+      juryMembersAssigned: 0,
+      juryMembers: [],
       juryBallotSubmitted: false,
       notices: [
         {
@@ -81,7 +82,7 @@ describe('Studio 2 HOD workspace adapter', () => {
     );
     expect(snapshot.eligibility.checks.map((check) => check.id)).not.toContain('artwork');
     expect(snapshot.model.actions.map((action) => action.id)).toEqual(
-      expect.arrayContaining(['confirmation', 'entry-blocked', 'jury-members', 'official-notices']),
+      expect.arrayContaining(['confirmation', 'entry-blocked', 'jury-hod', 'official-notices']),
     );
     expect(snapshot.model.outstandingAcknowledgements).toBe(1);
   });
@@ -131,8 +132,8 @@ describe('Studio 2 HOD workspace adapter', () => {
         participantStatus: 'confirmed',
         publicationStatus: 'published',
         entry: null,
-        juryMembersRequired: 5,
-        juryMembersAssigned: 5,
+        juryMembersRequired: 1,
+        juryMembersAssigned: 1,
         juryMembers: [],
         juryBallotSubmitted: true,
         notices: [
