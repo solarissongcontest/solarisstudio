@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getCountryOperationalReadiness } from './country-operational-readiness';
 import { evaluateEntryEligibility } from './eligibility-engine';
 import { buildHodWorkspaceModel } from './hod-workspace-model';
-import { evaluateWorkflow } from './workflow-engine';
+import { evaluateWorkflow, type WorkflowSummary } from './workflow-engine';
 import { entrySubmissionWorkflow } from './workflow-templates';
 
 describe('HOD workspace model', () => {
@@ -75,17 +75,12 @@ describe('HOD workspace model', () => {
       artworkUrl: 'https://example.com/artwork.jpg',
       broadcasterApproved: true,
     });
-    const workflow = evaluateWorkflow(
-      entrySubmissionWorkflow({
-        'entry.song-info': 'completed',
-        'entry.artist-info': 'completed',
-        'entry.media': 'completed',
-        'entry.eligibility': 'completed',
-        'entry.broadcaster-approval': 'completed',
-        'entry.tsbc-review': 'completed',
-        'entry.lock': 'completed',
-      }),
-    );
+    const workflow = {
+      tasks: [],
+      complete: true,
+      progress: 100,
+      blockedCount: 0,
+    } satisfies WorkflowSummary;
     const operationalReadiness = getCountryOperationalReadiness({
       participationConfirmed: true,
       entryPresent: true,
