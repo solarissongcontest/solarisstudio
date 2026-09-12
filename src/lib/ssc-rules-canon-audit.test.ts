@@ -10,6 +10,8 @@ import {
   getRuleById,
 } from "@/lib/ssc-rules-v4";
 
+const VALID_EXAMPLE_OUTCOMES = new Set(["allowed", "not-allowed", "depends", "information"]);
+
 function textFor(ruleId: string) {
   const rule = getRuleById(ruleId);
   expect(rule, `Expected Rule ${ruleId} to exist`).not.toBeNull();
@@ -47,18 +49,62 @@ describe("SSC v4 canon audit", () => {
     }
   });
 
-  it("keeps every related-rule reference resolvable", () => {
+  it("keeps every canonical rule structurally complete and chapter-consistent", () => {
+    const seen = new Map<string, number>();
+
+    for (const chapter of SSC_RULE_CHAPTERS) {
+      expect(chapter.slug.trim()).not.toBe("");
+      expect(chapter.title.trim()).not.toBe("");
+      expect(chapter.shortTitle.trim()).not.toBe("");
+      expect(chapter.description.trim()).not.toBe("");
+      expect(chapter.atAGlance.length).toBeGreaterThan(0);
+
+      for (const rule of chapter.rules) {
+        seen.set(rule.id, (seen.get(rule.id) ?? 0) + 1);
+        expect(rule.id, `Invalid canonical rule id ${rule.id}`).toMatch(/^\d+\.\d+$/);
+        expect(rule.chapterNumber, `${rule.id} chapterNumber mismatch`).toBe(chapter.number);
+        expect(rule.chapterTitle, `${rule.id} chapterTitle mismatch`).toBe(chapter.title);
+        expect(rule.title.trim(), `${rule.id} missing title`).not.toBe("");
+        expect(rule.summary.trim(), `${rule.id} missing summary`).not.toBe("");
+        expect(rule.body.length, `${rule.id} missing official wording`).toBeGreaterThan(0);
+        expect(rule.body.every((paragraph) => paragraph.trim().length > 0), `${rule.id} has an empty body paragraph`).toBe(true);
+        expect(rule.tags.length, `${rule.id} missing search tags`).toBeGreaterThan(0);
+
+        const normalizedTags = rule.tags.map((tag) => tag.trim().toLowerCase());
+        expect(
+          new Set(normalizedTags).size,
+          `${rule.id} contains duplicate tags: ${normalizedTags.join(", ")}`,
+        ).toBe(normalizedTags.length);
+
+        for (const example of rule.examples ?? []) {
+          expect(example.title.trim(), `${rule.id} has an untitled example`).not.toBe("");
+          expect(example.detail.trim(), `${rule.id} has an empty example`).not.toBe("");
+          expect(VALID_EXAMPLE_OUTCOMES.has(example.outcome), `${rule.id} has invalid example outcome ${example.outcome}`).toBe(true);
+        }
+      }
+    }
+
+    expect([...seen.keys()].sort()).toEqual(SSC_RULES.map((rule) => rule.id).sort());
+    expect([...seen.entries()].filter(([, count]) => count !== 1)).toEqual([]);
+  });
+
+  it("keeps every related-rule reference resolvable and non-self-referential", () => {
     const broken = SSC_RULES.flatMap((rule) =>
       (rule.relatedRules ?? [])
         .filter((relatedId) => !getRuleById(relatedId))
         .map((relatedId) => `${rule.id} -> ${relatedId}`),
     );
+    const selfReferences = SSC_RULES.flatMap((rule) =>
+      (rule.relatedRules ?? []).filter((relatedId) => relatedId === rule.id).map(() => rule.id),
+    );
     expect(broken).toEqual([]);
+    expect(selfReferences).toEqual([]);
   });
 
-  it("keeps every quick-rule reference resolvable", () => {
+  it("keeps every quick-rule reference resolvable and unique", () => {
     expect(QUICK_RULE_IDS.length).toBeGreaterThan(0);
     expect(QUICK_RULE_IDS.filter((ruleId) => !getRuleById(ruleId))).toEqual([]);
+    expect(new Set(QUICK_RULE_IDS).size).toBe(QUICK_RULE_IDS.length);
   });
 
   it("preserves objective artist-popularity thresholds at the official check time", () => {
