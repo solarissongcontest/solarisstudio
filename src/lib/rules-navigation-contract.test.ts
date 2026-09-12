@@ -2,8 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const addon = readFileSync(
-  resolve(process.cwd(), "src/components/GlobalRulesNavigationAddon.tsx"),
+const runtimeContext = readFileSync(
+  resolve(process.cwd(), "src/components/rules/RulesGovernanceContext.tsx"),
+  "utf8",
+);
+const contextualGuide = readFileSync(
+  resolve(process.cwd(), "src/components/rules/ContextualRuleGuide.tsx"),
   "utf8",
 );
 const root = readFileSync(resolve(process.cwd(), "src/routes/__root.tsx"), "utf8");
@@ -26,21 +30,22 @@ const publicLibrary = readFileSync(
 );
 
 describe("Rules and Integrity navigation", () => {
-  it("keeps global rule state and contextual workflow help mounted", () => {
-    expect(root).toContain('import { GlobalRulesNavigationAddon }');
-    expect(root).toContain("<GlobalRulesNavigationAddon />");
-    expect(addon).toContain("usePublishedRulebook");
-    expect(addon).toContain("<ContextualRuleGuide />");
+  it("keeps published rulebook runtime state without mounting global Rules UI", () => {
+    expect(root).toContain('import { RulesGovernanceContext }');
+    expect(root).toContain("<RulesGovernanceContext />");
+    expect(root).not.toContain("GlobalRulesNavigationAddon");
+    expect(runtimeContext).toContain("usePublishedRulebook");
+    expect(runtimeContext).toContain("return null");
   });
 
-  it("does not render a permanent public Rules or Integrity launcher", () => {
-    expect(addon).not.toContain('to="/rules"');
-    expect(addon).not.toContain('to="/integrity"');
-    expect(addon).not.toContain("fixed");
-    expect(addon).not.toContain("createPortal");
-    expect(addon).not.toContain("MutationObserver");
-    expect(addon).not.toContain("document.querySelector");
-    expect(addon).not.toContain("document.createElement");
+  it("does not implement a permanent floating Rules or Integrity launcher", () => {
+    expect(contextualGuide).not.toContain('className="fixed');
+    expect(contextualGuide).not.toContain("createPortal");
+    expect(contextualGuide).not.toContain("MutationObserver");
+    expect(contextualGuide).not.toContain("document.querySelector");
+    expect(contextualGuide).not.toContain("document.createElement");
+    expect(contextualGuide).not.toContain("solaris:open-rule");
+    expect(contextualGuide).toContain('to="/rules/$ruleId"');
   });
 
   it("publishes Rules and Integrity destinations to the shared Library search provider", () => {
@@ -52,17 +57,23 @@ describe("Rules and Integrity navigation", () => {
     expect(libraryProvider).toContain('group: "Rules & governance"');
     expect(libraryProvider).toContain('group: "Trust & Integrity"');
     expect(libraryProvider).toContain("searchSscRules");
+    expect(libraryProvider).toContain("governanceRuleResults");
   });
 
-  it("provides a real public Library host for governance discovery", () => {
+  it("provides a context-sensitive public Library host for governance discovery", () => {
     expect(appShell).toContain('to: "/library"');
     expect(appShell).toContain('label: "Library"');
     expect(publicLibrary).toContain('createFileRoute("/library")');
+    expect(publicLibrary).toContain("sanitizeRuleContextPath");
+    expect(publicLibrary).toContain("getRuleContext");
+    expect(publicLibrary).toContain("GovernanceLibraryContextResults");
     expect(publicLibrary).toContain("Search Solaris");
     expect(publicLibrary).toContain("<GovernanceLibraryResults");
     expect(publicLibrary).toContain("getPublicRuleInterpretations");
     expect(publicLibrary).toContain('aria-label="Search Solaris Library"');
     expect(libraryResults).toContain("searchGovernanceLibrary");
+    expect(libraryResults).toContain("governanceRuleResults");
+    expect(libraryResults).toContain("Relevant here");
     expect(libraryResults).toContain('aria-label="Rules and Integrity Library results"');
   });
 
