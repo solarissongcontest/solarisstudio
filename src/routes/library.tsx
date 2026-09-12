@@ -16,13 +16,17 @@ import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import {
+  GovernanceLibraryContextResults,
   GovernanceLibraryEmptyHint,
   GovernanceLibraryResults,
 } from "@/components/library/GovernanceLibraryResults";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
+import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { getPublicRuleInterpretations } from "@/lib/rule-interpretations";
 import { useRulebookReleaseHistory } from "@/lib/rules-governance";
 import { cn } from "@/lib/utils";
+
+type LibrarySearch = { from?: string };
 
 export const Route = createFileRoute("/library")({
   head: () => ({
@@ -34,6 +38,9 @@ export const Route = createFileRoute("/library")({
           "Search Solaris Studio destinations, official SSC rules, interpretations, rulebook history and Trust & Integrity resources.",
       },
     ],
+  }),
+  validateSearch: (search: Record<string, unknown>): LibrarySearch => ({
+    from: sanitizeRuleContextPath(search.from),
   }),
   component: LibraryPage,
 });
@@ -192,7 +199,9 @@ function destinationMatches(destination: LibraryDestination, query: string) {
 }
 
 function LibraryPage() {
+  const { from } = Route.useSearch();
   const [query, setQuery] = useState("");
+  const ruleContext = useMemo(() => (from ? getRuleContext(from) : null), [from]);
   const interpretations = useQuery({
     queryKey: ["public-rule-interpretations", "library"],
     queryFn: () => getPublicRuleInterpretations(null),
@@ -286,6 +295,7 @@ function LibraryPage() {
               </p>
             </div>
 
+            {ruleContext ? <GovernanceLibraryContextResults context={ruleContext} /> : null}
             <GovernanceLibraryResults
               query={query}
               interpretations={interpretations.data ?? []}
