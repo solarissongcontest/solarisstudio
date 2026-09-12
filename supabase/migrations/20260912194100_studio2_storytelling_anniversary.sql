@@ -806,15 +806,19 @@ declare
   v_edition public.editions%rowtype;
   v_items jsonb := '[]'::jsonb;
 begin
-  select s, e into v_story, v_edition
+  select s.* into v_story
   from public.studio2_storylines s
   join public.editions e on e.id = s.edition_id
   where e.slug = p_edition_slug and e.published and s.status = 'published'
   limit 1;
 
-  if v_story.id is null then
+  if not found then
     return null;
   end if;
+
+  select * into v_edition
+  from public.editions
+  where id = v_story.edition_id;
 
   select coalesce(jsonb_agg(jsonb_build_object(
     'id', i.id,
