@@ -79,7 +79,21 @@ jobs:
         run: bun run typecheck
 
       - name: Unit tests
-        run: bun test
+        shell: bash
+        run: |
+          set +e
+          bun test 2>&1 | tee unit-test-output.txt
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Upload unit test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: unit-test-output.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Prepare exact lint fix candidate
         shell: bash
@@ -126,6 +140,6 @@ jobs:
             echo "- Generated route tree: untracked and ignored"
             echo "- Production build: executed"
             echo "- TypeScript: executed"
-            echo "- Unit tests: executed"
+            echo "- Unit tests: executed and output retained"
             echo "- Lint: executed as a blocking quality gate"
           } >> "$GITHUB_STEP_SUMMARY"

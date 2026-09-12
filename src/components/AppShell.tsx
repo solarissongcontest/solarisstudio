@@ -46,6 +46,7 @@ const EXPLORE_NAV: PublicNavItem[] = [
   { to: "/countries", label: "Countries", description: "See countries, entries and results" },
   { to: "/shows", label: "Shows", description: "Open semi-finals, finals and results" },
   { to: "/wiki", label: "Wiki", description: "Read detailed country pages" },
+  { to: "/library", label: "Library", description: "Search Solaris, official rules and Trust & Integrity" },
 ];
 
 const MOBILE_EXPLORE_NAV: PublicNavItem[] = EXPLORE_NAV;

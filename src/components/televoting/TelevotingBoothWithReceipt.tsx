@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
+import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import {
   TelevotingBooth,
   type MergedTelevotingEntry,
@@ -61,12 +62,20 @@ export function TelevotingBoothWithReceipt({
   }
 
   return (
-    <TelevotingBooth
-      roundId={roundId}
-      roundName={roundName}
-      editionName={editionName}
-      entries={entries}
-      selfVotingMode={selfVotingMode}
-    />
+    <div className="space-y-4">
+      <RuleDecisionStrip
+        title="Independent voting & integrity"
+        description="Vote for the songs you genuinely prefer. Friendships are allowed; coordinated, reciprocal or manipulated voting is not. Automated signals can trigger review but are not proof of misconduct."
+        ruleIds={["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"]}
+        integrity
+      />
+      <TelevotingBooth
+        roundId={roundId}
+        roundName={roundName}
+        editionName={editionName}
+        entries={entries}
+        selfVotingMode={selfVotingMode}
+      />
+    </div>
   );
 }

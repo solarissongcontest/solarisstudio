@@ -1,0 +1,265 @@
+import type { RuleInterpretation } from "@/lib/rule-interpretations";
+import type { RulebookRelease } from "@/lib/rules-governance";
+import { searchSscRules, SSC_RULE_CHAPTERS } from "@/lib/ssc-rules-v4";
+
+export type GovernanceLibraryGroup = "Rules & governance" | "Trust & Integrity";
+export type GovernanceLibraryKind = "destination" | "chapter" | "rule" | "interpretation" | "release";
+
+export type GovernanceLibraryResult = {
+  id: string;
+  kind: GovernanceLibraryKind;
+  group: GovernanceLibraryGroup;
+  title: string;
+  description: string;
+  to: string;
+  badge?: string;
+  keywords: string[];
+};
+
+export const GOVERNANCE_LIBRARY_DESTINATIONS: GovernanceLibraryResult[] = [
+  {
+    id: "governance-rules",
+    kind: "destination",
+    group: "Rules & governance",
+    title: "Official SSC Rules",
+    description: "Explore the complete 21-chapter Solaris Song Contest General Regulations.",
+    to: "/rules",
+    badge: "Rulebook",
+    keywords: ["rules", "rulebook", "regulations", "ssc rules", "contest rules", "general regulations", "rule map"],
+  },
+  {
+    id: "governance-interpretations",
+    kind: "destination",
+    group: "Rules & governance",
+    title: "Official Interpretations",
+    description: "Published TSBC rulings explaining how existing SSC rules apply to recurring or unusual situations.",
+    to: "/rules/interpretations",
+    badge: "Rulings",
+    keywords: ["interpretation", "interpretations", "ruling", "rulings", "guidance", "precedent", "clarification", "what does rule mean"],
+  },
+  {
+    id: "governance-changes",
+    kind: "destination",
+    group: "Rules & governance",
+    title: "Rulebook Changes",
+    description: "See published rulebook versions, effective dates and rule-by-rule change reasons.",
+    to: "/rules/changes",
+    badge: "History",
+    keywords: ["rule changes", "rulebook changes", "history", "versions", "amendment", "amendments", "effective date", "old rules"],
+  },
+  {
+    id: "integrity-centre",
+    kind: "destination",
+    group: "Trust & Integrity",
+    title: "Trust & Integrity",
+    description: "Report a concern, ask TSBC privately, self-report an issue or return to a protected case.",
+    to: "/integrity",
+    badge: "Integrity",
+    keywords: ["integrity", "report", "report concern", "anonymous report", "sealed identity", "confidential report", "safety", "harassment", "doxxing", "self report", "private question", "ask tsbc"],
+  },
+  {
+    id: "integrity-preclearance",
+    kind: "destination",
+    group: "Trust & Integrity",
+    title: "My Private Rule Rulings",
+    description: "Review TSBC pre-clearance rulings issued on your protected private rule questions before you act.",
+    to: "/integrity/preclearance",
+    badge: "Rule rulings",
+    keywords: ["pre-clearance", "preclearance", "private ruling", "rule ruling", "rule question", "ask tsbc", "before you act", "permission", "eligibility question", "private guidance"],
+  },
+  {
+    id: "integrity-appeals",
+    kind: "destination",
+    group: "Trust & Integrity",
+    title: "Appeals & Decisions",
+    description: "Review protected-case decisions and submit an eligible appeal within the SSC appeal process.",
+    to: "/integrity/appeals",
+    badge: "Appeals",
+    keywords: ["appeal", "appeals", "sanction appeal", "decision", "48 hours", "review sanction", "challenge decision"],
+  },
+];
+
+const NORMALIZED_ALIAS_TERMS: Record<string, string[]> = {
+  esc: ["eurovision"],
+  ns: ["national selection"],
+  fv: ["friend voting", "voting integrity"],
+  dq: ["disqualification", "sanction"],
+  alt: ["alternate account", "multiple accounts"],
+  alts: ["alternate account", "multiple accounts"],
+  spotify: ["artist popularity", "monthly listeners"],
+  views: ["youtube", "music video", "artist popularity"],
+  permission: ["artist reuse", "representation rights", "private ruling"],
+  ban: ["sanction", "suspension", "lifetime ban"],
+  bot: ["automation", "confirmation", "technical abuse"],
+  ai: ["artificial intelligence"],
+  host: ["hosting", "creative hosting"],
+  anonymous: ["anonymous report", "trust integrity"],
+  preclearance: ["pre-clearance", "private ruling", "rule question"],
+};
+
+function normalize(value: string) {
+  return value.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function queryTerms(query: string) {
+  const normalized = normalize(query);
+  if (!normalized) return [];
+  const words = normalized.split(" ").filter(Boolean);
+  const expanded = new Set([normalized, ...words]);
+  for (const word of words) {
+    for (const alias of NORMALIZED_ALIAS_TERMS[word] ?? []) expanded.add(alias);
+  }
+  return [...expanded];
+}
+
+function scoreText(result: GovernanceLibraryResult, terms: string[]) {
+  const title = normalize(result.title);
+  const searchable = normalize([result.title, result.description, result.badge ?? "", ...result.keywords].join(" "));
+  let score = 0;
+  for (const term of terms) {
+    if (title === term) score += 18;
+    else if (title.includes(term)) score += 9;
+    if (searchable.includes(term)) score += term.includes(" ") ? 5 : 3;
+  }
+  return score;
+}
+
+function chapterResult(chapter: (typeof SSC_RULE_CHAPTERS)[number]): GovernanceLibraryResult {
+  return {
+    id: `chapter-${chapter.number}`,
+    kind: "chapter",
+    group: "Rules & governance",
+    title: `Chapter ${chapter.number} · ${chapter.title}`,
+    description: chapter.description,
+    to: `/rules#chapter-${chapter.number}`,
+    badge: `Chapter ${chapter.number}`,
+    keywords: [
+      chapter.shortTitle,
+      ...chapter.atAGlance,
+      ...chapter.rules.flatMap((rule) => [rule.id, rule.title, rule.summary, ...rule.tags]),
+    ],
+  };
+}
+
+type CanonRule = (typeof SSC_RULE_CHAPTERS)[number]["rules"][number];
+
+function ruleResult(rule: CanonRule): GovernanceLibraryResult {
+  return {
+    id: `rule-${rule.id}`,
+    kind: "rule",
+    group: "Rules & governance",
+    title: `Rule ${rule.id} · ${rule.title}`,
+    description: rule.summary,
+    to: `/rules/${rule.id}`,
+    badge: `Rule ${rule.id}`,
+    keywords: [rule.id, rule.title, ...rule.tags],
+  };
+}
+
+const RULE_BY_ID = new Map(
+  SSC_RULE_CHAPTERS.flatMap((chapter) => chapter.rules).map((rule) => [rule.id, rule] as const),
+);
+
+/** Return canonical rule cards in caller-specified order, omitting no-longer-valid IDs. */
+export function governanceRuleResults(ruleIds: readonly string[]): GovernanceLibraryResult[] {
+  return ruleIds.flatMap((ruleId) => {
+    const rule = RULE_BY_ID.get(ruleId);
+    return rule ? [ruleResult(rule)] : [];
+  });
+}
+
+function interpretationResult(interpretation: RuleInterpretation): GovernanceLibraryResult {
+  return {
+    id: `interpretation-${interpretation.id}`,
+    kind: "interpretation",
+    group: "Rules & governance",
+    title: `${interpretation.code} · ${interpretation.title}`,
+    description: interpretation.interpretation,
+    to: "/rules/interpretations",
+    badge: "Interpretation",
+    keywords: [interpretation.code, interpretation.question, interpretation.rationale, ...interpretation.rule_ids.map((ruleId) => `rule ${ruleId}`)],
+  };
+}
+
+export function rulebookReleaseAnchor(version: string) {
+  return `release-${version.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "")}`;
+}
+
+function releaseResult(release: RulebookRelease): GovernanceLibraryResult {
+  const changes = release.changes ?? [];
+  return {
+    id: `release-${release.id ?? release.version}`,
+    kind: "release",
+    group: "Rules & governance",
+    title: `Rulebook v${release.version} · ${release.title}`,
+    description: release.summary,
+    to: `/rules/changes#${rulebookReleaseAnchor(release.version)}`,
+    badge: `v${release.version}`,
+    keywords: [
+      release.version,
+      `version ${release.version}`,
+      release.base_version ? `based on ${release.base_version}` : "",
+      ...changes.flatMap((change) => [
+        `rule ${change.rule_id}`,
+        change.rule_id,
+        change.rationale,
+        change.after_snapshot?.title ?? "",
+        change.after_snapshot?.summary ?? "",
+        change.before_snapshot?.title ?? "",
+      ]),
+    ].filter(Boolean),
+  };
+}
+
+export function searchGovernanceLibrary(
+  query: string,
+  interpretations: RuleInterpretation[] = [],
+  releases: RulebookRelease[] = [],
+): GovernanceLibraryResult[] {
+  const normalized = normalize(query);
+  if (!normalized) return [...GOVERNANCE_LIBRARY_DESTINATIONS];
+
+  const terms = queryTerms(query);
+  const destinationMatches = GOVERNANCE_LIBRARY_DESTINATIONS
+    .map((result) => ({ result, score: scoreText(result, terms) }))
+    .filter(({ score }) => score > 0);
+
+  const chapterMatches = SSC_RULE_CHAPTERS
+    .map(chapterResult)
+    .map((result) => ({ result, score: scoreText(result, terms) }))
+    .filter(({ score }) => score > 0);
+
+  const ruleMatches = searchSscRules(terms.join(" ")).slice(0, 10).map((rule, index) => ({
+    score: Math.max(2, 14 - index),
+    result: ruleResult(rule),
+  }));
+
+  const interpretationMatches = interpretations
+    .filter((item) => item.status === "published")
+    .map(interpretationResult)
+    .map((result) => ({ result, score: scoreText(result, terms) }))
+    .filter(({ score }) => score > 0);
+
+  const releaseMatches = releases
+    .filter((release) => release.status !== "draft")
+    .map(releaseResult)
+    .map((result) => ({ result, score: scoreText(result, terms) }))
+    .filter(({ score }) => score > 0);
+
+  const combined = [...destinationMatches, ...chapterMatches, ...ruleMatches, ...interpretationMatches, ...releaseMatches]
+    .sort((a, b) => b.score - a.score || a.result.title.localeCompare(b.result.title))
+    .map(({ result }) => result);
+
+  const seen = new Set<string>();
+  return combined.filter((result) => {
+    if (seen.has(result.id)) return false;
+    seen.add(result.id);
+    return true;
+  });
+}
+
+export function governanceLibraryGroups(results: GovernanceLibraryResult[]) {
+  return (["Rules & governance", "Trust & Integrity"] as GovernanceLibraryGroup[])
+    .map((group) => ({ group, results: results.filter((result) => result.group === group) }))
+    .filter(({ results }) => results.length > 0);
+}

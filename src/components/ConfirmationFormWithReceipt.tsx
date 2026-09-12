@@ -5,6 +5,7 @@ import {
   type ConfirmationFormProps,
 } from "@/components/ConfirmationForm";
 import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
+import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import {
   CONFIRMATION_SUBMITTED_EVENT,
   type SubmissionReceiptDetail,
@@ -43,5 +44,14 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
     );
   }
 
-  return <ConfirmationForm {...props} />;
+  return (
+    <div className="space-y-4">
+      <RuleDecisionStrip
+        title="Confirmation fairness & submission rules"
+        description="Before claiming or editing a place, check the rules on published opening times, server receipt order, automation, duplicate confirmations and which information may be completed later."
+        ruleIds={["4.3", "4.4", "4.6", "4.7", "20.1"]}
+      />
+      <ConfirmationForm {...props} />
+    </div>
+  );
 }
