@@ -6,7 +6,7 @@ import { evaluateWorkflow } from './workflow-engine';
 import { entrySubmissionWorkflow } from './workflow-templates';
 
 describe('HOD workspace model', () => {
-  it('prioritizes blockers and acknowledgement requirements', () => {
+  it('treats a missing HOD as the jury blocker', () => {
     const eligibility = evaluateEntryEligibility({
       countryConfirmed: true,
       artistName: '',
@@ -35,8 +35,8 @@ describe('HOD workspace model', () => {
       confirmationComplete: false,
       entryEligibility: eligibility,
       entryWorkflow: workflow,
-      juryMembersRequired: 5,
-      juryMembersAssigned: 3,
+      juryMembersRequired: 1,
+      juryMembersAssigned: 0,
       juryBallotSubmitted: false,
       notices: [
         {
@@ -52,8 +52,12 @@ describe('HOD workspace model', () => {
 
     expect(model.actions[0].priority).toBe('critical');
     expect(model.actions.map((action) => action.id)).toEqual(
-      expect.arrayContaining(['confirmation', 'entry-blocked', 'jury-members', 'official-notices']),
+      expect.arrayContaining(['confirmation', 'entry-blocked', 'jury-hod', 'official-notices']),
     );
+    expect(model.actions.find((action) => action.id === 'jury-hod')).toMatchObject({
+      label: 'Confirm HOD assignment',
+      href: '/country-hub/hod',
+    });
     expect(model.actions.find((action) => action.id === 'official-notices')?.href).toBe(
       '/country-hub/notices',
     );
@@ -62,7 +66,7 @@ describe('HOD workspace model', () => {
     expect(model.readinessState).toBe('blocked');
   });
 
-  it('becomes clear when delegation requirements are complete', () => {
+  it('moves directly from HOD assignment to the one country jury ballot', () => {
     const eligibility = evaluateEntryEligibility({
       countryConfirmed: true,
       artistName: 'Artist',
@@ -93,7 +97,7 @@ describe('HOD workspace model', () => {
       unresolvedOrganizerIssues: 0,
     });
 
-    const model = buildHodWorkspaceModel({
+    const pendingBallot = buildHodWorkspaceModel({
       editionId: 'ssc21',
       editionName: 'SSC 21',
       countryId: 'oland',
@@ -101,15 +105,38 @@ describe('HOD workspace model', () => {
       confirmationComplete: true,
       entryEligibility: eligibility,
       entryWorkflow: workflow,
-      juryMembersRequired: 5,
-      juryMembersAssigned: 5,
+      juryMembersRequired: 1,
+      juryMembersAssigned: 1,
+      juryBallotSubmitted: false,
+      notices: [],
+      operationalReadiness,
+    });
+
+    expect(pendingBallot.jury).toMatchObject({ assigned: 1, required: 1, complete: true });
+    expect(pendingBallot.actions).toEqual([
+      expect.objectContaining({
+        id: 'jury-ballot',
+        description: 'The HOD is assigned as the country’s jury, but the jury ballot has not been submitted.',
+      }),
+    ]);
+
+    const complete = buildHodWorkspaceModel({
+      editionId: 'ssc21',
+      editionName: 'SSC 21',
+      countryId: 'oland',
+      countryName: 'Oland',
+      confirmationComplete: true,
+      entryEligibility: eligibility,
+      entryWorkflow: workflow,
+      juryMembersRequired: 1,
+      juryMembersAssigned: 1,
       juryBallotSubmitted: true,
       notices: [],
       operationalReadiness,
     });
 
-    expect(model.readiness).toBe(100);
-    expect(model.readinessState).toBe('ready');
-    expect(model.actions).toEqual([]);
+    expect(complete.readiness).toBe(100);
+    expect(complete.readinessState).toBe('ready');
+    expect(complete.actions).toEqual([]);
   });
 });
