@@ -40,8 +40,8 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
   it('shows precise issue evidence and keeps factual state visible after an override', () => {
     expect(model).toContain('factualStatus');
     expect(model).toContain('effectiveStatus');
-    expect(model).toContain('Required: ${row.context.juryMembersRequired}');
-    expect(model).toContain('Assigned: ${row.context.juryMembersAssigned}');
+    expect(model).toContain('Jury model: one HOD per country');
+    expect(model).toContain("HOD assigned: ${row.context.juryMembersAssigned === 1 ? 'yes' : 'no'}");
     expect(route).toContain('Factual');
     expect(route).toContain('The failed factual check remains recorded and visible.');
   });
