@@ -8,6 +8,7 @@ function source(path: string) {
 
 const migration = source('supabase/migrations/20260912203000_studio2_single_hod_jury.sql');
 const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
+const workspaceClient = source('src/lib/studio2-hod-workspace.ts');
 const workspaceModel = source('src/lib/hod-workspace-model.ts');
 const canonicalJury = source('src/integrations/jury-voting/jury-voting.server.ts');
 
@@ -28,6 +29,14 @@ describe('Studio 2 single-HOD jury contract', () => {
     expect(canonicalJury).toContain('canonical.hod.resolve(String(show.edition_id), countryId, "jury")');
   });
 
+  it('routes juror communications through the same canonical HOD identity', () => {
+    expect(migration).toContain('p_audience <> \'jurors\'');
+    expect(migration).toContain('v_selected_person_id');
+    expect(migration).toContain("p.identity_key = 'account:' || p_user_id::text");
+    expect(migration).toContain("case when a.channel = 'jury' then 0 else 1 end");
+    expect(migration).not.toContain("from public.studio2_jury_members jm\n      where jm.member_user_id = p_user_id");
+  });
+
   it('retires delegation-side add/remove juror controls and obsolete roster writes', () => {
     expect(hodRoute).toContain('HOD assigned');
     expect(hodRoute).toContain('HOD missing');
@@ -36,6 +45,8 @@ describe('Studio 2 single-HOD jury contract', () => {
     expect(hodRoute).not.toContain('removeStudio2JuryMember');
     expect(hodRoute).not.toContain('Add juror');
     expect(hodRoute).not.toContain('Juror display name');
+    expect(workspaceClient).not.toContain('assignStudio2JuryMember');
+    expect(workspaceClient).not.toContain('removeStudio2JuryMember');
     expect(migration).toContain('revoke execute on function public.studio2_assign_jury_member');
     expect(migration).toContain('revoke execute on function public.studio2_remove_jury_member');
   });
