@@ -80,6 +80,8 @@ describe('HOD workspace model', () => {
       complete: true,
       progress: 100,
       blockedCount: 0,
+      overdueCount: 0,
+      nextTaskIds: [],
     } satisfies WorkflowSummary;
     const operationalReadiness = getCountryOperationalReadiness({
       participationConfirmed: true,
