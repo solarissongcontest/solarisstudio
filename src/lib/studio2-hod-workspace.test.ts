@@ -28,7 +28,14 @@ const completeContext: Studio2HodContext = {
   },
   juryMembersRequired: 1,
   juryMembersAssigned: 1,
-  juryMembers: [],
+  juryMembers: [
+    {
+      id: 'hod-assignment-1',
+      displayName: 'Oland HOD',
+      memberUserId: 'user-1',
+      createdAt: '2026-09-01T10:00:00.000Z',
+    },
+  ],
   juryBallotSubmitted: true,
   notices: [],
   deadlines: [],
@@ -121,21 +128,32 @@ describe('Studio 2 HOD workspace adapter', () => {
     expect(snapshot.model.actions.map((action) => action.id)).toContain('overdue-deadlines');
   });
 
+  it('rejects any RPC payload that reintroduces a multi-member jury', () => {
+    const payload = {
+      ...completeContext,
+      juryMembersRequired: 5,
+      juryMembersAssigned: 1,
+    };
+
+    expect(() => mapStudio2HodContext(payload)).toThrow(
+      'Invalid jury members required: Solaris requires exactly one HOD jury',
+    );
+  });
+
+  it('rejects a jury projection whose count does not match the sole HOD row', () => {
+    expect(() =>
+      mapStudio2HodContext({
+        ...completeContext,
+        juryMembersAssigned: 1,
+        juryMembers: [],
+      }),
+    ).toThrow('Invalid jury member projection: expected exactly the assigned HOD');
+  });
+
   it('validates the secure RPC payload before it reaches the domain engines', () => {
     expect(() =>
       mapStudio2HodContext({
-        editionId: 'edition-21',
-        editionName: 'SSC 21',
-        countryId: 'oland',
-        countryName: 'Oland',
-        confirmationComplete: true,
-        participantStatus: 'confirmed',
-        publicationStatus: 'published',
-        entry: null,
-        juryMembersRequired: 1,
-        juryMembersAssigned: 1,
-        juryMembers: [],
-        juryBallotSubmitted: true,
+        ...completeContext,
         notices: [
           {
             id: 'notice-1',
@@ -145,9 +163,6 @@ describe('Studio 2 HOD workspace adapter', () => {
             acknowledged: false,
           },
         ],
-        deadlines: [],
-        reviewHistory: [],
-        unresolvedOrganizerIssues: 0,
       }),
     ).toThrow(/Unknown notice severity/);
   });
@@ -163,5 +178,7 @@ describe('Studio 2 HOD workspace adapter', () => {
       p_country_id: 'oland',
     });
     expect(result.countryName).toBe('Oland');
+    expect(result.juryMembers).toHaveLength(1);
+    expect(result.juryMembersRequired).toBe(1);
   });
 });
