@@ -14,6 +14,7 @@ import {
   Layers3,
   ListVideo,
   Mail,
+  MapPinned,
   PlayCircle,
   RadioTower,
   Settings2,
@@ -83,6 +84,12 @@ export function AdminNav() {
         path.startsWith("/admin/participant-status/"),
     },
     {
+      label: "Host",
+      to: "/admin/hosts",
+      icon: MapPinned,
+      active: (path) => path.startsWith("/admin/hosts"),
+    },
+    {
       label: "Voting",
       to: "/televoting/admin",
       icon: Vote,
@@ -137,7 +144,6 @@ export function AdminNav() {
         path.startsWith("/admin/more") ||
         path.startsWith("/admin/country-accounts") ||
         path.startsWith("/admin/hod-history") ||
-        path.startsWith("/admin/hosts") ||
         path.startsWith("/admin/predictions") ||
         path.startsWith("/admin/system") ||
         path.startsWith("/admin/sync-health") ||

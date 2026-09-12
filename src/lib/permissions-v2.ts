@@ -19,6 +19,8 @@ export const SOLARIS_CAPABILITIES = [
   'rules.edit',
   'incident.manage',
   'communications.send',
+  'host.read',
+  'host.manage',
 ] as const;
 
 export type SolarisCapability = (typeof SOLARIS_CAPABILITIES)[number];
