@@ -21,6 +21,8 @@ export const SOLARIS_CAPABILITIES = [
   'communications.send',
   'host.read',
   'host.manage',
+  'story.read',
+  'story.manage',
 ] as const;
 
 export type SolarisCapability = (typeof SOLARIS_CAPABILITIES)[number];

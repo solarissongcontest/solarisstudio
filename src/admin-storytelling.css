@@ -1,0 +1,40 @@
+.admin-control-room .story-input {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 0.035);
+  padding: 0.65rem 0.75rem;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  line-height: 1.35;
+  outline: none;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.admin-control-room .story-input::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.75;
+}
+
+.admin-control-room .story-input:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.admin-control-room .story-input:focus {
+  border-color: rgb(186 230 253 / 0.32);
+  box-shadow: 0 0 0 3px rgb(125 211 252 / 0.08);
+}
+
+.admin-control-room textarea.story-input {
+  min-height: 7rem;
+}
+
+.admin-control-room input[type="date"].story-input,
+.admin-control-room input[type="datetime-local"].story-input {
+  color-scheme: dark;
+}
+
+.admin-control-room input[type="number"].story-input {
+  font-variant-numeric: tabular-nums;
+}
