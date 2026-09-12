@@ -35,7 +35,7 @@ begin
 
   if exists (
     select 1
-    from jsonb_array_elements(p_segments) segment
+    from jsonb_array_elements(p_segments) as items(segment)
     where jsonb_typeof(segment) <> 'object'
        or nullif(btrim(segment ->> 'id'), '') is null
        or nullif(btrim(segment ->> 'label'), '') is null
@@ -48,7 +48,7 @@ begin
 
   select count(*), count(distinct segment ->> 'id')
     into v_count, v_distinct_count
-  from jsonb_array_elements(p_segments) segment;
+  from jsonb_array_elements(p_segments) as items(segment);
 
   if v_count <> v_distinct_count then
     raise exception 'Rundown segment ids must be unique' using errcode = '22023';
@@ -56,7 +56,7 @@ begin
 
   if (
     select count(*)
-    from jsonb_array_elements(p_segments) segment
+    from jsonb_array_elements(p_segments) as items(segment)
     where segment ->> 'status' = 'live'
   ) > 1 then
     raise exception 'Only one rundown segment can be live at a time' using errcode = '22023';
@@ -264,7 +264,7 @@ begin
     'version', 2,
     'revision', v_revision + 1,
     'lockedAt', case when p_locked then to_jsonb(now()) else 'null'::jsonb end,
-    'lockedBy', case when p_locked then to_jsonb(v_actor) else 'null'::jsonb end,
+    'lockedBy', case when p_locked then coalesce(to_jsonb(v_actor), 'null'::jsonb) else 'null'::jsonb end,
     'lockReason', case when p_locked then to_jsonb(v_reason) else 'null'::jsonb end,
     'updatedAt', now(),
     'updatedBy', v_actor
@@ -359,7 +359,7 @@ begin
 
   select segment ->> 'status'
     into v_from_status
-  from jsonb_array_elements(v_segments) segment
+  from jsonb_array_elements(v_segments) as items(segment)
   where segment ->> 'id' = p_segment_id;
 
   if v_from_status is null then
@@ -375,7 +375,8 @@ begin
   end if;
 
   if p_to_status = 'live' and exists (
-    select 1 from jsonb_array_elements(v_segments) segment
+    select 1
+    from jsonb_array_elements(v_segments) as items(segment)
     where segment ->> 'id' <> p_segment_id and segment ->> 'status' = 'live'
   ) then
     raise exception 'Another rundown segment is already live' using errcode = '55000';
@@ -386,12 +387,22 @@ begin
       when segment ->> 'id' <> p_segment_id then segment
       else segment
         || jsonb_build_object('status', p_to_status)
-        || case when p_to_status = 'live' then jsonb_build_object('actualStartedAt', coalesce(segment -> 'actualStartedAt', to_jsonb(now()))) else '{}'::jsonb end
-        || case when p_to_status in ('completed', 'skipped') then jsonb_build_object('actualCompletedAt', coalesce(segment -> 'actualCompletedAt', to_jsonb(now()))) else '{}'::jsonb end
+        || case
+          when p_to_status = 'live' then jsonb_build_object(
+            'actualStartedAt', to_jsonb(coalesce(nullif(segment ->> 'actualStartedAt', '')::timestamptz, now()))
+          )
+          else '{}'::jsonb
+        end
+        || case
+          when p_to_status in ('completed', 'skipped') then jsonb_build_object(
+            'actualCompletedAt', to_jsonb(coalesce(nullif(segment ->> 'actualCompletedAt', '')::timestamptz, now()))
+          )
+          else '{}'::jsonb
+        end
     end
     order by ordinal
   ) into v_next_segments
-  from jsonb_array_elements(v_segments) with ordinality as item(segment, ordinal);
+  from jsonb_array_elements(v_segments) with ordinality as items(segment, ordinal);
 
   v_next := v_current || jsonb_build_object(
     'version', 2,
