@@ -7,6 +7,7 @@ function source(path: string) {
 }
 
 const migration = source('supabase/migrations/20260912203000_studio2_single_hod_jury.sql');
+const noticeHardening = source('supabase/migrations/20260912203100_studio2_single_hod_jury_notice_scope.sql');
 const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
 const workspaceClient = source('src/lib/studio2-hod-workspace.ts');
 const workspaceModel = source('src/lib/hod-workspace-model.ts');
@@ -29,11 +30,13 @@ describe('Studio 2 single-HOD jury contract', () => {
     expect(canonicalJury).toContain('canonical.hod.resolve(String(show.edition_id), countryId, "jury")');
   });
 
-  it('routes juror communications through the same canonical HOD identity', () => {
-    expect(migration).toContain('p_audience <> \'jurors\'');
+  it('routes juror communications through the same canonical HOD identity without broadening country scope', () => {
+    expect(migration).toContain("p_audience <> 'jurors'");
     expect(migration).toContain('v_selected_person_id');
     expect(migration).toContain("p.identity_key = 'account:' || p_user_id::text");
     expect(migration).toContain("case when a.channel = 'jury' then 0 else 1 end");
+    expect(noticeHardening).toContain('coalesce(cardinality(p_country_ids), 0) > 0');
+    expect(noticeHardening).toContain('v_country_id = any(p_country_ids)');
     expect(migration).not.toContain("from public.studio2_jury_members jm\n      where jm.member_user_id = p_user_id");
   });
 
