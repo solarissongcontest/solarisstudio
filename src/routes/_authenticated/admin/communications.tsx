@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import {
   Archive,
+  ArchiveRestore,
+  ArchiveX,
   CalendarClock,
   CheckCircle2,
   CopyPlus,
@@ -13,6 +15,7 @@ import {
   Megaphone,
   PencilLine,
   Send,
+  Trash2,
   UsersRound,
 } from 'lucide-react';
 
@@ -45,29 +48,33 @@ import {
   type OperationalNotice,
 } from '@/lib/official-communications';
 import {
+  archiveStudio2Communication,
   cancelStudio2Notice,
   createStudio2NoticeDraft,
   createSupersedingStudio2NoticeDraft,
+  deleteStudio2Communication,
   loadStudio2NoticeRevisions,
   loadStudio2Notices,
   publishStudio2Notice,
+  restoreStudio2Communication,
   scheduleStudio2Notice,
   updateStudio2NoticeDraft,
   type SaveStudio2NoticeInput,
 } from '@/lib/studio2-communications';
 
-const NOTICE_STATE_SET = new Set<string>(NOTICE_STATES);
+type CommunicationsStateFilter = NoticeState | 'archived';
+const NOTICE_STATE_SET = new Set<string>([...NOTICE_STATES, 'archived']);
 
 type CommunicationsSearch = {
   notice?: string;
-  state?: NoticeState;
+  state?: CommunicationsStateFilter;
 };
 
 export const Route = createFileRoute('/_authenticated/admin/communications')({
   validateSearch: (search: Record<string, unknown>): CommunicationsSearch => ({
     notice: typeof search.notice === 'string' && search.notice ? search.notice : undefined,
     state: typeof search.state === 'string' && NOTICE_STATE_SET.has(search.state)
-      ? search.state as NoticeState
+      ? search.state as CommunicationsStateFilter
       : undefined,
   }),
   head: () => ({
@@ -193,25 +200,53 @@ function CommunicationsCentre() {
     },
   });
 
+  const archiveCommunication = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => archiveStudio2Communication(id, reason),
+    onSuccess: refresh,
+  });
+
+  const restoreCommunication = useMutation({
+    mutationFn: (id: string) => restoreStudio2Communication(id),
+    onSuccess: refresh,
+  });
+
+  const deleteCommunication = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteStudio2Communication(id, reason),
+    onSuccess: async (_result, variables) => {
+      if (editingId === variables.id) resetComposer();
+      if (search.notice === variables.id) {
+        void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
+      }
+      await refresh();
+    },
+  });
+
   const acknowledgementCount = useMemo(
     () => notices.reduce((sum, item) => sum + item.receipts.acknowledged, 0),
     [notices],
   );
-  const filteredNotices = useMemo(
-    () => search.state ? notices.filter((item) => item.notice.state === search.state) : notices,
-    [notices, search.state],
-  );
+  const filteredNotices = useMemo(() => {
+    if (search.state === 'archived') return notices.filter((item) => Boolean(item.notice.archivedAt));
+    if (search.state) return notices.filter((item) => item.notice.state === search.state);
+    return notices;
+  }, [notices, search.state]);
 
   const mutationError = saveDraft.error
     || scheduleNotice.error
     || publishNotice.error
     || cancelNotice.error
-    || supersedeNotice.error;
+    || supersedeNotice.error
+    || archiveCommunication.error
+    || restoreCommunication.error
+    || deleteCommunication.error;
   const busy = saveDraft.isPending
     || scheduleNotice.isPending
     || publishNotice.isPending
     || cancelNotice.isPending
-    || supersedeNotice.isPending;
+    || supersedeNotice.isPending
+    || archiveCommunication.isPending
+    || restoreCommunication.isPending
+    || deleteCommunication.isPending;
 
   function loadIntoComposer(notice: OperationalNotice) {
     setEditingId(notice.id);
@@ -239,6 +274,29 @@ function CommunicationsCentre() {
     setCountryIds([]);
     setAcknowledgementRequired(false);
     setScheduledAt('');
+  }
+
+  function requestArchive(notice: OperationalNotice) {
+    const reason = window.prompt(
+      'Archive reason (optional). This removes the communication from Public Home, MySolaris Home and delegation inboxes until restored:',
+    );
+    if (reason === null) return;
+    if (window.confirm(`Archive “${notice.title}” and remove it from all live surfaces?`)) {
+      archiveCommunication.mutate({ id: notice.id, reason });
+    }
+  }
+
+  function requestDelete(notice: OperationalNotice) {
+    const reason = window.prompt(
+      'Reason for permanent deletion (required and retained in the private audit log):',
+    );
+    if (!reason?.trim()) return;
+    const publishedWarning = notice.sentAt
+      ? ' This was previously published; its content, revisions and receipt rows will be deleted, while a minimal deletion audit record remains.'
+      : ' This draft has never been published.';
+    if (window.confirm(`Permanently delete “${notice.title}”?${publishedWarning} This cannot be undone.`)) {
+      deleteCommunication.mutate({ id: notice.id, reason });
+    }
   }
 
   const toggleCountry = (countryId: string) => {
@@ -274,7 +332,7 @@ function CommunicationsCentre() {
         <AdminPageHeader
           eyebrow="Operations · Communications"
           title="Official Communications"
-          description="Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations."
+          description="Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations. Archive removes a publication everywhere without erasing its audit history."
           actions={
             <button
               type="button"
@@ -289,10 +347,11 @@ function CommunicationsCentre() {
           }
         />
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-5">
           <Metric label="Total" value={notices.length} />
           <Metric label="Draft / scheduled" value={notices.filter((item) => ['draft', 'scheduled'].includes(item.notice.state)).length} />
-          <Metric label="Published" value={notices.filter((item) => item.notice.state === 'published').length} />
+          <Metric label="Published" value={notices.filter((item) => item.notice.state === 'published' && !item.notice.archivedAt).length} />
+          <Metric label="Archived" value={notices.filter((item) => item.notice.archivedAt).length} />
           <Metric label="Acknowledged" value={acknowledgementCount} />
         </section>
 
@@ -497,7 +556,7 @@ function CommunicationsCentre() {
                   onChange={(event) => void navigate({
                     search: {
                       ...search,
-                      state: event.target.value ? event.target.value as NoticeState : undefined,
+                      state: event.target.value ? event.target.value as CommunicationsStateFilter : undefined,
                     },
                     replace: true,
                   })}
@@ -505,6 +564,7 @@ function CommunicationsCentre() {
                   aria-label="Filter communications by state"
                 >
                   <option value="">All states</option>
+                  <option value="archived">Archived</option>
                   {NOTICE_STATES.map((state) => (
                     <option key={state} value={state}>{noticeStateLabel(state)}</option>
                   ))}
@@ -524,7 +584,7 @@ function CommunicationsCentre() {
                   <AdminEmptyState
                     icon={Megaphone}
                     title="No communications in this view"
-                    description="Drafts, scheduled messages and published communication will appear here."
+                    description="Drafts, scheduled messages, published communication and archived history will appear here."
                   />
                 ) : (
                   <div className="divide-y divide-white/[0.07]">
@@ -546,6 +606,7 @@ function CommunicationsCentre() {
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            {notice.archivedAt ? <AdminStatus tone="neutral">Archived</AdminStatus> : null}
                             <AdminStatus tone={stateTone(notice.state)}>{noticeStateLabel(notice.state)}</AdminStatus>
                             <AdminStatus tone={severityTone(notice.severity)}>{humanize(notice.severity)}</AdminStatus>
                           </div>
@@ -559,11 +620,12 @@ function CommunicationsCentre() {
                         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {notice.state === 'scheduled' ? <span>Scheduled {formatTimestamp(notice.scheduledAt)}</span> : null}
                           {notice.sentAt ? <span>Published {formatTimestamp(notice.sentAt)}</span> : null}
+                          {notice.archivedAt ? <span>Archived {formatTimestamp(notice.archivedAt)}</span> : null}
                           {notice.displaySurfaces.includes('delegation_inbox') ? <span>Inbox: {humanize(notice.audience)}</span> : null}
                           {notice.acknowledgementRequired ? <span>{receipts.acknowledged} acknowledged</span> : null}
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {['draft', 'scheduled'].includes(notice.state) ? (
+                          {['draft', 'scheduled'].includes(notice.state) && !notice.archivedAt ? (
                             <button
                               type="button"
                               className="admin-action-secondary"
@@ -575,7 +637,7 @@ function CommunicationsCentre() {
                               Edit
                             </button>
                           ) : null}
-                          {['draft', 'scheduled'].includes(notice.state) ? (
+                          {['draft', 'scheduled'].includes(notice.state) && !notice.archivedAt ? (
                             <button
                               type="button"
                               className="admin-action-secondary"
@@ -589,13 +651,42 @@ function CommunicationsCentre() {
                               Cancel
                             </button>
                           ) : null}
-                          {notice.state === 'published' ? (
+                          {notice.state === 'published' && !notice.archivedAt ? (
                             <button
                               type="button"
                               className="admin-action-secondary"
                               onClick={() => supersedeNotice.mutate(notice.id)}
                             >
                               <CopyPlus className="size-4" /> Supersede
+                            </button>
+                          ) : null}
+                          {notice.archivedAt ? (
+                            <button
+                              type="button"
+                              className="admin-action-secondary"
+                              disabled={busy}
+                              onClick={() => restoreCommunication.mutate(notice.id)}
+                            >
+                              <ArchiveRestore className="size-4" /> Restore
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="admin-action-secondary"
+                              disabled={busy}
+                              onClick={() => requestArchive(notice)}
+                            >
+                              <ArchiveX className="size-4" /> Archive
+                            </button>
+                          )}
+                          {(!notice.sentAt || notice.archivedAt) ? (
+                            <button
+                              type="button"
+                              className="admin-action-secondary text-red-200"
+                              disabled={busy}
+                              onClick={() => requestDelete(notice)}
+                            >
+                              <Trash2 className="size-4" /> Delete permanently
                             </button>
                           ) : null}
                           <button
@@ -627,6 +718,7 @@ function CommunicationsCentre() {
                 </div>
                 <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                   <Detail label="State" value={noticeStateLabel(selectedNotice.state)} />
+                  <Detail label="Archived" value={selectedNotice.archivedAt ? formatTimestamp(selectedNotice.archivedAt) : 'No'} />
                   <Detail label="Type" value={noticeTypeLabel(selectedNotice.noticeType)} />
                   <Detail label="Destinations" value={selectedNotice.displaySurfaces.map(noticeSurfaceLabel).join(', ')} />
                   <Detail
@@ -641,6 +733,38 @@ function CommunicationsCentre() {
                   <Detail label="Published" value={formatTimestamp(selectedNotice.sentAt)} />
                 </div>
                 <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{selectedNotice.body}</p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedNotice.archivedAt ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      disabled={busy}
+                      onClick={() => restoreCommunication.mutate(selectedNotice.id)}
+                    >
+                      <ArchiveRestore className="size-4" /> Restore to its destinations
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      disabled={busy}
+                      onClick={() => requestArchive(selectedNotice)}
+                    >
+                      <ArchiveX className="size-4" /> Archive / remove everywhere
+                    </button>
+                  )}
+                  {(!selectedNotice.sentAt || selectedNotice.archivedAt) ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary text-red-200"
+                      disabled={busy}
+                      onClick={() => requestDelete(selectedNotice)}
+                    >
+                      <Trash2 className="size-4" /> Delete permanently
+                    </button>
+                  ) : null}
+                </div>
 
                 <div className="mt-5 border-t border-white/[0.07] pt-4">
                   <div className="flex items-center gap-2 font-semibold">
@@ -659,6 +783,7 @@ function CommunicationsCentre() {
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
                           {noticeStateLabel(revision.state)} · {noticeTypeLabel(revision.noticeType)} · {revision.displaySurfaces.map(noticeSurfaceLabel).join(', ')}
+                          {revision.archivedAt ? ' · archived snapshot' : ''}
                         </div>
                       </div>
                     ))}
@@ -677,7 +802,7 @@ function CommunicationsCentre() {
         <AdminCard>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="size-4" />
-            Publication, scheduling, surface placement, recipient access and acknowledgement are validated server-side.
+            Publication, scheduling, surface placement, archive/restore, permanent deletion, recipient access and acknowledgement are validated server-side.
           </div>
         </AdminCard>
       </div>
