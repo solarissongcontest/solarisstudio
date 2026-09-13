@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
+import { buildAdminNavigation } from "./admin-navigation";
 
 type SectionTab = {
   label: string;
@@ -112,7 +113,6 @@ export function AdminSectionNav() {
       pathname.startsWith("/admin/more") ||
       pathname.startsWith("/admin/country-accounts") ||
       pathname.startsWith("/admin/hod-history") ||
-      pathname.startsWith("/admin/hosts") ||
       pathname.startsWith("/admin/predictions") ||
       pathname.startsWith("/admin/system") ||
       pathname.startsWith("/admin/sync-health") ||
@@ -129,12 +129,25 @@ export function AdminSectionNav() {
           { label: "HOD history", to: "/admin/hod-history", active: (path) => path.startsWith("/admin/hod-history") },
           { label: "Predictions", to: "/admin/predictions", active: (path) => path.startsWith("/admin/predictions") },
           { label: "System health", to: "/admin/sync-health", active: (path) => path.startsWith("/admin/sync-health") },
-          { label: "System", to: "/admin/system", active: (path) => path.startsWith("/admin/system") || path.startsWith("/admin/hosts") || path.startsWith("/admin/beta") || path.startsWith("/admin/admin-beta") || path.startsWith("/admin/anniversary") },
+          { label: "System", to: "/admin/system", active: (path) => path.startsWith("/admin/system") || path.startsWith("/admin/beta") || path.startsWith("/admin/admin-beta") || path.startsWith("/admin/anniversary") },
         ],
       };
     }
 
-    return null;
+    const navigationGroup = buildAdminNavigation(slug).find((group) =>
+      group.items.some((item) => item.active(pathname)),
+    );
+    if (!navigationGroup) return null;
+
+    return {
+      label: navigationGroup.label,
+      description: navigationGroup.description,
+      tabs: navigationGroup.items.map((item) => ({
+        label: item.label,
+        to: item.to,
+        active: item.active,
+      })),
+    };
   }, [activeEdition?.slug, pathname]);
 
   if (!section) return null;

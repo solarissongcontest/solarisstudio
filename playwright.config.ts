@@ -62,6 +62,11 @@ export default defineConfig({
       use: { viewport: { width: 768, height: 1024 } },
     },
     {
+      name: "governance-desktop-1440",
+      testMatch: /governance\.e2e\.ts/,
+      use: { viewport: { width: 1440, height: 1000 } },
+    },
+    {
       name: "account-states",
       testMatch: /account-states\.e2e\.ts/,
       use: { viewport: { width: 1440, height: 1000 } },

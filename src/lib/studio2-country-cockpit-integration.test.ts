@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
 const countriesRoute = source('src/routes/_authenticated/admin/countries.tsx');
 const countryDetail = source('src/routes/_authenticated/admin/countries.$countryId.tsx');
@@ -20,8 +20,8 @@ const cockpitMigration = source('supabase/migrations/20260911202000_studio2_coun
 
 describe('Studio 2 Phase 6 country operations integration', () => {
   it('makes the country cockpit the organizer Delegations entrypoint', () => {
-    expect(nav).toContain('label: "Delegations"');
-    expect(nav).toContain('to: "/admin/countries"');
+    expect(nav).toContain('"Delegations",');
+    expect(nav).toContain('"/admin/countries"');
     expect(countriesRoute).toContain("createFileRoute('/_authenticated/admin/countries')");
     expect(countryDetail).toContain("createFileRoute('/_authenticated/admin/countries/$countryId')");
   });

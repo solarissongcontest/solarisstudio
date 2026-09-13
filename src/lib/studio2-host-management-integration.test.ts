@@ -9,7 +9,7 @@ function source(path: string) {
 const migration = source('supabase/migrations/20260912171500_studio2_host_management.sql');
 const route = source('src/routes/_authenticated/admin/hosts.tsx');
 const service = source('src/lib/studio2-host-management.ts');
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const permissions = source('src/lib/permissions-v2.ts');
 const presets = source('src/lib/role-presets.ts');
 
@@ -80,8 +80,8 @@ describe('Studio 2 Phase 11 Host Management architecture', () => {
   });
 
   it('promotes Host Management into the current-edition navigation', () => {
-    expect(nav).toContain('label: "Host"');
-    expect(nav).toContain('to: "/admin/hosts"');
+    expect(nav).toContain('"Host",');
+    expect(nav).toContain('"/admin/hosts"');
     expect(nav).not.toContain('path.startsWith("/admin/hosts") ||\n        path.startsWith("/admin/predictions")');
   });
 

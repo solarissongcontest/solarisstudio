@@ -6,15 +6,15 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/workflows.tsx');
 const model = source('src/lib/studio2-workflows.ts');
 
 describe('Studio 2 Workflows integration', () => {
   it('is discoverable from Organizer operations navigation', () => {
-    expect(nav).toContain('label: "Workflows"');
-    expect(nav).toContain('to: "/admin/workflows"');
-    expect(nav).toContain('label="Operations"');
+    expect(nav).toContain('"Workflows",');
+    expect(nav).toContain('"/admin/workflows"');
+    expect(nav).toContain('label: "Operations"');
   });
 
   it('uses the shared workflow engine instead of inventing a second state machine', () => {

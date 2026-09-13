@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/media-assets.tsx');
 const service = source('src/lib/studio2-media-assets.ts');
 const vault = source('src/lib/media-asset-vault.ts');
@@ -14,8 +14,8 @@ const migration = source('supabase/migrations/20260912143500_studio2_media_asset
 
 describe('Studio 2 Phase 9 media and asset operations', () => {
   it('adds one organizer media operations surface and reuses the canonical cockpit', () => {
-    expect(nav).toContain('label: "Media assets"');
-    expect(nav).toContain('to: "/admin/media-assets"');
+    expect(nav).toContain('"Media assets",');
+    expect(nav).toContain('"/admin/media-assets"');
     expect(route).toContain("createFileRoute('/_authenticated/admin/media-assets')");
     expect(route).toContain('loadStudio2CountryCockpit');
     expect(route).toContain('buildStudio2MediaAssetInventory');

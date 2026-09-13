@@ -29,6 +29,7 @@ function WikiIndexPage() {
   const [region, setRegion] = useState("all");
   const [letter, setLetter] = useState("all");
   const [visibleCount, setVisibleCount] = useState(DIRECTORY_PAGE_SIZE);
+  const [hydrated, setHydrated] = useState(false);
 
   const regions = useMemo(
     () => [...new Set((countries ?? []).map((country) => country.region).filter(Boolean))].sort(),
@@ -56,8 +57,9 @@ function WikiIndexPage() {
 
   const visibleCountries = filtered.slice(0, visibleCount);
   useEffect(() => setVisibleCount(DIRECTORY_PAGE_SIZE), [search, region, letter]);
+  useEffect(() => setHydrated(true), []);
 
-  if (countriesQuery.isLoading) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataLoading label="Loading the Wiki library…" /></AppShell>;
+  if (!hydrated || countriesQuery.isLoading) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataLoading label="Loading the Wiki library…" /></AppShell>;
   if (countriesQuery.isError) return <AppShell><PageHeader eyebrow="Terra Solaris" title="Wiki" description="Browse national profiles and country histories." /><ArchiveDataError /></AppShell>;
 
   return (

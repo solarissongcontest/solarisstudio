@@ -6,15 +6,15 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/voting-lab.tsx');
 const server = source('src/integrations/televoting/voting-lab.server.ts');
 const functions = source('src/integrations/televoting/voting-lab.functions.ts');
 
 describe('Studio 2 Voting Laboratory integration', () => {
   it('is discoverable from Organizer navigation', () => {
-    expect(nav).toContain('label: "Voting Lab"');
-    expect(nav).toContain('to: "/admin/voting-lab"');
+    expect(nav).toContain('"Voting Lab",');
+    expect(nav).toContain('"/admin/voting-lab"');
   });
 
   it('uses organizer-only server access and synthetic ballot identities', () => {

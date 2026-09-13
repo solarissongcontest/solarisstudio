@@ -11,7 +11,7 @@ const disclosureRoute = readFileSync(
   resolve(process.cwd(), "src/routes/_authenticated/admin/integrity-disclosure.tsx"),
   "utf8",
 );
-const adminNav = readFileSync(resolve(process.cwd(), "src/components/admin/AdminNav.tsx"), "utf8");
+const adminNav = readFileSync(resolve(process.cwd(), "src/components/admin/admin-navigation.ts"), "utf8");
 
 describe("Integrity evidence disclosure and redaction", () => {
   it("keeps evidence derivatives append-only and linked to an original", () => {
@@ -70,7 +70,7 @@ describe("Integrity evidence disclosure and redaction", () => {
   });
 
   it("makes the disclosure desk discoverable in Organizer navigation", () => {
-    expect(adminNav).toContain('label: "Disclosure"');
-    expect(adminNav).toContain('to: "/admin/integrity-disclosure"');
+    expect(adminNav).toContain('"Disclosure",');
+    expect(adminNav).toContain('"/admin/integrity-disclosure"');
   });
 });

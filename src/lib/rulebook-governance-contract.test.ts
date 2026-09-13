@@ -63,6 +63,10 @@ const publicLibrary = readFileSync(
   resolve(process.cwd(), "src/lib/public-library-governance.ts"),
   "utf8",
 );
+const publicNavigation = readFileSync(
+  resolve(process.cwd(), "src/components/public/PublicSiteNavigation.tsx"),
+  "utf8",
+);
 const rulesRoute = readFileSync(resolve(process.cwd(), "src/routes/rules/index.tsx"), "utf8");
 const integrityRoute = readFileSync(
   resolve(process.cwd(), "src/routes/integrity/index.tsx"),
@@ -195,7 +199,7 @@ describe("rulebook governance contract", () => {
     expect(runtimeOverlay).toContain("appliedReleaseVersion = null");
   });
 
-  it("puts contextual rules inside workflows and keeps rulebook history in Library discovery", () => {
+  it("puts contextual rules inside workflows and keeps rulebook history in public navigation", () => {
     expect(contextualGuide).toContain("getRuleContext");
     expect(contextualGuide).toContain("routeContext");
     expect(contextualGuide).toContain('to="/rules/$ruleId"');
@@ -215,6 +219,8 @@ describe("rulebook governance contract", () => {
     expect(root).toContain("<RulesGovernanceContext />");
     expect(root).not.toContain("GlobalRulesNavigationAddon");
     expect(contextualGuide).not.toContain('className="fixed');
+    expect(publicNavigation).toContain('"/rules/changes",');
+    expect(publicNavigation).toContain('"Rulebook changes",');
     expect(publicLibrary).toContain('to: "/rules/changes"');
     expect(publicLibrary).toContain('kind: "release"');
   });

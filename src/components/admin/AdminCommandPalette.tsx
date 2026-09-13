@@ -5,40 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { editionLabel, useEditions } from "@/lib/data";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { useAdminContext } from "./AdminContext";
-
-const FIXED = [
-  ["Overview", "/admin/operations", "Organizer", "home status next actions"],
-  ["Delegations overview", "/confirmations/admin", "Delegations", "confirmations submissions countries"],
-  ["Delegation responses", "/confirmations/admin/responses", "Delegations", "entries confirmations review responses"],
-  ["Submission rounds", "/confirmations/admin/rounds", "Delegations", "rounds open close schedule"],
-  ["Delegation calendar", "/confirmations/admin/calendar", "Delegations", "national finals reveals deadlines"],
-  ["Delegation access", "/confirmations/admin/recovery-codes", "Delegations", "recovery access codes accounts"],
-  ["Public voting overview", "/televoting/admin", "Voting", "public voting rounds ballots"],
-  ["Public voting rounds", "/televoting/admin/rounds", "Voting", "open close entries rules"],
-  ["Voting results", "/televoting/admin/results", "Voting", "calculate official results"],
-  ["Voting integrity", "/televoting/admin/integrity", "Voting", "review suspicious votes warnings blocked"],
-  ["Voting integrity declarations", "/televoting/admin/integrity-declarations", "Voting", "signed declarations attestations evidence review"],
-  ["Friend-voting intelligence", "/admin/friend-voting", "Voting", "relationships reciprocity network signals"],
-  ["Voting analytics", "/televoting/admin/analytics", "Voting", "turnout voting numbers"],
-  ["Integrity investigations", "/admin/integrity-investigations", "Integrity", "cases reports investigations findings rules evidence"],
-  ["Integrity appeals", "/admin/integrity-appeals", "Integrity", "appeals fresh review sanction decision extension"],
-  ["Evidence lifecycle", "/admin/integrity-evidence", "Integrity", "evidence files retention deletion signed access cleanup"],
-  ["Identity access", "/admin/integrity-identity", "Integrity", "sealed confidential identity break glass disclosure"],
-  ["Rules manager", "/admin/rules-manager", "Governance", "rulebook versions drafts publish regulation changes"],
-  ["Official interpretations", "/admin/rule-interpretations", "Governance", "rules interpretations rulings clarification precedent publish"],
-  ["Country accounts", "/admin/country-accounts", "Administration", "country account access"],
-  ["HOD history", "/admin/hod-history", "Administration", "delegation manager history"],
-  ["Predictions", "/admin/predictions", "Administration", "prediction rounds"],
-  ["Beta 2 feedback", "/admin/beta2-feedback", "Administration", "public beta current feedback testing report"],
-  ["Beta 1 archive", "/admin/beta1-feedback", "Administration", "public beta historical archive feedback"],
-  ["System health", "/admin/sync-health", "Administration", "sync health integrations diagnostics"],
-  ["System settings", "/admin/system", "Administration", "deadlines settings audit"],
-  ["Administration", "/admin/more", "Administration", "accounts history system tools archive"],
-  ["All editions", "/admin", "Workspace", "manage create archive editions"],
-  ["Organizer guide", "/admin/guide", "Workspace", "how to use instructions questions answers"],
-  ["Mobile menu", "/admin/menu", "Workspace", "delegations broadcast administration guide"],
-  ["Public Solaris Studio", "/", "Public site", "homepage"],
-] as const;
+import { buildAdminNavigation } from "./admin-navigation";
 
 export function AdminCommandPalette() {
   const [open, setOpen] = useState(false);
@@ -68,6 +35,14 @@ export function AdminCommandPalette() {
   }, [open]);
 
   const commands = useMemo(() => {
+    const navigation = buildAdminNavigation(activeEdition?.slug).flatMap((group) =>
+      group.items.map((item) => ({
+        label: item.label,
+        href: item.to,
+        group: group.label,
+        keywords: `${item.description} ${item.keywords}`,
+      })),
+    );
     const currentEdition = activeEdition
       ? [
           {
@@ -123,7 +98,19 @@ export function AdminCommandPalette() {
 
     return [
       ...currentEdition,
-      ...FIXED.map(([label, href, group, keywords]) => ({ label, href, group, keywords })),
+      ...navigation,
+      {
+        label: "All organizer pages",
+        href: "/admin/menu",
+        group: "Workspace",
+        keywords: "menu navigation every feature workspace",
+      },
+      {
+        label: "Public Solaris Studio",
+        href: "/",
+        group: "Public site",
+        keywords: "homepage public",
+      },
       ...editions.map((edition) => ({
         label: `${editionLabel(edition)} · ${edition.name}`,
         href: `/admin/${edition.slug}`,
@@ -136,8 +123,7 @@ export function AdminCommandPalette() {
   const needle = query.trim().toLowerCase();
   const filtered = commands.filter(
     (item) =>
-      !needle ||
-      `${item.label} ${item.group} ${item.keywords}`.toLowerCase().includes(needle),
+      !needle || `${item.label} ${item.group} ${item.keywords}`.toLowerCase().includes(needle),
   );
 
   const publicGovernanceResults = useMemo(
@@ -158,7 +144,7 @@ export function AdminCommandPalette() {
       href: item.to,
       group: item.group,
       description: item.description,
-      source: "library" as const,
+      source: "public-reference" as const,
     }));
 
     const seen = new Set<string>();
@@ -180,7 +166,9 @@ export function AdminCommandPalette() {
       >
         <Search className="size-4" />
         <span className="hidden text-xs sm:inline">Search</span>
-        <kbd className="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[9px] text-muted-foreground lg:inline">⌘K</kbd>
+        <kbd className="ml-1 hidden rounded bg-black/20 px-1.5 py-0.5 text-[9px] text-muted-foreground lg:inline">
+          ⌘K
+        </kbd>
       </button>
 
       {open ? (
@@ -226,7 +214,8 @@ export function AdminCommandPalette() {
                       </span>
                     ) : null}
                     <span className="mt-0.5 block text-[10px] font-semibold text-muted-foreground">
-                      {item.group}{item.source === "library" ? " · Library" : ""}
+                      {item.group}
+                      {item.source === "public-reference" ? " · Public reference" : ""}
                     </span>
                   </span>
                 </Link>

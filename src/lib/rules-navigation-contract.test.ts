@@ -12,16 +12,19 @@ const contextualGuide = readFileSync(
 );
 const root = readFileSync(resolve(process.cwd(), "src/routes/__root.tsx"), "utf8");
 const appShell = readFileSync(resolve(process.cwd(), "src/components/AppShell.tsx"), "utf8");
-const adminNav = readFileSync(resolve(process.cwd(), "src/components/admin/AdminNav.tsx"), "utf8");
+const adminNavigation = readFileSync(
+  resolve(process.cwd(), "src/components/admin/admin-navigation.ts"),
+  "utf8",
+);
+const publicNavigation = readFileSync(
+  resolve(process.cwd(), "src/components/public/PublicSiteNavigation.tsx"),
+  "utf8",
+);
 const libraryProvider = readFileSync(
   resolve(process.cwd(), "src/lib/public-library-governance.ts"),
   "utf8",
 );
-const libraryResults = readFileSync(
-  resolve(process.cwd(), "src/components/library/GovernanceLibraryResults.tsx"),
-  "utf8",
-);
-const publicLibrary = readFileSync(resolve(process.cwd(), "src/routes/library.tsx"), "utf8");
+const legacyLibraryRoute = readFileSync(resolve(process.cwd(), "src/routes/library.tsx"), "utf8");
 
 describe("Rules and Integrity navigation", () => {
   it("keeps published rulebook runtime state without mounting global Rules UI", () => {
@@ -54,41 +57,29 @@ describe("Rules and Integrity navigation", () => {
     expect(libraryProvider).toContain("governanceRuleResults");
   });
 
-  it("provides a context-sensitive public Library host for governance discovery", () => {
-    expect(appShell).toContain('to: "/library"');
-    expect(appShell).toContain('label: "Library"');
-    expect(publicLibrary).toContain('createFileRoute("/library")');
-    expect(publicLibrary).toContain("sanitizeRuleContextPath");
-    expect(publicLibrary).toContain("getRuleContext");
-    expect(publicLibrary).toContain("GovernanceLibraryContextResults");
-    expect(publicLibrary).toContain("Search Solaris");
-    expect(publicLibrary).toContain("<GovernanceLibraryResults");
-    expect(publicLibrary).toContain("getPublicRuleInterpretations");
-    expect(publicLibrary).toContain("<PublicSearchField");
-    expect(publicLibrary).toContain('ariaLabel="Search Solaris Library"');
-    expect(libraryResults).toContain("searchGovernanceLibrary");
-    expect(libraryResults).toContain("governanceRuleResults");
-    expect(libraryResults).toContain("Relevant here");
-    expect(libraryResults).toContain('aria-label="Rules and Integrity Library results"');
+  it("provides one complete public sidebar with Rules as a section", () => {
+    expect(appShell).toContain("<PublicSiteSidebar");
+    expect(appShell).toContain("<PublicDrawerNavigation");
+    expect(appShell).toContain('label="Rules & help"');
+    expect(publicNavigation).toContain('label: "Rules & help"');
+    for (const route of ["/rules", "/rules/changes", "/rules/interpretations", "/integrity", "/integrity/appeals"])
+      expect(publicNavigation).toContain(`"${route}",`);
+    expect(publicNavigation).not.toContain('label: "Library"');
+    expect(legacyLibraryRoute).toContain('createFileRoute("/library")');
+    expect(legacyLibraryRoute).toContain('redirect({ to: "/rules"');
   });
 
   it("exposes organizer Integrity governance workspaces", () => {
-    expect(adminNav).toContain('label: "Integrity"');
-    expect(adminNav).toContain('to: "/admin/integrity-investigations"');
-    expect(adminNav).toContain('label: "Appeals"');
-    expect(adminNav).toContain('to: "/admin/integrity-appeals"');
-    expect(adminNav).toContain('label: "Evidence"');
-    expect(adminNav).toContain('to: "/admin/integrity-evidence"');
-    expect(adminNav).toContain('label: "Identity access"');
-    expect(adminNav).toContain('to: "/admin/integrity-identity"');
+    for (const label of ["Investigations", "Appeals", "Evidence", "Identity access"])
+      expect(adminNavigation).toContain(`"${label}",`);
+    for (const route of ["/admin/integrity-investigations", "/admin/integrity-appeals", "/admin/integrity-evidence", "/admin/integrity-identity"])
+      expect(adminNavigation).toContain(`"${route}"`);
   });
 
   it("exposes organizer Rules and Interpretations workspaces", () => {
-    expect(adminNav).toContain('label: "Rules manager"');
-    expect(adminNav).toContain('to: "/admin/rules-manager"');
-    expect(adminNav).toContain('label: "Interpretations"');
-    expect(adminNav).toContain('to: "/admin/rule-interpretations"');
-    expect(adminNav).toContain('label: "Public rules"');
-    expect(adminNav).toContain('to: "/rules"');
+    for (const label of ["Rules manager", "Interpretations", "Public rules"])
+      expect(adminNavigation).toContain(`"${label}",`);
+    for (const route of ["/admin/rules-manager", "/admin/rule-interpretations", "/rules"])
+      expect(adminNavigation).toContain(`"${route}"`);
   });
 });

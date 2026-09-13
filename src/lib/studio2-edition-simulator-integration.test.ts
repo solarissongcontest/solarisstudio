@@ -6,14 +6,14 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/edition-simulator.tsx');
 const engine = source('src/lib/edition-simulator.ts');
 
 describe('Studio 2 Edition Simulator integration', () => {
   it('is discoverable from Organizer navigation', () => {
-    expect(nav).toContain('label: "Simulator"');
-    expect(nav).toContain('to: "/admin/edition-simulator"');
+    expect(nav).toContain('"Simulation Lab",');
+    expect(nav).toContain('"/admin/edition-simulator"');
   });
 
   it('starts from the existing Control Room read model', () => {

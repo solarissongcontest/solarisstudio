@@ -38,7 +38,8 @@ describe("Friend-voting resilience", () => {
 
   it("exposes Friend voting as its own Voting section tab instead of Integrity", () => {
     const code = source("components/admin/AdminSectionNav.tsx");
-    expect(code).toContain('{ label: "Friend voting", to: "/admin/friend-voting"');
+    expect(code).toContain('label: "Friend voting"');
+    expect(code).toContain('to: "/admin/friend-voting"');
     expect(code).not.toContain('label: "Integrity", to: "/televoting/admin/integrity", active: (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse") || path.startsWith("/admin/friend-voting")');
     expect(code).toContain("flex flex-wrap gap-1");
   });

@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/submission-versions.tsx');
 const history = source('src/components/admin/ConfirmationVersionHistory.tsx');
 const readRpc = source('scripts/confirmations-submission-version-history-rpcs.sql');
@@ -15,8 +15,8 @@ const restoreLocking = source('scripts/confirmations-submission-version-restore-
 
 describe('confirmation version history integration', () => {
   it('keeps submission history discoverable in Organizer navigation', () => {
-    expect(nav).toContain('label: "Submission history"');
-    expect(nav).toContain('to: "/admin/submission-versions"');
+    expect(nav).toContain('"Submission history",');
+    expect(nav).toContain('"/admin/submission-versions"');
     expect(route).toContain("createFileRoute('/_authenticated/admin/submission-versions')");
   });
 

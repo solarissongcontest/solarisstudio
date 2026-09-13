@@ -6,14 +6,14 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/results-reveal.tsx');
 const model = source('src/lib/results-reveal-model.ts');
 
 describe('Studio 2 Results Reveal Director integration', () => {
   it('is discoverable from Organizer navigation', () => {
-    expect(nav).toContain('label: "Reveal Director"');
-    expect(nav).toContain('to: "/admin/results-reveal"');
+    expect(nav).toContain('"Reveal Director",');
+    expect(nav).toContain('"/admin/results-reveal"');
   });
 
   it('uses canonical show result rows and the existing reveal engine', () => {

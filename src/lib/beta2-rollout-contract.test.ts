@@ -9,7 +9,8 @@ describe("Beta 2 hardened rollout contract", () => {
   it("keeps Results direct and gives mobile users the five primary journeys", () => {
     const shell = source("src/components/AppShell.tsx");
     expect(shell).toContain('to="/results"');
-    expect(shell).toContain('const MOBILE_EXPLORE_NAV');
+    expect(shell).toContain("<PublicDrawerNavigation");
+    expect(shell).toContain("<PublicSiteSidebar");
     expect(shell).toContain('to: "/results",\n      label: "Results"');
     expect(shell).toContain('to: "/participate",\n      label: "Participate"');
     expect(shell).toContain('label: "Explore"');
