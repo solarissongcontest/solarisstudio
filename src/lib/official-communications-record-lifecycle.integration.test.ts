@@ -17,7 +17,8 @@ describe('Official Communications record lifecycle', () => {
     expect(adapter).toContain('archiveStudio2Communication');
     expect(adapter).toContain('restoreStudio2Communication');
     expect(adapter).toContain("rpc('studio2_archive_notice'");
-    expect(adapter).toContain("rpc('studio2_archive_communication'");
+    expect(adapter).toContain("noticeRpc('studio2_archive_communication'");
+    expect(adapter).toContain("noticeRpc('studio2_restore_communication'");
   });
 
   it('removes archived communications from all audience-facing reads', () => {
