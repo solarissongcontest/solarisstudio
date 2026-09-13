@@ -72,7 +72,7 @@ describe("country claims and unified account workspace", () => {
     expect(hub).toContain('activeTab === "country"');
     expect(hub).toContain('activeTab === "page"');
     expect(hub).toContain('activeTab === "entries"');
-    expect(hub).toContain("Choose what you want to work on instead of scrolling through everything at once.");
+    expect(hub).toContain("Manage one part of your country at a time: identity, public page, media, appearance or participation history.");
   });
 });
 
