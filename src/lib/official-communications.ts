@@ -37,6 +37,13 @@ export const NOTICE_EDITION_GROUPS = [
 ] as const;
 export type NoticeEditionGroup = (typeof NOTICE_EDITION_GROUPS)[number];
 
+export const NOTICE_DISPLAY_SURFACES = [
+  'delegation_inbox',
+  'mysolaris_home',
+  'public_home',
+] as const;
+export type NoticeDisplaySurface = (typeof NOTICE_DISPLAY_SURFACES)[number];
+
 export type OfficialNotice = {
   id: string;
   editionId: string | null;
@@ -46,6 +53,7 @@ export type OfficialNotice = {
   audience: NoticeAudience;
   countryIds: readonly string[];
   acknowledgementRequired: boolean;
+  displaySurfaces: readonly NoticeDisplaySurface[];
   sentAt: string | null;
 };
 
@@ -70,6 +78,7 @@ export type NoticeRevision = {
   audienceGroup: NoticeEditionGroup | null;
   countryIds: readonly string[];
   acknowledgementRequired: boolean;
+  displaySurfaces: readonly NoticeDisplaySurface[];
   state: NoticeState;
   scheduledAt: string | null;
   sentAt: string | null;
@@ -91,11 +100,17 @@ export type NoticeInboxState = 'unread' | 'read' | 'acknowledgement_required' | 
 export function validateOfficialNotice(notice: OfficialNotice): void {
   if (!notice.title.trim()) throw new Error('Official notice title is required');
   if (!notice.body.trim()) throw new Error('Official notice body is required');
+  if (notice.displaySurfaces.length === 0) {
+    throw new Error('Choose at least one communication destination');
+  }
   if (notice.audience === 'specific_countries' && notice.countryIds.length === 0) {
     throw new Error('Specific-country notices require at least one country');
   }
   if (notice.audience !== 'specific_countries' && notice.countryIds.length > 0) {
     throw new Error('Country ids are only valid for specific-country notices');
+  }
+  if (!notice.displaySurfaces.includes('delegation_inbox') && notice.acknowledgementRequired) {
+    throw new Error('Acknowledgements require the Delegation inbox destination');
   }
 }
 
@@ -152,4 +167,12 @@ export function noticeStateLabel(state: NoticeState): string {
 
 export function noticeTypeLabel(type: NoticeType): string {
   return type.replace(/_/g, ' ').replace(/^./, (character) => character.toUpperCase());
+}
+
+export function noticeSurfaceLabel(surface: NoticeDisplaySurface): string {
+  switch (surface) {
+    case 'delegation_inbox': return 'Delegation inbox';
+    case 'mysolaris_home': return 'MySolaris Home';
+    case 'public_home': return 'Public Home';
+  }
 }
