@@ -13,6 +13,7 @@ const adminNav = source("src/components/admin/AdminNav.tsx");
 const detailedNavigation = source("src/components/admin/admin-navigation.ts");
 const sectionNav = source("src/components/admin/AdminSectionNav.tsx");
 const palette = source("src/components/admin/AdminCommandPalette.tsx");
+const organizerMenu = source("src/routes/_authenticated/admin/menu.tsx");
 
 describe("Organizer domain navigation", () => {
   it("keeps the permanent sidebar at seven stable domains", () => {
@@ -34,6 +35,13 @@ describe("Organizer domain navigation", () => {
     expect(adminNav).not.toContain("buildAdminNavigation");
     expect(adminNav).not.toContain("groups.map");
     expect(adminNav).toContain("Specialist pages stay available");
+  });
+
+  it("keeps the mobile menu domain-first without deleting the specialist directory", () => {
+    expect(organizerMenu).toContain("buildAdminDomainNavigation");
+    expect(organizerMenu).toContain("Work domains");
+    expect(organizerMenu).toContain("All specialist pages");
+    expect(organizerMenu).toContain("buildAdminNavigation(activeEdition?.slug)");
   });
 
   it("keeps specialist routes available through contextual navigation and search", () => {
