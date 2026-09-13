@@ -36,11 +36,14 @@ describe("Friend-voting resilience", () => {
     expect(code).toContain("retry: 0");
   });
 
-  it("exposes Friend voting as its own Voting section tab instead of Integrity", () => {
-    const code = source("components/admin/AdminSectionNav.tsx");
-    expect(code).toContain('label: "Friend voting"');
-    expect(code).toContain('to: "/admin/friend-voting"');
-    expect(code).not.toContain('label: "Integrity", to: "/televoting/admin/integrity", active: (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse") || path.startsWith("/admin/friend-voting")');
-    expect(code).toContain("flex flex-wrap gap-1");
+  it("exposes Friend voting as its own Voting workflow tab instead of folding it into Integrity", () => {
+    const registry = source("components/admin/admin-contextual-navigation.ts");
+    const sectionNav = source("components/admin/AdminSectionNav.tsx");
+    expect(registry).toContain('"Friend voting"');
+    expect(registry).toContain('"/admin/friend-voting"');
+    expect(registry).not.toContain(
+      'path.startsWith("/televoting/admin/anti-abuse") || path.startsWith("/admin/friend-voting")',
+    );
+    expect(sectionNav).toContain("overflow-x-auto");
   });
 });
