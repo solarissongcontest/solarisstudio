@@ -18,7 +18,8 @@ export function CountryButtonColourPanel() {
   const location = useRouterState({
     select: (state) => ({ pathname: state.location.pathname, search: state.location.search }),
   });
-  const onAppearancePage = location.pathname === "/country-hub/theme" || location.pathname === "/country-hub/theme/";
+  const onAppearancePage =
+    location.pathname === "/my-solaris/theme" || location.pathname === "/my-solaris/theme/";
   const { data: accountData } = useMyCountryAccount();
   const { data: countries } = useCountries();
 
@@ -35,10 +36,7 @@ export function CountryButtonColourPanel() {
   const saveButton = useSaveCountryButtonColour(country?.id);
 
   const accent = row?.accent ?? country?.accent_color ?? "#86c9d7";
-  const saved = useMemo(
-    () => resolveCountryButtonTheme(row, accent),
-    [row, accent],
-  );
+  const saved = useMemo(() => resolveCountryButtonTheme(row, accent), [row, accent]);
   const automaticColour = useMemo(() => deriveCountryButtonColor(accent), [accent]);
   const [custom, setCustom] = useState(false);
   const [colour, setColour] = useState("#86c9d7");
@@ -206,7 +204,8 @@ export function CountryButtonColourPanel() {
             </span>
           </div>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
-            This palette is used by Wiki, Compare, Follow, active tabs and selected navigation on your themed pages.
+            This palette is used by Wiki, Compare, Follow, active tabs and selected navigation on
+            your themed pages.
           </p>
         </div>
       </div>

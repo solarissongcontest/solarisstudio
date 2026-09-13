@@ -61,7 +61,7 @@ function ResetPasswordPage() {
       if (error || !data.user) throw error ?? new Error("Your password reset session has expired.");
 
       const access = await getCurrentAccountAccess(data.user.id);
-      window.location.assign(access.isOrganizer ? "/admin" : "/country-hub");
+      window.location.assign(access.isOrganizer ? "/admin" : "/my-solaris");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Password could not be changed.");
     } finally {
@@ -121,7 +121,8 @@ function ResetPasswordPage() {
             </form>
           ) : (
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Open this page from the password-recovery link sent to your email. If the link has expired, request a new one from the sign-in page.
+              Open this page from the password-recovery link sent to your email. If the link has
+              expired, request a new one from the sign-in page.
             </p>
           )}
 

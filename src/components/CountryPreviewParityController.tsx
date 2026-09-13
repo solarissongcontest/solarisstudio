@@ -4,10 +4,7 @@ import { createPortal } from "react-dom";
 
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
-import {
-  useCountryWorldProfile,
-  useMyCountryAccount,
-} from "@/lib/country-account";
+import { useCountryWorldProfile, useMyCountryAccount } from "@/lib/country-account";
 import { useCountries, type Country } from "@/lib/data";
 
 type PreviewSurface = "country" | "wiki";
@@ -52,7 +49,7 @@ export function CountryPreviewParityController() {
   const world = useCountryWorldProfile(country?.id);
 
   useEffect(() => {
-    if (location.pathname !== "/country-hub/theme") {
+    if (location.pathname !== "/my-solaris/theme" && location.pathname !== "/my-solaris/theme/") {
       setTargets([]);
       return;
     }
@@ -70,7 +67,11 @@ export function CountryPreviewParityController() {
     return () => observer.disconnect();
   }, [location.pathname]);
 
-  if (location.pathname !== "/country-hub/theme" || !country || targets.length === 0) {
+  if (
+    (location.pathname !== "/my-solaris/theme" && location.pathname !== "/my-solaris/theme/") ||
+    !country ||
+    targets.length === 0
+  ) {
     return null;
   }
 
@@ -239,9 +240,7 @@ function CountryHeroPreview({
         <span className="rounded-xl border border-border bg-surface px-3 py-2 text-xs">
           Compare
         </span>
-        <span className="rounded-xl border border-border bg-surface px-3 py-2 text-xs">
-          Follow
-        </span>
+        <span className="rounded-xl border border-border bg-surface px-3 py-2 text-xs">Follow</span>
       </div>
     </div>
   );
@@ -278,7 +277,8 @@ function WikiHeroPreview({
         <p className="mt-1 text-sm text-muted-foreground">{country.native_name}</p>
       )}
       <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
-        {summary || `${country.name} is a country in Terra Solaris and a participant in Solaris Song Contest.`}
+        {summary ||
+          `${country.name} is a country in Terra Solaris and a participant in Solaris Song Contest.`}
       </p>
     </div>
   );

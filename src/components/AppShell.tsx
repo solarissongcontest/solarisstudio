@@ -334,12 +334,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                       {access.countryId ? " & country tools" : " & country setup"}
                     </span>
                   </Link>
-                  <Link to="/country-hub" className="nav-menu-item">
-                    <span className="font-semibold">Country workspace</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      Edit country, entries, page and media
-                    </span>
-                  </Link>
                   {roleItems.map((item) => (
                     <Link key={item.to} to={item.to as any} className="nav-menu-item">
                       <span className="font-semibold">{item.label}</span>

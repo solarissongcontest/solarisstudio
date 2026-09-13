@@ -99,7 +99,7 @@ export const beta2EvaluationSections: BetaSection[] = [
     title: "15. Country page design & personalities",
     task: {
       body: "First look at your public Country page without opening the editor. Rate what you see. Then return to My Solaris and try at least THREE different page personalities. Choose one you naturally like, one very different from it, and one you would not normally pick.",
-      href: "/country-hub",
+      href: "/my-solaris/country",
       linkLabel: "Open My Solaris",
     },
     questions: [

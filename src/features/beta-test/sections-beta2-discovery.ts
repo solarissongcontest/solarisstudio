@@ -78,7 +78,7 @@ export const beta2DiscoverySections: BetaSection[] = [
     title: "5. Understand My Solaris",
     task: {
       body: "Stay in My Solaris. Without using the Guide, find where you would change basic country information, edit the public page appearance, edit an SSC entry, and add or change page media.",
-      href: "/country-hub",
+      href: "/my-solaris/country",
       linkLabel: "Open My Solaris",
     },
     questions: [
@@ -96,7 +96,7 @@ export const beta2DiscoverySections: BetaSection[] = [
     title: "6. Edit your country page",
     task: {
       body: "Use your country tools to change a colour, change the page personality/design, change some content, and add or change an image if possible. Save, then open the public Country page and check that the changes appear.",
-      href: "/country-hub",
+      href: "/my-solaris/country",
       linkLabel: "Open My Solaris",
     },
     questions: [

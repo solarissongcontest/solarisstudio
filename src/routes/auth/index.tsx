@@ -7,10 +7,7 @@ import {
   requestSolarisPasswordRecovery,
   signInSolarisAccount,
 } from "@/lib/country-auth";
-import {
-  getCurrentAccountAccess,
-  useAvailableCountryClaims,
-} from "@/lib/country-account";
+import { getCurrentAccountAccess, useAvailableCountryClaims } from "@/lib/country-account";
 
 export const Route = createFileRoute("/auth/")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string } => {
@@ -31,8 +28,7 @@ export const Route = createFileRoute("/auth/")({
 
 function AuthPage() {
   const { redirect } = Route.useSearch();
-  const safeRedirect =
-    redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
+  const safeRedirect = redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [identifier, setIdentifier] = useState("");
@@ -51,7 +47,7 @@ function AuthPage() {
       return safeRedirect;
     }
     if (access.isOrganizer) return "/admin";
-    return "/country-hub";
+    return "/my-solaris";
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -177,7 +173,8 @@ function AuthPage() {
                     className="w-full rounded-xl bg-surface px-3 py-2.5 text-sm outline-none ring-primary/50 focus:ring-2"
                   />
                   <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                    This is also your Solaris Studio username. You can type it with or without @ when signing in.
+                    This is also your Solaris Studio username. You can type it with or without @
+                    when signing in.
                   </p>
                 </label>
 
@@ -210,7 +207,8 @@ function AuthPage() {
                     className="w-full rounded-xl bg-surface px-3 py-2.5 text-sm outline-none ring-primary/50 focus:ring-2"
                   />
                   <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                    Not needed to create a country account. Add one if you want to be able to reset a forgotten password yourself.
+                    Not needed to create a country account. Add one if you want to be able to reset
+                    a forgotten password yourself.
                   </p>
                 </label>
               </>

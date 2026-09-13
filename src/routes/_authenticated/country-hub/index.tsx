@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { FlagChip } from "@/components/FlagChip";
 import { ProfileActivityPanel } from "@/components/country/ProfileActivityPanel";
 import {
@@ -32,13 +33,17 @@ import {
   type Country,
   type Participant,
 } from "@/lib/data";
+import { NAV_TARGETS } from "@/lib/navigation-targets";
 
 export const Route = createFileRoute("/_authenticated/country-hub/")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
     country: typeof search.country === "string" ? search.country : undefined,
   }),
-  head: () => ({ meta: [{ title: "My Solaris — Solaris Studio" }] }),
-  component: CountryHubPage,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: NAV_TARGETS.mySolarisCountry, search, replace: true });
+  },
+  head: () => ({ meta: [{ title: "Country workspace — Solaris Studio" }] }),
+  component: () => null,
 });
 
 const EMPTY_PROFILE = {
@@ -55,8 +60,15 @@ const EMPTY_PROFILE = {
   summary: "",
 };
 
-function CountryHubPage() {
-  const { country: targetCountryId } = Route.useSearch();
+export function CountryHubPage() {
+  const search = useRouterState({ select: (state) => state.location.search });
+  const targetCountryId =
+    search &&
+    typeof search === "object" &&
+    "country" in search &&
+    typeof search.country === "string"
+      ? search.country
+      : undefined;
   const { data: accountData, isLoading } = useMyCountryAccount();
   const { data: countries, isLoading: countriesLoading } = useCountries();
   const access = accountData?.access;
@@ -73,7 +85,7 @@ function CountryHubPage() {
   if (isLoading || (targetCountryId && access?.isOrganizer && countriesLoading)) {
     return (
       <AppShell>
-        <p className="text-sm text-muted-foreground">Loading My Solaris…</p>
+        <p className="text-sm text-muted-foreground">Loading country workspace…</p>
       </AppShell>
     );
   }
@@ -118,7 +130,7 @@ function SuspendedCountry({ country, reason }: { country: Country; reason: strin
   return (
     <AppShell>
       <PageHeader
-        eyebrow="My Solaris"
+        eyebrow="My country"
         title={`${country.name} is suspended`}
         description="Your personal Solaris profile remains available, but country editing is currently disabled by an organizer."
         actions={
@@ -164,12 +176,12 @@ function ClaimCountry({ isOrganizer }: { isOrganizer: boolean }) {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="My Solaris"
+        eyebrow="My country"
         title={isOrganizer ? "Your Solaris profile" : "Choose your Terra Solaris country"}
         description={
           isOrganizer
             ? "Your personal profile and organizer powers are separate. Organizer accounts can manage countries without claiming one."
-            : "Your profile, activity and country tools live together in My Solaris. Choose your country to start."
+            : "Your country profile, entry tools and public-page controls live together in MySolaris. Choose your country to start."
         }
         actions={
           isOrganizer ? (
@@ -207,7 +219,8 @@ function ClaimCountry({ isOrganizer }: { isOrganizer: boolean }) {
                     ))}
                   </select>
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    One account can have one country, and each country can only belong to one account.
+                    One account can have one country, and each country can only belong to one
+                    account.
                   </p>
                   <button
                     disabled={!countryId || claim.isPending}
@@ -475,7 +488,7 @@ function OwnedCountryHub({
   return (
     <AppShell>
       <PageHeader
-        eyebrow={organizerOverride ? "Organizer override" : "My Solaris"}
+        eyebrow={organizerOverride ? "Organizer override" : "My country"}
         title={organizerOverride ? `Editing ${country.name}` : country.name}
         description={
           organizerOverride
@@ -510,7 +523,7 @@ function OwnedCountryHub({
       )}
 
       <nav
-        aria-label="My Solaris sections"
+        aria-label="My country sections"
         className="mb-5 grid gap-2 rounded-2xl border border-border/70 bg-surface/55 p-2 sm:grid-cols-2 xl:grid-cols-4"
       >
         {HUB_TABS.map((tab) => {
@@ -543,6 +556,7 @@ function OwnedCountryHub({
       {activeTab === "overview" && (
         <div className="space-y-5">
           {!organizerOverride && <ProfileActivityPanel />}
+          {!organizerOverride && <CountryHodHistoryPanel inline />}
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <OverviewCard
@@ -564,7 +578,7 @@ function OwnedCountryHub({
               onClick={() => setActiveTab("entries")}
             />
             <Link
-              to="/country-hub/page-builder"
+              to={NAV_TARGETS.mySolarisPageBuilder}
               search={countrySearch}
               className="rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-strong"
             >
@@ -578,10 +592,13 @@ function OwnedCountryHub({
             </Link>
           </div>
 
-          <Panel title="Quick actions" description="The most common country-page actions, without opening every editor at once.">
+          <Panel
+            title="Quick actions"
+            description="The most common country-page actions, without opening every editor at once."
+          >
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <Link
-                to="/country-hub/theme"
+                to={NAV_TARGETS.mySolarisTheme}
                 search={countrySearch}
                 className="min-h-20 rounded-xl border border-border bg-surface p-3"
               >
@@ -591,7 +608,7 @@ function OwnedCountryHub({
                 </p>
               </Link>
               <Link
-                to="/country-hub/page-builder"
+                to={NAV_TARGETS.mySolarisPageBuilder}
                 search={countrySearch}
                 className="min-h-20 rounded-xl border border-border bg-surface p-3"
               >
@@ -657,9 +674,7 @@ function OwnedCountryHub({
                 {identity.flagImage && (
                   <button
                     type="button"
-                    onClick={() =>
-                      setIdentity((current) => ({ ...current, flagImage: null }))
-                    }
+                    onClick={() => setIdentity((current) => ({ ...current, flagImage: null }))}
                     className="text-xs text-muted-foreground"
                   >
                     Remove flag
@@ -670,9 +685,7 @@ function OwnedCountryHub({
                 <Input
                   label="Country name"
                   value={identity.name}
-                  onChange={(value) =>
-                    setIdentity((current) => ({ ...current, name: value }))
-                  }
+                  onChange={(value) => setIdentity((current) => ({ ...current, name: value }))}
                 />
                 <Input
                   label="Native name"
@@ -684,9 +697,7 @@ function OwnedCountryHub({
                 <Input
                   label="Region"
                   value={identity.region}
-                  onChange={(value) =>
-                    setIdentity((current) => ({ ...current, region: value }))
-                  }
+                  onChange={(value) => setIdentity((current) => ({ ...current, region: value }))}
                 />
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-muted-foreground">
@@ -758,17 +769,13 @@ function OwnedCountryHub({
               <Input
                 label="Leader name"
                 value={profile.leader_name}
-                onChange={(value) =>
-                  setProfile((current) => ({ ...current, leader_name: value }))
-                }
+                onChange={(value) => setProfile((current) => ({ ...current, leader_name: value }))}
               />
               <Input
                 label="Leader title"
                 value={profile.leader_title}
                 placeholder="President, Queen, Prime Minister…"
-                onChange={(value) =>
-                  setProfile((current) => ({ ...current, leader_title: value }))
-                }
+                onChange={(value) => setProfile((current) => ({ ...current, leader_title: value }))}
               />
               <Input
                 label="Demonym"
@@ -791,16 +798,12 @@ function OwnedCountryHub({
                 label="Population"
                 value={profile.population}
                 placeholder="Fictional values are fine"
-                onChange={(value) =>
-                  setProfile((current) => ({ ...current, population: value }))
-                }
+                onChange={(value) => setProfile((current) => ({ ...current, population: value }))}
               />
               <Input
                 label="Established"
                 value={profile.established}
-                onChange={(value) =>
-                  setProfile((current) => ({ ...current, established: value }))
-                }
+                onChange={(value) => setProfile((current) => ({ ...current, established: value }))}
               />
               <Input
                 label="Motto"
@@ -844,7 +847,7 @@ function OwnedCountryHub({
           >
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <Link
-                to="/country-hub/theme"
+                to={NAV_TARGETS.mySolarisTheme}
                 search={countrySearch}
                 className="min-h-20 rounded-xl border border-border bg-surface p-3"
               >
@@ -854,7 +857,7 @@ function OwnedCountryHub({
                 </p>
               </Link>
               <Link
-                to="/country-hub/page-builder"
+                to={NAV_TARGETS.mySolarisPageBuilder}
                 search={countrySearch}
                 className="min-h-20 rounded-xl border border-border bg-surface p-3"
               >
@@ -892,7 +895,7 @@ function OwnedCountryHub({
               description="Make simple text-and-image changes here. Use Page builder for layouts, visibility and more block types."
               actions={
                 <Link
-                  to="/country-hub/page-builder"
+                  to={NAV_TARGETS.mySolarisPageBuilder}
                   search={countrySearch}
                   className="rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
                 >
@@ -1034,8 +1037,8 @@ function OwnedCountryHub({
           }
         >
           <div className="mb-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3 text-xs leading-5 text-muted-foreground">
-            <strong className="text-foreground">Edit once per edition:</strong> Solaris uses the same
-            artist, song and listening links for every show appearance in that edition.
+            <strong className="text-foreground">Edit once per edition:</strong> Solaris uses the
+            same artist, song and listening links for every show appearance in that edition.
           </div>
           <div className="space-y-3">
             {myEntries.map((group) => (
@@ -1100,9 +1103,7 @@ function OwnedCountryHub({
               <Input
                 label="Artist"
                 value={addEntry.artist}
-                onChange={(value) =>
-                  setAddEntry((current) => ({ ...current, artist: value }))
-                }
+                onChange={(value) => setAddEntry((current) => ({ ...current, artist: value }))}
               />
               <Input
                 label="Song"
@@ -1113,17 +1114,13 @@ function OwnedCountryHub({
                 label="YouTube music video"
                 value={addEntry.youtubeUrl}
                 placeholder="https://youtube.com/watch?..."
-                onChange={(value) =>
-                  setAddEntry((current) => ({ ...current, youtubeUrl: value }))
-                }
+                onChange={(value) => setAddEntry((current) => ({ ...current, youtubeUrl: value }))}
               />
               <Input
                 label="Spotify"
                 value={addEntry.spotifyUrl}
                 placeholder="https://open.spotify.com/track/..."
-                onChange={(value) =>
-                  setAddEntry((current) => ({ ...current, spotifyUrl: value }))
-                }
+                onChange={(value) => setAddEntry((current) => ({ ...current, spotifyUrl: value }))}
               />
               <Input
                 label="Apple Music"
@@ -1137,9 +1134,7 @@ function OwnedCountryHub({
               <Input
                 label="Notes"
                 value={addEntry.notes}
-                onChange={(value) =>
-                  setAddEntry((current) => ({ ...current, notes: value }))
-                }
+                onChange={(value) => setAddEntry((current) => ({ ...current, notes: value }))}
                 className="sm:col-span-2"
               />
               <button
@@ -1295,9 +1290,7 @@ function SectionEditor({
         <span className="mb-1 block text-xs font-semibold text-muted-foreground">Body</span>
         <textarea
           value={value.body}
-          onChange={(event) =>
-            setValue((current) => ({ ...current, body: event.target.value }))
-          }
+          onChange={(event) => setValue((current) => ({ ...current, body: event.target.value }))}
           rows={5}
           className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
         />
@@ -1311,9 +1304,7 @@ function SectionEditor({
         <Input
           label="Image caption"
           value={value.image_caption}
-          onChange={(image_caption) =>
-            setValue((current) => ({ ...current, image_caption }))
-          }
+          onChange={(image_caption) => setValue((current) => ({ ...current, image_caption }))}
         />
       </div>
       <div className="mt-3 flex gap-2">
@@ -1440,12 +1431,7 @@ function EntryEditor({
           onChange={setAppleMusicUrl}
           className="sm:col-span-2"
         />
-        <Input
-          label="Notes"
-          value={notes}
-          onChange={setNotes}
-          className="sm:col-span-2"
-        />
+        <Input label="Notes" value={notes} onChange={setNotes} className="sm:col-span-2" />
         <p className="text-[11px] leading-5 text-muted-foreground sm:col-span-2">
           Listening links are optional and are shown publicly so fans can go straight to the song.
         </p>

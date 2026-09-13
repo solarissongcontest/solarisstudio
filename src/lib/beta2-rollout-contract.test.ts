@@ -65,10 +65,14 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(hub).toContain('activeTab === "entries"');
   });
 
-  it("keeps the expanded personal portal mounted on My Solaris", () => {
+  it("owns expanded personal activity inside the MySolaris route", () => {
     const authLayout = source("src/routes/_authenticated/route.tsx");
     const portal = source("src/components/MySolarisPortalExtension.tsx");
-    expect(authLayout).toContain("<MySolarisPortalExtension />");
+    const mySolaris = source("src/routes/_authenticated/my-solaris/index.tsx");
+    expect(authLayout).not.toContain("MySolarisPortalExtension");
+    expect(authLayout).not.toContain("HodWorkspaceLauncher");
+    expect(mySolaris).toContain("<MySolarisActivityPanels />");
+    expect(portal).not.toContain("createPortal");
     for (const section of ["Saved", "Results dashboard", "Predictions", "Compare", "Activity"]) {
       expect(portal).toContain(`title="${section}"`);
     }
@@ -112,8 +116,8 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(css).toContain("body[data-entity-theme] .site-nav");
     expect(css).toContain("body[data-entity-theme] .mobile-quick-nav");
     expect(css).toContain(":is(.public-drawer, .nav-menu-panel)");
-    expect(css).toContain("body[data-entity-theme] :is(input:not([type=\"checkbox\"])");
-    expect(css).toContain("body[data-entity-theme] :is(.bg-aurora:is(button, a, [role=\"button\"])");
+    expect(css).toContain('body[data-entity-theme] :is(input:not([type="checkbox"])');
+    expect(css).toContain('body[data-entity-theme] :is(.bg-aurora:is(button, a, [role="button"])');
   });
 
   it("shows the planned ten-second pending to confirmed receipt for submissions and voting", () => {
@@ -203,9 +207,7 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(sql).toContain(
       "sync_submission_editing_from_edition() from public, anon, authenticated",
     );
-    expect(sql).toContain(
-      "sync_submission_editing_from_round() from public, anon, authenticated",
-    );
+    expect(sql).toContain("sync_submission_editing_from_round() from public, anon, authenticated");
   });
 
   it("uses an init-plan-friendly publication RLS policy and indexes NF history lookups", () => {

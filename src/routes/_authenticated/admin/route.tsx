@@ -47,7 +47,9 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#020817] px-5 text-white">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center shadow-2xl">
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">Solaris Organizer</p>
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">
+          Solaris Organizer
+        </p>
         <h1 className="mt-2 text-xl font-bold">Organizer could not open</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/65">
           Reload the current production build. Your contest data has not been changed.
@@ -68,7 +70,9 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
           </a>
         </div>
         <details className="mt-4 text-left text-xs text-white/50">
-          <summary className="cursor-pointer text-center font-semibold text-white/60">Technical details</summary>
+          <summary className="cursor-pointer text-center font-semibold text-white/60">
+            Technical details
+          </summary>
           <p className="mt-2 break-words rounded-xl bg-black/20 p-3 leading-relaxed">{message}</p>
         </details>
       </div>
@@ -88,7 +92,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
       .eq("user_id", userData.user.id)
       .eq("role", "organizer")
       .maybeSingle();
-    if (error || !role) throw redirect({ to: "/country-hub" });
+    if (error || !role) throw redirect({ to: "/my-solaris" });
     return { organizer: true };
   },
   component: () => (

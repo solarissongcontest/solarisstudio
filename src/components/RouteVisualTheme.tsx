@@ -7,7 +7,6 @@ import "@/calm-public-chrome.css";
 import "@/beta2-feedback-fixes.css";
 import "@/desktop-public-layouts.css";
 import { CountryButtonColourPanel } from "@/components/CountryButtonColourPanel";
-import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { CountryPreviewParityController } from "@/components/CountryPreviewParityController";
 import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel";
 import { EditionPublicStyles } from "@/components/EditionPublicStyles";
@@ -73,18 +72,10 @@ function gradientFromRaw(input: unknown, first: string, second: string) {
   return `linear-gradient(${angle}deg, ${first}, ${second})`;
 }
 
-function editionPublicSettings(
-  raw: unknown,
-  theme: EditionThemeVisual,
-): EditionPublicSettings {
+function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): EditionPublicSettings {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const requested = String(value.publicStyle ?? "cinematic");
-  const styles: EditionPublicSettings["style"][] = [
-    "cinematic",
-    "editorial",
-    "minimal",
-    "glass",
-  ];
+  const styles: EditionPublicSettings["style"][] = ["cinematic", "editorial", "minimal", "glass"];
   const style = styles.includes(requested as EditionPublicSettings["style"])
     ? (requested as EditionPublicSettings["style"])
     : "cinematic";
@@ -129,8 +120,7 @@ function isLiveResultContext(status?: string | null) {
 
 export function RouteVisualTheme() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const countryCode =
-    segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
+  const countryCode = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
   const editionSlug = segmentAfter(pathname, "/editions/");
   const showId = segmentAfter(pathname, "/shows/");
 
@@ -152,9 +142,8 @@ function CountryRouteVisual({ code }: { code: string }) {
   const { data: countries } = useCountries();
   const country = useMemo(
     () =>
-      (countries ?? []).find(
-        (item) => item.short_code.toLowerCase() === code.toLowerCase(),
-      ) ?? null,
+      (countries ?? []).find((item) => item.short_code.toLowerCase() === code.toLowerCase()) ??
+      null,
     [code, countries],
   );
   const { data: row } = useCountryTheme(country?.id);
@@ -250,9 +239,7 @@ function useResultRefresh({
     };
 
     refresh();
-    const interval = live
-      ? window.setInterval(refresh, showId ? 3_000 : 12_000)
-      : null;
+    const interval = live ? window.setInterval(refresh, showId ? 3_000 : 12_000) : null;
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
 
@@ -265,9 +252,7 @@ function useResultRefresh({
 }
 
 function RouteAddons({ pathname }: { pathname: string }) {
-  const countryThemeEditor =
-    pathname === "/country-hub/theme" || pathname === "/country-hub/theme/";
-  const countryHub = pathname === "/country-hub" || pathname === "/country-hub/";
+  const countryThemeEditor = pathname === "/my-solaris/theme" || pathname === "/my-solaris/theme/";
   const editionThemeEditor = /^\/admin\/edition-theme\/[^/]+\/?$/.test(pathname);
 
   return (
@@ -278,7 +263,6 @@ function RouteAddons({ pathname }: { pathname: string }) {
           <CountryButtonColourPanel />
         </>
       ) : null}
-      {countryHub ? <CountryHodHistoryPanel /> : null}
       {editionThemeEditor ? <EditionPublicDesignPanel /> : null}
     </>
   );
@@ -400,16 +384,10 @@ function BodyVisualTheme({
         "--edition-surface-strength",
         String(resolved.publicSettings.surfaceStrength / 100),
       );
-      body.style.setProperty(
-        "--edition-hero-glow",
-        String(resolved.publicSettings.heroGlow / 100),
-      );
+      body.style.setProperty("--edition-hero-glow", String(resolved.publicSettings.heroGlow / 100));
       if (resolved.publicSettings.accentGradient) {
         body.dataset.editionAccentGradient = "true";
-        body.style.setProperty(
-          "--edition-accent-gradient",
-          resolved.publicSettings.accentGradient,
-        );
+        body.style.setProperty("--edition-accent-gradient", resolved.publicSettings.accentGradient);
       } else {
         delete body.dataset.editionAccentGradient;
         body.style.removeProperty("--edition-accent-gradient");
@@ -428,10 +406,7 @@ function BodyVisualTheme({
 
     if (resolved.artwork) {
       body.dataset.editionArtwork = "true";
-      body.style.setProperty(
-        "--edition-artwork-image",
-        `url(${JSON.stringify(resolved.artwork)})`,
-      );
+      body.style.setProperty("--edition-artwork-image", `url(${JSON.stringify(resolved.artwork)})`);
     } else {
       delete body.dataset.editionArtwork;
       body.style.removeProperty("--edition-artwork-image");
@@ -439,10 +414,7 @@ function BodyVisualTheme({
 
     if (currentShowId && showWinnerFlag) {
       body.dataset.showWinnerFlag = "true";
-      body.style.setProperty(
-        "--show-winner-flag-image",
-        `url(${JSON.stringify(showWinnerFlag)})`,
-      );
+      body.style.setProperty("--show-winner-flag-image", `url(${JSON.stringify(showWinnerFlag)})`);
     } else {
       delete body.dataset.showWinnerFlag;
       body.style.removeProperty("--show-winner-flag-image");

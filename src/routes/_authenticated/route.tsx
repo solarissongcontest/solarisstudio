@@ -3,8 +3,6 @@ import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/rea
 import { CountryFlagLayerEditorAddon } from "@/components/CountryFlagLayerEditorAddon";
 import { CountrySystemFunFactsEditorAddon } from "@/components/CountrySystemFunFactsEditorAddon";
 import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalFinalManager";
-import { HodWorkspaceLauncher } from "@/components/HodWorkspaceLauncher";
-import { MySolarisPortalExtension } from "@/components/MySolarisPortalExtension";
 import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultOrderAddon";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,29 +18,23 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const isMySolaris = pathname === "/my-solaris" || pathname === "/my-solaris/";
-  const isCountryHub = pathname === "/country-hub" || pathname === "/country-hub/";
-  const isCountryTheme = pathname === "/country-hub/theme" || pathname === "/country-hub/theme/";
-  const isPageBuilder = pathname === "/country-hub/page-builder" || pathname === "/country-hub/page-builder/";
+  const isMySolarisTheme = pathname === "/my-solaris/theme" || pathname === "/my-solaris/theme/";
+  const isMySolarisPageBuilder =
+    pathname === "/my-solaris/page-builder" || pathname === "/my-solaris/page-builder/";
+  const isCountryWorkspace =
+    pathname === "/my-solaris/country" || pathname === "/my-solaris/country/";
 
   return (
     <>
       <Outlet />
-      {isMySolaris && (
-        <>
-          <MySolarisPortalExtension />
-          <HodWorkspaceLauncher />
-        </>
-      )}
-      {isCountryHub && (
+      {isCountryWorkspace && (
         <>
           <HistoricalNationalFinalManager />
           <NationalFinalResultOrderAddon />
-          <HodWorkspaceLauncher />
         </>
       )}
-      {isCountryTheme && <CountryFlagLayerEditorAddon />}
-      {isPageBuilder && <CountrySystemFunFactsEditorAddon />}
+      {isMySolarisTheme && <CountryFlagLayerEditorAddon />}
+      {isMySolarisPageBuilder && <CountrySystemFunFactsEditorAddon />}
     </>
   );
 }

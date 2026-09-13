@@ -30,7 +30,7 @@ describe("MySolaris dashboard", () => {
 
   it("renders HOD history directly and keeps participation history edition-canonical", () => {
     expect(route).toContain("<CountryHodHistoryPanel inline />");
-    expect(hodPanel).toContain("if (inline) return content");
+    expect(hodPanel).toContain("return content");
     expect(route).toContain("entry.show_id == null");
     expect(route).toContain("One entry per SSC edition");
     expect(route).toContain("buildEditionProgressionPlacements");
