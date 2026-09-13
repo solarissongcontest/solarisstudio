@@ -8,6 +8,7 @@ const homeRoute = source("src/routes/_authenticated/my-solaris/index.tsx");
 const navigation = source("src/lib/my-solaris-navigation.ts");
 const workspaceNav = source("src/components/mysolaris/MySolarisWorkspaceNav.tsx");
 const historyRoute = source("src/routes/_authenticated/my-solaris/history.tsx");
+const countryModule = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
 const accountRoute = source("src/routes/_authenticated/my-solaris/account.tsx");
 const accountPanel = source("src/components/MySolarisAccountPanel.tsx");
 const hodPanel = source("src/components/CountryHodHistoryPanel.tsx");
@@ -47,7 +48,9 @@ describe("MySolaris dashboard", () => {
   });
 
   it("renders HOD history on a focused route and keeps participation edition-canonical", () => {
-    expect(historyRoute).toContain("<CountryHodHistoryPanel inline />");
+    expect(historyRoute).toContain('<MySolarisCountryModule section="history" />');
+    expect(countryModule).toContain("<CountryHodHistoryPanel inline />");
+    expect(countryModule).toContain('section === "history" && activeTab === "entries"');
     expect(hodPanel).toContain("return content");
     expect(homeRoute).toContain("entry.show_id == null");
     expect(homeRoute).toContain("One entry per SSC edition");
