@@ -285,6 +285,7 @@ function saveArgs(input: SaveStudio2NoticeInput) {
     p_audience_group: input.audienceGroup,
     p_country_ids: input.countryIds,
     p_acknowledgement_required: input.acknowledgementRequired,
+    p_display_surfaces: input.displaySurfaces,
   };
 }
 
@@ -295,25 +296,14 @@ async function noticeRpc(name: string, args: Record<string, unknown>): Promise<O
   return mapNotice(data as NoticeRow);
 }
 
-export async function setStudio2NoticeSurfaces(
-  noticeId: string,
-  displaySurfaces: NoticeDisplaySurface[],
-): Promise<OperationalNotice> {
-  return noticeRpc('studio2_set_notice_surfaces', {
-    p_notice_id: noticeId,
-    p_display_surfaces: displaySurfaces,
-  });
-}
-
 export async function createStudio2NoticeDraft(
   input: SaveStudio2NoticeInput,
   supersedesId: string | null = null,
 ): Promise<OperationalNotice> {
-  const draft = await noticeRpc('studio2_create_notice_draft', {
+  return noticeRpc('studio2_create_notice_draft_v2', {
     ...saveArgs(input),
     p_supersedes_id: supersedesId,
   });
-  return setStudio2NoticeSurfaces(draft.id, input.displaySurfaces);
 }
 
 export async function updateStudio2NoticeDraft(
@@ -321,8 +311,7 @@ export async function updateStudio2NoticeDraft(
   input: SaveStudio2NoticeInput,
 ): Promise<OperationalNotice> {
   const { p_edition_id: _editionId, ...args } = saveArgs(input);
-  const draft = await noticeRpc('studio2_update_notice_draft', { p_notice_id: noticeId, ...args });
-  return setStudio2NoticeSurfaces(draft.id, input.displaySurfaces);
+  return noticeRpc('studio2_update_notice_draft_v2', { p_notice_id: noticeId, ...args });
 }
 
 export async function scheduleStudio2Notice(noticeId: string, scheduledAt: string): Promise<OperationalNotice> {
