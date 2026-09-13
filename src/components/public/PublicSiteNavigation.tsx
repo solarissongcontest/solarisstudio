@@ -200,19 +200,13 @@ export const PUBLIC_NAVIGATION_GROUPS: PublicNavigationGroup[] = [
   {
     id: "account",
     label: "MySolaris",
-    description: "Your account, country and organizer workspaces.",
+    description: "Your account, participation and country tools.",
     items: [
       nav(
         "/my-solaris",
         "MySolaris",
         "Personal activity and participation.",
         "me account dashboard",
-      ),
-      nav(
-        "/country-hub",
-        "Country workspace",
-        "Country readiness, entries, notices and page tools.",
-        "delegation hod country hub",
       ),
     ],
   },

@@ -33,17 +33,16 @@ describe("country HOD ownership history", () => {
 
   it("renders HOD and historical-country controls directly inside MySolaris", () => {
     expect(hodPanel).toContain("CountryHodHistoryPanel({ inline = false }");
-    expect(hodPanel).toContain("inline ? onMySolaris : onCountryHub");
+    expect(hodPanel).toContain("onCountryWorkspace");
     expect(hodPanel).toContain("Historical country names & flags");
-    expect(hodPanel).toContain("if (inline) return content");
+    expect(hodPanel).toContain("return content");
     expect(mySolaris).toContain("<CountryHodHistoryPanel inline />");
   });
 
-  it("keeps the Country Hub portal resilient while MySolaris no longer depends on it", () => {
-    expect(hodPanel).toContain("MutationObserver");
-    expect(hodPanel).toContain('document.querySelector<HTMLElement>(".app-main")');
-    expect(hodPanel).toContain("if (!node?.isConnected) attach()");
-    expect(hodPanel).toContain("observer.observe(document.body, { childList: true, subtree: true })");
+  it("renders country HOD history as native MySolaris content", () => {
+    expect(hodPanel).not.toContain("createPortal");
+    expect(hodPanel).not.toContain("MutationObserver");
+    expect(hodPanel).toContain("/my-solaris/country");
   });
 
   it("uses HOD identities when configured and country history when a country has no HOD history at all", () => {

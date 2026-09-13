@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useRouterState } from "@tanstack/react-router";
 import { Eye, Image, Layers3, Palette, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -8,6 +8,7 @@ import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles"
 import { uploadCountryBackground } from "@/lib/country-background";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useCountries } from "@/lib/data";
+import { NAV_TARGETS, countrySearch } from "@/lib/navigation-targets";
 import {
   DEFAULT_COUNTRY_THEME,
   countryBackgroundCss,
@@ -26,11 +27,14 @@ export const Route = createFileRoute("/_authenticated/country-hub/theme")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
     country: typeof search.country === "string" ? search.country : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: NAV_TARGETS.mySolarisTheme, search, replace: true });
+  },
   head: () => ({ meta: [{ title: "Country appearance — Solaris Studio" }] }),
-  component: CountryThemeRoute,
+  component: () => null,
 });
 
-function CountryThemeRoute() {
+export function CountryThemeRoute() {
   return (
     <>
       <CountryPersonalityStyles />
@@ -110,7 +114,11 @@ const CURATED_DECORATIONS: Record<CountryHeroLayout, CountryDecorationStyle[]> =
 };
 
 function CountryThemePage() {
-  const { country: targetCountryId } = Route.useSearch();
+  const search = useRouterState({ select: (state) => state.location.search });
+  const targetCountryId =
+    search && typeof search === "object" && "country" in search && typeof search.country === "string"
+      ? search.country
+      : undefined;
   const { data: accountData, isLoading } = useMyCountryAccount();
   const { data: countries } = useCountries();
   const access = accountData?.access;
@@ -201,8 +209,8 @@ function CountryThemePage() {
           title="No country account"
           description="Claim a country before creating its visual identity."
         />
-        <Link to="/country-hub" className="rounded-xl border border-border bg-surface px-4 py-2 text-sm">
-          Open My Solaris
+        <Link to={NAV_TARGETS.mySolarisCountry} className="rounded-xl border border-border bg-surface px-4 py-2 text-sm">
+          Open MySolaris country
         </Link>
       </AppShell>
     );
@@ -265,13 +273,13 @@ function CountryThemePage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="My Solaris · Country appearance"
+        eyebrow="My country · Appearance"
         title={`${country.name} appearance`}
         description="Choose a real visual identity, then tune only the compatible details. Country and Wiki use the same design system."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to="/country-hub" search={targetCountryId ? { country: targetCountryId } : {}} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              ← My Solaris
+            <Link to={NAV_TARGETS.mySolarisCountry} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+              ← MySolaris country
             </Link>
             <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
               Preview country →
@@ -445,7 +453,7 @@ function CountryThemePage() {
           </Panel>
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-border bg-surface p-3 text-xs leading-5 text-muted-foreground">
             <Layers3 className="mt-0.5 size-4 shrink-0" />
-            <span>Content order, custom sections, images and country/Wiki visibility are controlled from the page builder in My Solaris.</span>
+            <span>Content order, custom sections, images and country/Wiki visibility are controlled from the page builder in MySolaris.</span>
           </div>
         </div>
       </div>

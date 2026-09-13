@@ -22,8 +22,12 @@ describe('Studio 2 Phase 6 country operations integration', () => {
   it('makes the country cockpit the organizer Delegations entrypoint', () => {
     expect(nav).toContain('"Delegations",');
     expect(nav).toContain('"/admin/countries"');
-    expect(countriesRoute).toContain("createFileRoute('/_authenticated/admin/countries')");
-    expect(countryDetail).toContain("createFileRoute('/_authenticated/admin/countries/$countryId')");
+    expect(countriesRoute).toMatch(
+      /createFileRoute\(["']\/_authenticated\/admin\/countries["']\)/,
+    );
+    expect(countryDetail).toMatch(
+      /createFileRoute\(["']\/_authenticated\/admin\/countries\/\$countryId["']\)/,
+    );
   });
 
   it('uses one country readiness calculator across HOD, organizer cockpit and Action Center', () => {
@@ -65,7 +69,7 @@ describe('Studio 2 Phase 6 country operations integration', () => {
       'incidents',
       'audit',
     ]) {
-      expect(countryDetail).toContain(`'${tab}'`);
+      expect(countryDetail).toMatch(new RegExp(`["']${tab}["']`));
     }
     expect(countryDetail).toContain('href="/admin/communications"');
     expect(countryDetail).toContain('href="/admin/workflows"');

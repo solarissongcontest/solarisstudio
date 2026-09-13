@@ -27,6 +27,8 @@ import { ConfirmationReviewStatus } from "@/components/ConfirmationReviewStatus"
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { MySolarisAccountPanel } from "@/components/MySolarisAccountPanel";
+import { MySolarisActivityPanels } from "@/components/MySolarisPortalExtension";
+import { MySolarisOperationsPanel } from "@/components/MySolarisOperationsPanel";
 import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds } from "@/lib/confirmation-rounds.functions";
@@ -39,13 +41,11 @@ import {
   useEditions,
 } from "@/lib/data";
 import { buildEditionProgressionPlacements } from "@/lib/edition-progression";
-import {
-  useOwnedEntryPublication,
-  useSetOwnedEntryPublication,
-} from "@/lib/entry-publication";
+import { useOwnedEntryPublication, useSetOwnedEntryPublication } from "@/lib/entry-publication";
 import { listenLinksFrom } from "@/lib/entry-utils";
 import { useContentEvents } from "@/lib/engagement-data";
 import { useCountryHistoricalNationalFinals } from "@/lib/historical-national-finals";
+import { NAV_TARGETS } from "@/lib/navigation-targets";
 import {
   confirmationDateToUtc,
   formatCompactCountdown,
@@ -57,6 +57,7 @@ type MySolarisTab = "home" | "entry" | "country" | "history" | "activity" | "acc
 
 type MySolarisSearch = {
   tab?: MySolarisTab;
+  country?: string;
 };
 
 const TAB_IDS: MySolarisTab[] = ["home", "entry", "country", "history", "activity", "account"];
@@ -74,6 +75,7 @@ export const Route = createFileRoute("/_authenticated/my-solaris/")({
   head: () => ({ meta: [{ title: "MySolaris — Solaris Studio" }] }),
   validateSearch: (search: Record<string, unknown>): MySolarisSearch => ({
     tab: TAB_IDS.includes(search.tab as MySolarisTab) ? (search.tab as MySolarisTab) : undefined,
+    country: typeof search.country === "string" ? search.country : undefined,
   }),
   component: MySolarisPage,
 });
@@ -145,8 +147,8 @@ function MySolarisPage() {
     [participants, country?.id, editionMap],
   );
   const currentEntry = currentEdition
-    ? countryEntries.find((entry) => entry.edition_id === currentEdition.id) ?? null
-    : countryEntries[0] ?? null;
+    ? (countryEntries.find((entry) => entry.edition_id === currentEdition.id) ?? null)
+    : (countryEntries[0] ?? null);
   const previousEntries = currentEdition
     ? countryEntries.filter((entry) => entry.edition_id !== currentEdition.id)
     : countryEntries;
@@ -155,9 +157,10 @@ function MySolarisPage() {
     () => buildEditionProgressionPlacements(results ?? [], shows ?? []),
     [results, shows],
   );
-  const currentPlacement = currentEdition && country
-    ? placementMap.get(currentEdition.id)?.get(country.id) ?? null
-    : null;
+  const currentPlacement =
+    currentEdition && country
+      ? (placementMap.get(currentEdition.id)?.get(country.id) ?? null)
+      : null;
 
   const publicationQuery = useOwnedEntryPublication(currentEdition?.id);
   const setPublication = useSetOwnedEntryPublication(currentEdition?.id);
@@ -166,11 +169,11 @@ function MySolarisPage() {
 
   const confirmationResponses = confirmationQuery.data?.responses ?? [];
   const currentConfirmation = currentEdition
-    ? confirmationResponses.find((response) => response.edition_id === currentEdition.id) ?? null
-    : confirmationResponses[0] ?? null;
+    ? (confirmationResponses.find((response) => response.edition_id === currentEdition.id) ?? null)
+    : (confirmationResponses[0] ?? null);
 
   const currentNationalFinal = currentEdition
-    ? (nationalFinals.data ?? []).find((nf) => nf.edition_id === currentEdition.id) ?? null
+    ? ((nationalFinals.data ?? []).find((nf) => nf.edition_id === currentEdition.id) ?? null)
     : null;
 
   const nextRound = useMemo(() => {
@@ -224,7 +227,7 @@ function MySolarisPage() {
         />
         <Panel title="Country account">
           <Link
-            to="/country-hub"
+            to={NAV_TARGETS.mySolarisCountry}
             className="inline-flex min-h-11 items-center rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground"
           >
             Choose your country
@@ -339,7 +342,10 @@ function MySolarisPage() {
               title="National final"
               description="Current selection plus the place to manage older national finals"
               actions={
-                <Link to="/country-hub" className="text-xs font-semibold text-primary">
+                <Link
+                  to={NAV_TARGETS.mySolarisCountry}
+                  className="text-xs font-semibold text-primary"
+                >
                   Manage national finals →
                 </Link>
               }
@@ -349,18 +355,26 @@ function MySolarisPage() {
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
                     {currentEdition ? editionLabel(currentEdition) : "Current edition"}
                   </p>
-                  <p className="mt-2 text-base font-semibold">{currentNationalFinal.name || "National final"}</p>
+                  <p className="mt-2 text-base font-semibold">
+                    {currentNationalFinal.name || "National final"}
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {currentNationalFinal.entries.length} entr{currentNationalFinal.entries.length === 1 ? "y" : "ies"}
-                    {currentNationalFinal.lineup_published ? " · line-up public" : " · line-up private"}
-                    {currentNationalFinal.results_published ? " · results public" : " · results private"}
+                    {currentNationalFinal.entries.length} entr
+                    {currentNationalFinal.entries.length === 1 ? "y" : "ies"}
+                    {currentNationalFinal.lineup_published
+                      ? " · line-up public"
+                      : " · line-up private"}
+                    {currentNationalFinal.results_published
+                      ? " · results public"
+                      : " · results private"}
                   </p>
                 </div>
               ) : (
                 <div className="rounded-xl bg-surface p-4">
                   <p className="text-sm font-semibold">No current national final stored</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    If this entry was internally selected, nothing is missing. Older national finals can still be added from the country workspace.
+                    If this entry was internally selected, nothing is missing. Older national finals
+                    can still be added from the country workspace.
                   </p>
                 </div>
               )}
@@ -393,7 +407,10 @@ function MySolarisPage() {
               title="National final history"
               description="Confirmation-created and manually added national finals for your country"
               actions={
-                <Link to="/country-hub" className="text-xs font-semibold text-primary">
+                <Link
+                  to={NAV_TARGETS.mySolarisCountry}
+                  className="text-xs font-semibold text-primary"
+                >
                   Add or edit older NFs →
                 </Link>
               }
@@ -403,13 +420,23 @@ function MySolarisPage() {
                   {(nationalFinals.data ?? []).map((nf) => {
                     const edition = nf.edition_id ? editionMap.get(nf.edition_id) : null;
                     return (
-                      <div key={nf.id} className="rounded-xl border border-border/70 bg-surface/45 p-3">
+                      <div
+                        key={nf.id}
+                        className="rounded-xl border border-border/70 bg-surface/45 p-3"
+                      >
                         <p className="text-[9px] font-black uppercase tracking-[0.13em] text-primary">
-                          {edition ? editionLabel(edition) : nf.edition_number ? `SSC ${nf.edition_number}` : "Edition unknown"}
+                          {edition
+                            ? editionLabel(edition)
+                            : nf.edition_number
+                              ? `SSC ${nf.edition_number}`
+                              : "Edition unknown"}
                         </p>
-                        <p className="mt-1 truncate text-sm font-semibold">{nf.name || "National final"}</p>
+                        <p className="mt-1 truncate text-sm font-semibold">
+                          {nf.name || "National final"}
+                        </p>
                         <p className="mt-1 text-[10px] text-muted-foreground">
-                          {nf.entries.length} entr{nf.entries.length === 1 ? "y" : "ies"} · {nf.source === "manual" ? "added in Solaris" : "from Confirmations"}
+                          {nf.entries.length} entr{nf.entries.length === 1 ? "y" : "ies"} ·{" "}
+                          {nf.source === "manual" ? "added in Solaris" : "from Confirmations"}
                         </p>
                       </div>
                     );
@@ -444,11 +471,18 @@ function MySolarisPage() {
           <div className="space-y-5">
             <MySolarisAccountPanel />
             <MySolarisPasswordPanel />
-            <Panel title="Country account" description="The country attached to this MySolaris account">
+            <Panel
+              title="Country account"
+              description="The country attached to this MySolaris account"
+            >
               <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface/55 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   {country.flag_image ? (
-                    <img src={country.flag_image} alt="" className="h-10 w-14 rounded-lg object-cover" />
+                    <img
+                      src={country.flag_image}
+                      alt=""
+                      className="h-10 w-14 rounded-lg object-cover"
+                    />
                   ) : (
                     <span className="grid h-10 w-14 place-items-center rounded-lg border border-border bg-background text-xs font-bold">
                       {country.short_code}
@@ -457,11 +491,16 @@ function MySolarisPage() {
                   <div>
                     <p className="text-sm font-semibold">{country.name}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {accountData?.access.countryStatus === "suspended" ? "Suspended" : "Active country account"}
+                      {accountData?.access.countryStatus === "suspended"
+                        ? "Suspended"
+                        : "Active country account"}
                     </p>
                   </div>
                 </div>
-                <Link to="/country-hub" className="min-h-10 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold">
+                <Link
+                  to={NAV_TARGETS.mySolarisCountry}
+                  className="min-h-10 rounded-xl border border-border bg-background px-3 py-2 text-xs font-semibold"
+                >
                   Open country workspace
                 </Link>
               </div>
@@ -491,7 +530,11 @@ function MySolarisTabs({
           onChange={(event) => onChange(event.target.value as MySolarisTab)}
           className="min-h-12 w-full rounded-xl border border-border bg-background/70 px-3 text-sm font-semibold text-foreground outline-none focus:border-primary"
         >
-          {TABS.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
+          {TABS.map(({ id, label }) => (
+            <option key={id} value={id}>
+              {label}
+            </option>
+          ))}
         </select>
       </label>
 
@@ -535,12 +578,27 @@ function HomeTab({
   listeningLinkCount,
   onTabChange,
 }: {
-  country: NonNullable<ReturnType<typeof useMyCountryAccount>["data"]>["country"] extends infer T ? NonNullable<T> : never;
-  currentEdition: ReturnType<typeof useEditions>["data"] extends Array<infer T> | undefined ? T | null : never;
-  currentEntry: ReturnType<typeof useAllParticipants>["data"] extends Array<infer T> | undefined ? T | null : never;
-  currentConfirmation: Awaited<ReturnType<typeof getCountryConfirmationAccess>>["responses"][number] | null;
-  currentPlacement: ReturnType<typeof buildEditionProgressionPlacements> extends Map<string, Map<string, infer T>> ? T | null : never;
-  currentNationalFinal: NonNullable<ReturnType<typeof useCountryHistoricalNationalFinals>["data"]>[number] | null;
+  country: NonNullable<ReturnType<typeof useMyCountryAccount>["data"]>["country"] extends infer T
+    ? NonNullable<T>
+    : never;
+  currentEdition: ReturnType<typeof useEditions>["data"] extends Array<infer T> | undefined
+    ? T | null
+    : never;
+  currentEntry: ReturnType<typeof useAllParticipants>["data"] extends Array<infer T> | undefined
+    ? T | null
+    : never;
+  currentConfirmation:
+    | Awaited<ReturnType<typeof getCountryConfirmationAccess>>["responses"][number]
+    | null;
+  currentPlacement: ReturnType<typeof buildEditionProgressionPlacements> extends Map<
+    string,
+    Map<string, infer T>
+  >
+    ? T | null
+    : never;
+  currentNationalFinal:
+    | NonNullable<ReturnType<typeof useCountryHistoricalNationalFinals>["data"]>[number]
+    | null;
   nextRound: Awaited<ReturnType<typeof getPublicRounds>>[number] | undefined;
   nextRoundState: ReturnType<typeof resolveScheduleState> | null;
   untilRound: number | null;
@@ -551,7 +609,9 @@ function HomeTab({
 }) {
   const hasCurrentEntry = Boolean(currentEntry);
   const confirmationDone = Boolean(currentConfirmation);
-  const revealReady = publication?.publication_status === "published" || publication?.publication_status === "scheduled";
+  const revealReady =
+    publication?.publication_status === "published" ||
+    publication?.publication_status === "scheduled";
 
   return (
     <>
@@ -565,7 +625,9 @@ function HomeTab({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-black uppercase tracking-[0.17em] text-primary">
-                    {nextRoundState === "open" || nextRoundState === "closing-soon" ? "Open now" : "Coming up"}
+                    {nextRoundState === "open" || nextRoundState === "closing-soon"
+                      ? "Open now"
+                      : "Coming up"}
                   </p>
                   <h2 className="mt-1 font-display text-xl font-semibold">{nextRound.name}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -575,7 +637,10 @@ function HomeTab({
                         ? `Opens in ${formatCompactCountdown(untilRound)}.`
                         : "Opening time will appear here when it is set."}
                   </p>
-                  <Link to="/confirmations" className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-aurora px-4 text-xs font-semibold text-primary-foreground">
+                  <Link
+                    to="/confirmations"
+                    className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-aurora px-4 text-xs font-semibold text-primary-foreground"
+                  >
                     <ClipboardCheck className="size-3.5" /> Open confirmations
                   </Link>
                 </div>
@@ -583,12 +648,20 @@ function HomeTab({
             </div>
           ) : hasCurrentEntry && !revealReady ? (
             <div className="rounded-2xl border border-primary/20 bg-primary/[0.055] p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">Entry needs attention</p>
-              <p className="mt-2 text-base font-semibold">Set the reveal for {currentEntry?.song || "your current entry"}</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+                Entry needs attention
+              </p>
+              <p className="mt-2 text-base font-semibold">
+                Set the reveal for {currentEntry?.song || "your current entry"}
+              </p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 The entry exists, but it is still a draft and has no scheduled public reveal.
               </p>
-              <button type="button" onClick={() => onTabChange("entry")} className="mt-3 min-h-10 rounded-xl bg-aurora px-4 text-xs font-semibold text-primary-foreground">
+              <button
+                type="button"
+                onClick={() => onTabChange("entry")}
+                className="mt-3 min-h-10 rounded-xl bg-aurora px-4 text-xs font-semibold text-primary-foreground"
+              >
                 Open entry controls
               </button>
             </div>
@@ -597,7 +670,8 @@ function HomeTab({
               <CheckCircle2 className="size-5 text-primary" />
               <p className="mt-2 text-sm font-semibold">Nothing urgent right now</p>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                MySolaris will put confirmation rounds, reveal tasks and other current-edition actions here when they need you.
+                MySolaris will put confirmation rounds, reveal tasks and other current-edition
+                actions here when they need you.
               </p>
             </div>
           )}
@@ -607,35 +681,76 @@ function HomeTab({
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             <QuickAction to="/confirmations" icon={ClipboardCheck} label="Confirmations" />
             <QuickAction to="/televoting" icon={Vote} label="Televoting" />
-            <button type="button" onClick={() => onTabChange("entry")} className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-left text-sm font-semibold transition hover:border-primary/25 hover:bg-surface-strong">
+            <button
+              type="button"
+              onClick={() => onTabChange("entry")}
+              className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-left text-sm font-semibold transition hover:border-primary/25 hover:bg-surface-strong"
+            >
               <Sparkles className="size-4 text-primary" /> Entry
             </button>
-            <button type="button" onClick={() => onTabChange("country")} className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-left text-sm font-semibold transition hover:border-primary/25 hover:bg-surface-strong">
+            <button
+              type="button"
+              onClick={() => onTabChange("country")}
+              className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-left text-sm font-semibold transition hover:border-primary/25 hover:bg-surface-strong"
+            >
               <PencilLine className="size-4 text-primary" /> Country tools
             </button>
           </div>
         </Panel>
       </section>
 
+      <MySolarisOperationsPanel />
+
       <section className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
         <Panel
           title="Current edition"
           description={currentEdition ? editionLabel(currentEdition) : "No edition is loaded"}
-          actions={currentEdition ? <Link to="/editions/$slug" params={{ slug: currentEdition.slug }} className="text-xs font-semibold text-primary">View edition →</Link> : undefined}
+          actions={
+            currentEdition ? (
+              <Link
+                to="/editions/$slug"
+                params={{ slug: currentEdition.slug }}
+                className="text-xs font-semibold text-primary"
+              >
+                View edition →
+              </Link>
+            ) : undefined
+          }
         >
           <div className="space-y-3">
             <div className="rounded-2xl border border-border/70 bg-surface/55 p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary">{country.name}</p>
-              <p className="mt-2 font-display text-xl font-semibold">
-                {currentEntry ? [currentEntry.artist, currentEntry.song].filter(Boolean).join(" — ") || "Entry details incomplete" : "No entry stored yet"}
+              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary">
+                {country.name}
               </p>
-              {currentEntry ? <EntryListenLinks entry={currentEntry} compact className="mt-3" /> : null}
+              <p className="mt-2 font-display text-xl font-semibold">
+                {currentEntry
+                  ? [currentEntry.artist, currentEntry.song].filter(Boolean).join(" — ") ||
+                    "Entry details incomplete"
+                  : "No entry stored yet"}
+              </p>
+              {currentEntry ? (
+                <EntryListenLinks entry={currentEntry} compact className="mt-3" />
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold text-muted-foreground">
                 <span className="rounded-full border border-border px-2.5 py-1">
-                  {publication?.publication_status === "published" ? "Public" : publication?.publication_status === "scheduled" ? "Scheduled" : currentEntry ? "Draft" : "No entry"}
+                  {publication?.publication_status === "published"
+                    ? "Public"
+                    : publication?.publication_status === "scheduled"
+                      ? "Scheduled"
+                      : currentEntry
+                        ? "Draft"
+                        : "No entry"}
                 </span>
-                {currentPlacement ? <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">Overall #{currentPlacement.rank}</span> : null}
-                {currentNationalFinal ? <span className="rounded-full border border-border px-2.5 py-1">NF: {currentNationalFinal.name || "National final"}</span> : null}
+                {currentPlacement ? (
+                  <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                    Overall #{currentPlacement.rank}
+                  </span>
+                ) : null}
+                {currentNationalFinal ? (
+                  <span className="rounded-full border border-border px-2.5 py-1">
+                    NF: {currentNationalFinal.name || "National final"}
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -644,10 +759,37 @@ function HomeTab({
         <Panel title="Country status" description="A quick current-edition checklist">
           <div className="space-y-2">
             <StatusRow ok label="Country account" detail="Connected" />
-            <StatusRow ok={confirmationDone} label="Confirmation" detail={confirmationDone ? "Submitted" : "Not submitted for current edition"} />
-            <StatusRow ok={hasCurrentEntry} label="Entry" detail={hasCurrentEntry ? "Stored" : "No current entry"} />
-            <StatusRow ok={revealReady} label="Reveal" detail={publication?.publication_status === "published" ? "Public" : publication?.publication_status === "scheduled" ? "Scheduled" : "Not set"} />
-            <StatusRow ok={listeningLinkCount > 0} label="Listening link" detail={listeningLinkCount > 0 ? `${listeningLinkCount} service${listeningLinkCount === 1 ? "" : "s"}` : "None added"} optional />
+            <StatusRow
+              ok={confirmationDone}
+              label="Confirmation"
+              detail={confirmationDone ? "Submitted" : "Not submitted for current edition"}
+            />
+            <StatusRow
+              ok={hasCurrentEntry}
+              label="Entry"
+              detail={hasCurrentEntry ? "Stored" : "No current entry"}
+            />
+            <StatusRow
+              ok={revealReady}
+              label="Reveal"
+              detail={
+                publication?.publication_status === "published"
+                  ? "Public"
+                  : publication?.publication_status === "scheduled"
+                    ? "Scheduled"
+                    : "Not set"
+              }
+            />
+            <StatusRow
+              ok={listeningLinkCount > 0}
+              label="Listening link"
+              detail={
+                listeningLinkCount > 0
+                  ? `${listeningLinkCount} service${listeningLinkCount === 1 ? "" : "s"}`
+                  : "None added"
+              }
+              optional
+            />
           </div>
         </Panel>
       </section>
@@ -671,36 +813,60 @@ function CurrentEntryPanel({
   setPublication,
   runPublication,
 }: {
-  currentEdition: ReturnType<typeof useEditions>["data"] extends Array<infer T> | undefined ? T | null : never;
-  currentEntry: ReturnType<typeof useAllParticipants>["data"] extends Array<infer T> | undefined ? T | null : never;
+  currentEdition: ReturnType<typeof useEditions>["data"] extends Array<infer T> | undefined
+    ? T | null
+    : never;
+  currentEntry: ReturnType<typeof useAllParticipants>["data"] extends Array<infer T> | undefined
+    ? T | null
+    : never;
   publication: ReturnType<typeof useOwnedEntryPublication>["data"];
   entryIsPublic: boolean;
   scheduleValue: string;
   setScheduleValue: (value: string) => void;
-  currentConfirmation: Awaited<ReturnType<typeof getCountryConfirmationAccess>>["responses"][number] | null;
+  currentConfirmation:
+    | Awaited<ReturnType<typeof getCountryConfirmationAccess>>["responses"][number]
+    | null;
   confirmationReveal: string | null;
   canUseConfirmationReveal: boolean;
   publicationMessage: string | null;
   setPublication: ReturnType<typeof useSetOwnedEntryPublication>;
-  runPublication: (mode: "publish" | "schedule" | "draft", scheduledAt?: string | null, source?: "manual" | "confirmation") => Promise<void>;
+  runPublication: (
+    mode: "publish" | "schedule" | "draft",
+    scheduledAt?: string | null,
+    source?: "manual" | "confirmation",
+  ) => Promise<void>;
 }) {
   return (
-    <Panel title="Current entry" description={currentEdition ? editionLabel(currentEdition) : "Current SSC edition"}>
+    <Panel
+      title="Current entry"
+      description={currentEdition ? editionLabel(currentEdition) : "Current SSC edition"}
+    >
       {currentEntry && currentEdition ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-border/70 bg-surface/65 p-4">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">{editionLabel(currentEdition)}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+              {editionLabel(currentEdition)}
+            </p>
             <p className="mt-2 font-display text-xl font-semibold">
-              {[currentEntry.artist, currentEntry.song].filter(Boolean).join(" — ") || "Entry details incomplete"}
+              {[currentEntry.artist, currentEntry.song].filter(Boolean).join(" — ") ||
+                "Entry details incomplete"}
             </p>
             <EntryListenLinks entry={currentEntry} compact className="mt-3" />
             <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold">
               <span className="rounded-full border border-border bg-background/50 px-2.5 py-1">
-                {publication?.publication_status === "scheduled" ? "Scheduled" : publication?.publication_status === "draft" ? "Draft" : "Public"}
+                {publication?.publication_status === "scheduled"
+                  ? "Scheduled"
+                  : publication?.publication_status === "draft"
+                    ? "Draft"
+                    : "Public"}
               </span>
               {publication?.scheduled_publish_at ? (
                 <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-primary">
-                  Reveals {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(publication.scheduled_publish_at))}
+                  Reveals{" "}
+                  {new Intl.DateTimeFormat(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(publication.scheduled_publish_at))}
                 </span>
               ) : null}
             </div>
@@ -715,29 +881,46 @@ function CurrentEntryPanel({
               <div>
                 <p className="text-sm font-semibold">Entry reveal</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  Publish now, choose an exact reveal time, or use the exact date from your confirmation.
+                  Publish now, choose an exact reveal time, or use the exact date from your
+                  confirmation.
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={setPublication.isPending} onClick={() => void runPublication("publish")} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-aurora px-4 text-xs font-semibold text-primary-foreground disabled:opacity-60">
+                <button
+                  type="button"
+                  disabled={setPublication.isPending}
+                  onClick={() => void runPublication("publish")}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-aurora px-4 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                >
                   <Send className="size-3.5" /> Publish now
                 </button>
                 {publication?.publication_status === "scheduled" ? (
-                  <button type="button" disabled={setPublication.isPending} onClick={() => void runPublication("draft")} className="min-h-10 rounded-xl border border-border bg-surface px-4 text-xs font-semibold disabled:opacity-60">
+                  <button
+                    type="button"
+                    disabled={setPublication.isPending}
+                    onClick={() => void runPublication("draft")}
+                    className="min-h-10 rounded-xl border border-border bg-surface px-4 text-xs font-semibold disabled:opacity-60"
+                  >
                     Cancel schedule
                   </button>
                 ) : null}
               </div>
 
               <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <input type="datetime-local" value={scheduleValue} onChange={(event) => setScheduleValue(event.target.value)} className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm" />
+                <input
+                  type="datetime-local"
+                  value={scheduleValue}
+                  onChange={(event) => setScheduleValue(event.target.value)}
+                  className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm"
+                />
                 <button
                   type="button"
                   disabled={!scheduleValue || setPublication.isPending}
                   onClick={() => {
                     const date = new Date(scheduleValue);
-                    if (!Number.isNaN(date.getTime())) void runPublication("schedule", date.toISOString());
+                    if (!Number.isNaN(date.getTime()))
+                      void runPublication("schedule", date.toISOString());
                   }}
                   className="min-h-11 rounded-xl border border-primary/25 bg-primary/10 px-4 text-xs font-semibold text-primary disabled:opacity-50"
                 >
@@ -749,31 +932,54 @@ function CurrentEntryPanel({
                 <div className="flex flex-col gap-3 rounded-xl bg-surface p-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold">From your confirmation</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">{currentConfirmation.reveal_exact_date} · date-only reveals use 00:00 UTC.</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {currentConfirmation.reveal_exact_date} · date-only reveals use 00:00 UTC.
+                    </p>
                   </div>
-                  <button type="button" disabled={!canUseConfirmationReveal || setPublication.isPending} onClick={() => confirmationReveal && void runPublication("schedule", confirmationReveal, "confirmation")} className="min-h-10 shrink-0 rounded-xl border border-border bg-background px-3 text-xs font-semibold disabled:opacity-50">
+                  <button
+                    type="button"
+                    disabled={!canUseConfirmationReveal || setPublication.isPending}
+                    onClick={() =>
+                      confirmationReveal &&
+                      void runPublication("schedule", confirmationReveal, "confirmation")
+                    }
+                    className="min-h-10 shrink-0 rounded-xl border border-border bg-background px-3 text-xs font-semibold disabled:opacity-50"
+                  >
                     Use confirmation date
                   </button>
                 </div>
               ) : currentConfirmation?.reveal_approximate_text ? (
                 <p className="rounded-xl bg-surface p-3 text-xs text-muted-foreground">
-                  Your confirmation says “{currentConfirmation.reveal_approximate_text}”. Choose an exact time above before Solaris can publish automatically.
+                  Your confirmation says “{currentConfirmation.reveal_approximate_text}”. Choose an
+                  exact time above before Solaris can publish automatically.
                 </p>
               ) : null}
 
-              {publicationMessage ? <p className="rounded-xl bg-surface px-3 py-2 text-xs text-muted-foreground">{publicationMessage}</p> : null}
+              {publicationMessage ? (
+                <p className="rounded-xl bg-surface px-3 py-2 text-xs text-muted-foreground">
+                  {publicationMessage}
+                </p>
+              ) : null}
             </div>
           )}
 
-          <Link to="/country-hub" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold">
+          <Link
+            to={NAV_TARGETS.mySolarisCountry}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+          >
             <PencilLine className="size-3.5" /> Edit entry details
           </Link>
         </div>
       ) : (
         <div className="rounded-xl bg-surface p-4">
           <p className="text-sm font-semibold">No current entry stored yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Add the entry in your country workspace, then reveal controls will appear here.</p>
-          <Link to="/country-hub" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-semibold">
+          <p className="mt-1 text-xs text-muted-foreground">
+            Add the entry in your country workspace, then reveal controls will appear here.
+          </p>
+          <Link
+            to={NAV_TARGETS.mySolarisCountry}
+            className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-semibold"
+          >
             <PencilLine className="size-3.5" /> Manage entries
           </Link>
         </div>
@@ -787,32 +993,58 @@ function ConfirmationPanel({
   currentConfirmation,
 }: {
   countryName: string;
-  currentConfirmation: Awaited<ReturnType<typeof getCountryConfirmationAccess>>["responses"][number] | null;
+  currentConfirmation:
+    | Awaited<ReturnType<typeof getCountryConfirmationAccess>>["responses"][number]
+    | null;
 }) {
   return (
     <Panel title="Participation" description="Your current confirmation state">
       {currentConfirmation ? (
         <div className="space-y-3">
           <div className="rounded-2xl border border-border/70 bg-surface/65 p-4">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">SSC {currentConfirmation.edition_number}</p>
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+              SSC {currentConfirmation.edition_number}
+            </p>
             <p className="mt-2 text-sm font-semibold">Confirmation submitted</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {currentConfirmation.can_edit ? "Your response is saved and editing is open." : currentConfirmation.reason === "locked" ? "Your response is saved and locked." : "Your response is saved. Editing is currently closed."}
+              {currentConfirmation.can_edit
+                ? "Your response is saved and editing is open."
+                : currentConfirmation.reason === "locked"
+                  ? "Your response is saved and locked."
+                  : "Your response is saved. Editing is currently closed."}
             </p>
             <p className="mt-2 text-[10px] text-muted-foreground">
-              Updated {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(currentConfirmation.updated_at))}
+              Updated{" "}
+              {new Intl.DateTimeFormat(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }).format(new Date(currentConfirmation.updated_at))}
             </p>
           </div>
-          <ConfirmationReviewStatus selectionMethod={currentConfirmation.selection_method} internalEntry={currentConfirmation.internal_entry} nationalFinal={currentConfirmation.national_final} compact />
-          <Link to="/confirmations" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold">
-            <ClipboardCheck className="size-3.5" /> {currentConfirmation.can_edit ? "View or edit confirmation" : "View confirmation"}
+          <ConfirmationReviewStatus
+            selectionMethod={currentConfirmation.selection_method}
+            internalEntry={currentConfirmation.internal_entry}
+            nationalFinal={currentConfirmation.national_final}
+            compact
+          />
+          <Link
+            to="/confirmations"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+          >
+            <ClipboardCheck className="size-3.5" />{" "}
+            {currentConfirmation.can_edit ? "View or edit confirmation" : "View confirmation"}
           </Link>
         </div>
       ) : (
         <div className="rounded-xl bg-surface p-4">
           <p className="text-sm font-semibold">No current confirmation found</p>
-          <p className="mt-1 text-xs text-muted-foreground">Open Confirmations to see available rounds for {countryName}.</p>
-          <Link to="/confirmations" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-semibold">
+          <p className="mt-1 text-xs text-muted-foreground">
+            Open Confirmations to see available rounds for {countryName}.
+          </p>
+          <Link
+            to="/confirmations"
+            className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-semibold"
+          >
             <ClipboardCheck className="size-3.5" /> Open confirmations
           </Link>
         </div>
@@ -826,15 +1058,36 @@ function CountryTab({
   currentEntry,
   listeningLinkCount,
 }: {
-  country: NonNullable<ReturnType<typeof useMyCountryAccount>["data"]>["country"] extends infer T ? NonNullable<T> : never;
-  currentEntry: ReturnType<typeof useAllParticipants>["data"] extends Array<infer T> | undefined ? T | null : never;
+  country: NonNullable<ReturnType<typeof useMyCountryAccount>["data"]>["country"] extends infer T
+    ? NonNullable<T>
+    : never;
+  currentEntry: ReturnType<typeof useAllParticipants>["data"] extends Array<infer T> | undefined
+    ? T | null
+    : never;
   listeningLinkCount: number;
 }) {
   const health = [
-    { label: "Flag", ok: Boolean(country.flag_image), detail: country.flag_image ? "Added" : "Missing" },
-    { label: "Country description", ok: Boolean(country.description?.trim()), detail: country.description?.trim() ? "Added" : "Missing" },
-    { label: "Current entry", ok: Boolean(currentEntry?.artist?.trim() && currentEntry?.song?.trim()), detail: currentEntry ? "Stored" : "No current entry" },
-    { label: "Listening links", ok: listeningLinkCount > 0, detail: listeningLinkCount ? `${listeningLinkCount} added` : "None added", optional: true },
+    {
+      label: "Flag",
+      ok: Boolean(country.flag_image),
+      detail: country.flag_image ? "Added" : "Missing",
+    },
+    {
+      label: "Country description",
+      ok: Boolean(country.description?.trim()),
+      detail: country.description?.trim() ? "Added" : "Missing",
+    },
+    {
+      label: "Current entry",
+      ok: Boolean(currentEntry?.artist?.trim() && currentEntry?.song?.trim()),
+      detail: currentEntry ? "Stored" : "No current entry",
+    },
+    {
+      label: "Listening links",
+      ok: listeningLinkCount > 0,
+      detail: listeningLinkCount ? `${listeningLinkCount} added` : "None added",
+      optional: true,
+    },
   ];
 
   return (
@@ -842,12 +1095,20 @@ function CountryTab({
       <section className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
         <Panel title="Public preview" description="Check what people actually see">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-2xl border border-border/70 bg-surface/55 p-4 transition hover:border-primary/25">
+            <Link
+              to="/countries/$code"
+              params={{ code: country.short_code }}
+              className="rounded-2xl border border-border/70 bg-surface/55 p-4 transition hover:border-primary/25"
+            >
               <Eye className="size-4 text-primary" />
               <p className="mt-3 text-sm font-semibold">Country page</p>
               <p className="mt-1 text-[10px] text-muted-foreground">Open public page →</p>
             </Link>
-            <Link to="/wiki/$code" params={{ code: country.short_code }} className="rounded-2xl border border-border/70 bg-surface/55 p-4 transition hover:border-primary/25">
+            <Link
+              to="/wiki/$code"
+              params={{ code: country.short_code }}
+              className="rounded-2xl border border-border/70 bg-surface/55 p-4 transition hover:border-primary/25"
+            >
               <Newspaper className="size-4 text-primary" />
               <p className="mt-3 text-sm font-semibold">Wiki</p>
               <p className="mt-1 text-[10px] text-muted-foreground">Open public Wiki →</p>
@@ -855,18 +1116,34 @@ function CountryTab({
           </div>
         </Panel>
 
-        <Panel title="Public page health" description="Missing items are suggestions, not arbitrary punishment by checklist">
+        <Panel
+          title="Public page health"
+          description="Missing items are suggestions, not arbitrary punishment by checklist"
+        >
           <div className="space-y-2">
-            {health.map((item) => <StatusRow key={item.label} {...item} />)}
+            {health.map((item) => (
+              <StatusRow key={item.label} {...item} />
+            ))}
           </div>
         </Panel>
       </section>
 
-      <Panel title="Country tools" description="Everything that changes the public country experience">
+      <Panel
+        title="Country tools"
+        description="Everything that changes the public country experience"
+      >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <WorkspaceLink to="/country-hub" icon={PencilLine} title="Country & entries" />
-          <WorkspaceLink to="/country-hub/page-builder" icon={Newspaper} title="Page & media" />
-          <WorkspaceLink to="/country-hub/theme" icon={Palette} title="Appearance" />
+          <WorkspaceLink
+            to={NAV_TARGETS.mySolarisCountry}
+            icon={PencilLine}
+            title="Country & entries"
+          />
+          <WorkspaceLink
+            to={NAV_TARGETS.mySolarisPageBuilder}
+            icon={Newspaper}
+            title="Page & media"
+          />
+          <WorkspaceLink to={NAV_TARGETS.mySolarisTheme} icon={Palette} title="Appearance" />
           <WorkspaceLink to="/guide" icon={LayoutDashboard} title="How to use Solaris" />
         </div>
       </Panel>
@@ -887,7 +1164,10 @@ function ActivityTab({
 }) {
   return (
     <>
-      <Panel title="Your Solaris activity" description="A compact view of what exists around your delegation">
+      <Panel
+        title="Your Solaris activity"
+        description="A compact view of what exists around your delegation"
+      >
         <div className="grid grid-cols-3 gap-3">
           <MiniStat label="Entries" value={entryCount} />
           <MiniStat label="National finals" value={nfCount} />
@@ -895,6 +1175,7 @@ function ActivityTab({
         </div>
       </Panel>
       <PulsePanel countryName={countryName} events={events} />
+      <MySolarisActivityPanels />
     </>
   );
 }
@@ -913,15 +1194,29 @@ function PulsePanel({
     <Panel
       title="My Pulse"
       description={`Updates involving ${countryName}, separate from the Solaris-wide feed`}
-      actions={<Link to="/pulse" className="text-xs font-semibold text-primary">What’s happening across Solaris? →</Link>}
+      actions={
+        <Link to="/pulse" className="text-xs font-semibold text-primary">
+          What’s happening across Solaris? →
+        </Link>
+      }
     >
       {shown.length ? (
         <div className="divide-y divide-border/60">
           {shown.map((event) => (
-            <Link key={event.id} to={event.route as any} className="block py-3 first:pt-0 last:pb-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary">{event.event_type.replaceAll("_", " ")}</p>
+            <Link
+              key={event.id}
+              to={event.route as any}
+              className="block py-3 first:pt-0 last:pb-0"
+            >
+              <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary">
+                {event.event_type.replaceAll("_", " ")}
+              </p>
               <p className="mt-1 text-sm font-semibold">{event.title}</p>
-              {event.summary ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{event.summary}</p> : null}
+              {event.summary ? (
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {event.summary}
+                </p>
+              ) : null}
             </Link>
           ))}
         </div>
@@ -929,7 +1224,9 @@ function PulsePanel({
         <div className="rounded-xl bg-surface p-4">
           <Sparkles className="size-5 text-primary" />
           <p className="mt-2 text-sm font-semibold">Nothing new for {countryName} yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">Entry reveals, results, records and other country-specific updates will collect here.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Entry reveals, results, records and other country-specific updates will collect here.
+          </p>
         </div>
       )}
     </Panel>
@@ -952,26 +1249,45 @@ function EntryHistoryPanel({
   emptyText: string;
 }) {
   return (
-    <Panel title={title} description="One entry per SSC edition, even when the same song appeared in several shows">
+    <Panel
+      title={title}
+      description="One entry per SSC edition, even when the same song appeared in several shows"
+    >
       {entries.length ? (
         <div className="divide-y divide-border/60">
           {entries.map((entry) => {
             const edition = editionMap.get(entry.edition_id);
             const placement = placementMap.get(entry.edition_id)?.get(countryId);
             return (
-              <div key={entry.edition_id} className="grid gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+              <div
+                key={entry.edition_id}
+                className="grid gap-3 py-3 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+              >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold">{edition ? editionLabel(edition) : "Edition"}</p>
-                    {placement ? <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">#{placement.rank} overall</span> : null}
+                    <p className="text-sm font-semibold">
+                      {edition ? editionLabel(edition) : "Edition"}
+                    </p>
+                    {placement ? (
+                      <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                        #{placement.rank} overall
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {[entry.artist, entry.song].filter(Boolean).join(" — ") || "Entry details not stored"}
+                    {[entry.artist, entry.song].filter(Boolean).join(" — ") ||
+                      "Entry details not stored"}
                   </p>
                   <EntryListenLinks entry={entry} compact className="mt-2" />
                 </div>
                 {edition ? (
-                  <Link to="/editions/$slug" params={{ slug: edition.slug }} className="text-xs font-semibold text-primary">View edition →</Link>
+                  <Link
+                    to="/editions/$slug"
+                    params={{ slug: edition.slug }}
+                    className="text-xs font-semibold text-primary"
+                  >
+                    View edition →
+                  </Link>
                 ) : null}
               </div>
             );
@@ -998,8 +1314,17 @@ function StatusRow({
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/45 px-3 py-2.5">
       <div className="flex min-w-0 items-center gap-2">
-        {ok ? <CheckCircle2 className="size-4 shrink-0 text-primary" /> : <ListChecks className="size-4 shrink-0 text-muted-foreground" />}
-        <p className="truncate text-xs font-semibold">{label}{optional ? <span className="ml-1 text-[9px] font-normal text-muted-foreground">optional</span> : null}</p>
+        {ok ? (
+          <CheckCircle2 className="size-4 shrink-0 text-primary" />
+        ) : (
+          <ListChecks className="size-4 shrink-0 text-muted-foreground" />
+        )}
+        <p className="truncate text-xs font-semibold">
+          {label}
+          {optional ? (
+            <span className="ml-1 text-[9px] font-normal text-muted-foreground">optional</span>
+          ) : null}
+        </p>
       </div>
       <p className="shrink-0 text-[10px] text-muted-foreground">{detail}</p>
     </div>
@@ -1009,40 +1334,32 @@ function StatusRow({
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-surface/55 p-4 text-center">
-      <p className="text-[9px] font-black uppercase tracking-[0.13em] text-muted-foreground">{label}</p>
+      <p className="text-[9px] font-black uppercase tracking-[0.13em] text-muted-foreground">
+        {label}
+      </p>
       <p className="mt-2 font-display text-2xl font-semibold">{value}</p>
     </div>
   );
 }
 
-function QuickAction({
-  to,
-  icon: Icon,
-  label,
-}: {
-  to: string;
-  icon: LucideIcon;
-  label: string;
-}) {
+function QuickAction({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
   return (
-    <Link to={to as any} className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-sm font-semibold transition hover:border-primary/25 hover:bg-surface-strong">
+    <Link
+      to={to as any}
+      className="flex min-h-12 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-sm font-semibold transition hover:border-primary/25 hover:bg-surface-strong"
+    >
       <Icon className="size-4 text-primary" />
       {label}
     </Link>
   );
 }
 
-function WorkspaceLink({
-  to,
-  icon: Icon,
-  title,
-}: {
-  to: string;
-  icon: LucideIcon;
-  title: string;
-}) {
+function WorkspaceLink({ to, icon: Icon, title }: { to: string; icon: LucideIcon; title: string }) {
   return (
-    <Link to={to as any} className="group rounded-2xl border border-border/70 bg-surface/60 p-4 transition hover:border-primary/25 hover:bg-surface-strong">
+    <Link
+      to={to as any}
+      className="group rounded-2xl border border-border/70 bg-surface/60 p-4 transition hover:border-primary/25 hover:bg-surface-strong"
+    >
       <Icon className="size-4 text-primary" />
       <p className="mt-3 text-sm font-semibold">{title}</p>
       <p className="mt-1 text-[10px] text-muted-foreground group-hover:text-foreground">Open →</p>

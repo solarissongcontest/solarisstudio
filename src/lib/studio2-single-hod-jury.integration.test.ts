@@ -71,8 +71,8 @@ describe('Studio 2 single-HOD jury contract', () => {
   });
 
   it('models the only pre-ballot blocker as a missing HOD', () => {
-    expect(workspaceModel).toContain("id: 'jury-hod'");
-    expect(workspaceModel).toContain("label: 'Confirm HOD assignment'");
+    expect(workspaceModel).toMatch(/id:\s*["']jury-hod["']/);
+    expect(workspaceModel).toMatch(/label:\s*["']Confirm HOD assignment["']/);
     expect(workspaceModel).toContain('The HOD is the country’s sole jury.');
     expect(workspaceModel).not.toContain('Complete jury assignment');
     expect(workspaceModel).not.toContain('jury members assigned');

@@ -1,7 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { Flag, History, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { useMemo, useState } from "react";
 
 import { Panel } from "@/components/AppShell";
 import { uploadCountryAsset, useMyCountryAccount } from "@/lib/country-account";
@@ -18,9 +17,21 @@ import {
 } from "@/lib/hod-self-history";
 
 const STATUS_OPTIONS: Array<{ value: OwnedHodEditionStatus; label: string; help: string }> = [
-  { value: "mine", label: "I was the HOD", help: "Votes from this edition belong to your personal HOD history." },
-  { value: "other", label: "Another HOD", help: "This edition will not be counted as part of your HOD voting patterns." },
-  { value: "unknown", label: "HOD unknown", help: "Solaris will not link this edition to your HOD identity." },
+  {
+    value: "mine",
+    label: "I was the HOD",
+    help: "Votes from this edition belong to your personal HOD history.",
+  },
+  {
+    value: "other",
+    label: "Another HOD",
+    help: "This edition will not be counted as part of your HOD voting patterns.",
+  },
+  {
+    value: "unknown",
+    label: "HOD unknown",
+    help: "Solaris will not link this edition to your HOD identity.",
+  },
 ];
 
 function editionLabel(edition: { edition_number: number | null; edition_name: string }) {
@@ -28,22 +39,29 @@ function editionLabel(edition: { edition_number: number | null; edition_name: st
 }
 
 export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } = {}) {
-  const location = useRouterState({ select: (state) => ({ pathname: state.location.pathname, search: state.location.search }) });
-  const onCountryHub = location.pathname === "/country-hub" || location.pathname === "/country-hub/";
+  const location = useRouterState({
+    select: (state) => ({ pathname: state.location.pathname, search: state.location.search }),
+  });
+  const onCountryWorkspace =
+    location.pathname === "/my-solaris/country" || location.pathname === "/my-solaris/country/";
   const onMySolaris = location.pathname === "/my-solaris" || location.pathname === "/my-solaris/";
   const { data: accountData } = useMyCountryAccount();
-  const targetCountry = location.search && typeof location.search === "object"
-    ? (location.search as Record<string, unknown>).country
-    : null;
+  const targetCountry =
+    location.search && typeof location.search === "object"
+      ? (location.search as Record<string, unknown>).country
+      : null;
   const ownCountry = accountData?.country ?? null;
-  const eligible = Boolean((inline ? onMySolaris : onCountryHub) && ownCountry && !targetCountry);
+  const eligible = Boolean(
+    (inline ? onMySolaris || onCountryWorkspace : onCountryWorkspace) &&
+    ownCountry &&
+    !targetCountry,
+  );
   const history = useOwnedHodHistory(eligible);
   const identityHistory = useOwnedCountryIdentityHistory(Boolean(eligible && inline));
   const setStatus = useSetOwnedHodEditionStatus();
   const setAuto = useSetOwnedHodAutoAssign();
   const setIdentity = useSetOwnedCountryEditionIdentity();
   const clearIdentity = useClearOwnedCountryEditionIdentity();
-  const [host, setHost] = useState<HTMLElement | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [identityMessage, setIdentityMessage] = useState<string | null>(null);
   const [oldName, setOldName] = useState("");
@@ -51,69 +69,25 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
   const [selectedEditionIds, setSelectedEditionIds] = useState<string[]>([]);
   const [identityBusy, setIdentityBusy] = useState(false);
 
-  useEffect(() => {
-    if (inline || !eligible) {
-      setHost(null);
-      return;
-    }
-
-    let node: HTMLDivElement | null = null;
-
-    const attach = () => {
-      if (node?.isConnected) return;
-
-      const header = document.querySelector<HTMLElement>(".app-main > .page-header");
-      const main = document.querySelector<HTMLElement>(".app-main");
-      const parent = header?.parentElement ?? main;
-      if (!parent) {
-        setHost(null);
-        return;
-      }
-
-      const existing = parent.querySelector<HTMLElement>(
-        ":scope > [data-country-hod-history-panel='true']",
-      );
-      if (existing) {
-        node = existing as HTMLDivElement;
-      } else {
-        node = document.createElement("div");
-        node.dataset.countryHodHistoryPanel = "true";
-        node.className = "mb-5";
-        if (header?.parentElement === parent) header.insertAdjacentElement("afterend", node);
-        else parent.prepend(node);
-      }
-
-      setHost(node);
-    };
-
-    attach();
-
-    const observer = new MutationObserver(() => {
-      if (!node?.isConnected) attach();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      node?.remove();
-      setHost(null);
-    };
-  }, [eligible, inline, location.pathname]);
-
   const historicalEditions = useMemo(
-    () => (identityHistory.data?.editions ?? []).filter((edition) => Boolean(edition.display_name?.trim())),
+    () =>
+      (identityHistory.data?.editions ?? []).filter((edition) =>
+        Boolean(edition.display_name?.trim()),
+      ),
     [identityHistory.data?.editions],
   );
 
-  if (!eligible || !ownCountry || (!inline && !host)) return null;
+  if (!eligible || !ownCountry) return null;
 
   const updateStatus = async (editionId: string, status: OwnedHodEditionStatus) => {
     setMessage(null);
     try {
       await setStatus.mutateAsync({ editionId, status });
-      setMessage(status === "mine"
-        ? "Saved. That edition now belongs to your HOD history."
-        : "Saved. That edition will not be treated as part of your HOD voting pattern.");
+      setMessage(
+        status === "mine"
+          ? "Saved. That edition now belongs to your HOD history."
+          : "Saved. That edition will not be treated as part of your HOD voting pattern.",
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "HOD history could not be saved.");
     }
@@ -124,11 +98,15 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
     setMessage(null);
     try {
       await setAuto.mutateAsync(next);
-      setMessage(next
-        ? "Future editions will automatically be added to your HOD history when your country participates."
-        : "Automatic HOD carry-forward is off. New editions will stay unassigned until you choose a HOD status.");
+      setMessage(
+        next
+          ? "Future editions will automatically be added to your HOD history when your country participates."
+          : "Automatic HOD carry-forward is off. New editions will stay unassigned until you choose a HOD status.",
+      );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Automatic HOD setting could not be changed.");
+      setMessage(
+        error instanceof Error ? error.message : "Automatic HOD setting could not be changed.",
+      );
     }
   };
 
@@ -160,7 +138,9 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
       setSelectedEditionIds([]);
       setIdentityMessage(`Saved ${name} for ${count} edition${count === 1 ? "" : "s"}.`);
     } catch (error) {
-      setIdentityMessage(error instanceof Error ? error.message : "Historical identity could not be saved.");
+      setIdentityMessage(
+        error instanceof Error ? error.message : "Historical identity could not be saved.",
+      );
     } finally {
       setIdentityBusy(false);
     }
@@ -172,7 +152,9 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
       await clearIdentity.mutateAsync(editionId);
       setIdentityMessage("That edition now uses the country's current name and flag again.");
     } catch (error) {
-      setIdentityMessage(error instanceof Error ? error.message : "Historical identity could not be removed.");
+      setIdentityMessage(
+        error instanceof Error ? error.message : "Historical identity could not be removed.",
+      );
     }
   };
 
@@ -180,7 +162,11 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
     <Panel
       title="Your HOD history"
       description="Choose the editions you personally controlled. This keeps friendship-voting and long-term voting analysis attached to the right HOD instead of treating every person who ever ran the country as one immortal voter."
-      actions={<span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground"><History className="size-3.5" /> Voting identity</span>}
+      actions={
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+          <History className="size-3.5" /> Voting identity
+        </span>
+      }
     >
       {history.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading your edition history…</p>
@@ -192,7 +178,9 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
             <div>
               <p className="text-sm font-semibold">Automatically add new editions</p>
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                Keep this on while you are the HOD. When {ownCountry.name} joins a new edition, Solaris will attach that edition to your HOD identity. Turn it off when you stop being HOD.
+                Keep this on while you are the HOD. When {ownCountry.name} joins a new edition,
+                Solaris will attach that edition to your HOD identity. Turn it off when you stop
+                being HOD.
               </p>
             </div>
             <button
@@ -201,16 +189,23 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
               onClick={() => void toggleAuto()}
               className={`min-h-11 shrink-0 rounded-xl border px-4 text-sm font-semibold ${history.data?.auto_assign_future !== false ? "border-primary/35 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}
             >
-              {history.data?.auto_assign_future !== false ? "On · I am still HOD" : "Off · I am no longer HOD"}
+              {history.data?.auto_assign_future !== false
+                ? "On · I am still HOD"
+                : "Off · I am no longer HOD"}
             </button>
           </div>
 
           <div className="space-y-2">
             {(history.data?.editions ?? []).map((edition) => (
-              <div key={edition.edition_id} className="grid gap-3 rounded-2xl border border-border/70 bg-surface/35 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(190px,260px)] sm:items-center">
+              <div
+                key={edition.edition_id}
+                className="grid gap-3 rounded-2xl border border-border/70 bg-surface/35 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(190px,260px)] sm:items-center"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className={`size-4 shrink-0 ${edition.status === "mine" ? "text-primary" : "text-muted-foreground"}`} />
+                    <ShieldCheck
+                      className={`size-4 shrink-0 ${edition.status === "mine" ? "text-primary" : "text-muted-foreground"}`}
+                    />
                     <p className="truncate text-sm font-semibold">{editionLabel(edition)}</p>
                   </div>
                   <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
@@ -220,10 +215,19 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
                 <select
                   value={edition.status}
                   disabled={setStatus.isPending}
-                  onChange={(event) => void updateStatus(edition.edition_id, event.target.value as OwnedHodEditionStatus)}
+                  onChange={(event) =>
+                    void updateStatus(
+                      edition.edition_id,
+                      event.target.value as OwnedHodEditionStatus,
+                    )
+                  }
                   className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm font-semibold"
                 >
-                  {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             ))}
@@ -235,9 +239,15 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
           </div>
 
           <p className="text-xs leading-relaxed text-muted-foreground">
-            “Another HOD” and “HOD unknown” do not count as your personal voting pattern. Country names and flags are only presentation and never change the HOD or country identity used by voting security.
+            “Another HOD” and “HOD unknown” do not count as your personal voting pattern. Country
+            names and flags are only presentation and never change the HOD or country identity used
+            by voting security.
           </p>
-          {message ? <p className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs text-foreground">{message}</p> : null}
+          {message ? (
+            <p className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs text-foreground">
+              {message}
+            </p>
+          ) : null}
         </div>
       )}
     </Panel>
@@ -247,7 +257,11 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
     <Panel
       title="Historical country names & flags"
       description="If your country used another name or flag in older SSC editions, select those editions here. Solaris will show that historical identity in those edition pages while keeping the same country underneath for statistics and voting security."
-      actions={<span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground"><Flag className="size-3.5" /> Edition identity</span>}
+      actions={
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+          <Flag className="size-3.5" /> Edition identity
+        </span>
+      }
     >
       {identityHistory.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading historical identities…</p>
@@ -284,7 +298,11 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setSelectedEditionIds((identityHistory.data?.editions ?? []).map((edition) => edition.edition_id))}
+                    onClick={() =>
+                      setSelectedEditionIds(
+                        (identityHistory.data?.editions ?? []).map((edition) => edition.edition_id),
+                      )
+                    }
                     className="text-[10px] font-semibold text-primary"
                   >
                     Select all
@@ -313,9 +331,13 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
                         className="size-4 accent-current"
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-xs font-semibold">{editionLabel(edition)}</span>
+                        <span className="block truncate text-xs font-semibold">
+                          {editionLabel(edition)}
+                        </span>
                         {edition.display_name ? (
-                          <span className="block truncate text-[10px] text-muted-foreground">Currently {edition.display_name}</span>
+                          <span className="block truncate text-[10px] text-muted-foreground">
+                            Currently {edition.display_name}
+                          </span>
                         ) : null}
                       </span>
                     </label>
@@ -326,14 +348,22 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
 
             <button
               type="button"
-              disabled={!oldName.trim() || !selectedEditionIds.length || identityBusy || setIdentity.isPending}
+              disabled={
+                !oldName.trim() ||
+                !selectedEditionIds.length ||
+                identityBusy ||
+                setIdentity.isPending
+              }
               onClick={() => void applyHistoricalIdentity()}
               className="mt-4 min-h-11 rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
             >
-              {identityBusy ? "Saving…" : `Apply to ${selectedEditionIds.length || 0} selected edition${selectedEditionIds.length === 1 ? "" : "s"}`}
+              {identityBusy
+                ? "Saving…"
+                : `Apply to ${selectedEditionIds.length || 0} selected edition${selectedEditionIds.length === 1 ? "" : "s"}`}
             </button>
             <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-              If you leave the old flag empty, the edition keeps using the country's current flag. You can overwrite an edition later by applying another historical identity to it.
+              If you leave the old flag empty, the edition keeps using the country's current flag.
+              You can overwrite an edition later by applying another historical identity to it.
             </p>
           </div>
 
@@ -341,10 +371,17 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
             <p className="text-xs font-semibold">Saved historical identities</p>
             <div className="mt-2 space-y-2">
               {historicalEditions.map((edition) => (
-                <div key={edition.edition_id} className="flex flex-col gap-3 rounded-xl border border-border bg-surface/35 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  key={edition.edition_id}
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-surface/35 p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div className="flex min-w-0 items-center gap-3">
                     {edition.flag_image ? (
-                      <img src={edition.flag_image} alt="" className="h-8 w-12 shrink-0 rounded-md object-cover" />
+                      <img
+                        src={edition.flag_image}
+                        alt=""
+                        className="h-8 w-12 shrink-0 rounded-md object-cover"
+                      />
                     ) : (
                       <span className="grid h-8 w-12 shrink-0 place-items-center rounded-md border border-border bg-background text-[9px] font-bold text-muted-foreground">
                         {ownCountry.short_code}
@@ -374,9 +411,15 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
           </div>
 
           <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.055] p-3 text-xs leading-relaxed text-muted-foreground">
-            Historical names and flags never create a new voting identity. Jury and televote integrity checks continue using the permanent country ID, permanent country code and the HOD assignment for each edition.
+            Historical names and flags never create a new voting identity. Jury and televote
+            integrity checks continue using the permanent country ID, permanent country code and the
+            HOD assignment for each edition.
           </div>
-          {identityMessage ? <p className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs text-foreground">{identityMessage}</p> : null}
+          {identityMessage ? (
+            <p className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs text-foreground">
+              {identityMessage}
+            </p>
+          ) : null}
         </div>
       )}
     </Panel>
@@ -389,6 +432,5 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
     </div>
   );
 
-  if (inline) return content;
-  return host ? createPortal(content, host) : null;
+  return content;
 }

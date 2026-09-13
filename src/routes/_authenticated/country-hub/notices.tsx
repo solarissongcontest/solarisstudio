@@ -1,78 +1,86 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { Archive, CheckCircle2, Inbox, MailOpen, Undo2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router";
+import { Archive, CheckCircle2, Inbox, MailOpen, Undo2 } from "lucide-react";
+import { useMemo } from "react";
 
-import { AppShell, PageHeader, Panel } from '@/components/AppShell';
-import { useMyCountryAccount } from '@/lib/country-account';
-import { type NoticeInboxState, noticeTypeLabel } from '@/lib/official-communications';
+import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useMyCountryAccount } from "@/lib/country-account";
+import { type NoticeInboxState, noticeTypeLabel } from "@/lib/official-communications";
 import {
   acknowledgeStudio2InboxNotice,
   archiveStudio2Notice,
   loadStudio2NoticeInbox,
   markStudio2NoticeOpened,
   type Studio2NoticeInboxItem,
-} from '@/lib/studio2-communications';
-import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
+} from "@/lib/studio2-communications";
+import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import { NAV_TARGETS } from "@/lib/navigation-targets";
 
 const INBOX_STATES = [
-  'unread',
-  'read',
-  'acknowledgement_required',
-  'acknowledged',
-  'archived',
+  "unread",
+  "read",
+  "acknowledgement_required",
+  "acknowledged",
+  "archived",
 ] as const satisfies readonly NoticeInboxState[];
 const INBOX_STATE_SET = new Set<string>(INBOX_STATES);
 
-type NoticesSearch = {
+export type NoticesSearch = {
   notice?: string;
   state?: NoticeInboxState;
 };
 
-export const Route = createFileRoute('/_authenticated/country-hub/notices')({
+export const Route = createFileRoute("/_authenticated/country-hub/notices")({
   validateSearch: (search: Record<string, unknown>): NoticesSearch => ({
-    notice: typeof search.notice === 'string' && search.notice ? search.notice : undefined,
+    notice: typeof search.notice === "string" && search.notice ? search.notice : undefined,
     state:
-      typeof search.state === 'string' && INBOX_STATE_SET.has(search.state)
+      typeof search.state === "string" && INBOX_STATE_SET.has(search.state)
         ? (search.state as NoticeInboxState)
         : undefined,
   }),
   head: () => ({
-    meta: [
-      { title: 'Official notices — Solaris Studio' },
-      { name: 'robots', content: 'noindex' },
-    ],
+    meta: [{ title: "Official notices — Solaris Studio" }, { name: "robots", content: "noindex" }],
   }),
-  component: CountryNoticeInbox,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: NAV_TARGETS.mySolarisNotices, search, replace: true });
+  },
+  component: () => null,
 });
 
-function CountryNoticeInbox() {
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
+export function CountryNoticeInbox() {
+  const locationSearch = useRouterState({ select: (state) => state.location.search });
+  const search = parseNoticeSearch(locationSearch);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const account = useMyCountryAccount();
   const access = account.data?.access;
   const country = account.data?.country;
 
   const featureQuery = useQuery({
-    queryKey: ['studio2-feature', 'official_communications'],
-    queryFn: () => isStudio2FeatureEnabled('official_communications'),
+    queryKey: ["studio2-feature", "official_communications"],
+    queryFn: () => isStudio2FeatureEnabled("official_communications"),
     staleTime: 30_000,
   });
 
   const inboxQuery = useQuery({
-    queryKey: ['studio2-hod-notice-inbox', access?.userId ?? 'none'],
+    queryKey: ["studio2-hod-notice-inbox", access?.userId ?? "none"],
     enabled:
       featureQuery.data === true &&
       Boolean(access?.userId && country?.id) &&
       access?.isOrganizer !== true &&
-      access?.countryStatus === 'active',
+      access?.countryStatus === "active",
     queryFn: () => loadStudio2NoticeInbox(),
     refetchInterval: 30_000,
   });
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['studio2-hod-notice-inbox'] });
+    await queryClient.invalidateQueries({ queryKey: ["studio2-hod-notice-inbox"] });
   };
 
   const markOpened = useMutation({
@@ -100,13 +108,14 @@ function CountryNoticeInbox() {
 
   const openNotice = (item: Studio2NoticeInboxItem) => {
     void navigate({
+      to: NAV_TARGETS.mySolarisNotices,
       search: {
         ...(search.state ? { state: search.state } : {}),
         notice: item.notice.id,
       },
       replace: true,
     });
-    if (item.inboxState === 'unread' && !markOpened.isPending) {
+    if (item.inboxState === "unread" && !markOpened.isPending) {
       markOpened.mutate(item.notice.id);
     }
   };
@@ -123,7 +132,7 @@ function CountryNoticeInbox() {
     return (
       <AppShell>
         <PageHeader
-          eyebrow="Country Hub"
+          eyebrow="MySolaris · Notices"
           title="Official notices are not enabled"
           description="The Studio 2 communications rollout is currently disabled."
           actions={<BackToWorkspace />}
@@ -156,7 +165,7 @@ function CountryNoticeInbox() {
     return (
       <AppShell>
         <PageHeader
-          eyebrow="Country Hub"
+          eyebrow="MySolaris · Notices"
           title="No delegation account"
           description="Official delegation notices are available after a country account has been assigned."
           actions={<BackToWorkspace />}
@@ -165,11 +174,11 @@ function CountryNoticeInbox() {
     );
   }
 
-  if (access.countryStatus !== 'active') {
+  if (access.countryStatus !== "active") {
     return (
       <AppShell>
         <PageHeader
-          eyebrow="Country Hub"
+          eyebrow="MySolaris · Notices"
           title={`${country.name} is suspended`}
           description="The delegation inbox is unavailable while the country account is suspended."
           actions={<BackToWorkspace />}
@@ -178,15 +187,15 @@ function CountryNoticeInbox() {
     );
   }
 
-  const unreadCount = items.filter((item) => item.inboxState === 'unread').length;
+  const unreadCount = items.filter((item) => item.inboxState === "unread").length;
   const acknowledgementCount = items.filter(
-    (item) => item.inboxState === 'acknowledgement_required',
+    (item) => item.inboxState === "acknowledgement_required",
   ).length;
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Country Hub · Official communications"
+        eyebrow="MySolaris · Official communications"
         title={`${country.name} notices`}
         description="Authoritative TSBC notices, acknowledgement requests and communication history for your delegation."
         actions={<BackToWorkspace />}
@@ -205,7 +214,11 @@ function CountryNoticeInbox() {
               active={!search.state}
               label="All"
               onClick={() =>
-                void navigate({ search: search.notice ? { notice: search.notice } : {}, replace: true })
+                void navigate({
+                  to: NAV_TARGETS.mySolarisNotices,
+                  search: search.notice ? { notice: search.notice } : {},
+                  replace: true,
+                })
               }
             />
             {INBOX_STATES.map((state) => (
@@ -215,6 +228,7 @@ function CountryNoticeInbox() {
                 label={`${inboxStateLabel(state)} (${items.filter((item) => item.inboxState === state).length})`}
                 onClick={() =>
                   void navigate({
+                    to: NAV_TARGETS.mySolarisNotices,
                     search: { ...(search.notice ? { notice: search.notice } : {}), state },
                     replace: true,
                   })
@@ -231,7 +245,7 @@ function CountryNoticeInbox() {
         ) : inboxQuery.error ? (
           <Panel title="Official notices">
             <p className="text-sm text-destructive">
-              {errorMessage(inboxQuery.error, 'The delegation inbox could not be loaded.')}
+              {errorMessage(inboxQuery.error, "The delegation inbox could not be loaded.")}
             </p>
           </Panel>
         ) : filteredItems.length === 0 ? (
@@ -240,7 +254,8 @@ function CountryNoticeInbox() {
               <Inbox className="mb-3 size-7 text-muted-foreground" />
               <p className="font-semibold">No notices in this view</p>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                New official communications will appear here when your delegation is part of the target audience.
+                New official communications will appear here when your delegation is part of the
+                target audience.
               </p>
             </div>
           </Panel>
@@ -259,14 +274,16 @@ function CountryNoticeInbox() {
               </div>
             </Panel>
 
-            <Panel title={selected ? selected.notice.title : 'Notice details'}>
+            <Panel title={selected ? selected.notice.title : "Notice details"}>
               {selected ? (
                 <NoticeDetail
                   item={selected}
                   busy={acknowledge.isPending || archive.isPending || markOpened.isPending}
                   error={acknowledge.error || archive.error || markOpened.error}
                   onAcknowledge={() => acknowledge.mutate(selected.notice.id)}
-                  onArchive={(archived) => archive.mutate({ noticeId: selected.notice.id, archived })}
+                  onArchive={(archived) =>
+                    archive.mutate({ noticeId: selected.notice.id, archived })
+                  }
                 />
               ) : (
                 <div className="flex min-h-52 flex-col items-center justify-center text-center">
@@ -298,16 +315,16 @@ function NoticeRow({
     <button
       type="button"
       onClick={onOpen}
-      className={`w-full px-1 py-4 text-left first:pt-0 last:pb-0 ${selected ? 'text-foreground' : 'text-muted-foreground'}`}
+      className={`w-full px-1 py-4 text-left first:pt-0 last:pb-0 ${selected ? "text-foreground" : "text-muted-foreground"}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={
-                item.inboxState === 'unread'
-                  ? 'font-bold text-foreground'
-                  : 'font-semibold text-foreground'
+                item.inboxState === "unread"
+                  ? "font-bold text-foreground"
+                  : "font-semibold text-foreground"
               }
             >
               {item.notice.title}
@@ -318,7 +335,7 @@ function NoticeRow({
             {noticeTypeLabel(item.notice.noticeType)} · {formatTimestamp(item.notice.sentAt)}
           </p>
         </div>
-        {item.notice.severity === 'critical' ? (
+        {item.notice.severity === "critical" ? (
           <span className="rounded-full border border-red-400/30 bg-red-400/10 px-2 py-0.5 text-[11px] font-semibold text-red-300">
             Critical
           </span>
@@ -342,8 +359,8 @@ function NoticeDetail({
   onArchive: (archived: boolean) => void;
 }) {
   const notice = item.notice;
-  const archived = item.inboxState === 'archived';
-  const acknowledged = item.inboxState === 'acknowledged';
+  const archived = item.inboxState === "archived";
+  const acknowledged = item.inboxState === "acknowledged";
 
   return (
     <div className="space-y-4">
@@ -364,12 +381,12 @@ function NoticeDetail({
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
             <div>
               <p className="font-semibold">
-                {acknowledged ? 'Acknowledged' : 'Acknowledgement required'}
+                {acknowledged ? "Acknowledged" : "Acknowledgement required"}
               </p>
               <p className="mt-1 text-muted-foreground">
                 {acknowledged
-                  ? 'Your delegation acknowledgement has been recorded.'
-                  : 'TSBC requires your delegation to explicitly acknowledge this notice.'}
+                  ? "Your delegation acknowledgement has been recorded."
+                  : "TSBC requires your delegation to explicitly acknowledge this notice."}
               </p>
             </div>
           </div>
@@ -378,7 +395,7 @@ function NoticeDetail({
 
       {error ? (
         <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {errorMessage(error, 'The notice could not be updated.')}
+          {errorMessage(error, "The notice could not be updated.")}
         </p>
       ) : null}
 
@@ -400,7 +417,7 @@ function NoticeDetail({
           className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-semibold disabled:opacity-50"
         >
           {archived ? <Undo2 className="size-4" /> : <Archive className="size-4" />}
-          {archived ? 'Restore to inbox' : 'Archive'}
+          {archived ? "Restore to inbox" : "Archive"}
         </button>
       </div>
     </div>
@@ -418,15 +435,23 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function FilterButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`min-h-9 rounded-xl border px-3 text-sm font-semibold ${
         active
-          ? 'border-primary/40 bg-primary/10 text-foreground'
-          : 'border-border bg-background text-muted-foreground'
+          ? "border-primary/40 bg-primary/10 text-foreground"
+          : "border-border bg-background text-muted-foreground"
       }`}
     >
       {label}
@@ -436,13 +461,13 @@ function FilterButton({ active, label, onClick }: { active: boolean; label: stri
 
 function InboxBadge({ state }: { state: NoticeInboxState }) {
   const tone =
-    state === 'unread'
-      ? 'border-sky-400/30 bg-sky-400/10 text-sky-300'
-      : state === 'acknowledgement_required'
-        ? 'border-amber-400/30 bg-amber-400/10 text-amber-300'
-        : state === 'acknowledged'
-          ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-300'
-          : 'border-border bg-muted/20 text-muted-foreground';
+    state === "unread"
+      ? "border-sky-400/30 bg-sky-400/10 text-sky-300"
+      : state === "acknowledgement_required"
+        ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
+        : state === "acknowledged"
+          ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+          : "border-border bg-muted/20 text-muted-foreground";
   return (
     <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${tone}`}>
       {inboxStateLabel(state)}
@@ -453,7 +478,7 @@ function InboxBadge({ state }: { state: NoticeInboxState }) {
 function BackToWorkspace() {
   return (
     <Link
-      to="/country-hub/hod"
+      to={NAV_TARGETS.mySolarisTasks}
       className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
     >
       Delegation workspace →
@@ -462,16 +487,28 @@ function BackToWorkspace() {
 }
 
 function inboxStateLabel(state: NoticeInboxState) {
-  if (state === 'acknowledgement_required') return 'Needs acknowledgement';
+  if (state === "acknowledgement_required") return "Needs acknowledgement";
   return state.charAt(0).toUpperCase() + state.slice(1);
 }
 
 function formatTimestamp(value: string | null) {
-  if (!value) return 'Not published';
+  if (!value) return "Not published";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function parseNoticeSearch(value: unknown): NoticesSearch {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  return {
+    notice: typeof record.notice === "string" && record.notice ? record.notice : undefined,
+    state:
+      typeof record.state === "string" && INBOX_STATE_SET.has(record.state)
+        ? (record.state as NoticeInboxState)
+        : undefined,
+  };
 }

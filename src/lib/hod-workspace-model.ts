@@ -1,7 +1,10 @@
-import type { CountryOperationalReadiness, CountryReadinessState } from './country-operational-readiness';
-import type { EligibilityResult } from './eligibility-engine';
-import type { NoticeSeverity } from './official-communications';
-import type { WorkflowSummary } from './workflow-engine';
+import type {
+  CountryOperationalReadiness,
+  CountryReadinessState,
+} from "./country-operational-readiness";
+import type { EligibilityResult } from "./eligibility-engine";
+import type { NoticeSeverity } from "./official-communications";
+import type { WorkflowSummary } from "./workflow-engine";
 
 export type HodWorkspaceNotice = {
   id: string;
@@ -26,7 +29,7 @@ export type HodWorkspaceInput = {
   operationalReadiness: CountryOperationalReadiness;
 };
 
-export type HodActionPriority = 'critical' | 'high' | 'normal';
+export type HodActionPriority = "critical" | "high" | "normal";
 
 export type HodWorkspaceAction = {
   id: string;
@@ -58,48 +61,50 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
 
   if (!input.confirmationComplete) {
     actions.push({
-      id: 'confirmation',
-      label: 'Complete confirmation',
-      description: 'Your delegation confirmation is not complete.',
-      priority: 'critical',
-      href: '/confirmations',
+      id: "confirmation",
+      label: "Complete confirmation",
+      description: "Your delegation confirmation is not complete.",
+      priority: "critical",
+      href: "/confirmations",
     });
   }
 
-  if (input.entryEligibility.status === 'blocked') {
+  if (input.entryEligibility.status === "blocked") {
     actions.push({
-      id: 'entry-blocked',
-      label: 'Fix entry requirements',
-      description: `${input.entryEligibility.blockers.length} entry requirement${input.entryEligibility.blockers.length === 1 ? '' : 's'} block approval.`,
-      priority: 'critical',
-      href: '/my-solaris/entry',
+      id: "entry-blocked",
+      label: "Fix entry requirements",
+      description: `${input.entryEligibility.blockers.length} entry requirement${input.entryEligibility.blockers.length === 1 ? "" : "s"} block approval.`,
+      priority: "critical",
+      href: "/my-solaris/entry",
     });
   } else if (!input.entryWorkflow.complete) {
     actions.push({
-      id: 'entry-workflow',
-      label: 'Finish entry submission',
+      id: "entry-workflow",
+      label: "Finish entry submission",
       description: `${input.entryWorkflow.progress}% of the entry workflow is complete.`,
-      priority: 'high',
-      href: '/my-solaris/entry',
+      priority: "high",
+      href: "/my-solaris/entry",
     });
   }
 
   const juryComplete = input.juryMembersAssigned >= input.juryMembersRequired;
   if (!juryComplete) {
     actions.push({
-      id: 'jury-hod',
-      label: 'Confirm HOD assignment',
-      description: 'No Head of Delegation is recorded for this country and edition. The HOD is the country’s sole jury.',
-      priority: 'high',
-      href: '/country-hub/hod',
+      id: "jury-hod",
+      label: "Confirm HOD assignment",
+      description:
+        "No Head of Delegation is recorded for this country and edition. The HOD is the country’s sole jury.",
+      priority: "high",
+      href: "/my-solaris/tasks",
     });
   } else if (!input.juryBallotSubmitted) {
     actions.push({
-      id: 'jury-ballot',
-      label: 'Submit jury ballot',
-      description: 'The HOD is assigned as the country’s jury, but the jury ballot has not been submitted.',
-      priority: 'high',
-      href: '/jury',
+      id: "jury-ballot",
+      label: "Submit jury ballot",
+      description:
+        "The HOD is assigned as the country’s jury, but the jury ballot has not been submitted.",
+      priority: "high",
+      href: "/jury",
     });
   }
 
@@ -108,21 +113,23 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
   );
   if (unacknowledged.length) {
     actions.push({
-      id: 'official-notices',
-      label: 'Acknowledge official notices',
-      description: `${unacknowledged.length} TSBC notice${unacknowledged.length === 1 ? '' : 's'} require acknowledgement.`,
-      priority: unacknowledged.some((notice) => notice.severity === 'critical') ? 'critical' : 'normal',
-      href: '/country-hub/notices',
+      id: "official-notices",
+      label: "Acknowledge official notices",
+      description: `${unacknowledged.length} TSBC notice${unacknowledged.length === 1 ? "" : "s"} require acknowledgement.`,
+      priority: unacknowledged.some((notice) => notice.severity === "critical")
+        ? "critical"
+        : "normal",
+      href: "/my-solaris/notices",
     });
   }
 
   if (input.operationalReadiness.overdueDeadlines.length) {
     actions.push({
-      id: 'overdue-deadlines',
-      label: 'Resolve overdue deadline requirements',
-      description: `${input.operationalReadiness.overdueDeadlines.length} open deadline${input.operationalReadiness.overdueDeadlines.length === 1 ? ' is' : 's are'} overdue.`,
-      priority: 'critical',
-      href: '/country-hub/hod',
+      id: "overdue-deadlines",
+      label: "Resolve overdue deadline requirements",
+      description: `${input.operationalReadiness.overdueDeadlines.length} open deadline${input.operationalReadiness.overdueDeadlines.length === 1 ? " is" : "s are"} overdue.`,
+      priority: "critical",
+      href: "/my-solaris/tasks",
     });
   }
 

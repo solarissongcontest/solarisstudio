@@ -1,35 +1,21 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 
 import { Panel, StatTile } from "@/components/AppShell";
-import {
-  editionLabel,
-  useAllResults,
-  useAllShows,
-  useCountries,
-  useEditions,
-} from "@/lib/data";
+import { editionLabel, useAllResults, useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useContentEvents, useMyFollows } from "@/lib/engagement-data";
 import { useFanSession, useMyPredictionHistory } from "@/lib/prediction-data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
-export function MySolarisPortalExtension() {
-  const [target, setTarget] = useState<Element | null>(null);
-  const search = useRouterState({ select: (state) => state.location.search });
-  const activeTab =
-    search && typeof search === "object" && "tab" in search
-      ? (search as Record<string, unknown>).tab
-      : undefined;
-
-  useEffect(() => {
-    setTarget(document.querySelector(".app-main"));
-  }, []);
-
-  // The rebuilt MySolaris owns its main dashboard. These older personal features
-  // now belong to Activity instead of being appended underneath every section.
-  if (!target || activeTab !== "activity") return null;
-  return createPortal(<MySolarisPortalContent />, target);
+/**
+ * Activity content owned by the MySolaris route.
+ *
+ * This used to be rendered by an authenticated-layout portal. Keeping the
+ * component presentational means the route can place it directly in its
+ * Activity tab and the content follows the normal route lifecycle.
+ */
+export function MySolarisActivityPanels() {
+  return <MySolarisPortalContent />;
 }
 
 function MySolarisPortalContent() {
@@ -89,12 +75,17 @@ function MySolarisPortalContent() {
   }, [eventsData?.events, followedIds]);
 
   return (
-    <section className="mt-6 space-y-5 border-t border-border/60 pt-6" data-my-solaris-portal>
+    <section className="mt-6 space-y-5 border-t border-border/60 pt-6" data-my-solaris-activity>
       <div className="border-b border-border/60 pb-3">
-        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">More for you</p>
-        <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.035em]">Your wider Solaris activity</h2>
+        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+          More for you
+        </p>
+        <h2 className="mt-1 font-display text-2xl font-bold tracking-[-0.035em]">
+          Your wider Solaris activity
+        </h2>
         <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-          Saved places, recent published results, predictions, comparisons and followed activity live here inside Activity rather than as a second dashboard.
+          Saved places, recent published results, predictions, comparisons and followed activity
+          live here inside Activity rather than as a second dashboard.
         </p>
       </div>
 
@@ -161,7 +152,8 @@ function MySolarisPortalContent() {
                         {index === 0 ? "Latest result" : "Previous result"}
                       </span>
                       <span className="mt-1 block truncate text-sm font-semibold">
-                        {edition ? `${editionLabel(edition)} · ` : ""}{show.name}
+                        {edition ? `${editionLabel(edition)} · ` : ""}
+                        {show.name}
                       </span>
                       {winner && (
                         <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
@@ -182,18 +174,23 @@ function MySolarisPortalContent() {
         <Panel title="Predictions" description="Your latest Prediction Arena activity">
           {latestPrediction ? (
             <div className="rounded-xl border border-border/65 bg-surface p-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Latest prediction</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">
+                Latest prediction
+              </p>
               <p className="mt-2 text-sm font-semibold">
                 {latestPrediction.prediction_score
                   ? `${latestPrediction.prediction_score.score} points`
                   : "Submitted · waiting for scoring"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {latestPrediction.prediction_items.length} prediction item{latestPrediction.prediction_items.length === 1 ? "" : "s"}
+                {latestPrediction.prediction_items.length} prediction item
+                {latestPrediction.prediction_items.length === 1 ? "" : "s"}
               </p>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">You have not submitted a prediction yet.</p>
+            <p className="text-sm text-muted-foreground">
+              You have not submitted a prediction yet.
+            </p>
           )}
           <Link
             to="/predictions"
@@ -205,7 +202,8 @@ function MySolarisPortalContent() {
 
         <Panel title="Compare" description="Keep the head-to-head tool one click away">
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Compare two delegations across results, voting history and their relationship without opening separate country pages.
+            Compare two delegations across results, voting history and their relationship without
+            opening separate country pages.
           </p>
           <Link
             to="/compare"
@@ -216,15 +214,29 @@ function MySolarisPortalContent() {
         </Panel>
       </div>
 
-      <Panel title="Activity" description={follows.length ? "Latest updates connected to things you follow" : "Latest Solaris updates"}>
+      <Panel
+        title="Activity"
+        description={
+          follows.length
+            ? "Latest updates connected to things you follow"
+            : "Latest Solaris updates"
+        }
+      >
         {activity.length ? (
           <div className="divide-y divide-border/60">
             {activity.map((event) => (
-              <Link key={event.id} to={event.route} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+              <Link
+                key={event.id}
+                to={event.route}
+                className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+              >
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold">{event.title}</span>
                   <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                    {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(event.published_at))}
+                    {new Intl.DateTimeFormat(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(event.published_at))}
                   </span>
                 </span>
                 <span className="shrink-0 text-xs font-bold text-primary">Open →</span>
@@ -251,7 +263,9 @@ function SavedGroup({
   const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
     <div>
-      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
       {hasChildren ? (
         <div className="mt-2 flex flex-wrap gap-2">{children}</div>
       ) : (
