@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
+import { MySolarisWorkspaceNav } from "@/components/mysolaris/MySolarisWorkspaceNav";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { cn } from "@/lib/utils";
@@ -197,6 +198,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const accountHref = email ? "/my-solaris" : "/auth";
   const publicLayout = publicLayoutForPath(pathname);
   const showPublicSidebar =
+    !pathname.startsWith("/my-solaris") &&
     !pathname.startsWith("/auth") &&
     !pathname.startsWith("/reset") &&
     !pathname.startsWith("/recover") &&
@@ -244,6 +246,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const participateActive = anyPathMatches(pathname, PARTICIPATE_ROUTES);
   const referenceActive = anyPathMatches(pathname, REFERENCE_ROUTES);
   const accountActive = anyPathMatches(pathname, ACCOUNT_ROUTES) || pathname.startsWith("/admin");
+  const isMySolarisWorkspace =
+    pathname === "/my-solaris" ||
+    pathname === "/my-solaris/" ||
+    pathname.startsWith("/my-solaris/");
 
   return (
     <div className="relative isolate min-h-screen overflow-x-clip">
@@ -437,6 +443,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="public-site-layout">
             <PublicSiteSidebar pathname={pathname} isOrganizer={access.isOrganizer} />
             <div className="public-site-content min-w-0">
+              {isMySolarisWorkspace && <MySolarisWorkspaceNav />}
               {isHomePage && (
                 <Suspense fallback={null}>
                   <LazyHomeAnniversaryTakeover />
@@ -452,6 +459,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : (
           <>
+            {isMySolarisWorkspace && <MySolarisWorkspaceNav />}
             {isHomePage && (
               <Suspense fallback={null}>
                 <LazyHomeAnniversaryTakeover />

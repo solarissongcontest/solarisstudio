@@ -10,6 +10,7 @@ export const NAV_TARGETS = {
   mySolarisCountry: "/my-solaris/country",
   mySolarisTasks: "/my-solaris/tasks",
   mySolarisEntry: "/my-solaris/entry",
+  mySolarisVoting: "/my-solaris/voting",
   mySolarisNotices: "/my-solaris/notices",
   mySolarisPageBuilder: "/my-solaris/page-builder",
   mySolarisTheme: "/my-solaris/theme",
