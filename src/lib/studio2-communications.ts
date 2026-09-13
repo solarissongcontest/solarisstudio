@@ -5,6 +5,7 @@ import {
   validateOperationalNotice,
   noticeInboxState,
   type NoticeAudience,
+  type NoticeDisplaySurface,
   type NoticeEditionGroup,
   type NoticeInboxState,
   type NoticeReceipt,
@@ -46,6 +47,7 @@ type NoticeRow = {
   audience_group?: NoticeEditionGroup | null;
   country_ids: string[] | null;
   acknowledgement_required: boolean;
+  display_surfaces?: NoticeDisplaySurface[] | null;
   status?: NoticeState | null;
   scheduled_at?: string | null;
   sent_at: string | null;
@@ -75,6 +77,7 @@ type RevisionRow = {
   audience_group: NoticeEditionGroup | null;
   country_ids: string[] | null;
   acknowledgement_required: boolean;
+  display_surfaces?: NoticeDisplaySurface[] | null;
   status: NoticeState;
   scheduled_at: string | null;
   sent_at: string | null;
@@ -107,6 +110,7 @@ export type SendStudio2NoticeInput = {
 export type SaveStudio2NoticeInput = SendStudio2NoticeInput & {
   noticeType: NoticeType;
   audienceGroup: NoticeEditionGroup | null;
+  displaySurfaces: NoticeDisplaySurface[];
 };
 
 function asRows<T>(value: unknown): T[] {
@@ -125,6 +129,7 @@ function mapNotice(row: NoticeRow): OperationalNotice {
     audienceGroup: row.audience_group ?? null,
     countryIds: row.country_ids ?? [],
     acknowledgementRequired: row.acknowledgement_required,
+    displaySurfaces: row.display_surfaces ?? ['delegation_inbox'],
     state: row.status ?? (row.sent_at ? 'published' : 'draft'),
     scheduledAt: row.scheduled_at ?? null,
     sentAt: row.sent_at,
@@ -157,6 +162,7 @@ function mapRevision(row: RevisionRow): NoticeRevision {
     audienceGroup: row.audience_group,
     countryIds: row.country_ids ?? [],
     acknowledgementRequired: row.acknowledgement_required,
+    displaySurfaces: row.display_surfaces ?? ['delegation_inbox'],
     state: row.status,
     scheduledAt: row.scheduled_at,
     sentAt: row.sent_at,
@@ -173,7 +179,7 @@ async function requireEnabled() {
 
 const NOTICE_COLUMNS = [
   'id', 'edition_id', 'notice_type', 'title', 'body', 'severity', 'audience',
-  'audience_group', 'country_ids', 'acknowledgement_required', 'status',
+  'audience_group', 'country_ids', 'acknowledgement_required', 'display_surfaces', 'status',
   'scheduled_at', 'sent_at', 'cancelled_at', 'superseded_by_id', 'revision', 'created_at',
 ].join(',');
 
@@ -226,7 +232,8 @@ export async function loadStudio2NoticeInbox(editionId?: string | null): Promise
 
   const { data: noticeData, error: noticeError } = await noticeQuery;
   if (noticeError) throw noticeError;
-  const noticeRows = asRows<NoticeRow>(noticeData);
+  const noticeRows = asRows<NoticeRow>(noticeData)
+    .filter((row) => (row.display_surfaces ?? ['delegation_inbox']).includes('delegation_inbox'));
   if (!noticeRows.length) return [];
 
   const { data: receiptData, error: receiptError } = await client
@@ -255,6 +262,7 @@ function draftCandidate(input: SaveStudio2NoticeInput): OperationalNotice {
     audienceGroup: input.audienceGroup,
     countryIds: input.countryIds,
     acknowledgementRequired: input.acknowledgementRequired,
+    displaySurfaces: input.displaySurfaces,
     state: 'draft',
     scheduledAt: null,
     sentAt: null,
@@ -287,14 +295,25 @@ async function noticeRpc(name: string, args: Record<string, unknown>): Promise<O
   return mapNotice(data as NoticeRow);
 }
 
+export async function setStudio2NoticeSurfaces(
+  noticeId: string,
+  displaySurfaces: NoticeDisplaySurface[],
+): Promise<OperationalNotice> {
+  return noticeRpc('studio2_set_notice_surfaces', {
+    p_notice_id: noticeId,
+    p_display_surfaces: displaySurfaces,
+  });
+}
+
 export async function createStudio2NoticeDraft(
   input: SaveStudio2NoticeInput,
   supersedesId: string | null = null,
 ): Promise<OperationalNotice> {
-  return noticeRpc('studio2_create_notice_draft', {
+  const draft = await noticeRpc('studio2_create_notice_draft', {
     ...saveArgs(input),
     p_supersedes_id: supersedesId,
   });
+  return setStudio2NoticeSurfaces(draft.id, input.displaySurfaces);
 }
 
 export async function updateStudio2NoticeDraft(
@@ -302,7 +321,8 @@ export async function updateStudio2NoticeDraft(
   input: SaveStudio2NoticeInput,
 ): Promise<OperationalNotice> {
   const { p_edition_id: _editionId, ...args } = saveArgs(input);
-  return noticeRpc('studio2_update_notice_draft', { p_notice_id: noticeId, ...args });
+  const draft = await noticeRpc('studio2_update_notice_draft', { p_notice_id: noticeId, ...args });
+  return setStudio2NoticeSurfaces(draft.id, input.displaySurfaces);
 }
 
 export async function scheduleStudio2Notice(noticeId: string, scheduledAt: string): Promise<OperationalNotice> {
@@ -325,7 +345,7 @@ export async function loadStudio2NoticeRevisions(noticeId: string): Promise<Noti
   await requireEnabled();
   const { data, error } = await client
     .from('studio2_notice_versions')
-    .select('notice_id,revision,notice_type,title,body,severity,audience,audience_group,country_ids,acknowledgement_required,status,scheduled_at,sent_at,changed_by,changed_at')
+    .select('notice_id,revision,notice_type,title,body,severity,audience,audience_group,country_ids,acknowledgement_required,display_surfaces,status,scheduled_at,sent_at,changed_by,changed_at')
     .eq('notice_id', noticeId)
     .order('revision', { ascending: false });
   if (error) throw error;
@@ -362,6 +382,7 @@ export async function sendStudio2Notice(input: SendStudio2NoticeInput): Promise<
     audience: input.audience,
     countryIds: input.countryIds,
     acknowledgementRequired: input.acknowledgementRequired,
+    displaySurfaces: ['delegation_inbox'],
     sentAt: null,
   };
   validateOfficialNotice(candidate);
