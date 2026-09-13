@@ -33,7 +33,7 @@ function OrganizerMenu() {
       <AdminPageHeader
         eyebrow="Solaris Organizer"
         title="All organizer pages"
-        description="Every active workspace is listed here in the same groups as the desktop sidebar. Search by task when you do not know the page name."
+        description="This is the complete searchable directory of specialist Organizer pages. The permanent sidebar stays focused on the seven main work domains."
         actions={
           <Link to="/" target="_blank" className="admin-action-secondary">
             <ExternalLink className="size-4" /> Public site
