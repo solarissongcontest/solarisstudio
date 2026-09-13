@@ -9,6 +9,7 @@ describe("Solaris Studio guides and country confirmation access", () => {
   const appShell = source("components/AppShell.tsx");
   const publicNavigation = source("components/public/PublicSiteNavigation.tsx");
   const adminNav = source("components/admin/AdminNav.tsx");
+  const adminDomains = source("components/admin/admin-domains.ts");
   const adminFrame = source("components/admin/AdminFrame.tsx");
   const commandPalette = source("components/admin/AdminCommandPalette.tsx");
   const publicGuide = source("routes/guide/index.tsx");
@@ -20,7 +21,8 @@ describe("Solaris Studio guides and country confirmation access", () => {
   it("keeps both guide pages easy to find", () => {
     expect(publicNavigation).toContain('"/guide",');
     expect(publicNavigation).toContain('"Guide",');
-    expect(adminNav).toContain("buildAdminNavigation");
+    expect(adminNav).toContain("buildAdminDomainNavigation");
+    expect(adminDomains).toContain('label: "Administration"');
     expect(adminFrame).toContain('path.startsWith("/admin/guide")');
     expect(commandPalette).toContain("buildAdminNavigation");
   });
@@ -32,12 +34,11 @@ describe("Solaris Studio guides and country confirmation access", () => {
     expect(adminGuide).toContain("How to use the organizer tools");
   });
 
-  it("keeps the current public sections and unified organizer workflow", () => {
+  it("keeps the current public sections and compact organizer workflow", () => {
     for (const text of ['label: "Insights"', '"Pulse"', '"Relationships"', 'label: "Participate"'])
       expect(publicNavigation).toContain(text);
 
-    expect(adminNav).toContain("buildAdminNavigation");
-
+    expect(adminNav).toContain("buildAdminDomainNavigation");
     expect(commandPalette).toContain("buildAdminNavigation(activeEdition?.slug).flatMap");
     expect(appShell).not.toContain('label: "Recent activity"');
     expect(appShell).not.toContain('label: "Voting links"');
