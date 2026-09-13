@@ -8,7 +8,8 @@ function source(path: string) {
 
 const adminNav = source("src/components/admin/admin-navigation.ts");
 const adminRoute = source("src/routes/_authenticated/admin/communications.tsx");
-const hodRoute = source("src/routes/_authenticated/country-hub/notices.tsx");
+const legacyHodRoute = source("src/routes/_authenticated/country-hub/notices.tsx");
+const hodRoute = source("src/components/mysolaris/modules/MySolarisNoticesModule.tsx");
 const adapter = source("src/lib/studio2-communications.ts");
 const hodModel = source("src/lib/hod-workspace-model.ts");
 const migration = source(
@@ -20,7 +21,7 @@ describe("Studio 2 Official Communications integration", () => {
     expect(adminNav).toContain('"Communications",');
     expect(adminNav).toContain('"/admin/communications"');
     expect(hodModel).toMatch(/href:\s*["']\/my-solaris\/notices["']/);
-    expect(hodRoute).toMatch(
+    expect(legacyHodRoute).toMatch(
       /createFileRoute\(["']\/_authenticated\/country-hub\/notices["']\)/,
     );
   });

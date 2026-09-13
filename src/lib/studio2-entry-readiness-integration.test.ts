@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
 }
 
-const route = source("src/routes/_authenticated/country-hub/readiness.tsx");
+const route = source("src/components/mysolaris/modules/MySolarisEntryModule.tsx");
 const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
 const model = source("src/lib/entry-readiness-model.ts");
 
