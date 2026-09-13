@@ -63,6 +63,7 @@ export type OperationalNotice = OfficialNotice & {
   audienceGroup: NoticeEditionGroup | null;
   scheduledAt: string | null;
   cancelledAt: string | null;
+  archivedAt: string | null;
   supersededById: string | null;
   revision: number;
 };
@@ -82,6 +83,7 @@ export type NoticeRevision = {
   state: NoticeState;
   scheduledAt: string | null;
   sentAt: string | null;
+  archivedAt: string | null;
   changedAt: string;
   changedBy: string | null;
 };
