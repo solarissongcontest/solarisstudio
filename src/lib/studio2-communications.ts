@@ -52,6 +52,7 @@ type NoticeRow = {
   scheduled_at?: string | null;
   sent_at: string | null;
   cancelled_at?: string | null;
+  archived_at?: string | null;
   superseded_by_id?: string | null;
   revision?: number | null;
   created_at: string;
@@ -81,6 +82,7 @@ type RevisionRow = {
   status: NoticeState;
   scheduled_at: string | null;
   sent_at: string | null;
+  archived_at?: string | null;
   changed_by: string | null;
   changed_at: string;
 };
@@ -134,6 +136,7 @@ function mapNotice(row: NoticeRow): OperationalNotice {
     scheduledAt: row.scheduled_at ?? null,
     sentAt: row.sent_at,
     cancelledAt: row.cancelled_at ?? null,
+    archivedAt: row.archived_at ?? null,
     supersededById: row.superseded_by_id ?? null,
     revision: row.revision ?? 1,
   };
@@ -166,6 +169,7 @@ function mapRevision(row: RevisionRow): NoticeRevision {
     state: row.status,
     scheduledAt: row.scheduled_at,
     sentAt: row.sent_at,
+    archivedAt: row.archived_at ?? null,
     changedAt: row.changed_at,
     changedBy: row.changed_by,
   };
@@ -180,7 +184,7 @@ async function requireEnabled() {
 const NOTICE_COLUMNS = [
   'id', 'edition_id', 'notice_type', 'title', 'body', 'severity', 'audience',
   'audience_group', 'country_ids', 'acknowledgement_required', 'display_surfaces', 'status',
-  'scheduled_at', 'sent_at', 'cancelled_at', 'superseded_by_id', 'revision', 'created_at',
+  'scheduled_at', 'sent_at', 'cancelled_at', 'archived_at', 'superseded_by_id', 'revision', 'created_at',
 ].join(',');
 
 const RECEIPT_COLUMNS = 'notice_id,recipient_user_id,delivered_at,opened_at,acknowledged_at,archived_at';
@@ -233,6 +237,7 @@ export async function loadStudio2NoticeInbox(editionId?: string | null): Promise
   const { data: noticeData, error: noticeError } = await noticeQuery;
   if (noticeError) throw noticeError;
   const noticeRows = asRows<NoticeRow>(noticeData)
+    .filter((row) => !row.archived_at)
     .filter((row) => (row.display_surfaces ?? ['delegation_inbox']).includes('delegation_inbox'));
   if (!noticeRows.length) return [];
 
@@ -267,6 +272,7 @@ function draftCandidate(input: SaveStudio2NoticeInput): OperationalNotice {
     scheduledAt: null,
     sentAt: null,
     cancelledAt: null,
+    archivedAt: null,
     supersededById: null,
     revision: 1,
   };
@@ -330,11 +336,34 @@ export async function createSupersedingStudio2NoticeDraft(noticeId: string): Pro
   return noticeRpc('studio2_create_superseding_notice_draft', { p_notice_id: noticeId });
 }
 
+export async function archiveStudio2Communication(
+  noticeId: string,
+  reason: string,
+): Promise<OperationalNotice> {
+  return noticeRpc('studio2_archive_communication', {
+    p_notice_id: noticeId,
+    p_reason: reason.trim() || null,
+  });
+}
+
+export async function restoreStudio2Communication(noticeId: string): Promise<OperationalNotice> {
+  return noticeRpc('studio2_restore_communication', { p_notice_id: noticeId });
+}
+
+export async function deleteStudio2Communication(noticeId: string, reason: string): Promise<void> {
+  await requireEnabled();
+  const { error } = await client.rpc('studio2_delete_communication', {
+    p_notice_id: noticeId,
+    p_reason: reason.trim(),
+  });
+  if (error) throw error;
+}
+
 export async function loadStudio2NoticeRevisions(noticeId: string): Promise<NoticeRevision[]> {
   await requireEnabled();
   const { data, error } = await client
     .from('studio2_notice_versions')
-    .select('notice_id,revision,notice_type,title,body,severity,audience,audience_group,country_ids,acknowledgement_required,display_surfaces,status,scheduled_at,sent_at,changed_by,changed_at')
+    .select('notice_id,revision,notice_type,title,body,severity,audience,audience_group,country_ids,acknowledgement_required,display_surfaces,status,scheduled_at,sent_at,archived_at,changed_by,changed_at')
     .eq('notice_id', noticeId)
     .order('revision', { ascending: false });
   if (error) throw error;
