@@ -28,6 +28,7 @@ const operationalNotice: OperationalNotice = {
   audienceGroup: null,
   scheduledAt: '2026-09-10T17:00:00.000Z',
   cancelledAt: null,
+  archivedAt: null,
   supersededById: null,
   revision: 2,
 };
