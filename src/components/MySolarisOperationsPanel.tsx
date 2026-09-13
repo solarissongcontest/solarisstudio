@@ -1,4 +1,4 @@
-import { ClipboardCheck, ListChecks, MailOpen } from "lucide-react";
+import { ClipboardCheck, ListChecks, MailOpen, Vote } from "lucide-react";
 
 import { Link } from "@tanstack/react-router";
 
@@ -16,9 +16,9 @@ export function MySolarisOperationsPanel() {
   return (
     <Panel
       title="Edition tasks"
-      description="Confirmation, entry readiness and official notices for your delegation live together here."
+      description="Tasks, entry readiness, voting and official notices for your delegation live together here."
     >
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <Link
           to={NAV_TARGETS.mySolarisTasks}
           className="flex min-h-16 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-left transition hover:border-primary/25 hover:bg-surface-strong"
@@ -41,6 +41,18 @@ export function MySolarisOperationsPanel() {
             <span className="block text-sm font-semibold">Entry readiness</span>
             <span className="mt-0.5 block text-[10px] text-muted-foreground">
               Eligibility and workflow
+            </span>
+          </span>
+        </Link>
+        <Link
+          to={NAV_TARGETS.mySolarisVoting}
+          className="flex min-h-16 items-center gap-3 rounded-xl border border-border/70 bg-surface/65 px-3 text-left transition hover:border-primary/25 hover:bg-surface-strong"
+        >
+          <Vote className="size-4 shrink-0 text-primary" />
+          <span>
+            <span className="block text-sm font-semibold">Voting</span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+              Jury and televote
             </span>
           </span>
         </Link>
