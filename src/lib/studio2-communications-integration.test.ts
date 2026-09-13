@@ -30,8 +30,8 @@ describe("Studio 2 Official Communications integration", () => {
     expect(adapter).toContain("from('studio2_official_notices')");
     expect(adapter).toContain("from('studio2_notice_receipts')");
     expect(adapter).toContain("from('studio2_notice_versions')");
-    expect(adapter).toContain("studio2_create_notice_draft");
-    expect(adapter).toContain("studio2_update_notice_draft");
+    expect(adapter).toContain("studio2_create_notice_draft_v2");
+    expect(adapter).toContain("studio2_update_notice_draft_v2");
     expect(adapter).toContain("studio2_schedule_notice");
     expect(adapter).toContain("studio2_publish_notice");
     expect(adapter).toContain("studio2_cancel_notice");
