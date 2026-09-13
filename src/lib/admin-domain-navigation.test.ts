@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { buildAdminDomainNavigation } from "@/components/admin/admin-domains";
+import { buildAdminDomainNavigation } from "../components/admin/admin-domains";
+import { buildAdminNavigation } from "../components/admin/admin-navigation";
 
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
@@ -60,5 +61,25 @@ describe("Organizer domain navigation", () => {
     expect(domainFor("/admin/integrity-appeals")).toBe("rules-integrity");
     expect(domainFor("/admin/storytelling")).toBe("publishing");
     expect(domainFor("/admin/feature-rollout")).toBe("administration");
+  });
+
+  it("gives every internal destination in the detailed registry exactly one domain owner", () => {
+    const domains = buildAdminDomainNavigation("ssc-21");
+    const destinations = buildAdminNavigation("ssc-21")
+      .flatMap((group) => group.items)
+      .filter(
+        (item) =>
+          item.to.startsWith("/admin") ||
+          item.to.startsWith("/televoting/admin") ||
+          item.to.startsWith("/confirmations/admin"),
+      );
+
+    for (const destination of destinations) {
+      const owners = domains.filter((domain) => domain.active(destination.to));
+      expect(
+        owners.map((owner) => owner.label),
+        `${destination.label} (${destination.to}) should belong to exactly one Organizer domain`,
+      ).toHaveLength(1);
+    }
   });
 });
