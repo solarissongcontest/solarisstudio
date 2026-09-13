@@ -198,6 +198,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const accountHref = email ? "/my-solaris" : "/auth";
   const publicLayout = publicLayoutForPath(pathname);
   const showPublicSidebar =
+    !pathname.startsWith("/my-solaris") &&
     !pathname.startsWith("/auth") &&
     !pathname.startsWith("/reset") &&
     !pathname.startsWith("/recover") &&
