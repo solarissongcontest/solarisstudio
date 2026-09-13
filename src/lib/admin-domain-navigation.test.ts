@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { buildAdminContextualSection } from "../components/admin/admin-contextual-navigation";
 import { buildAdminDomainNavigation } from "../components/admin/admin-domains";
 import { buildAdminNavigation } from "../components/admin/admin-navigation";
 
@@ -44,8 +45,40 @@ describe("Organizer domain navigation", () => {
     expect(organizerMenu).toContain("buildAdminNavigation(activeEdition?.slug)");
   });
 
-  it("keeps specialist routes available through contextual navigation and search", () => {
-    expect(sectionNav).toContain("buildAdminNavigation");
+  it("uses the seven-domain model for contextual navigation too", () => {
+    expect(sectionNav).toContain("buildAdminContextualSection");
+    expect(sectionNav).not.toContain("buildAdminNavigation");
+
+    const operations = buildAdminContextualSection("/admin/communications", "ssc-21");
+    expect(operations?.domain.label).toBe("Operations");
+    expect(operations?.tabs.map((tab) => tab.label)).toContain("Communications");
+
+    const governance = buildAdminContextualSection("/admin/integrity-appeals", "ssc-21");
+    expect(governance?.domain.label).toBe("Rules & Integrity");
+    expect(governance?.tabs.map((tab) => tab.label)).toContain("Appeals");
+  });
+
+  it("keeps deep workflow navigation only where the workflow needs it", () => {
+    const delegations = buildAdminContextualSection("/confirmations/admin/rounds", "ssc-21");
+    expect(delegations?.domain.label).toBe("Contest");
+    expect(delegations?.workflow?.label).toBe("Delegations workflow");
+    expect(delegations?.workflow?.tabs.map((tab) => tab.label)).toEqual([
+      "Overview",
+      "Responses",
+      "Rounds",
+      "Calendar",
+      "Access",
+    ]);
+
+    const voting = buildAdminContextualSection("/televoting/admin/intelligence", "ssc-21");
+    expect(voting?.domain.label).toBe("Voting & Results");
+    expect(voting?.workflow?.label).toBe("Voting workflow");
+    expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Friend voting");
+
+    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow).toBeNull();
+  });
+
+  it("keeps every specialist route searchable even when it is not a contextual tab", () => {
     expect(palette).toContain("buildAdminNavigation(activeEdition?.slug).flatMap");
     for (const specialist of [
       '"Reveal Director"',

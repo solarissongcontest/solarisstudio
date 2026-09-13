@@ -24,10 +24,12 @@ describe("Friend-voting network resilience", () => {
     expect(code).toContain("Select an edition or a specific HOD before opening Network");
   });
 
-  it("keeps Friend Voting as its own Voting section tab", () => {
-    const code = source("components/admin/AdminSectionNav.tsx");
-    expect(code).toContain('label: "Friend voting"');
-    expect(code).toContain('to: "/admin/friend-voting"');
-    expect(code).not.toContain('label: "Integrity", to: "/televoting/admin/integrity", active: (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse") || path.startsWith("/admin/friend-voting")');
+  it("keeps Friend Voting as its own Voting workflow tab", () => {
+    const registry = source("components/admin/admin-contextual-navigation.ts");
+    expect(registry).toContain('"Friend voting"');
+    expect(registry).toContain('"/admin/friend-voting"');
+    expect(registry).not.toContain(
+      'path.startsWith("/televoting/admin/anti-abuse") || path.startsWith("/admin/friend-voting")',
+    );
   });
 });
