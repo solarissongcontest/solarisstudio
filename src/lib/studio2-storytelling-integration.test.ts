@@ -12,7 +12,7 @@ const route = source('src/routes/_authenticated/admin/storytelling.tsx');
 const publicArchive = source('src/routes/stories/index.tsx');
 const publicStory = source('src/routes/stories/$editionSlug.tsx');
 const service = source('src/lib/studio2-storytelling.ts');
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const permissions = source('src/lib/permissions-v2.ts');
 const presets = source('src/lib/role-presets.ts');
 
@@ -100,8 +100,8 @@ describe('Studio 2 Phase 12 Storytelling & Anniversary architecture', () => {
     expect(route).not.toContain('createPortal');
     expect(publicArchive).not.toContain('createPortal');
     expect(publicStory).not.toContain('createPortal');
-    expect(nav).toContain('label: "Storytelling"');
-    expect(nav).toContain('to: "/admin/storytelling"');
+    expect(nav).toContain('"Storytelling",');
+    expect(nav).toContain('"/admin/storytelling"');
   });
 
   it('writes immutable receipts and storyline lifecycle events for editorial operations', () => {

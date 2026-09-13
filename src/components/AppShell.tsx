@@ -15,6 +15,12 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { cn } from "@/lib/utils";
+import {
+  PublicDrawerNavigation,
+  PublicSiteSidebar,
+  publicGroup,
+  type PublicNavigationItem,
+} from "@/components/public/PublicSiteNavigation";
 
 const LazyHomeAnniversaryTakeover = lazy(() =>
   import("@/components/HomeAnniversaryTakeover").then((module) => ({
@@ -28,57 +34,14 @@ const LazyEditionHostingExtension = lazy(() =>
   })),
 );
 
-type PublicNavItem = {
-  to: string;
-  label: string;
-  description?: string;
-};
+const EXPLORE_NAV = publicGroup("explore").items;
+const REFERENCE_NAV = publicGroup("reference").items;
+const INSIGHTS_NAV = publicGroup("insights").items;
+const PARTICIPATE_NAV = publicGroup("participate").items;
+const TOOL_NAV = publicGroup("tools").items;
+const ACCOUNT_NAV = publicGroup("account").items;
 
-type DesktopContextGroup = {
-  label: string;
-  description: string;
-  items: PublicNavItem[];
-};
-
-const EXPLORE_NAV: PublicNavItem[] = [
-  { to: "/editions", label: "Editions", description: "See every Solaris Song Contest edition" },
-  { to: "/countries", label: "Countries", description: "See countries, entries and results" },
-  { to: "/shows", label: "Shows", description: "Open semi-finals, finals and results" },
-  { to: "/wiki", label: "Wiki", description: "Read detailed country pages" },
-  { to: "/library", label: "Library", description: "Rules, help and search" },
-];
-
-const MOBILE_EXPLORE_NAV: PublicNavItem[] = EXPLORE_NAV;
-
-const INSIGHTS_NAV: PublicNavItem[] = [
-  { to: "/analysis", label: "Analysis", description: "See what the results and votes show" },
-  { to: "/pulse", label: "Pulse", description: "See what has changed recently" },
-  {
-    to: "/relationships",
-    label: "Relationships",
-    description: "See which countries often vote alike",
-  },
-  { to: "/records", label: "Records", description: "See all-time records and milestones" },
-  { to: "/predictions", label: "Predictions", description: "Build and track predictions" },
-];
-
-const MOBILE_PARTICIPATE_NAV: PublicNavItem[] = [
-  { to: "/participate", label: "Participate", description: "Voting and submissions" },
-  { to: "/tools", label: "Tools", description: "Interactive Solaris tools" },
-  { to: "/guide", label: "Guide", description: "Help using Solaris" },
-];
-
-const TOOL_ROUTES = [
-  "/tools",
-  "/result-lab",
-  "/taste-dna",
-  "/broadcast-intelligence",
-  "/archive-games",
-  "/compare",
-] as const;
-
-const INSIGHT_ROUTES = [...INSIGHTS_NAV.map((item) => item.to), ...TOOL_ROUTES] as string[];
-
+const INSIGHT_ROUTES = [...INSIGHTS_NAV, ...TOOL_NAV].map((item) => item.to);
 const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
 const RESULT_ROUTES = [
   "/results",
@@ -91,73 +54,9 @@ const RESULT_ROUTES = [
   "/taste-dna",
   "/broadcast-intelligence",
 ] as const;
-const PARTICIPATE_ROUTES = [
-  "/participate",
-  "/confirmations",
-  "/jury-voting",
-  "/televoting",
-  "/next-in-line",
-] as const;
-const ACCOUNT_ROUTES = ["/me", "/auth", "/my-solaris", "/country-hub"];
-
-const DESKTOP_CONTEXT_GROUPS: DesktopContextGroup[] = [
-  {
-    label: "Explore Solaris",
-    description: "Move between the public archives without returning to the home page.",
-    items: [
-      { to: "/editions", label: "Editions", description: "Contest archive" },
-      { to: "/countries", label: "Countries", description: "Delegations and records" },
-      { to: "/shows", label: "Shows", description: "Fields and broadcasts" },
-      { to: "/wiki", label: "Wiki", description: "Country articles" },
-      { to: "/results", label: "Results", description: "Rankings and scorecharts" },
-    ],
-  },
-  {
-    label: "Understand results",
-    description: "Move from a result into its patterns, relationships and records.",
-    items: [
-      { to: "/analysis", label: "Analysis", description: "Result patterns" },
-      { to: "/relationships", label: "Relationships", description: "Voting connections" },
-      { to: "/records", label: "Records", description: "All-time milestones" },
-      { to: "/scorecharts", label: "Scorecharts", description: "Detailed votes" },
-      { to: "/pulse", label: "Pulse", description: "Recent updates" },
-    ],
-  },
-  {
-    label: "Participate",
-    description: "All participant services stay in one connected workspace.",
-    items: [
-      { to: "/participate", label: "Start here", description: "Choose a service" },
-      { to: "/confirmations", label: "Confirmations", description: "Submit or edit an entry" },
-      { to: "/jury-voting", label: "Jury voting", description: "Send jury points" },
-      { to: "/televoting", label: "Televoting", description: "Vote as the audience" },
-      { to: "/next-in-line", label: "Next in Line", description: "Enter the side competition" },
-    ],
-  },
-  {
-    label: "Interactive tools",
-    description: "Compare, test and replay published Solaris data.",
-    items: [
-      { to: "/tools", label: "All tools", description: "Choose a tool" },
-      { to: "/predictions", label: "Predictions", description: "Build and track a prediction" },
-      { to: "/compare", label: "Compare", description: "Countries side by side" },
-      { to: "/result-lab", label: "Result Lab", description: "Test result scenarios" },
-      { to: "/taste-dna", label: "Taste DNA", description: "Explore voting taste" },
-      { to: "/broadcast-intelligence", label: "Broadcast", description: "Replay result moments" },
-      { to: "/archive-games", label: "Archive Games", description: "Play with history" },
-    ],
-  },
-  {
-    label: "My Solaris",
-    description: "Your personal activity, participation and country tools.",
-    items: [
-      { to: "/my-solaris", label: "My Solaris", description: "Personal overview" },
-      { to: "/country-hub", label: "Country workspace", description: "Country, entries and page" },
-      { to: "/confirmations", label: "My confirmation", description: "Open your response" },
-      { to: "/participate", label: "Participation", description: "Voting and submissions" },
-    ],
-  },
-];
+const PARTICIPATE_ROUTES = PARTICIPATE_NAV.map((item) => item.to);
+const REFERENCE_ROUTES = REFERENCE_NAV.map((item) => item.to);
+const ACCOUNT_ROUTES = ["/me", "/auth", ...ACCOUNT_NAV.map((item) => item.to)];
 
 type PublicLayout = "home" | "reading" | "directory" | "detail" | "data" | "workspace" | "core";
 
@@ -206,14 +105,6 @@ function pathMatches(pathname: string, route: string) {
 
 function anyPathMatches(pathname: string, routes: readonly string[]) {
   return routes.some((route) => pathMatches(pathname, route));
-}
-
-function desktopContextForPath(pathname: string) {
-  return (
-    DESKTOP_CONTEXT_GROUPS.find((group) =>
-      group.items.some((item) => pathMatches(pathname, item.to)),
-    ) ?? null
-  );
 }
 
 function productEyebrow(eyebrow?: string) {
@@ -305,11 +196,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const accountHref = email ? "/my-solaris" : "/auth";
   const publicLayout = publicLayoutForPath(pathname);
-  const desktopContext =
-    ["directory", "data", "workspace"].includes(publicLayout) ||
-    (publicLayout === "detail" && !pathname.startsWith("/wiki/"))
-      ? desktopContextForPath(pathname)
-      : null;
+  const showPublicSidebar =
+    !pathname.startsWith("/auth") &&
+    !pathname.startsWith("/reset") &&
+    !pathname.startsWith("/recover") &&
+    !pathname.startsWith("/broadcast/");
   const visibleAccountEmail =
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const resultsActive = pathMatches(pathname, "/results");
@@ -351,7 +242,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const exploreActive = anyPathMatches(pathname, EXPLORE_ROUTES);
   const insightsActive = anyPathMatches(pathname, INSIGHT_ROUTES);
   const participateActive = anyPathMatches(pathname, PARTICIPATE_ROUTES);
-  const guideActive = pathMatches(pathname, "/guide");
+  const referenceActive = anyPathMatches(pathname, REFERENCE_ROUTES);
   const accountActive = anyPathMatches(pathname, ACCOUNT_ROUTES) || pathname.startsWith("/admin");
 
   return (
@@ -399,14 +290,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
 
             <Link
-              to="/predictions"
-              aria-current={pathMatches(pathname, "/predictions") ? "page" : undefined}
-              className={desktopNavClass(pathMatches(pathname, "/predictions"))}
-            >
-              Predict
-            </Link>
-
-            <Link
               to="/participate"
               aria-current={participateActive ? "page" : undefined}
               className={cn(
@@ -419,13 +302,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               Participate
             </Link>
 
-            <Link
-              to="/guide"
-              aria-current={guideActive ? "page" : undefined}
-              className={desktopNavClass(guideActive)}
-            >
-              Guide
-            </Link>
+            <DesktopNavMenu
+              key={`reference-${pathname}`}
+              label="Rules & help"
+              active={referenceActive}
+              items={REFERENCE_NAV}
+            />
 
             {email ? (
               <details key={`account-${pathname}`} className="group relative ml-1">
@@ -517,44 +399,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <nav className="scroll-slim flex-1 overflow-y-auto p-3" aria-label="Mobile navigation">
-              <MobileNavSection title="Explore" items={MOBILE_EXPLORE_NAV} pathname={pathname} />
-              <MobileNavSection title="Insights" items={INSIGHTS_NAV} pathname={pathname} />
-              <MobileNavSection
-                title="Participate"
-                items={MOBILE_PARTICIPATE_NAV}
-                pathname={pathname}
-              />
-
-              {email && (
-                <div className="mb-5 border-t border-border/55 pt-4">
-                  <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
-                    MySolaris
-                  </p>
-                  <Link
-                    to="/my-solaris"
-                    className={mobileDrawerLink(
-                      pathMatches(pathname, "/my-solaris") || pathMatches(pathname, "/me"),
-                    )}
-                  >
-                    MySolaris dashboard
-                  </Link>
-                  <Link
-                    to="/country-hub"
-                    className={mobileDrawerLink(pathMatches(pathname, "/country-hub"))}
-                  >
-                    Country workspace
-                  </Link>
-                  {roleItems.map((item) => (
-                    <Link
-                      key={item.to}
-                      to={item.to as any}
-                      className={mobileDrawerLink(pathMatches(pathname, item.to))}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
+              <PublicDrawerNavigation pathname={pathname} isOrganizer={access.isOrganizer} />
             </nav>
 
             <div
@@ -594,10 +439,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           PUBLIC_CANVAS_CLASS[publicLayout],
         )}
       >
-        {desktopContext ? (
-          <div className="desktop-context-layout">
-            <DesktopContextRail group={desktopContext} pathname={pathname} />
-            <div className="desktop-context-content min-w-0">
+        {showPublicSidebar ? (
+          <div className="public-site-layout">
+            <PublicSiteSidebar pathname={pathname} isOrganizer={access.isOrganizer} />
+            <div className="public-site-content min-w-0">
+              {isHomePage && (
+                <Suspense fallback={null}>
+                  <LazyHomeAnniversaryTakeover />
+                </Suspense>
+              )}
               {children}
               {isEditionPage && (
                 <Suspense fallback={null}>
@@ -652,51 +502,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function DesktopContextRail({ group, pathname }: { group: DesktopContextGroup; pathname: string }) {
-  return (
-    <aside className="desktop-context-rail hidden lg:block">
-      <nav aria-label={`${group.label} navigation`}>
-        <p className="desktop-context-label">{group.label}</p>
-        <p className="desktop-context-description">{group.description}</p>
-        <div className="desktop-context-links">
-          {group.items.map((item) => {
-            const active = pathMatches(pathname, item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to as any}
-                aria-current={active ? "page" : undefined}
-                className={cn("desktop-context-link", active && "is-active")}
-              >
-                <span>{item.label}</span>
-                {item.description && <small>{item.description}</small>}
-              </Link>
-            );
-          })}
-        </div>
-        <Link to="/guide" className="desktop-context-guide">
-          Need help? Open the Guide →
-        </Link>
-      </nav>
-    </aside>
-  );
-}
-
 function desktopNavClass(active: boolean) {
   return cn(
     "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
     active
       ? "bg-surface-strong text-foreground"
       : "text-muted-foreground hover:bg-surface hover:text-foreground",
-  );
-}
-
-function mobileDrawerLink(active: boolean) {
-  return cn(
-    "mb-1 flex min-h-11 items-center rounded-xl border px-3 text-sm font-semibold transition-colors",
-    active
-      ? "border-primary/15 bg-surface-strong text-foreground"
-      : "border-transparent text-muted-foreground hover:bg-surface hover:text-foreground",
   );
 }
 
@@ -708,8 +519,8 @@ function DesktopNavMenu({
 }: {
   label: string;
   active: boolean;
-  items: PublicNavItem[];
-  footer?: PublicNavItem;
+  items: PublicNavigationItem[];
+  footer?: PublicNavigationItem;
 }) {
   return (
     <details className="group relative">
@@ -748,40 +559,6 @@ function DesktopNavMenu({
         )}
       </div>
     </details>
-  );
-}
-
-function MobileNavSection({
-  title,
-  items,
-  pathname,
-}: {
-  title: string;
-  items: PublicNavItem[];
-  pathname: string;
-}) {
-  return (
-    <div className="mb-3">
-      <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => (
-        <Link
-          key={item.to}
-          to={item.to as any}
-          className={mobileDrawerLink(pathMatches(pathname, item.to))}
-        >
-          <span className="min-w-0">
-            <span className="block truncate">{item.label}</span>
-            {item.description && (
-              <span className="mt-0.5 block text-[10px] font-normal leading-4 text-muted-foreground/70">
-                {item.description}
-              </span>
-            )}
-          </span>
-        </Link>
-      ))}
-    </div>
   );
 }
 

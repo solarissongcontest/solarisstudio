@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/results.tsx');
 const service = source('src/lib/studio2-results-operations.ts');
 const migration = source('supabase/migrations/20260912154500_studio2_results_operations.sql');
@@ -14,8 +14,8 @@ const publishedGuard = source('supabase/migrations/20260912154600_studio2_result
 
 describe('Studio 2 Phase 10 results operations', () => {
   it('adds one organizer results control plane and keeps specialist systems authoritative', () => {
-    expect(nav).toContain('label: "Results"');
-    expect(nav).toContain('to: "/admin/results"');
+    expect(nav).toContain('"Results operations",');
+    expect(nav).toContain('"/admin/results"');
     expect(route).toContain("createFileRoute('/_authenticated/admin/results')");
     expect(route).toContain('/televoting/admin/result-integrity');
     expect(route).toContain('/admin/friend-voting');

@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/broadcast-rundown.tsx');
 const adapter = source('src/lib/studio2-broadcast-rundown.ts');
 const timingEngine = source('src/lib/broadcast-rundown.ts');
@@ -15,8 +15,8 @@ const liveLockGuard = source('supabase/migrations/20260912141100_studio2_broadca
 
 describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
   it('extends the existing Organizer rundown surface and timing engine', () => {
-    expect(nav).toContain('label: "Rundown"');
-    expect(nav).toContain('to: "/admin/broadcast-rundown"');
+    expect(nav).toContain('"Broadcast rundown",');
+    expect(nav).toContain('"/admin/broadcast-rundown"');
     expect(route).toContain("createFileRoute('/_authenticated/admin/broadcast-rundown')");
     expect(route).toContain('buildBroadcastRundown');
     expect(timingEngine).toContain("['planned', 'ready', 'live', 'completed', 'skipped']");

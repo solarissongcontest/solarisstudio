@@ -13,14 +13,14 @@ const readiness = source('src/lib/country-operational-readiness.ts');
 const cockpit = source('src/lib/studio2-country-cockpit.ts');
 const actionCenterRoute = source('src/routes/_authenticated/admin/action-center.tsx');
 const eventContract = source('src/lib/contest-events.ts');
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const migration = source('supabase/migrations/20260911202500_studio2_eligibility_overrides.sql');
 
 describe('Studio 2 Phase 7 eligibility integration', () => {
   it('exposes the master-plan organizer eligibility route and exact status vocabulary', () => {
     expect(route).toContain("createFileRoute('/_authenticated/admin/eligibility')");
-    expect(nav).toContain('label: "Eligibility"');
-    expect(nav).toContain('to: "/admin/eligibility"');
+    expect(nav).toContain('"Eligibility",');
+    expect(nav).toContain('"/admin/eligibility"');
     for (const status of ['eligible', 'incomplete', 'warning', 'blocked', 'overridden']) {
       expect(model).toContain(`'${status}'`);
     }

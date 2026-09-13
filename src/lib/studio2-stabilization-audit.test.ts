@@ -25,7 +25,7 @@ function routeFile(route: string) {
   return null;
 }
 
-const adminNav = source('src/components/admin/AdminNav.tsx');
+const adminNav = source('src/components/admin/admin-navigation.ts');
 const hodLauncher = source('src/components/HodWorkspaceLauncher.tsx');
 const adminRoute = source('src/routes/_authenticated/admin/route.tsx');
 
