@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 const migration = source(
-  "supabase/migrations/20260913120500_fix_studio2_communications_rls.sql",
+  "supabase/migrations/20260913110855_fix_studio2_communications_rls.sql",
 );
 
 function policyBody(name: string) {
