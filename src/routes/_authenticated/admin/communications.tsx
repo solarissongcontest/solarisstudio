@@ -1,21 +1,46 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
-import { Archive, CalendarClock, CheckCircle2, CopyPlus, Eye, Mail, Megaphone, PencilLine, Send } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  ArchiveX,
+  CalendarClock,
+  CheckCircle2,
+  CopyPlus,
+  Eye,
+  Globe2,
+  House,
+  Mail,
+  Megaphone,
+  PencilLine,
+  Send,
+  Trash2,
+  UsersRound,
+} from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
-import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import {
+  AdminCard,
+  AdminCardHeader,
+  AdminEmptyState,
+  AdminPageHeader,
+  AdminStatus,
+} from '@/components/admin/AdminUI';
 import { useCountries } from '@/lib/data';
 import {
   NOTICE_AUDIENCES,
+  NOTICE_DISPLAY_SURFACES,
   NOTICE_EDITION_GROUPS,
   NOTICE_SEVERITIES,
   NOTICE_STATES,
   NOTICE_TYPES,
   noticeStateLabel,
+  noticeSurfaceLabel,
   noticeTypeLabel,
   type NoticeAudience,
+  type NoticeDisplaySurface,
   type NoticeEditionGroup,
   type NoticeSeverity,
   type NoticeState,
@@ -23,29 +48,33 @@ import {
   type OperationalNotice,
 } from '@/lib/official-communications';
 import {
+  archiveStudio2Communication,
   cancelStudio2Notice,
   createStudio2NoticeDraft,
   createSupersedingStudio2NoticeDraft,
+  deleteStudio2Communication,
   loadStudio2NoticeRevisions,
   loadStudio2Notices,
   publishStudio2Notice,
+  restoreStudio2Communication,
   scheduleStudio2Notice,
   updateStudio2NoticeDraft,
   type SaveStudio2NoticeInput,
 } from '@/lib/studio2-communications';
 
-const NOTICE_STATE_SET = new Set<string>(NOTICE_STATES);
+type CommunicationsStateFilter = NoticeState | 'archived';
+const NOTICE_STATE_SET = new Set<string>([...NOTICE_STATES, 'archived']);
 
 type CommunicationsSearch = {
   notice?: string;
-  state?: NoticeState;
+  state?: CommunicationsStateFilter;
 };
 
 export const Route = createFileRoute('/_authenticated/admin/communications')({
   validateSearch: (search: Record<string, unknown>): CommunicationsSearch => ({
     notice: typeof search.notice === 'string' && search.notice ? search.notice : undefined,
     state: typeof search.state === 'string' && NOTICE_STATE_SET.has(search.state)
-      ? search.state as NoticeState
+      ? search.state as CommunicationsStateFilter
       : undefined,
   }),
   head: () => ({
@@ -68,12 +97,15 @@ function CommunicationsCentre() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [severity, setSeverity] = useState<NoticeSeverity>('info');
+  const [displaySurfaces, setDisplaySurfaces] = useState<NoticeDisplaySurface[]>(['delegation_inbox']);
   const [audience, setAudience] = useState<NoticeAudience>('all_delegations');
   const [audienceGroup, setAudienceGroup] = useState<NoticeEditionGroup | null>(null);
   const [countryIds, setCountryIds] = useState<string[]>([]);
   const [acknowledgementRequired, setAcknowledgementRequired] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
   const noticesQuery = useQuery({
     queryKey: ['studio2-official-notices', editionId ?? 'all'],
@@ -95,15 +127,21 @@ function CommunicationsCentre() {
     title,
     body,
     severity,
-    audience,
-    audienceGroup: audience === 'edition_group' ? audienceGroup : null,
-    countryIds: audience === 'specific_countries' ? countryIds : [],
-    acknowledgementRequired,
+    displaySurfaces,
+    audience: inboxEnabled ? audience : 'all_delegations',
+    audienceGroup: inboxEnabled && audience === 'edition_group' ? audienceGroup : null,
+    countryIds: inboxEnabled && audience === 'specific_countries' ? countryIds : [],
+    acknowledgementRequired: inboxEnabled ? acknowledgementRequired : false,
   });
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['studio2-official-notices'] });
-    if (search.notice) await queryClient.invalidateQueries({ queryKey: ['studio2-notice-revisions', search.notice] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['studio2-official-notices'] }),
+      queryClient.invalidateQueries({ queryKey: ['official-announcements'] }),
+    ]);
+    if (search.notice) {
+      await queryClient.invalidateQueries({ queryKey: ['studio2-notice-revisions', search.notice] });
+    }
   };
 
   const saveDraft = useMutation({
@@ -162,25 +200,53 @@ function CommunicationsCentre() {
     },
   });
 
+  const archiveCommunication = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => archiveStudio2Communication(id, reason),
+    onSuccess: refresh,
+  });
+
+  const restoreCommunication = useMutation({
+    mutationFn: (id: string) => restoreStudio2Communication(id),
+    onSuccess: refresh,
+  });
+
+  const deleteCommunication = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteStudio2Communication(id, reason),
+    onSuccess: async (_result, variables) => {
+      if (editingId === variables.id) resetComposer();
+      if (search.notice === variables.id) {
+        void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
+      }
+      await refresh();
+    },
+  });
+
   const acknowledgementCount = useMemo(
     () => notices.reduce((sum, item) => sum + item.receipts.acknowledged, 0),
     [notices],
   );
-  const filteredNotices = useMemo(
-    () => search.state ? notices.filter((item) => item.notice.state === search.state) : notices,
-    [notices, search.state],
-  );
+  const filteredNotices = useMemo(() => {
+    if (search.state === 'archived') return notices.filter((item) => Boolean(item.notice.archivedAt));
+    if (search.state) return notices.filter((item) => item.notice.state === search.state);
+    return notices;
+  }, [notices, search.state]);
 
   const mutationError = saveDraft.error
     || scheduleNotice.error
     || publishNotice.error
     || cancelNotice.error
-    || supersedeNotice.error;
+    || supersedeNotice.error
+    || archiveCommunication.error
+    || restoreCommunication.error
+    || deleteCommunication.error;
   const busy = saveDraft.isPending
     || scheduleNotice.isPending
     || publishNotice.isPending
     || cancelNotice.isPending
-    || supersedeNotice.isPending;
+    || supersedeNotice.isPending
+    || archiveCommunication.isPending
+    || restoreCommunication.isPending
+    || deleteCommunication.isPending;
 
   function loadIntoComposer(notice: OperationalNotice) {
     setEditingId(notice.id);
@@ -188,6 +254,7 @@ function CommunicationsCentre() {
     setTitle(notice.title);
     setBody(notice.body);
     setSeverity(notice.severity);
+    setDisplaySurfaces([...notice.displaySurfaces]);
     setAudience(notice.audience);
     setAudienceGroup(notice.audienceGroup);
     setCountryIds([...notice.countryIds]);
@@ -201,11 +268,35 @@ function CommunicationsCentre() {
     setTitle('');
     setBody('');
     setSeverity('info');
+    setDisplaySurfaces(['delegation_inbox']);
     setAudience('all_delegations');
     setAudienceGroup(null);
     setCountryIds([]);
     setAcknowledgementRequired(false);
     setScheduledAt('');
+  }
+
+  function requestArchive(notice: OperationalNotice) {
+    const reason = window.prompt(
+      'Archive reason (optional). This removes the communication from Public Home, MySolaris Home and delegation inboxes until restored:',
+    );
+    if (reason === null) return;
+    if (window.confirm(`Archive “${notice.title}” and remove it from all live surfaces?`)) {
+      archiveCommunication.mutate({ id: notice.id, reason });
+    }
+  }
+
+  function requestDelete(notice: OperationalNotice) {
+    const reason = window.prompt(
+      'Reason for permanent deletion (required and retained in the private audit log):',
+    );
+    if (!reason?.trim()) return;
+    const publishedWarning = notice.sentAt
+      ? ' This was previously published; its content, revisions and receipt rows will be deleted, while a minimal deletion audit record remains.'
+      : ' This draft has never been published.';
+    if (window.confirm(`Permanently delete “${notice.title}”?${publishedWarning} This cannot be undone.`)) {
+      deleteCommunication.mutate({ id: notice.id, reason });
+    }
   }
 
   const toggleCountry = (countryId: string) => {
@@ -214,17 +305,41 @@ function CommunicationsCentre() {
       : [...current, countryId]);
   };
 
+  const toggleSurface = (surface: NoticeDisplaySurface) => {
+    setDisplaySurfaces((current) => {
+      const next = current.includes(surface)
+        ? current.filter((candidate) => candidate !== surface)
+        : [...current, surface];
+      if (surface === 'delegation_inbox' && current.includes(surface)) {
+        setAcknowledgementRequired(false);
+      }
+      return next;
+    });
+  };
+
+  const saveAllowed = canSave(
+    title,
+    body,
+    displaySurfaces,
+    inboxEnabled ? audience : 'all_delegations',
+    inboxEnabled ? countryIds : [],
+    inboxEnabled ? audienceGroup : null,
+  );
+
   return (
     <AdminPage>
       <div className="mx-auto max-w-7xl space-y-4">
         <AdminPageHeader
-          eyebrow="Solaris Studio 2 · Operations"
+          eyebrow="Operations · Communications"
           title="Official Communications"
-          description="Draft, preview, schedule and publish authoritative notices with edition-aware targeting, acknowledgement tracking, revision history and controlled superseding."
+          description="Publish one authoritative message to delegation inboxes, every MySolaris home, the public homepage, or any combination of those destinations. Archive removes a publication everywhere without erasing its audit history."
           actions={
             <button
               type="button"
-              onClick={() => { resetComposer(); void navigate({ search: search.state ? { state: search.state } : {}, replace: true }); }}
+              onClick={() => {
+                resetComposer();
+                void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
+              }}
               className="admin-action-secondary"
             >
               New draft
@@ -232,17 +347,54 @@ function CommunicationsCentre() {
           }
         />
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-5">
           <Metric label="Total" value={notices.length} />
           <Metric label="Draft / scheduled" value={notices.filter((item) => ['draft', 'scheduled'].includes(item.notice.state)).length} />
-          <Metric label="Published" value={notices.filter((item) => item.notice.state === 'published').length} />
+          <Metric label="Published" value={notices.filter((item) => item.notice.state === 'published' && !item.notice.archivedAt).length} />
+          <Metric label="Archived" value={notices.filter((item) => item.notice.archivedAt).length} />
           <Metric label="Acknowledged" value={acknowledgementCount} />
         </section>
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <AdminCard strong>
-            <AdminCardHeader eyebrow={editingId ? 'Edit lifecycle' : 'Compose'} title={editingId ? 'Edit notice draft' : 'Create notice draft'} />
+            <AdminCardHeader
+              eyebrow={editingId ? 'Edit lifecycle' : 'Compose'}
+              title={editingId ? 'Edit communication' : 'Create communication'}
+            />
             <div className="mt-4 space-y-4">
+              <fieldset>
+                <legend className="text-sm font-semibold">Where should this appear?</legend>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Choose one or more destinations. Home-page placements are broadcasts to everyone on that surface; delegation targeting only applies to the inbox.
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <DestinationOption
+                    checked={displaySurfaces.includes('delegation_inbox')}
+                    onChange={() => toggleSurface('delegation_inbox')}
+                    icon={UsersRound}
+                    title="Delegation inbox"
+                    description="Target HODs, jurors, countries or staff."
+                  />
+                  <DestinationOption
+                    checked={displaySurfaces.includes('mysolaris_home')}
+                    onChange={() => toggleSurface('mysolaris_home')}
+                    icon={House}
+                    title="MySolaris Home"
+                    description="Show to every signed-in MySolaris user."
+                  />
+                  <DestinationOption
+                    checked={displaySurfaces.includes('public_home')}
+                    onChange={() => toggleSurface('public_home')}
+                    icon={Globe2}
+                    title="Public Home"
+                    description="Show on Solaris Today to everyone."
+                  />
+                </div>
+                {!displaySurfaces.length ? (
+                  <p className="mt-2 text-xs font-semibold text-red-200">Choose at least one destination.</p>
+                ) : null}
+              </fieldset>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <SelectField label="Communication type" value={noticeType} onChange={(value) => setNoticeType(value as NoticeType)} options={NOTICE_TYPES} />
                 <SelectField label="Severity" value={severity} onChange={(value) => setSeverity(value as NoticeSeverity)} options={NOTICE_SEVERITIES} />
@@ -250,90 +402,142 @@ function CommunicationsCentre() {
 
               <label className="block space-y-1.5 text-sm">
                 <span className="font-semibold">Title</span>
-                <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-black/10 px-3 outline-none focus:border-sky-300/30" placeholder="Submission deadline updated" />
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-black/10 px-3 outline-none focus:border-sky-300/30"
+                  placeholder="Submission deadline updated"
+                />
               </label>
 
               <label className="block space-y-1.5 text-sm">
                 <span className="font-semibold">Message</span>
-                <textarea value={body} onChange={(event) => setBody(event.target.value)} className="min-h-36 w-full rounded-xl border border-white/[0.09] bg-black/10 p-3 outline-none focus:border-sky-300/30" placeholder="Write the official TSBC notice…" />
+                <textarea
+                  value={body}
+                  onChange={(event) => setBody(event.target.value)}
+                  className="min-h-36 w-full rounded-xl border border-white/[0.09] bg-black/10 p-3 outline-none focus:border-sky-300/30"
+                  placeholder="Write the official TSBC communication…"
+                />
               </label>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <SelectField
-                  label="Audience"
-                  value={audience}
-                  onChange={(value) => {
-                    const next = value as NoticeAudience;
-                    setAudience(next);
-                    if (next !== 'specific_countries') setCountryIds([]);
-                    if (next !== 'edition_group') setAudienceGroup(null);
-                  }}
-                  options={NOTICE_AUDIENCES}
-                />
-                {audience === 'edition_group' ? (
-                  <SelectField label="Edition group" value={audienceGroup ?? ''} onChange={(value) => setAudienceGroup(value as NoticeEditionGroup)} options={NOTICE_EDITION_GROUPS} placeholder="Choose group" />
-                ) : (
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-xs text-muted-foreground">
-                    Audience resolution is enforced server-side from canonical country, juror, role and capability data.
+              {inboxEnabled ? (
+                <div className="space-y-3 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+                  <div>
+                    <p className="text-sm font-semibold">Delegation inbox targeting</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      These controls only affect the Delegation inbox. Public Home and MySolaris Home remain broadcast surfaces.
+                    </p>
                   </div>
-                )}
-              </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <SelectField
+                      label="Audience"
+                      value={audience}
+                      onChange={(value) => {
+                        const next = value as NoticeAudience;
+                        setAudience(next);
+                        if (next !== 'specific_countries') setCountryIds([]);
+                        if (next !== 'edition_group') setAudienceGroup(null);
+                      }}
+                      options={NOTICE_AUDIENCES}
+                    />
+                    {audience === 'edition_group' ? (
+                      <SelectField
+                        label="Edition group"
+                        value={audienceGroup ?? ''}
+                        onChange={(value) => setAudienceGroup(value as NoticeEditionGroup)}
+                        options={NOTICE_EDITION_GROUPS}
+                        placeholder="Choose group"
+                      />
+                    ) : (
+                      <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3 text-xs text-muted-foreground">
+                        Recipient eligibility is resolved server-side from country ownership, jury assignments, roles and capabilities.
+                      </div>
+                    )}
+                  </div>
 
-              {audience === 'specific_countries' ? (
-                <fieldset className="rounded-xl border border-white/[0.07] p-3">
-                  <legend className="px-1 text-sm font-semibold">Countries</legend>
-                  <div className="mt-2 grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2">
-                    {countries.map((country) => (
-                      <label key={country.id} className="flex items-center gap-2 rounded-lg border border-white/[0.06] px-3 py-2 text-sm">
-                        <input type="checkbox" checked={countryIds.includes(country.id)} onChange={() => toggleCountry(country.id)} />
-                        <span className="truncate">{country.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
+                  {audience === 'specific_countries' ? (
+                    <fieldset className="rounded-xl border border-white/[0.07] p-3">
+                      <legend className="px-1 text-sm font-semibold">Countries</legend>
+                      <div className="mt-2 grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2">
+                        {countries.map((country) => (
+                          <label key={country.id} className="flex items-center gap-2 rounded-lg border border-white/[0.06] px-3 py-2 text-sm">
+                            <input type="checkbox" checked={countryIds.includes(country.id)} onChange={() => toggleCountry(country.id)} />
+                            <span className="truncate">{country.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ) : null}
+
+                  <label className="flex items-start gap-3 rounded-xl border border-white/[0.07] p-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={acknowledgementRequired}
+                      onChange={(event) => setAcknowledgementRequired(event.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="block font-semibold">Require acknowledgement</span>
+                      <span className="text-muted-foreground">Recipients acknowledge it from MySolaris → Notices.</span>
+                    </span>
+                  </label>
+                </div>
               ) : null}
 
-              <label className="flex items-start gap-3 rounded-xl border border-white/[0.07] p-3 text-sm">
-                <input type="checkbox" checked={acknowledgementRequired} onChange={(event) => setAcknowledgementRequired(event.target.checked)} className="mt-0.5" />
-                <span>
-                  <span className="block font-semibold">Require acknowledgement</span>
-                  <span className="text-muted-foreground">Recipients must explicitly acknowledge this notice in Country Hub.</span>
-                </span>
-              </label>
-
               <AdminCard>
-                <AdminCardHeader eyebrow="Preview" title={title.trim() || 'Untitled notice'} />
+                <AdminCardHeader eyebrow="Preview" title={title.trim() || 'Untitled communication'} />
                 <div className="mt-3 flex flex-wrap gap-2">
                   <AdminStatus tone={severityTone(severity)}>{humanize(severity)}</AdminStatus>
                   <AdminStatus tone="neutral">{noticeTypeLabel(noticeType)}</AdminStatus>
-                  <AdminStatus tone="neutral">{humanize(audience)}</AdminStatus>
+                  {displaySurfaces.map((surface) => (
+                    <AdminStatus key={surface} tone="info">{noticeSurfaceLabel(surface)}</AdminStatus>
+                  ))}
+                  {inboxEnabled ? <AdminStatus tone="neutral">{humanize(audience)}</AdminStatus> : null}
                 </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{body.trim() || 'Your message preview will appear here.'}</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
+                  {body.trim() || 'Your message preview will appear here.'}
+                </p>
               </AdminCard>
 
               <label className="block space-y-1.5 text-sm">
                 <span className="font-semibold">Scheduled publication</span>
-                <input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3" />
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(event) => setScheduledAt(event.target.value)}
+                  className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3"
+                />
               </label>
 
               {mutationError ? (
                 <div className="rounded-xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">
-                  {errorMessage(mutationError, 'The notice operation failed.')}
+                  {errorMessage(mutationError, 'The communication operation failed.')}
                 </div>
               ) : null}
 
               <div className="grid gap-2 sm:grid-cols-3">
-                <button type="button" disabled={busy || !canSave(title, body, audience, countryIds, audienceGroup)} onClick={() => saveDraft.mutate()} className="admin-action-secondary min-h-11 disabled:opacity-50">
+                <button
+                  type="button"
+                  disabled={busy || !saveAllowed}
+                  onClick={() => saveDraft.mutate()}
+                  className="admin-action-secondary min-h-11 disabled:opacity-50"
+                >
                   <PencilLine className="size-4" /> Save draft
                 </button>
-                <button type="button" disabled={busy || !scheduledAt || !canSave(title, body, audience, countryIds, audienceGroup)} onClick={() => scheduleNotice.mutate()} className="admin-action-secondary min-h-11 disabled:opacity-50">
+                <button
+                  type="button"
+                  disabled={busy || !scheduledAt || !saveAllowed}
+                  onClick={() => scheduleNotice.mutate()}
+                  className="admin-action-secondary min-h-11 disabled:opacity-50"
+                >
                   <CalendarClock className="size-4" /> Schedule
                 </button>
                 <button
                   type="button"
-                  disabled={busy || !canSave(title, body, audience, countryIds, audienceGroup)}
+                  disabled={busy || !saveAllowed}
                   onClick={() => {
-                    if (window.confirm('Publish this official notice now? Recipients may see it immediately.')) publishNotice.mutate();
+                    const surfaces = displaySurfaces.map(noticeSurfaceLabel).join(', ');
+                    if (window.confirm(`Publish this communication now to: ${surfaces}?`)) publishNotice.mutate();
                   }}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
@@ -349,62 +553,149 @@ function CommunicationsCentre() {
                 <AdminCardHeader eyebrow="Operations history" title="Communications" />
                 <select
                   value={search.state ?? ''}
-                  onChange={(event) => void navigate({ search: { ...search, state: event.target.value ? event.target.value as NoticeState : undefined }, replace: true })}
+                  onChange={(event) => void navigate({
+                    search: {
+                      ...search,
+                      state: event.target.value ? event.target.value as CommunicationsStateFilter : undefined,
+                    },
+                    replace: true,
+                  })}
                   className="min-h-10 rounded-xl border border-white/[0.09] bg-background px-3 text-sm"
-                  aria-label="Filter notices by state"
+                  aria-label="Filter communications by state"
                 >
                   <option value="">All states</option>
-                  {NOTICE_STATES.map((state) => <option key={state} value={state}>{noticeStateLabel(state)}</option>)}
+                  <option value="archived">Archived</option>
+                  {NOTICE_STATES.map((state) => (
+                    <option key={state} value={state}>{noticeStateLabel(state)}</option>
+                  ))}
                 </select>
               </div>
 
               <div className="mt-4">
                 {noticesQuery.isLoading ? (
-                  <p className="py-10 text-center text-sm text-muted-foreground">Loading notices…</p>
+                  <p className="py-10 text-center text-sm text-muted-foreground">Loading communications…</p>
                 ) : noticesQuery.error ? (
-                  <AdminEmptyState icon={Mail} title="Communications unavailable" description={errorMessage(noticesQuery.error, 'The communications service could not be loaded.')} />
+                  <AdminEmptyState
+                    icon={Mail}
+                    title="Communications unavailable"
+                    description={errorMessage(noticesQuery.error, 'The communications service could not be loaded.')}
+                  />
                 ) : filteredNotices.length === 0 ? (
-                  <AdminEmptyState icon={Megaphone} title="No notices in this view" description="Drafts, scheduled messages and published communication will appear here." />
+                  <AdminEmptyState
+                    icon={Megaphone}
+                    title="No communications in this view"
+                    description="Drafts, scheduled messages, published communication and archived history will appear here."
+                  />
                 ) : (
                   <div className="divide-y divide-white/[0.07]">
                     {filteredNotices.map(({ notice, receipts }) => (
                       <article key={notice.id} className="py-4 first:pt-0 last:pb-0">
                         <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <button type="button" className="text-left font-semibold hover:underline" onClick={() => void navigate({ search: { ...search, notice: notice.id }, replace: true })}>{notice.title}</button>
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              className="text-left font-semibold hover:underline"
+                              onClick={() => void navigate({ search: { ...search, notice: notice.id }, replace: true })}
+                            >
+                              {notice.title}
+                            </button>
                             <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                              <span>{noticeTypeLabel(notice.noticeType)}</span><span>·</span><span>{humanize(notice.audience)}</span><span>·</span><span>r{notice.revision}</span>
+                              <span>{noticeTypeLabel(notice.noticeType)}</span>
+                              <span>·</span>
+                              <span>r{notice.revision}</span>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            {notice.archivedAt ? <AdminStatus tone="neutral">Archived</AdminStatus> : null}
                             <AdminStatus tone={stateTone(notice.state)}>{noticeStateLabel(notice.state)}</AdminStatus>
                             <AdminStatus tone={severityTone(notice.severity)}>{humanize(notice.severity)}</AdminStatus>
                           </div>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {notice.displaySurfaces.map((surface) => (
+                            <AdminStatus key={surface} tone="info">{noticeSurfaceLabel(surface)}</AdminStatus>
+                          ))}
                         </div>
                         <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{notice.body}</p>
                         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {notice.state === 'scheduled' ? <span>Scheduled {formatTimestamp(notice.scheduledAt)}</span> : null}
                           {notice.sentAt ? <span>Published {formatTimestamp(notice.sentAt)}</span> : null}
+                          {notice.archivedAt ? <span>Archived {formatTimestamp(notice.archivedAt)}</span> : null}
+                          {notice.displaySurfaces.includes('delegation_inbox') ? <span>Inbox: {humanize(notice.audience)}</span> : null}
                           {notice.acknowledgementRequired ? <span>{receipts.acknowledged} acknowledged</span> : null}
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {['draft', 'scheduled'].includes(notice.state) ? (
-                            <button type="button" className="admin-action-secondary" onClick={() => { loadIntoComposer(notice); void navigate({ search: { ...search, notice: notice.id }, replace: true }); }}>Edit</button>
-                          ) : null}
-                          {['draft', 'scheduled'].includes(notice.state) ? (
+                          {['draft', 'scheduled'].includes(notice.state) && !notice.archivedAt ? (
                             <button
                               type="button"
                               className="admin-action-secondary"
                               onClick={() => {
-                                const reason = window.prompt('Reason for cancelling this notice (optional):') ?? '';
-                                if (window.confirm('Cancel this draft/scheduled notice?')) cancelNotice.mutate({ id: notice.id, reason });
+                                loadIntoComposer(notice);
+                                void navigate({ search: { ...search, notice: notice.id }, replace: true });
                               }}
-                            >Cancel</button>
+                            >
+                              Edit
+                            </button>
                           ) : null}
-                          {notice.state === 'published' ? (
-                            <button type="button" className="admin-action-secondary" onClick={() => supersedeNotice.mutate(notice.id)}><CopyPlus className="size-4" /> Supersede</button>
+                          {['draft', 'scheduled'].includes(notice.state) && !notice.archivedAt ? (
+                            <button
+                              type="button"
+                              className="admin-action-secondary"
+                              onClick={() => {
+                                const reason = window.prompt('Reason for cancelling this communication (optional):') ?? '';
+                                if (window.confirm('Cancel this draft/scheduled communication?')) {
+                                  cancelNotice.mutate({ id: notice.id, reason });
+                                }
+                              }}
+                            >
+                              Cancel
+                            </button>
                           ) : null}
-                          <button type="button" className="admin-action-secondary" onClick={() => void navigate({ search: { ...search, notice: notice.id }, replace: true })}><Eye className="size-4" /> Inspect</button>
+                          {notice.state === 'published' && !notice.archivedAt ? (
+                            <button
+                              type="button"
+                              className="admin-action-secondary"
+                              onClick={() => supersedeNotice.mutate(notice.id)}
+                            >
+                              <CopyPlus className="size-4" /> Supersede
+                            </button>
+                          ) : null}
+                          {notice.archivedAt ? (
+                            <button
+                              type="button"
+                              className="admin-action-secondary"
+                              disabled={busy}
+                              onClick={() => restoreCommunication.mutate(notice.id)}
+                            >
+                              <ArchiveRestore className="size-4" /> Restore
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="admin-action-secondary"
+                              disabled={busy}
+                              onClick={() => requestArchive(notice)}
+                            >
+                              <ArchiveX className="size-4" /> Archive
+                            </button>
+                          )}
+                          {(!notice.sentAt || notice.archivedAt) ? (
+                            <button
+                              type="button"
+                              className="admin-action-secondary text-red-200"
+                              disabled={busy}
+                              onClick={() => requestDelete(notice)}
+                            >
+                              <Trash2 className="size-4" /> Delete permanently
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="admin-action-secondary"
+                            onClick={() => void navigate({ search: { ...search, notice: notice.id }, replace: true })}
+                          >
+                            <Eye className="size-4" /> Inspect
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -416,30 +707,91 @@ function CommunicationsCentre() {
             {selectedNotice ? (
               <AdminCard strong>
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <AdminCardHeader eyebrow="Notice detail" title={selectedNotice.title} />
-                  <button type="button" className="admin-action-secondary" onClick={() => void navigate({ search: search.state ? { state: search.state } : {}, replace: true })}>Close</button>
+                  <AdminCardHeader eyebrow="Communication detail" title={selectedNotice.title} />
+                  <button
+                    type="button"
+                    className="admin-action-secondary"
+                    onClick={() => void navigate({ search: search.state ? { state: search.state } : {}, replace: true })}
+                  >
+                    Close
+                  </button>
                 </div>
                 <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                   <Detail label="State" value={noticeStateLabel(selectedNotice.state)} />
+                  <Detail label="Archived" value={selectedNotice.archivedAt ? formatTimestamp(selectedNotice.archivedAt) : 'No'} />
                   <Detail label="Type" value={noticeTypeLabel(selectedNotice.noticeType)} />
-                  <Detail label="Audience" value={selectedNotice.audienceGroup ? `${humanize(selectedNotice.audience)} · ${humanize(selectedNotice.audienceGroup)}` : humanize(selectedNotice.audience)} />
+                  <Detail label="Destinations" value={selectedNotice.displaySurfaces.map(noticeSurfaceLabel).join(', ')} />
+                  <Detail
+                    label="Inbox audience"
+                    value={selectedNotice.displaySurfaces.includes('delegation_inbox')
+                      ? selectedNotice.audienceGroup
+                        ? `${humanize(selectedNotice.audience)} · ${humanize(selectedNotice.audienceGroup)}`
+                        : humanize(selectedNotice.audience)
+                      : 'Not sent to inbox'}
+                  />
                   <Detail label="Revision" value={`r${selectedNotice.revision}`} />
-                  <Detail label="Scheduled" value={formatTimestamp(selectedNotice.scheduledAt)} />
                   <Detail label="Published" value={formatTimestamp(selectedNotice.sentAt)} />
                 </div>
                 <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{selectedNotice.body}</p>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {selectedNotice.archivedAt ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      disabled={busy}
+                      onClick={() => restoreCommunication.mutate(selectedNotice.id)}
+                    >
+                      <ArchiveRestore className="size-4" /> Restore to its destinations
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-action-secondary"
+                      disabled={busy}
+                      onClick={() => requestArchive(selectedNotice)}
+                    >
+                      <ArchiveX className="size-4" /> Archive / remove everywhere
+                    </button>
+                  )}
+                  {(!selectedNotice.sentAt || selectedNotice.archivedAt) ? (
+                    <button
+                      type="button"
+                      className="admin-action-secondary text-red-200"
+                      disabled={busy}
+                      onClick={() => requestDelete(selectedNotice)}
+                    >
+                      <Trash2 className="size-4" /> Delete permanently
+                    </button>
+                  ) : null}
+                </div>
+
                 <div className="mt-5 border-t border-white/[0.07] pt-4">
-                  <div className="flex items-center gap-2 font-semibold"><Archive className="size-4" /> Revision history</div>
+                  <div className="flex items-center gap-2 font-semibold">
+                    <Archive className="size-4" /> Revision history
+                  </div>
                   {revisionsQuery.isLoading ? <p className="mt-3 text-sm text-muted-foreground">Loading revisions…</p> : null}
-                  {revisionsQuery.error ? <p className="mt-3 text-sm text-red-200">{errorMessage(revisionsQuery.error, 'Revision history is unavailable.')}</p> : null}
+                  {revisionsQuery.error ? (
+                    <p className="mt-3 text-sm text-red-200">{errorMessage(revisionsQuery.error, 'Revision history is unavailable.')}</p>
+                  ) : null}
                   <div className="mt-3 space-y-2">
                     {(revisionsQuery.data ?? []).map((revision) => (
                       <div key={revision.revision} className="rounded-xl border border-white/[0.07] p-3 text-sm">
-                        <div className="flex flex-wrap justify-between gap-2"><strong>Revision {revision.revision}</strong><span className="text-xs text-muted-foreground">{formatTimestamp(revision.changedAt)}</span></div>
-                        <div className="mt-1 text-xs text-muted-foreground">{noticeStateLabel(revision.state)} · {noticeTypeLabel(revision.noticeType)}</div>
+                        <div className="flex flex-wrap justify-between gap-2">
+                          <strong>Revision {revision.revision}</strong>
+                          <span className="text-xs text-muted-foreground">{formatTimestamp(revision.changedAt)}</span>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {noticeStateLabel(revision.state)} · {noticeTypeLabel(revision.noticeType)} · {revision.displaySurfaces.map(noticeSurfaceLabel).join(', ')}
+                          {revision.archivedAt ? ' · archived snapshot' : ''}
+                        </div>
                       </div>
                     ))}
-                    {!revisionsQuery.isLoading && (revisionsQuery.data ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No earlier revisions. The current record is revision {selectedNotice.revision}.</p> : null}
+                    {!revisionsQuery.isLoading && (revisionsQuery.data ?? []).length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No earlier revisions. The current record is revision {selectedNotice.revision}.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </AdminCard>
@@ -450,7 +802,7 @@ function CommunicationsCentre() {
         <AdminCard>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="size-4" />
-            Publish, scheduling, cancellation, superseding and recipient access are validated server-side. Scheduled publication uses the existing database cron infrastructure.
+            Publication, scheduling, surface placement, archive/restore, permanent deletion, recipient access and acknowledgement are validated server-side.
           </div>
         </AdminCard>
       </div>
@@ -458,15 +810,56 @@ function CommunicationsCentre() {
   );
 }
 
+function DestinationOption({
+  checked,
+  onChange,
+  icon: Icon,
+  title,
+  description,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  icon: typeof UsersRound;
+  title: string;
+  description: string;
+}) {
+  return (
+    <label className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${checked ? 'border-sky-300/25 bg-sky-300/[0.07]' : 'border-white/[0.07] bg-white/[0.015]'}`}>
+      <input type="checkbox" checked={checked} onChange={onChange} className="mt-1" />
+      <Icon className="mt-0.5 size-4 shrink-0 text-sky-100" />
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">{description}</span>
+      </span>
+    </label>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: number }) {
   return <AdminCard><AdminCardHeader eyebrow={label} title={`${value}`} /></AdminCard>;
 }
 
-function SelectField({ label, value, onChange, options, placeholder }: { label: string; value: string; onChange: (value: string) => void; options: readonly string[]; placeholder?: string }) {
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly string[];
+  placeholder?: string;
+}) {
   return (
     <label className="space-y-1.5 text-sm">
       <span className="font-semibold">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3"
+      >
         {placeholder ? <option value="">{placeholder}</option> : null}
         {options.map((option) => <option key={option} value={option}>{humanize(option)}</option>)}
       </select>
@@ -475,11 +868,24 @@ function SelectField({ label, value, onChange, options, placeholder }: { label: 
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-white/[0.07] p-3"><div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div><div className="mt-1 font-medium">{value}</div></div>;
+  return (
+    <div className="rounded-xl border border-white/[0.07] p-3">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 font-medium">{value}</div>
+    </div>
+  );
 }
 
-function canSave(title: string, body: string, audience: NoticeAudience, countryIds: string[], audienceGroup: NoticeEditionGroup | null) {
-  if (!title.trim() || !body.trim()) return false;
+function canSave(
+  title: string,
+  body: string,
+  displaySurfaces: NoticeDisplaySurface[],
+  audience: NoticeAudience,
+  countryIds: string[],
+  audienceGroup: NoticeEditionGroup | null,
+) {
+  if (!title.trim() || !body.trim() || displaySurfaces.length === 0) return false;
+  if (!displaySurfaces.includes('delegation_inbox')) return true;
   if (audience === 'specific_countries' && countryIds.length === 0) return false;
   if (audience === 'edition_group' && !audienceGroup) return false;
   return true;
@@ -518,5 +924,10 @@ function toDateTimeLocal(value: string | null) {
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
 }

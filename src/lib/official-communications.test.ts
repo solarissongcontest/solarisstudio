@@ -17,6 +17,7 @@ const notice: OfficialNotice = {
   audience: 'hods',
   countryIds: [],
   acknowledgementRequired: true,
+  displaySurfaces: ['delegation_inbox'],
   sentAt: '2026-09-10T18:00:00.000Z',
 };
 
@@ -27,6 +28,7 @@ const operationalNotice: OperationalNotice = {
   audienceGroup: null,
   scheduledAt: '2026-09-10T17:00:00.000Z',
   cancelledAt: null,
+  archivedAt: null,
   supersededById: null,
   revision: 2,
 };
@@ -37,6 +39,20 @@ describe('official communications', () => {
     expect(() =>
       validateOfficialNotice({ ...notice, audience: 'specific_countries', countryIds: [] }),
     ).toThrow(/at least one country/i);
+  });
+
+  it('requires at least one display surface and keeps acknowledgement tied to inbox delivery', () => {
+    expect(() => validateOfficialNotice({ ...notice, displaySurfaces: [] })).toThrow(/destination/i);
+    expect(() => validateOfficialNotice({
+      ...notice,
+      displaySurfaces: ['mysolaris_home'],
+      acknowledgementRequired: true,
+    })).toThrow(/acknowledgements require/i);
+    expect(() => validateOfficialNotice({
+      ...notice,
+      displaySurfaces: ['mysolaris_home', 'public_home'],
+      acknowledgementRequired: false,
+    })).not.toThrow();
   });
 
   it('validates lifecycle-specific scheduling and edition-group targeting', () => {
