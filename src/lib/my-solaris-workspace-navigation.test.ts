@@ -8,6 +8,7 @@ function source(path: string) {
 
 const shell = source("src/components/AppShell.tsx");
 const workspaceNav = source("src/components/mysolaris/MySolarisWorkspaceNav.tsx");
+const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
 const targets = source("src/lib/navigation-targets.ts");
 const votingRoute = source("src/routes/_authenticated/my-solaris/voting.tsx");
 const tasksRoute = source("src/routes/_authenticated/my-solaris/tasks.tsx");
@@ -16,11 +17,16 @@ const noticesRoute = source("src/routes/_authenticated/my-solaris/notices.tsx");
 const countryRoute = source("src/routes/_authenticated/my-solaris/country.tsx");
 
 describe("MySolaris product consolidation", () => {
-  it("keeps one persistent workspace navigation on every MySolaris route", () => {
+  it("keeps one persistent local navigation on every MySolaris route", () => {
     expect(shell).toContain('import { MySolarisWorkspaceNav }');
     expect(shell).toContain('pathname.startsWith("/my-solaris/")');
     expect(shell).toContain("isMySolarisWorkspace && <MySolarisWorkspaceNav />");
-    expect(workspaceNav).toContain('aria-label="MySolaris workspace"');
+    expect(workspaceNav).toContain('aria-label="MySolaris sections"');
+  });
+
+  it("does not bury MySolaris inside the giant public page directory", () => {
+    expect(shell).toContain('!pathname.startsWith("/my-solaris")');
+    expect(shell).toContain("showPublicSidebar");
   });
 
   it("keeps participant tools on the canonical MySolaris route family", () => {
@@ -32,7 +38,7 @@ describe("MySolaris product consolidation", () => {
     expect(workspaceNav).not.toContain('to: "/country-hub');
   });
 
-  it("keeps all current delegation operations discoverable from the shared workspace rail", () => {
+  it("keeps all current delegation operations discoverable from the shared local rail", () => {
     for (const target of [
       "mySolarisTasks",
       "mySolarisEntry",
@@ -44,6 +50,7 @@ describe("MySolaris product consolidation", () => {
     ]) {
       expect(workspaceNav).toContain(`NAV_TARGETS.${target}`);
     }
+    expect(operationsPanel).toContain("NAV_TARGETS.mySolarisVoting");
   });
 
   it("has real canonical route surfaces behind the primary workspace destinations", () => {
