@@ -47,9 +47,9 @@ const WORKSPACE_ITEMS: WorkspaceItem[] = [
   {
     label: "Voting",
     description: "Jury voting and public televoting shortcuts",
-    to: "/my-solaris/voting",
+    to: NAV_TARGETS.mySolarisVoting,
     icon: Vote,
-    active: (pathname) => pathname.startsWith("/my-solaris/voting"),
+    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisVoting),
   },
   {
     label: "Notices",
