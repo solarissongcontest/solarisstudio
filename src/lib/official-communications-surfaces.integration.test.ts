@@ -18,9 +18,18 @@ describe('Official Communications surface targeting', () => {
   it('keeps one canonical communication record with explicit destinations', () => {
     expect(migration).toContain("display_surfaces text[] not null default array['delegation_inbox']");
     expect(migration).toContain("'delegation_inbox', 'mysolaris_home', 'public_home'");
-    expect(migration).toContain('studio2_set_notice_surfaces');
+    expect(migration).toContain('studio2_create_notice_draft_v2');
+    expect(migration).toContain('studio2_update_notice_draft_v2');
     expect(adapter).toContain("'display_surfaces'");
-    expect(adapter).toContain('setStudio2NoticeSurfaces');
+    expect(adapter).toContain("noticeRpc('studio2_create_notice_draft_v2'");
+    expect(adapter).toContain("noticeRpc('studio2_update_notice_draft_v2'");
+  });
+
+  it('saves content and destinations atomically instead of making a second destination update', () => {
+    expect(adapter).toContain('p_display_surfaces: input.displaySurfaces');
+    expect(adapter).not.toContain('setStudio2NoticeSurfaces');
+    expect(migration).toContain('display_surfaces = v_surfaces');
+    expect(migration).toContain('Acknowledgements require the Delegation inbox destination');
   });
 
   it('keeps legacy notices in the delegation inbox by default', () => {
@@ -32,7 +41,7 @@ describe('Official Communications surface targeting', () => {
     expect(migration).toContain('studio2_public_home_announcements');
     expect(migration).toContain('studio2_mysolaris_home_announcements');
     expect(migration).toContain("grant execute on function public.studio2_public_home_announcements(integer) to anon, authenticated, service_role");
-    expect(migration).toContain("where auth.uid() is not null");
+    expect(migration).toContain('where auth.uid() is not null');
     expect(feed).toContain("client.rpc('studio2_public_home_announcements'");
     expect(feed).toContain("client.rpc('studio2_mysolaris_home_announcements'");
     expect(feed).not.toContain("from('studio2_official_notices')");
