@@ -58,11 +58,11 @@ describe("Beta 2 hardened rollout contract", () => {
   it("keeps the country workspace progressively disclosed", () => {
     const hub = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
     expect(hub).toContain('type HubTab = "overview" | "country" | "page" | "entries"');
-    expect(hub).toContain('useState<HubTab>("overview")');
+    expect(hub).toContain("const COUNTRY_TABS");
+    expect(hub).toContain('section === "history" ? "entries" : "overview"');
     expect(hub).toContain("setActiveTab(tab.id)");
-    expect(hub).toContain('activeTab === "country"');
-    expect(hub).toContain('activeTab === "page"');
-    expect(hub).toContain('activeTab === "entries"');
+    expect(hub).toContain('section === "country" && activeTab === "country"');
+    expect(hub).toContain('section === "history" && activeTab === "entries"');
   });
 
   it("owns expanded personal activity inside the MySolaris route", () => {

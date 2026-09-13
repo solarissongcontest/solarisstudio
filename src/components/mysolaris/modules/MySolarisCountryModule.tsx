@@ -49,7 +49,11 @@ const EMPTY_PROFILE = {
   summary: "",
 };
 
-export function MySolarisCountryModule() {
+export function MySolarisCountryModule({
+  section = "country",
+}: {
+  section?: "country" | "history";
+} = {}) {
   const search = useRouterState({ select: (state) => state.location.search });
   const targetCountryId =
     search &&
@@ -111,6 +115,7 @@ export function MySolarisCountryModule() {
       isOrganizer={Boolean(access?.isOrganizer)}
       organizerOverride={organizerOverride}
       targetCountryId={targetCountryId}
+      section={section}
     />
   );
 }
@@ -236,11 +241,9 @@ type EditionEntry = {
 
 type HubTab = "overview" | "country" | "page" | "entries";
 
-const HUB_TABS: Array<{ id: HubTab; label: string; description: string }> = [
+const COUNTRY_TABS: Array<{ id: HubTab; label: string; description: string }> = [
   { id: "overview", label: "Overview", description: "Profile, activity and shortcuts" },
   { id: "country", label: "Country", description: "Identity and national facts" },
-  { id: "page", label: "Page & media", description: "Article sections and images" },
-  { id: "entries", label: "Entries", description: "SSC songs and listening links" },
 ];
 
 function entryCompleteness(entry: Participant) {
@@ -257,11 +260,13 @@ function OwnedCountryHub({
   isOrganizer,
   organizerOverride,
   targetCountryId,
+  section,
 }: {
   country: Country;
   isOrganizer: boolean;
   organizerOverride: boolean;
   targetCountryId?: string;
+  section: "country" | "history";
 }) {
   const world = useCountryWorldProfile(country.id);
   const updateIdentity = useUpdateCountryIdentity(country.id, organizerOverride);
@@ -277,7 +282,7 @@ function OwnedCountryHub({
   const { data: participants } = useAllParticipants();
   const { data: contestEntities } = useAllContestEntities();
 
-  const [activeTab, setActiveTab] = useState<HubTab>("overview");
+  const [activeTab, setActiveTab] = useState<HubTab>(section === "history" ? "entries" : "overview");
   const [message, setMessage] = useState<string | null>(null);
   const [identity, setIdentity] = useState({
     name: country.name,
@@ -478,11 +483,21 @@ function OwnedCountryHub({
     <AppShell>
       <PageHeader
         eyebrow={organizerOverride ? "Organizer override" : "My country"}
-        title={organizerOverride ? `Editing ${country.name}` : country.name}
+        title={
+          section === "history"
+            ? organizerOverride
+              ? `Editing ${country.name} history`
+              : `${country.name} history`
+            : organizerOverride
+              ? `Editing ${country.name}`
+              : country.name
+        }
         description={
-          organizerOverride
-            ? "Choose one area below. Changes apply to this country's public pages and SSC data."
-            : "Manage one part of your country at a time: identity, public page, media, appearance or participation history."
+          section === "history"
+            ? "Review delegation handovers and manage one canonical artist, song and set of listening links for each edition."
+            : organizerOverride
+              ? "Manage this country's identity and national facts. Page, media, appearance and history stay in their own MySolaris sections."
+              : "Manage identity and national facts here. Page, media, appearance and participation history each have a focused MySolaris section."
         }
         actions={
           <div className="flex flex-wrap gap-2">
@@ -511,11 +526,12 @@ function OwnedCountryHub({
         </p>
       )}
 
-      <nav
-        aria-label="My country sections"
-        className="mb-5 grid gap-2 rounded-2xl border border-border/70 bg-surface/55 p-2 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        {HUB_TABS.map((tab) => {
+      {section === "country" && (
+        <nav
+          aria-label="My country sections"
+          className="mb-5 grid gap-2 rounded-2xl border border-border/70 bg-surface/55 p-2 sm:grid-cols-2"
+        >
+        {COUNTRY_TABS.map((tab) => {
           const active = activeTab === tab.id;
           return (
             <button
@@ -540,9 +556,10 @@ function OwnedCountryHub({
             </button>
           );
         })}
-      </nav>
+        </nav>
+      )}
 
-      {activeTab === "overview" && (
+      {section === "country" && activeTab === "overview" && (
         <div className="space-y-5">
           {!organizerOverride && <ProfileActivityPanel />}
           {!organizerOverride && <CountryHodHistoryPanel inline />}
@@ -554,18 +571,36 @@ function OwnedCountryHub({
               hint="Name, flag and national facts"
               onClick={() => setActiveTab("country")}
             />
-            <OverviewCard
-              label="Page content"
-              value={`${sectionCount} section${sectionCount === 1 ? "" : "s"}`}
-              hint={`${mediaCount} uploaded image${mediaCount === 1 ? "" : "s"}`}
-              onClick={() => setActiveTab("page")}
-            />
-            <OverviewCard
-              label="SSC entries"
-              value={`${myEntries.length} edition${myEntries.length === 1 ? "" : "s"}`}
-              hint="Songs and listening links"
-              onClick={() => setActiveTab("entries")}
-            />
+            <Link
+              to={NAV_TARGETS.mySolarisPageBuilder}
+              search={countrySearch}
+              className="rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-strong"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Page & media
+              </p>
+              <p className="mt-2 text-lg font-semibold">
+                {sectionCount} section{sectionCount === 1 ? "" : "s"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {mediaCount} uploaded image{mediaCount === 1 ? "" : "s"}
+              </p>
+            </Link>
+            <Link
+              to={NAV_TARGETS.mySolarisHistory}
+              search={countrySearch}
+              className="rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-strong"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                History
+              </p>
+              <p className="mt-2 text-lg font-semibold">
+                {myEntries.length} edition{myEntries.length === 1 ? "" : "s"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Entries, listening links and delegation handovers
+              </p>
+            </Link>
             <Link
               to={NAV_TARGETS.mySolarisPageBuilder}
               search={countrySearch}
@@ -631,7 +666,7 @@ function OwnedCountryHub({
         </div>
       )}
 
-      {activeTab === "country" && (
+      {section === "country" && activeTab === "country" && (
         <div className="space-y-5">
           <Panel
             title="Country identity"
@@ -1016,8 +1051,10 @@ function OwnedCountryHub({
         </div>
       )}
 
-      {activeTab === "entries" && (
-        <Panel
+      {section === "history" && activeTab === "entries" && (
+        <div className="space-y-5">
+          {!organizerOverride && <CountryHodHistoryPanel inline />}
+          <Panel
           title="SSC entries"
           description={
             organizerOverride
@@ -1142,7 +1179,8 @@ function OwnedCountryHub({
               </button>
             </div>
           </div>
-        </Panel>
+          </Panel>
+        </div>
       )}
     </AppShell>
   );
