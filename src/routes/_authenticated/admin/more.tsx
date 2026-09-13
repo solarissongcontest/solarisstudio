@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BarChart3,
+  CalendarDays,
   ClipboardCheck,
   ExternalLink,
   Flag,
@@ -23,6 +24,7 @@ const groups = [
     title: "Accounts & contest history",
     items: [
       { label: "Manage editions", description: "Create editions and change their main settings.", to: "/admin", icon: Trophy },
+      { label: "Edition dates", description: "Set the exact Grand Final or main event date for past editions.", to: "/admin/anniversary-dates", icon: CalendarDays },
       { label: "Country accounts", description: "Manage who can sign in for each delegation.", to: "/admin/country-accounts", icon: Users },
       { label: "HOD history", description: "See who managed each delegation in past editions.", to: "/admin/hod-history", icon: History },
       { label: "Hosting", description: "Set host countries, host cities and hosting details.", to: "/admin/hosts", icon: Flag },
