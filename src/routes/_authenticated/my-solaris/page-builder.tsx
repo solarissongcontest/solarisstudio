@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CountryPageBuilderRoute } from "@/routes/_authenticated/country-hub/page-builder";
+import { CountryPageBuilderRoute } from "@/features/my-solaris/page-builder/MySolarisPageBuilderPage";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/page-builder")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
