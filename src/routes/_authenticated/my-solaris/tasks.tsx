@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { HodWorkspacePage } from "@/routes/_authenticated/country-hub/hod";
+import { MySolarisTasksModule } from "@/components/mysolaris/modules/MySolarisTasksModule";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/tasks")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
@@ -9,5 +9,5 @@ export const Route = createFileRoute("/_authenticated/my-solaris/tasks")({
   head: () => ({
     meta: [{ title: "MySolaris tasks — Solaris Studio" }, { name: "robots", content: "noindex" }],
   }),
-  component: HodWorkspacePage,
+  component: MySolarisTasksModule,
 });

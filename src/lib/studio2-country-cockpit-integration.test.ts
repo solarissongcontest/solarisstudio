@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 const nav = source('src/components/admin/admin-navigation.ts');
-const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
+const hodRoute = source('src/components/mysolaris/modules/MySolarisTasksModule.tsx');
 const countriesRoute = source('src/routes/_authenticated/admin/countries.tsx');
 const countryDetail = source('src/routes/_authenticated/admin/countries.$countryId.tsx');
 const hodWorkspace = source('src/lib/studio2-hod-workspace.ts');

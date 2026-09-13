@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CountryNoticeInbox } from "@/routes/_authenticated/country-hub/notices";
-import type { NoticesSearch } from "@/routes/_authenticated/country-hub/notices";
+import {
+  MySolarisNoticesModule,
+  type NoticesSearch,
+} from "@/components/mysolaris/modules/MySolarisNoticesModule";
 import type { NoticeInboxState } from "@/lib/official-communications";
 
 const INBOX_STATES = new Set([
@@ -23,5 +25,5 @@ export const Route = createFileRoute("/_authenticated/my-solaris/notices")({
   head: () => ({
     meta: [{ title: "MySolaris notices — Solaris Studio" }, { name: "robots", content: "noindex" }],
   }),
-  component: CountryNoticeInbox,
+  component: MySolarisNoticesModule,
 });

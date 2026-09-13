@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 const route = source('src/routes/_authenticated/admin/eligibility.tsx');
-const hodRoute = source('src/routes/_authenticated/country-hub/hod.tsx');
+const hodRoute = source('src/components/mysolaris/modules/MySolarisTasksModule.tsx');
 const model = source('src/lib/studio2-eligibility.ts');
 const readiness = source('src/lib/country-operational-readiness.ts');
 const cockpit = source('src/lib/studio2-country-cockpit.ts');
