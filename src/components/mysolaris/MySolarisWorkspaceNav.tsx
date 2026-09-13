@@ -28,7 +28,8 @@ const WORKSPACE_ITEMS: WorkspaceItem[] = [
     description: "Current edition, history and account overview",
     to: NAV_TARGETS.mySolaris,
     icon: Home,
-    active: (pathname) => pathname === NAV_TARGETS.mySolaris || pathname === `${NAV_TARGETS.mySolaris}/`,
+    active: (pathname) =>
+      pathname === NAV_TARGETS.mySolaris || pathname === `${NAV_TARGETS.mySolaris}/`,
   },
   {
     label: "Tasks",
@@ -38,8 +39,8 @@ const WORKSPACE_ITEMS: WorkspaceItem[] = [
     active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisTasks),
   },
   {
-    label: "Entry",
-    description: "Readiness, eligibility and entry workflow",
+    label: "Entry readiness",
+    description: "Eligibility and entry workflow",
     to: NAV_TARGETS.mySolarisEntry,
     icon: ClipboardCheck,
     active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisEntry),
@@ -59,7 +60,7 @@ const WORKSPACE_ITEMS: WorkspaceItem[] = [
     active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisNotices),
   },
   {
-    label: "Country",
+    label: "Country tools",
     description: "Country identity, entries and public-page controls",
     to: NAV_TARGETS.mySolarisCountry,
     icon: Flag,
@@ -97,16 +98,16 @@ export function MySolarisWorkspaceNav() {
       <div className="flex items-center justify-between gap-3 px-2 pb-2 pt-1">
         <div className="min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">
-            MySolaris workspace
+            MySolaris
           </p>
           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            Your edition and country tools stay in one place.
+            Edition and country tools, without leaving your account area.
           </p>
         </div>
       </div>
 
       <nav
-        aria-label="MySolaris workspace"
+        aria-label="MySolaris sections"
         className="scroll-slim flex gap-1.5 overflow-x-auto pb-0.5"
       >
         {WORKSPACE_ITEMS.map((item) => {
