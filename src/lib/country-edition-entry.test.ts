@@ -8,7 +8,7 @@ function source(path: string) {
 
 describe("country edition participation editing", () => {
   it("renders one editable entry per edition rather than one per show appearance", () => {
-    const hub = source("src/routes/_authenticated/country-hub/index.tsx");
+    const hub = source("src/features/my-solaris/country/MySolarisCountryPage.tsx");
     const normalizedHub = hub.replace(/\s+/g, " ");
 
     expect(hub).toContain("const byEdition = new Map<string, EditionEntry>()");
