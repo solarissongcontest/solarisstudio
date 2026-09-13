@@ -55,7 +55,7 @@ const integrityIndex = readFileSync(
   "utf8",
 );
 const adminNav = readFileSync(
-  resolve(process.cwd(), "src/components/admin/AdminNav.tsx"),
+  resolve(process.cwd(), "src/components/admin/admin-navigation.ts"),
   "utf8",
 );
 
@@ -188,8 +188,8 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(queueMigration).toContain("join public.integrity_case_sanctions");
     expect(appealsQueueRoute).toContain("admin_integrity_appeals");
     expect(appealsQueueRoute).toContain('to="/admin/integrity-resolution/$caseId"');
-    expect(adminNav).toContain('label: "Appeals"');
-    expect(adminNav).toContain('to: "/admin/integrity-appeals"');
+    expect(adminNav).toContain('"Appeals",');
+    expect(adminNav).toContain('"/admin/integrity-appeals"');
   });
 
   it("exposes organizer resolution data through a narrow organizer-gated RPC and visible workspace", () => {

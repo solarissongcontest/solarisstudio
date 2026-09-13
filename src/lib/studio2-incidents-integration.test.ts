@@ -8,7 +8,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/AdminNav.tsx');
+const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/incidents.tsx');
 const model = source('src/lib/studio2-incidents.ts');
 const persistence = source('src/lib/studio2-persistence.ts');
@@ -17,9 +17,9 @@ const migration = source('supabase/migrations/20260911180500_studio2_incident_co
 
 describe('Studio 2 Incident Command integration', () => {
   it('is a first-class Organizer operations surface', () => {
-    expect(nav).toContain('label: "Incidents"');
-    expect(nav).toContain('to: "/admin/incidents"');
-    expect(nav).toContain('label="Operations"');
+    expect(nav).toContain('"Incidents",');
+    expect(nav).toContain('"/admin/incidents"');
+    expect(nav).toContain('label: "Operations"');
 
     expect(STUDIO2_PRODUCT_SURFACES.incident_command).toMatchObject({
       state: 'product_surface',

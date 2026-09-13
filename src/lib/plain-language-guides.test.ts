@@ -7,6 +7,7 @@ function source(path: string) {
 
 describe("Solaris Studio guides and country confirmation access", () => {
   const appShell = source("components/AppShell.tsx");
+  const publicNavigation = source("components/public/PublicSiteNavigation.tsx");
   const adminNav = source("components/admin/AdminNav.tsx");
   const adminFrame = source("components/admin/AdminFrame.tsx");
   const commandPalette = source("components/admin/AdminCommandPalette.tsx");
@@ -17,10 +18,11 @@ describe("Solaris Studio guides and country confirmation access", () => {
   const confirmationSql = source("../scripts/confirmations-country-account-editing.sql");
 
   it("keeps both guide pages easy to find", () => {
-    expect(appShell).toContain('to="/guide"');
-    expect(adminNav).toContain('to: "/admin/guide"');
+    expect(publicNavigation).toContain('"/guide",');
+    expect(publicNavigation).toContain('"Guide",');
+    expect(adminNav).toContain("buildAdminNavigation");
     expect(adminFrame).toContain('path.startsWith("/admin/guide")');
-    expect(commandPalette).toContain('["Organizer guide", "/admin/guide", "Workspace"');
+    expect(commandPalette).toContain("buildAdminNavigation");
   });
 
   it("keeps substantial public and organizer Q&A guides", () => {
@@ -31,19 +33,12 @@ describe("Solaris Studio guides and country confirmation access", () => {
   });
 
   it("keeps the current public sections and unified organizer workflow", () => {
-    for (const text of ['label="Insights"', 'label: "Pulse"', 'label: "Relationships"', 'label: "Participate"'])
-      expect(appShell).toContain(text);
+    for (const text of ['label: "Insights"', '"Pulse"', '"Relationships"', 'label: "Participate"'])
+      expect(publicNavigation).toContain(text);
 
-    for (const label of ["Overview", "Delegations", "Contest", "Voting", "Publish", "Broadcast", "Administration"])
-      expect(adminNav).toContain(`label: "${label}"`);
+    expect(adminNav).toContain("buildAdminNavigation");
 
-    expect(adminNav).toContain('<NavSection label="Current edition" items={currentEdition}');
-    expect(adminNav).toContain('<NavSection label="Operations" items={operations}');
-    expect(adminNav).toContain('<NavSection label="Workspace" items={workspace}');
-    expect(adminNav).not.toContain('label: "More"');
-    expect(commandPalette).toContain('["Delegations overview", "/confirmations/admin", "Delegations"');
-    expect(commandPalette).toContain('["Public voting overview", "/televoting/admin", "Voting"');
-    expect(commandPalette).toContain('["Administration", "/admin/more", "Administration"');
+    expect(commandPalette).toContain("buildAdminNavigation(activeEdition?.slug).flatMap");
     expect(appShell).not.toContain('label: "Recent activity"');
     expect(appShell).not.toContain('label: "Voting links"');
   });

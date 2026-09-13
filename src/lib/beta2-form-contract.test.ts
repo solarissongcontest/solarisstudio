@@ -16,6 +16,7 @@ describe("public Beta 2.0 contract", () => {
   const beta1Archive = source("routes/_authenticated/admin/beta1-feedback.tsx");
   const more = source("routes/_authenticated/admin/more.tsx");
   const palette = source("components/admin/AdminCommandPalette.tsx");
+  const adminNavigation = source("components/admin/admin-navigation.ts");
   const migration = source("../supabase/migrations/20260820162000_close_beta1_open_beta2.sql");
 
   it("uses a new form version and keeps old local drafts separate", () => {
@@ -78,8 +79,11 @@ describe("public Beta 2.0 contract", () => {
   it("keeps the current Beta 2 report beside the Beta 1 archive", () => {
     expect(more).toContain('to: "/admin/beta2-feedback"');
     expect(more).toContain('to: "/admin/beta1-feedback"');
-    expect(palette).toContain('["Beta 2 feedback", "/admin/beta2-feedback"');
-    expect(palette).toContain('["Beta 1 archive", "/admin/beta1-feedback"');
+    expect(palette).toContain("buildAdminNavigation");
+    expect(adminNavigation).toContain('"Beta 2 feedback",');
+    expect(adminNavigation).toContain('"/admin/beta2-feedback"');
+    expect(adminNavigation).toContain('"Beta 1 archive",');
+    expect(adminNavigation).toContain('"/admin/beta1-feedback"');
     expect(dashboard).toContain('title="Beta 2.0 feedback"');
     expect(dashboard).toContain('to="/admin/beta1-feedback"');
     expect(dashboard).toContain("Beta 1 weaknesses");

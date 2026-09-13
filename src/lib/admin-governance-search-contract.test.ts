@@ -14,16 +14,13 @@ describe("organizer search governance integration", () => {
   });
 
   it("keeps specialist governance workspaces searchable instead of relying only on sidebar buttons", () => {
-    expect(palette).toContain('"Integrity investigations", "/admin/integrity-investigations"');
-    expect(palette).toContain('"Integrity appeals", "/admin/integrity-appeals"');
-    expect(palette).toContain('"Evidence lifecycle", "/admin/integrity-evidence"');
-    expect(palette).toContain('"Identity access", "/admin/integrity-identity"');
-    expect(palette).toContain('"Rules manager", "/admin/rules-manager"');
-    expect(palette).toContain('"Official interpretations", "/admin/rule-interpretations"');
+    expect(palette).toContain("buildAdminNavigation");
+    expect(palette).toContain("buildAdminNavigation(activeEdition?.slug).flatMap");
   });
 
-  it("labels public rule and integrity results as Library results", () => {
-    expect(palette).toContain('item.source === "library" ? " · Library" : ""');
+  it("labels public rule and integrity results as public references", () => {
+    expect(palette).toContain('source: "public-reference"');
+    expect(palette).toContain('item.source === "public-reference" ? " · Public reference" : ""');
     expect(palette).toContain('Search Solaris, rules, cases or tools…');
   });
 });

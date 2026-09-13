@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const adminNav = source('src/components/admin/AdminNav.tsx');
+const adminNav = source('src/components/admin/admin-navigation.ts');
 const adminRoute = source('src/routes/_authenticated/admin/communications.tsx');
 const hodRoute = source('src/routes/_authenticated/country-hub/notices.tsx');
 const adapter = source('src/lib/studio2-communications.ts');
@@ -15,8 +15,8 @@ const migration = source('supabase/migrations/20260911194000_studio2_official_co
 
 describe('Studio 2 Official Communications integration', () => {
   it('is discoverable from Organizer navigation and the HOD workspace', () => {
-    expect(adminNav).toContain('label: "Communications"');
-    expect(adminNav).toContain('to: "/admin/communications"');
+    expect(adminNav).toContain('"Communications",');
+    expect(adminNav).toContain('"/admin/communications"');
     expect(hodModel).toContain("href: '/country-hub/notices'");
     expect(hodRoute).toContain("createFileRoute('/_authenticated/country-hub/notices')");
   });

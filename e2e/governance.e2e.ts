@@ -32,59 +32,42 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow.body, "body should not overflow horizontally").toBeLessThanOrEqual(1);
 }
 
-const SEARCH_CASES = [
-  { query: "friend voting", link: /^\/rules\// },
-  { query: "artist reuse", link: /^\/rules\// },
-  { query: "DQ", link: /^\/rules\// },
-  { query: "appeal", link: /^\/integrity\/appeals$/ },
-  { query: "anonymous", link: /^\/integrity$/ },
-] as const;
-
 test.describe("Rules and Integrity governance discovery", () => {
-  test("Library carries safe workflow context, aliases and only public destinations", async ({
-    page,
-  }) => {
+  test("one public sidebar exposes every governance destination", async ({ page }) => {
     const problems = failOnGovernanceConsoleProblems(page);
 
     await page.goto("/televoting");
-    await expect
-      .poll(() => page.evaluate(() => window.sessionStorage.getItem("solaris:rule-context-path")))
-      .toBe("/televoting");
+    const desktop = (page.viewportSize()?.width ?? 0) >= 1024;
+    if (!desktop) await page.getByRole("button", { name: "Open navigation" }).click();
+    const navigation = desktop
+      ? page.getByRole("complementary", { name: "All public pages" })
+      : page.getByRole("navigation", { name: "Mobile navigation" });
+    await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole("heading", { name: "Rules & help" })).toBeVisible();
+    for (const destination of [
+      "/rules",
+      "/rules/interpretations",
+      "/rules/changes",
+      "/integrity",
+      "/integrity/appeals",
+      "/integrity/preclearance",
+    ]) {
+      await expect(navigation.locator(`a[href="${destination}"]`)).toBeVisible();
+    }
+    await expect(navigation.locator('a[href^="/admin"]')).toHaveCount(0);
 
-    await page.goto("/library");
-    await expect(page).toHaveURL(/\/library\?from=%2Ftelevoting$/);
-    await expect(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
-    await expect(page.getByText("Relevant here", { exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Televoting rules" })).toBeVisible();
-    await expect(page.locator('a[href="/rules/10.1"]').first()).toBeVisible();
-    await expect(page.locator('main a[href^="/admin"]')).toHaveCount(0);
-
-    const search = page.getByRole("searchbox", { name: "Search Solaris Library" });
-    await search.focus();
-    await expect(search).toBeFocused();
-
-    for (const entry of SEARCH_CASES) {
-      await search.fill(entry.query);
-      const matchingLinks = page.locator("main a").filter({
-        has: page.locator("span"),
-      });
-      await expect(matchingLinks.filter({ hasText: /./ }).first()).toBeVisible();
-
-      const hrefs = await page
-        .locator("main a[href]")
-        .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
-      expect(
-        hrefs.some((href) => entry.link.test(href)),
-        `Library search for ${entry.query} should expose a canonical public governance destination`,
-      ).toBe(true);
+    if (desktop) {
+      const search = navigation.getByRole("searchbox", { name: "Find a public page" });
+      await search.focus();
+      await expect(search).toBeFocused();
+      await search.fill("appeal");
+      await expect(navigation.locator('a[href="/integrity/appeals"]')).toBeVisible();
+      await expect(navigation.locator('a[href="/editions"]')).toHaveCount(0);
     }
 
-    await search.fill("friend voting");
-    await page.getByRole("button", { name: "Clear" }).focus();
-    await expect(page.getByRole("button", { name: "Clear" })).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(search).toHaveValue("");
-    await page.keyboard.press("Escape");
+    await page.goto("/library");
+    await expect(page).toHaveURL(/\/rules\/?$/);
+    await expect(page.locator("h1")).toBeVisible();
 
     await expectNoHorizontalOverflow(page);
     expect(problems, "Governance pages must not suppress hydration or browser errors").toEqual([]);
@@ -102,6 +85,16 @@ test.describe("Rules and Integrity governance discovery", () => {
     await page.goto("/televoting");
     await expect(page.getByRole("button", { name: /rules for this page/i })).toHaveCount(0);
     await expect(page.locator("button.fixed").filter({ hasText: /^Rules$/ })).toHaveCount(0);
+    if ((page.viewportSize()?.width ?? 0) < 1024) {
+      await page.getByRole("button", { name: "Open navigation" }).click();
+      await expect(
+        page.getByRole("navigation", { name: "Mobile navigation" }).locator('a[href="/rules"]'),
+      ).toBeVisible();
+    } else {
+      await expect(
+        page.getByRole("complementary", { name: "All public pages" }).locator('a[href="/rules"]'),
+      ).toBeVisible();
+    }
     await expectNoHorizontalOverflow(page);
     expect(problems, "Rules and participant governance surfaces must stay hydration-clean").toEqual(
       [],

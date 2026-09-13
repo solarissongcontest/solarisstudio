@@ -31,8 +31,10 @@ describe("organizer voting-integrity declarations", () => {
 
   it("keeps signed declarations discoverable from organizer search", () => {
     const palette = source("src/components/admin/AdminCommandPalette.tsx");
+    const navigation = source("src/components/admin/admin-navigation.ts");
 
-    expect(palette).toContain("Voting integrity declarations");
-    expect(palette).toContain("/televoting/admin/integrity-declarations");
+    expect(palette).toContain("buildAdminNavigation");
+    expect(navigation).toContain("Voting declarations");
+    expect(navigation).toContain("/televoting/admin/integrity-declarations");
   });
 });

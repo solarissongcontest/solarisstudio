@@ -11,22 +11,22 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const adminNav = source('src/components/admin/AdminNav.tsx');
+const adminNav = source('src/components/admin/admin-navigation.ts');
 const controlRoomAlias = source('src/routes/_authenticated/admin/control-room.tsx');
 const rollout = source('src/routes/_authenticated/admin/feature-rollout.tsx');
 const hodLauncher = source('src/components/HodWorkspaceLauncher.tsx');
 
 describe('Studio 2 product integration', () => {
   it('keeps the Live Control Room discoverable from Organizer navigation', () => {
-    expect(adminNav).toContain('label: "Control Room"');
-    expect(adminNav).toContain('to: "/admin/control-room"');
+    expect(adminNav).toContain('"Control Room",');
+    expect(adminNav).toContain('"/admin/control-room"');
     expect(controlRoomAlias).toContain('to: "/admin/control-room-v2"');
     expect(controlRoomAlias).not.toContain('to: "/admin/operations"');
   });
 
   it('keeps rollout controls discoverable while preserving Rules as a separate workstream', () => {
-    expect(adminNav).toContain('label: "Feature rollout"');
-    expect(adminNav).toContain('to: "/admin/feature-rollout"');
+    expect(adminNav).toContain('"Feature rollout",');
+    expect(adminNav).toContain('"/admin/feature-rollout"');
     expect(rollout).toContain('studio2_set_feature_flag');
 
     const rules = STUDIO2_PRODUCT_SURFACES.rules_engine;
