@@ -42,7 +42,12 @@ export const STATIC_PUBLIC_ROUTES = [
 const ignorableRequest = (url: string) =>
   /favicon|google-analytics|googletagmanager|browser-extension|chrome-extension/i.test(url);
 
-const criticalResourceTypes = new Set(["document", "script", "stylesheet", "font", "image"]);
+// Images are validated after rendering through `brokenImages` below. That lets
+// components such as FlagChip recover from an expired third-party image with an
+// intentional accessible fallback without the original 404 failing the route.
+// Documents, scripts, stylesheets and fonts have no equivalent recovery path and
+// therefore remain hard HTTP failures.
+const criticalResourceTypes = new Set(["document", "script", "stylesheet", "font"]);
 
 function isNavigationCancellation(errorText: string | undefined) {
   return /ERR_ABORTED|NS_BINDING_ABORTED|cancelled|canceled/i.test(errorText ?? "");
