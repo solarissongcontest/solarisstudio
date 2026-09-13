@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const migration = source('supabase/migrations/20260913115000_official_communications_surfaces.sql');
+const migration = source('supabase/migrations/20260913121300_official_communications_surfaces.sql');
 const adapter = source('src/lib/studio2-communications.ts');
 const feed = source('src/lib/official-announcement-feed.ts');
 const feedComponent = source('src/components/OfficialAnnouncementFeed.tsx');
