@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 const countryRoute = source("src/routes/_authenticated/my-solaris/country.tsx");
 const pageRoute = source("src/routes/_authenticated/my-solaris/page-builder.tsx");
 const appearanceRoute = source("src/routes/_authenticated/my-solaris/theme.tsx");
+const historyRoute = source("src/routes/_authenticated/my-solaris/history.tsx");
 const countryModule = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
 const pageModule = source("src/components/mysolaris/modules/MySolarisPageMediaModule.tsx");
 const appearanceModule = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
@@ -19,6 +20,7 @@ describe("native MySolaris country ownership", () => {
     expect(countryRoute).toContain("MySolarisCountryModule");
     expect(pageRoute).toContain("MySolarisPageMediaModule");
     expect(appearanceRoute).toContain("MySolarisAppearanceModule");
+    expect(historyRoute).toContain('<MySolarisCountryModule section="history" />');
     expect(countryRoute).not.toContain("country-hub/index");
     expect(pageRoute).not.toContain("country-hub/page-builder");
     expect(appearanceRoute).not.toContain("country-hub/theme");

@@ -64,15 +64,13 @@ describe("country claims and unified account workspace", () => {
 
   it("keeps the country workspace focused instead of rendering every editor at once", () => {
     expect(hub).toContain('type HubTab = "overview" | "country" | "page" | "entries"');
+    expect(hub).toContain("const COUNTRY_TABS");
     expect(hub).toContain('label: "Overview"');
     expect(hub).toContain('label: "Country"');
-    expect(hub).toContain('label: "Page & media"');
-    expect(hub).toContain('label: "Entries"');
-    expect(hub).toContain('activeTab === "overview"');
-    expect(hub).toContain('activeTab === "country"');
-    expect(hub).toContain('activeTab === "page"');
-    expect(hub).toContain('activeTab === "entries"');
-    expect(hub).toContain("Manage one part of your country at a time: identity, public page, media, appearance or participation history.");
+    expect(hub).toContain('section === "country" && activeTab === "overview"');
+    expect(hub).toContain('section === "country" && activeTab === "country"');
+    expect(hub).toContain('section === "history" && activeTab === "entries"');
+    expect(hub).toContain("Page, media, appearance and history stay in their own MySolaris sections.");
   });
 });
 
