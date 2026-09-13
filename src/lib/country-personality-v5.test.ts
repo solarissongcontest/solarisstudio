@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const visualTheme = source("src/lib/visual-theme.ts");
-const editor = source("src/routes/_authenticated/country-hub/theme.tsx");
+const editor = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
 const styles = source("src/components/CountryPersonalityStyles.tsx");
 const css = source("src/country-personalities-v5.css");
 const controller = source("src/components/CountryFlagLayerController.tsx");

@@ -56,7 +56,7 @@ describe("Beta 2 hardened rollout contract", () => {
   });
 
   it("keeps the country workspace progressively disclosed", () => {
-    const hub = source("src/routes/_authenticated/country-hub/index.tsx");
+    const hub = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
     expect(hub).toContain('type HubTab = "overview" | "country" | "page" | "entries"');
     expect(hub).toContain('useState<HubTab>("overview")');
     expect(hub).toContain("setActiveTab(tab.id)");

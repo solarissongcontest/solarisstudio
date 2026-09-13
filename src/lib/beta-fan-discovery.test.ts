@@ -113,7 +113,7 @@ describe("beta-informed fan discovery", () => {
     const countryRoute = source("src/routes/countries/$code.tsx");
     const visualTheme = source("src/lib/visual-theme.ts");
     const entityCss = source("src/entity-theme.css");
-    const editor = source("src/routes/_authenticated/country-hub/theme.tsx");
+    const editor = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
     expect(countryRoute).toContain("country-public-hero");
     for (const layout of ["poster", "split", "spotlight", "broadcast"]) {
       expect(visualTheme).toContain(`"${layout}"`);

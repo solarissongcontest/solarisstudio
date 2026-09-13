@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const editor = readFileSync(
-  resolve(process.cwd(), "src/routes/_authenticated/country-hub/theme.tsx"),
+  resolve(process.cwd(), "src/components/mysolaris/modules/MySolarisAppearanceModule.tsx"),
   "utf8",
 );
 

@@ -7,11 +7,11 @@ function source(path: string) {
 }
 
 const account = source("src/lib/country-account.ts");
-const hub = source("src/routes/_authenticated/country-hub/index.tsx");
+const hub = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
 const shell = source("src/components/AppShell.tsx");
 const publicNavigation = source("src/components/public/PublicSiteNavigation.tsx");
-const appearance = source("src/routes/_authenticated/country-hub/theme.tsx");
-const builder = source("src/routes/_authenticated/country-hub/page-builder.tsx");
+const appearance = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+const builder = source("src/components/mysolaris/modules/MySolarisPageMediaModule.tsx");
 const entryMigration = source("supabase/migrations/20260819212500_edition_level_country_entries.sql");
 const cleanRpcMigration = source("supabase/migrations/20260819215500_clean_edition_entry_rpcs.sql");
 const appearanceCountMigration = source("supabase/migrations/20260820123000_fix_edition_participation_appearance_count.sql");
