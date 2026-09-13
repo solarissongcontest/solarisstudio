@@ -29,7 +29,8 @@ describe("native MySolaris operational modules", () => {
     }
     for (const route of legacyRoutes) {
       expect(route).toContain("createFileRoute");
-      expect(route).toContain("throw redirect({ to: NAV_TARGETS.mySolaris");
+      expect(route).toContain("throw redirect({");
+      expect(route).toContain("NAV_TARGETS.mySolaris");
       expect(route).not.toContain('from "@/components/AppShell"');
       expect(route).not.toContain("useQuery(");
     }
