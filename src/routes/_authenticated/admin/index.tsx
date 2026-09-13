@@ -261,9 +261,14 @@ function AdminHome() {
         title="Editions"
         description="Open an edition to work on it. Creation and destructive actions stay out of the way until you actually need them."
         actions={
-          <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
-            <Plus className="size-4" /> New edition
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link to="/admin/anniversary-dates" className="admin-action-secondary">
+              <CalendarDays className="size-4" /> Edition dates
+            </Link>
+            <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
+              <Plus className="size-4" /> New edition
+            </button>
+          </div>
         }
       />
 
@@ -323,7 +328,15 @@ function AdminHome() {
                           ) : null}
                         </div>
                       </div>
-                      <AdminStatus tone={derived.status === "completed" ? "ready" : derived.published ? "info" : "neutral"}>
+                      <AdminStatus
+                        tone={
+                          derived.status === "completed"
+                            ? "ready"
+                            : derived.published
+                              ? "info"
+                              : "neutral"
+                        }
+                      >
                         {derived.label}
                       </AdminStatus>
                     </div>
@@ -372,10 +385,30 @@ function AdminHome() {
                             params={{ slug: edition.slug }}
                             className="admin-action-row"
                           >
-                            <span className="admin-action-row-icon"><Settings2 className="size-4" /></span>
+                            <span className="admin-action-row-icon">
+                              <Settings2 className="size-4" />
+                            </span>
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-semibold">Manage edition</span>
-                              <span className="mt-1 block text-xs text-muted-foreground">Shows, entries, results and publication.</span>
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                Shows, entries, results and publication.
+                              </span>
+                            </span>
+                            <ArrowRight className="size-4 text-muted-foreground" />
+                          </Link>
+                          <Link
+                            to="/admin/anniversary-dates"
+                            search={{ edition: edition.id }}
+                            className="admin-action-row"
+                          >
+                            <span className="admin-action-row-icon">
+                              <CalendarDays className="size-4" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold">Edit historical date</span>
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                Set the exact Grand Final or main event date for this edition.
+                              </span>
                             </span>
                             <ArrowRight className="size-4 text-muted-foreground" />
                           </Link>
@@ -384,10 +417,14 @@ function AdminHome() {
                             params={{ slug: edition.slug }}
                             className="admin-action-row"
                           >
-                            <span className="admin-action-row-icon"><RadioTower className="size-4" /></span>
+                            <span className="admin-action-row-icon">
+                              <RadioTower className="size-4" />
+                            </span>
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-semibold">Design & broadcast</span>
-                              <span className="mt-1 block text-xs text-muted-foreground">Artwork, theme and broadcast presentation.</span>
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                Artwork, theme and broadcast presentation.
+                              </span>
                             </span>
                             <ArrowRight className="size-4 text-muted-foreground" />
                           </Link>
@@ -421,7 +458,11 @@ function AdminHome() {
             title="No editions yet"
             description="Create the first Solaris Song Contest edition. It starts private and can be configured before anything is published."
             action={
-              <button type="button" onClick={() => setCreateOpen(true)} className="admin-action-primary">
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className="admin-action-primary"
+              >
                 <Plus className="size-4" /> Create edition
               </button>
             }
@@ -457,7 +498,10 @@ function AdminHome() {
             />
           </Field>
 
-          <Field label="Name" hint={`Defaults to “Solaris Song Contest ${form.edition_number || "…"}”`}>
+          <Field
+            label="Name"
+            hint={`Defaults to “Solaris Song Contest ${form.edition_number || "…"}”`}
+          >
             <TextInput
               value={form.name}
               placeholder={`Solaris Song Contest ${form.edition_number || ""}`}
@@ -471,7 +515,9 @@ function AdminHome() {
                 value={form.host_country_id}
                 onChange={(event) => setForm({ ...form, host_country_id: event.target.value })}
               >
-                <option value="" className="bg-background">Undecided</option>
+                <option value="" className="bg-background">
+                  Undecided
+                </option>
                 {countries.map((country) => (
                   <option key={country.id} value={country.id} className="bg-background">
                     {country.name}
@@ -510,10 +556,19 @@ function AdminHome() {
           ) : null}
 
           <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
-            <button type="button" disabled={saving} onClick={() => setCreateOpen(false)} className="admin-action-secondary">
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => setCreateOpen(false)}
+              className="admin-action-secondary"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={saving || editionsLoading} className="admin-action-primary w-full">
+            <button
+              type="submit"
+              disabled={saving || editionsLoading}
+              className="admin-action-primary w-full"
+            >
               {saving ? "Creating…" : "Create private edition"}
             </button>
           </div>
@@ -526,7 +581,8 @@ function AdminHome() {
         title={privateEdition ? `Make ${editionLabel(privateEdition)} private?` : "Make edition private?"}
         description={
           <>
-            All shows in this edition will disappear from the public site. Nothing is deleted, and the saved publication choices remain available.
+            All shows in this edition will disappear from the public site. Nothing is deleted, and
+            the saved publication choices remain available.
           </>
         }
         confirmLabel="Make private"
@@ -544,7 +600,8 @@ function AdminHome() {
         title={deleteEdition ? `Delete ${editionLabel(deleteEdition)}?` : "Delete edition?"}
         description={
           <>
-            This permanently deletes the edition and data linked to it. This is intentionally harder to do than ordinary organizer actions.
+            This permanently deletes the edition and data linked to it. This is intentionally harder
+            to do than ordinary organizer actions.
           </>
         }
         confirmLabel="Delete edition"
