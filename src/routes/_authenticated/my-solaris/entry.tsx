@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { EntryReadinessPage } from "@/routes/_authenticated/country-hub/readiness";
+import { MySolarisEntryPage } from "@/features/my-solaris/entry/MySolarisEntryPage";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/entry")({
   validateSearch: (search: Record<string, unknown>): { country?: string; view?: string } => ({
@@ -9,9 +9,9 @@ export const Route = createFileRoute("/_authenticated/my-solaris/entry")({
   }),
   head: () => ({
     meta: [
-      { title: "MySolaris entry readiness — Solaris Studio" },
+      { title: "MySolaris entry — Solaris Studio" },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: EntryReadinessPage,
+  component: MySolarisEntryPage,
 });
