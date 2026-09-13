@@ -1,137 +1,257 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  Activity,
+  Bell,
+  Bookmark,
+  CircleUserRound,
   ClipboardCheck,
   Flag,
+  History,
   Home,
   ListChecks,
-  MailOpen,
-  Palette,
+  MoreHorizontal,
   PanelsTopLeft,
+  Sparkles,
   Vote,
   type LucideIcon,
 } from "lucide-react";
 
-import { NAV_TARGETS } from "@/lib/navigation-targets";
+import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
+import {
+  MY_SOLARIS_MOBILE_PRIMARY_IDS,
+  MY_SOLARIS_NAVIGATION,
+  mySolarisItemIsActive,
+  mySolarisMoreItems,
+  mySolarisNavigationItems,
+  type MySolarisNavigationItem,
+  type MySolarisSectionId,
+} from "@/lib/my-solaris-navigation";
 import { cn } from "@/lib/utils";
 
-type WorkspaceItem = {
-  label: string;
-  description: string;
-  to: string;
-  icon: LucideIcon;
-  active: (pathname: string) => boolean;
+const ICONS: Record<MySolarisSectionId, LucideIcon> = {
+  home: Home,
+  tasks: ListChecks,
+  entry: ClipboardCheck,
+  voting: Vote,
+  notices: Bell,
+  country: Flag,
+  "page-media": PanelsTopLeft,
+  history: History,
+  activity: Activity,
+  predictions: Sparkles,
+  saved: Bookmark,
+  account: CircleUserRound,
 };
 
-const WORKSPACE_ITEMS: WorkspaceItem[] = [
-  {
-    label: "Dashboard",
-    description: "Current edition, history and account overview",
-    to: NAV_TARGETS.mySolaris,
-    icon: Home,
-    active: (pathname) =>
-      pathname === NAV_TARGETS.mySolaris || pathname === `${NAV_TARGETS.mySolaris}/`,
-  },
-  {
-    label: "Tasks",
-    description: "Deadlines, blockers and delegation work",
-    to: NAV_TARGETS.mySolarisTasks,
-    icon: ListChecks,
-    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisTasks),
-  },
-  {
-    label: "Entry readiness",
-    description: "Eligibility and entry workflow",
-    to: NAV_TARGETS.mySolarisEntry,
-    icon: ClipboardCheck,
-    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisEntry),
-  },
-  {
-    label: "Voting",
-    description: "Jury voting and public televoting shortcuts",
-    to: NAV_TARGETS.mySolarisVoting,
-    icon: Vote,
-    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisVoting),
-  },
-  {
-    label: "Notices",
-    description: "Official organizer communications",
-    to: NAV_TARGETS.mySolarisNotices,
-    icon: MailOpen,
-    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisNotices),
-  },
-  {
-    label: "Country tools",
-    description: "Country identity, entries and public-page controls",
-    to: NAV_TARGETS.mySolarisCountry,
-    icon: Flag,
-    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisCountry),
-  },
-  {
-    label: "Page & media",
-    description: "Edit the country page and media blocks",
-    to: NAV_TARGETS.mySolarisPageBuilder,
-    icon: PanelsTopLeft,
-    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisPageBuilder),
-  },
-  {
-    label: "Appearance",
-    description: "Country page colours, background and branding",
-    to: NAV_TARGETS.mySolarisTheme,
-    icon: Palette,
-    active: (pathname) => pathname.startsWith(NAV_TARGETS.mySolarisTheme),
-  },
-];
-
-/**
- * Persistent navigation for the authenticated participant workspace.
- *
- * MySolaris child routes intentionally share this one rail so entering a task
- * or country editor never swaps the user into a second, differently shaped
- * product. Legacy Country Hub routes may still exist as compatibility redirects,
- * but new participant navigation must stay in the /my-solaris family.
- */
 export function MySolarisWorkspaceNav() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const workspace = useMySolaris();
+  const primaryIds = new Set<MySolarisSectionId>(MY_SOLARIS_MOBILE_PRIMARY_IDS);
+  const primaryItems = mySolarisNavigationItems().filter((item) => primaryIds.has(item.id));
+  const moreItems = mySolarisMoreItems();
+  const moreActive = moreItems.some((item) => mySolarisItemIsActive(item, pathname));
+  const country = workspace.countryAccount?.country;
 
   return (
-    <section className="mb-5 rounded-2xl border border-border/70 bg-surface/70 p-2 sm:mb-6">
-      <div className="flex items-center justify-between gap-3 px-2 pb-2 pt-1">
-        <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">
-            MySolaris
-          </p>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            Edition and country tools, without leaving your account area.
-          </p>
-        </div>
-      </div>
-
-      <nav
+    <>
+      <aside
+        className="hidden self-start rounded-2xl border border-border/70 bg-surface/70 p-3 lg:sticky lg:top-24 lg:block"
         aria-label="MySolaris sections"
-        className="scroll-slim flex gap-1.5 overflow-x-auto pb-0.5"
       >
-        {WORKSPACE_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = item.active(pathname);
-          return (
-            <Link
-              key={item.to}
-              to={item.to as any}
-              aria-current={active ? "page" : undefined}
-              title={item.description}
+        <WorkspaceIdentity
+          countryName={country?.name}
+          countryCode={country?.short_code}
+          flagUrl={country?.flag_image}
+          editionNumber={workspace.currentEdition?.edition_number}
+        />
+
+        <nav className="mt-4 space-y-4">
+          {MY_SOLARIS_NAVIGATION.map((group, index) => (
+            <div key={group.label ?? "home"}>
+              {group.label ? (
+                <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                  {group.label}
+                </p>
+              ) : null}
+              <div className="space-y-1">
+                {group.items.map((item) => (
+                  <WorkspaceLink
+                    key={item.id}
+                    item={item}
+                    pathname={pathname}
+                    badge={badgeFor(
+                      item.id,
+                      workspace.taskCounts.needsAction,
+                      workspace.unreadNoticeCount,
+                    )}
+                  />
+                ))}
+              </div>
+              {index === 0 ? <div className="mt-3 border-t border-border/55" /> : null}
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <section
+        className="mb-5 rounded-2xl border border-border/70 bg-surface/75 p-2 lg:hidden"
+        data-mysolaris-mobile-nav
+      >
+        <div className="flex items-center justify-between gap-3 px-2 pb-2 pt-1">
+          <WorkspaceIdentity
+            compact
+            countryName={country?.name}
+            countryCode={country?.short_code}
+            flagUrl={country?.flag_image}
+            editionNumber={workspace.currentEdition?.edition_number}
+          />
+          <div className="flex gap-1.5 text-[9px] font-bold">
+            {workspace.taskCounts.needsAction ? (
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                {workspace.taskCounts.needsAction} task
+                {workspace.taskCounts.needsAction === 1 ? "" : "s"}
+              </span>
+            ) : null}
+            {workspace.unreadNoticeCount ? (
+              <span className="rounded-full border border-border px-2 py-1">
+                {workspace.unreadNoticeCount} new
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <nav className="grid grid-cols-5 gap-1" aria-label="MySolaris mobile sections">
+          {primaryItems.map((item) => (
+            <MobileLink key={item.id} item={item} pathname={pathname} />
+          ))}
+          <details className="group relative">
+            <summary
               className={cn(
-                "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition-colors",
-                active
-                  ? "border-primary/25 bg-primary/10 text-primary"
-                  : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-surface-strong hover:text-foreground",
+                "flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-semibold [&::-webkit-details-marker]:hidden",
+                moreActive ? "bg-primary/10 text-primary" : "text-muted-foreground",
               )}
             >
-              <Icon className="size-3.5" aria-hidden="true" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </section>
+              <MoreHorizontal className="size-4" aria-hidden="true" />
+              More
+            </summary>
+            <div className="absolute right-0 top-[calc(100%+.5rem)] z-30 grid w-[min(88vw,22rem)] grid-cols-2 gap-1 rounded-2xl border border-border bg-background p-2 shadow-2xl">
+              {moreItems.map((item) => (
+                <WorkspaceLink
+                  key={item.id}
+                  item={item}
+                  pathname={pathname}
+                  badge={badgeFor(
+                    item.id,
+                    workspace.taskCounts.needsAction,
+                    workspace.unreadNoticeCount,
+                  )}
+                  compact
+                />
+              ))}
+            </div>
+          </details>
+        </nav>
+      </section>
+    </>
   );
+}
+
+function WorkspaceIdentity({
+  countryName,
+  countryCode,
+  flagUrl,
+  editionNumber,
+  compact = false,
+}: {
+  countryName?: string;
+  countryCode?: string;
+  flagUrl?: string | null;
+  editionNumber?: number | null;
+  compact?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5">
+      {flagUrl ? (
+        <img src={flagUrl} alt="" className="h-8 w-11 shrink-0 rounded-lg object-cover" />
+      ) : (
+        <span className="grid h-8 w-11 shrink-0 place-items-center rounded-lg border border-border bg-background text-[9px] font-black">
+          {countryCode ?? "SSC"}
+        </span>
+      )}
+      <span className="min-w-0">
+        <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+          MySolaris
+        </span>
+        <span className="block truncate text-xs font-semibold">
+          {countryName ?? "Country account"}
+        </span>
+        {!compact ? (
+          <span className="mt-0.5 block text-[10px] text-muted-foreground">
+            {editionNumber ? `SSC ${editionNumber}` : "No current edition"}
+          </span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+function WorkspaceLink({
+  item,
+  pathname,
+  badge,
+  compact = false,
+}: {
+  item: MySolarisNavigationItem;
+  pathname: string;
+  badge?: number;
+  compact?: boolean;
+}) {
+  const Icon = ICONS[item.id];
+  const active = mySolarisItemIsActive(item, pathname);
+  return (
+    <Link
+      to={item.to as any}
+      aria-current={active ? "page" : undefined}
+      title={item.description}
+      className={cn(
+        "flex min-h-10 items-center gap-2 rounded-xl px-2.5 text-xs font-semibold transition-colors",
+        active
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-surface-strong hover:text-foreground",
+        compact && "min-h-11 border border-transparent",
+      )}
+    >
+      <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {badge ? (
+        <span className="grid min-w-5 place-items-center rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-black text-primary">
+          {badge}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function MobileLink({ item, pathname }: { item: MySolarisNavigationItem; pathname: string }) {
+  const Icon = ICONS[item.id];
+  const active = mySolarisItemIsActive(item, pathname);
+  return (
+    <Link
+      to={item.to as any}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-semibold",
+        active ? "bg-primary/10 text-primary" : "text-muted-foreground",
+      )}
+    >
+      <Icon className="size-4" aria-hidden="true" />
+      {item.label}
+    </Link>
+  );
+}
+
+function badgeFor(id: MySolarisSectionId, taskCount: number, noticeCount: number) {
+  if (id === "tasks") return taskCount;
+  if (id === "notices") return noticeCount;
+  return 0;
 }

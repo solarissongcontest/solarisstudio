@@ -1,16 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Activity,
   CalendarClock,
   CheckCircle2,
-  CircleUserRound,
   ClipboardCheck,
   Eye,
-  Flag,
-  History,
-  Home,
-  LayoutDashboard,
   ListChecks,
   Newspaper,
   Palette,
@@ -18,7 +12,6 @@ import {
   Send,
   Sparkles,
   Vote,
-  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -62,14 +55,6 @@ type MySolarisSearch = {
 
 const TAB_IDS: MySolarisTab[] = ["home", "entry", "country", "history", "activity", "account"];
 
-const TABS: Array<{ id: MySolarisTab; label: string; icon: LucideIcon }> = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "entry", label: "Entry", icon: Sparkles },
-  { id: "country", label: "Country", icon: Flag },
-  { id: "history", label: "History", icon: History },
-  { id: "activity", label: "Pulse", icon: Activity },
-  { id: "account", label: "Account", icon: CircleUserRound },
-];
 
 export const Route = createFileRoute("/_authenticated/my-solaris/")({
   head: () => ({ meta: [{ title: "MySolaris — Solaris Studio" }] }),
@@ -282,7 +267,7 @@ function MySolarisPage() {
       <PageHeader
         eyebrow="MySolaris"
         title={`Welcome back, ${country.name}`}
-        description="Your HOD home base for the current edition, entries, country history, updates and account."
+        description="Your participant home for current priorities, entry readiness, notices and the active edition."
         actions={
           <Link
             to="/countries/$code"
@@ -293,8 +278,6 @@ function MySolarisPage() {
           </Link>
         }
       />
-
-      <MySolarisTabs active={tab} onChange={setTab} />
 
       <div className="mt-5 space-y-5">
         {tab === "home" && (
@@ -509,57 +492,6 @@ function MySolarisPage() {
         )}
       </div>
     </AppShell>
-  );
-}
-
-function MySolarisTabs({
-  active,
-  onChange,
-}: {
-  active: MySolarisTab;
-  onChange: (tab: MySolarisTab) => void;
-}) {
-  return (
-    <>
-      <label className="block rounded-2xl border border-border/70 bg-surface/55 p-2 md:hidden">
-        <span className="mb-1.5 block px-1 text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-          MySolaris section
-        </span>
-        <select
-          value={active}
-          onChange={(event) => onChange(event.target.value as MySolarisTab)}
-          className="min-h-12 w-full rounded-xl border border-border bg-background/70 px-3 text-sm font-semibold text-foreground outline-none focus:border-primary"
-        >
-          {TABS.map(({ id, label }) => (
-            <option key={id} value={id}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <nav
-        className="my-solaris-section-nav scroll-slim hidden gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-surface/95 p-1.5 md:flex"
-        aria-label="MySolaris sections"
-      >
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onChange(id)}
-            aria-current={active === id ? "page" : undefined}
-            className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition ${
-              active === id
-                ? "bg-primary/12 text-primary ring-1 ring-primary/20"
-                : "text-muted-foreground hover:bg-surface-strong hover:text-foreground"
-            }`}
-          >
-            <Icon className="size-3.5" />
-            {label}
-          </button>
-        ))}
-      </nav>
-    </>
   );
 }
 
