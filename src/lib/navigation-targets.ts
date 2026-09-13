@@ -14,6 +14,11 @@ export const NAV_TARGETS = {
   mySolarisNotices: "/my-solaris/notices",
   mySolarisPageBuilder: "/my-solaris/page-builder",
   mySolarisTheme: "/my-solaris/theme",
+  mySolarisHistory: "/my-solaris/history",
+  mySolarisActivity: "/my-solaris/activity",
+  mySolarisPredictions: "/my-solaris/predictions",
+  mySolarisSaved: "/my-solaris/saved",
+  mySolarisAccount: "/my-solaris/account",
   organizer: "/admin",
 } as const;
 

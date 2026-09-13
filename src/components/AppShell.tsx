@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
-import { MySolarisWorkspaceNav } from "@/components/mysolaris/MySolarisWorkspaceNav";
+import { MySolarisWorkspaceShell } from "@/components/mysolaris/MySolarisWorkspaceShell";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { cn } from "@/lib/utils";
@@ -443,7 +443,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="public-site-layout">
             <PublicSiteSidebar pathname={pathname} isOrganizer={access.isOrganizer} />
             <div className="public-site-content min-w-0">
-              {isMySolarisWorkspace && <MySolarisWorkspaceNav />}
               {isHomePage && (
                 <Suspense fallback={null}>
                   <LazyHomeAnniversaryTakeover />
@@ -457,9 +456,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </div>
           </div>
+        ) : isMySolarisWorkspace ? (
+          <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
         ) : (
           <>
-            {isMySolarisWorkspace && <MySolarisWorkspaceNav />}
             {isHomePage && (
               <Suspense fallback={null}>
                 <LazyHomeAnniversaryTakeover />
@@ -475,6 +475,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       </main>
 
+      {!isMySolarisWorkspace && (
       <nav
         className="mobile-quick-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/70 px-2 pt-1.5 lg:hidden"
         style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
@@ -500,6 +501,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </div>
       </nav>
+      )}
     </div>
   );
 }
