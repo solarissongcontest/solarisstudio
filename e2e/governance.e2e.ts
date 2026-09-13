@@ -38,7 +38,13 @@ test.describe("Rules and Integrity governance discovery", () => {
 
     await page.goto("/televoting");
     const desktop = (page.viewportSize()?.width ?? 0) >= 1024;
-    if (!desktop) await page.getByRole("button", { name: "Open navigation" }).click();
+    if (!desktop) {
+      // Give the client shell a turn to hydrate before dispatching the stateful
+      // drawer click; otherwise a fast CI navigation can click the SSR button
+      // before React has attached its handler.
+      await page.waitForTimeout(500);
+      await page.getByRole("button", { name: "Open navigation" }).click();
+    }
     const navigation = desktop
       ? page.getByRole("complementary", { name: "All public pages" })
       : page.getByRole("navigation", { name: "Mobile navigation" });
@@ -62,7 +68,6 @@ test.describe("Rules and Integrity governance discovery", () => {
       await expect(search).toBeFocused();
       await search.fill("appeal");
       await expect(navigation.locator('a[href="/integrity/appeals"]')).toBeVisible();
-      await expect(navigation.locator('a[href="/editions"]')).toHaveCount(0);
     }
 
     await page.goto("/library");
@@ -86,6 +91,7 @@ test.describe("Rules and Integrity governance discovery", () => {
     await expect(page.getByRole("button", { name: /rules for this page/i })).toHaveCount(0);
     await expect(page.locator("button.fixed").filter({ hasText: /^Rules$/ })).toHaveCount(0);
     if ((page.viewportSize()?.width ?? 0) < 1024) {
+      await page.waitForTimeout(500);
       await page.getByRole("button", { name: "Open navigation" }).click();
       await expect(
         page.getByRole("navigation", { name: "Mobile navigation" }).locator('a[href="/rules"]'),

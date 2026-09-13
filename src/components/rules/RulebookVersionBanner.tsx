@@ -1,14 +1,20 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarClock, FileClock, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { usePublishedRulebook } from "@/lib/rules-governance";
 import { SSC_RULEBOOK } from "@/lib/ssc-rules-v4";
 
 export function RulebookVersionBanner() {
   const release = usePublishedRulebook();
-  const version = release.data?.version ?? SSC_RULEBOOK.version;
-  const title = release.data?.title ?? SSC_RULEBOOK.status;
-  const effectiveAt = release.data?.effective_from ?? release.data?.published_at ?? null;
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
+  const version = hydrated ? (release.data?.version ?? SSC_RULEBOOK.version) : SSC_RULEBOOK.version;
+  const title = hydrated ? (release.data?.title ?? SSC_RULEBOOK.status) : SSC_RULEBOOK.status;
+  const effectiveAt = hydrated
+    ? (release.data?.effective_from ?? release.data?.published_at ?? null)
+    : null;
 
   return (
     <section className="mb-4 grid gap-3 rounded-2xl border border-sky-200/12 bg-sky-200/[0.035] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -25,7 +31,6 @@ export function RulebookVersionBanner() {
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
             <CalendarClock className="size-3" />
             {effectiveAt ? `Effective ${formatDate(effectiveAt)}` : "Bundled official regulations"}
-            {release.isFetching ? <span>· checking for a newer published release…</span> : null}
           </p>
         </div>
       </div>
