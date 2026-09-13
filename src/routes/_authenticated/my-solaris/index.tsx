@@ -6,12 +6,14 @@ import {
   ClipboardCheck,
   Eye,
   ListChecks,
+  LayoutDashboard,
   Newspaper,
   Palette,
   PencilLine,
   Send,
   Sparkles,
   Vote,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
