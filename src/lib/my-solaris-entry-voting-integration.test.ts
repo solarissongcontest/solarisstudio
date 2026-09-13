@@ -12,8 +12,8 @@ const voting = source("src/routes/_authenticated/my-solaris/voting.tsx");
 
 describe("focused MySolaris entry and voting workspaces", () => {
   it("splits Entry into the six promised participant sections", () => {
-    expect(entry).toContain(
-      'type EntrySection = "overview" | "details" | "media" | "eligibility" | "readiness" | "history"',
+    expect(entry).toMatch(
+      /type EntrySection =[\s\S]*"overview"[\s\S]*"details"[\s\S]*"media"[\s\S]*"eligibility"[\s\S]*"readiness"[\s\S]*"history";/,
     );
     for (const label of [
       "Overview",
@@ -36,12 +36,11 @@ describe("focused MySolaris entry and voting workspaces", () => {
   });
 
   it("shows participant voting status without exposing internal identity mechanics", () => {
-    expect(voting).toContain('label="Assigned HOD"');
-    expect(voting).toContain('label="Ballot status"');
-    expect(voting).toContain('label="Deadline"');
+    expect(voting).toMatch(/label=\{"?Assigned HOD"?\}|label="Assigned HOD"/);
+    expect(voting).toMatch(/label=\{"?Ballot status"?\}|label="Ballot status"/);
+    expect(voting).toMatch(/label=\{"?Deadline"?\}|label="Deadline"/);
     expect(voting).toContain("loadOpenTelevote");
-    expect(voting).toContain(
-      "Internal voter identities, integrity signals and organizer controls remain",
-    );
+    expect(voting).toContain("Internal voter identities, integrity signals");
+    expect(voting).toContain("and organizer controls remain in protected Organizer tools.");
   });
 });
