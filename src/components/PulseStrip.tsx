@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Clock3 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { OfficialAnnouncementFeed } from "@/components/OfficialAnnouncementFeed";
 import { getPublicRounds } from "@/lib/confirmation-rounds.functions";
 import {
   useContentEvents,
@@ -90,88 +91,92 @@ export function PulseStrip() {
   const untilClose = activeRound?.closes_at ? millisecondsUntil(activeRound.closes_at, now) : null;
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-border/70 bg-surface" aria-labelledby="pulse-strip-title">
-      {activeRound && (
-        <Link
-          to="/confirmations"
-          className="flex min-w-0 items-center gap-3 border-b border-primary/20 bg-primary/[0.07] px-4 py-3 transition-colors hover:bg-primary/[0.1] sm:px-5"
-        >
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-            <Clock3 className="size-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-bold uppercase tracking-[0.12em] text-primary">
-              {roundState === "open" || roundState === "closing-soon" ? "Confirmations open" : "Coming up"}
-            </span>
-            <span className="mt-0.5 block truncate text-sm font-semibold">{activeRound.name}</span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              {roundState === "open"
-                ? untilClose !== null
-                  ? `Open now · closes in ${formatCompactCountdown(untilClose)}`
-                  : "Open now"
-                : roundState === "closing-soon"
-                  ? untilClose !== null
-                    ? `Closing in ${formatCompactCountdown(untilClose)}`
-                    : "Closing soon"
-                  : untilOpen !== null
-                    ? `Opens in ${formatCompactCountdown(untilOpen)}`
-                    : "Opening time is set in Confirmations"}
-            </span>
-          </span>
-          <span className="shrink-0 text-sm font-bold text-primary">Open →</span>
-        </Link>
-      )}
+    <div className="space-y-3">
+      <OfficialAnnouncementFeed surface="public_home" />
 
-      <div className="grid md:grid-cols-[1.15fr_.85fr]">
-        <div className="bg-gradient-to-br from-primary/15 via-surface to-background p-5 sm:p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">What changed</p>
-            {user && unreadCount > 0 && (
-              <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
-                {unreadCount} new
+      <section className="overflow-hidden rounded-3xl border border-border/70 bg-surface" aria-labelledby="pulse-strip-title">
+        {activeRound && (
+          <Link
+            to="/confirmations"
+            className="flex min-w-0 items-center gap-3 border-b border-primary/20 bg-primary/[0.07] px-4 py-3 transition-colors hover:bg-primary/[0.1] sm:px-5"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
+              <Clock3 className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-bold uppercase tracking-[0.12em] text-primary">
+                {roundState === "open" || roundState === "closing-soon" ? "Confirmations open" : "Coming up"}
               </span>
+              <span className="mt-0.5 block truncate text-sm font-semibold">{activeRound.name}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                {roundState === "open"
+                  ? untilClose !== null
+                    ? `Open now · closes in ${formatCompactCountdown(untilClose)}`
+                    : "Open now"
+                  : roundState === "closing-soon"
+                    ? untilClose !== null
+                      ? `Closing in ${formatCompactCountdown(untilClose)}`
+                      : "Closing soon"
+                    : untilOpen !== null
+                      ? `Opens in ${formatCompactCountdown(untilOpen)}`
+                      : "Opening time is set in Confirmations"}
+              </span>
+            </span>
+            <span className="shrink-0 text-sm font-bold text-primary">Open →</span>
+          </Link>
+        )}
+
+        <div className="grid md:grid-cols-[1.15fr_.85fr]">
+          <div className="bg-gradient-to-br from-primary/15 via-surface to-background p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">What changed</p>
+              {user && unreadCount > 0 && (
+                <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
+            <h2 id="pulse-strip-title" className="mt-2 text-2xl font-bold tracking-tight">Solaris Pulse</h2>
+
+            {lead ? (
+              <Link to={lead.route} className="mt-4 block">
+                <p className="text-lg font-bold leading-snug">{lead.title}</p>
+                {lead.summary && (
+                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{lead.summary}</p>
+                )}
+                <p className="mt-3 text-sm font-semibold text-primary">See what changed →</p>
+              </Link>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                {user && preferences?.in_app_enabled === false
+                  ? "Your Pulse inbox is paused. You can switch it back on from Pulse preferences."
+                  : "Current contest changes will appear here when something happens."}
+              </p>
             )}
           </div>
-          <h2 id="pulse-strip-title" className="mt-2 text-2xl font-bold tracking-tight">Solaris Pulse</h2>
 
-          {lead ? (
-            <Link to={lead.route} className="mt-4 block">
-              <p className="text-lg font-bold leading-snug">{lead.title}</p>
-              {lead.summary && (
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{lead.summary}</p>
-              )}
-              <p className="mt-3 text-sm font-semibold text-primary">See what changed →</p>
-            </Link>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              {user && preferences?.in_app_enabled === false
-                ? "Your Pulse inbox is paused. You can switch it back on from Pulse preferences."
-                : "Current contest changes will appear here when something happens."}
-            </p>
-          )}
-        </div>
-
-        <div className="border-t border-border/70 p-5 md:border-l md:border-t-0">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-bold">More updates</p>
-            <Link to="/pulse" className="text-sm font-bold text-primary">Catch up →</Link>
-          </div>
-
-          {more.length ? (
-            <div className="mt-3 divide-y divide-border/70">
-              {more.map((event) => (
-                <Link key={event.id} to={event.route} className="block py-3 first:pt-0 last:pb-0">
-                  <p className="line-clamp-2 text-sm font-semibold leading-5">{event.title}</p>
-                </Link>
-              ))}
+          <div className="border-t border-border/70 p-5 md:border-l md:border-t-0">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-bold">More updates</p>
+              <Link to="/pulse" className="text-sm font-bold text-primary">Catch up →</Link>
             </div>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Nothing else needs your attention right now.
-            </p>
-          )}
+
+            {more.length ? (
+              <div className="mt-3 divide-y divide-border/70">
+                {more.map((event) => (
+                  <Link key={event.id} to={event.route} className="block py-3 first:pt-0 last:pb-0">
+                    <p className="line-clamp-2 text-sm font-semibold leading-5">{event.title}</p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Nothing else needs your attention right now.
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
