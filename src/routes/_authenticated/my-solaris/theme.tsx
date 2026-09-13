@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { CountryThemeRoute } from "@/routes/_authenticated/country-hub/theme";
+import { CountryThemeRoute } from "@/features/my-solaris/theme/MySolarisThemePage";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/theme")({
   validateSearch: (search: Record<string, unknown>): { country?: string } => ({
