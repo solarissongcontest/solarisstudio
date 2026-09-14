@@ -27,8 +27,9 @@ as $$
 $$;
 
 -- Shadow mode previously projected legacy user_roles into the v2 capability
--- resolver dynamically. Persist those operators as explicit v2 assignments before
--- authoritative mode can ignore the legacy table.
+-- resolver dynamically. Persist live operators as explicit v2 assignments before
+-- authoritative mode can ignore the legacy table. Historical role rows whose Auth
+-- users have been deleted are intentionally ignored.
 insert into public.studio2_role_assignments (
   user_id,
   role_key,
@@ -43,6 +44,7 @@ select
   null,
   null
 from public.user_roles ur
+join auth.users au on au.id = ur.user_id
 join public.studio2_access_roles ar on ar.key = ur.role::text
 where ur.role::text in ('organizer', 'viewer')
 on conflict (user_id, role_key, edition_id) do nothing;
