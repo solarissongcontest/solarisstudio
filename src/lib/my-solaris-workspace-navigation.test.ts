@@ -53,7 +53,7 @@ describe("MySolaris product consolidation", () => {
       expect(workspaceContext).toContain(contract);
     }
     expect(workspaceContext).toContain("isStudio2FeatureEnabled");
-    expect(workspaceContext).toContain("loadStudio2NoticeInbox");
+    expect(workspaceContext).toContain("loadStudio2RecipientNoticeInbox");
   });
 
   it("does not bury MySolaris inside the public page directory", () => {

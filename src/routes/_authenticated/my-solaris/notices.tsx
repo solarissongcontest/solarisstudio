@@ -4,6 +4,9 @@ import {
   MySolarisNoticesModule,
   type NoticesSearch,
 } from "@/components/mysolaris/modules/MySolarisNoticesModule";
+import { OrganizerPublicNoticesModule } from "@/components/mysolaris/modules/OrganizerPublicNoticesModule";
+import { OrganizerRecipientNoticesModule } from "@/components/mysolaris/modules/OrganizerRecipientNoticesModule";
+import { useMyCountryAccount } from "@/lib/country-account";
 import type { NoticeInboxState } from "@/lib/official-communications";
 
 const INBOX_STATES = new Set([
@@ -25,5 +28,20 @@ export const Route = createFileRoute("/_authenticated/my-solaris/notices")({
   head: () => ({
     meta: [{ title: "MySolaris notices — Solaris Studio" }, { name: "robots", content: "noindex" }],
   }),
-  component: MySolarisNoticesModule,
+  component: NoticesRoute,
 });
+
+function NoticesRoute() {
+  const account = useMyCountryAccount();
+  const access = account.data?.access;
+
+  if (access?.isOrganizer && access.countryId && access.countryStatus === "active") {
+    return <OrganizerRecipientNoticesModule />;
+  }
+
+  if (access?.isOrganizer) {
+    return <OrganizerPublicNoticesModule />;
+  }
+
+  return <MySolarisNoticesModule />;
+}
