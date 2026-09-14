@@ -2,6 +2,7 @@ import { useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import "@/anniversary-home-polish.css";
+import "@/anniversary-home-heading-fix.css";
 import { AnniversaryTakeover } from "@/components/AnniversaryTakeover";
 import {
   buildAnniversaryRecap,
