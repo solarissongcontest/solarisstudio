@@ -1,6 +1,6 @@
 # Permission Engine v2 authorization inventory
 
-Status: shadow plus dual-path migration foundation. The current organizer gate remains authoritative. Organizer route decisions are recorded for comparison, while the remaining Studio 2 jury and rollout writes now accept reviewed capability paths without enabling the global Permission Engine flag.
+Status: shadow plus strict-dual migration in progress. The current organizer gate remains authoritative. Organizer route decisions are recorded for comparison, while the first organizer-only high-risk write boundaries now require both the legacy Organizer role and the matching capability without enabling the global Permission Engine flag.
 
 ## Decision model
 
@@ -17,8 +17,8 @@ Status: shadow plus dual-path migration foundation. The current organizer gate r
 | -------------- | -------------------------- | -------------------------------------------- | ------------------------- | -------------- | -------------------------------------------------- |
 | Edition        | View private runtime       | Organizer role or existing capability helper | `edition.read`            | Edition/global | Shadow-compatible                                  |
 | Edition        | Change configuration       | Organizer role or helper                     | `edition.manage`          | Edition/global | Dual-compatible                                    |
-| Edition        | Lifecycle transition       | Organizer + governed approval where required | `edition.transition`      | Edition/global | Catalogued; legacy remains authoritative           |
-| Edition        | Archive edition            | Organizer role or helper                     | `edition.archive`         | Edition/global | Dual-compatible                                    |
+| Edition        | Lifecycle transition       | Organizer + governed approval where required | `edition.transition`      | Edition/global | Strict dual at authoritative table boundary        |
+| Edition        | Archive edition            | Organizer role or helper                     | `edition.archive`         | Edition/global | Strict dual at authoritative table boundary        |
 | Delegations    | View private readiness     | Organizer or owned-country rules             | `delegation.read`         | Edition/global | Catalogued                                         |
 | Delegations    | Manage roster/access       | Organizer or owned-country rules             | `delegation.manage`       | Edition/global | Catalogued                                         |
 | Confirmations  | View responses             | Organizer or owned-country rules             | `confirmation.read`       | Edition/global | Dual-compatible                                    |
@@ -37,8 +37,8 @@ Status: shadow plus dual-path migration foundation. The current organizer gate r
 | Results        | Verify calculations        | Organizer/helper                             | `results.verify`          | Edition/global | Dual-compatible                                    |
 | Results        | Publish verified result    | Organizer/helper plus result state           | `results.publish`         | Edition/global | Dual-compatible                                    |
 | Incidents      | View incident command      | Organizer                                    | `incident.read`           | Edition/global | Catalogued                                         |
-| Incidents      | Command response           | Organizer/helper                             | `incident.manage`         | Edition/global | Dual-compatible                                    |
-| Incidents      | Resolve incident           | Organizer                                    | `incident.resolve`        | Edition/global | Catalogued                                         |
+| Incidents      | Command response           | Organizer/helper                             | `incident.manage`         | Edition/global | Strict dual at authoritative table boundary        |
+| Incidents      | Resolve incident           | Organizer                                    | `incident.resolve`        | Edition/global | Strict dual at authoritative table boundary        |
 | Communications | View drafts/delivery       | Organizer/recipient policy                   | `communications.read`     | Edition/global | Catalogued                                         |
 | Communications | Draft/schedule/send        | Organizer/helper                             | `communications.send`     | Edition/global | Dual-compatible                                    |
 | Communications | Archive/delete             | Organizer/helper                             | `communications.manage`   | Edition/global | Catalogued                                         |
@@ -55,7 +55,7 @@ Status: shadow plus dual-path migration foundation. The current organizer gate r
 | Broadcast      | Operate live cues          | Organizer/helper                             | `broadcast.control`       | Edition/global | Dual-compatible                                    |
 | Broadcast      | Configure operators/assets | Organizer                                    | `broadcast.manage`        | Edition/global | Catalogued                                         |
 | Rollout        | View feature state         | Organizer                                    | `rollout.read`            | Edition/global | Catalogued                                         |
-| Rollout        | Change eligible flags      | Organizer plus dependency engine             | `rollout.manage`          | Edition/global | Catalogued                                         |
+| Rollout        | Change eligible flags      | Organizer plus dependency engine             | `rollout.manage`          | Edition/global | Strict dual at authoritative table boundary        |
 | Permissions    | View catalog/users         | Organizer or access manager                  | `permissions.read`        | Global         | Shadow check recorded                              |
 | Permissions    | Assign/revoke access       | Organizer or access manager                  | `permissions.manage`      | Global         | Enforced in new RPCs                               |
 | Permissions    | Review mismatch log        | Organizer or access manager                  | `permissions.audit`       | Global         | Enforced in new RPCs                               |
@@ -102,6 +102,7 @@ The `permission_engine_v2` flag stays disabled until all of the following are tr
 - `20260914035152_permission_engine_v2_foundation`: capability catalog, presets, assignments, direct grants, shadow telemetry and guarded admin RPCs.
 - `20260914035308_permission_engine_v2_fk_indexes`: covering indexes for the new permission foreign keys.
 - `20260914041917_permission_engine_v2_dual_enforcement`: capability-aware jury roster and feature-rollout paths, including global-scope protection across existing and requested rollout scopes.
+- `20260914140500_permission_engine_v2_strict_dual_guards`: authoritative table guards for edition lifecycle, Incident Command and Feature Rollout. Each accepted authenticated write records a server-side comparison event and requires legacy Organizer plus capability approval.
 - Organizer route shadow probes cover the shared shell, including the specialist Confirmations and Televoting admin families. The access simulation explains domains, routes and actions without impersonation.
 - Access & Permissions exposes an explicit Readiness view. Zero observations remain a waiting state rather than being presented as a successful zero-mismatch result.
 

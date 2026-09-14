@@ -64,7 +64,7 @@ export function buildPermissionCutoverReadiness(
       id: "strict-dual",
       label: "Strict sensitive-action dual enforcement",
       detail:
-        "Legacy and capability decisions are not yet both required across every sensitive action.",
+        "Edition lifecycle, Incident Command and Feature Rollout are guarded; remaining sensitive actions still need strict dual coverage.",
       state: "blocked",
     },
   ];
