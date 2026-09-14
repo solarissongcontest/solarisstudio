@@ -5,6 +5,7 @@ import {
   type NoticesSearch,
 } from "@/components/mysolaris/modules/MySolarisNoticesModule";
 import { OrganizerPublicNoticesModule } from "@/components/mysolaris/modules/OrganizerPublicNoticesModule";
+import { OrganizerRecipientNoticesModule } from "@/components/mysolaris/modules/OrganizerRecipientNoticesModule";
 import { useMyCountryAccount } from "@/lib/country-account";
 import type { NoticeInboxState } from "@/lib/official-communications";
 
@@ -32,8 +33,13 @@ export const Route = createFileRoute("/_authenticated/my-solaris/notices")({
 
 function NoticesRoute() {
   const account = useMyCountryAccount();
+  const access = account.data?.access;
 
-  if (account.data?.access.isOrganizer) {
+  if (access?.isOrganizer && access.countryId && access.countryStatus === "active") {
+    return <OrganizerRecipientNoticesModule />;
+  }
+
+  if (access?.isOrganizer) {
     return <OrganizerPublicNoticesModule />;
   }
 
