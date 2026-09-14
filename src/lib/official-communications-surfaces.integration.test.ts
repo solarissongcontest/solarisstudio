@@ -7,6 +7,7 @@ function source(path: string) {
 }
 
 const migration = source('supabase/migrations/20260913121300_official_communications_surfaces.sql');
+const recipientInboxMigration = source('supabase/migrations/20260914222000_organizer_recipient_notice_inbox.sql');
 const adapter = source('src/lib/studio2-communications.ts');
 const feed = source('src/lib/official-announcement-feed.ts');
 const feedComponent = source('src/components/OfficialAnnouncementFeed.tsx');
@@ -55,7 +56,8 @@ describe('Official Communications surface targeting', () => {
   });
 
   it('keeps delegation targeting and acknowledgement specific to the inbox destination', () => {
-    expect(adapter).toContain("includes('delegation_inbox')");
+    expect(recipientInboxMigration).toContain("'delegation_inbox' = any(n.display_surfaces)");
+    expect(adapter).toContain("rpc('studio2_my_notice_inbox'");
     expect(organizer).toContain('Delegation inbox targeting');
     expect(organizer).toContain('Recipients acknowledge it from MySolaris → Notices.');
     expect(organizer).toContain("acknowledgementRequired: inboxEnabled ? acknowledgementRequired : false");
