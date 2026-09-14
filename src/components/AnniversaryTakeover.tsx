@@ -28,11 +28,6 @@ export function AnniversaryTakeover({
           </div>
 
           <div className="anniversary-editorial-grid">
-            <div className="anniversary-editorial-number" aria-hidden="true">
-              <span className="anniversary-editorial-number-value">{anniversary.age}</span>
-              <span className="anniversary-editorial-number-label">{anniversary.ordinal} anniversary</span>
-            </div>
-
             <div className="anniversary-editorial-copy">
               <p className="anniversary-editorial-eyebrow">Solaris Song Contest · Anniversary Day</p>
               <h1 className="anniversary-editorial-title font-display">
@@ -51,6 +46,14 @@ export function AnniversaryTakeover({
                 </Link>
                 <Link to="/editions" className="anniversary-editorial-action">Explore every edition</Link>
               </div>
+              <div className="anniversary-editorial-signature" aria-label="Solaris anniversary dates">
+                <span className="anniversary-editorial-signature-name">{anniversary.age} years of Solaris</span>
+                <span className="anniversary-editorial-signature-dates">17·09·2022 → 17·09·{anniversary.year}</span>
+              </div>
+            </div>
+
+            <div className="anniversary-editorial-art" aria-hidden="true">
+              <span>{String(anniversary.age).padStart(2, "0")}</span>
             </div>
           </div>
 
@@ -76,18 +79,13 @@ export function AnniversaryTakeover({
               detail={latestWinner ? `${latestWinner.edition} · ${latestWinner.points} points` : leadStory?.headline ?? "The archive is still growing"}
             />
           </div>
-
-          <div className="anniversary-editorial-scrollcue" aria-hidden="true">
-            <span />
-            The story so far
-          </div>
         </header>
 
         <div className="anniversary-v2-divider" />
 
         <div className="anniversary-v2-section-head">
           <div>
-            <p className="anniversary-v2-eyebrow">The birthday edition</p>
+            <p className="anniversary-v2-eyebrow">The story so far · The birthday edition</p>
             <h2 className="anniversary-v2-section-title font-display">One year of Solaris, in headlines</h2>
           </div>
           <p className="anniversary-v2-section-copy">
