@@ -25,6 +25,7 @@ describe("organizer MySolaris communications", () => {
     expect(route).toContain("<OrganizerRecipientNoticesModule />");
     expect(route).toContain("<OrganizerPublicNoticesModule />");
     expect(organizerPublicModule).toContain("loadPublicHomeAnnouncements(10)");
+    expect(organizerPublicModule).toContain("does not currently have an active delegation account");
   });
 
   it("shows and records acknowledgement actions for the organizer's delegation role", () => {
