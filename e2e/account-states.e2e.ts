@@ -52,6 +52,13 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
       await expect(page.getByText("Solaris Organizer", { exact: true })).toBeVisible();
       await expect(page.locator("body")).not.toContainText("This page didn't load");
       await expect(page.locator("body")).not.toContainText("Organizer could not open");
+
+      await page.goto("/my-solaris/notices", { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(/\/my-solaris\/notices/);
+      await expect(page.locator("body")).not.toContainText("This page didn't load");
+      await expect(page.locator("body")).toContainText(
+        /Public notifications|Official communications|Official notices/i,
+      );
     }
   });
 }
