@@ -5,9 +5,8 @@ import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.fun
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useAllParticipants, useEditions, type Edition, type Participant } from "@/lib/data";
 import { useOwnedEntryPublication } from "@/lib/entry-publication";
-import { loadPublicHomeAnnouncements } from "@/lib/official-announcement-feed";
 import { useFanSession } from "@/lib/prediction-data";
-import { loadStudio2NoticeInbox } from "@/lib/studio2-communications";
+import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 const PARTICIPANT_CAPABILITIES = [
@@ -107,28 +106,17 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   const isOrganizer = Boolean(countryAccountQuery.data?.access.isOrganizer);
   const noticesQuery = useQuery({
     enabled: Boolean(userQuery.data && capabilities.official_communications),
-    queryKey: [
-      "mysolaris-notice-summary",
-      currentEdition?.id,
-      isOrganizer ? "organizer-public" : "delegation-inbox",
-    ],
+    queryKey: ["mysolaris-notice-summary", currentEdition?.id, "recipient-inbox"],
     queryFn: async () => {
-      if (isOrganizer) {
-        const announcements = await loadPublicHomeAnnouncements(10);
-        return {
-          unreadNoticeCount: announcements.length,
-          acknowledgementTasks: 0,
-          acknowledgedNotices: 0,
-        };
-      }
-
-      const notices = await loadStudio2NoticeInbox(currentEdition?.id);
+      const notices = await loadStudio2RecipientNoticeInbox(currentEdition?.id);
       return {
         unreadNoticeCount: notices.filter(
           (item) => item.inboxState === "unread" || item.inboxState === "acknowledgement_required",
         ).length,
         acknowledgementTasks: notices.filter(
-          (item) => item.inboxState === "acknowledgement_required",
+          (item) =>
+            item.inboxState === "acknowledgement_required" ||
+            (item.notice.acknowledgementRequired && item.inboxState === "unread"),
         ).length,
         acknowledgedNotices: notices.filter((item) => item.inboxState === "acknowledged").length,
       };
