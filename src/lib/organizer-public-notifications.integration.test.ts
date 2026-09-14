@@ -28,6 +28,12 @@ describe("organizer MySolaris communications", () => {
     expect(organizerPublicModule).toContain("does not currently have an active delegation account");
   });
 
+  it("does not consume MySolaris context before AppShell creates its provider", () => {
+    expect(organizerRecipientModule).toContain("useMyCountryAccount");
+    expect(organizerRecipientModule).not.toContain("useMySolaris");
+    expect(organizerRecipientModule).toContain("<AppShell>");
+  });
+
   it("shows and records acknowledgement actions for the organizer's delegation role", () => {
     expect(organizerRecipientModule).toContain("Acknowledgement required");
     expect(organizerRecipientModule).toContain("Acknowledge notice");
