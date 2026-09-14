@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Archive, CheckCircle2, Inbox, MailOpen, Undo2 } from "lucide-react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
-import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
+import { useMyCountryAccount } from "@/lib/country-account";
 import { noticeTypeLabel } from "@/lib/official-communications";
 import {
   acknowledgeStudio2InboxNotice,
@@ -14,14 +14,18 @@ import {
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 
 export function OrganizerRecipientNoticesModule() {
-  const workspace = useMySolaris();
+  const account = useMyCountryAccount();
   const queryClient = useQueryClient();
-  const editionId = workspace.currentEdition?.id ?? null;
-  const country = workspace.countryAccount?.country;
+  const access = account.data?.access;
+  const country = account.data?.country;
 
   const inboxQuery = useQuery({
-    queryKey: ["studio2-recipient-notice-inbox", editionId],
-    queryFn: () => loadStudio2RecipientNoticeInbox(editionId),
+    queryKey: ["studio2-recipient-notice-inbox", access?.userId ?? "none"],
+    enabled:
+      Boolean(access?.userId && country?.id) &&
+      access?.isOrganizer === true &&
+      access?.countryStatus === "active",
+    queryFn: () => loadStudio2RecipientNoticeInbox(),
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
@@ -51,7 +55,8 @@ export function OrganizerRecipientNoticesModule() {
   const items = inboxQuery.data ?? [];
   const unreadCount = items.filter((item) => item.inboxState === "unread").length;
   const acknowledgementCount = items.filter(
-    (item) => item.inboxState === "acknowledgement_required" ||
+    (item) =>
+      item.inboxState === "acknowledgement_required" ||
       (item.notice.acknowledgementRequired && item.inboxState === "unread"),
   ).length;
   const busy = markOpened.isPending || acknowledge.isPending || archive.isPending;
@@ -86,13 +91,15 @@ export function OrganizerRecipientNoticesModule() {
           </div>
         ) : null}
 
-        {inboxQuery.isLoading ? (
+        {account.isLoading || inboxQuery.isLoading ? (
           <Panel title="Official notices">
             <p className="text-sm text-muted-foreground">Loading notices…</p>
           </Panel>
         ) : inboxQuery.isError ? (
           <Panel title="Official notices">
-            <p className="text-sm text-destructive">The delegation inbox could not be loaded.</p>
+            <p className="text-sm text-destructive">
+              {errorMessage(inboxQuery.error, "The delegation inbox could not be loaded.")}
+            </p>
           </Panel>
         ) : items.length === 0 ? (
           <Panel title="Official notices">
