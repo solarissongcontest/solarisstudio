@@ -1,6 +1,6 @@
 # Permission Engine v2 authorization inventory
 
-Status: shadow foundation. The current organizer gate remains authoritative. Capability decisions are recorded for comparison and cannot grant effective access by themselves in this phase.
+Status: shadow plus dual-path migration foundation. The current organizer gate remains authoritative. Organizer route decisions are recorded for comparison, while the remaining Studio 2 jury and rollout writes now accept reviewed capability paths without enabling the global Permission Engine flag.
 
 ## Decision model
 
@@ -9,7 +9,7 @@ Status: shadow foundation. The current organizer gate remains authoritative. Cap
 - Expired assignments and grants never evaluate as active.
 - Existing `user_roles` values are mapped to the matching v2 presets so current organizers and viewers retain equivalent capability results during shadowing.
 - Protected mutations execute through `SECURITY DEFINER` RPCs with fixed search paths and explicit execute grants. Authorization is based on `auth.uid()` and server-owned roles or grants, never editable profile metadata.
-- “View access as” returns only a read-only projection. It never changes the session, JWT, role, request context or RLS identity.
+- “View access as” returns only a read-only projection. It never changes the session, JWT, role, request context or RLS identity. The projection now explains all seven Organizer domains, the routes that would be discoverable and the actions that would be enabled; raw capability keys remain under progressive disclosure.
 
 ## Operation matrix
 
@@ -96,3 +96,12 @@ The `permission_engine_v2` flag stays disabled until all of the following are tr
 5. “Legacy deny / capability allow” is zero unless a reviewed delegation explicitly requires it.
 6. Security and performance advisors introduce no unexplained finding from this migration. Authenticated `SECURITY DEFINER` RPC notices are expected for the guarded API boundary; anonymous execute remains revoked.
 7. Exact-head Quality and Browser Audit pass before merge, followed by post-merge verification on `main`.
+
+## Completed migration batches
+
+- `20260914035152_permission_engine_v2_foundation`: capability catalog, presets, assignments, direct grants, shadow telemetry and guarded admin RPCs.
+- `20260914035308_permission_engine_v2_fk_indexes`: covering indexes for the new permission foreign keys.
+- `20260914041917_permission_engine_v2_dual_enforcement`: capability-aware jury roster and feature-rollout paths, including global-scope protection across existing and requested rollout scopes.
+- Organizer route shadow probes cover the shared shell, and the access simulation explains domains, routes and actions without impersonation.
+
+The remaining cutover work is server/RPC/RLS coverage, strict sensitive-action dual enforcement, mismatch observation and classification, then authoritative capability enforcement. The rollout flag remains disabled until those gates pass.

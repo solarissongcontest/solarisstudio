@@ -12,6 +12,7 @@ import {
 import { useMemo, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { AccessSimulationPanel } from "@/components/admin/AccessSimulationPanel";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -568,7 +569,9 @@ function UsersTab({
             </section>
           </AdminCard>
 
-          {simulation ? <SimulationPanel user={selectedUser} simulation={simulation} /> : null}
+          {simulation ? (
+            <AccessSimulationPanel user={selectedUser} simulation={simulation} />
+          ) : null}
           {simulationError ? <ErrorNotice error={simulationError} /> : null}
         </div>
       ) : (
@@ -750,55 +753,6 @@ function AccessLogTab({
           description="Shadow events appear as protected Organizer routes adopt the comparison check."
         />
       )}
-    </AdminCard>
-  );
-}
-
-function SimulationPanel({
-  user,
-  simulation,
-}: {
-  user: AccessUser;
-  simulation: Awaited<ReturnType<typeof viewAccessAs>>;
-}) {
-  return (
-    <AdminCard>
-      <div className="mb-4 rounded-xl border border-sky-200/25 bg-sky-200/[0.08] p-3">
-        <p className="text-xs font-black uppercase tracking-[0.15em] text-sky-50">
-          Access simulation · read only
-        </p>
-        <p className="mt-1 text-xs leading-5 text-sky-100/75">
-          Viewing effective access for {user.displayName}. No actions can be executed from this
-          simulation.
-        </p>
-      </div>
-      <AdminCardHeader
-        eyebrow="Effective access"
-        title={`${simulation.capabilities.length} capabilities`}
-        description={
-          simulation.editionId
-            ? "Scoped to the selected edition, including global access."
-            : "Global access only."
-        }
-      />
-      <div className="mb-4 flex flex-wrap gap-2">
-        {simulation.roles.map((role) => (
-          <AdminStatus key={role} tone="info">
-            {humanize(role)}
-          </AdminStatus>
-        ))}
-        {!simulation.roles.length ? <AdminStatus>No roles</AdminStatus> : null}
-      </div>
-      <div className="grid gap-1.5 sm:grid-cols-2">
-        {simulation.capabilities.map((item) => (
-          <span
-            key={item}
-            className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-2.5 py-2 text-xs text-muted-foreground"
-          >
-            {item}
-          </span>
-        ))}
-      </div>
     </AdminCard>
   );
 }

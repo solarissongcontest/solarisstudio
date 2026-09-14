@@ -8,6 +8,7 @@ function source(path: string) {
 
 const route = source("src/routes/_authenticated/admin/access-permissions.tsx");
 const client = source("src/lib/permission-engine-admin.ts");
+const simulation = source("src/components/admin/AccessSimulationPanel.tsx");
 const navigation = source("src/components/admin/admin-navigation.ts");
 const contextualNavigation = source("src/components/admin/admin-contextual-navigation.ts");
 const migrations = readdirSync(resolve(process.cwd(), "supabase/migrations"));
@@ -27,8 +28,13 @@ describe("Permission Engine v2 shadow administration", () => {
   });
 
   it("keeps access simulation explicitly read-only", () => {
-    expect(route).toContain("Access simulation · read only");
-    expect(route).toMatch(/No actions can be executed from this\s+simulation\./);
+    expect(route).toContain("<AccessSimulationPanel");
+    expect(simulation).toContain("Access simulation · read only");
+    expect(simulation).toMatch(/No actions can be executed from this\s+simulation\./);
+    expect(simulation).toContain("Organizer domains visible");
+    expect(simulation).toContain('title="Routes"');
+    expect(simulation).toContain('title="Actions"');
+    expect(simulation).toContain("Advanced · effective capability keys");
     expect(client).toContain("readOnly: true");
     expect(client).toContain("studio2_view_access_as");
   });
