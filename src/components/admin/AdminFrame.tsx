@@ -1,12 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  Eye,
-  LayoutDashboard,
-  Layers3,
-  Menu,
-  Vote,
-  type LucideIcon,
-} from "lucide-react";
+import { Eye, LayoutDashboard, Layers3, Menu, Vote, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
@@ -79,6 +72,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       icon: Menu,
       active: (path) =>
         path.startsWith("/admin/menu") ||
+        path.startsWith("/admin/access-permissions") ||
+        path.startsWith("/admin/feature-rollout") ||
         path.startsWith("/confirmations/admin") ||
         path.startsWith("/admin/design/") ||
         path.startsWith("/admin/edition-theme/") ||

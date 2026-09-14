@@ -111,7 +111,12 @@ function AccessPermissionsPage() {
   useQuery({
     queryKey: ["permission-engine-shadow", "permissions.read", editionId],
     queryFn: async () => {
-      await recordPermissionShadow("permissions.read", editionId || null);
+      await recordPermissionShadow({
+        capability: "permissions.read",
+        editionId: editionId || null,
+        action: "permissions.workspace.view",
+        route: "/admin/access-permissions",
+      });
       return true;
     },
     staleTime: Number.POSITIVE_INFINITY,
