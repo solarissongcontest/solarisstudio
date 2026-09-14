@@ -7,6 +7,7 @@ function source(path: string) {
 }
 
 const migration = source('supabase/migrations/20260913123000_official_communications_archive_delete.sql');
+const recipientInboxMigration = source('supabase/migrations/20260914222000_organizer_recipient_notice_inbox.sql');
 const adapter = source('src/lib/studio2-communications.ts');
 const organizer = source('src/routes/_authenticated/admin/communications.tsx');
 
@@ -25,7 +26,8 @@ describe('Official Communications record lifecycle', () => {
     expect(migration).toContain('n.archived_at is null');
     expect(migration).toContain('archived_at is null\n      and scheduled_at');
     expect(migration).toContain("archived_at is null\n    or public.studio2_can_manage_communications");
-    expect(adapter).toContain('.filter((row) => !row.archived_at)');
+    expect(recipientInboxMigration).toContain('n.archived_at is null');
+    expect(adapter).toContain("rpc('studio2_my_notice_inbox'");
   });
 
   it('prevents archived scheduled or manual publication', () => {
