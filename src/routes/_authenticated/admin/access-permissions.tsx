@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AccessSimulationPanel } from "@/components/admin/AccessSimulationPanel";
 import { AdminPage } from "@/components/admin/AdminShell";
+import { PermissionCutoverReadinessPanel } from "@/components/admin/PermissionCutoverReadinessPanel";
 import {
   AdminCard,
   AdminCardHeader,
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/_authenticated/admin/access-permissions")
   component: AccessPermissionsPage,
 });
 
-type AccessTab = "users" | "roles" | "capabilities" | "log";
+type AccessTab = "users" | "roles" | "capabilities" | "log" | "readiness";
 type AccessChange =
   | {
       kind: "assign-role";
@@ -79,6 +80,7 @@ const TABS: Array<{ id: AccessTab; label: string }> = [
   { id: "roles", label: "Roles" },
   { id: "capabilities", label: "Capabilities" },
   { id: "log", label: "Access log" },
+  { id: "readiness", label: "Readiness" },
 ];
 
 function AccessPermissionsPage() {
@@ -288,7 +290,7 @@ function AccessPermissionsPage() {
           <RolesTab roles={catalog?.roles ?? []} />
         ) : tab === "capabilities" ? (
           <CapabilitiesTab groups={capabilitiesByDomain} />
-        ) : (
+        ) : tab === "log" ? (
           <AccessLogTab
             events={eventsQuery.data ?? []}
             loading={eventsQuery.isLoading}
@@ -297,6 +299,8 @@ function AccessPermissionsPage() {
             onMismatchesOnly={setMismatchesOnly}
             summary={summary}
           />
+        ) : (
+          <PermissionCutoverReadinessPanel summary={summary} />
         )}
       </div>
     </AdminPage>

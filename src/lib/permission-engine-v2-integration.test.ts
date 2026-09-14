@@ -22,9 +22,17 @@ describe("Permission Engine v2 shadow administration", () => {
     expect(navigation).toContain("/admin/access-permissions");
     expect(contextualNavigation).toContain("Access & permissions");
     expect(route).toContain("type AccessTab =");
-    for (const label of ["Users", "Roles", "Capabilities", "Access log"]) {
+    for (const label of ["Users", "Roles", "Capabilities", "Access log", "Readiness"]) {
       expect(route).toContain(`label: "${label}"`);
     }
+  });
+
+  it("blocks cutover when there is no real observation evidence", () => {
+    const readiness = source("src/components/admin/PermissionCutoverReadinessPanel.tsx");
+    expect(route).toContain("<PermissionCutoverReadinessPanel");
+    expect(readiness).toContain("Not ready to enable");
+    expect(readiness).toContain("Rollout blocked");
+    expect(readiness).toContain("Advanced · cutover order");
   });
 
   it("keeps access simulation explicitly read-only", () => {

@@ -102,6 +102,7 @@ The `permission_engine_v2` flag stays disabled until all of the following are tr
 - `20260914035152_permission_engine_v2_foundation`: capability catalog, presets, assignments, direct grants, shadow telemetry and guarded admin RPCs.
 - `20260914035308_permission_engine_v2_fk_indexes`: covering indexes for the new permission foreign keys.
 - `20260914041917_permission_engine_v2_dual_enforcement`: capability-aware jury roster and feature-rollout paths, including global-scope protection across existing and requested rollout scopes.
-- Organizer route shadow probes cover the shared shell, and the access simulation explains domains, routes and actions without impersonation.
+- Organizer route shadow probes cover the shared shell, including the specialist Confirmations and Televoting admin families. The access simulation explains domains, routes and actions without impersonation.
+- Access & Permissions exposes an explicit Readiness view. Zero observations remain a waiting state rather than being presented as a successful zero-mismatch result.
 
 The remaining cutover work is server/RPC/RLS coverage, strict sensitive-action dual enforcement, mismatch observation and classification, then authoritative capability enforcement. The rollout flag remains disabled until those gates pass.
