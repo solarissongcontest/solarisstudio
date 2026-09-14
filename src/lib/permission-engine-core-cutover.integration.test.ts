@@ -31,9 +31,10 @@ describe("Permission Engine v2 core cutover", () => {
     expect(migration).toContain("cardinality(coalesce(f.edition_ids, '{}'::uuid[])) = 0");
   });
 
-  it("persists legacy operators before removing the legacy capability fallback", () => {
+  it("persists only live legacy operators before removing the legacy capability fallback", () => {
     expect(migration).toContain("insert into public.studio2_role_assignments");
     expect(migration).toContain("from public.user_roles ur");
+    expect(migration).toContain("join auth.users au on au.id = ur.user_id");
     expect(migration).toContain("where ur.role::text in ('organizer', 'viewer')");
     expect(migration).toContain("not private.studio2_permission_engine_authoritative()");
     expect(migration).toContain(
