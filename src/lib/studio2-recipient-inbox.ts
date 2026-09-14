@@ -13,6 +13,12 @@ import {
 import type { Studio2NoticeInboxItem } from "@/lib/studio2-communications";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
+type RpcClient = {
+  rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
+};
+
+const client = supabase as unknown as RpcClient;
+
 type RecipientInboxRow = {
   id: string;
   edition_id: string | null;
@@ -47,9 +53,9 @@ export async function loadStudio2RecipientNoticeInbox(
     return [];
   }
 
-  const { data, error } = await supabase.rpc("studio2_my_notice_inbox", {
+  const { data, error } = await client.rpc("studio2_my_notice_inbox", {
     p_edition_id: editionId ?? null,
-  } as never);
+  });
   if (error) throw error;
 
   return ((data ?? []) as RecipientInboxRow[]).map((row) => {
