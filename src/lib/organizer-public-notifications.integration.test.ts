@@ -47,7 +47,7 @@ describe("organizer MySolaris communications", () => {
     expect(migration).toContain("studio2_my_notice_inbox");
     expect(migration).toContain("r.recipient_user_id = auth.uid()");
     expect(migration).toContain("'delegation_inbox' = any(n.display_surfaces)");
+    expect(migration).toContain("if p_audience = 'organizers' then");
     expect(migration).toContain("This notice does not require acknowledgement");
-    expect(migration).not.toContain("if public.has_role(p_user_id, 'organizer'::public.app_role) then\n    return true");
   });
 });
