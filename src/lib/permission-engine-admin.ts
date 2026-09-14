@@ -347,14 +347,16 @@ export async function viewAccessAs(
   };
 }
 
-export async function recordPermissionShadow(
-  capabilityKey: SolarisCapability,
-  editionId?: string | null,
-): Promise<void> {
+export async function recordPermissionShadow(input: {
+  capability: SolarisCapability;
+  editionId?: string | null;
+  action: string;
+  route: string;
+}): Promise<void> {
   await rpc("studio2_check_capability_shadow", {
-    p_capability: capabilityKey,
-    p_edition_id: editionId ?? null,
-    p_action: "permissions.workspace.view",
-    p_route: "/admin/access-permissions",
+    p_capability: input.capability,
+    p_edition_id: input.editionId ?? null,
+    p_action: input.action,
+    p_route: input.route,
   });
 }

@@ -37,7 +37,7 @@ describe("Permission Engine v2 shadow administration", () => {
     expect(route).toContain("Not authoritative yet.");
     expect(route).toMatch(/Existing access rules still\s+decide requests/);
     expect(client).toContain("studio2_check_capability_shadow");
-    expect(client).toContain("permissions.workspace.view");
+    expect(route).toContain('action: "permissions.workspace.view"');
   });
 
   it("ships the catalog and telemetry migration without enabling rollout", () => {
