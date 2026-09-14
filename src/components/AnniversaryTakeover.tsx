@@ -29,14 +29,18 @@ export function AnniversaryTakeover({
 
           <div className="anniversary-editorial-grid">
             <div className="anniversary-editorial-number" aria-hidden="true">
-              {anniversary.age}
+              <span className="anniversary-editorial-number-value">{anniversary.age}</span>
+              <span className="anniversary-editorial-number-label">{anniversary.ordinal} anniversary</span>
             </div>
 
             <div className="anniversary-editorial-copy">
               <p className="anniversary-editorial-eyebrow">Solaris Song Contest · Anniversary Day</p>
               <h1 className="anniversary-editorial-title font-display">
-                <span>{anniversary.age} years</span>
-                <strong>of Solaris</strong>
+                <span className="anniversary-title-years">{anniversary.age} years</span>
+                <span className="anniversary-title-lockup">
+                  <span className="anniversary-title-of">of</span>
+                  <strong className="anniversary-title-solaris">Solaris</strong>
+                </span>
               </h1>
               <p className="anniversary-editorial-deck">
                 {anniversary.age} years of champions, near misses, voting chaos and countries writing themselves into Solaris history. Today the Studio becomes the archive.
