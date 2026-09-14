@@ -175,6 +175,11 @@ function domainTabs(
       return [
         tab("Overview", "/admin/more", (path) => path.startsWith("/admin/more")),
         tab(
+          "Access & permissions",
+          "/admin/access-permissions",
+          (path) => path.startsWith("/admin/access-permissions"),
+        ),
+        tab(
           "Feature rollout",
           "/admin/feature-rollout",
           (path) => path.startsWith("/admin/feature-rollout"),

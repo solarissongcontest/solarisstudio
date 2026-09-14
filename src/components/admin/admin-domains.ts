@@ -134,6 +134,7 @@ export function buildAdminDomainNavigation(slug?: string): AdminDomainNavigation
         path === "/admin/" ||
         path.startsWith("/admin/menu") ||
         path.startsWith("/admin/more") ||
+        path.startsWith("/admin/access-permissions") ||
         path.startsWith("/admin/feature-rollout") ||
         path.startsWith("/admin/guide") ||
         path.startsWith("/admin/country-accounts") ||

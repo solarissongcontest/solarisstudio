@@ -350,6 +350,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
       quiet: true,
       items: [
         item(
+          "Access & permissions",
+          "Users, role presets, capabilities and shadow access telemetry.",
+          "/admin/access-permissions",
+          KeyRound,
+          "access users roles capabilities permissions audit",
+          (path) => path.startsWith("/admin/access-permissions"),
+        ),
+        item(
           "Administration",
           "Accounts, HOD history, predictions and system tools.",
           "/admin/more",
