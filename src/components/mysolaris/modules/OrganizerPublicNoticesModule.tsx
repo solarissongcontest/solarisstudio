@@ -25,7 +25,7 @@ export function OrganizerPublicNoticesModule() {
       <PageHeader
         eyebrow="Organizer account"
         title="Public notifications"
-        description="These are the official notices currently published to the public homepage. This organizer view is read-only and never creates delegation read or acknowledgement receipts."
+        description="This organizer account does not currently have an active delegation account, so this view mirrors notices published to the public homepage. Delegation acknowledgement controls appear here automatically when an active country account is attached."
         actions={
           <Link
             to="/admin/communications"
