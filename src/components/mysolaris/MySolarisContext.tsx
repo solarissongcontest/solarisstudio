@@ -5,6 +5,7 @@ import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.fun
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useAllParticipants, useEditions, type Edition, type Participant } from "@/lib/data";
 import { useOwnedEntryPublication } from "@/lib/entry-publication";
+import { loadPublicHomeAnnouncements } from "@/lib/official-announcement-feed";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2NoticeInbox } from "@/lib/studio2-communications";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -103,10 +104,35 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   });
 
   const capabilities = capabilitiesQuery.data ?? EMPTY_CAPABILITIES;
+  const isOrganizer = Boolean(countryAccountQuery.data?.access.isOrganizer);
   const noticesQuery = useQuery({
     enabled: Boolean(userQuery.data && capabilities.official_communications),
-    queryKey: ["mysolaris-notice-summary", currentEdition?.id],
-    queryFn: () => loadStudio2NoticeInbox(currentEdition?.id),
+    queryKey: [
+      "mysolaris-notice-summary",
+      currentEdition?.id,
+      isOrganizer ? "organizer-public" : "delegation-inbox",
+    ],
+    queryFn: async () => {
+      if (isOrganizer) {
+        const announcements = await loadPublicHomeAnnouncements(10);
+        return {
+          unreadNoticeCount: announcements.length,
+          acknowledgementTasks: 0,
+          acknowledgedNotices: 0,
+        };
+      }
+
+      const notices = await loadStudio2NoticeInbox(currentEdition?.id);
+      return {
+        unreadNoticeCount: notices.filter(
+          (item) => item.inboxState === "unread" || item.inboxState === "acknowledgement_required",
+        ).length,
+        acknowledgementTasks: notices.filter(
+          (item) => item.inboxState === "acknowledgement_required",
+        ).length,
+        acknowledgedNotices: notices.filter((item) => item.inboxState === "acknowledged").length,
+      };
+    },
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
@@ -118,14 +144,14 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: true,
   });
 
-  const notices = noticesQuery.data ?? [];
-  const unreadNoticeCount = notices.filter(
-    (item) => item.inboxState === "unread" || item.inboxState === "acknowledgement_required",
-  ).length;
-  const acknowledgementTasks = notices.filter(
-    (item) => item.inboxState === "acknowledgement_required",
-  ).length;
-  const acknowledgedNotices = notices.filter((item) => item.inboxState === "acknowledged").length;
+  const noticeSummary = noticesQuery.data ?? {
+    unreadNoticeCount: 0,
+    acknowledgementTasks: 0,
+    acknowledgedNotices: 0,
+  };
+  const unreadNoticeCount = noticeSummary.unreadNoticeCount;
+  const acknowledgementTasks = noticeSummary.acknowledgementTasks;
+  const acknowledgedNotices = noticeSummary.acknowledgedNotices;
 
   const deadlines = useMemo(
     () =>
@@ -152,7 +178,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     currentEdition,
     currentEntry,
     permissions: {
-      isOrganizer: Boolean(countryAccountQuery.data?.access.isOrganizer),
+      isOrganizer,
       canManageCountry:
         Boolean(countryAccountQuery.data?.country) &&
         countryAccountQuery.data?.access.countryStatus !== "suspended",
