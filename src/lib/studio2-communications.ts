@@ -67,6 +67,14 @@ type ReceiptRow = {
   archived_at?: string | null;
 };
 
+type InboxRow = NoticeRow & {
+  recipient_user_id: string | null;
+  delivered_at: string | null;
+  opened_at: string | null;
+  acknowledged_at: string | null;
+  receipt_archived_at: string | null;
+};
+
 type RevisionRow = {
   notice_id: string;
   revision: number;
@@ -153,6 +161,18 @@ function mapReceipt(row: ReceiptRow): NoticeReceipt {
   };
 }
 
+function mapInboxReceipt(row: InboxRow): NoticeReceipt | null {
+  if (!row.recipient_user_id) return null;
+  return {
+    noticeId: row.id,
+    recipientUserId: row.recipient_user_id,
+    deliveredAt: row.delivered_at,
+    openedAt: row.opened_at,
+    acknowledgedAt: row.acknowledged_at,
+    archivedAt: row.receipt_archived_at,
+  };
+}
+
 function mapRevision(row: RevisionRow): NoticeRevision {
   return {
     noticeId: row.notice_id,
@@ -227,30 +247,14 @@ export async function loadStudio2Notices(editionId?: string | null): Promise<Stu
 export async function loadStudio2NoticeInbox(editionId?: string | null): Promise<Studio2NoticeInboxItem[]> {
   await requireEnabled();
 
-  let noticeQuery = client
-    .from('studio2_official_notices')
-    .select(NOTICE_COLUMNS)
-    .eq('status', 'published')
-    .order('sent_at', { ascending: false, nullsFirst: false });
-  if (editionId) noticeQuery = noticeQuery.eq('edition_id', editionId);
+  const { data, error } = await client.rpc('studio2_my_notice_inbox', {
+    p_edition_id: editionId ?? null,
+  });
+  if (error) throw error;
 
-  const { data: noticeData, error: noticeError } = await noticeQuery;
-  if (noticeError) throw noticeError;
-  const noticeRows = asRows<NoticeRow>(noticeData)
-    .filter((row) => !row.archived_at)
-    .filter((row) => (row.display_surfaces ?? ['delegation_inbox']).includes('delegation_inbox'));
-  if (!noticeRows.length) return [];
-
-  const { data: receiptData, error: receiptError } = await client
-    .from('studio2_notice_receipts')
-    .select(RECEIPT_COLUMNS)
-    .in('notice_id', noticeRows.map((row) => row.id));
-  if (receiptError) throw receiptError;
-
-  const receipts = asRows<ReceiptRow>(receiptData).map(mapReceipt);
-  return noticeRows.map((row) => {
+  return asRows<InboxRow>(data).map((row) => {
     const notice = mapNotice(row);
-    const receipt = receipts.find((candidate) => candidate.noticeId === notice.id) ?? null;
+    const receipt = mapInboxReceipt(row);
     return { notice, receipt, inboxState: noticeInboxState(notice, receipt) };
   });
 }
