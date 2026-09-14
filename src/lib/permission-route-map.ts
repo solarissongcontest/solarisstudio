@@ -6,6 +6,9 @@ type RouteCapabilityRule = {
 };
 
 const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
+  rule(["/confirmations/admin"], "confirmation.read"),
+  rule(["/televoting/admin/results", "/televoting/admin/result-integrity"], "results.preview"),
+  rule(["/televoting/admin"], "voting.read"),
   rule(["/admin/access-permissions"], "permissions.read"),
   rule(["/admin/feature-rollout"], "rollout.read"),
   rule(["/admin/communications"], "communications.read"),
@@ -41,11 +44,9 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
 ];
 
 export function capabilityForOrganizerPath(pathname: string): SolarisCapability | null {
-  if (!pathname.startsWith("/admin")) return null;
-  return (
-    ROUTE_CAPABILITY_RULES.find((candidate) => candidate.matches(pathname))?.capability ??
-    "edition.read"
-  );
+  const matched = ROUTE_CAPABILITY_RULES.find((candidate) => candidate.matches(pathname));
+  if (matched) return matched.capability;
+  return pathname.startsWith("/admin") ? "edition.read" : null;
 }
 
 function rule(prefixes: string[], capability: SolarisCapability): RouteCapabilityRule {

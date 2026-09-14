@@ -18,6 +18,10 @@ describe("Organizer permission shadow routing", () => {
     ["/admin/entries/ssc-21", "entry.read_private"],
     ["/admin/countries", "delegation.read"],
     ["/admin/operations", "edition.read"],
+    ["/confirmations/admin/responses", "confirmation.read"],
+    ["/televoting/admin/rounds", "voting.read"],
+    ["/televoting/admin/results", "results.preview"],
+    ["/televoting/admin/result-integrity", "results.preview"],
   ])("maps %s to %s", (pathname, capability) => {
     expect(capabilityForOrganizerPath(pathname)).toBe(capability);
   });
