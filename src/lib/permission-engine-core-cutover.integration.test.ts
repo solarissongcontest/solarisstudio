@@ -22,6 +22,11 @@ function policyBlock(name: string) {
 }
 
 describe("Permission Engine v2 core cutover", () => {
+  it("keeps repository migration versions aligned with production", () => {
+    expect(migrations).toContain("20260914173633_canonical_admin_audit_log.sql");
+    expect(migrations).toContain("20260914174742_permission_engine_v2_core_rls_cutover.sql");
+  });
+
   it("only treats the engine as authoritative when rollout is globally enabled", () => {
     expect(migration).toContain("private.studio2_permission_engine_authoritative()");
     expect(migration).toContain("f.key = 'permission_engine_v2'");
