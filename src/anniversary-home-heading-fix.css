@@ -1,0 +1,238 @@
+/* Final anniversary hero heading polish.
+   Keep "of Solaris" as one lockup and make the anniversary numeral a compact
+   editorial mark instead of a lonely oversized glyph at the far edge. */
+
+body.solaris-anniversary-day .anniversary-editorial-title {
+  max-width: 15ch;
+}
+
+body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-years {
+  display: block;
+}
+
+body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-lockup {
+  display: flex !important;
+  align-items: baseline;
+  gap: clamp(.38rem, .75cqw, .68rem);
+  width: max-content;
+  max-width: 100%;
+  margin-top: .12em;
+  color: inherit;
+  font-size: 1em !important;
+  font-weight: inherit;
+  line-height: .9 !important;
+  letter-spacing: 0 !important;
+  white-space: nowrap;
+}
+
+body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-of {
+  display: inline-block;
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, .7);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: .42em !important;
+  font-weight: 760;
+  line-height: 1 !important;
+  letter-spacing: .035em !important;
+  text-transform: uppercase;
+  transform: translateY(-.08em);
+}
+
+body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-solaris {
+  display: inline-block;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0 !important;
+  padding: .02em .035em .07em 0;
+  font-size: 1em !important;
+  line-height: .9 !important;
+  letter-spacing: -.04em !important;
+  white-space: nowrap;
+}
+
+/* Rebuild the separate anniversary numeral as a compact editorial plaque. */
+body.solaris-anniversary-day .anniversary-editorial-number {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: .28rem;
+  width: auto;
+  min-width: 6.35rem;
+  min-height: 5.5rem;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 1rem;
+  padding: .72rem .82rem;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(183, 164, 255, .13), transparent 48%),
+    linear-gradient(145deg, rgba(255, 255, 255, .07), rgba(116, 231, 255, .025));
+  color: #fff;
+  opacity: 1;
+  backdrop-filter: blur(14px) saturate(120%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .04), 0 16px 42px rgba(3, 5, 20, .12);
+}
+
+body.solaris-anniversary-day .anniversary-editorial-number::after {
+  content: none !important;
+}
+
+body.solaris-anniversary-day .anniversary-editorial-number-value {
+  display: block;
+  background: linear-gradient(145deg, #fff 0%, #bcf5ff 30%, #d7c6ff 62%, #ffc4df 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: var(--font-display, inherit);
+  font-size: 2.55rem;
+  font-weight: 950;
+  line-height: .78;
+  letter-spacing: -.07em;
+}
+
+body.solaris-anniversary-day .anniversary-editorial-number-label {
+  display: block;
+  max-width: 7rem;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  padding-top: .32rem;
+  color: rgba(255, 255, 255, .48);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: .45rem;
+  font-weight: 850;
+  line-height: 1.25;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 760px) and (max-width: 1099px) {
+  body.solaris-anniversary-day .anniversary-editorial-grid {
+    grid-template-columns: minmax(0, 39rem) 6.8rem !important;
+    justify-content: start;
+    gap: clamp(1.6rem, 4cqw, 3rem) !important;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start !important;
+    align-self: center !important;
+    width: 6.8rem;
+    min-width: 6.8rem;
+    min-height: 7.2rem;
+    border: 1px solid rgba(255, 255, 255, .13) !important;
+    border-radius: 1rem !important;
+    padding: .82rem .8rem !important;
+    background:
+      radial-gradient(circle at 78% 18%, rgba(183, 164, 255, .14), transparent 48%),
+      linear-gradient(145deg, rgba(255, 255, 255, .07), rgba(116, 231, 255, .025)) !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    backdrop-filter: blur(14px) saturate(120%) !important;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number-value {
+    font-size: 3.9rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  body.solaris-anniversary-day .anniversary-editorial-grid {
+    grid-template-columns: minmax(0, 44rem) 7.8rem !important;
+    justify-content: start;
+    gap: clamp(2.5rem, 5cqw, 4.75rem) !important;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: start !important;
+    align-self: center !important;
+    width: 7.8rem;
+    min-width: 7.8rem;
+    min-height: 8.4rem;
+    border: 1px solid rgba(255, 255, 255, .13) !important;
+    border-radius: 1.1rem !important;
+    padding: .92rem .88rem !important;
+    background:
+      radial-gradient(circle at 78% 18%, rgba(183, 164, 255, .15), transparent 48%),
+      linear-gradient(145deg, rgba(255, 255, 255, .075), rgba(116, 231, 255, .028)) !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    backdrop-filter: blur(14px) saturate(120%) !important;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number-value {
+    font-size: 4.75rem;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number-label {
+    font-size: .47rem;
+  }
+}
+
+@media (max-width: 639px) {
+  body.solaris-anniversary-day .anniversary-editorial-title {
+    max-width: 100%;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-lockup {
+    gap: .34rem;
+    width: 100%;
+    max-width: 100%;
+    white-space: nowrap !important;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-of {
+    font-size: .4em !important;
+    transform: translateY(-.06em);
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-solaris {
+    max-width: calc(100% - 2.2rem);
+    font-size: .96em !important;
+    white-space: nowrap !important;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number {
+    flex-direction: row;
+    align-items: baseline;
+    gap: .42rem;
+    width: max-content;
+    min-width: 0;
+    min-height: 2.3rem;
+    border-radius: 999px;
+    padding: .42rem .68rem;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number-value {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 1.02rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -.04em;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-number-label {
+    max-width: none;
+    border-top: 0;
+    padding-top: 0;
+    font-size: .43rem;
+    line-height: 1;
+    letter-spacing: .12em;
+  }
+}
+
+@media (max-width: 379px) {
+  body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-lockup {
+    gap: .28rem;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-of {
+    font-size: .37em !important;
+  }
+
+  body.solaris-anniversary-day .anniversary-editorial-title .anniversary-title-solaris {
+    font-size: .9em !important;
+  }
+}
