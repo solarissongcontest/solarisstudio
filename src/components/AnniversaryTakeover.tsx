@@ -24,12 +24,12 @@ export function AnniversaryTakeover({
           <div className="anniversary-editorial-meta" aria-label="Anniversary metadata">
             <span>17 September 2022 → {anniversary.year}</span>
             <span>{anniversary.ordinal} anniversary</span>
-            <span>TSBC anniversary edition</span>
+            <span>TSBC</span>
           </div>
 
           <div className="anniversary-editorial-grid">
             <div className="anniversary-editorial-number" aria-hidden="true">
-              {String(anniversary.age).padStart(2, "0")}
+              {anniversary.age}
             </div>
 
             <div className="anniversary-editorial-copy">
@@ -92,8 +92,12 @@ export function AnniversaryTakeover({
         </div>
 
         <div className="anniversary-v2-story-grid">
-          {recap.stories.map((story) => (
-            <article key={story.id} className="anniversary-v2-story">
+          {recap.stories.map((story, index) => (
+            <article
+              key={story.id}
+              className={`anniversary-v2-story${index === 0 ? " is-lead" : ""}`}
+              data-anniversary-story={index === 0 ? "lead" : "standard"}
+            >
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <p className="anniversary-v2-story-kicker">{story.kicker}</p>
                 {story.value && <span className="anniversary-v2-story-value">{story.value}</span>}
