@@ -15,7 +15,7 @@ const migration = readFileSync(
 );
 
 function policyBlock(name: string) {
-  const start = migration.indexOf(`create policy \"${name}\"`);
+  const start = migration.indexOf(`create policy "${name}"`);
   expect(start).toBeGreaterThanOrEqual(0);
   const next = migration.indexOf("create policy", start + 1);
   return migration.slice(start, next === -1 ? migration.length : next);
@@ -36,7 +36,9 @@ describe("Permission Engine v2 core cutover", () => {
     expect(migration).toContain("from public.user_roles ur");
     expect(migration).toContain("where ur.role::text in ('organizer', 'viewer')");
     expect(migration).toContain("not private.studio2_permission_engine_authoritative()");
-    expect(migration).toContain("join public.studio2_role_capabilities rc on rc.role_key = ur.role::text");
+    expect(migration).toContain(
+      "join public.studio2_role_capabilities rc on rc.role_key = ur.role::text",
+    );
   });
 
   it("uses one cutover-aware predicate for pre-cutover dual checks and authoritative capability checks", () => {
