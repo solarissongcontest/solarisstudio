@@ -13,8 +13,6 @@ const PARTICIPANT_CAPABILITIES = [
   "official_communications",
   "hod_workspace_v2",
   "rules_engine",
-  "prediction_league",
-  "country_voting_dna",
 ] as const;
 
 type ParticipantCapability = (typeof PARTICIPANT_CAPABILITIES)[number];
