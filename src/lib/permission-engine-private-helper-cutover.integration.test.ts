@@ -79,6 +79,36 @@ describe("Permission Engine private helper cutover", () => {
     }
   });
 
+  it("preserves each existing helper's exact domain capability mapping", () => {
+    const expectedCapabilities: Record<string, string[]> = {
+      studio2_can_manage_broadcast: ["edition.manage"],
+      studio2_can_manage_eligibility: ["entry.approve"],
+      studio2_can_manage_host: ["host.manage", "edition.manage"],
+      studio2_can_manage_media_assets: ["entry.approve"],
+      studio2_can_manage_permissions: ["permissions.manage"],
+      studio2_can_manage_storytelling: ["story.manage", "edition.manage"],
+      studio2_can_preview_results: [
+        "results.preview",
+        "results.verify",
+        "results.publish",
+      ],
+      studio2_can_read_host: ["host.read", "host.manage", "edition.manage"],
+      studio2_can_read_storytelling: [
+        "story.read",
+        "story.manage",
+        "edition.manage",
+      ],
+      studio2_can_verify_results: ["results.verify"],
+    };
+
+    for (const [helper, capabilities] of Object.entries(expectedCapabilities)) {
+      const block = functionBlock(helper);
+      for (const capability of capabilities) {
+        expect(block).toContain(`'${capability}'`);
+      }
+    }
+  });
+
   it("keeps rollout and communications on their existing capabilities", () => {
     const rollout = functionBlock("studio2_feature_enabled_for");
     expect(rollout).toContain("'rollout.read'");
