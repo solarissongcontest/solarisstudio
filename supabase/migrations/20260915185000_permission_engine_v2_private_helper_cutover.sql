@@ -3,8 +3,9 @@ begin;
 -- Permission Engine v2 cutover batch 4.
 --
 -- Centralize the remaining private Studio 2 legacy Organizer/capability fallback
--- without changing each helper's existing domain capability mapping. The new
--- helper is intentionally private and callable only by database-owned code.
+-- without changing each helper's existing domain capability mapping or its
+-- pre-cutover OR semantics. Once Permission Engine v2 becomes globally
+-- authoritative, the shared predicate automatically ignores legacy roles.
 
 create or replace function private.studio2_user_access_allowed(
   p_user_id uuid,
@@ -64,7 +65,7 @@ as $$
     p_user_id,
     'edition.manage',
     p_edition_id,
-    true
+    false
   )
 $$;
 
@@ -81,7 +82,7 @@ as $$
     p_user_id,
     'entry.approve',
     p_edition_id,
-    true
+    false
   )
 $$;
 
@@ -95,8 +96,8 @@ security definer
 set search_path = pg_catalog, public, private
 as $$
   select
-    private.studio2_user_access_allowed(p_user_id, 'host.manage', p_edition_id, true)
-    or private.studio2_user_access_allowed(p_user_id, 'edition.manage', p_edition_id, true)
+    private.studio2_user_access_allowed(p_user_id, 'host.manage', p_edition_id, false)
+    or private.studio2_user_access_allowed(p_user_id, 'edition.manage', p_edition_id, false)
 $$;
 
 create or replace function private.studio2_can_manage_media_assets(
@@ -112,7 +113,7 @@ as $$
     p_user_id,
     'entry.approve',
     p_edition_id,
-    true
+    false
   )
 $$;
 
@@ -128,7 +129,7 @@ as $$
     p_user_id,
     'permissions.manage',
     null,
-    true
+    false
   )
 $$;
 
@@ -142,8 +143,8 @@ security definer
 set search_path = pg_catalog, public, private
 as $$
   select
-    private.studio2_user_access_allowed(p_user_id, 'story.manage', p_edition_id, true)
-    or private.studio2_user_access_allowed(p_user_id, 'edition.manage', p_edition_id, true)
+    private.studio2_user_access_allowed(p_user_id, 'story.manage', p_edition_id, false)
+    or private.studio2_user_access_allowed(p_user_id, 'edition.manage', p_edition_id, false)
 $$;
 
 create or replace function private.studio2_can_preview_results(
@@ -204,7 +205,7 @@ as $$
     p_user_id,
     'results.verify',
     p_edition_id,
-    true
+    false
   )
 $$;
 
@@ -264,7 +265,7 @@ begin
        v_actor,
        'communications.send',
        p_edition_id,
-       true
+       false
      ) then
     raise exception 'Missing Solaris capability: communications.send' using errcode = '42501';
   end if;
