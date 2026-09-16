@@ -1,4 +1,5 @@
 import type { Country, Edition, Participant, ResultRow, Show } from "@/lib/data";
+import { resolveShowPublication } from "@/lib/publication";
 
 export const SOLARIS_BIRTH_DATE = "2022-09-17";
 export const SOLARIS_ANNIVERSARY_TIME_ZONE = "Europe/Paris";
@@ -89,7 +90,7 @@ export function editionIsInAnniversaryYear(
 export function showResultsArePublished(
   show: Pick<Show, "published" | "publication_config">,
 ) {
-  return show.published && show.publication_config?.results === true;
+  return show.published && resolveShowPublication(show).results;
 }
 
 export function resultHasPublishedScore(result: ResultScore) {
