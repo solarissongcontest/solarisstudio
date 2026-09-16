@@ -2,7 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
-import { buildAnniversaryRecap, getSolarisAnniversary } from "@/lib/anniversary";
+import {
+  buildAnniversaryRecap,
+  finalRankingIsResolved,
+  getSolarisAnniversary,
+} from "@/lib/anniversary";
 import {
   useAllParticipants,
   useAllResults,
@@ -52,28 +56,43 @@ function AnniversaryPage() {
         .sort((a, b) => (a.edition_number ?? 999) - (b.edition_number ?? 999)),
     [editions],
   );
+  const publishedEditionIds = useMemo(
+    () => new Set(publishedEditions.map((edition) => edition.id)),
+    [publishedEditions],
+  );
   const allTimeShows = useMemo(
-    () => (shows ?? []).filter((show) => show.published),
-    [shows],
+    () => (shows ?? []).filter((show) => show.published && publishedEditionIds.has(show.edition_id)),
+    [shows, publishedEditionIds],
   );
   const allTimeCountries = useMemo(() => {
-    const ids = new Set((participants ?? []).map((entry) => entry.country_id).filter(Boolean));
+    const ids = new Set(
+      (participants ?? [])
+        .filter((entry) => publishedEditionIds.has(entry.edition_id))
+        .map((entry) => entry.country_id)
+        .filter(Boolean),
+    );
     return ids.size;
-  }, [participants]);
+  }, [participants, publishedEditionIds]);
 
   const anniversaryLegacy = useMemo(() => {
     const countryMap = new Map((countries ?? []).map((country) => [country.id, country]));
     const editionMap = new Map(publishedEditions.map((edition) => [edition.id, edition]));
     const finalShows = allTimeShows.filter((show) => show.kind === "grand-final" || show.kind === "final");
-    const finalIds = new Set(finalShows.map((show) => show.id));
+    const resolvedFinalShows = finalShows.filter((show) => {
+      const ranking = (results ?? [])
+        .filter((result) => result.show_id === show.id && result.final_rank != null)
+        .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
+      return finalRankingIsResolved(ranking);
+    });
+    const finalIds = new Set(resolvedFinalShows.map((show) => show.id));
     const finalResults = (results ?? []).filter((result) => result.show_id && finalIds.has(result.show_id));
-    const showMap = new Map(finalShows.map((show) => [show.id, show]));
+    const showMap = new Map(resolvedFinalShows.map((show) => [show.id, show]));
 
     let highest: typeof finalResults[number] | null = null;
     let closest: { gap: number; winner: typeof finalResults[number]; runnerUp: typeof finalResults[number] } | null = null;
     let latestWinner: typeof finalResults[number] | null = null;
 
-    for (const show of finalShows) {
+    for (const show of resolvedFinalShows) {
       const ranking = finalResults
         .filter((result) => result.show_id === show.id && result.final_rank != null)
         .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
@@ -85,15 +104,24 @@ function AnniversaryPage() {
         const gap = Math.max(0, winner.total_points - runnerUp.total_points);
         if (!closest || gap < closest.gap) closest = { gap, winner, runnerUp };
       }
-      const currentEditionNo = editionMap.get(winner.edition_id)?.edition_number ?? -1;
-      const latestEditionNo = latestWinner ? editionMap.get(latestWinner.edition_id)?.edition_number ?? -1 : -1;
-      if (!latestWinner || currentEditionNo > latestEditionNo) latestWinner = winner;
+      const currentEdition = editionMap.get(winner.edition_id);
+      const latestEdition = latestWinner ? editionMap.get(latestWinner.edition_id) : null;
+      const currentDate = currentEdition?.event_date ?? "";
+      const latestDate = latestEdition?.event_date ?? "";
+      const currentEditionNo = currentEdition?.edition_number ?? -1;
+      const latestEditionNo = latestEdition?.edition_number ?? -1;
+      if (
+        !latestWinner ||
+        currentDate > latestDate ||
+        (currentDate === latestDate && currentEditionNo > latestEditionNo)
+      ) {
+        latestWinner = winner;
+      }
     }
 
-    const baseEntries = (participants ?? []).filter((entry) => entry.show_id == null);
     const countryStats = new Map<string, { participations: Set<string>; finals: Set<string>; wins: number; points: number }>();
-    for (const entry of baseEntries) {
-      if (!entry.country_id) continue;
+    for (const entry of participants ?? []) {
+      if (!entry.country_id || !publishedEditionIds.has(entry.edition_id)) continue;
       const stat = countryStats.get(entry.country_id) ?? {
         participations: new Set<string>(),
         finals: new Set<string>(),
@@ -156,7 +184,7 @@ function AnniversaryPage() {
       latestWinner: describeResult(latestWinner),
       delegations,
     };
-  }, [countries, participants, results, publishedEditions, allTimeShows]);
+  }, [countries, participants, results, publishedEditions, publishedEditionIds, allTimeShows]);
 
   const firstEdition = publishedEditions[0] ?? null;
 
@@ -229,7 +257,7 @@ function AnniversaryPage() {
               detail={
                 anniversaryLegacy.highest
                   ? `${anniversaryLegacy.highest.country} · ${anniversaryLegacy.highest.points} points · ${anniversaryLegacy.highest.edition}`
-                  : "No published final result yet."
+                  : "No resolved published final result yet."
               }
             />
             <article className="anniversary-hub-card">
@@ -242,7 +270,7 @@ function AnniversaryPage() {
               <p>
                 {anniversaryLegacy.closest
                   ? `${anniversaryLegacy.closest.edition} was decided by ${anniversaryLegacy.closest.gap} point${anniversaryLegacy.closest.gap === 1 ? "" : "s"}.`
-                  : "No published final has enough ranking data yet."}
+                  : "No resolved published final has enough ranking data yet."}
               </p>
             </article>
             <MomentCard
@@ -251,7 +279,7 @@ function AnniversaryPage() {
               detail={
                 anniversaryLegacy.latestWinner
                   ? `${anniversaryLegacy.latestWinner.country} · ${anniversaryLegacy.latestWinner.edition} · ${anniversaryLegacy.latestWinner.points} points`
-                  : "The newest published final will fill this place."
+                  : "The newest resolved published final will fill this place."
               }
             />
           </div>
@@ -264,12 +292,12 @@ function AnniversaryPage() {
           <div className="anniversary-hub-story-grid">
             {anniversaryLegacy.delegations.map((item, index) => (
               <article key={item.country!.id} className="anniversary-hub-card">
-                <small>0{index + 1} · Historical footprint</small>
+                <small>0{index + 1} · Historical footprint · derived index</small>
                 <h3>{item.country!.name}</h3>
                 <p>
                   {item.participations} participations · {item.finals} finals · {item.wins} win{item.wins === 1 ? "" : "s"} · {item.points} final points
                 </p>
-                <b>#{index + 1}</b>
+                <b>Index #{index + 1}</b>
               </article>
             ))}
           </div>
@@ -301,7 +329,7 @@ function AnniversaryPage() {
             <HubLink to="/archive-games" eyebrow="Anniversary challenge" title="How well do you know Solaris?" copy="Turn past placements, jury splits and result history into interactive archive games." />
             <HubLink to="/relationships" eyebrow="Voting history" title={`Follow ${anniversary.age} years of relationships`} copy="Explore the countries that repeatedly voted alike and the patterns that accumulated over time." />
             <HubLink to="/broadcast-intelligence" eyebrow="Replay" title="Relive scoreboard turning points" copy="Watch published results change as jury and televote scores combine into the final ranking." />
-            <HubLink to="/my-solaris" eyebrow="Personal history" title="Open your Solaris story" copy="See your own account and country activity inside the wider contest archive." />
+            <HubLink to="/my-solaris" eyebrow="Personal history" title="Open your Solaris story" copy="See your own country recap and activity inside the wider contest archive." />
           </div>
         </section>
       </div>
