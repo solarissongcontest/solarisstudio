@@ -22,9 +22,16 @@ describe("Solaris anniversary", () => {
     expect(anniversary.previousYear).toBe(2025);
   });
 
-  it("does not activate on surrounding days", () => {
-    expect(getSolarisAnniversary(new Date("2026-09-16T12:00:00Z")).active).toBe(false);
-    expect(getSolarisAnniversary(new Date("2026-09-18T12:00:00Z")).active).toBe(false);
+  it("does not activate on surrounding days and only increments age on the birthday", () => {
+    const dayBefore = getSolarisAnniversary(new Date("2026-09-16T12:00:00Z"));
+    const dayAfter = getSolarisAnniversary(new Date("2026-09-18T12:00:00Z"));
+
+    expect(dayBefore.active).toBe(false);
+    expect(dayBefore.age).toBe(3);
+    expect(dayBefore.ordinal).toBe("3rd");
+    expect(dayAfter.active).toBe(false);
+    expect(dayAfter.age).toBe(4);
+    expect(dayAfter.ordinal).toBe("4th");
   });
 
   it("formats anniversary ordinals", () => {
