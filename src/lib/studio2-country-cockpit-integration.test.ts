@@ -42,14 +42,14 @@ describe('Studio 2 Phase 6 country operations integration', () => {
   });
 
   it('keeps organizer HOD inspection explicitly read-only', () => {
-    expect(hodRoute).toContain('Organizer inspection mode');
-    expect(hodRoute).toContain('delegation-side acknowledgement mutations are disabled.');
+    expect(hodRoute).toContain('Viewing as organizer');
+    expect(hodRoute).toContain('This view is read-only. Acknowledgements can only be made by the delegation.');
     expect(hodRoute).toContain('!organizerInspection &&');
     expect(hodRoute).toContain('organizerInspection ?');
   });
 
   it('shows the Phase 6 HOD operational data without creating a duplicate source of truth', () => {
-    expect(hodRoute).toContain('Operational readiness');
+    expect(hodRoute).toContain('title="Readiness"');
     expect(hodRoute).toContain('Deadlines & alerts');
     expect(hodRoute).toContain('Submission review history');
     expect(hodWorkspace).toContain('deadlines: Studio2HodDeadline[]');

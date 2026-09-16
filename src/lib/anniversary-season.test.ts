@@ -3,17 +3,18 @@ import { describe, expect, it } from "vitest";
 import { getSolarisAnniversarySeason } from "./anniversary";
 
 describe("Solaris anniversary season", () => {
-  it("opens the countdown five days before 17 September", () => {
+  it("opens the countdown five days before 17 September without incrementing age early", () => {
     const season = getSolarisAnniversarySeason(new Date("2026-09-12T12:00:00Z"));
     expect(season.phase).toBe("countdown");
     expect(season.daysUntil).toBe(5);
-    expect(season.age).toBe(4);
+    expect(season.age).toBe(3);
   });
 
   it("keeps the countdown active through the final three days", () => {
     const season = getSolarisAnniversarySeason(new Date("2026-09-14T12:00:00Z"));
     expect(season.phase).toBe("countdown");
     expect(season.daysUntil).toBe(3);
+    expect(season.age).toBe(3);
   });
 
   it("does not start the countdown six days early", () => {
@@ -25,6 +26,7 @@ describe("Solaris anniversary season", () => {
     expect(season.phase).toBe("active");
     expect(season.active).toBe(true);
     expect(season.daysUntil).toBe(0);
+    expect(season.age).toBe(4);
   });
 
   it("keeps a three-day afterglow before returning to normal", () => {

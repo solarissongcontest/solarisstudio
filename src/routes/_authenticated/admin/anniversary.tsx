@@ -14,13 +14,13 @@ export const Route = createFileRoute("/_authenticated/admin/anniversary")({
 });
 
 const PREVIEWS = [
-  { href: "/?anniversary=active", title: "Anniversary Day", description: "Full 17 September takeover with particles, route modules and homepage archive hero." },
+  { href: "/?anniversary=active", title: "Anniversary Day", description: "Full 17 September takeover with particles, archive facts and homepage anniversary editorial." },
   { href: "/?anniversary=countdown", title: "Countdown", description: "Pre-anniversary state without the full particle takeover." },
-  { href: "/?anniversary=after", title: "Afterglow", description: "Post-anniversary Year Five state." },
-  { href: "/anniversary?anniversary=active", title: "Anniversary hub", description: "Open the permanent anniversary archive with the active visual system." },
-  { href: "/my-solaris?anniversary=active", title: "MySolaris story", description: "Preview the personalized country anniversary recap." },
-  { href: "/countries?anniversary=active", title: "Country leaderboard", description: "Preview the anniversary delegation table." },
-  { href: "/records?anniversary=active", title: "Records", description: "Preview historic result moments and all-time anniversary context." },
+  { href: "/?anniversary=after", title: "Afterglow", description: "Post-anniversary new-year state." },
+  { href: "/anniversary?anniversary=active", title: "Anniversary hub", description: "Open the permanent anniversary archive with resolved historical results only." },
+  { href: "/my-solaris?anniversary=active", title: "MySolaris story", description: "Preview the route-native personalized country anniversary recap and share text." },
+  { href: "/countries?anniversary=active", title: "Countries archive", description: "Preview the country directory with anniversary context and canonical delegation statistics." },
+  { href: "/records?anniversary=active", title: "Records archive", description: "Preview the record book with anniversary styling and historical context." },
 ] as const;
 
 function AnniversaryPreviewPage() {
@@ -42,7 +42,7 @@ function AnniversaryPreviewPage() {
           <AdminCardHeader
             eyebrow="Historical accuracy"
             title="Exact edition dates power the anniversary year"
-            description="Anniversary-year statistics now depend on each edition's Grand Final or main event date. Fill missing dates before trusting period-specific counts."
+            description="Anniversary-year statistics depend on each edition's Grand Final or main event date. Unresolved zero-point placeholder finals are excluded from champions, closest finishes and historical wins."
           />
           <div className="mt-4">
             <Link to="/admin/anniversary-dates" className="admin-action-secondary">
@@ -78,16 +78,18 @@ function AnniversaryPreviewPage() {
           <AdminCardHeader
             eyebrow="QA"
             title="What to test"
-            description="The anniversary should remain usable, not merely impressive from a safe distance."
+            description="The anniversary should remain usable, historically correct and boringly deterministic underneath the glitter."
           />
           <div className="mt-4 grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
             <p>• 390px and 430px phone widths</p>
             <p>• reduced-motion mode</p>
+            <p>• latest champion follows newest resolved final</p>
+            <p>• zero-point current placeholders never become records</p>
             <p>• country detail and Wiki pages</p>
             <p>• Records, Analysis and Relationships</p>
             <p>• Archive Games and interactive tools</p>
             <p>• voting and confirmation task clarity</p>
-            <p>• authenticated MySolaris story</p>
+            <p>• authenticated MySolaris story and copy button</p>
             <p>• no horizontal scrolling anywhere</p>
           </div>
         </AdminCard>

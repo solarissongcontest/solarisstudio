@@ -51,7 +51,7 @@ const ENTRY_SECTIONS: Array<{
     label: "Eligibility",
     description: "Rule and submission checks",
   },
-  { id: "readiness", label: "Readiness", description: "Blockers and workflow" },
+  { id: "readiness", label: "Readiness", description: "What still needs attention" },
   { id: "history", label: "History", description: "Reviews and past entries" },
 ];
 
@@ -136,7 +136,7 @@ export function MySolarisEntryModule() {
     return (
       <AppShell>
         <p className="text-sm text-muted-foreground">
-          Loading entry workspace…
+          Loading entry…
         </p>
       </AppShell>
     );
@@ -147,8 +147,8 @@ export function MySolarisEntryModule() {
       <AppShell>
         <PageHeader
           eyebrow="MySolaris · Entry"
-          title="Entry workspace is not enabled"
-          description="The delegation and workflow engines must both be enabled before this workspace can calculate readiness."
+          title="Entry tools aren’t available yet"
+          description="This section isn’t available for your delegation yet."
           actions={<BackToMySolaris search={countrySearch} />}
         />
       </AppShell>
@@ -161,7 +161,7 @@ export function MySolarisEntryModule() {
         <PageHeader
           eyebrow="MySolaris · Entry"
           title="Country account suspended"
-          description="Entry operations are unavailable while this country account is suspended."
+          description="Entry tools are unavailable while this country account is suspended."
         />
       </AppShell>
     );
@@ -173,7 +173,7 @@ export function MySolarisEntryModule() {
         <PageHeader
           eyebrow="MySolaris · Entry"
           title="No country selected"
-          description="Choose a country in MySolaris before opening the entry workspace."
+          description="Choose a country in MySolaris before opening the entry page."
           actions={
             <Link
               to={NAV_TARGETS.mySolarisCountry}
@@ -195,7 +195,7 @@ export function MySolarisEntryModule() {
       <PageHeader
         eyebrow="MySolaris · Entry"
         title={`${country.name} entry`}
-        description="Details, media, eligibility, readiness and review history for one edition at a time."
+        description="Manage the selected edition’s song, media, eligibility and review history."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -213,11 +213,11 @@ export function MySolarisEntryModule() {
       <div className="space-y-5">
         <Panel
           title="Edition"
-          description="Every panel below uses the selected edition's canonical delegation record."
+          description="Choose the edition you want to view."
         >
           {editionsQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">
-              Loading delegation editions…
+              Loading editions…
             </p>
           ) : editionsQuery.error ? (
             <ErrorText error={editionsQuery.error} />
@@ -248,7 +248,7 @@ export function MySolarisEntryModule() {
         {editionId && workspaceQuery.isLoading ? (
           <Panel title="Loading entry">
             <p className="text-sm text-muted-foreground">
-              Checking entry, eligibility and workflow dependencies…
+              Checking entry details and eligibility…
             </p>
           </Panel>
         ) : workspaceQuery.error ? (
@@ -276,7 +276,7 @@ export function MySolarisEntryModule() {
                     status={eligibilityStatus(snapshot.eligibility.status)}
                   />
                   <ReadinessMetric
-                    label="Workflow"
+                    label="Progress"
                     value={`${readiness.workflowProgress}%`}
                     status={snapshot.workflow.complete ? "ready" : "attention"}
                   />
@@ -319,7 +319,7 @@ export function MySolarisEntryModule() {
             {activeSection === "details" ? (
               <Panel
                 title="Entry details"
-                description="The accepted confirmation remains the source of truth for artist and song information."
+                description="Artist and song details come from the accepted confirmation."
                 actions={
                   <Link
                     to="/confirmations"
@@ -387,8 +387,8 @@ export function MySolarisEntryModule() {
                   description="Flags, images, captions and public-page sections"
                 >
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Country-wide presentation belongs in Page & media so it is
-                    not confused with this edition's entry submission.
+                    Edit country-wide presentation in Page & media. Entry media
+                    for this edition stays here.
                   </p>
                   <Link
                     to={NAV_TARGETS.mySolarisPageBuilder}
@@ -447,7 +447,7 @@ export function MySolarisEntryModule() {
                       value={readiness.eligibilityScore}
                     />
                     <ProgressLine
-                      label="Submission workflow"
+                      label="Submission progress"
                       value={readiness.workflowProgress}
                     />
                     <div className="grid gap-3 sm:grid-cols-3">
@@ -456,7 +456,7 @@ export function MySolarisEntryModule() {
                         value={`${readiness.passedChecks}/${readiness.totalChecks}`}
                       />
                       <SmallStat
-                        label="Workflow complete"
+                        label="Steps complete"
                         value={`${readiness.completedWorkflowTasks}/${readiness.totalWorkflowTasks}`}
                       />
                       <SmallStat
@@ -470,7 +470,7 @@ export function MySolarisEntryModule() {
                   title="What needs attention"
                   description={
                     readiness.actions.length
-                      ? "Resolve these in order. Each action opens the owning editor."
+                      ? "Complete these items before the entry is ready."
                       : "Nothing is waiting. This entry is ready."
                   }
                 >
@@ -520,13 +520,13 @@ export function MySolarisEntryModule() {
                   ) : (
                     <div className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
                       <CheckCircle2 className="size-4" aria-hidden="true" />
-                      Entry eligibility and workflow are complete.
+                      This entry is ready.
                     </div>
                   )}
                 </Panel>
                 <Panel
-                  title="Submission workflow"
-                  description={`${snapshot.workflow.progress}% complete · ${snapshot.workflow.blockedCount} dependency-blocked · ${snapshot.workflow.nextTaskIds.length} ready now`}
+                  title="Submission progress"
+                  description={`${snapshot.workflow.progress}% complete · ${snapshot.workflow.blockedCount} blocked · ${snapshot.workflow.nextTaskIds.length} ready now`}
                 >
                   <div className="space-y-2">
                     {snapshot.workflow.tasks.map((task, index) => {
@@ -554,7 +554,7 @@ export function MySolarisEntryModule() {
                               </p>
                             ) : task.ready ? (
                               <p className="mt-1 text-xs text-emerald-300">
-                                Ready to work now.
+                                Ready now.
                               </p>
                             ) : task.effectiveStatus === "completed" ? (
                               <p className="mt-1 text-xs text-muted-foreground">
@@ -575,7 +575,7 @@ export function MySolarisEntryModule() {
               <div className="space-y-4">
                 <Panel
                   title="Review history"
-                  description="Organizer review actions recorded for this edition entry"
+                  description="Organizer review actions for this edition entry"
                 >
                   {snapshot.context.reviewHistory.length ? (
                     <div className="space-y-2">
@@ -690,7 +690,7 @@ function EntryActionLink({
       to="/confirmations"
       className="mt-3 inline-flex text-xs font-semibold text-primary"
     >
-      Open the submission editor →
+      Open submission →
     </Link>
   ) : (
     <Link
@@ -698,7 +698,7 @@ function EntryActionLink({
       search={search}
       className="mt-3 inline-flex text-xs font-semibold text-primary"
     >
-      Open the owning task →
+      Open task →
     </Link>
   );
 }
@@ -792,11 +792,11 @@ function readinessSummary(
   warnings: number,
 ) {
   if (status === "ready")
-    return "All current eligibility checks and required workflow steps are complete.";
+    return "All current eligibility checks and required steps are complete.";
   if (status === "blocked") {
     return `${blockers} blocker${blockers === 1 ? "" : "s"} must be resolved before this entry is ready.${warnings ? ` ${warnings} warning${warnings === 1 ? "" : "s"} also need attention.` : ""}`;
   }
-  return `No hard blocker is preventing progress, but the workflow is not finished${warnings ? ` and ${warnings} warning${warnings === 1 ? "" : "s"} remain` : ""}.`;
+  return `Nothing is blocking progress, but some steps are still unfinished${warnings ? ` and ${warnings} warning${warnings === 1 ? "" : "s"} remain` : ""}.`;
 }
 
 function formatDateTime(value: string) {
@@ -814,7 +814,7 @@ function ErrorText({ error }: { error: unknown }) {
     <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       {error instanceof Error
         ? error.message
-        : "The entry workspace could not complete that request."}
+        : "We couldn’t complete that request."}
     </p>
   );
 }

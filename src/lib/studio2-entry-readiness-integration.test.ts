@@ -25,7 +25,7 @@ describe("Studio 2 Entry Readiness integration", () => {
 
   it("shows detailed eligibility and workflow state instead of a score alone", () => {
     expect(route).toContain("Eligibility checks");
-    expect(route).toContain("Submission workflow");
+    expect(route).toContain("Submission progress");
     expect(route).toContain("What needs attention");
     expect(route).toContain("task.blockers");
   });
