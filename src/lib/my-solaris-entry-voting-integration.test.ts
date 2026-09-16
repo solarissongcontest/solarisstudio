@@ -32,7 +32,8 @@ describe("focused MySolaris entry and voting workspaces", () => {
     expect(entry).toContain("function EntryActionLink");
     expect(entry).toContain('to="/confirmations"');
     expect(entry).toContain("NAV_TARGETS.mySolarisTasks");
-    expect(entry).toContain("Each action opens the owning editor.");
+    expect(entry).toContain("Open submission →");
+    expect(entry).toContain("Open task →");
   });
 
   it("shows participant voting status without exposing internal identity mechanics", () => {
