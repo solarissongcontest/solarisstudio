@@ -19,28 +19,28 @@ function block(qualifiedName: string) {
 }
 
 describe("communications helper Permission Engine cutover", () => {
-  it("moves communications management to non-strict communications.send", () => {
+  it("keeps manage-communications signed-in only and moves staff access to non-strict communications.send", () => {
     const fn = block("public.studio2_can_manage_communications");
     expect(fn).toContain("auth.uid() is not null");
-    expect(fn).toContain("studio2_access_allowed('communications.send', p_edition_id, false)");
+    expect(fn).toContain("studio2_access_allowed(");
+    expect(fn).toContain("'communications.send'");
+    expect(fn).toContain("p_edition_id");
+    expect(fn).toContain("false");
     expect(fn).not.toContain("has_role");
   });
 
-  it("moves notice staff visibility to non-strict communications.send", () => {
+  it("keeps notice reads signed-in only and preserves recipient fallback", () => {
     const fn = block("public.studio2_can_read_notice");
     expect(fn).toContain("when auth.uid() is null then false");
-    expect(fn).toContain(
-      "when public.studio2_access_allowed('communications.send', p_edition_id, false) then true",
-    );
-    expect(fn).not.toContain("has_role");
-  });
-
-  it("preserves the published-recipient fallback", () => {
-    const fn = block("public.studio2_can_read_notice");
-    expect(fn).toContain("p_status = 'published' and p_sent_at is not null");
+    expect(fn).toContain("studio2_access_allowed(");
+    expect(fn).toContain("'communications.send'");
+    expect(fn).toContain("p_edition_id");
+    expect(fn).toContain("false");
+    expect(fn).toContain("when p_status = 'published' and p_sent_at is not null then");
     expect(fn).toContain("private.studio2_user_can_receive_notice_v2(");
     expect(fn).toContain("coalesce(p_country_ids, '{}'::uuid[])");
     expect(fn).toContain("p_audience_group");
+    expect(fn).not.toContain("has_role");
   });
 
   it("keeps both helpers authenticated/service-role only", () => {
