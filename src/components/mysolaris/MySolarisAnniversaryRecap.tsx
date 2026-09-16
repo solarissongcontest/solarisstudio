@@ -11,6 +11,8 @@ import {
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import { useAllParticipants, useAllResults, useAllShows, useEditions, type Edition } from "@/lib/data";
 
+type DatedEdition = Edition & { event_date?: string | null };
+
 export function MySolarisAnniversaryRecap() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const previewPhase = getAnniversaryPreviewPhase(searchStr);
@@ -31,7 +33,7 @@ export function MySolarisAnniversaryRecap() {
   const recap = useMemo(() => {
     if (!country) return null;
 
-    const publishedEditions = (editions ?? []).filter((edition) => edition.published);
+    const publishedEditions = (editions ?? []).filter((edition) => edition.published) as DatedEdition[];
     const editionMap = new Map(publishedEditions.map((edition) => [edition.id, edition]));
     const participationEditionIds = new Set(
       (participants ?? [])
@@ -40,7 +42,7 @@ export function MySolarisAnniversaryRecap() {
     );
     const participationEditions = [...participationEditionIds]
       .map((id) => editionMap.get(id))
-      .filter((edition): edition is Edition => Boolean(edition))
+      .filter((edition): edition is DatedEdition => Boolean(edition))
       .sort((a, b) => (a.edition_number ?? 999) - (b.edition_number ?? 999));
 
     const finalShows = (shows ?? []).filter(
