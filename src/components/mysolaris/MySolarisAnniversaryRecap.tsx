@@ -7,6 +7,7 @@ import {
   editionIsInAnniversaryYear,
   finalRankingIsResolved,
   getSolarisAnniversarySeason,
+  showResultsArePublished,
 } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import { useAllParticipants, useAllResults, useAllShows, useEditions, type Edition } from "@/lib/data";
@@ -47,9 +48,9 @@ export function MySolarisAnniversaryRecap() {
 
     const finalShows = (shows ?? []).filter(
       (show) =>
-        show.published &&
         editionMap.has(show.edition_id) &&
-        (show.kind === "grand-final" || show.kind === "final"),
+        (show.kind === "grand-final" || show.kind === "final") &&
+        showResultsArePublished(show),
     );
     const resolvedFinalIds = new Set(
       finalShows
