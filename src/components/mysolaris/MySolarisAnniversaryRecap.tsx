@@ -102,7 +102,7 @@ export function MySolarisAnniversaryRecap() {
       latestResult:
         latest && latestEdition
           ? `${latestEdition.edition_number != null ? `SSC ${latestEdition.edition_number}` : latestEdition.name} · #${latest.final_rank} · ${latest.total_points ?? 0} pts`
-          : "No resolved final result yet",
+          : "No final result yet",
     };
   }, [anniversary.year, country, editions, participants, results, shows]);
 
@@ -131,7 +131,7 @@ export function MySolarisAnniversaryRecap() {
             {country.name} across {anniversary.age} years of Solaris
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            A personalized anniversary recap built from the published contest archive. Unresolved current-edition placeholder results are excluded.
+            From {recap.debut} to the latest final, here is {country.name}'s Solaris history so far.
           </p>
         </div>
         <button
@@ -152,7 +152,7 @@ export function MySolarisAnniversaryRecap() {
         <StoryStat label="Debut" value={recap.debut} />
         <StoryStat label="Best score" value={recap.bestScore ? `${recap.bestScore} pts` : "—"} />
         <div className="col-span-2 bg-surface/90 p-4 sm:col-span-2">
-          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">Latest resolved final</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-muted-foreground">Latest final</p>
           <p className="mt-1 text-sm font-semibold">{recap.latestResult}</p>
         </div>
       </div>
