@@ -66,14 +66,18 @@ function AnniversaryPage() {
     [shows, publishedEditionIds],
   );
   const allTimeCountries = useMemo(() => {
+    const realCountryIds = new Set((countries ?? []).map((country) => country.id));
     const ids = new Set(
       (participants ?? [])
-        .filter((entry) => publishedEditionIds.has(entry.edition_id))
-        .map((entry) => entry.country_id)
-        .filter(Boolean),
+        .filter(
+          (entry) =>
+            publishedEditionIds.has(entry.edition_id) &&
+            realCountryIds.has(entry.country_id),
+        )
+        .map((entry) => entry.country_id),
     );
     return ids.size;
-  }, [participants, publishedEditionIds]);
+  }, [countries, participants, publishedEditionIds]);
 
   const anniversaryLegacy = useMemo(() => {
     const countryMap = new Map((countries ?? []).map((country) => [country.id, country]));
