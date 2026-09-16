@@ -2,10 +2,10 @@ begin;
 
 -- Permission Engine v2 cutover batch 8.
 --
--- Raw jury-score editing was historically Organizer-only, so it remains strict
--- before authoritative cutover. Studio 2 jury-roster management already allowed
--- capability specialists and country owners, so those paths preserve that access
--- with non-strict capability checks. No scoring or roster business logic changes.
+-- Cut only the live jury administration RPCs over to Permission Engine v2.
+-- The deprecated Studio 2 multi-member jury roster RPCs intentionally remain
+-- closed to authenticated users and are handled later as private compatibility
+-- debt. Do not resurrect them during an authorization migration.
 
 create or replace function public.assign_jury_vote(
   p_edition_id uuid,
@@ -88,106 +88,6 @@ begin
 end;
 $$;
 
-create or replace function public.studio2_assign_jury_member(
-  p_edition_id uuid,
-  p_country_id uuid,
-  p_display_name text,
-  p_member_user_id uuid default null
-)
-returns public.studio2_jury_members
-language plpgsql
-security definer
-set search_path = pg_catalog, public, private
-as $$
-declare
-  v_actor uuid := auth.uid();
-  v_required integer;
-  v_assigned integer;
-  v_member public.studio2_jury_members%rowtype;
-begin
-  if nullif(btrim(p_display_name), '') is null then
-    raise exception 'Jury member display name is required' using errcode = '22023';
-  end if;
-
-  if not public.studio2_access_allowed('jury.ballots.manage', p_edition_id, false)
-     and not public.owns_country(v_actor, p_country_id) then
-    raise exception 'Country ownership or jury ballot management capability required'
-      using errcode = '42501';
-  end if;
-
-  perform 1 from public.editions e where e.id = p_edition_id for share;
-  if not found then
-    raise exception 'Edition not found: %', p_edition_id using errcode = 'P0002';
-  end if;
-
-  perform pg_advisory_xact_lock(hashtextextended(p_edition_id::text || ':' || p_country_id::text, 0));
-
-  select coalesce(s.jury_members_required, 5)
-  into v_required
-  from (select 1) seed
-  left join public.studio2_delegation_settings s
-    on s.edition_id = p_edition_id and s.country_id = p_country_id;
-
-  select count(*) into v_assigned
-  from public.studio2_jury_members jm
-  where jm.edition_id = p_edition_id
-    and jm.country_id = p_country_id
-    and jm.status = 'assigned';
-
-  if v_assigned >= v_required then
-    raise exception 'Delegation jury roster is already full (%/% members)', v_assigned, v_required
-      using errcode = '23514';
-  end if;
-
-  insert into public.studio2_jury_members (
-    edition_id, country_id, display_name, member_user_id, assigned_by
-  ) values (
-    p_edition_id, p_country_id, btrim(p_display_name), p_member_user_id, v_actor
-  )
-  returning * into v_member;
-
-  return v_member;
-end;
-$$;
-
-create or replace function public.studio2_remove_jury_member(p_member_id uuid)
-returns public.studio2_jury_members
-language plpgsql
-security definer
-set search_path = pg_catalog, public, private
-as $$
-declare
-  v_actor uuid := auth.uid();
-  v_member public.studio2_jury_members%rowtype;
-begin
-  select * into v_member
-  from public.studio2_jury_members
-  where id = p_member_id
-  for update;
-
-  if not found then
-    raise exception 'Jury member not found: %', p_member_id using errcode = 'P0002';
-  end if;
-
-  if not public.studio2_access_allowed('jury.ballots.manage', v_member.edition_id, false)
-     and not public.owns_country(v_actor, v_member.country_id) then
-    raise exception 'Country ownership or jury ballot management capability required'
-      using errcode = '42501';
-  end if;
-
-  if v_member.status = 'removed' then
-    return v_member;
-  end if;
-
-  update public.studio2_jury_members
-  set status = 'removed', removed_at = now(), removed_by = v_actor
-  where id = p_member_id
-  returning * into v_member;
-
-  return v_member;
-end;
-$$;
-
 create or replace function public.studio2_set_jury_requirement(
   p_edition_id uuid,
   p_country_id uuid,
@@ -235,14 +135,12 @@ grant execute on function public.assign_jury_vote(uuid, uuid, uuid, uuid, uuid, 
 revoke all on function public.clear_jury_point(uuid, uuid, uuid, uuid, uuid, integer) from public, anon;
 grant execute on function public.clear_jury_point(uuid, uuid, uuid, uuid, uuid, integer) to authenticated, service_role;
 
-revoke all on function public.studio2_assign_jury_member(uuid, uuid, text, uuid) from public, anon;
-grant execute on function public.studio2_assign_jury_member(uuid, uuid, text, uuid) to authenticated, service_role;
-
-revoke all on function public.studio2_remove_jury_member(uuid) from public, anon;
-grant execute on function public.studio2_remove_jury_member(uuid) to authenticated, service_role;
-
 revoke all on function public.studio2_set_jury_requirement(uuid, uuid, smallint) from public, anon;
 grant execute on function public.studio2_set_jury_requirement(uuid, uuid, smallint) to authenticated, service_role;
+
+-- Explicitly preserve the deprecation boundary from the one-HOD-jury migration.
+revoke execute on function public.studio2_assign_jury_member(uuid, uuid, text, uuid) from authenticated;
+revoke execute on function public.studio2_remove_jury_member(uuid) from authenticated;
 
 notify pgrst, 'reload schema';
 
