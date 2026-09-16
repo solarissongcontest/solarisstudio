@@ -117,7 +117,8 @@ export function ordinal(value: number) {
 
 export function getSolarisAnniversary(date = new Date()): SolarisAnniversary {
   const { year, month, day } = dateParts(date);
-  const age = Math.max(0, year - 2022);
+  const birthdayReachedThisYear = month > 9 || (month === 9 && day >= 17);
+  const age = Math.max(0, year - 2022 - (birthdayReachedThisYear ? 0 : 1));
 
   return {
     active: month === 9 && day === 17 && year >= 2022,
