@@ -105,8 +105,8 @@ export function MySolarisTasksModule() {
       <AppShell>
         <PageHeader
           eyebrow="MySolaris · Tasks"
-          title="Delegation tasks are not enabled"
-          description="The delegation operations capability is behind a rollout flag and is disabled for this account until an organizer enables it."
+          title="Tasks aren’t available yet"
+          description="This section isn’t available for your delegation yet."
           actions={
             <Link
               to={NAV_TARGETS.mySolaris}
@@ -127,7 +127,7 @@ export function MySolarisTasksModule() {
         <PageHeader
           eyebrow="MySolaris · Tasks"
           title="Country account suspended"
-          description="Delegation operations are unavailable while this country account is suspended."
+          description="Tasks are unavailable while this country account is suspended."
         />
       </AppShell>
     );
@@ -139,7 +139,7 @@ export function MySolarisTasksModule() {
         <PageHeader
           eyebrow="MySolaris · Tasks"
           title="No country selected"
-          description="Claim a country in MySolaris before opening edition tasks."
+          description="Choose a country in MySolaris before opening edition tasks."
           actions={
             <Link
               to={NAV_TARGETS.mySolarisCountry}
@@ -161,7 +161,7 @@ export function MySolarisTasksModule() {
       <PageHeader
         eyebrow="MySolaris · Tasks"
         title={`${country.name} edition tasks`}
-        description="One operational view for confirmation, entry readiness, deadlines, jury work, submission review and official TSBC notices."
+        description="Keep track of confirmations, entry checks, deadlines, jury work and official notices."
         actions={
           organizerInspection ? (
             <Link
@@ -185,20 +185,19 @@ export function MySolarisTasksModule() {
       <div className="space-y-5">
         {organizerInspection ? (
           <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
-            <p className="text-sm font-semibold">Organizer inspection mode</p>
+            <p className="text-sm font-semibold">Viewing as organizer</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              You are inspecting this delegation without impersonating it. HOD jury identity is
-              read-only here and delegation-side acknowledgement mutations are disabled.
+              This view is read-only. Acknowledgements can only be made by the delegation.
             </p>
           </div>
         ) : null}
 
         <Panel
           title="Edition"
-          description="The workspace only shows editions linked to this delegation."
+          description="Choose the edition you want to view."
         >
           {editionsQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading delegation editions…</p>
+            <p className="text-sm text-muted-foreground">Loading editions…</p>
           ) : editionsQuery.error ? (
             <ErrorText error={editionsQuery.error} />
           ) : (editionsQuery.data ?? []).length === 0 ? (
@@ -226,7 +225,7 @@ export function MySolarisTasksModule() {
 
         {editionId && workspaceQuery.isLoading ? (
           <Panel title="Delegation status">
-            <p className="text-sm text-muted-foreground">Calculating readiness…</p>
+            <p className="text-sm text-muted-foreground">Checking delegation status…</p>
           </Panel>
         ) : workspaceQuery.error ? (
           <Panel title="Delegation status">
@@ -236,7 +235,7 @@ export function MySolarisTasksModule() {
           <>
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard
-                label="Operational readiness"
+                label="Readiness"
                 value={`${snapshot.model.readiness}% · ${readinessLabel(snapshot.model.readinessState)}`}
               />
               <MetricCard
@@ -262,8 +261,8 @@ export function MySolarisTasksModule() {
             </section>
 
             <Panel
-              title="Operational readiness"
-              description="The same country-level readiness model is used across delegation and organizer surfaces."
+              title="Readiness"
+              description="See what’s ready and what still needs attention."
             >
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {snapshot.operationalReadiness.signals.map((signal) => (
@@ -282,12 +281,12 @@ export function MySolarisTasksModule() {
             </Panel>
 
             <Panel
-              title="Organizer eligibility decisions"
-              description="Active organizer exceptions are shown here as a read-only overlay. The factual readiness checks above stay visible and unchanged."
+              title="Organizer decisions"
+              description="Any organizer decision affecting entry eligibility appears here."
             >
               {eligibilityOverridesQuery.isLoading ? (
                 <p className="text-sm text-muted-foreground">
-                  Loading organizer eligibility decisions…
+                  Loading organizer decisions…
                 </p>
               ) : eligibilityOverridesQuery.error ? (
                 <ErrorText error={eligibilityOverridesQuery.error} />
@@ -300,9 +299,9 @@ export function MySolarisTasksModule() {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold">Organizer eligibility decision</p>
+                          <p className="text-sm font-semibold">Eligibility decision</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Affected rule: {override.affectedRule}
+                            Rule: {override.affectedRule}
                           </p>
                         </div>
                         <StatusPill value="overridden" />
@@ -311,23 +310,19 @@ export function MySolarisTasksModule() {
                         {override.reason}
                       </p>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Recorded {formatDateTime(override.createdAt)} · actor{" "}
-                        {override.createdBy ? shortId(override.createdBy) : "service"}
+                        Recorded {formatDateTime(override.createdAt)}
                       </p>
                       {override.expiresAt ? (
                         <p className="mt-1 text-xs text-muted-foreground">
                           Expires {formatDateTime(override.expiresAt)}
                         </p>
                       ) : null}
-                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                        No delegation-side action can create, revoke, or edit this decision.
-                      </p>
                     </div>
                   ))}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No active organizer eligibility exception applies to this delegation.
+                  No organizer exceptions are active for this delegation.
                 </p>
               )}
             </Panel>
@@ -337,9 +332,9 @@ export function MySolarisTasksModule() {
               description={
                 snapshot.model.actions.length
                   ? organizerInspection
-                    ? "These are the actions the delegation currently sees; inspection mode does not perform them."
-                    : "Work these from top to bottom. Critical blockers are intentionally first."
-                  : "No outstanding delegation actions for this edition."
+                    ? "These are the delegation’s current actions. Changes are disabled here."
+                    : "Start with the urgent items."
+                  : "No outstanding actions for this edition."
               }
             >
               {snapshot.model.actions.length ? (
@@ -360,13 +355,13 @@ export function MySolarisTasksModule() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Delegation requirements are clear.</p>
+                <p className="text-sm text-muted-foreground">Nothing needs attention right now.</p>
               )}
             </Panel>
 
             <Panel
               title="Deadlines & alerts"
-              description={`${snapshot.operationalReadiness.overdueDeadlines.length} overdue · ${snapshot.operationalReadiness.upcomingDeadlines.length} upcoming · ${snapshot.context.unresolvedOrganizerIssues} organizer-side issue${snapshot.context.unresolvedOrganizerIssues === 1 ? "" : "s"}`}
+              description={`${snapshot.operationalReadiness.overdueDeadlines.length} overdue · ${snapshot.operationalReadiness.upcomingDeadlines.length} upcoming · ${snapshot.context.unresolvedOrganizerIssues} issue${snapshot.context.unresolvedOrganizerIssues === 1 ? "" : "s"} being reviewed`}
             >
               {snapshot.context.deadlines.length ? (
                 <div className="space-y-2">
@@ -403,21 +398,19 @@ export function MySolarisTasksModule() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No edition deadlines have been published to MySolaris yet.
+                  No deadlines have been published for this edition yet.
                 </p>
               )}
               {snapshot.context.unresolvedOrganizerIssues ? (
                 <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                  {snapshot.context.unresolvedOrganizerIssues} unresolved delegation/publication
-                  incident{snapshot.context.unresolvedOrganizerIssues === 1 ? " is" : "s are"} being
-                  handled by organizers. This is an operational warning, not an instruction for the
-                  delegation unless TSBC contacts you.
+                  Organizers are reviewing {snapshot.context.unresolvedOrganizerIssues} issue
+                  {snapshot.context.unresolvedOrganizerIssues === 1 ? "" : "s"}. You only need to act if TSBC contacts you.
                 </p>
               ) : null}
             </Panel>
 
             <Panel
-              title="Entry workflow"
+              title="Entry progress"
               description={`${snapshot.workflow.progress}% complete · ${snapshot.workflow.blockedCount} blocked`}
             >
               <div className="grid gap-2 md:grid-cols-2">
@@ -443,7 +436,7 @@ export function MySolarisTasksModule() {
 
             <Panel
               title="Submission review history"
-              description="Organizer review decisions from the canonical confirmations history for this country and edition."
+              description="Review decisions for this country and edition."
             >
               {snapshot.context.reviewHistory.length ? (
                 <div className="space-y-2">
@@ -474,8 +467,7 @@ export function MySolarisTasksModule() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No organizer review decisions are recorded for this delegation in the selected
-                  edition.
+                  No review decisions have been recorded for this country in the selected edition.
                 </p>
               )}
             </Panel>
@@ -487,11 +479,9 @@ export function MySolarisTasksModule() {
                   ? "The HOD has submitted the country jury ballot."
                   : snapshot.model.jury.complete
                     ? organizerInspection
-                      ? "The canonical HOD is the country’s sole jury. Organizer inspection is read-only."
+                      ? "The Head of Delegation is the country’s sole jury. This view is read-only."
                       : "The Head of Delegation is the country’s sole jury for this edition."
-                    : organizerInspection
-                      ? "No canonical HOD is recorded for this country and edition. Correct HOD history before jury voting."
-                      : "No HOD assignment is recorded for this edition. HOD history must be corrected before jury voting."
+                    : "Assign a Head of Delegation before jury voting."
               }
             >
               {snapshot.context.juryMembers.length ? (
@@ -510,8 +500,7 @@ export function MySolarisTasksModule() {
                 <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 p-3">
                   <p className="text-sm font-semibold">HOD assignment missing</p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Solaris does not use a separate multi-member jury roster. Record the correct
-                    Head of Delegation for this country and edition instead.
+                    Add the correct Head of Delegation for this country and edition before jury voting.
                   </p>
                   {organizerInspection ? (
                     <Link
@@ -620,14 +609,10 @@ function formatDateTime(value: string) {
       }).format(date);
 }
 
-function shortId(value: string) {
-  return value.length > 12 ? `${value.slice(0, 8)}…` : value;
-}
-
 function ErrorText({ error }: { error: unknown }) {
   return (
     <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-      {error instanceof Error ? error.message : "MySolaris could not complete that request."}
+      {error instanceof Error ? error.message : "We couldn’t complete that request."}
     </p>
   );
 }

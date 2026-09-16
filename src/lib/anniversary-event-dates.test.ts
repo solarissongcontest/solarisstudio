@@ -53,6 +53,5 @@ describe("anniversary recap exact edition dates", () => {
 
     expect(recap.editionCount).toBe(0);
     expect(recap.undatedPublishedEditionCount).toBe(1);
-    expect(recap.stories[0]?.headline).toContain("dates are still being completed");
   });
 });

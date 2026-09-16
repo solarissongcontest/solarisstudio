@@ -38,13 +38,13 @@ export function AnniversaryTakeover({
                 </span>
               </h1>
               <p className="anniversary-editorial-deck">
-                {anniversary.age} years of champions, near misses, voting chaos and countries writing themselves into Solaris history. Today the Studio becomes the archive.
+                {anniversary.age} years of champions, close finishes, memorable scores and new stories from across Terra Solaris.
               </p>
               <div className="anniversary-editorial-actions">
                 <Link to="/anniversary" className="anniversary-editorial-action primary" data-anniversary-action="major">
-                  Enter the anniversary archive →
+                  Anniversary hub →
                 </Link>
-                <Link to="/editions" className="anniversary-editorial-action">Explore every edition</Link>
+                <Link to="/editions" className="anniversary-editorial-action">Browse every edition</Link>
               </div>
               <div className="anniversary-editorial-signature" aria-label="Solaris anniversary dates">
                 <span className="anniversary-editorial-signature-name">{anniversary.age} years of Solaris</span>
@@ -66,17 +66,17 @@ export function AnniversaryTakeover({
             <EditorialFact
               label="Closest finish"
               value={closest ? `${closest.gap} pts` : "—"}
-              detail={closest ? `${closest.winner} over ${closest.runnerUp} · ${closest.edition}` : "Waiting for a published final"}
+              detail={closest ? `${closest.winner} over ${closest.runnerUp} · ${closest.edition}` : "Not available yet"}
             />
             <EditorialFact
               label="Biggest winning score"
               value={biggest ? `${biggest.points}` : "—"}
-              detail={biggest ? `${biggest.name} · ${biggest.edition}` : "Waiting for a published final"}
+              detail={biggest ? `${biggest.name} · ${biggest.edition}` : "Not available yet"}
             />
             <EditorialFact
               label="Latest champion"
               value={latestWinner?.name ?? "—"}
-              detail={latestWinner ? `${latestWinner.edition} · ${latestWinner.points} points` : leadStory?.headline ?? "The archive is still growing"}
+              detail={latestWinner ? `${latestWinner.edition} · ${latestWinner.points} points` : leadStory?.headline ?? "Not available yet"}
             />
           </div>
         </header>
@@ -85,11 +85,11 @@ export function AnniversaryTakeover({
 
         <div className="anniversary-v2-section-head">
           <div>
-            <p className="anniversary-v2-eyebrow">The story so far · The birthday edition</p>
-            <h2 className="anniversary-v2-section-title font-display">One year of Solaris, in headlines</h2>
+            <p className="anniversary-v2-eyebrow">Since the last anniversary</p>
+            <h2 className="anniversary-v2-section-title font-display">The year in review</h2>
           </div>
           <p className="anniversary-v2-section-copy">
-            From the previous birthday to today, these are the numbers and moments that shaped another year of the contest.
+            The editions, results and moments from 17 September {anniversary.previousYear} to today.
           </p>
         </div>
 
@@ -114,35 +114,35 @@ export function AnniversaryTakeover({
 
         <div className="anniversary-v2-section-head">
           <div>
-            <p className="anniversary-v2-eyebrow">Keep exploring</p>
-            <h2 className="anniversary-v2-section-title font-display">The archive is the celebration</h2>
+            <p className="anniversary-v2-eyebrow">Explore Solaris</p>
+            <h2 className="anniversary-v2-section-title font-display">{anniversary.age} years to look back on</h2>
           </div>
           <p className="anniversary-v2-section-copy">
-            Anniversary Day brings Solaris history, records and interactive archive features together in one place.
+            Browse every edition, try the archive games or open the record book.
           </p>
         </div>
 
         <div className="anniversary-v2-feature-grid">
           <BirthdayFeature
-            eyebrow="Born 17 September 2022"
-            title="Walk through the years"
-            text="Every published edition, winner and scoreboard remains part of one growing contest history."
+            eyebrow="17 September 2022"
+            title="Every edition"
+            text="Browse the contest from SSC 1 to the latest published edition."
             to="/editions"
-            cta="Open the archive"
+            cta="Browse editions"
           />
           <BirthdayFeature
-            eyebrow="Anniversary challenge"
-            title="How well do you know Solaris?"
-            text="Archive Games turns old placements, jury splits and edition history into a birthday challenge."
+            eyebrow="Archive Games"
+            title="Test your Solaris knowledge"
+            text="Placements, jury splits and past results turned into quick games."
             to="/archive-games"
-            cta="Start playing"
+            cta="Play Archive Games"
           />
           <BirthdayFeature
-            eyebrow="The numbers survived"
-            title="Records made to be broken"
-            text="Revisit the wins, point totals, streaks and all-time marks that defined Solaris before another year begins trying to destroy them."
+            eyebrow="Record book"
+            title="All-time records"
+            text="Wins, points, streaks and other records from across Solaris history."
             to="/records"
-            cta="See the records"
+            cta="Open records"
           />
         </div>
 
