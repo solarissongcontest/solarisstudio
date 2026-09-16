@@ -27,6 +27,18 @@ describe("jury admin Permission Engine RPC cutover", () => {
     }
   });
 
+  it("preserves capability-specialist and country-owner roster access", () => {
+    const assign = block("studio2_assign_jury_member");
+    expect(assign).toContain("studio2_access_allowed('jury.ballots.manage', p_edition_id, false)");
+    expect(assign).toContain("public.owns_country(v_actor, p_country_id)");
+    expect(assign).not.toContain("has_role");
+
+    const remove = block("studio2_remove_jury_member");
+    expect(remove).toContain("studio2_access_allowed('jury.ballots.manage', v_member.edition_id, false)");
+    expect(remove).toContain("public.owns_country(v_actor, v_member.country_id)");
+    expect(remove).not.toContain("has_role");
+  });
+
   it("preserves edition-management access to the one-jury requirement", () => {
     const fn = block("studio2_set_jury_requirement");
     expect(fn).toContain("studio2_access_allowed('edition.manage', p_edition_id, false)");
@@ -46,20 +58,21 @@ describe("jury admin Permission Engine RPC cutover", () => {
     expect(clear).toContain("get diagnostics v_count = row_count");
   });
 
-  it("does not redefine or reopen the deprecated multi-member jury roster RPCs", () => {
-    expect(migration).not.toContain("create or replace function public.studio2_assign_jury_member");
-    expect(migration).not.toContain("create or replace function public.studio2_remove_jury_member");
-    expect(migration).toContain(
-      "revoke execute on function public.studio2_assign_jury_member(uuid, uuid, text, uuid) from authenticated;",
-    );
-    expect(migration).toContain(
-      "revoke execute on function public.studio2_remove_jury_member(uuid) from authenticated;",
-    );
+  it("preserves roster locking and lifecycle behavior", () => {
+    const assign = block("studio2_assign_jury_member");
+    expect(assign).toContain("pg_advisory_xact_lock");
+    expect(assign).toContain("v_assigned >= v_required");
+    expect(assign).toContain("insert into public.studio2_jury_members");
+
+    const remove = block("studio2_remove_jury_member");
+    expect(remove).toContain("for update");
+    expect(remove).toContain("status = 'removed'");
+    expect(remove).toContain("removed_by = v_actor");
   });
 
-  it("keeps the three live RPCs authenticated/service-role only", () => {
-    expect(migration.match(/from public, anon;/g)?.length).toBeGreaterThanOrEqual(3);
-    expect(migration.match(/to authenticated, service_role;/g)?.length).toBeGreaterThanOrEqual(3);
+  it("keeps all five current compatibility RPCs authenticated/service-role only", () => {
+    expect(migration.match(/from public, anon;/g)?.length).toBeGreaterThanOrEqual(5);
+    expect(migration.match(/to authenticated, service_role;/g)?.length).toBeGreaterThanOrEqual(5);
   });
 
   it("does not enable Permission Engine v2", () => {
