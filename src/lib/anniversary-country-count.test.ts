@@ -1,28 +1,29 @@
 import { describe, expect, it } from "vitest";
 
 import { buildAnniversaryRecap } from "./anniversary";
+import type { Edition } from "./data";
 
 describe("anniversary country headline", () => {
   it("counts custom contest entities as entries but not as countries", () => {
+    const edition = {
+      id: "edition",
+      edition_number: 21,
+      name: "SSC 21",
+      year: 2026,
+      event_date: "2026-06-14",
+      slug: "ssc-21",
+      description: null,
+      host_country_id: null,
+      host_city: null,
+      logo: null,
+      theme_id: null,
+      status: "complete",
+      published: true,
+    } satisfies Edition & { event_date: string };
+
     const recap = buildAnniversaryRecap({
       anniversaryYear: 2026,
-      editions: [
-        {
-          id: "edition",
-          edition_number: 21,
-          name: "SSC 21",
-          year: 2026,
-          event_date: "2026-06-14",
-          slug: "ssc-21",
-          description: null,
-          host_country_id: null,
-          host_city: null,
-          logo: null,
-          theme_id: null,
-          status: "complete",
-          published: true,
-        },
-      ] as any,
+      editions: [edition],
       shows: [],
       participants: [
         {
