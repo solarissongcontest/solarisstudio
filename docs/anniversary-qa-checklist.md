@@ -12,3 +12,4 @@ Run against the deployed Worker after the fix is merged.
 - MySolaris displays `Your Solaris story` for a linked country account
 - `?anniversary=off` clears sticky preview state
 - countdown and afterglow stay task-safe
+- final CI rerun must use a clean checkout of the current PR head
