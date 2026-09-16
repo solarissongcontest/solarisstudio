@@ -11,6 +11,9 @@ const COPY_SURFACES = [
   "src/components/ScoreboardStage.tsx",
   "src/components/SolarisAnniversaryCelebration.tsx",
   "src/components/mysolaris/MySolarisAnniversaryRecap.tsx",
+  "src/components/mysolaris/modules/MySolarisEntryModule.tsx",
+  "src/components/mysolaris/modules/MySolarisNoticesModule.tsx",
+  "src/components/mysolaris/modules/MySolarisTasksModule.tsx",
   "src/components/viz/VotingHeatmap.tsx",
   "src/lib/anniversary.ts",
   "src/routes/analysis/index.tsx",
@@ -91,6 +94,17 @@ const FORBIDDEN_PUBLIC_COPY = [
   /gloriously unnecessary scoreboard drama/i,
   /increasingly unreasonable scoreboard emotions/i,
   /Today the Studio becomes the archive/i,
+  /rollout flag/i,
+  /workflow engines/i,
+  /readiness model/i,
+  /organizer surfaces/i,
+  /read-only overlay/i,
+  /delegation-side/i,
+  /organizer-side/i,
+  /operational warning/i,
+  /owning editor/i,
+  /owning task/i,
+  /dependency-blocked/i,
 ];
 
 function visibleSource(path: string) {
