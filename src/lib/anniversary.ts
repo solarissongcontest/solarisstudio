@@ -86,6 +86,12 @@ export function editionIsInAnniversaryYear(
   return eventDate >= start && eventDate < endExclusive;
 }
 
+export function showResultsArePublished(
+  show: Pick<Show, "published" | "publication_config">,
+) {
+  return show.published && show.publication_config?.results === true;
+}
+
 export function resultHasPublishedScore(result: ResultScore) {
   return [result.total_points, result.jury_points, result.televote_points].some(
     (value) => typeof value === "number" && value !== 0,
@@ -198,7 +204,11 @@ export function buildAnniversaryRecap({
   const countryMap = new Map(countries.map((country) => [country.id, country]));
   const participatingCountries = new Set(periodParticipants.map((entry) => entry.country_id).filter(Boolean));
   const grandFinalShows = periodShows
-    .filter((show) => show.kind === "grand-final" || show.kind === "final")
+    .filter(
+      (show) =>
+        (show.kind === "grand-final" || show.kind === "final") &&
+        showResultsArePublished(show),
+    )
     .sort((a, b) => {
       const editionA = editionMap.get(a.edition_id);
       const editionB = editionMap.get(b.edition_id);
