@@ -6,6 +6,7 @@ import {
   buildAnniversaryRecap,
   finalRankingIsResolved,
   getSolarisAnniversary,
+  showResultsArePublished,
 } from "@/lib/anniversary";
 import {
   useAllParticipants,
@@ -77,7 +78,11 @@ function AnniversaryPage() {
   const anniversaryLegacy = useMemo(() => {
     const countryMap = new Map((countries ?? []).map((country) => [country.id, country]));
     const editionMap = new Map(publishedEditions.map((edition) => [edition.id, edition]));
-    const finalShows = allTimeShows.filter((show) => show.kind === "grand-final" || show.kind === "final");
+    const finalShows = allTimeShows.filter(
+      (show) =>
+        (show.kind === "grand-final" || show.kind === "final") &&
+        showResultsArePublished(show),
+    );
     const resolvedFinalShows = finalShows.filter((show) => {
       const ranking = (results ?? [])
         .filter((result) => result.show_id === show.id && result.final_rank != null)
