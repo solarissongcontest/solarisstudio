@@ -104,19 +104,9 @@ function AnniversaryPage() {
         const gap = Math.max(0, winner.total_points - runnerUp.total_points);
         if (!closest || gap < closest.gap) closest = { gap, winner, runnerUp };
       }
-      const currentEdition = editionMap.get(winner.edition_id);
-      const latestEdition = latestWinner ? editionMap.get(latestWinner.edition_id) : null;
-      const currentDate = currentEdition?.event_date ?? "";
-      const latestDate = latestEdition?.event_date ?? "";
-      const currentEditionNo = currentEdition?.edition_number ?? -1;
-      const latestEditionNo = latestEdition?.edition_number ?? -1;
-      if (
-        !latestWinner ||
-        currentDate > latestDate ||
-        (currentDate === latestDate && currentEditionNo > latestEditionNo)
-      ) {
-        latestWinner = winner;
-      }
+      const currentEditionNo = editionMap.get(winner.edition_id)?.edition_number ?? -1;
+      const latestEditionNo = latestWinner ? editionMap.get(latestWinner.edition_id)?.edition_number ?? -1 : -1;
+      if (!latestWinner || currentEditionNo > latestEditionNo) latestWinner = winner;
     }
 
     const countryStats = new Map<string, { participations: Set<string>; finals: Set<string>; wins: number; points: number }>();
