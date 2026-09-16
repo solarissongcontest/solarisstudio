@@ -48,6 +48,9 @@ export type AnniversaryRecap = {
 
 type DatedEdition = Edition & { event_date?: string | null };
 
+type ResultScore = Pick<ResultRow, "total_points" | "jury_points" | "televote_points">;
+type RankedResult = ResultScore & Pick<ResultRow, "final_rank">;
+
 function dateParts(date: Date, timeZone = SOLARIS_ANNIVERSARY_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -81,6 +84,19 @@ export function editionIsInAnniversaryYear(
   if (!eventDate) return false;
   const { start, endExclusive } = anniversaryPeriodForYear(anniversaryYear);
   return eventDate >= start && eventDate < endExclusive;
+}
+
+export function resultHasPublishedScore(result: ResultScore) {
+  return [result.total_points, result.jury_points, result.televote_points].some(
+    (value) => typeof value === "number" && value !== 0,
+  );
+}
+
+export function finalRankingIsResolved(ranking: RankedResult[]) {
+  return (
+    ranking.some((result) => result.final_rank === 1) &&
+    ranking.some((result) => resultHasPublishedScore(result))
+  );
 }
 
 export function ordinal(value: number) {
@@ -181,7 +197,15 @@ export function buildAnniversaryRecap({
   );
   const countryMap = new Map(countries.map((country) => [country.id, country]));
   const participatingCountries = new Set(periodParticipants.map((entry) => entry.country_id).filter(Boolean));
-  const grandFinalShows = periodShows.filter((show) => show.kind === "grand-final" || show.kind === "final");
+  const grandFinalShows = periodShows
+    .filter((show) => show.kind === "grand-final" || show.kind === "final")
+    .sort((a, b) => {
+      const editionA = editionMap.get(a.edition_id);
+      const editionB = editionMap.get(b.edition_id);
+      const dateCompare = (editionA?.event_date ?? "").localeCompare(editionB?.event_date ?? "");
+      if (dateCompare !== 0) return dateCompare;
+      return (editionA?.edition_number ?? 999) - (editionB?.edition_number ?? 999);
+    });
 
   const winners: AnniversaryRecap["winners"] = [];
   let closestFinal: AnniversaryRecap["closestFinal"] = null;
@@ -192,7 +216,7 @@ export function buildAnniversaryRecap({
       .filter((result) => result.show_id === show.id && result.final_rank != null)
       .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
     const winner = ranking[0];
-    if (!winner || winner.final_rank !== 1) continue;
+    if (!winner || winner.final_rank !== 1 || !finalRankingIsResolved(ranking)) continue;
 
     const winnerName = countryMap.get(winner.country_id)?.name ?? "Unknown country";
     const edition = editionMap.get(show.edition_id);
