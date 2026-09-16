@@ -204,7 +204,11 @@ export function buildAnniversaryRecap({
     (result) => editionIds.has(result.edition_id) && (!result.show_id || showIds.has(result.show_id)),
   );
   const countryMap = new Map(countries.map((country) => [country.id, country]));
-  const participatingCountries = new Set(periodParticipants.map((entry) => entry.country_id).filter(Boolean));
+  const participatingCountries = new Set(
+    periodParticipants
+      .map((entry) => entry.country_id)
+      .filter((countryId) => Boolean(countryId) && countryMap.has(countryId)),
+  );
   const grandFinalShows = periodShows
     .filter(
       (show) =>
