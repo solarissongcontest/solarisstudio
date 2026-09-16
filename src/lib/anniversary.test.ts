@@ -255,10 +255,10 @@ describe("Solaris anniversary", () => {
         result("r20r", "e20", "gf20", "aot", 2, 412),
       ],
       countries: [
-        { id: "dia", name: "Diaria", native_name: null, short_code: "DIA", flag_image: null, region: null, accent_color: null, description: null, first_participation: 1 },
-        { id: "orn", name: "Ørnådal", native_name: null, short_code: "ORN", flag_image: null, region: null, accent_color: null, description: null, first_participation: 1 },
-        { id: "wit", name: "Witfordge", native_name: null, short_code: "WIT", flag_image: null, region: null, accent_color: null, description: null, first_participation: 1 },
-        { id: "aot", name: "Aotea", native_name: null, short_code: "AOT", flag_image: null, region: null, accent_color: null, description: null, first_participation: 1 },
+        { id: "dia", name: "Diaria", native_name: null, short_code: "DIA", flag_image: null, region: "Test", accent_color: "#111111", description: null, first_participation: 1 },
+        { id: "orn", name: "Ørnådal", native_name: null, short_code: "ORN", flag_image: null, region: "Test", accent_color: "#222222", description: null, first_participation: 1 },
+        { id: "wit", name: "Witfordge", native_name: null, short_code: "WIT", flag_image: null, region: "Test", accent_color: "#333333", description: null, first_participation: 1 },
+        { id: "aot", name: "Aotea", native_name: null, short_code: "AOT", flag_image: null, region: "Test", accent_color: "#444444", description: null, first_participation: 1 },
       ],
     });
 
