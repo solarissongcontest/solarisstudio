@@ -2,10 +2,39 @@ begin;
 
 -- Permission Engine v2 cutover batch 8.
 --
--- Raw jury-score editing was historically Organizer-only, so it remains strict
--- before authoritative cutover. Studio 2 jury-roster management already allowed
--- capability specialists and country owners, so those paths preserve that access
--- with non-strict capability checks. No scoring or roster business logic changes.
+-- The later Permission Engine dual-enforcement migration intentionally reopened
+-- the legacy Studio 2 roster mutators to authenticated callers behind Organizer,
+-- capability, or country-owner authorization. Preserve that current API contract
+-- while removing direct Organizer checks. Raw jury-score editing remains strict
+-- before authoritative cutover; existing specialist/owner paths remain non-strict.
+-- The jury-member user-link trigger is cut over in the same batch so it cannot
+-- retain a hidden Organizer bypass after the authoritative switch.
+
+create or replace function private.studio2_guard_jury_member_user_link()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public, private
+as $$
+declare
+  v_actor uuid := auth.uid();
+begin
+  if new.member_user_id is not null
+     and not private.studio2_user_access_allowed(
+       v_actor,
+       'jury.ballots.manage',
+       new.edition_id,
+       false
+     ) then
+    raise exception 'Jury ballot management capability required to link an authenticated user'
+      using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.studio2_guard_jury_member_user_link()
+  from public, anon, authenticated;
 
 create or replace function public.assign_jury_vote(
   p_edition_id uuid,
