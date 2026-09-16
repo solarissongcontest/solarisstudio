@@ -164,6 +164,19 @@ describe("Solaris anniversary", () => {
           qualified: true,
           notes: null,
         },
+        {
+          id: "p3",
+          edition_id: "e21",
+          show_id: "gf21",
+          country_id: "custom-entity",
+          contest_entity_id: "custom-entity",
+          artist: "Artist C",
+          song: "Song C",
+          running_order: 3,
+          semi_final: "final",
+          qualified: true,
+          notes: null,
+        },
       ],
       results: [
         {
@@ -197,6 +210,8 @@ describe("Solaris anniversary", () => {
 
     expect(recap.editionCount).toBe(1);
     expect(recap.undatedPublishedEditionCount).toBe(1);
+    expect(recap.entryCount).toBe(3);
+    expect(recap.countryCount).toBe(2);
     expect(recap.winners[0]?.name).toBe("Asteria");
     expect(recap.closestFinal?.gap).toBe(2);
     expect(recap.stories.some((story) => story.id === "closest-final")).toBe(true);
