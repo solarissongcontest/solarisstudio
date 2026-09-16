@@ -104,7 +104,7 @@ export function MySolarisNoticesModule() {
   if (account.isLoading || featureQuery.isLoading) {
     return (
       <AppShell>
-        <p className="text-sm text-muted-foreground">Loading official notices…</p>
+        <p className="text-sm text-muted-foreground">Loading notices…</p>
       </AppShell>
     );
   }
@@ -114,8 +114,8 @@ export function MySolarisNoticesModule() {
       <AppShell>
         <PageHeader
           eyebrow="MySolaris · Notices"
-          title="Official notices are not enabled"
-          description="Official communications are currently unavailable."
+          title="Notices aren’t available yet"
+          description="Official TSBC notices are currently unavailable."
           actions={<BackToWorkspace />}
         />
       </AppShell>
@@ -126,9 +126,9 @@ export function MySolarisNoticesModule() {
     return (
       <AppShell>
         <PageHeader
-          eyebrow="Organizer account"
-          title="Delegation inbox is recipient-scoped"
-          description="Organizer inspection rights are intentionally separate from delegation read and acknowledgement receipts. Use Official Communications for organizer-side operations."
+          eyebrow="Organizer"
+          title="Delegation notices"
+          description="This inbox is for delegation accounts. Organizers can manage notices in Official Communications."
           actions={
             <Link
               to="/admin/communications"
@@ -148,7 +148,7 @@ export function MySolarisNoticesModule() {
         <PageHeader
           eyebrow="MySolaris · Notices"
           title="No delegation account"
-          description="Official delegation notices are available after a country account has been assigned."
+          description="Choose or claim a country before opening delegation notices."
           actions={<BackToWorkspace />}
         />
       </AppShell>
@@ -161,7 +161,7 @@ export function MySolarisNoticesModule() {
         <PageHeader
           eyebrow="MySolaris · Notices"
           title={`${country.name} is suspended`}
-          description="The delegation inbox is unavailable while the country account is suspended."
+          description="Notices are unavailable while the country account is suspended."
           actions={<BackToWorkspace />}
         />
       </AppShell>
@@ -176,9 +176,9 @@ export function MySolarisNoticesModule() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="MySolaris · Official communications"
+        eyebrow="MySolaris · Notices"
         title={`${country.name} notices`}
-        description="Authoritative TSBC notices, acknowledgement requests and communication history for your delegation."
+        description="Official TSBC messages and acknowledgement requests for your delegation."
         actions={<BackToWorkspace />}
       />
 
@@ -189,7 +189,7 @@ export function MySolarisNoticesModule() {
           <Metric label="Total" value={items.length} />
         </section>
 
-        <Panel title="Inbox filters">
+        <Panel title="Filters">
           <div className="flex flex-wrap gap-2">
             <FilterButton
               active={!search.state}
@@ -226,7 +226,7 @@ export function MySolarisNoticesModule() {
         ) : inboxQuery.error ? (
           <Panel title="Official notices">
             <p className="text-sm text-destructive">
-              {errorMessage(inboxQuery.error, "The delegation inbox could not be loaded.")}
+              {safeErrorMessage("The delegation inbox could not be loaded.")}
             </p>
           </Panel>
         ) : filteredItems.length === 0 ? (
@@ -235,8 +235,7 @@ export function MySolarisNoticesModule() {
               <Inbox className="mb-3 size-7 text-muted-foreground" />
               <p className="font-semibold">No notices in this view</p>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                New official communications will appear here when your delegation is part of the
-                target audience.
+                New TSBC notices for your delegation will appear here.
               </p>
             </div>
           </Panel>
@@ -271,7 +270,7 @@ export function MySolarisNoticesModule() {
                   <MailOpen className="mb-3 size-7 text-muted-foreground" />
                   <p className="font-semibold">Select a notice</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Open a notice to read its full message and acknowledgement state.
+                    Open a notice to read the full message.
                   </p>
                 </div>
               )}
@@ -366,8 +365,8 @@ function NoticeDetail({
               </p>
               <p className="mt-1 text-muted-foreground">
                 {acknowledged
-                  ? "Your delegation acknowledgement has been recorded."
-                  : "TSBC requires your delegation to explicitly acknowledge this notice."}
+                  ? "Your acknowledgement has been recorded."
+                  : "Please acknowledge this notice after reading it."}
               </p>
             </div>
           </div>
@@ -376,7 +375,7 @@ function NoticeDetail({
 
       {error ? (
         <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {errorMessage(error, "The notice could not be updated.")}
+          {safeErrorMessage("The notice could not be updated.")}
         </p>
       ) : null}
 
@@ -462,7 +461,7 @@ function BackToWorkspace() {
       to={NAV_TARGETS.mySolarisTasks}
       className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
     >
-      Delegation workspace →
+      Back to tasks →
     </Link>
   );
 }
@@ -478,8 +477,8 @@ function formatTimestamp(value: string | null) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+function safeErrorMessage(fallback: string) {
+  return fallback;
 }
 
 function parseNoticeSearch(value: unknown): NoticesSearch {

@@ -62,11 +62,11 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
     expect(model).toContain('An organizer eligibility override is active.');
   });
 
-  it('shows active organizer decisions to HODs as a read-only overlay', () => {
+  it('shows active organizer decisions to HODs without exposing edit controls', () => {
     expect(hodRoute).toContain('listStudio2EligibilityOverrides(editionId, { countryId: country!.id })');
-    expect(hodRoute).toContain('Organizer eligibility decision');
-    expect(hodRoute).toContain('The factual readiness checks above stay visible and unchanged.');
-    expect(hodRoute).toContain('No delegation-side action can create, revoke, or edit this decision.');
+    expect(hodRoute).toContain('Organizer decisions');
+    expect(hodRoute).toContain('Any organizer decision affecting entry eligibility appears here.');
+    expect(hodRoute).toContain('No organizer exceptions are active for this delegation.');
     expect(hodRoute).not.toContain('createStudio2EligibilityOverride');
     expect(hodRoute).not.toContain('revokeStudio2EligibilityOverride');
   });

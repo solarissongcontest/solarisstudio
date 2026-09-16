@@ -1,4 +1,5 @@
 import type { Country, Edition, Participant, ResultRow, Show } from "@/lib/data";
+import { resolveShowPublication } from "@/lib/publication";
 
 export const SOLARIS_BIRTH_DATE = "2022-09-17";
 export const SOLARIS_ANNIVERSARY_TIME_ZONE = "Europe/Paris";
@@ -48,6 +49,9 @@ export type AnniversaryRecap = {
 
 type DatedEdition = Edition & { event_date?: string | null };
 
+type ResultScore = Pick<ResultRow, "total_points" | "jury_points" | "televote_points">;
+type RankedResult = ResultScore & Pick<ResultRow, "final_rank">;
+
 function dateParts(date: Date, timeZone = SOLARIS_ANNIVERSARY_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -83,6 +87,25 @@ export function editionIsInAnniversaryYear(
   return eventDate >= start && eventDate < endExclusive;
 }
 
+export function showResultsArePublished(
+  show: Pick<Show, "published" | "publication_config">,
+) {
+  return show.published && resolveShowPublication(show).results;
+}
+
+export function resultHasPublishedScore(result: ResultScore) {
+  return [result.total_points, result.jury_points, result.televote_points].some(
+    (value) => typeof value === "number" && value !== 0,
+  );
+}
+
+export function finalRankingIsResolved(ranking: RankedResult[]) {
+  return (
+    ranking.some((result) => result.final_rank === 1) &&
+    ranking.some((result) => resultHasPublishedScore(result))
+  );
+}
+
 export function ordinal(value: number) {
   const mod100 = value % 100;
   if (mod100 >= 11 && mod100 <= 13) return `${value}th`;
@@ -94,7 +117,8 @@ export function ordinal(value: number) {
 
 export function getSolarisAnniversary(date = new Date()): SolarisAnniversary {
   const { year, month, day } = dateParts(date);
-  const age = Math.max(0, year - 2022);
+  const birthdayReachedThisYear = month > 9 || (month === 9 && day >= 17);
+  const age = Math.max(0, year - 2022 - (birthdayReachedThisYear ? 0 : 1));
 
   return {
     active: month === 9 && day === 17 && year >= 2022,
@@ -180,8 +204,24 @@ export function buildAnniversaryRecap({
     (result) => editionIds.has(result.edition_id) && (!result.show_id || showIds.has(result.show_id)),
   );
   const countryMap = new Map(countries.map((country) => [country.id, country]));
-  const participatingCountries = new Set(periodParticipants.map((entry) => entry.country_id).filter(Boolean));
-  const grandFinalShows = periodShows.filter((show) => show.kind === "grand-final" || show.kind === "final");
+  const participatingCountries = new Set(
+    periodParticipants
+      .map((entry) => entry.country_id)
+      .filter((countryId) => Boolean(countryId) && countryMap.has(countryId)),
+  );
+  const grandFinalShows = periodShows
+    .filter(
+      (show) =>
+        (show.kind === "grand-final" || show.kind === "final") &&
+        showResultsArePublished(show),
+    )
+    .sort((a, b) => {
+      const editionA = editionMap.get(a.edition_id);
+      const editionB = editionMap.get(b.edition_id);
+      const dateCompare = (editionA?.event_date ?? "").localeCompare(editionB?.event_date ?? "");
+      if (dateCompare !== 0) return dateCompare;
+      return (editionA?.edition_number ?? 999) - (editionB?.edition_number ?? 999);
+    });
 
   const winners: AnniversaryRecap["winners"] = [];
   let closestFinal: AnniversaryRecap["closestFinal"] = null;
@@ -192,7 +232,7 @@ export function buildAnniversaryRecap({
       .filter((result) => result.show_id === show.id && result.final_rank != null)
       .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
     const winner = ranking[0];
-    if (!winner || winner.final_rank !== 1) continue;
+    if (!winner || winner.final_rank !== 1 || !finalRankingIsResolved(ranking)) continue;
 
     const winnerName = countryMap.get(winner.country_id)?.name ?? "Unknown country";
     const edition = editionMap.get(show.edition_id);
@@ -233,18 +273,18 @@ export function buildAnniversaryRecap({
       kicker: "The anniversary year",
       headline:
         selected.length === 1
-          ? `${editionName(selected[0])} carried Solaris into another birthday`
-          : `${selected.length} contest chapters shaped the year since the last birthday`,
-      detail: `${periodShows.length} public shows and ${participatingCountries.size} countries make up this anniversary chapter of Solaris history.`,
+          ? `${editionName(selected[0])} was the contest chapter since the last anniversary`
+          : `${selected.length} editions since the last anniversary`,
+      detail: `${periodShows.length} public shows, ${participatingCountries.size} countries and ${participationKeys.size} entries.`,
       value: `${selected.length} editions`,
     });
   } else {
     stories.push({
       id: "growth",
       kicker: "The anniversary year",
-      headline: "Exact edition dates are still being completed",
-      detail: `Anniversary-year statistics use only editions with a confirmed event date between ${periodStart} and ${periodEndExclusive}.`,
-      value: "Dates needed",
+      headline: "No editions to show yet",
+      detail: "There are no dated editions in this anniversary year yet.",
+      value: "—",
     });
   }
 
@@ -252,13 +292,8 @@ export function buildAnniversaryRecap({
     stories.push({
       id: "closest-final",
       kicker: "Closest finish",
-      headline:
-        closestFinal.gap <= 3
-          ? `${closestFinal.runnerUp} came frighteningly close to stealing the trophy`
-          : closestFinal.gap <= 10
-            ? `${closestFinal.runnerUp} pushed ${closestFinal.winner} all the way`
-            : `${closestFinal.winner} survived the tightest final of the anniversary year`,
-      detail: `${closestFinal.edition} was decided by ${closestFinal.gap} point${closestFinal.gap === 1 ? "" : "s"}.`,
+      headline: `${closestFinal.winner} won the closest final of the year`,
+      detail: `${closestFinal.edition} was decided by ${closestFinal.gap} point${closestFinal.gap === 1 ? "" : "s"} over ${closestFinal.runnerUp}.`,
       value: `${closestFinal.gap} pts`,
     });
   }
@@ -267,7 +302,7 @@ export function buildAnniversaryRecap({
     stories.push({
       id: "biggest-score",
       kicker: "Biggest winning score",
-      headline: `${biggestWinner.name} produced the anniversary year's biggest winning total`,
+      headline: `${biggestWinner.name} posted the year's biggest winning score`,
       detail: `${biggestWinner.points} points in ${biggestWinner.edition}.`,
       value: `${biggestWinner.points} pts`,
     });
@@ -276,17 +311,17 @@ export function buildAnniversaryRecap({
   if (winners.length > 1) {
     stories.push({
       id: "champions",
-      kicker: "New champions",
-      headline: `${winners.length} trophies changed the Solaris history books`,
+      kicker: "Champions",
+      headline: `${winners.length} champions were crowned`,
       detail: winners.map((winner) => `${winner.name} (${winner.edition})`).join(" · "),
       value: `${winners.length} winners`,
     });
   } else if (winners[0]) {
     stories.push({
       id: "champion",
-      kicker: "Champion of the year",
-      headline: `${winners[0].name} joined the Solaris winners' circle`,
-      detail: `${winners[0].edition} ended with ${winners[0].name} on top on ${winners[0].points} points.`,
+      kicker: "Champion",
+      headline: `${winners[0].name} won ${winners[0].edition}`,
+      detail: `${winners[0].points} points secured the win.`,
       value: "1 champion",
     });
   }
@@ -295,8 +330,8 @@ export function buildAnniversaryRecap({
     stories.push({
       id: "countries",
       kicker: "Across Terra Solaris",
-      headline: `${participatingCountries.size} countries were part of the contest story`,
-      detail: "Delegations across Terra Solaris added entries, results, rivalries and another year of increasingly unreasonable scoreboard emotions.",
+      headline: `${participatingCountries.size} countries took part this year`,
+      detail: `Together they entered ${participationKeys.size} times across ${selected.length} editions.`,
       value: `${participatingCountries.size} countries`,
     });
   }

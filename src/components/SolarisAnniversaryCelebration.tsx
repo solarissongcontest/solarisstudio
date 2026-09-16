@@ -61,14 +61,14 @@ type AnniversaryRouteContext = {
 };
 
 function routeContext(pathname: string, age: number): AnniversaryRouteContext {
-  if (pathname.startsWith("/editions")) return { eyebrow: `${age} years, edition by edition`, title: "Walk through Solaris history", detail: "The edition archive becomes a chronological anniversary story.", tone: "archive" };
-  if (pathname.startsWith("/countries") || pathname.startsWith("/wiki")) return { eyebrow: "Across Terra Solaris", title: "Every delegation has a history", detail: "Debuts, finals, victories and milestones now sit inside the wider anniversary archive.", tone: "archive" };
-  if (pathname.startsWith("/records")) return { eyebrow: `${age} years of records`, title: "Records made to be broken", detail: "Historic scores, streaks and surviving milestones are surfaced from the archive.", tone: "data" };
-  if (pathname.startsWith("/results") || pathname.startsWith("/analysis") || pathname.startsWith("/relationships") || pathname.startsWith("/scorecharts") || pathname.startsWith("/broadcast-intelligence")) return { eyebrow: "Anniversary intelligence", title: `${age} years hidden in the numbers`, detail: "Results, voting relationships and scoreboard turning points get historical context.", tone: "data" };
-  if (pathname.startsWith("/archive-games") || pathname.startsWith("/taste-dna") || pathname.startsWith("/result-lab") || pathname.startsWith("/compare") || pathname.startsWith("/predictions")) return { eyebrow: "Anniversary challenge", title: `Play with ${age} years of history`, detail: "Interactive tools use the archive as an anniversary playground.", tone: "play" };
-  if (pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me")) return { eyebrow: "Your Solaris story", title: "You are part of the archive", detail: "Your country history is calculated against the whole published contest archive.", tone: "personal" };
-  if (pathname.startsWith("/participate") || pathname.startsWith("/confirmations") || pathname.startsWith("/jury-voting") || pathname.startsWith("/televoting") || pathname.startsWith("/next-in-line")) return { eyebrow: "The next chapter", title: `Be part of Solaris year ${age + 1}`, detail: "Anniversary styling stays restrained on task-focused voting and submission routes.", tone: "participate" };
-  return { eyebrow: "Solaris anniversary day", title: `${age} years of Solaris`, detail: "17 September 2022 → today. The whole Studio is celebrating the archive.", tone: "default" };
+  if (pathname.startsWith("/editions")) return { eyebrow: `${age} years, edition by edition`, title: "Solaris through the years", detail: "Browse every edition from the first contest to the latest.", tone: "archive" };
+  if (pathname.startsWith("/countries") || pathname.startsWith("/wiki")) return { eyebrow: "Across Terra Solaris", title: "Every delegation has a story", detail: "See each country's debuts, finals and wins.", tone: "archive" };
+  if (pathname.startsWith("/records")) return { eyebrow: `${age} years of records`, title: "Records", detail: "The biggest scores, longest streaks and all-time milestones.", tone: "data" };
+  if (pathname.startsWith("/results") || pathname.startsWith("/analysis") || pathname.startsWith("/relationships") || pathname.startsWith("/scorecharts") || pathname.startsWith("/broadcast-intelligence")) return { eyebrow: "In the numbers", title: `${age} years of results`, detail: "Revisit results, voting patterns and scoreboard turning points.", tone: "data" };
+  if (pathname.startsWith("/archive-games") || pathname.startsWith("/taste-dna") || pathname.startsWith("/result-lab") || pathname.startsWith("/compare") || pathname.startsWith("/predictions")) return { eyebrow: "Anniversary challenge", title: "Test your Solaris knowledge", detail: "Play with results and moments from across the contest's history.", tone: "play" };
+  if (pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me")) return { eyebrow: "Your Solaris story", title: "Your history in Solaris", detail: "See your country's participations, results and best moments.", tone: "personal" };
+  if (pathname.startsWith("/participate") || pathname.startsWith("/confirmations") || pathname.startsWith("/jury-voting") || pathname.startsWith("/televoting") || pathname.startsWith("/next-in-line")) return { eyebrow: "The next chapter", title: `Solaris year ${age + 1}`, detail: "Confirm your entry, vote and take part in the next contest year.", tone: "participate" };
+  return { eyebrow: "Anniversary Day", title: `${age} years of Solaris`, detail: "Celebrating Solaris Song Contest since 17 September 2022.", tone: "default" };
 }
 
 function withPreview(season: SolarisAnniversarySeason, phase: AnniversaryPhase | null): SolarisAnniversarySeason {
@@ -215,8 +215,8 @@ export function SolarisAnniversaryCelebration() {
       ? season.daysUntil === 1 ? "Anniversary Day is tomorrow" : `${season.daysUntil} days until Anniversary Day`
       : `Solaris year ${season.age + 1} has begun`;
     const detail = countdown
-      ? `The ${season.ordinal} anniversary arrives on 17 September. The full Studio takeover unlocks on Anniversary Day.`
-      : `The celebration stays visible for a few days while Solaris moves into its ${ordinal(season.age + 1)} year.`;
+      ? `The ${season.ordinal} anniversary is on 17 September.`
+      : `The ${season.ordinal} anniversary was on 17 September.`;
     return (
       <>
         {!badgeExpanded && <MobileBadgeTrigger />}
@@ -235,8 +235,8 @@ export function SolarisAnniversaryCelebration() {
         </Link>
         <aside className={`solaris-anniversary-season-notice ${countdown ? "solaris-anniversary-season-notice--countdown" : "solaris-anniversary-season-notice--after"}`}>
           <div className="solaris-anniversary-season-mark" aria-hidden="true"><span>{countdown ? season.daysUntil : String(season.age + 1).padStart(2, "0")}</span></div>
-          <div className="solaris-anniversary-season-copy"><p>{countdown ? "Anniversary countdown" : "The anniversary afterglow"}</p><strong>{title}</strong><span>{detail}</span></div>
-          <Link to="/anniversary" className="solaris-anniversary-season-action">{countdown ? "Preview the anniversary" : "Revisit the anniversary"} <span aria-hidden="true">→</span></Link>
+          <div className="solaris-anniversary-season-copy"><p>{countdown ? "Anniversary countdown" : "Anniversary week"}</p><strong>{title}</strong><span>{detail}</span></div>
+          <Link to="/anniversary" className="solaris-anniversary-season-action">Anniversary hub <span aria-hidden="true">→</span></Link>
         </aside>
       </>
     );
