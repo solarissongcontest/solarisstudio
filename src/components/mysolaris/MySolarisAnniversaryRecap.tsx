@@ -1,6 +1,6 @@
 import { useLocation } from "@tanstack/react-router";
 import { Check, Copy, Sparkles, Trophy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import {
@@ -9,7 +9,7 @@ import {
   getSolarisAnniversarySeason,
 } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
-import { useAllParticipants, useAllResults, useAllShows, useEditions } from "@/lib/data";
+import { useAllParticipants, useAllResults, useAllShows, useEditions, type Edition } from "@/lib/data";
 
 export function MySolarisAnniversaryRecap() {
   const searchStr = useLocation({ select: (location) => location.searchStr });
@@ -40,7 +40,7 @@ export function MySolarisAnniversaryRecap() {
     );
     const participationEditions = [...participationEditionIds]
       .map((id) => editionMap.get(id))
-      .filter((edition): edition is NonNullable<typeof edition> => Boolean(edition))
+      .filter((edition): edition is Edition => Boolean(edition))
       .sort((a, b) => (a.edition_number ?? 999) - (b.edition_number ?? 999));
 
     const finalShows = (shows ?? []).filter(
@@ -164,7 +164,7 @@ function StoryStat({
 }: {
   label: string;
   value: string | number;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
 }) {
   return (
     <div className="bg-surface/90 p-4">
