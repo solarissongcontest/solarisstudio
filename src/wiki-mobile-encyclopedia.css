@@ -62,7 +62,7 @@
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
-    color: hsl(var(--primary)) !important;
+    color: var(--primary) !important;
     font-size: .67rem !important;
     justify-content: flex-start !important;
   }
@@ -182,7 +182,7 @@
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section > summary > svg {
     width: .82rem !important;
-    color: hsl(var(--muted-foreground)) !important;
+    color: var(--muted-foreground) !important;
   }
 
   body[data-entity-theme="country"][data-country-hero-layout] .wiki-canvas .wiki-article-section-body {

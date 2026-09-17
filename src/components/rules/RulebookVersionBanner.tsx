@@ -24,11 +24,11 @@ export function RulebookVersionBanner() {
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[9px] font-black uppercase tracking-[.16em] text-sky-200/65">Current official rulebook</p>
-            <span className="rounded-full border border-white/[0.08] px-2 py-0.5 font-mono text-[9px] font-black text-white">v{version}</span>
+            <p className="text-[11px] font-black uppercase tracking-[.14em] text-sky-200/65">Current official rulebook</p>
+            <span className="rounded-full border border-white/[0.08] px-2 py-0.5 font-mono text-[10px] font-black text-white">v{version}</span>
           </div>
-          <p className="mt-1 text-xs font-bold text-slate-100">{title}</p>
-          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-sm font-bold text-slate-100">{title}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
             <CalendarClock className="size-3" />
             {effectiveAt ? `Effective ${formatDate(effectiveAt)}` : "Bundled official regulations"}
           </p>
@@ -36,7 +36,7 @@ export function RulebookVersionBanner() {
       </div>
       <Link
         to="/rules/changes"
-        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-violet-200/12 bg-violet-200/[0.045] px-3 text-[10px] font-black text-violet-100 transition hover:border-violet-200/22 hover:bg-violet-200/[0.08]"
+        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-violet-200/12 bg-violet-200/[0.045] px-3 text-xs font-black text-violet-100 transition-colors hover:border-violet-200/22 hover:bg-violet-200/[0.08]"
       >
         <FileClock className="size-3.5" /> Version history
       </Link>

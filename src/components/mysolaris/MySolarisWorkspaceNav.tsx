@@ -69,7 +69,7 @@ export function MySolarisWorkspaceNav() {
           {MY_SOLARIS_NAVIGATION.map((group, index) => (
             <div key={group.label ?? "home"}>
               {group.label ? (
-                <p className="mb-1.5 px-2 text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                <p className="mb-1.5 px-2 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
                   {group.label}
                 </p>
               ) : null}
@@ -105,7 +105,7 @@ export function MySolarisWorkspaceNav() {
             flagUrl={country?.flag_image}
             editionNumber={workspace.currentEdition?.edition_number}
           />
-          <div className="flex gap-1.5 text-[9px] font-bold">
+          <div className="flex gap-1.5 text-[10px] font-bold">
             {workspace.taskCounts.needsAction ? (
               <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
                 {workspace.taskCounts.needsAction} task
@@ -127,7 +127,7 @@ export function MySolarisWorkspaceNav() {
           <details className="group relative">
             <summary
               className={cn(
-                "flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-semibold [&::-webkit-details-marker]:hidden",
+                "flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold [&::-webkit-details-marker]:hidden",
                 moreActive ? "bg-primary/10 text-primary" : "text-muted-foreground",
               )}
             >
@@ -174,19 +174,19 @@ function WorkspaceIdentity({
       {flagUrl ? (
         <img src={flagUrl} alt="" className="h-8 w-11 shrink-0 rounded-lg object-cover" />
       ) : (
-        <span className="grid h-8 w-11 shrink-0 place-items-center rounded-lg border border-border bg-background text-[9px] font-black">
+        <span className="grid h-8 w-11 shrink-0 place-items-center rounded-lg border border-border bg-background text-[10px] font-black">
           {countryCode ?? "SSC"}
         </span>
       )}
       <span className="min-w-0">
-        <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-primary">
+        <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-primary">
           MySolaris
         </span>
         <span className="block truncate text-xs font-semibold">
           {countryName ?? "Country account"}
         </span>
         {!compact ? (
-          <span className="mt-0.5 block text-[10px] text-muted-foreground">
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">
             {editionNumber ? `SSC ${editionNumber}` : "No current edition"}
           </span>
         ) : null}
@@ -224,7 +224,7 @@ function WorkspaceLink({
       <Icon className="size-3.5 shrink-0" aria-hidden="true" />
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       {badge ? (
-        <span className="grid min-w-5 place-items-center rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-black text-primary">
+        <span className="grid min-w-5 place-items-center rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-black text-primary">
           {badge}
         </span>
       ) : null}
@@ -240,7 +240,7 @@ function MobileLink({ item, pathname }: { item: MySolarisNavigationItem; pathnam
       to={item.to as any}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-semibold",
+        "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold",
         active ? "bg-primary/10 text-primary" : "text-muted-foreground",
       )}
     >

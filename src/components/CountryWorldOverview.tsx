@@ -31,7 +31,7 @@ function Fact({ label, value }: { label: string; value?: string | number | null 
   if (value == null || value === "") return null;
   return (
     <div className="min-w-0 rounded-xl bg-surface px-3 py-3">
-      <p className="text-[9px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p>
       <p className="mt-1 break-words text-sm font-semibold">{value}</p>
     </div>
   );
@@ -39,12 +39,12 @@ function Fact({ label, value }: { label: string; value?: string | number | null 
 
 function qualificationBadgeClass(status: QualificationStatus) {
   if (status === "wildcard") {
-    return "rounded-full bg-amber-300/12 px-2 py-1 text-[9px] font-semibold uppercase text-amber-200";
+    return "rounded-full bg-amber-300/12 px-2 py-1 text-[10px] font-semibold uppercase text-amber-200";
   }
   if (qualificationCountsAsQualified(status)) {
-    return "rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold uppercase text-primary";
+    return "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase text-primary";
   }
-  return "rounded-full bg-surface px-2 py-1 text-[9px] font-semibold uppercase text-muted-foreground";
+  return "rounded-full bg-surface px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground";
 }
 
 export function CountryWorldOverview({
@@ -169,7 +169,7 @@ export function CountryWorldOverview({
           No entry details are available for {country.name} yet.
         </p>
       )}
-      <p className="mt-4 border-t border-border/60 pt-3 text-[10px] leading-relaxed text-muted-foreground">
+      <p className="mt-4 border-t border-border/60 pt-3 text-[11px] leading-relaxed text-muted-foreground">
         Historical information reflects the editions currently available in Solaris Studio. Missing editions are not counted as zeroes.
       </p>
     </Panel>

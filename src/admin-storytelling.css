@@ -5,7 +5,7 @@
   border-radius: 0.75rem;
   background: rgb(255 255 255 / 0.035);
   padding: 0.65rem 0.75rem;
-  color: hsl(var(--foreground));
+  color: var(--foreground);
   font-size: 0.875rem;
   line-height: 1.35;
   outline: none;
@@ -13,7 +13,7 @@
 }
 
 .admin-control-room .story-input::placeholder {
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   opacity: 0.75;
 }
 
