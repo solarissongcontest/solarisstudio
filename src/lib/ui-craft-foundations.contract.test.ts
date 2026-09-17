@@ -59,6 +59,21 @@ describe("Solaris UI craft foundations", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("keeps persistent navigation and guidance labels above decorative microtype", () => {
+    const files = [
+      "src/components/mysolaris/MySolarisWorkspaceNav.tsx",
+      "src/components/OfficialAnnouncementFeed.tsx",
+      "src/components/rules/RuleDecisionStrip.tsx",
+      "src/components/rules/RulebookVersionBanner.tsx",
+      "src/components/rules/RuleInterpretationsPanel.tsx",
+      "src/components/CountryWorldOverview.tsx",
+    ];
+
+    for (const path of files) {
+      expect(source(path), path).not.toContain("text-[9px]");
+    }
+  });
+
   it("gives core buttons immediate press feedback without forcing motion on reduced-motion users", () => {
     const button = source("src/components/ui/button.tsx");
     expect(button).toContain("active:scale-[0.97]");
