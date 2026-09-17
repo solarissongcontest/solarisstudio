@@ -61,7 +61,7 @@
     transition-timing-function: var(--ease-out, ease-out) !important;
   }
 
-  :where([class*="transition-transform"], [class*="transition-all"]) {
+  :where([class*="transition-transform"]) {
     transition-duration: 0.01ms !important;
   }
 
@@ -71,7 +71,7 @@
   }
 
   [data-solaris-sheet][data-state="closed"] {
-    animation: solaris-reduced-fade-out 120ms ease-in !important;
+    animation: solaris-reduced-fade-out 120ms var(--ease-out, ease-out) !important;
     transform: none !important;
   }
 
@@ -80,7 +80,7 @@
   }
 
   [data-solaris-sheet-overlay][data-state="closed"] {
-    animation: solaris-reduced-fade-out 120ms ease-in !important;
+    animation: solaris-reduced-fade-out 120ms var(--ease-out, ease-out) !important;
   }
 
   .bg-aurora:is(button, a, [role="button"]):hover,
