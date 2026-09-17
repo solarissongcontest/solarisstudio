@@ -17,6 +17,19 @@
   }
 }
 
+/* The generic mobile dialog rule intentionally stretches dialogs close to the
+   viewport. Navigation is a side sheet instead, so preserve its platform-like
+   edge geometry after the global dialog sizing rule has run. */
+@media (max-width: 767px) {
+  .public-drawer[data-solaris-sheet] {
+    width: min(90vw, 360px) !important;
+    max-width: 360px !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+  }
+}
+
 @keyframes solaris-reduced-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
