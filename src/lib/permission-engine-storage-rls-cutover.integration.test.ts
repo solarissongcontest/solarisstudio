@@ -24,8 +24,8 @@ describe("Storage Permission Engine RLS cutover", () => {
       "organizers update edition artwork",
       "organizers upload edition artwork",
     ]) {
-      expect(migration).toContain(`drop policy if exists \"${policy}\" on storage.objects;`);
-      expect(migration).toContain(`create policy \"${policy}\"`);
+      expect(migration).toContain(`drop policy if exists "${policy}" on storage.objects;`);
+      expect(migration).toContain(`create policy "${policy}"`);
     }
     expect(migration).not.toContain("has_role(");
   });
