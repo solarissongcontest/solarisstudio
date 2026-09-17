@@ -8,14 +8,25 @@ import productionBridge from "@/country-personality-v7-production-bridge.css?inl
 import wikiV7 from "@/country-wiki-v7.css?inline";
 import liquidGlassPublic from "@/country-liquid-glass-public-v7.css?inline";
 
+/**
+ * V7 files are authored inside a named layer so they remain self-contained if
+ * imported elsewhere. This route component must compete with older unlayered
+ * global CSS, and unlayered author rules outrank normal layered rules. Strip
+ * only the outer V7 wrapper before injection so source order works as intended.
+ */
+function unlayerV7(css: string) {
+  const opened = css.replace(/@layer\s+country-v7\s*\{/, "");
+  return opened.replace(/\}\s*$/, "");
+}
+
 const countryPersonalityStyles = [
   wikiStyles,
   buttonStyles,
-  v7Styles,
-  v7Refinements,
-  productionBridge,
-  wikiV7,
-  liquidGlassPublic,
+  unlayerV7(v7Styles),
+  unlayerV7(v7Refinements),
+  unlayerV7(productionBridge),
+  unlayerV7(wikiV7),
+  unlayerV7(liquidGlassPublic),
 ].join("\n");
 
 /** Track the light source on the existing public hero markup without turning
