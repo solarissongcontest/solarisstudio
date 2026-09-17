@@ -1,8 +1,8 @@
 /* Solaris Wiki V8
    =================
-   Citizen/Vector-inspired article architecture. Personalities may whisper
-   through typography and the compact identity header; they may not redesign
-   the reading model or turn article sections into decorative cards.
+   Citizen/Vector-inspired article architecture. The Wiki has one stable
+   reading model. Country personalities influence the compact identity header,
+   type accents and a few factual surfaces, never the article geometry.
 */
 
 .wiki-canvas {
@@ -35,61 +35,115 @@
   text-underline-offset: .2em;
 }
 
-/* Wiki identity is deliberately shallower than the country dashboard hero. */
-body[data-entity-theme="country"] .wiki-public-hero {
-  --cp-title-size: clamp(2.35rem, 5.5cqi, 4.5rem);
-  min-block-size: 0 !important;
+/* -------------------------------------------------------------------------- */
+/* COMPACT CANONICAL WIKI IDENTITY                                             */
+/* -------------------------------------------------------------------------- */
+
+.wiki-canvas .country-wiki-header {
+  --cp-title-size: clamp(2.25rem, 5.3cqi, 4.35rem);
+  --cp-title-leading: .92;
+  min-block-size: 0;
   margin-block-end: 1.25rem;
-  padding: clamp(1rem, 2.5cqi, 1.6rem) !important;
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
-body[data-entity-theme="country"] .wiki-public-hero > .relative.z-10 {
-  gap: 1rem !important;
+.wiki-canvas .country-wiki-header .country-hero-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 11rem);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: 1rem;
+  padding: clamp(1rem, 2.5cqi, 1.6rem);
 }
 
-body[data-entity-theme="country"] .wiki-public-hero .country-hero-background-flag,
-body[data-entity-theme="country"] .wiki-public-hero .country-personality-signature,
-body[data-entity-theme="country"] .wiki-public-hero .country-glass-panel-flag {
+.wiki-canvas .country-wiki-header[data-country-has-art="true"] .country-hero-layout {
+  /* Wiki deliberately suppresses personality art cells. The article identity
+     is a compact factual header, not a miniature dashboard poster. */
+  grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 11rem);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+}
+
+.wiki-canvas .country-wiki-header .country-hero-art,
+.wiki-canvas .country-wiki-header .country-hero-scene-light {
   display: none !important;
 }
 
-body[data-entity-theme="country"] .wiki-public-hero [data-flag-chip="true"] {
-  inline-size: clamp(5.75rem, 10vw, 8.5rem) !important;
-  block-size: auto !important;
-  aspect-ratio: 3 / 2;
+.wiki-canvas .country-wiki-header .country-official-flag {
+  inline-size: min(100%, 11rem);
+  min-block-size: 4.75rem;
 }
 
-body[data-entity-theme="country"] .wiki-public-hero .wiki-dashboard-link {
-  display: inline-flex;
+.wiki-canvas .country-wiki-header .country-official-flag img {
+  max-block-size: 7.5rem;
+  object-fit: contain !important;
+}
+
+.wiki-canvas .country-wiki-header .country-hero-description {
+  display: none;
+}
+
+.wiki-canvas .country-wiki-header .country-hero-actions {
+  align-self: start;
+}
+
+.wiki-canvas .country-wiki-header .country-hero-actions :is(a, button) {
   min-block-size: 2.75rem;
-  align-items: center;
-  justify-content: center;
-  padding: .65rem .85rem;
-  border-radius: .55rem;
-  color: var(--foreground);
-  font-size: .78rem;
-  font-weight: 750;
-  text-decoration: none;
+  padding-inline: .8rem;
+  font-size: .76rem;
 }
 
-/* Glass Wiki: one compact functional glass header, not a glass article. */
-body[data-entity-theme="country"]:is([data-country-hero-layout="glass-card"], [data-country-hero-layout="water-drop"]) .wiki-public-hero {
-  border: 1px solid rgb(255 255 255 / .14) !important;
+/* Apple-inspired Glass Wiki: exactly one functional glass header. The general
+   Glass personality normally uses the inner layout as the glass plate; Wiki
+   promotes the compact root to the single plate and makes the inner grid plain. */
+.wiki-canvas .country-wiki-header[data-country-personality="glass-card"] {
+  border: 1px solid rgb(255 255 255 / .15);
   background:
-    linear-gradient(145deg, rgb(255 255 255 / .09), rgb(255 255 255 / .035)),
-    color-mix(in srgb, var(--surface) 56%, transparent) !important;
+    radial-gradient(circle at var(--glass-pointer-x, 74%) var(--glass-pointer-y, 16%), rgb(255 255 255 / .15), transparent 23%),
+    linear-gradient(145deg, rgb(255 255 255 / .09), rgb(255 255 255 / .03)),
+    color-mix(in srgb, var(--surface) 56%, transparent);
   -webkit-backdrop-filter: blur(18px) saturate(128%);
   backdrop-filter: blur(18px) saturate(128%);
 }
 
-body[data-entity-theme="country"]:is([data-country-hero-layout="glass-card"], [data-country-hero-layout="water-drop"]) .wiki-public-hero > .relative.z-10 {
-  padding: 0;
+.wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-scene {
+  display: none;
+}
+
+.wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-layout {
+  margin: 0;
   border: 0;
   background: transparent;
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+.wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-official-flag,
+.wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-actions :is(a, button) {
+  border-color: rgb(255 255 255 / .14);
+  background: rgb(10 18 28 / .62);
+}
+
+/* The expressive personality geometry is intentionally reduced in Wiki. */
+.wiki-canvas .country-wiki-header:is(
+  [data-country-personality="poster"],
+  [data-country-personality="spotlight"],
+  [data-country-personality="ribbon"],
+  [data-country-personality="passport"],
+  [data-country-personality="panorama"],
+  [data-country-personality="horizon"]
+) {
+  min-block-size: 0;
+}
+
+.wiki-canvas .country-wiki-header:is(
+  [data-country-personality="poster"],
+  [data-country-personality="ribbon"]
+) .country-hero-title {
+  max-inline-size: 100% !important;
+  font-size: clamp(2.3rem, 5.5cqi, 4.6rem) !important;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -106,9 +160,9 @@ body[data-entity-theme="country"]:is([data-country-hero-layout="glass-card"], [d
 
 .wiki-desktop-contents,
 .wiki-desktop-infobox {
-  min-inline-size: 0;
   position: sticky;
   inset-block-start: 5.5rem;
+  min-inline-size: 0;
   max-block-size: calc(100dvh - 7rem);
   overflow-y: auto;
   scrollbar-width: thin;
@@ -214,7 +268,6 @@ body[data-entity-theme="country"]:is([data-country-hero-layout="glass-card"], [d
   content: "+";
   color: var(--muted-foreground);
   font-size: 1.1rem;
-  font-weight: 500;
 }
 
 .wiki-article-section[open] > summary::after {
@@ -673,10 +726,7 @@ body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-ca
     border-inline-end: 0;
   }
 
-  .wiki-facts-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+  .wiki-facts-list,
   .wiki-adjacent-articles {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -686,18 +736,30 @@ body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-ca
   }
 }
 
-@media (max-width: 639px) {
-  body[data-entity-theme="country"] .wiki-public-hero .country-hero-identity {
-    display: grid !important;
-    grid-template-columns: minmax(5.5rem, 7.5rem) minmax(0, 1fr);
-    align-items: start !important;
+@container country-identity (width < 40rem) {
+  .wiki-canvas .country-wiki-header .country-hero-layout,
+  .wiki-canvas .country-wiki-header[data-country-has-art="true"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    padding: 1rem;
   }
 
-  body[data-entity-theme="country"] .wiki-public-hero [data-flag-chip="true"] {
-    inline-size: 100% !important;
+  .wiki-canvas .country-wiki-header .country-hero-flag-zone {
+    justify-items: start;
   }
 
-  body[data-entity-theme="country"] .wiki-public-hero .wiki-dashboard-link {
+  .wiki-canvas .country-wiki-header .country-official-flag {
+    inline-size: min(100%, 14rem);
+  }
+
+  .wiki-canvas .country-wiki-header .country-hero-actions {
+    display: block;
+  }
+
+  .wiki-canvas .country-wiki-header .country-hero-actions :is(a, button) {
     inline-size: 100%;
   }
 }
@@ -720,11 +782,14 @@ body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-ca
 @media (forced-colors: active) {
   .wiki-infobox,
   .wiki-mobile-toolbar button,
-  .wiki-sheet-panel {
+  .wiki-sheet-panel,
+  .wiki-canvas .country-wiki-header {
     border-color: CanvasText !important;
     background: Canvas !important;
     color: CanvasText !important;
     box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 }
 
@@ -734,12 +799,14 @@ body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-ca
   .wiki-desktop-contents,
   .wiki-medium-contents,
   .wiki-adjacent-articles,
-  .wiki-dashboard-link {
+  .wiki-canvas .country-wiki-header .country-hero-actions,
+  .wiki-canvas .country-wiki-header .country-hero-scene,
+  .wiki-canvas .country-wiki-header .country-hero-art {
     display: none !important;
   }
 
   .wiki-canvas,
-  .wiki-public-hero,
+  .wiki-canvas .country-wiki-header,
   .wiki-article-surface,
   .wiki-infobox {
     background: white !important;
