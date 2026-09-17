@@ -46,7 +46,7 @@ export function RuleInterpretationsPanel({ ruleId }: { ruleId: string }) {
     <section className="mx-auto mt-5 max-w-5xl rounded-[1.7rem] border border-violet-200/12 bg-[linear-gradient(150deg,rgba(46,32,86,.18),rgba(5,18,39,.94))] p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-[.16em] text-violet-200/70">OFFICIAL INTERPRETATIONS</p>
+          <p className="text-[11px] font-black uppercase tracking-[.14em] text-violet-200/70">OFFICIAL INTERPRETATIONS</p>
           <h2 className="mt-2 text-xl font-black">How TSBC has formally applied this rule</h2>
           <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">
             Interpretations clarify how an existing regulation applies to recurring or difficult situations. They do not silently rewrite the rule itself.
@@ -81,15 +81,15 @@ function InterpretationCard({ item, historical = false }: { item: RuleInterpreta
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <BadgeCheck className={cn("size-4", historical ? "text-muted-foreground" : "text-violet-200")} />
-          <span className="font-mono text-[10px] font-black text-violet-100">{item.code}</span>
+          <span className="font-mono text-[11px] font-black text-violet-100">{item.code}</span>
         </div>
-        <span className="text-[9px] uppercase tracking-[.1em] text-muted-foreground">
+        <span className="text-[10px] uppercase tracking-[.08em] text-muted-foreground">
           {historical ? "superseded" : item.effective_from ? `effective ${new Date(item.effective_from).toLocaleDateString()}` : "published"}
         </span>
       </div>
       <h3 className="mt-3 text-sm font-black">{item.title}</h3>
       <div className="mt-3 rounded-lg border border-white/[0.06] bg-black/10 p-3">
-        <p className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Question</p>
+        <p className="text-[10px] font-black uppercase tracking-[.08em] text-muted-foreground">Question</p>
         <p className="mt-1 text-xs leading-5 text-slate-200/85">{item.question}</p>
       </div>
       <p className="mt-3 text-sm font-semibold leading-6 text-slate-100">{item.interpretation}</p>
