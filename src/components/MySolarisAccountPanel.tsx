@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AtSign, Mail, UserRound } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
 import {
@@ -34,16 +35,24 @@ export function MySolarisAccountPanel() {
 
     const hadRecoveryEmail = Boolean(profile.data?.hasRecoveryEmail);
     setBusy(true);
-    try {
+    const savePromise = (async () => {
       await setSolarisRecoveryEmail(next);
       await profile.refetch();
-      setMessage(
-        hadRecoveryEmail
-          ? "Email changed successfully. You can use it for sign-in and password recovery."
-          : "Email added successfully. Password recovery is now available for this account.",
-      );
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Email could not be saved.");
+    })();
+
+    toast.promise(savePromise, {
+      id: "mysolaris-recovery-email",
+      loading: hadRecoveryEmail ? "Changing recovery email…" : "Adding recovery email…",
+      success: hadRecoveryEmail
+        ? "Recovery email changed."
+        : "Recovery email added. Password recovery is now available.",
+      error: (error) => error instanceof Error ? error.message : "Email could not be saved.",
+    });
+
+    try {
+      await savePromise;
+    } catch {
+      // Sonner owns transient save errors; field validation stays inline above.
     } finally {
       setBusy(false);
     }
