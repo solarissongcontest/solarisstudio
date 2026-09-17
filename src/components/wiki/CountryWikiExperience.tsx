@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { ArchiveDataError } from "@/components/ArchiveDataState";
-import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -13,11 +12,13 @@ import {
   buildCountryWikiCustomSections,
   groupFormerCountryIdentities,
 } from "@/components/country/CountryCustomSections";
+import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { CountryNationalFinalsContent } from "@/components/country/CountryNationalFinals";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { useCountryWorldProfile, type CountryMedia } from "@/lib/country-account";
 import { buildCountryAutoSection, type CountryPageSection } from "@/lib/country-page-builder";
 import { usePublicCountryIdentityHistory } from "@/lib/country-history";
+import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
 import type { Country, Edition, Participant } from "@/lib/data";
 import {
@@ -40,6 +41,7 @@ import {
   resolveCountryEditionQualification,
   type QualificationStatus,
 } from "@/lib/qualification";
+import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
 
 type PublicArchive = ReturnType<typeof buildPublicCountryArchive>;
 type CountryStats = ReturnType<typeof computeCanonicalCountryStats>;
@@ -214,8 +216,6 @@ function CountryWikiArticle({
 
   const editionMap = new Map(opts.editions.map((edition) => [edition.id, edition]));
   const showMap = new Map(opts.shows.map((show) => [show.id, show]));
-  // Wiki is archival: show every published canonical entry, with older rows
-  // progressively disclosed instead of deleting them from the article.
   const latestEntries = canonicalEditionEntries(
     opts.participants.filter((entry) => entry.country_id === country.id),
   ).sort(
@@ -466,41 +466,30 @@ function CountryWikiArticle({
 }
 
 function CountryWikiHeader({ country }: { country: Country }) {
+  const { data: countryThemeRow } = useCountryTheme(country.id);
+  const visualTheme = countryThemeToVisual(countryThemeRow);
+  const personality = canonicalCountryPersonalityId(visualTheme?.heroLayout ?? "classic");
+
   return (
-    <header className="wiki-public-hero country-wiki-header glass relative overflow-hidden">
-      <BackgroundFlag
-        image={country.flag_image}
-        className="country-hero-background-flag"
-        opacity={0.13}
-      />
-      <div aria-hidden="true" className="country-personality-signature" />
-      <div className="relative z-10 grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        {country.flag_image && (
-          <div
-            aria-hidden="true"
-            className="country-glass-panel-flag"
-            style={{ backgroundImage: `url(${JSON.stringify(country.flag_image)})` }}
-          />
-        )}
-        <div className="country-hero-identity flex min-w-0 items-center gap-4 sm:gap-5">
-          <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="xl" />
-          <div className="min-w-0">
-            <p className="wiki-section-kicker">Terra Solaris Wiki</p>
-            <h1 className="country-hero-title break-words font-display">{country.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {[country.native_name && country.native_name !== country.name ? country.native_name : null, country.region].filter(Boolean).join(" · ")}
-            </p>
-          </div>
-        </div>
-        <Link
-          to="/countries/$code"
-          params={{ code: country.short_code }}
-          className="wiki-dashboard-link"
-        >
+    <CountryIdentityHero
+      as="header"
+      compact
+      personality={personality}
+      decoration={visualTheme?.decorationStyle ?? "auto"}
+      code={country.short_code}
+      name={country.name}
+      nativeName={country.native_name}
+      region={country.region}
+      flagImage={country.flag_image}
+      accentColor={country.accent_color}
+      eyebrow="Terra Solaris Wiki"
+      className="country-wiki-header mb-5"
+      actions={
+        <Link to="/countries/$code" params={{ code: country.short_code }}>
           Open country dashboard →
         </Link>
-      </div>
-    </header>
+      }
+    />
   );
 }
 
