@@ -1,0 +1,7 @@
+/* Public Anniversary Day home takeover -------------------------------------
+   Keep the component on one stable stylesheet entrypoint. The first layer owns
+   shared responsive surfaces and content cards; the second owns the final hero
+   composition. New one-off fix stylesheets should not be added here. */
+
+@import "./anniversary-home-polish.css";
+@import "./anniversary-home-editorial-v3.css";
