@@ -79,10 +79,12 @@ describe("country personality V8", () => {
     expect(css).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
   });
 
-  it("removes the repair cascade and loads one V8 personality system plus one Wiki system", () => {
+  it("loads only the V8 personality and Wiki systems, not the legacy cascades", () => {
     const styles = source("src/components/CountryPersonalityStyles.tsx");
     expect(styles).toContain('import personalityV8 from "@/country-personality-system-v8.css?inline"');
     expect(styles).toContain('import wikiV8 from "@/country-wiki-v8.css?inline"');
+    expect(styles).toContain('import wikiComponentsV8 from "@/country-wiki-components-v8.css?inline"');
+    expect(styles).not.toContain("country-wiki.css?inline");
     expect(styles).not.toContain("country-personality-system-v7.css");
     expect(styles).not.toContain("country-personality-system-v7-refinements.css");
     expect(styles).not.toContain("country-personality-v7-production-bridge.css");
@@ -120,6 +122,7 @@ describe("country personality V8", () => {
 
   it("keeps Wiki article-first, readable and personality-subordinate", () => {
     const wiki = source("src/country-wiki-v8.css");
+    const components = source("src/country-wiki-components-v8.css");
     expect(wiki).toContain("--wiki-measure: 72ch");
     expect(wiki).toContain("grid-template-columns: var(--wiki-sidebar) minmax(0, 1fr) var(--wiki-infobox)");
     expect(wiki).toContain(".wiki-article-surface {");
@@ -130,6 +133,9 @@ describe("country personality V8", () => {
     expect(wiki).toContain("@media print");
     expect(wiki).toContain("max-inline-size: 100% !important");
     expect(wiki).toContain("block-size: auto !important");
+    expect(components).toContain(".wiki-entry-row");
+    expect(components).toContain(".wiki-media-gallery");
+    expect(components).toContain(".wiki-compact-contents");
   });
 
   it("supports responsive reflow and accessibility preferences", () => {
