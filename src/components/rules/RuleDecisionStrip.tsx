@@ -22,9 +22,9 @@ export function RuleDecisionStrip({
           <Icon className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[9px] font-black uppercase tracking-[.15em] text-sky-200/65">Rules at this decision</p>
-          <p className="mt-1 text-xs font-black text-white">{title}</p>
-          <p className="mt-1 text-[10px] leading-5 text-muted-foreground">{description}</p>
+          <p className="text-[11px] font-black uppercase tracking-[.13em] text-sky-200/65">Rules at this decision</p>
+          <p className="mt-1 text-sm font-black text-white">{title}</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {ruleIds.map((ruleId) => <RuleChip key={ruleId} ruleId={ruleId} />)}
           </div>
