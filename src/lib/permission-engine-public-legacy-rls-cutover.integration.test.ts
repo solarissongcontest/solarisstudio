@@ -33,8 +33,8 @@ describe("Public-schema Permission Engine legacy RLS cutover", () => {
       "themes organizer write",
       "themes public read",
     ]) {
-      expect(migration).toContain(`drop policy if exists \"${policy}\"`);
-      expect(migration).toContain(`create policy \"${policy}\"`);
+      expect(migration).toContain(`drop policy if exists "${policy}"`);
+      expect(migration).toContain(`create policy "${policy}"`);
     }
     expect(migration).not.toContain("has_role(");
   });
