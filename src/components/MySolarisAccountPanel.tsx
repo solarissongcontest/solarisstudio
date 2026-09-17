@@ -51,6 +51,8 @@ export function MySolarisAccountPanel() {
 
     try {
       await savePromise;
+    } catch {
+      // Sonner owns transient save errors; field validation stays inline above.
     } finally {
       setBusy(false);
     }
