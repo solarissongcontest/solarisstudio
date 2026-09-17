@@ -1,9 +1,16 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+function sourceFiles(directory: string): string[] {
+  return readdirSync(directory).flatMap((entry) => {
+    const path = resolve(directory, entry);
+    return statSync(path).isDirectory() ? sourceFiles(path) : [path];
+  });
 }
 
 describe("Solaris UI craft foundations", () => {
@@ -30,16 +37,15 @@ describe("Solaris UI craft foundations", () => {
     expect(sheet).toContain("slide-in-from-right");
   });
 
-  it("does not animate every CSS property in shared high-frequency primitives", () => {
-    for (const path of [
-      "src/components/ui/tabs.tsx",
-      "src/components/ui/accordion.tsx",
-      "src/components/ui/progress.tsx",
-      "src/components/ui/input-otp.tsx",
-      "src/components/studio/Controls.tsx",
-    ]) {
-      expect(source(path)).not.toContain("transition-all");
-    }
+  it("does not animate every CSS property anywhere in product source", () => {
+    const srcRoot = resolve(process.cwd(), "src");
+    const offenders = sourceFiles(srcRoot)
+      .filter((path) => /\.(?:css|ts|tsx)$/.test(path))
+      .filter((path) => !/\.(?:test|spec)\.(?:ts|tsx)$/.test(path))
+      .filter((path) => readFileSync(path, "utf8").includes("transition-all"))
+      .map((path) => relative(process.cwd(), path));
+
+    expect(offenders).toEqual([]);
   });
 
   it("gives core buttons immediate press feedback without forcing motion on reduced-motion users", () => {
@@ -88,6 +94,7 @@ describe("Solaris UI craft foundations", () => {
     expect(styles).not.toContain("transition-duration: 0.001ms !important");
     expect(accessibility).toContain("solaris-reduced-fade-in");
     expect(accessibility).toContain("transition-property: color, background-color, border-color, opacity, box-shadow, filter");
+    expect(accessibility).toContain("var(--ease-out, ease-out)");
   });
 
   it("keeps scoreboard movement meaningful and avoids near-zero award materialization", () => {

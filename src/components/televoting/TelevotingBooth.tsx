@@ -535,7 +535,7 @@ export function TelevotingBooth({
             <span className={cn("rounded-full border px-3 py-1.5", entriesUsed >= MIN_ENTRIES ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-100" : "border-white/10 text-muted-foreground")}>{entriesUsed}/{MIN_ENTRIES}+ entries</span>
           </div>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, (used / TOTAL) * 100)}%` }} /></div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${Math.min(100, (used / TOTAL) * 100)}%` }} /></div>
       </div>
 
       <div className="glass p-3">

@@ -317,7 +317,7 @@ function BetaTestPage() {
 
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-strong">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
+              className="h-full rounded-full bg-primary transition-[width] duration-300"
               style={{ width: `${isReview ? 100 : Math.max(progress, 4)}%` }}
             />
           </div>

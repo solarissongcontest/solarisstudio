@@ -265,7 +265,7 @@ function AdminBetaTestPage() {
           </div>
 
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-            <div className="h-full rounded-full bg-sky-200 transition-all duration-300" style={{ width: `${isReview ? 100 : Math.max(progress, 4)}%` }} />
+            <div className="h-full rounded-full bg-sky-200 transition-[width] duration-300" style={{ width: `${isReview ? 100 : Math.max(progress, 4)}%` }} />
           </div>
           <div className="mt-2 flex justify-between text-[10px] font-semibold text-muted-foreground">
             <span>{isReview ? "Ready to submit" : "Your answers save on this device as you go."}</span>
