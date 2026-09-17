@@ -2,12 +2,17 @@ import {
   AlertTriangle,
   ChevronRight,
   MoreHorizontal,
-  X,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 export function AdminPageHeader({
@@ -182,40 +187,25 @@ export function AdminSheet({
   description?: string;
   children: ReactNode;
 }) {
-  useEffect(() => {
-    if (!open || typeof document === "undefined") return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
-
-  if (!open || typeof document === "undefined") return null;
-
-  const portalTarget =
-    document.querySelector<HTMLElement>(".admin-control-room") ?? document.body;
-
-  return createPortal(
-    <>
-      <button type="button" aria-label="Close panel" className="admin-sheet-backdrop" onClick={onClose} />
-      <aside className="admin-sheet" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="admin-sheet-handle" />
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/[0.07] bg-[#081326]/95 px-4 py-4 backdrop-blur-xl sm:px-5">
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold">{title}</h2>
-            {description ? <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p> : null}
-          </div>
-          <button type="button" onClick={onClose} className="admin-action-quiet size-10 !p-0" aria-label="Close">
-            <X className="size-4" />
-          </button>
-        </div>
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <SheetContent side="responsive" className="admin-sheet gap-0 !p-0">
+        <SheetHeader className="shrink-0 border-b border-white/[0.07] bg-[#081326]/95 px-4 py-4 pr-14 text-left backdrop-blur-xl sm:px-5 sm:pr-14">
+          <SheetTitle className="text-lg font-bold">{title}</SheetTitle>
+          {description ? (
+            <SheetDescription className="text-xs leading-relaxed text-muted-foreground">
+              {description}
+            </SheetDescription>
+          ) : null}
+        </SheetHeader>
         <div className="admin-sheet-body p-4 sm:p-5">{children}</div>
-      </aside>
-    </>,
-    portalTarget,
+      </SheetContent>
+    </Sheet>
   );
 }
 
