@@ -23,17 +23,10 @@ export function FlagChip({
   }, [image]);
 
   /*
-   * FlagChip is used inside several public edition surfaces. Editorial had a
-   * generic `.glass > :first-child` rule that added large horizontal padding
-   * to the first child of a card. When the flag chip itself was that first
-   * child, the global border-box sizing left its content box at effectively
-   * zero width, so the image was loaded but there was literally no drawable
-   * width left for it. That is why the Participating countries grid showed
-   * blank rectangles while the same flags still appeared elsewhere.
-   *
-   * These are structural media thumbnails, not card content. Lock their box
-   * model here with inline !important declarations so no design preset can
-   * collapse the image again.
+   * Structural flag media is protected from card/personality padding so the
+   * drawable area cannot collapse. Official flags use contain rather than
+   * cover: different national aspect ratios must never be cropped or stretched
+   * merely to make a thumbnail box look uniform.
    */
   useEffect(() => {
     const node = chipRef.current;
@@ -58,6 +51,7 @@ export function FlagChip({
         ref={chipRef}
         data-flag-chip="true"
         data-flag-has-image="true"
+        data-flag-role="official"
         className={cn(
           "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-transparent",
           dims,
@@ -76,7 +70,7 @@ export function FlagChip({
           loading="lazy"
           decoding="async"
           onError={() => setImageFailed(true)}
-          className="block h-full w-full object-cover"
+          className="block h-full w-full object-contain"
           style={{
             display: "block",
             position: "relative",
@@ -84,6 +78,8 @@ export function FlagChip({
             width: "100%",
             height: "100%",
             minWidth: "100%",
+            objectFit: "contain",
+            objectPosition: "center",
             opacity: 1,
             visibility: "visible",
             filter: "none",
@@ -99,6 +95,7 @@ export function FlagChip({
       ref={chipRef}
       data-flag-chip="true"
       data-flag-fallback="true"
+      data-flag-role="official"
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-md font-semibold tracking-widest text-background",
         dims,
