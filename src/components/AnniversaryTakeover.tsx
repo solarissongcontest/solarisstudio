@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 
-import "@/anniversary-redesign.css";
 import type { AnniversaryRecap, SolarisAnniversary } from "@/lib/anniversary";
 
 export function AnniversaryTakeover({
