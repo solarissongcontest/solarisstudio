@@ -55,32 +55,14 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* Unified visual colours/radii live in unified-design.css. This root only owns
+   cross-product support tokens that are not part of the public theme palette. */
 :root {
-  --radius: 1.1rem;
-  --background: oklch(0.115 0.045 250);
-  --foreground: oklch(0.965 0.012 230);
-  --card: rgba(8, 24, 49, 0.86);
-  --card-foreground: oklch(0.965 0.012 230);
-  --popover: rgba(4, 18, 42, 0.94);
-  --popover-foreground: oklch(0.965 0.012 230);
-  --primary: oklch(0.79 0.095 215);
-  --primary-foreground: oklch(0.13 0.04 250);
-  --secondary: rgba(122, 171, 206, 0.09);
-  --secondary-foreground: oklch(0.94 0.015 225);
-  --muted: rgba(125, 170, 195, 0.07);
-  --muted-foreground: oklch(0.76 0.025 225);
-  --accent: oklch(0.72 0.085 205);
-  --accent-foreground: oklch(0.12 0.04 250);
   --destructive: oklch(0.63 0.20 25);
   --destructive-foreground: white;
-  --border: rgba(185, 220, 238, 0.20);
-  --input: rgba(155, 200, 225, 0.07);
-  --ring: oklch(0.80 0.095 210);
   --gold: oklch(0.83 0.13 88);
   --jury: oklch(0.76 0.085 215);
   --televote: oklch(0.69 0.10 195);
-  --surface: rgba(135, 183, 207, 0.075);
-  --surface-strong: rgba(150, 198, 220, 0.13);
   --chart-1: oklch(0.76 0.085 215);
   --chart-2: oklch(0.68 0.10 195);
   --chart-3: oklch(0.79 0.065 230);
@@ -97,6 +79,12 @@
   --gradient-aurora: linear-gradient(135deg, #c6e4ef 0%, #82bfd5 48%, #5795b2 100%);
   --gradient-gold: linear-gradient(135deg, oklch(0.90 0.12 95), oklch(0.78 0.15 70));
   --shadow-glow: 0 0 52px -10px oklch(0.76 0.10 210 / 0.42);
+  --motion-fast: 120ms;
+  --motion-ui: 180ms;
+  --motion-panel: 240ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .dark { color-scheme: dark; }
@@ -214,11 +202,16 @@
 }
 
 .site-nav {
+  padding-top: env(safe-area-inset-top);
   background: linear-gradient(180deg, rgba(7, 25, 55, 0.72), rgba(3, 15, 38, 0.62));
   -webkit-backdrop-filter: blur(22px) saturate(185%);
   backdrop-filter: blur(22px) saturate(185%);
   border-color: rgba(195, 228, 243, 0.18) !important;
   box-shadow: inset 0 -1px 0 rgba(220, 240, 248, 0.07), 0 10px 30px rgba(0, 4, 24, 0.12);
+}
+
+.admin-control-room > header {
+  padding-top: env(safe-area-inset-top);
 }
 
 .mobile-quick-nav {
@@ -266,15 +259,27 @@ button.bg-secondary, button[class*="bg-background"], button.border.border-input,
   color: var(--primary-foreground) !important;
   border: 1px solid rgba(230, 246, 252, 0.46) !important;
   box-shadow: inset 0 1px 0 rgba(245, 252, 255, 0.62), 0 8px 24px rgba(75, 145, 175, 0.14) !important;
-  transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 160ms ease;
+  transition:
+    transform var(--motion-fast) var(--ease-out),
+    filter var(--motion-ui) var(--ease-out);
 }
 
-.bg-aurora:is(button, a, [role="button"]):hover, button.bg-primary:hover, a.bg-primary:hover, [role="button"].bg-primary:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.04);
+@media (hover: hover) and (pointer: fine) {
+  .bg-aurora:is(button, a, [role="button"]):hover,
+  button.bg-primary:hover,
+  a.bg-primary:hover,
+  [role="button"].bg-primary:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+  }
 }
 
-.bg-aurora:is(button, a, [role="button"]):active, button.bg-primary:active, a.bg-primary:active, [role="button"].bg-primary:active { transform: scale(0.985); }
+.bg-aurora:is(button, a, [role="button"]):active,
+button.bg-primary:active,
+a.bg-primary:active,
+[role="button"].bg-primary:active {
+  transform: scale(0.97);
+}
 
 @utility text-aurora {
   background: var(--gradient-aurora);
@@ -341,6 +346,13 @@ button.bg-secondary, button[class*="bg-background"], button.border.border-input,
     border-radius: 1.15rem !important;
   }
 
+  [data-solaris-sheet][data-state="open"] {
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(92dvh, 820px) !important;
+    overflow: hidden !important;
+  }
+
   .page-header :where(a, button, [role="button"]) {
     min-height: 2.75rem;
   }
@@ -360,13 +372,4 @@ button.bg-secondary, button[class*="bg-background"], button.border.border-input,
 @media (prefers-reduced-transparency: reduce) {
   .glass-strong { background: rgba(13, 31, 56, 0.94) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
   .site-nav, .mobile-quick-nav { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
 }
