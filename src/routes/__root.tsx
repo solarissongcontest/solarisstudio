@@ -23,6 +23,7 @@ import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { RulesGovernanceContext } from "../components/rules/RulesGovernanceContext";
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
+import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 const SITE_DESCRIPTION =
@@ -148,7 +149,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Solaris Studio" },
       { name: "description", content: SITE_DESCRIPTION },
       { name: "author", content: "Solaris Studio" },
@@ -239,6 +240,7 @@ function RootComponent() {
       {!fullAdmin ? <SolarisAmbientBackground /> : null}
       {content}
       <ToolQuickGuide pathname={pathname} />
+      <Toaster />
     </QueryClientProvider>
   );
 }

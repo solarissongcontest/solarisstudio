@@ -10,13 +10,16 @@ describe("first admin beta findings", () => {
   it("keeps the edition picker searchable, scrollable and outside sticky header containing blocks", () => {
     const selectors = source("src/components/admin/AdminSelectors.tsx");
     const adminUi = source("src/components/admin/AdminUI.tsx");
+    const sheet = source("src/components/ui/sheet.tsx");
     const adminCss = source("src/admin.css");
 
     expect(selectors).toContain("Search edition, number or host city");
     expect(selectors).toContain("filteredEditions");
     expect(adminUi).toContain("admin-sheet-body");
-    expect(adminUi).toContain("createPortal");
-    expect(adminUi).toContain('document.querySelector<HTMLElement>(".admin-control-room")');
+    expect(adminUi).toContain("SheetContent");
+    expect(adminUi).toContain('side="responsive"');
+    expect(sheet).toContain("const SheetPortal = SheetPrimitive.Portal");
+    expect(sheet).toContain("<SheetPortal>");
     expect(adminCss).toContain(".admin-sheet-body");
     expect(adminCss).toContain("overflow-y: auto");
   });

@@ -115,23 +115,25 @@ export function Toggle({
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition",
+        "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.985] motion-reduce:active:scale-100",
         checked ? "border-primary/50 bg-primary/10" : "border-border bg-surface text-muted-foreground",
       )}
     >
       <span>{label}</span>
       <span
         className={cn(
-          "relative h-4 w-8 shrink-0 rounded-full transition",
+          "relative h-4 w-8 shrink-0 rounded-full transition-colors duration-150 ease-out",
           checked ? "bg-primary" : "bg-surface-strong",
         )}
       >
         <span
           className={cn(
-            "absolute top-0.5 h-3 w-3 rounded-full bg-background transition-all",
-            checked ? "left-4" : "left-0.5",
+            "absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-background transition-transform duration-150 ease-out",
+            checked && "translate-x-3.5",
           )}
         />
       </span>
@@ -156,7 +158,7 @@ export function SegButtons<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           className={cn(
-            "rounded-md px-2.5 py-1 text-xs capitalize transition",
+            "rounded-md px-2.5 py-1 text-xs capitalize transition-colors duration-150 ease-out",
             value === o.value ? "bg-surface-strong text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -190,7 +192,7 @@ export function Collapsible({
           <span className="block text-sm font-semibold">{title}</span>
           {description && <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>}
         </span>
-        <span className={cn("text-muted-foreground transition-transform", open && "rotate-180")}>⌄</span>
+        <span className={cn("text-muted-foreground transition-transform duration-150 ease-out", open && "rotate-180")}>⌄</span>
       </button>
       {open && <div className="space-y-4 border-t border-border px-4 py-4">{children}</div>}
     </section>

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Eye, LayoutDashboard, Layers3, Menu, Vote, type LucideIcon } from "lucide-react";
+import { Eye, LayoutDashboard, Layers3, MoreHorizontal, Vote, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
@@ -67,9 +67,9 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       active: (path) => path.startsWith("/admin/publication/"),
     },
     {
-      label: "Menu",
+      label: "More",
       href: "/admin/menu",
-      icon: Menu,
+      icon: MoreHorizontal,
       active: (path) =>
         path.startsWith("/admin/menu") ||
         path.startsWith("/admin/access-permissions") ||
@@ -128,7 +128,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
                 to={item.href as any}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-[3.45rem] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition-colors",
+                  "flex min-h-[3.45rem] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
                   active
                     ? "bg-sky-200/[0.09] text-sky-50"
                     : "text-muted-foreground hover:bg-white/[0.035] hover:text-foreground",
