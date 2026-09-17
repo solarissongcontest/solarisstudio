@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,10 @@ type CountryIdentityHeroProps = {
  * The one structural hero used by Country, Wiki and the appearance preview.
  * Personalities may style these named regions, but they never own semantic
  * order, image-fit policy, action placement or overflow behaviour.
+ *
+ * Glass gets one extra behaviour: pointer position is exposed as CSS variables
+ * so the material can move its specular highlight without React re-renders.
+ * Reduced-motion users still get a static, fully readable surface.
  */
 export function CountryIdentityHero({
   as = "section",
@@ -44,9 +48,27 @@ export function CountryIdentityHero({
   style,
 }: CountryIdentityHeroProps) {
   const Root = as;
+  const isLiquidGlass = personality === "glass-card" || personality === "water-drop";
   const flagStyle = flagImage
     ? ({ "--country-flag-art": `url(${JSON.stringify(flagImage)})` } as CSSProperties)
     : undefined;
+
+  const moveGlassLight = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!isLiquidGlass || event.pointerType === "touch") return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+    event.currentTarget.style.setProperty("--glass-pointer-x", `${x}%`);
+    event.currentTarget.style.setProperty("--glass-pointer-y", `${y}%`);
+    event.currentTarget.dataset.glassActive = "true";
+  };
+
+  const resetGlassLight = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!isLiquidGlass) return;
+    event.currentTarget.style.setProperty("--glass-pointer-x", "72%");
+    event.currentTarget.style.setProperty("--glass-pointer-y", "18%");
+    delete event.currentTarget.dataset.glassActive;
+  };
 
   return (
     <Root
@@ -57,9 +79,19 @@ export function CountryIdentityHero({
       )}
       data-country-personality={personality}
       data-country-decoration={decoration}
+      data-liquid-glass={isLiquidGlass ? "true" : undefined}
       style={{ ...flagStyle, ...style }}
+      onPointerMove={moveGlassLight}
+      onPointerLeave={resetGlassLight}
     >
       <div className="country-hero-atmosphere" aria-hidden="true" />
+      {isLiquidGlass ? (
+        <div className="country-liquid-glass-optics" aria-hidden="true">
+          <span className="country-liquid-glass-refraction" />
+          <span className="country-liquid-glass-specular" />
+          <span className="country-liquid-glass-edge" />
+        </div>
+      ) : null}
       <div className="country-hero-decoration" aria-hidden="true">
         <span className="country-hero-signature country-hero-signature-a" />
         <span className="country-hero-signature country-hero-signature-b" />
