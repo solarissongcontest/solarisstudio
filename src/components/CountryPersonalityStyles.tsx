@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import wikiStyles from "@/country-wiki.css?inline";
+import buttonStyles from "@/country-button-theme.css?inline";
 import v7Styles from "@/country-personality-system-v7.css?inline";
 import v7Refinements from "@/country-personality-system-v7-refinements.css?inline";
 import productionBridge from "@/country-personality-v7-production-bridge.css?inline";
@@ -9,6 +10,7 @@ import liquidGlassPublic from "@/country-liquid-glass-public-v7.css?inline";
 
 const countryPersonalityStyles = [
   wikiStyles,
+  buttonStyles,
   v7Styles,
   v7Refinements,
   productionBridge,
