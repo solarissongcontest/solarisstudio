@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
@@ -25,7 +26,6 @@ export function ProfileActivityPanel() {
   const [displayName, setDisplayName] = useState("Solaris fan");
   const [visibility, setVisibility] = useState<"private" | "unlisted" | "public">("private");
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -46,27 +46,43 @@ export function ProfileActivityPanel() {
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    setMessage(null);
+    const savePromise = saveProfile.mutateAsync({
+      display_name: displayName.trim(),
+      visibility,
+      leaderboard_opt_in: leaderboardOptIn,
+    });
+
+    toast.promise(savePromise, {
+      id: "mysolaris-fan-profile-save",
+      loading: "Saving profile…",
+      success: "Profile saved.",
+      error: (error) => error instanceof Error ? error.message : "Profile could not be saved.",
+    });
+
     try {
-      await saveProfile.mutateAsync({
-        display_name: displayName.trim(),
-        visibility,
-        leaderboard_opt_in: leaderboardOptIn,
-      });
-      setMessage("Profile saved.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Profile could not be saved.");
+      await savePromise;
+    } catch {
+      // Sonner owns the transient error state for this user-triggered action.
     }
   };
 
   const copyShareLink = async (entryId: string, existingToken: string | null) => {
-    setMessage(null);
-    try {
+    const sharePromise = (async () => {
       const token = existingToken ?? (await enableShare.mutateAsync(entryId));
       await navigator.clipboard.writeText(`${window.location.origin}/predictions/share/${token}`);
-      setMessage("Prediction result link copied.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Share link could not be created.");
+    })();
+
+    toast.promise(sharePromise, {
+      id: `prediction-share-${entryId}`,
+      loading: existingToken ? "Copying result link…" : "Creating result link…",
+      success: "Prediction result link copied.",
+      error: (error) => error instanceof Error ? error.message : "Share link could not be created.",
+    });
+
+    try {
+      await sharePromise;
+    } catch {
+      // Sonner owns the transient error state for this user-triggered action.
     }
   };
 
@@ -134,7 +150,6 @@ export function ProfileActivityPanel() {
           )}
         </Panel>
       </div>
-      {message && <p className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground">{message}</p>}
     </section>
   );
 }
