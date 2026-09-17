@@ -15,10 +15,10 @@ export type CountryPersonalityDefinition = {
 };
 
 /**
- * V7 intentionally uses the existing persisted hero-layout values as stable
- * storage keys. The human-facing concepts are new and deliberately designed;
- * keeping the storage keys avoids a needless database migration and preserves
- * every already-saved country theme.
+ * V7 intentionally uses existing persisted hero-layout values as stable
+ * storage keys. Keeping those keys avoids a schema migration and preserves
+ * every already-saved country theme while the presentation layer becomes a
+ * coherent, human-designed system.
  */
 export const COUNTRY_PERSONALITIES = [
   {
@@ -193,18 +193,34 @@ export const COUNTRY_PERSONALITIES = [
   },
 ] as const satisfies readonly CountryPersonalityDefinition[];
 
-export const COUNTRY_PERSONALITY_BY_ID = Object.fromEntries(
-  COUNTRY_PERSONALITIES.map((personality) => [personality.id, personality]),
-) as Record<CountryHeroLayout, CountryPersonalityDefinition>;
+/**
+ * These two values existed before V7 and remain valid in the database. They
+ * resolve to the closest deliberate V7 personality so older saved countries
+ * never fall into an unstyled or partially styled state.
+ */
+export const LEGACY_PERSONALITY_ALIASES: Partial<Record<CountryHeroLayout, CountryHeroLayout>> = {
+  split: "classic",
+  "water-drop": "glass-card",
+};
 
-export function countryPersonality(id: CountryHeroLayout) {
-  return COUNTRY_PERSONALITY_BY_ID[id];
+const COUNTRY_PERSONALITY_BY_ID = Object.fromEntries(
+  COUNTRY_PERSONALITIES.map((personality) => [personality.id, personality]),
+) as Partial<Record<CountryHeroLayout, CountryPersonalityDefinition>>;
+
+export function canonicalCountryPersonalityId(id: CountryHeroLayout): CountryHeroLayout {
+  const resolved = LEGACY_PERSONALITY_ALIASES[id] ?? id;
+  return COUNTRY_PERSONALITY_BY_ID[resolved] ? resolved : "classic";
+}
+
+export function countryPersonality(id: CountryHeroLayout): CountryPersonalityDefinition {
+  const resolved = canonicalCountryPersonalityId(id);
+  return COUNTRY_PERSONALITY_BY_ID[resolved] ?? COUNTRY_PERSONALITIES[8];
 }
 
 export function wikiStyleForPersonality(id: CountryHeroLayout): CountryWikiStyle {
-  return COUNTRY_PERSONALITY_BY_ID[id].wikiStyle;
+  return countryPersonality(id).wikiStyle;
 }
 
-export function personalityDecorations(id: CountryHeroLayout) {
-  return COUNTRY_PERSONALITY_BY_ID[id].decorations;
+export function personalityDecorations(id: CountryHeroLayout): readonly CountryDecorationStyle[] {
+  return countryPersonality(id).decorations;
 }
