@@ -1,0 +1,100 @@
+/* Final V7 refinements. This file is deliberately small and loaded after the
+   consolidated V7 system. It contains only compatibility corrections and the
+   optional decoration vocabulary exposed by the appearance editor. */
+
+@layer country-v7 {
+  /* Correct an intentionally content-sized document interior. */
+  .country-identity-hero[data-country-personality="passport"] .country-hero-layout {
+    min-block-size: auto;
+  }
+
+  /* Optional decoration always lives behind semantic content. */
+  .country-identity-hero[data-country-decoration="grid"] .country-hero-decoration {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--primary) 10%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--primary) 10%, transparent) 1px, transparent 1px);
+    background-size: 2.25rem 2.25rem;
+    mask-image: linear-gradient(100deg, transparent 3%, #000 30% 80%, transparent 100%);
+  }
+
+  .country-identity-hero[data-country-decoration="rays"] .country-hero-decoration {
+    background: repeating-conic-gradient(
+      from 215deg at 82% 25%,
+      color-mix(in srgb, var(--primary) 16%, transparent) 0deg 5deg,
+      transparent 5deg 18deg
+    );
+    mask-image: radial-gradient(circle at 82% 25%, #000 0 12%, transparent 64%);
+  }
+
+  .country-identity-hero[data-country-decoration="aurora"] .country-hero-decoration {
+    background:
+      radial-gradient(ellipse at 76% 15%, rgb(var(--solaris-bg-tertiary) / .22), transparent 43%),
+      radial-gradient(ellipse at 15% 88%, rgb(var(--solaris-accent) / .16), transparent 38%);
+    filter: blur(12px);
+  }
+
+  .country-identity-hero[data-country-decoration="topography"] .country-hero-decoration {
+    background:
+      repeating-radial-gradient(
+        ellipse at 90% 20%,
+        transparent 0 15px,
+        color-mix(in srgb, var(--primary) 12%, transparent) 15px 16px,
+        transparent 16px 30px
+      );
+    mask-image: linear-gradient(90deg, transparent 20%, #000 70%);
+  }
+
+  .country-identity-hero[data-country-decoration="facets"] .country-hero-decoration {
+    background:
+      linear-gradient(132deg, transparent 0 55%, color-mix(in srgb, var(--primary) 10%, transparent) 55% 69%, transparent 69%),
+      linear-gradient(48deg, transparent 0 72%, color-mix(in srgb, var(--foreground) 5%, transparent) 72% 82%, transparent 82%);
+  }
+
+  .country-identity-hero[data-country-decoration="constellation"] .country-hero-decoration {
+    background-image:
+      radial-gradient(circle at 77% 22%, color-mix(in srgb, var(--primary) 70%, white) 0 1px, transparent 2px),
+      radial-gradient(circle at 88% 38%, color-mix(in srgb, var(--primary) 60%, white) 0 1px, transparent 2px),
+      radial-gradient(circle at 69% 48%, color-mix(in srgb, var(--primary) 50%, white) 0 1px, transparent 2px),
+      linear-gradient(24deg, transparent 68%, color-mix(in srgb, var(--primary) 12%, transparent) 68% 68.2%, transparent 68.2%);
+  }
+
+  .country-identity-hero[data-country-decoration="waves"] .country-hero-decoration {
+    background:
+      radial-gradient(ellipse at 90% 100%, transparent 0 35%, color-mix(in srgb, var(--primary) 12%, transparent) 35.2% 35.7%, transparent 36% 48%, color-mix(in srgb, var(--primary) 8%, transparent) 48.2% 48.7%, transparent 49%);
+  }
+
+  .country-identity-hero[data-country-decoration="orbits"] .country-hero-decoration {
+    background:
+      radial-gradient(circle at 80% 30%, transparent 0 18%, color-mix(in srgb, var(--primary) 15%, transparent) 18.2% 18.6%, transparent 18.8% 27%, color-mix(in srgb, var(--primary) 9%, transparent) 27.2% 27.6%, transparent 27.8%);
+  }
+
+  .country-identity-hero[data-country-decoration="eclipse"] .country-hero-decoration {
+    background: radial-gradient(circle at 83% 30%, transparent 0 11%, color-mix(in srgb, var(--primary) 18%, transparent) 11.5% 15%, transparent 15.5%);
+  }
+
+  /* Decorative flag material may crop by design. Official flag media never
+     uses this layer and remains object-fit: contain. */
+  .country-identity-hero[data-country-decoration="flag"] .country-hero-atmosphere,
+  .country-identity-hero[data-country-decoration="auto"][data-country-personality="glass-card"] .country-hero-atmosphere {
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--surface) 94%, transparent) 0 42%, transparent 74%),
+      var(--country-flag-art) center / cover no-repeat,
+      radial-gradient(circle at 82% 18%, rgb(var(--solaris-accent) / .18), transparent 36%);
+    opacity: .34;
+  }
+
+  .country-identity-hero:not([style*="--country-flag-art"])[data-country-decoration="flag"] .country-hero-atmosphere {
+    background: radial-gradient(circle at 82% 18%, rgb(var(--solaris-accent) / .18), transparent 36%);
+  }
+
+  /* Legacy persisted values resolve visually to the deliberate V7 concepts. */
+  .country-profile-v7[data-country-personality="water-drop"],
+  .wiki-canvas-v7[data-country-personality="water-drop"] {
+    --legacy-personality-alias: glass-card;
+  }
+
+  .country-profile-v7[data-country-personality="split"],
+  .wiki-canvas-v7[data-country-personality="split"] {
+    --legacy-personality-alias: classic;
+  }
+}
