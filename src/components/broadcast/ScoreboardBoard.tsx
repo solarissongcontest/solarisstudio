@@ -408,7 +408,7 @@ export function ScoreboardBoard({
             }}
           >
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full rounded-full transition-[width] duration-300"
               style={{
                 width: `${Math.min(100, progress * 100)}%`,
                 background: theme.colors.primary,
