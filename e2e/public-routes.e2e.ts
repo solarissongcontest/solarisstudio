@@ -22,13 +22,20 @@ test("public route families pass at this viewport", async ({ page }, testInfo) =
   await auditRoutes(page, [...STATIC_PUBLIC_ROUTES].sort(), testInfo);
 });
 
-test("representative dynamic routes pass desktop audit", async ({ page, baseURL }, testInfo) => {
-  test.skip(testInfo.project.name !== "public-1440", "Dynamic route smoke runs once at desktop baseline");
+test("real Country and Wiki pages pass collision and flag audits at this viewport", async ({ page, baseURL }, testInfo) => {
+  const discovered = await sitemapRoutes(baseURL!);
+  const country = discovered.find((route) => /^\/countries\/[^/]+$/.test(route));
+  const wiki = discovered.find((route) => /^\/wiki\/[^/]+$/.test(route));
+  const routes = [country, wiki].filter((route): route is string => Boolean(route));
+  expect(routes.length, "Sitemap should expose representative Country and Wiki routes").toBeGreaterThanOrEqual(2);
+  await auditRoutes(page, routes, testInfo);
+});
+
+test("representative non-country dynamic route passes desktop audit", async ({ page, baseURL }, testInfo) => {
+  test.skip(testInfo.project.name !== "public-1440", "Additional dynamic route smoke runs once at desktop baseline");
 
   const discovered = await sitemapRoutes(baseURL!);
   const representativeDynamic = [
-    discovered.find((route) => /^\/countries\/[^/]+$/.test(route)),
-    discovered.find((route) => /^\/wiki\/[^/]+$/.test(route)),
     discovered.find((route) => /^\/editions\/[^/]+$/.test(route)),
   ].filter((route): route is string => Boolean(route));
 
