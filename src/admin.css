@@ -124,7 +124,7 @@
 
 .admin-section-label {
   color: color-mix(in srgb, var(--admin-accent) 82%, white 18%);
-  font-size: .65rem;
+  font-size: .68rem;
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -138,7 +138,7 @@
   border: 1px solid var(--admin-border);
   border-radius: 999px;
   padding: .25rem .55rem;
-  font-size: .68rem;
+  font-size: .7rem;
   font-weight: 700;
 }
 
@@ -161,17 +161,32 @@
   padding: .65rem .9rem;
   font-size: .8rem;
   font-weight: 700;
-  transition: background .16s ease, border-color .16s ease, transform .16s ease, filter .16s ease;
+  transition:
+    background var(--motion-ui, 180ms) var(--ease-out, ease-out),
+    border-color var(--motion-ui, 180ms) var(--ease-out, ease-out),
+    color var(--motion-ui, 180ms) var(--ease-out, ease-out),
+    transform var(--motion-fast, 120ms) var(--ease-out, ease-out),
+    filter var(--motion-ui, 180ms) var(--ease-out, ease-out);
 }
 
 .admin-action-primary { background: var(--admin-accent); color: #03101a; }
-.admin-action-primary:hover { filter: brightness(1.05); }
 .admin-action-secondary { border: 1px solid var(--admin-border-strong); background: rgba(255,255,255,.035); color: var(--foreground); }
-.admin-action-secondary:hover { background: rgba(255,255,255,.065); }
 .admin-action-quiet { color: var(--muted-foreground); }
-.admin-action-quiet:hover { background: rgba(255,255,255,.04); color: var(--foreground); }
 .admin-action-danger { border: 1px solid rgba(229,139,149,.18); background: rgba(229,139,149,.09); color: #f5bcc2; }
-.admin-action-danger:hover { background: rgba(229,139,149,.14); }
+
+.admin-action-primary:active,
+.admin-action-secondary:active,
+.admin-action-quiet:active,
+.admin-action-danger:active {
+  transform: scale(.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-action-primary:hover { filter: brightness(1.05); }
+  .admin-action-secondary:hover { background: rgba(255,255,255,.065); }
+  .admin-action-quiet:hover { background: rgba(255,255,255,.04); color: var(--foreground); }
+  .admin-action-danger:hover { background: rgba(229,139,149,.14); }
+}
 
 .admin-action-primary:disabled,
 .admin-action-secondary:disabled,
@@ -202,15 +217,22 @@
 .admin-action-row {
   min-height: 4.35rem;
   padding: .75rem .2rem;
-  transition: background .15s ease, color .15s ease;
+  transition:
+    background var(--motion-fast, 120ms) var(--ease-out, ease-out),
+    color var(--motion-fast, 120ms) var(--ease-out, ease-out);
 }
 
 .admin-list-row:last-child,
 .admin-action-row:last-child { border-bottom: 0; }
 
-.admin-action-row:hover { background: rgba(255,255,255,.025); }
+.admin-action-row:active,
+.admin-list-row:active { background: rgba(255,255,255,.04); }
 .admin-action-row-danger { color: #f1aeb6; }
-.admin-action-row-danger:hover { background: rgba(229,139,149,.045); }
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-action-row:hover { background: rgba(255,255,255,.025); }
+  .admin-action-row-danger:hover { background: rgba(229,139,149,.045); }
+}
 
 .admin-action-row-icon {
   display: grid;
@@ -240,32 +262,19 @@
   height: 100%;
   border-radius: inherit;
   background: var(--admin-accent);
+  transition: width var(--motion-panel, 240ms) var(--ease-out, ease-out);
 }
 
-.admin-sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 140;
-  background: rgba(0,0,0,.62);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-
+/* Sheet position, focus trapping and enter/exit physics are owned by the shared
+   Radix Sheet primitive. Organizer only supplies its material and inner scroll. */
 .admin-sheet {
-  position: fixed;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 150;
   display: flex;
-  max-height: min(92dvh, 820px);
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--admin-border-strong);
-  border-bottom: 0;
-  border-radius: 1.4rem 1.4rem 0 0;
-  background: #081326;
-  box-shadow: 0 -20px 60px rgba(0,0,0,.35);
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  border-color: var(--admin-border-strong) !important;
+  background: #081326 !important;
+  box-shadow: 0 -20px 60px rgba(0,0,0,.35) !important;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
 }
 
 .admin-sheet-body {
@@ -273,15 +282,7 @@
   flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.admin-sheet-handle {
-  width: 2.6rem;
-  height: .27rem;
-  margin: .55rem auto .2rem;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: rgba(255,255,255,.18);
+  -webkit-overflow-scrolling: touch;
 }
 
 .admin-sticky-actions {
@@ -296,23 +297,22 @@
   -webkit-backdrop-filter: blur(18px);
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 640px) {
   .admin-sheet {
-    inset: 0 0 0 auto;
-    width: min(31rem, 42vw);
-    max-height: none;
-    border: 0;
-    border-left: 1px solid var(--admin-border-strong);
-    border-radius: 0;
-    padding-bottom: 1rem;
+    border-top: 0 !important;
+    border-left: 1px solid var(--admin-border-strong) !important;
+    box-shadow: -20px 0 60px rgba(0,0,0,.35) !important;
+    padding-bottom: 1rem !important;
   }
-  .admin-sheet-handle { display: none; }
+}
+
+@media (min-width: 1024px) {
   .admin-sticky-actions { bottom: 0; margin-inline: 0; border-radius: 1rem; }
 }
 
 @media (max-width: 767px) {
-  .admin-control-room .text-\[9px\] { font-size: .66rem !important; line-height: .9rem !important; }
-  .admin-control-room .text-\[10px\] { font-size: .7rem !important; line-height: .95rem !important; }
+  .admin-control-room .text-\[9px\] { font-size: .72rem !important; line-height: 1rem !important; }
+  .admin-control-room .text-\[10px\] { font-size: .75rem !important; line-height: 1.05rem !important; }
   .admin-page { padding-inline: .75rem !important; }
   .admin-page-title { font-size: clamp(2rem, 10vw, 2.75rem) !important; line-height: .92 !important; }
   .admin-control-room h1.font-display:not(.admin-page-title) { font-size: clamp(1.9rem, 9vw, 2.35rem) !important; }
@@ -323,4 +323,17 @@
   .admin-action-primary,
   .admin-action-secondary,
   .admin-action-danger { min-height: 2.9rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-action-primary:active,
+  .admin-action-secondary:active,
+  .admin-action-quiet:active,
+  .admin-action-danger:active {
+    transform: none !important;
+  }
+
+  .admin-progress-fill {
+    transition: none !important;
+  }
 }
