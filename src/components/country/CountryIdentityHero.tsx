@@ -1,5 +1,6 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
+import { countryPersonality } from "@/lib/country-personality-system";
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
 
@@ -22,13 +23,12 @@ type CountryIdentityHeroProps = {
 };
 
 /**
- * The one structural hero used by Country, Wiki and the appearance preview.
- * Personalities may style these named regions, but they never own semantic
- * order, image-fit policy, action placement or overflow behaviour.
+ * Canonical Country/Wiki identity structure.
  *
- * Glass gets one extra behaviour: pointer position is exposed as CSS variables
- * so the material can move its specular highlight without React re-renders.
- * Reduced-motion users still get a static, fully readable surface.
+ * Semantic content always remains in normal grid flow. Personalities can style
+ * the named regions but may not absolutely position the title, flag, metadata
+ * or actions. Experimental artwork receives its own bounded grid cell, so a
+ * line/ribbon/seal can never physically pass through a button or text region.
  */
 export function CountryIdentityHero({
   as = "section",
@@ -48,14 +48,17 @@ export function CountryIdentityHero({
   style,
 }: CountryIdentityHeroProps) {
   const Root = as;
-  const isLiquidGlass = personality === "glass-card" || personality === "water-drop";
+  const definition = countryPersonality(personality);
+  const isLiquidGlass = definition.id === "glass-card";
   const flagStyle = flagImage
     ? ({ "--country-flag-art": `url(${JSON.stringify(flagImage)})` } as CSSProperties)
     : undefined;
 
   const moveGlassLight = (event: ReactPointerEvent<HTMLElement>) => {
     if (!isLiquidGlass || event.pointerType === "touch") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
     const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
     event.currentTarget.style.setProperty("--glass-pointer-x", `${x}%`);
@@ -65,8 +68,8 @@ export function CountryIdentityHero({
 
   const resetGlassLight = (event: ReactPointerEvent<HTMLElement>) => {
     if (!isLiquidGlass) return;
-    event.currentTarget.style.setProperty("--glass-pointer-x", "72%");
-    event.currentTarget.style.setProperty("--glass-pointer-y", "18%");
+    event.currentTarget.style.setProperty("--glass-pointer-x", "74%");
+    event.currentTarget.style.setProperty("--glass-pointer-y", "16%");
     delete event.currentTarget.dataset.glassActive;
   };
 
@@ -77,25 +80,19 @@ export function CountryIdentityHero({
         compact && "country-identity-hero--compact",
         className,
       )}
-      data-country-personality={personality}
+      data-country-personality={definition.id}
+      data-country-layout={definition.layout}
       data-country-decoration={decoration}
+      data-country-has-art={definition.allowsGraphicArt ? "true" : "false"}
       data-liquid-glass={isLiquidGlass ? "true" : undefined}
       style={{ ...flagStyle, ...style }}
       onPointerMove={moveGlassLight}
       onPointerLeave={resetGlassLight}
     >
-      <div className="country-hero-atmosphere" aria-hidden="true" />
-      {isLiquidGlass ? (
-        <div className="country-liquid-glass-optics" aria-hidden="true">
-          <span className="country-liquid-glass-refraction" />
-          <span className="country-liquid-glass-specular" />
-          <span className="country-liquid-glass-edge" />
-        </div>
-      ) : null}
-      <div className="country-hero-decoration" aria-hidden="true">
-        <span className="country-hero-signature country-hero-signature-a" />
-        <span className="country-hero-signature country-hero-signature-b" />
-        <span className="country-hero-signature country-hero-signature-c" />
+      <div className="country-hero-scene" aria-hidden="true">
+        {flagImage ? <img className="country-hero-scene-flag" src={flagImage} alt="" decoding="async" /> : null}
+        <span className="country-hero-scene-light country-hero-scene-light-a" />
+        <span className="country-hero-scene-light country-hero-scene-light-b" />
       </div>
 
       <div className="country-hero-layout">
@@ -109,6 +106,14 @@ export function CountryIdentityHero({
           ) : null}
           {description ? <p className="country-hero-description" dir="auto">{description}</p> : null}
         </div>
+
+        {definition.allowsGraphicArt ? (
+          <div className="country-hero-art" aria-hidden="true">
+            <span className="country-hero-art-primary" />
+            <span className="country-hero-art-secondary" />
+            <span className="country-hero-art-tertiary" />
+          </div>
+        ) : null}
 
         <div className="country-hero-flag-zone">
           <div className="country-official-flag" data-flag-role="official">
