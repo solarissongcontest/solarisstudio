@@ -13,6 +13,12 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
+function productSourceFiles() {
+  return sourceFiles(resolve(process.cwd(), "src"))
+    .filter((path) => /\.(?:css|ts|tsx)$/.test(path))
+    .filter((path) => !/\.(?:test|spec)\.(?:ts|tsx)$/.test(path));
+}
+
 describe("Solaris UI craft foundations", () => {
   it("keeps one global toast host and enables the full iOS safe-area viewport", () => {
     const root = source("src/routes/__root.tsx");
@@ -38,11 +44,16 @@ describe("Solaris UI craft foundations", () => {
   });
 
   it("does not animate every CSS property anywhere in product source", () => {
-    const srcRoot = resolve(process.cwd(), "src");
-    const offenders = sourceFiles(srcRoot)
-      .filter((path) => /\.(?:css|ts|tsx)$/.test(path))
-      .filter((path) => !/\.(?:test|spec)\.(?:ts|tsx)$/.test(path))
+    const offenders = productSourceFiles()
       .filter((path) => readFileSync(path, "utf8").includes("transition-all"))
+      .map((path) => relative(process.cwd(), path));
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("does not wrap full-color design tokens in hsl() anywhere in product source", () => {
+    const offenders = productSourceFiles()
+      .filter((path) => readFileSync(path, "utf8").includes("hsl(var(--"))
       .map((path) => relative(process.cwd(), path));
 
     expect(offenders).toEqual([]);
