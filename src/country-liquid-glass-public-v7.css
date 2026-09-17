@@ -1,0 +1,222 @@
+/* Public Liquid Glass V7
+   ----------------------
+   A web approximation of Apple's Liquid Glass principles: transparent but
+   legible material, content-informed tint, refraction/lensing, concentrated
+   specular light, stronger diffusion over complex content, and clear depth
+   separation. It is intentionally not a grey translucent card with blur.
+*/
+
+@layer country-v7 {
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero) {
+    --glass-pointer-x: 72%;
+    --glass-pointer-y: 18%;
+    --glass-clear: rgb(255 255 255 / .055);
+    --glass-bright: rgb(255 255 255 / .22);
+    --glass-edge: rgb(255 255 255 / .20);
+    --glass-tint: rgb(var(--solaris-accent) / .075);
+    --glass-shadow: rgb(0 0 0 / .26);
+    isolation: isolate;
+    border: 1px solid var(--glass-edge) !important;
+    border-radius: 1.75rem !important;
+    background:
+      linear-gradient(145deg, rgb(255 255 255 / .105), rgb(255 255 255 / .022) 45%, rgb(255 255 255 / .055)),
+      linear-gradient(116deg, var(--glass-tint), transparent 45%),
+      color-mix(in srgb, var(--surface) 36%, transparent) !important;
+    box-shadow:
+      0 1.7rem 4.6rem var(--glass-shadow),
+      0 .2rem .9rem rgb(0 0 0 / .12),
+      inset 0 1px 0 rgb(255 255 255 / .24),
+      inset 0 -1px 0 rgb(255 255 255 / .035) !important;
+    -webkit-backdrop-filter: blur(30px) saturate(178%) contrast(1.055) !important;
+    backdrop-filter: blur(30px) saturate(178%) contrast(1.055) !important;
+  }
+
+  /* First optical layer: broad lens. */
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero)::before {
+    position: absolute !important;
+    z-index: 1 !important;
+    inset: -18% !important;
+    inline-size: auto !important;
+    block-size: auto !important;
+    content: "" !important;
+    pointer-events: none !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background:
+      radial-gradient(
+        circle at var(--glass-pointer-x) var(--glass-pointer-y),
+        rgb(255 255 255 / .13) 0 4%,
+        rgb(var(--solaris-accent) / .08) 7%,
+        transparent 24%
+      ),
+      radial-gradient(circle at 8% 100%, rgb(var(--solaris-bg-tertiary) / .10), transparent 34%) !important;
+    filter: blur(12px) saturate(125%) !important;
+    transform: scale(1.04) !important;
+    opacity: .92 !important;
+    transition: opacity 180ms ease !important;
+  }
+
+  /* Second optical layer: moving specular ridge and edge lighting. */
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero)::after {
+    position: absolute !important;
+    z-index: 2 !important;
+    inset: 0 !important;
+    inline-size: auto !important;
+    block-size: auto !important;
+    content: "" !important;
+    pointer-events: none !important;
+    border: 0 !important;
+    border-radius: inherit !important;
+    background:
+      radial-gradient(
+        ellipse 22% 17% at var(--glass-pointer-x) var(--glass-pointer-y),
+        rgb(255 255 255 / .34) 0,
+        rgb(255 255 255 / .14) 25%,
+        rgb(255 255 255 / .03) 50%,
+        transparent 72%
+      ),
+      linear-gradient(118deg, rgb(255 255 255 / .11), transparent 19% 77%, rgb(255 255 255 / .055)) !important;
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / .055),
+      inset .8rem .9rem 1.5rem rgb(255 255 255 / .025),
+      inset -.8rem -.9rem 1.8rem rgb(0 0 0 / .05) !important;
+    mix-blend-mode: screen;
+    opacity: .86 !important;
+    transition: opacity 180ms ease !important;
+  }
+
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero)[data-glass-active="true"]::after {
+    opacity: 1 !important;
+  }
+
+  /* Existing route markup includes this old flag panel. Keep the flag as
+     refractive content inside the material rather than as another glass card. */
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero) .country-glass-panel-flag {
+    position: absolute !important;
+    z-index: 0 !important;
+    inset: -12% -7% -12% auto !important;
+    display: block !important;
+    inline-size: min(58%, 42rem) !important;
+    block-size: auto !important;
+    border: 0 !important;
+    border-radius: 45% !important;
+    background-position: center !important;
+    background-size: cover !important;
+    box-shadow: none !important;
+    filter: saturate(1.15) blur(2px) !important;
+    opacity: .18 !important;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 0 42%, transparent 76%);
+    mask-image: radial-gradient(ellipse at center, #000 0 42%, transparent 76%);
+    pointer-events: none !important;
+    transform: scale(1.06) !important;
+  }
+
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+    z-index: 0 !important;
+    opacity: .11 !important;
+    filter: saturate(1.12) !important;
+  }
+
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+    z-index: 4 !important;
+  }
+
+  /* Controls are separate, thicker pieces of the same material. Apple uses
+     Liquid Glass primarily for controls/navigation, so buttons should feel
+     more glass-like than ordinary content sections. */
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero) :is(a, button) {
+    border-color: rgb(255 255 255 / .16) !important;
+    background:
+      linear-gradient(145deg, rgb(255 255 255 / .11), rgb(255 255 255 / .035)),
+      color-mix(in srgb, var(--surface) 24%, transparent) !important;
+    box-shadow:
+      inset 0 1px rgb(255 255 255 / .14),
+      0 .35rem 1rem rgb(0 0 0 / .10) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(150%) !important;
+    backdrop-filter: blur(14px) saturate(150%) !important;
+  }
+
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) :is(.country-public-hero, .wiki-public-hero) :is(a, button):hover {
+    background:
+      linear-gradient(145deg, rgb(255 255 255 / .17), rgb(255 255 255 / .045)),
+      color-mix(in srgb, var(--surface) 20%, transparent) !important;
+  }
+
+  /* The Wiki article itself is not turned into Liquid Glass. The header and
+     controls carry the material while long-form reading stays calm. */
+  body[data-entity-theme="country"]:is(
+    [data-country-hero-layout="glass-card"],
+    [data-country-hero-layout="water-drop"]
+  ) .wiki-canvas :is(.wiki-article-surface, .wiki-article-section, .wiki-introduction) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    body[data-entity-theme="country"]:is(
+      [data-country-hero-layout="glass-card"],
+      [data-country-hero-layout="water-drop"]
+    ) :is(.country-public-hero, .wiki-public-hero) {
+      background:
+        linear-gradient(145deg, rgb(255 255 255 / .09), rgb(255 255 255 / .025)),
+        color-mix(in srgb, var(--surface) 93%, var(--background)) !important;
+    }
+  }
+
+  @media (max-width: 639px) {
+    body[data-entity-theme="country"]:is(
+      [data-country-hero-layout="glass-card"],
+      [data-country-hero-layout="water-drop"]
+    ) :is(.country-public-hero, .wiki-public-hero) {
+      border-radius: 1.35rem !important;
+      -webkit-backdrop-filter: blur(24px) saturate(165%) contrast(1.04) !important;
+      backdrop-filter: blur(24px) saturate(165%) contrast(1.04) !important;
+    }
+
+    body[data-entity-theme="country"]:is(
+      [data-country-hero-layout="glass-card"],
+      [data-country-hero-layout="water-drop"]
+    ) :is(.country-public-hero, .wiki-public-hero) .country-glass-panel-flag {
+      inset: auto -18% -38% auto !important;
+      inline-size: 92% !important;
+      opacity: .12 !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body[data-entity-theme="country"]:is(
+      [data-country-hero-layout="glass-card"],
+      [data-country-hero-layout="water-drop"]
+    ) :is(.country-public-hero, .wiki-public-hero) {
+      --glass-pointer-x: 72% !important;
+      --glass-pointer-y: 18% !important;
+    }
+  }
+}
