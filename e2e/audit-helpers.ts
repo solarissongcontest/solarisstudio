@@ -42,11 +42,6 @@ export const STATIC_PUBLIC_ROUTES = [
 const ignorableRequest = (url: string) =>
   /favicon|google-analytics|googletagmanager|browser-extension|chrome-extension/i.test(url);
 
-// Images are validated after rendering through `brokenImages` below. That lets
-// components such as FlagChip recover from an expired third-party image with an
-// intentional accessible fallback without the original 404 failing the route.
-// Documents, scripts, stylesheets and fonts have no equivalent recovery path and
-// therefore remain hard HTTP failures.
 const criticalResourceTypes = new Set(["document", "script", "stylesheet", "font"]);
 
 function isNavigationCancellation(errorText: string | undefined) {
@@ -54,10 +49,6 @@ function isNavigationCancellation(errorText: string | undefined) {
 }
 
 function isAnonymousResourceConsoleError(message: string) {
-  // Chromium reports HTTP resource failures to console without exposing the URL in
-  // message.text(). We audit critical HTTP responses separately below, where the
-  // URL and resource type are available. Counting this anonymous duplicate would
-  // make optional API 404s indistinguishable from missing application assets.
   return /^Failed to load resource: the server responded with a status of \d{3} \(\)$/i.test(message.trim());
 }
 
@@ -150,12 +141,57 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
           );
         })
         .map((node) => node.outerHTML.slice(0, 180));
+
+      const intersects = (first: DOMRect, second: DOMRect) => {
+        const width = Math.min(first.right, second.right) - Math.max(first.left, second.left);
+        const height = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
+        return width > 1 && height > 1;
+      };
+
+      const countryHeroCollisions: string[] = [];
+      for (const hero of document.querySelectorAll<HTMLElement>(".country-identity-hero")) {
+        const regions = [
+          ["copy", hero.querySelector<HTMLElement>(".country-hero-copy")],
+          ["flag", hero.querySelector<HTMLElement>(".country-hero-flag-zone")],
+          ["actions", hero.querySelector<HTMLElement>(".country-hero-actions")],
+          ["art", hero.querySelector<HTMLElement>(".country-hero-art")],
+        ] as const;
+        const visible = regions.filter(([, node]) => {
+          if (!node) return false;
+          const style = getComputedStyle(node);
+          return style.display !== "none" && style.visibility !== "hidden" && node.getBoundingClientRect().width > 0 && node.getBoundingClientRect().height > 0;
+        });
+        for (let left = 0; left < visible.length; left += 1) {
+          for (let right = left + 1; right < visible.length; right += 1) {
+            const [leftName, leftNode] = visible[left];
+            const [rightName, rightNode] = visible[right];
+            if (!leftNode || !rightNode) continue;
+            if (intersects(leftNode.getBoundingClientRect(), rightNode.getBoundingClientRect())) {
+              countryHeroCollisions.push(`${hero.dataset.countryPersonality ?? "unknown"}: ${leftName} overlaps ${rightName}`);
+            }
+          }
+        }
+      }
+
+      const officialFlagProblems = [...document.querySelectorAll<HTMLImageElement>(
+        '[data-flag-role="official"] img, [data-flag-chip="true"][data-flag-role="official"] img',
+      )].flatMap((image) => {
+        const style = getComputedStyle(image);
+        const problems: string[] = [];
+        if (style.objectFit !== "contain") problems.push(`${image.alt || image.src}: object-fit=${style.objectFit}`);
+        const rect = image.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) problems.push(`${image.alt || image.src}: zero rendered size`);
+        return problems;
+      });
+
       return {
         overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
         mainCount: document.querySelectorAll("main").length,
         duplicateIds: [...new Set(duplicateIds)],
         brokenImages,
         unnamedControls,
+        countryHeroCollisions,
+        officialFlagProblems,
         title: document.title,
       };
     });
@@ -166,14 +202,13 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(result.duplicateIds, `${path} has duplicate element IDs`).toEqual([]);
     expect(result.brokenImages, `${path} has broken images`).toEqual([]);
     expect(result.unnamedControls, `${path} has controls without accessible names`).toEqual([]);
+    expect(result.countryHeroCollisions, `${path} has overlapping country hero semantic regions`).toEqual([]);
+    expect(result.officialFlagProblems, `${path} distorts or hides official flag media`).toEqual([]);
     expect(pageErrors, `${path} raised browser errors`).toEqual([]);
     expect(consoleErrors, `${path} logged console errors`).toEqual([]);
     expect(failedRequests, `${path} had failed requests`).toEqual([]);
     expect(failedCriticalResponses, `${path} returned failing critical resources`).toEqual([]);
   } catch (error) {
-    // Diagnostics must never replace the assertion that actually failed. Font or
-    // image loading can make Playwright screenshots time out on an already-broken
-    // page, so attach one only when capture succeeds promptly.
     try {
       const body = await page.screenshot({ timeout: 5_000 });
       await testInfo.attach(`page-${path.replace(/\W+/g, "-") || "home"}`, {
