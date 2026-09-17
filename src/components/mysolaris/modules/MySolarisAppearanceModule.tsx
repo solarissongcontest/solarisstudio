@@ -392,7 +392,7 @@ function CountryThemePage() {
                       ? current.decorationStyle
                       : CURATED_DECORATIONS[value][0],
                   }))}
-                  className={`country-personality-option group min-w-0 overflow-hidden rounded-xl border p-2 text-left transition-[background-color,border-color,box-shadow] duration-200 ${theme.heroLayout === value ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/.15)]" : "border-border bg-surface hover:bg-surface-strong"}`}
+                  className={`country-personality-option group min-w-0 overflow-hidden rounded-xl border p-2 text-left transition-[background-color,border-color,box-shadow] duration-200 ${theme.heroLayout === value ? "border-primary bg-primary/10 ring-1 ring-primary/15" : "border-border bg-surface hover:bg-surface-strong"}`}
                 >
                   <PersonalityMiniature layout={value} countryName={country.name} flagImage={country.flag_image} theme={theme} />
                   <span className="mt-2 block truncate px-0.5 text-sm font-semibold">{label}</span>
