@@ -57,11 +57,16 @@ describe("Storage Permission Engine RLS cutover", () => {
     expect(migration).toContain("return false;");
   });
 
-  it("keeps the private storage resolver directly uncallable", () => {
+  it("allows authenticated RLS evaluation without opening anon or service execution", () => {
     const sql = normalized(migration);
     expect(sql).toContain(
-      "revoke all on function private.studio2_storage_edition_access_allowed(text, boolean) from public, anon, authenticated, service_role;",
+      "revoke all on function private.studio2_storage_edition_access_allowed(text, boolean) from public, anon, service_role;",
     );
+    expect(sql).toContain(
+      "grant execute on function private.studio2_storage_edition_access_allowed(text, boolean) to authenticated;",
+    );
+    expect(migration).toContain("authenticated cannot execute private.studio2_storage_edition_access_allowed through RLS");
+    expect(migration).toContain("anon unexpectedly gained private.studio2_storage_edition_access_allowed EXECUTE");
   });
 
   it("does not enable Permission Engine v2", () => {
