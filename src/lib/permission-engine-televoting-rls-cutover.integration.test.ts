@@ -41,10 +41,10 @@ describe("Televoting Permission Engine RLS cutover", () => {
   it("recreates all 18 legacy televoting Organizer policies", () => {
     for (const table of [...votingManageTables, ...ballotManageTables]) {
       expect(migration).toContain(
-        `drop policy if exists \"televoting organizer full access\" on televoting.${table};`,
+        `drop policy if exists "televoting organizer full access" on televoting.${table};`,
       );
       expect(migration).toContain(
-        `create policy \"televoting organizer full access\"\non televoting.${table} for all to authenticated`,
+        `create policy "televoting organizer full access"\non televoting.${table} for all to authenticated`,
       );
     }
     expect(votingManageTables.length + ballotManageTables.length).toBe(18);
