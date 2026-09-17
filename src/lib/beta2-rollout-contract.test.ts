@@ -78,17 +78,20 @@ describe("Beta 2 hardened rollout contract", () => {
     }
   });
 
-  it("loads the isolated Beta 2 personality polish after the established repair layer", () => {
+  it("replaces the old personality repair stack with the consolidated V7 system", () => {
     const visual = source("src/components/CountryPersonalityStyles.tsx");
-    const css = source("src/country-personalities-beta2.css");
-    expect(visual.indexOf("country-personalities-beta2.css")).toBeGreaterThan(
-      visual.indexOf("country-personalities-v4.css"),
-    );
-    for (const layout of ["ribbon", "duotone", "broadcast", "monument", "horizon"]) {
-      expect(css).toContain(`data-country-hero-layout="${layout}"`);
-      expect(css).toContain(`data-preview-layout="${layout}"`);
+    const registry = source("src/lib/country-personality-system.ts");
+    const css = source("src/country-personality-system-v7.css");
+    expect(visual).toContain("country-personality-system-v7.css");
+    expect(visual).toContain("country-wiki-v7.css");
+    expect(visual).toContain("country-liquid-glass-public-v7.css");
+    expect(visual).not.toContain("country-personalities-beta2.css");
+    expect(visual).not.toContain("country-personalities-v4.css");
+    for (const name of ["Glass", "Editorial", "Passport", "Broadcast", "Minimal", "Atlas", "Diplomatic", "Festival", "Brutalist", "Retro Digital", "Luxury", "Newspaper", "Scientific", "Civic", "Avant-Garde"]) {
+      expect(registry).toContain(`name: "${name}"`);
     }
-    expect(css).toContain("@media (max-width: 767px)");
+    expect(css).toContain("@media (max-width: 639px)");
+    expect(css).toContain("@media (forced-colors: active)");
   });
 
   it("keeps Broadcast as a fading top source strip without the preview-only opaque block", () => {
