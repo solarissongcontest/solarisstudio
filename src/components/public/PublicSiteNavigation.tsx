@@ -25,6 +25,12 @@ export const PUBLIC_NAVIGATION_GROUPS: PublicNavigationGroup[] = [
     description: "Editions, countries, shows and the public archive.",
     items: [
       nav("/", "Home", "The Solaris Studio public home page.", "start welcome"),
+      nav(
+        "/explore",
+        "Start exploring",
+        "Browse editions, countries, shows, stories and Solaris history from one place.",
+        "explore browse discover archive",
+      ),
       nav("/editions", "Editions", "Every Solaris Song Contest edition.", "contest archive ssc"),
       nav(
         "/countries",
@@ -317,12 +323,12 @@ function NavigationGroup({
 
   return (
     <section aria-labelledby={`${idPrefix}-public-nav-${group.id}`}>
-      <div className={compact ? "px-2" : "px-2"}>
+      <div className="px-2">
         <h2 id={`${idPrefix}-public-nav-${group.id}`} className="public-site-sidebar-label">
           {group.label}
         </h2>
         {!compact ? (
-          <p className="mt-1 text-[10px] leading-4 text-muted-foreground/70">{group.description}</p>
+          <p className="mt-1 text-[11px] leading-4 text-muted-foreground/70">{group.description}</p>
         ) : null}
       </div>
       <div className="mt-1.5 space-y-0.5">
