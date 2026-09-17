@@ -291,7 +291,7 @@ function JuryStandingsRows({ standings, maxHeightClass }: { standings: JuryStand
           <li
             key={row.country.id}
             className={cn(
-              "relative overflow-hidden rounded-xl border px-2 py-1.5 transition-all duration-300",
+              "relative overflow-hidden rounded-xl border px-2 py-1.5 transition-[border-color,background-color] duration-300",
               leading ? "border-sky-200/20 bg-sky-200/[0.07]" : "border-white/[0.055] bg-white/[0.018]",
             )}
           >
