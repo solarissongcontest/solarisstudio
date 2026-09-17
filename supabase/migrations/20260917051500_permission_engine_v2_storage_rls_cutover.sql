@@ -39,8 +39,13 @@ begin
 end;
 $function$;
 
+-- The helper remains in the private schema and therefore is not a PostgREST
+-- RPC surface. RLS evaluation by authenticated callers still requires EXECUTE
+-- on the function object itself.
 revoke all on function private.studio2_storage_edition_access_allowed(text, boolean)
-from public, anon, authenticated, service_role;
+from public, anon, service_role;
+grant execute on function private.studio2_storage_edition_access_allowed(text, boolean)
+to authenticated;
 
 -- Beta feedback screenshots remain elevated administration rather than a
 -- viewer-class rollout.read surface.
@@ -158,6 +163,27 @@ with check (
   bucket_id = 'edition-artwork'::text
   and private.studio2_storage_edition_access_allowed(objects.name, false)
 );
+
+-- Fail closed if the policy helper privilege boundary drifts.
+do $verify$
+begin
+  if not has_function_privilege(
+    'authenticated',
+    'private.studio2_storage_edition_access_allowed(text,boolean)',
+    'EXECUTE'
+  ) then
+    raise exception 'authenticated cannot execute private.studio2_storage_edition_access_allowed through RLS';
+  end if;
+
+  if has_function_privilege(
+    'anon',
+    'private.studio2_storage_edition_access_allowed(text,boolean)',
+    'EXECUTE'
+  ) then
+    raise exception 'anon unexpectedly gained private.studio2_storage_edition_access_allowed EXECUTE';
+  end if;
+end
+$verify$;
 
 notify pgrst, 'reload schema';
 
