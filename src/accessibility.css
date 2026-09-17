@@ -17,6 +17,16 @@
   }
 }
 
+@keyframes solaris-reduced-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes solaris-reduced-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto !important;
@@ -28,7 +38,36 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Keep useful state feedback instead of deleting every transition. Spatial
+     motion is removed; colour, focus, opacity and status feedback remain. */
+  :where(a, button, input, select, textarea, summary, [role="button"], [role="tab"]) {
+    transition-property: color, background-color, border-color, opacity, box-shadow, filter !important;
+    transition-duration: var(--motion-fast, 120ms) !important;
+    transition-timing-function: var(--ease-out, ease-out) !important;
+  }
+
+  :where([class*="transition-transform"], [class*="transition-all"]) {
     transition-duration: 0.01ms !important;
+  }
+
+  [data-solaris-sheet][data-state="open"] {
+    animation: solaris-reduced-fade-in 140ms var(--ease-out, ease-out) !important;
+    transform: none !important;
+  }
+
+  [data-solaris-sheet][data-state="closed"] {
+    animation: solaris-reduced-fade-out 120ms ease-in !important;
+    transform: none !important;
+  }
+
+  [data-solaris-sheet-overlay][data-state="open"] {
+    animation: solaris-reduced-fade-in 140ms var(--ease-out, ease-out) !important;
+  }
+
+  [data-solaris-sheet-overlay][data-state="closed"] {
+    animation: solaris-reduced-fade-out 120ms ease-in !important;
   }
 
   .bg-aurora:is(button, a, [role="button"]):hover,
