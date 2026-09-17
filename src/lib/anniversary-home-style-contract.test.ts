@@ -9,19 +9,26 @@ function source(path: string) {
 describe("Anniversary home style architecture", () => {
   it("keeps one stable stylesheet entrypoint on the home takeover", () => {
     const home = source("src/components/HomeAnniversaryTakeover.tsx");
+    const takeover = source("src/components/AnniversaryTakeover.tsx");
 
     expect(home).toContain('import "@/anniversary-home.css"');
     expect(home).not.toContain("anniversary-home-polish.css");
     expect(home).not.toContain("anniversary-home-heading-fix.css");
     expect(home).not.toContain("anniversary-home-editorial-v3.css");
+    expect(home).not.toContain("anniversary-redesign.css");
+    expect(takeover).not.toContain("anniversary-redesign.css");
+    expect(takeover).not.toContain("anniversary-home-polish.css");
+    expect(takeover).not.toContain("anniversary-home-editorial-v3.css");
   });
 
-  it("keeps the final composition ordered behind the shared home layer", () => {
+  it("orders base, shared and final composition layers in the entrypoint", () => {
     const entrypoint = source("src/anniversary-home.css");
+    const baseIndex = entrypoint.indexOf('anniversary-redesign.css');
     const sharedIndex = entrypoint.indexOf('anniversary-home-polish.css');
     const compositionIndex = entrypoint.indexOf('anniversary-home-editorial-v3.css');
 
-    expect(sharedIndex).toBeGreaterThanOrEqual(0);
+    expect(baseIndex).toBeGreaterThanOrEqual(0);
+    expect(sharedIndex).toBeGreaterThan(baseIndex);
     expect(compositionIndex).toBeGreaterThan(sharedIndex);
     expect(entrypoint).not.toContain("heading-fix");
   });
