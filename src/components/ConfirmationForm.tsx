@@ -121,7 +121,7 @@ function Choice({
           type="button"
           onClick={() => onChange(option.value)}
           className={cn(
-            "rounded-lg border px-4 py-3 text-left text-sm transition-all",
+            "rounded-lg border px-4 py-3 text-left text-sm transition-[background-color,border-color,color,box-shadow] duration-150",
             value === option.value
               ? "border-primary bg-primary/10 text-foreground shadow-[0_0_0_1px_var(--color-primary)]"
               : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/50 hover:text-foreground",
