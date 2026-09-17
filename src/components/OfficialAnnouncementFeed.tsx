@@ -29,7 +29,7 @@ export function OfficialAnnouncementFeed({ surface }: { surface: 'public_home' |
           <Megaphone className="size-4" />
         </span>
         <div>
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">TSBC official</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.15em] text-primary">TSBC official</p>
           <h2 id={`official-announcements-${surface}`} className="text-sm font-bold sm:text-base">
             {isPublic ? 'Official announcements' : 'Updates for everyone in MySolaris'}
           </h2>
@@ -57,7 +57,7 @@ function AnnouncementRow({ announcement }: { announcement: HomeAnnouncement }) {
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-bold leading-snug">{announcement.title}</h3>
           {critical ? (
-            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-red-300">
+            <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-red-300">
               {announcement.severity}
             </span>
           ) : null}
@@ -65,7 +65,7 @@ function AnnouncementRow({ announcement }: { announcement: HomeAnnouncement }) {
         <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground sm:text-sm">
           {announcement.body}
         </p>
-        <p className="mt-2 text-[10px] text-muted-foreground">
+        <p className="mt-2 text-[11px] text-muted-foreground">
           {formatSentAt(announcement.sentAt)}
         </p>
       </div>
