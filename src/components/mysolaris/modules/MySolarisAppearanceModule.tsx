@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Eye, Image, Layers3, Monitor, Palette, Smartphone, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
@@ -39,22 +39,35 @@ export function MySolarisAppearanceModule() {
 }
 
 const DECORATION_META: Record<CountryDecorationStyle, { label: string; description: string }> = {
-  auto: { label: "Art-directed", description: "Use the signature treatment designed for this personality." },
-  none: { label: "None", description: "Keep only the personality's structural design." },
-  flag: { label: "Flag material", description: "Use the flag decoratively behind the protected official flag." },
-  orbits: { label: "Orbits", description: "Fine orbital rings in the country accent." },
-  rays: { label: "Rays", description: "Graphic rays for expressive poster and festival layouts." },
-  grid: { label: "Grid", description: "A restrained technical or editorial reference grid." },
-  waves: { label: "Waves", description: "Curved reference lines for fluid and geographic treatments." },
-  aurora: { label: "Aurora", description: "Soft atmospheric colour fields." },
-  constellation: { label: "Constellation", description: "Technical star points with minimal connecting geometry." },
-  facets: { label: "Facets", description: "Controlled angular planes for graphic personalities." },
-  topography: { label: "Topography", description: "Contour-line detail for archive and atlas personalities." },
-  eclipse: { label: "Eclipse", description: "A restrained halo for dark stage layouts." },
+  auto: { label: "Designed default", description: "Use the treatment specified by the professional personality brief." },
+  none: { label: "None", description: "Remove optional art while keeping the personality's typography and composition." },
+  flag: { label: "Flag atmosphere", description: "Use a duplicated flag only as decorative material. The official flag remains fully contained." },
+  orbits: { label: "Orbits", description: "Fine orbital geometry, restricted to a dedicated art cell." },
+  rays: { label: "Rays", description: "Graphic rays, restricted to a dedicated art cell." },
+  grid: { label: "Reference grid", description: "A restrained technical or cartographic grid inside the art cell only." },
+  waves: { label: "Waves", description: "Curved reference lines inside the art cell only." },
+  aurora: { label: "Atmosphere", description: "Soft colour fields without hard lines crossing content." },
+  constellation: { label: "Constellation", description: "Fine technical points confined to an art cell." },
+  facets: { label: "Facets", description: "Angular planes confined to an art cell." },
+  topography: { label: "Topography", description: "Contour detail restricted to the Atlas art region." },
+  eclipse: { label: "Eclipse", description: "A restrained halo confined to decorative space." },
 };
 
 type PreviewPage = "country" | "wiki";
 type PreviewDevice = "desktop" | "mobile";
+
+function editorStyle(theme: CountryVisualTheme): CSSProperties {
+  const colour = getThemeColourReport(theme);
+  return {
+    ...themeStyleProperties(theme),
+    "--primary": theme.accent,
+    "--accent": theme.accent,
+    "--ring": theme.accent,
+    "--primary-foreground": colour.accentForeground,
+    "--country-page-background": countryBackgroundCss(theme),
+    "--country-page-position": `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
+  } as CSSProperties;
+}
 
 function CountryThemePage() {
   const search = useRouterState({ select: (state) => state.location.search });
@@ -111,24 +124,14 @@ function CountryThemePage() {
   }, [mobilePreviewOpen]);
 
   if (isLoading) {
-    return (
-      <AppShell>
-        <p className="text-sm text-muted-foreground">Loading country appearance…</p>
-      </AppShell>
-    );
+    return <AppShell><p className="text-sm text-muted-foreground">Loading country appearance…</p></AppShell>;
   }
 
   if (!country) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Country appearance"
-          title="No country account"
-          description="Claim a country before creating its visual identity."
-        />
-        <Link to={NAV_TARGETS.mySolarisCountry} className="rounded-xl border border-border bg-surface px-4 py-2 text-sm">
-          Open MySolaris country
-        </Link>
+        <PageHeader eyebrow="Country appearance" title="No country account" description="Claim a country before creating its visual identity." />
+        <Link to={NAV_TARGETS.mySolarisCountry} className="rounded-xl border border-border bg-surface px-4 py-2 text-sm">Open MySolaris country</Link>
       </AppShell>
     );
   }
@@ -162,7 +165,7 @@ function CountryThemePage() {
         ...theme,
         heroLayout: canonicalCountryPersonalityId(theme.heroLayout),
       });
-      setMessage("Appearance saved. The country page and Wiki now use this V7 personality system.");
+      setMessage("Appearance saved. Country and Wiki now use the V8 professional personality system.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Appearance could not be saved.");
     }
@@ -216,21 +219,13 @@ function CountryThemePage() {
       <PageHeader
         eyebrow="My country · Appearance"
         title={`${country.name} appearance`}
-        description="Choose a fully designed personality, then tune only the compatible visual details. Structure, flag safety and mobile behaviour stay protected by Solaris."
+        description="Choose one of seventeen professionally grounded personalities. Solaris protects content geometry, flag aspect ratio, actions and responsive reflow so art direction cannot break usability."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to={NAV_TARGETS.mySolarisCountry} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              ← MySolaris country
-            </Link>
-            <Link to={NAV_TARGETS.mySolarisPageBuilder} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              Page & media
-            </Link>
-            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              Country page →
-            </Link>
-            <Link to="/wiki/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              Wiki →
-            </Link>
+            <Link to={NAV_TARGETS.mySolarisCountry} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">← MySolaris country</Link>
+            <Link to={NAV_TARGETS.mySolarisPageBuilder} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Page & media</Link>
+            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Country page →</Link>
+            <Link to="/wiki/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Wiki →</Link>
           </div>
         }
       />
@@ -241,7 +236,7 @@ function CountryThemePage() {
         <div className="space-y-5">
           <Panel
             title="Personality"
-            description="Seventeen deliberately different visual systems. The same protected content structure sits underneath every one."
+            description="Each option is tied to a named professional design lineage. These are composition systems, not palette swaps."
           >
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {COUNTRY_PERSONALITIES.map((option) => {
@@ -254,15 +249,25 @@ function CountryThemePage() {
                     aria-pressed={selected}
                     className={`min-w-0 rounded-xl border p-2.5 text-left transition ${selected ? "border-primary bg-primary/10 ring-1 ring-primary/25" : "border-border bg-surface hover:border-primary/30"}`}
                   >
-                    <PersonalityMiniature
-                      personality={option.id}
-                      countryName={country.name}
-                      flagImage={country.flag_image}
-                      theme={theme}
-                    />
+                    <div className="pointer-events-none overflow-hidden rounded-lg" style={editorStyle({ ...theme, heroLayout: option.id })}>
+                      <CountryIdentityHero
+                        compact
+                        personality={option.id}
+                        decoration={personalityDecorations(option.id)[0] ?? "none"}
+                        code={country.short_code}
+                        name={country.name}
+                        nativeName={country.native_name}
+                        region={country.region}
+                        flagImage={country.flag_image}
+                        accentColor={country.accent_color}
+                        className="[&_.country-hero-description]:hidden [&_.country-hero-actions]:hidden"
+                        style={{ "--cp-title-size": "clamp(1.25rem, 11cqi, 2rem)" } as CSSProperties}
+                      />
+                    </div>
                     <span className="mt-2 block text-sm font-semibold">{option.name}</span>
                     <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.13em] text-primary">{option.category}</span>
                     <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.concept}</span>
+                    <span className="mt-2 block border-t border-border/60 pt-2 text-[10px] font-semibold leading-4 text-muted-foreground">Reference: {option.referenceFamily}</span>
                   </button>
                 );
               })}
@@ -270,20 +275,35 @@ function CountryThemePage() {
           </Panel>
 
           <Panel
-            title="Personality details"
-            description={`${personality.name} is a ${personality.density} design with a ${personality.wikiStyle} Wiki treatment.`}
+            title="Design brief"
+            description={`${personality.name} · ${personality.referenceFamily} · ${personality.density} density · ${personality.wikiStyle} Wiki.`}
           >
-            <div className="grid gap-3 sm:grid-cols-3">
+            <p className="text-sm leading-6 text-muted-foreground">{personality.implementationReference}</p>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-border bg-background/45 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Required design rules</p>
+                <ul className="mt-2 space-y-2 text-sm leading-5 text-foreground">
+                  {personality.rules.map((rule) => <li key={rule}>✓ {rule}</li>)}
+                </ul>
+              </div>
+              <div className="rounded-xl border border-border bg-background/45 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Rejected patterns</p>
+                <ul className="mt-2 space-y-2 text-sm leading-5 text-muted-foreground">
+                  {personality.rejects.map((rule) => <li key={rule}>× {rule.replaceAll("-", " ")}</li>)}
+                </ul>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
               {personality.signature.map((item) => (
-                <div key={item} className="rounded-xl border border-border bg-background/45 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Signature component</p>
-                  <p className="mt-1 text-sm font-semibold capitalize">{item.replaceAll("-", " ")}</p>
+                <div key={item} className="rounded-lg border border-border bg-background/45 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Signature</p>
+                  <p className="mt-1 text-xs font-semibold capitalize">{item.replaceAll("-", " ")}</p>
                 </div>
               ))}
             </div>
           </Panel>
 
-          <Panel title="Decoration" description="Only decorations designed to work with this personality are available.">
+          <Panel title="Decoration" description="Only bounded or soft-background treatments compatible with this personality are available. Hard graphics can never leave the dedicated art cell.">
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {allowedDecorations.map((value) => {
                 const meta = DECORATION_META[value];
@@ -304,7 +324,7 @@ function CountryThemePage() {
             </div>
           </Panel>
 
-          <Panel title="Background" description="Country-owned atmosphere. It never controls the protected content geometry.">
+          <Panel title="Background" description="Country-owned atmosphere. It never controls protected content geometry.">
             <div className="grid grid-cols-3 gap-2">
               <ModeButton active={theme.backgroundMode === "solid"} icon={Palette} label="Solid" onClick={() => setThemeValue("backgroundMode", "solid")} />
               <ModeButton active={theme.backgroundMode === "gradient"} icon={Sparkles} label="Gradient" onClick={() => setThemeValue("backgroundMode", "gradient")} />
@@ -331,12 +351,7 @@ function CountryThemePage() {
                   </select>
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <ColourField
-                    label="Background 3"
-                    value={theme.backgroundTertiary ?? suggestThirdBackground(theme)}
-                    onChange={(value) => setThemeValue("backgroundTertiary", value)}
-                    flush
-                  />
+                  <ColourField label="Background 3" value={theme.backgroundTertiary ?? suggestThirdBackground(theme)} onChange={(value) => setThemeValue("backgroundTertiary", value)} flush />
                   <RangeField label="Angle" min={0} max={360} value={theme.gradientAngle} onChange={(value) => setThemeValue("gradientAngle", value)} />
                 </div>
               </div>
@@ -366,7 +381,7 @@ function CountryThemePage() {
             )}
           </Panel>
 
-          <Panel title="Colour roles" description="Brand colours are converted into readable semantic UI roles instead of being applied blindly to text.">
+          <Panel title="Colour roles" description="Brand colours are converted into readable semantic roles instead of being applied blindly to text.">
             <div className="grid gap-3 sm:grid-cols-2">
               <ColourField label="Accent" value={theme.accent} onChange={(value) => setThemeValue("accent", value)} />
               <ColourField label="Surface" value={theme.surface} onChange={(value) => setThemeValue("surface", value)} />
@@ -381,12 +396,8 @@ function CountryThemePage() {
           </Panel>
 
           <div className="sticky bottom-20 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 rounded-2xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur sm:bottom-4 xl:grid-cols-[minmax(0,1fr)_auto]">
-            <button type="button" onClick={() => setMobilePreviewOpen(true)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.07] px-3 text-sm font-semibold xl:hidden">
-              <Eye className="size-4" /> Preview
-            </button>
-            <button type="button" onClick={save} disabled={saveTheme.isPending || backgroundBusy} className="min-h-12 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-              {saveTheme.isPending ? "Saving…" : "Save appearance"}
-            </button>
+            <button type="button" onClick={() => setMobilePreviewOpen(true)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.07] px-3 text-sm font-semibold xl:hidden"><Eye className="size-4" /> Preview</button>
+            <button type="button" onClick={save} disabled={saveTheme.isPending || backgroundBusy} className="min-h-12 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">{saveTheme.isPending ? "Saving…" : "Save appearance"}</button>
             <button type="button" onClick={reset} className="min-h-12 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">Reset</button>
           </div>
         </div>
@@ -394,14 +405,14 @@ function CountryThemePage() {
         <div className="hidden xl:block xl:sticky xl:top-24 xl:self-start">
           <Panel
             title="Live preview"
-            description="Check the actual structural system on desktop and mobile before saving."
+            description="This uses the same CountryIdentityHero component as the public Country and Wiki routes."
             actions={<PreviewControls page={previewPage} device={previewDevice} onPage={setPreviewPage} onDevice={setPreviewDevice} />}
           >
             {preview}
           </Panel>
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-border bg-surface p-3 text-xs leading-5 text-muted-foreground">
             <Layers3 className="mt-0.5 size-4 shrink-0" />
-            <span>Page content, custom sections and media still come from the page builder. Appearance controls art direction without being allowed to break semantic layout.</span>
+            <span>Semantic copy, official flag and actions live in protected grid regions. Hard art is physically clipped to its own cell, so a personality cannot draw through a button.</span>
           </div>
         </div>
       </div>
@@ -411,10 +422,7 @@ function CountryThemePage() {
           <button type="button" className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-label="Close preview" onClick={() => setMobilePreviewOpen(false)} />
           <section className="absolute inset-x-0 bottom-0 max-h-[90dvh] overflow-y-auto rounded-t-[1.75rem] border border-border bg-background p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-3 px-1">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Unsaved preview</p>
-                <p className="mt-1 text-sm font-semibold">{personality.name}</p>
-              </div>
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Unsaved preview</p><p className="mt-1 text-sm font-semibold">{personality.name}</p></div>
               <button type="button" onClick={() => setMobilePreviewOpen(false)} className="grid size-11 place-items-center rounded-xl border border-border bg-surface" aria-label="Close preview"><X className="size-4" /></button>
             </div>
             <PreviewControls page={previewPage} device="mobile" onPage={setPreviewPage} onDevice={setPreviewDevice} compact />
@@ -453,9 +461,7 @@ function CountryThemePreview({
   const personality = canonicalCountryPersonalityId(theme.heroLayout);
   const wikiStyle = wikiStyleForPersonality(personality);
   const style = {
-    ...themeStyleProperties(theme),
-    "--country-page-background": countryBackgroundCss(theme),
-    "--country-page-position": `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
+    ...editorStyle(theme),
     background: countryBackgroundCss(theme),
     backgroundPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
     backgroundSize: theme.backgroundMode === "image" ? "cover" : undefined,
@@ -465,7 +471,7 @@ function CountryThemePreview({
     <div className="country-theme-preview-context mt-4 overflow-x-auto rounded-xl border border-border bg-background/45 p-2 sm:p-3" style={style}>
       <div className={device === "mobile" ? "mx-auto w-[min(390px,100%)]" : "w-full"}>
         {page === "country" ? (
-          <div className="country-profile-v7 country-theme-live-preview-v7" data-country-personality={personality}>
+          <div className="country-profile-v8" data-country-personality={personality}>
             <CountryIdentityHero
               personality={personality}
               decoration={theme.decorationStyle}
@@ -476,21 +482,15 @@ function CountryThemePreview({
               description={description || "National story, SSC history and custom sections are presented below this identity area."}
               flagImage={flagImage}
               accentColor={accentColor}
-              actions={
-                <>
-                  <button type="button">Wiki</button>
-                  <button type="button">Compare</button>
-                  <button type="button">Follow</button>
-                </>
-              }
+              actions={<><button type="button">Wiki</button><button type="button">Compare</button><button type="button">Follow</button></>}
             />
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="data-panel p-4"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Country facts</p><p className="mt-2 text-sm text-muted-foreground">Structured sections inherit the personality without becoming nested decorative cards.</p></div>
-              <div className="data-panel p-4"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">SSC record</p><p className="mt-2 text-sm text-muted-foreground">Results and history use the same spacing, typography and surface grammar.</p></div>
+              <div className="data-panel p-4"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Country facts</p><p className="mt-2 text-sm text-muted-foreground">Structured content stays calm while the identity hero carries the selected art direction.</p></div>
+              <div className="data-panel p-4"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">SSC record</p><p className="mt-2 text-sm text-muted-foreground">Results and history keep stable information geometry across personalities.</p></div>
             </div>
           </div>
         ) : (
-          <div className="wiki-canvas-v7" data-country-personality={personality} data-wiki-style={wikiStyle}>
+          <div className="wiki-canvas" data-country-personality={personality} data-wiki-style={wikiStyle}>
             <CountryIdentityHero
               as="header"
               compact
@@ -503,21 +503,26 @@ function CountryThemePreview({
               flagImage={flagImage}
               accentColor={accentColor}
               eyebrow="Terra Solaris Wiki"
+              className="country-wiki-header"
               actions={<button type="button">Country page →</button>}
             />
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_13rem]">
-              <article className="wiki-article-surface min-w-0 p-4 sm:p-5">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem]">
+              <article className="wiki-article-surface min-w-0">
                 <p className="wiki-section-kicker">Terra Solaris Wiki</p>
-                <h2 className="mt-1 font-display text-xl font-bold">Introduction</h2>
+                <h2>Introduction</h2>
                 <div className="wiki-heading-rule" />
-                <p className="wiki-prose">{countryName} is a country in {region || "Terra Solaris"}. Wiki personality is intentionally quieter than the country dashboard so long-form reading remains primary.</p>
-                <h3 className="wiki-feature-title mt-6">Country and culture</h3>
-                <p className="wiki-prose mt-2">Headings, article measure, facts and references keep the selected identity without turning paragraphs into decorative cards.</p>
+                <p className="wiki-prose">{countryName} is a country in {region || "Terra Solaris"}. The Wiki keeps one stable encyclopedia architecture and inherits the personality only as restrained art direction.</p>
+                <section className="wiki-article-section mt-5 border-t border-border/60 pt-4">
+                  <h2>Country and culture</h2>
+                  <p className="wiki-prose mt-3">Long-form content remains readable, uncropped and free from dashboard decoration.</p>
+                </section>
               </article>
-              <aside className="wiki-infobox p-3">
-                {flagImage ? <img src={flagImage} alt="" className="max-h-24 w-full object-contain" /> : null}
-                <strong className="mt-2 block">{countryName}</strong>
-                <dl className="mt-2 text-xs"><div className="flex justify-between gap-2"><dt>Region</dt><dd>{region}</dd></div><div className="mt-1 flex justify-between gap-2"><dt>Style</dt><dd className="capitalize">{wikiStyle}</dd></div></dl>
+              <aside className="wiki-infobox">
+                <div className="wiki-infobox-identity">
+                  {flagImage ? <img src={flagImage} alt="" className="max-h-20 w-full object-contain" /> : <span>{code}</span>}
+                  <div><h2>{countryName}</h2><p>{region}</p></div>
+                </div>
+                <dl><div><dt>Region</dt><dd>{region}</dd></div><div><dt>Style</dt><dd className="capitalize">{wikiStyle}</dd></div></dl>
               </aside>
             </div>
           </div>
@@ -527,25 +532,11 @@ function CountryThemePreview({
   );
 }
 
-function PreviewControls({
-  page,
-  device,
-  onPage,
-  onDevice,
-  compact = false,
-}: {
-  page: PreviewPage;
-  device: PreviewDevice;
-  onPage: (value: PreviewPage) => void;
-  onDevice: (value: PreviewDevice) => void;
-  compact?: boolean;
-}) {
+function PreviewControls({ page, device, onPage, onDevice, compact = false }: { page: PreviewPage; device: PreviewDevice; onPage: (value: PreviewPage) => void; onDevice: (value: PreviewDevice) => void; compact?: boolean }) {
   return (
     <div className={`flex flex-wrap gap-2 ${compact ? "mt-2" : ""}`}>
       <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/45 p-1" aria-label="Preview page">
-        {(["country", "wiki"] as const).map((value) => (
-          <button key={value} type="button" onClick={() => onPage(value)} aria-pressed={page === value} className={`min-h-9 rounded-lg px-3 text-xs font-semibold capitalize ${page === value ? "bg-primary/12 text-primary" : "text-muted-foreground"}`}>{value}</button>
-        ))}
+        {(["country", "wiki"] as const).map((value) => <button key={value} type="button" onClick={() => onPage(value)} aria-pressed={page === value} className={`min-h-9 rounded-lg px-3 text-xs font-semibold capitalize ${page === value ? "bg-primary/12 text-primary" : "text-muted-foreground"}`}>{value}</button>)}
       </div>
       {!compact && (
         <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/45 p-1" aria-label="Preview device">
@@ -557,66 +548,24 @@ function PreviewControls({
   );
 }
 
-function PersonalityMiniature({
-  personality,
-  countryName,
-  flagImage,
-  theme,
-}: {
-  personality: CountryVisualTheme["heroLayout"];
-  countryName: string;
-  flagImage: string | null;
-  theme: CountryVisualTheme;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className="personality-miniature-v7"
-      data-country-personality={personality}
-      style={themeStyleProperties(theme) as CSSProperties}
-    >
-      {flagImage ? <img src={flagImage} alt="" className="mini-flag" /> : null}
-      <span className="mini-title">{countryName}</span>
-    </span>
-  );
-}
-
 function ModeButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: typeof Palette; label: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border text-xs font-semibold ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface"}`}>
-      <Icon className="size-4" />
-      {label}
-    </button>
-  );
+  return <button type="button" onClick={onClick} className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border text-xs font-semibold ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface"}`}><Icon className="size-4" />{label}</button>;
 }
 
 function RangeField({ label, min, max, value, onChange }: { label: string; min: number; max: number; value: number; onChange: (value: number) => void }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground"><span>{label}</span><span className="numeric text-[10px]">{value}</span></span>
-      <input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-current" />
-    </label>
-  );
+  return <label className="block"><span className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground"><span>{label}</span><span className="numeric text-[10px]">{value}</span></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-current" /></label>;
 }
 
 function ColourField({ label, value, onChange, flush = false }: { label: string; value: string; onChange: (value: string) => void; flush?: boolean }) {
   return (
     <label className={flush ? "block" : "block rounded-xl bg-surface p-3"}>
       <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-12 rounded-lg border border-border bg-background p-1" />
-        <input value={value} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && onChange(event.target.value)} className="min-h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-xs" />
-      </div>
+      <div className="flex items-center gap-2"><input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-12 rounded-lg border border-border bg-background p-1" /><input value={value} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && onChange(event.target.value)} className="min-h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-xs" /></div>
     </label>
   );
 }
 
 function ContrastStat({ label, value, target }: { label: string; value: number; target: number }) {
   const pass = value >= target;
-  return (
-    <div className="rounded-xl border border-border bg-background/45 p-3">
-      <p className="text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">{label}</p>
-      <div className="mt-1 flex items-baseline justify-between gap-2"><strong className="numeric text-lg">{value.toFixed(2)}:1</strong><span className={`text-[10px] font-bold ${pass ? "text-emerald-300" : "text-amber-300"}`}>{pass ? "PASS" : "AUTO-CORRECTED"}</span></div>
-    </div>
-  );
+  return <div className="rounded-xl border border-border bg-background/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">{label}</p><div className="mt-1 flex items-baseline justify-between gap-2"><strong className="numeric text-lg">{value.toFixed(2)}:1</strong><span className={`text-[10px] font-bold ${pass ? "text-emerald-300" : "text-amber-300"}`}>{pass ? "PASS" : "AUTO-CORRECTED"}</span></div></div>;
 }
