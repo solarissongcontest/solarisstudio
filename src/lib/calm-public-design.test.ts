@@ -10,10 +10,11 @@ describe("calm public design contract", () => {
     const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
     expect(visual).toContain('import "@/calm-public-layout.css"');
     expect(visual).toContain('import "@/calm-public-chrome.css"');
-    expect(personalityStyles).toContain('import wikiBaseStyles from "@/country-wiki.css?inline"');
     expect(personalityStyles).toContain('import buttonStyles from "@/country-button-theme.css?inline"');
     expect(personalityStyles).toContain('import personalityV8 from "@/country-personality-system-v8.css?inline"');
     expect(personalityStyles).toContain('import wikiV8 from "@/country-wiki-v8.css?inline"');
+    expect(personalityStyles).toContain('import wikiComponentsV8 from "@/country-wiki-components-v8.css?inline"');
+    expect(personalityStyles).not.toContain("country-wiki.css?inline");
     expect(personalityStyles).not.toContain("country-personality-system-v7.css");
     expect(personalityStyles).not.toContain("productionBridge");
     expect(personalityStyles).not.toContain("unlayerV7");
@@ -38,6 +39,7 @@ describe("calm public design contract", () => {
 
   it("renders Glass as one Liquid Glass identity plate instead of stacked opaque cards", () => {
     const css = source("src/country-personality-system-v8.css");
+    const wiki = source("src/country-wiki-v8.css");
     const hero = source("src/components/country/CountryIdentityHero.tsx");
     expect(css).toContain("01 GLASS — APPLE LIQUID GLASS PRINCIPLES");
     expect(css).toContain(".country-hero-scene-flag");
@@ -48,6 +50,7 @@ describe("calm public design contract", () => {
     expect(hero).toContain("moveGlassLight");
     expect(hero).toContain("--glass-pointer-x");
     expect(hero).toContain("country-hero-scene");
+    expect(wiki).toContain("exactly one functional glass header");
   });
 
   it("gives responsive tabs a themeable active state", () => {
