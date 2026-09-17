@@ -39,6 +39,19 @@ describe("country personality V8", () => {
     }
   });
 
+  it("uses the shared semantic hero in both real public Country and Wiki routes", () => {
+    const countryRoute = source("src/routes/countries/$code.tsx");
+    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
+    expect(countryRoute).toContain("<CountryIdentityHero");
+    expect(wiki).toContain("<CountryIdentityHero");
+    expect(countryRoute).not.toContain("country-personality-signature");
+    expect(countryRoute).not.toContain("country-glass-panel-flag");
+    expect(wiki).not.toContain("country-personality-signature");
+    expect(wiki).not.toContain("country-glass-panel-flag");
+    expect(countryRoute).toContain("useCountryTheme(country?.id)");
+    expect(wiki).toContain("useCountryTheme(country.id)");
+  });
+
   it("uses the shared semantic hero and reserves a bounded art cell for expressive personalities", () => {
     const hero = source("src/components/country/CountryIdentityHero.tsx");
     const css = source("src/country-personality-system-v8.css");
@@ -66,7 +79,7 @@ describe("country personality V8", () => {
     expect(css).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
   });
 
-  it("removes the V7 repair cascade and loads one V8 personality system plus one Wiki system", () => {
+  it("removes the repair cascade and loads one V8 personality system plus one Wiki system", () => {
     const styles = source("src/components/CountryPersonalityStyles.tsx");
     expect(styles).toContain('import personalityV8 from "@/country-personality-system-v8.css?inline"');
     expect(styles).toContain('import wikiV8 from "@/country-wiki-v8.css?inline"');
@@ -75,6 +88,7 @@ describe("country personality V8", () => {
     expect(styles).not.toContain("country-personality-v7-production-bridge.css");
     expect(styles).not.toContain("country-liquid-glass-public-v7.css");
     expect(styles).not.toContain("unlayerV7");
+    expect(styles).not.toContain("PublicLiquidGlassPointerController");
   });
 
   it("makes hard decoration impossible to roam across semantic content", () => {
@@ -91,17 +105,17 @@ describe("country personality V8", () => {
   it("implements Glass as one functional floating glass plate over a scene", () => {
     const hero = source("src/components/country/CountryIdentityHero.tsx");
     const css = source("src/country-personality-system-v8.css");
-    const styles = source("src/components/CountryPersonalityStyles.tsx");
+    const wiki = source("src/country-wiki-v8.css");
 
     expect(hero).toContain("country-hero-scene");
     expect(hero).toContain("--glass-pointer-x");
     expect(css).toContain('data-country-personality="glass-card"');
-    expect(css).toContain(".country-hero-layout {");
     expect(css).toContain("backdrop-filter: blur(20px) saturate(132%)");
     expect(css).toContain(".country-hero-scene-flag");
     expect(css).toContain("@supports not ((backdrop-filter: blur(1px))");
-    expect(styles).toContain("PublicLiquidGlassPointerController");
-    expect(styles).toContain("prefers-reduced-motion: reduce");
+    expect(wiki).toContain("exactly one functional glass header");
+    expect(wiki).toContain("backdrop-filter: blur(18px) saturate(128%)");
+    expect(wiki).toContain(".country-hero-scene {\n  display: none;");
   });
 
   it("keeps Wiki article-first, readable and personality-subordinate", () => {
@@ -112,6 +126,7 @@ describe("country personality V8", () => {
     expect(wiki).toContain("background: transparent !important");
     expect(wiki).toContain(".wiki-desktop-contents");
     expect(wiki).toContain(".wiki-desktop-infobox");
+    expect(wiki).toContain(".country-wiki-header");
     expect(wiki).toContain("@media print");
     expect(wiki).toContain("max-inline-size: 100% !important");
     expect(wiki).toContain("block-size: auto !important");
