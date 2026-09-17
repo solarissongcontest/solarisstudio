@@ -62,25 +62,32 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, showCloseButton = true, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content
-      ref={ref}
-      data-solaris-sheet=""
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
-    >
-      {showCloseButton ? (
-        <SheetPrimitive.Close className="absolute right-4 top-4 grid size-9 place-items-center rounded-xl text-muted-foreground transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.06] hover:text-foreground active:scale-[0.96] motion-reduce:active:scale-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-      ) : null}
-      {children}
-    </SheetPrimitive.Content>
-  </SheetPortal>
-));
+>(({ side = "right", className, children, showCloseButton = true, ...props }, ref) => {
+  const accessibleTitle = props["aria-label"];
+
+  return (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        data-solaris-sheet=""
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
+      >
+        {accessibleTitle ? (
+          <SheetPrimitive.Title className="sr-only">{accessibleTitle}</SheetPrimitive.Title>
+        ) : null}
+        {showCloseButton ? (
+          <SheetPrimitive.Close className="absolute right-4 top-4 grid size-9 place-items-center rounded-xl text-muted-foreground transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.06] hover:text-foreground active:scale-[0.96] motion-reduce:active:scale-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </SheetPrimitive.Close>
+        ) : null}
+        {children}
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  );
+});
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
