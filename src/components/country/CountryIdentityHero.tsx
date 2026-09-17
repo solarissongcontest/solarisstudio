@@ -1,11 +1,12 @@
 import type { CSSProperties, ReactNode } from "react";
 
-import type { CountryHeroLayout } from "@/lib/visual-theme";
+import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
 
 type CountryIdentityHeroProps = {
   as?: "section" | "header";
   personality: CountryHeroLayout;
+  decoration?: CountryDecorationStyle;
   code: string;
   name: string;
   nativeName?: string | null;
@@ -28,6 +29,7 @@ type CountryIdentityHeroProps = {
 export function CountryIdentityHero({
   as = "section",
   personality,
+  decoration = "auto",
   code,
   name,
   nativeName,
@@ -54,6 +56,7 @@ export function CountryIdentityHero({
         className,
       )}
       data-country-personality={personality}
+      data-country-decoration={decoration}
       style={{ ...flagStyle, ...style }}
     >
       <div className="country-hero-atmosphere" aria-hidden="true" />
