@@ -217,7 +217,7 @@ export function CountryCustomSectionContent({
     const divider = presentation.dividerStyle === "dots"
       ? <div className="flex justify-center gap-2"><i className="size-1.5 rounded-full bg-primary/60" /><i className="size-1.5 rounded-full bg-primary/35" /><i className="size-1.5 rounded-full bg-primary/60" /></div>
       : presentation.dividerStyle === "glow"
-        ? <div className="h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent shadow-[0_0_18px_hsl(var(--primary)/0.45)]" />
+        ? <div className="h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent shadow-[0_0_18px_color-mix(in_srgb,var(--primary)_45%,transparent)]" />
         : <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />;
     return <div className={`${widthClass()} ${spacingClass(presentation.spacing, true)}`} aria-hidden="true">{divider}</div>;
   }
