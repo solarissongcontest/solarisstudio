@@ -5,15 +5,21 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("calm public design contract", () => {
-  it("actually loads the calm public layout and chrome layers", () => {
+  it("actually loads the calm public chrome and consolidated V7 country layers", () => {
     const visual = source("src/components/RouteVisualTheme.tsx");
     const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
     expect(visual).toContain('import "@/calm-public-layout.css"');
     expect(visual).toContain('import "@/calm-public-chrome.css"');
-    expect(personalityStyles).toContain('import glassParityStyles from "@/country-glass-parity.css?inline"');
-    expect(personalityStyles).toContain('import glassFinalStyles from "@/country-glass-final.css?inline"');
-    expect(personalityStyles.indexOf("\n  glassFinalStyles,")).toBeGreaterThan(
-      personalityStyles.indexOf("\n  waterDropStyles,"),
+    expect(personalityStyles).toContain('import wikiStyles from "@/country-wiki.css?inline"');
+    expect(personalityStyles).toContain('import buttonStyles from "@/country-button-theme.css?inline"');
+    expect(personalityStyles).toContain('import v7Styles from "@/country-personality-system-v7.css?inline"');
+    expect(personalityStyles).toContain('import wikiV7 from "@/country-wiki-v7.css?inline"');
+    expect(personalityStyles).toContain('import liquidGlassPublic from "@/country-liquid-glass-public-v7.css?inline"');
+    expect(personalityStyles.indexOf("\n  wikiV7,")).toBeGreaterThan(
+      personalityStyles.indexOf("\n  productionBridge,"),
+    );
+    expect(personalityStyles.indexOf("\n  liquidGlassPublic,")).toBeGreaterThan(
+      personalityStyles.indexOf("\n  wikiV7,"),
     );
     expect(personalityStyles).toContain('.join("\\n")');
   });
@@ -34,29 +40,22 @@ describe("calm public design contract", () => {
     }
   });
 
-  it("renders Glass Card as one authoritative full-width surface on public pages and preview", () => {
-    const parity = source("src/country-glass-parity.css");
-    const final = source("src/country-glass-final.css");
-    expect(parity).toContain('[data-country-hero-layout="glass-card"]');
-    expect(parity).toContain('[data-preview-layout="glass-card"]');
-    expect(parity).toContain("content: none !important");
-    expect(parity).toContain("display: none !important");
-
-    // The final layer must beat legacy Glass rules by specificity, not merely
-    // by stylesheet order, because WebKit and future composition changes can
-    // otherwise resurrect the old tall/opaque hero.
-    expect(final).toContain(":is(.country-public-hero.glass, .wiki-public-hero.glass)");
-    expect(final).toContain("justify-content: initial !important");
-    expect(final).toContain("width: 100% !important");
-    expect(final).toContain("max-width: none !important");
-    expect(final).toContain("min-height: 0 !important");
-    expect(final).toContain("height: auto !important");
-    expect(final).toContain("background: transparent !important");
-    expect(final).toContain("content: none !important");
-    expect(final).toContain("rgb(255 255 255 / .085)");
-    expect(final).toContain("opacity: .22 !important");
-    expect(final).toContain(".country-glass-panel-flag");
-    expect(final).toContain("> .country-hero-background-flag");
+  it("renders Glass as one adaptive Liquid Glass material instead of stacked opaque cards", () => {
+    const publicGlass = source("src/country-liquid-glass-public-v7.css");
+    const refinements = source("src/country-personality-system-v7-refinements.css");
+    const hero = source("src/components/country/CountryIdentityHero.tsx");
+    expect(publicGlass).toContain("Public Liquid Glass V7");
+    expect(publicGlass).toContain("content-informed tint");
+    expect(publicGlass).toContain("concentrated specular light");
+    expect(publicGlass).toContain("--glass-pointer-x: 72%");
+    expect(publicGlass).toContain("backdrop-filter: blur(30px) saturate(178%) contrast(1.055)");
+    expect(publicGlass).toContain("mix-blend-mode: screen");
+    expect(publicGlass).toContain(".country-glass-panel-flag");
+    expect(publicGlass).toContain("The Wiki article itself is not turned into Liquid Glass");
+    expect(refinements).toContain("country-liquid-glass-refraction");
+    expect(refinements).toContain("country-liquid-glass-specular");
+    expect(hero).toContain("moveGlassLight");
+    expect(hero).toContain("--glass-pointer-x");
   });
 
   it("gives responsive tabs a themeable active state", () => {
