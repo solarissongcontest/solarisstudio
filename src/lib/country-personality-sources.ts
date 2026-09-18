@@ -237,7 +237,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid","gradient","image"],
     flag: { desktop: [176, 118], mobile: [156, 104] },
     density: "medium",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "duotone",
@@ -309,7 +309,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [128, 86], mobile: [112, 74] },
     density: "medium-high",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "horizon",
@@ -357,7 +357,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [168, 112], mobile: [152, 100] },
     density: "medium-low",
-    status: "planned",
+    status: "prototype",
   },
 ] as const satisfies readonly CountryPersonalitySource[];
 
