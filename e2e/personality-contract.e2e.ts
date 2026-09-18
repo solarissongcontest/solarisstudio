@@ -2,6 +2,16 @@ import { expect, test } from "@playwright/test";
 
 const SOURCE_COUNT = 17;
 
+async function openPersonalityLab(page: import("@playwright/test").Page) {
+  await openPersonalityLab(page);
+  const controls = page.getByRole("region", { name: "Personality Lab controls" });
+  await expect(controls).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByLabel("Country fixture", { exact: true })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByLabel("Personality", { exact: true })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByLabel("Viewport", { exact: true })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByLabel("Flag state", { exact: true })).toBeVisible({ timeout: 60_000 });
+}
+
 test("Personality Gallery renders all seventeen source-driven systems", async ({ page }) => {
   await page.goto("/dev/personality-gallery", { waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-personality-gallery]")).toBeVisible();
@@ -12,7 +22,7 @@ test("Personality Gallery renders all seventeen source-driven systems", async ({
 test("all personalities survive hostile content at 200% text, RTL and high contrast", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "personality-390", "The hostile interaction stress run uses the canonical 390×844 mobile viewport.");
 
-  await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
+  await openPersonalityLab(page);
   await page.getByLabel("Country fixture", { exact: true }).selectOption("hostile");
   await page.getByLabel("Surface", { exact: true }).selectOption("country");
   await page.getByLabel("Viewport", { exact: true }).selectOption("390");
@@ -86,7 +96,7 @@ test("all personalities survive hostile content at 200% text, RTL and high contr
 test("all canonical flag fixtures preserve intrinsic aspect ratio", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "personality-390", "Flag geometry QA uses the canonical mobile Lab.");
 
-  await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
+  await openPersonalityLab(page);
   const flag = page.locator("[data-personality-qa-preview] [data-flag-role='official']");
   const cases = ["1-1", "3-2", "2-1", "2-3", "transparent", "white-dominant", "black-dominant", "detailed"] as const;
 
@@ -116,7 +126,7 @@ test("all canonical flag fixtures preserve intrinsic aspect ratio", async ({ pag
 test("neutral and sparse fixtures remain robust across Country and Wiki for all personalities", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "personality-390", "Fixture matrix QA uses the canonical mobile viewport.");
 
-  await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
+  await openPersonalityLab(page);
   await page.getByLabel("Viewport", { exact: true }).selectOption("390");
   const personalities = await page.getByLabel("Personality", { exact: true }).locator("option").evaluateAll(
     (options) => options.map((option) => (option as HTMLOptionElement).value),
@@ -175,7 +185,7 @@ test("flag loading, failure and fallback states are deterministic", async ({ pag
   });
   await page.route("**/personality-qa-flag-missing.svg", (route) => route.abort("failed"));
 
-  await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
+  await openPersonalityLab(page);
   const flag = page.locator("[data-personality-qa-preview] [data-flag-role='official']");
 
   await page.getByLabel("Flag state", { exact: true }).selectOption("slow-load");
