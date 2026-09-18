@@ -86,13 +86,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) throw redirect({ to: "/auth" });
-    const { data: role, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "organizer")
-      .maybeSingle();
-    if (error || !role) throw redirect({ to: "/my-solaris" });
+    const { data: allowed, error } = await (supabase as any).rpc(
+      "studio2_is_global_organizer",
+    );
+    if (error || allowed !== true) throw redirect({ to: "/my-solaris" });
     return { organizer: true };
   },
   component: () => (
