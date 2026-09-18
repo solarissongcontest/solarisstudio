@@ -630,7 +630,9 @@ function DirectDesignInspector({
   const sectionId = activeTarget.startsWith("section:") ? activeTarget.slice("section:".length) : null;
   const rawSection = sectionId ? sections.find((item) => item.id === sectionId) : null;
   const section = rawSection ? normalizeCountryPageSection(rawSection) : null;
-  const presentation = section ? countrySectionPresentation(section) : null;
+  const presentation = section
+    ? countrySectionPresentation(section, design.content.defaultLayout)
+    : null;
 
   const saveSectionDesign = async (patch: Record<string, unknown>) => {
     if (!section) return;
@@ -778,8 +780,9 @@ function DesignPreview({
   activeTarget: string;
   onTarget: (target: string) => void;
 }) {
-  const style = countryDesignCssVariables(design);
-  const fontCss = countryDesignFontCss(design);
+  const previewDesign = normalizeCountryDesignV2(design);
+  const style = countryDesignCssVariables(previewDesign);
+  const fontCss = countryDesignFontCss(previewDesign);
   const profile = world?.profile ?? null;
   const sections = world?.sections ?? [];
   const media = world?.media ?? [];
@@ -787,10 +790,10 @@ function DesignPreview({
   return (
     <div
       className={`country-design-v2 ${page === "wiki" ? "wiki-canvas" : "country-profile-v8"}`}
-      data-country-surface={design.surface}
-      data-country-accent={design.accent}
-      data-country-motion={design.motion}
-      data-country-default-layout={design.content.defaultLayout}
+      data-country-surface={previewDesign.surface}
+      data-country-accent={previewDesign.accent}
+      data-country-motion={previewDesign.motion}
+      data-country-default-layout={previewDesign.content.defaultLayout}
       data-country-design-editor="true"
       style={style}
       onClickCapture={(event) => {
@@ -802,7 +805,7 @@ function DesignPreview({
       <CountryDesignV2Hero
         as={page === "wiki" ? "header" : "section"}
         compact={page === "wiki"}
-        design={design}
+        design={previewDesign}
         code={country.short_code}
         name={country.name}
         nativeName={country.native_name}
@@ -831,6 +834,7 @@ function DesignPreview({
             sections={sections}
             media={media}
             surface="country"
+            defaultLayout={previewDesign.content.defaultLayout}
           />
         </div>
       ) : (
@@ -846,6 +850,7 @@ function DesignPreview({
             sections={sections}
             media={media}
             surface="wiki"
+            defaultLayout={previewDesign.content.defaultLayout}
           />
         </article>
       )}
