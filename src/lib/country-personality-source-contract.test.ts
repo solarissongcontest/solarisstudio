@@ -104,10 +104,23 @@ describe("source-driven Country personality contract", () => {
   });
 
   it("marks rendered source adapters as prototypes while keeping future sources planned", () => {
-    for (const id of ["glass-card", "editorial", "minimal", "sci-fi", "poster", "classic", "broadcast", "heritage"] as const) {
+    for (const id of [
+      "glass-card",
+      "editorial",
+      "poster",
+      "heritage",
+      "broadcast",
+      "minimal",
+      "classic",
+      "duotone",
+      "sci-fi",
+      "monument",
+      "horizon",
+      "flag-focus",
+    ] as const) {
       expect(countryPersonalitySource(id).status).toBe("prototype");
     }
-    for (const id of ["passport", "panorama", "spotlight", "duotone", "monument", "newspaper", "horizon", "flag-focus", "ribbon"] as const) {
+    for (const id of ["passport", "panorama", "spotlight", "newspaper", "ribbon"] as const) {
       expect(countryPersonalitySource(id).status).toBe("planned");
     }
   });
@@ -154,6 +167,10 @@ describe("source-driven Country personality contract", () => {
     expect(styles).toContain('import diplomaticSource from "@/styles/personalities/diplomatic-source.adapter.css?inline"');
     expect(styles).toContain('import broadcastSource from "@/styles/personalities/broadcast-source.adapter.css?inline"');
     expect(styles).toContain('import heritageSource from "@/styles/personalities/heritage-source.adapter.css?inline"');
+    expect(styles).toContain('import brutalistSource from "@/styles/personalities/brutalist-source.adapter.css?inline"');
+    expect(styles).toContain('import luxurySource from "@/styles/personalities/luxury-source.adapter.css?inline"');
+    expect(styles).toContain('import scientificSource from "@/styles/personalities/scientific-source.adapter.css?inline"');
+    expect(styles).toContain('import civicSource from "@/styles/personalities/civic-source.adapter.css?inline"');
 
     const listStart = styles.indexOf("const countryPersonalityStyles");
     const v8 = styles.indexOf("personalityV8,", listStart);
@@ -172,6 +189,10 @@ describe("source-driven Country personality contract", () => {
     const govuk = source("src/styles/personalities/diplomatic-source.adapter.css");
     const gel = source("src/styles/personalities/broadcast-source.adapter.css");
     const archives = source("src/styles/personalities/heritage-source.adapter.css");
+    const brutalist = source("src/styles/personalities/brutalist-source.adapter.css");
+    const luxury = source("src/styles/personalities/luxury-source.adapter.css");
+    const scientific = source("src/styles/personalities/scientific-source.adapter.css");
+    const civic = source("src/styles/personalities/civic-source.adapter.css");
 
     expect(pico).toContain("Pico CSS v2.1.1 selective translated adapter");
     expect(pico).toContain("--pico-border-radius: .25rem");
@@ -204,6 +225,11 @@ describe("source-driven Country personality contract", () => {
 
     expect(archives).toContain("The National Archives Design System translated adapter");
     expect(archives).toContain("grid-template-columns: minmax(0, 2fr) minmax(9rem, 1fr)");
+
+    expect(brutalist).toContain("RampStack Brutalist Web Theme translated adapter");
+    expect(luxury).toContain("Aimeos Pagible Luxury translated adapter");
+    expect(scientific).toContain("IBM Carbon translated adapter");
+    expect(civic).toContain("USWDS translated adapter");
   });
 
   it("records prototype provenance next to the adapters", () => {
@@ -215,6 +241,15 @@ describe("source-driven Country personality contract", () => {
     const diplomatic = manifest("src/styles/personality-sources/diplomatic/source-manifest.json");
     const broadcast = manifest("src/styles/personality-sources/broadcast/source-manifest.json");
     const heritage = manifest("src/styles/personality-sources/heritage/source-manifest.json");
+    const passport = manifest("src/styles/personality-sources/passport/source-manifest.json");
+    const atlas = manifest("src/styles/personality-sources/atlas/source-manifest.json");
+    const festival = manifest("src/styles/personality-sources/festival/source-manifest.json");
+    const brutalist = manifest("src/styles/personality-sources/brutalist/source-manifest.json");
+    const luxury = manifest("src/styles/personality-sources/luxury/source-manifest.json");
+    const newspaper = manifest("src/styles/personality-sources/newspaper/source-manifest.json");
+    const scientific = manifest("src/styles/personality-sources/scientific/source-manifest.json");
+    const civic = manifest("src/styles/personality-sources/civic/source-manifest.json");
+    const avantGarde = manifest("src/styles/personality-sources/avant-garde/source-manifest.json");
 
     expect(pico).toMatchObject({ repository: "picocss/pico", version: "2.1.1", license: "MIT" });
     expect(retro).toMatchObject({ repository: "jdan/98.css", version: "0.1.21", license: "MIT" });
@@ -224,6 +259,15 @@ describe("source-driven Country personality contract", () => {
     expect(diplomatic).toMatchObject({ repository: "alphagov/govuk-frontend", license: "MIT" });
     expect(broadcast).toMatchObject({ repository: "bbc/gel-grid", license: "MIT" });
     expect(heritage).toMatchObject({ repository: "nationalarchives/design-system", license: "MIT" });
+    expect(passport).toMatchObject({ license: "MIT", visualAuthority: "ICAO Doc 9303 document zoning" });
+    expect(atlas).toMatchObject({ repository: "maplibre/maplibre-gl-js", license: "BSD-3-Clause" });
+    expect(festival).toMatchObject({ repository: "gdg-x/hoverboard", license: "MIT" });
+    expect(brutalist).toMatchObject({ repository: "rampstackco/brutalist-web-theme", license: "MIT" });
+    expect(luxury).toMatchObject({ repository: "aimeos/pagible-themes-luxury", license: "MIT" });
+    expect(newspaper).toMatchObject({ repository: "guardian/source", license: "Apache-2.0" });
+    expect(scientific).toMatchObject({ repository: "carbon-design-system/carbon", license: "Apache-2.0" });
+    expect(civic).toMatchObject({ repository: "uswds/uswds" });
+    expect(avantGarde).toMatchObject({ repository: "zetareticoli/superilles", license: "MIT" });
 
     expect(source("THIRD_PARTY_DESIGN_LICENSES.md")).toContain("## Architecture prototypes");
   });
