@@ -4,6 +4,7 @@ const SOURCE_COUNT = 17;
 
 async function openPersonalityLab(page: import("@playwright/test").Page) {
   await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-personality-lab-ready="true"]')).toBeVisible({ timeout: 60_000 });
   const controls = page.getByRole("region", { name: "Personality Lab controls" });
   await expect(controls).toBeVisible({ timeout: 60_000 });
   await expect(page.getByLabel("Country fixture", { exact: true })).toBeVisible({ timeout: 60_000 });
