@@ -34,14 +34,11 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { data: role, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userData.user.id)
-        .eq("role", "organizer")
-        .maybeSingle();
+      const { data: allowed, error: accessError } = await (supabase as any).rpc(
+        "studio2_is_global_organizer",
+      );
 
-      if (roleError || !role) {
+      if (accessError || allowed !== true) {
         if (alive) setState("redirecting");
         await navigate({ to: "/my-solaris", replace: true });
         return;
