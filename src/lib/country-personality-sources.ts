@@ -22,6 +22,7 @@ export type CountrySourceImportMode =
   | "package"
   | "vendored-css"
   | "vendored-scss"
+  | "vendored-source"
   | "translated-components";
 
 export type CountrySourceStatus = "prototype" | "planned";
@@ -77,7 +78,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     pinnedRef: "4e7b769e1df7e5a7d3669fef22417fe3d2f79ade",
     version: "0.1.1",
     license: "MIT",
-    importMode: "package",
+    importMode: "vendored-source",
     visualAuthority: "Apple Liquid Glass",
     compositionFamily: "material",
     backgroundPolicy: "ambient",
