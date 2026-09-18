@@ -70,68 +70,92 @@ for select
 to authenticated
 using (public.studio2_access_allowed('rollout.manage', null, false));
 
--- Admin deadlines can be edition-scoped directly, show-scoped through the
--- canonical show resolver, or global when neither scope is attached.
-drop policy if exists "Organizers manage deadlines" on public.admin_deadlines;
-create policy "Organizers manage deadlines"
-on public.admin_deadlines
-for all
-to authenticated
-using (
-  case
-    when edition_id is not null then public.studio2_access_allowed('edition.manage', edition_id, false)
-    when show_id is not null then private.studio2_show_access_allowed('edition.manage', show_id, false)
-    else public.studio2_access_allowed('edition.manage', null, false)
-  end
-)
-with check (
-  case
-    when edition_id is not null then public.studio2_access_allowed('edition.manage', edition_id, false)
-    when show_id is not null then private.studio2_show_access_allowed('edition.manage', show_id, false)
-    else public.studio2_access_allowed('edition.manage', null, false)
-  end
-);
+-- Some legacy Organizer workspace tables exist in the long-lived production
+-- database but are not part of the canonical clean-install schema. Migrate
+-- their policies when present and skip them safely on clean replay.
+do $optional_legacy_admin$
+begin
+  if to_regclass('public.admin_deadlines') is not null then
+    execute $policy$
+      drop policy if exists "Organizers manage deadlines" on public.admin_deadlines
+    $policy$;
+    execute $policy$
+      create policy "Organizers manage deadlines"
+      on public.admin_deadlines
+      for all
+      to authenticated
+      using (
+        case
+          when edition_id is not null then public.studio2_access_allowed('edition.manage', edition_id, false)
+          when show_id is not null then private.studio2_show_access_allowed('edition.manage', show_id, false)
+          else public.studio2_access_allowed('edition.manage', null, false)
+        end
+      )
+      with check (
+        case
+          when edition_id is not null then public.studio2_access_allowed('edition.manage', edition_id, false)
+          when show_id is not null then private.studio2_show_access_allowed('edition.manage', show_id, false)
+          else public.studio2_access_allowed('edition.manage', null, false)
+        end
+      )
+    $policy$;
+  end if;
 
--- These are the legacy Organizer admin-workspace personal surfaces. Keep the
--- historical population by using global edition.manage rather than a viewer or
--- read capability, while retaining ownership of each row.
-drop policy if exists "Organizers read own notifications" on public.admin_notifications;
-create policy "Organizers read own notifications"
-on public.admin_notifications
-for select
-to authenticated
-using (
-  recipient_id = auth.uid()
-  and public.studio2_access_allowed('edition.manage', null, false)
-);
+  if to_regclass('public.admin_notifications') is not null then
+    execute $policy$
+      drop policy if exists "Organizers read own notifications" on public.admin_notifications
+    $policy$;
+    execute $policy$
+      create policy "Organizers read own notifications"
+      on public.admin_notifications
+      for select
+      to authenticated
+      using (
+        recipient_id = auth.uid()
+        and public.studio2_access_allowed('edition.manage', null, false)
+      )
+    $policy$;
 
-drop policy if exists "Organizers update own notifications" on public.admin_notifications;
-create policy "Organizers update own notifications"
-on public.admin_notifications
-for update
-to authenticated
-using (
-  recipient_id = auth.uid()
-  and public.studio2_access_allowed('edition.manage', null, false)
-)
-with check (
-  recipient_id = auth.uid()
-  and public.studio2_access_allowed('edition.manage', null, false)
-);
+    execute $policy$
+      drop policy if exists "Organizers update own notifications" on public.admin_notifications
+    $policy$;
+    execute $policy$
+      create policy "Organizers update own notifications"
+      on public.admin_notifications
+      for update
+      to authenticated
+      using (
+        recipient_id = auth.uid()
+        and public.studio2_access_allowed('edition.manage', null, false)
+      )
+      with check (
+        recipient_id = auth.uid()
+        and public.studio2_access_allowed('edition.manage', null, false)
+      )
+    $policy$;
+  end if;
 
-drop policy if exists "Organizers manage own admin preferences" on public.admin_preferences;
-create policy "Organizers manage own admin preferences"
-on public.admin_preferences
-for all
-to authenticated
-using (
-  user_id = auth.uid()
-  and public.studio2_access_allowed('edition.manage', null, false)
-)
-with check (
-  user_id = auth.uid()
-  and public.studio2_access_allowed('edition.manage', null, false)
-);
+  if to_regclass('public.admin_preferences') is not null then
+    execute $policy$
+      drop policy if exists "Organizers manage own admin preferences" on public.admin_preferences
+    $policy$;
+    execute $policy$
+      create policy "Organizers manage own admin preferences"
+      on public.admin_preferences
+      for all
+      to authenticated
+      using (
+        user_id = auth.uid()
+        and public.studio2_access_allowed('edition.manage', null, false)
+      )
+      with check (
+        user_id = auth.uid()
+        and public.studio2_access_allowed('edition.manage', null, false)
+      )
+    $policy$;
+  end if;
+end
+$optional_legacy_admin$;
 
 -- Content events are publishing operations, not generic edition reads.
 drop policy if exists "organizers manage content events" on public.content_events;
