@@ -122,3 +122,33 @@ body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-me
   font-size: .8rem;
   line-height: 1.45;
 }
+
+
+/* Country depth: Tufte-derived sections stay in document flow instead of
+   reverting to the generic rounded dashboard-card grammar. */
+.country-profile-v8[data-country-personality="editorial"] .data-panel {
+  border: 0 !important;
+  border-block-start: 1px solid var(--cp-rule);
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+}
+
+.country-profile-v8[data-country-personality="editorial"] .data-panel h2 {
+  font-family: var(--font-display, Classica, Georgia, serif);
+  font-weight: 400;
+}
+
+.country-profile-v8[data-country-personality="editorial"] .responsive-tabs :is(
+  select,
+  button,
+  .md\:block > div
+) {
+  border-radius: 0 !important;
+}
+
+.country-profile-v8[data-country-personality="editorial"] .responsive-tabs .md\:block > div {
+  background: transparent;
+  border-block: 1px solid var(--cp-rule);
+}
