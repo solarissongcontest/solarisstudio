@@ -41,7 +41,7 @@ describe("Rulebook Permission Engine capability cutover", () => {
     expect(sql.toLowerCase()).toContain("expected exactly one rulebook_is_organizer gate");
     expect(sql).toContain("public.studio2_access_allowed(%L, null, false)");
     expect(sql).toContain("drop function public.rulebook_is_organizer();");
-    expect(sql).toContain("live rulebook semantic organizer references remain");
+    expect(sql.toLowerCase()).toContain("live rulebook semantic organizer references remain");
   });
 
   it("preserves public RPC ACLs while removing the obsolete helper surface", () => {
