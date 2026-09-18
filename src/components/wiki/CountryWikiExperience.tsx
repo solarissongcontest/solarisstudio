@@ -344,6 +344,7 @@ function CountryWikiArticle({
                   section={item.section}
                   surface="wiki"
                   article
+                  defaultLayout={publishedDesign?.content.defaultLayout}
                 />
               </WikiArticleSection>
             ))}

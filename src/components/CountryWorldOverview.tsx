@@ -5,6 +5,7 @@ import { CountryCustomSections } from "@/components/country/CountryCustomSection
 import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
 import { useCountryWorldProfile } from "@/lib/country-account";
 import type { Country } from "@/lib/data";
+import type { CountrySectionLayoutVariant } from "@/lib/country-page-builder";
 
 function Fact({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
@@ -85,7 +86,13 @@ export function CountryWorldOverview({ country }: { country: Country }) {
  * Supporting world-profile content deliberately follows the canonical SSC
  * Overview sequence instead of competing with About/Quick Facts above it.
  */
-export function CountryWorldSupplement({ country }: { country: Country }) {
+export function CountryWorldSupplement({
+  country,
+  defaultLayout,
+}: {
+  country: Country;
+  defaultLayout?: CountrySectionLayoutVariant;
+}) {
   const { data } = useCountryWorldProfile(country.id);
 
   return (
@@ -98,6 +105,7 @@ export function CountryWorldSupplement({ country }: { country: Country }) {
           sections={data.sections}
           media={data.media}
           surface="country"
+          defaultLayout={defaultLayout}
         />
       ) : null}
     </div>

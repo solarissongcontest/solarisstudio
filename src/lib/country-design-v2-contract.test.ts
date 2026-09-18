@@ -35,6 +35,22 @@ describe("Country Design V2 integration contract", () => {
     expect(editor).toContain("COUNTRY_CONTENT_LAYOUT_OPTIONS");
   });
 
+  it("inherits the page layout and accessibility-normalizes the live preview", () => {
+    const editor = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
+    const country = source("src/routes/countries/$code.tsx");
+    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
+    expect(editor).toContain("const previewDesign = normalizeCountryDesignV2(design)");
+    expect(editor).toContain("defaultLayout={previewDesign.content.defaultLayout}");
+    expect(country).toContain("defaultLayout={publishedDesign?.content.defaultLayout}");
+    expect(wiki).toContain("defaultLayout={publishedDesign?.content.defaultLayout}");
+  });
+
+  it("does not inject anniversary notice cards into unrelated pages", () => {
+    const anniversary = source("src/components/SolarisAnniversaryCelebration.tsx");
+    expect(anniversary).not.toContain("solaris-anniversary-season-notice");
+    expect(anniversary).not.toContain("solaris-anniversary-context");
+  });
+
   it("retains accessible reorder controls alongside drag and drop", () => {
     const editor = source("src/components/mysolaris/modules/MySolarisPageMediaModule.tsx");
     expect(editor).toContain('aria-label="Drag to reorder section"');
