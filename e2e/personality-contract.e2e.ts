@@ -2,15 +2,18 @@ import { expect, test } from "@playwright/test";
 
 const SOURCE_COUNT = 17;
 
+const labControl = (page: import("@playwright/test").Page, control: string) =>
+  page.locator(`[data-personality-control="${control}"]`);
+
 async function openPersonalityLab(page: import("@playwright/test").Page) {
   await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
   await expect(page.locator('[data-personality-lab-ready="true"]')).toBeVisible({ timeout: 60_000 });
   const controls = page.getByRole("region", { name: "Personality Lab controls" });
   await expect(controls).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByLabel("Country fixture", { exact: true })).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByLabel("Personality", { exact: true })).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByLabel("Viewport", { exact: true })).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByLabel("Flag state", { exact: true })).toBeVisible({ timeout: 60_000 });
+  await expect(labControl(page, "fixture")).toBeVisible({ timeout: 60_000 });
+  await expect(labControl(page, "personality")).toBeVisible({ timeout: 60_000 });
+  await expect(labControl(page, "viewport")).toBeVisible({ timeout: 60_000 });
+  await expect(labControl(page, "flag")).toBeVisible({ timeout: 60_000 });
 }
 
 test("Personality Gallery renders all seventeen source-driven systems", async ({ page }) => {
@@ -24,22 +27,22 @@ test("all personalities survive hostile content at 200% text, RTL and high contr
   test.skip(testInfo.project.name !== "personality-390", "The hostile interaction stress run uses the canonical 390×844 mobile viewport.");
 
   await openPersonalityLab(page);
-  await page.getByLabel("Country fixture", { exact: true }).selectOption("hostile");
-  await page.getByLabel("Surface", { exact: true }).selectOption("country");
-  await page.getByLabel("Viewport", { exact: true }).selectOption("390");
-  await page.getByLabel("RTL", { exact: true }).check();
-  await page.getByLabel("200% text", { exact: true }).check();
-  await page.getByLabel("High contrast", { exact: true }).check();
-  await page.getByLabel("Reduced motion", { exact: true }).check();
+  await labControl(page, "fixture").selectOption("hostile");
+  await labControl(page, "surface").selectOption("country");
+  await labControl(page, "viewport").selectOption("390");
+  await labControl(page, "rtl").check();
+  await labControl(page, "text-200").check();
+  await labControl(page, "contrast").check();
+  await labControl(page, "motion").check();
 
   const preview = page.locator("[data-personality-qa-preview]");
   await expect(preview).toBeVisible();
-  const personalities = await page.getByLabel("Personality", { exact: true }).locator("option").evaluateAll(
+  const personalities = await labControl(page, "personality").locator("option").evaluateAll(
     (options) => options.map((option) => (option as HTMLOptionElement).value),
   );
 
   for (const personality of personalities) {
-    await page.getByLabel("Personality", { exact: true }).selectOption(personality);
+    await labControl(page, "personality").selectOption(personality);
     await expect(preview.locator(".country-identity-hero")).toHaveAttribute("data-country-personality", personality);
 
     const result = await preview.evaluate((root) => {
@@ -102,7 +105,7 @@ test("all canonical flag fixtures preserve intrinsic aspect ratio", async ({ pag
   const cases = ["1-1", "3-2", "2-1", "2-3", "transparent", "white-dominant", "black-dominant", "detailed"] as const;
 
   for (const flagCase of cases) {
-    await page.getByLabel("Flag state", { exact: true }).selectOption(flagCase);
+    await labControl(page, "flag").selectOption(flagCase);
     await expect(flag).toHaveAttribute("data-flag-state", "ready");
     const metrics = await flag.getByRole("img").evaluate((image) => {
       const img = image as HTMLImageElement;
@@ -128,17 +131,17 @@ test("neutral and sparse fixtures remain robust across Country and Wiki for all 
   test.skip(testInfo.project.name !== "personality-390", "Fixture matrix QA uses the canonical mobile viewport.");
 
   await openPersonalityLab(page);
-  await page.getByLabel("Viewport", { exact: true }).selectOption("390");
-  const personalities = await page.getByLabel("Personality", { exact: true }).locator("option").evaluateAll(
+  await labControl(page, "viewport").selectOption("390");
+  const personalities = await labControl(page, "personality").locator("option").evaluateAll(
     (options) => options.map((option) => (option as HTMLOptionElement).value),
   );
 
   for (const fixture of ["neutral", "sparse"] as const) {
-    await page.getByLabel("Country fixture", { exact: true }).selectOption(fixture);
+    await labControl(page, "fixture").selectOption(fixture);
     for (const surface of ["country", "wiki"] as const) {
-      await page.getByLabel("Surface", { exact: true }).selectOption(surface);
+      await labControl(page, "surface").selectOption(surface);
       for (const personality of personalities) {
-        await page.getByLabel("Personality", { exact: true }).selectOption(personality);
+        await labControl(page, "personality").selectOption(personality);
         const preview = page.locator("[data-personality-qa-preview]");
         await expect(preview.locator(".country-identity-hero")).toHaveAttribute("data-country-personality", personality);
 
@@ -189,17 +192,17 @@ test("flag loading, failure and fallback states are deterministic", async ({ pag
   await openPersonalityLab(page);
   const flag = page.locator("[data-personality-qa-preview] [data-flag-role='official']");
 
-  await page.getByLabel("Flag state", { exact: true }).selectOption("slow-load");
+  await labControl(page, "flag").selectOption("slow-load");
   await expect(flag).toHaveAttribute("data-flag-state", "loading");
   await expect(flag).toHaveAttribute("aria-busy", "true");
   await expect(flag).toHaveAttribute("data-flag-state", "ready", { timeout: 5_000 });
   await expect(flag.getByRole("img", { name: /Flag of/i })).toBeVisible();
 
-  await page.getByLabel("Flag state", { exact: true }).selectOption("network-failure");
+  await labControl(page, "flag").selectOption("network-failure");
   await expect(flag).toHaveAttribute("data-flag-state", "error", { timeout: 5_000 });
   await expect(flag.getByRole("status")).toHaveAccessibleName(/Flag unavailable/i);
 
-  await page.getByLabel("Flag state", { exact: true }).selectOption("missing");
+  await labControl(page, "flag").selectOption("missing");
   await expect(flag).toHaveAttribute("data-flag-state", "missing");
   await expect(flag.getByRole("status")).toHaveAccessibleName(/Flag unavailable/i);
 });
