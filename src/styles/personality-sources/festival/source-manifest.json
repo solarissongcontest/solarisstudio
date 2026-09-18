@@ -1,0 +1,20 @@
+{
+  "personality": "spotlight",
+  "sourceName": "GDG-X Hoverboard",
+  "repository": "gdg-x/hoverboard",
+  "version": null,
+  "commit": "80395b0ccc6e08cc1f0cdff50186ee119aad0b24",
+  "license": "MIT",
+  "implementationMode": "translated-components",
+  "importedFiles": [
+    "event hero composition",
+    "event-card rhythm",
+    "schedule-style structure",
+    "responsive navigation"
+  ],
+  "excludedFiles": [
+    "Google/GDG branding",
+    "demo content",
+    "event-specific assets"
+  ]
+}
