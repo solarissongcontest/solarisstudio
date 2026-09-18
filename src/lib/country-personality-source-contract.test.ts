@@ -376,7 +376,7 @@ describe("source-driven Country personality contract", () => {
       expect(data.source).toBe(personality.sourceName);
       expect(data.license).toBe(personality.license);
       expect(data.visualAuthority).toBe(personality.visualAuthority);
-      expect(typeof data.implementationMode).toBe("string");
+      expect(data.implementationMode).toBe(personality.importMode);
       expect(Array.isArray(data.importedFiles)).toBe(true);
       expect(Array.isArray(data.excludedFiles)).toBe(true);
       expect(Array.isArray(data.solarisChanges)).toBe(true);
