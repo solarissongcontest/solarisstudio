@@ -29,6 +29,35 @@ export const portraitFlag =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 3"><rect width="2" height="3" fill="#f1f1f1"/><path d="M0 0h2v1H0z" fill="#353535"/><path d="M0 2h2v1H0z" fill="#9a9a9a"/></svg>',
   );
 
+const qaFlag = (viewBox: string, body: string) =>
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${body}</svg>`);
+
+export const squareFlag = qaFlag(
+  "0 0 1 1",
+  '<rect width="1" height="1" fill="#e6e9ed"/><path d="M0 .42h1v.16H0z" fill="#59636f"/>',
+);
+export const wideFlag = qaFlag(
+  "0 0 2 1",
+  '<rect width="2" height="1" fill="#dde3e8"/><rect width=".45" height="1" x=".78" fill="#56606b"/>',
+);
+export const transparentFlag = qaFlag(
+  "0 0 3 2",
+  '<circle cx="1.5" cy="1" r=".78" fill="#66717d" fill-opacity=".78"/><path d="M.2 1h2.6" stroke="#20262c" stroke-width=".16"/>',
+);
+export const whiteDominantFlag = qaFlag(
+  "0 0 3 2",
+  '<rect width="3" height="2" fill="#fff"/><path d="M0 .9h3v.2H0z" fill="#c7ccd2"/>',
+);
+export const blackDominantFlag = qaFlag(
+  "0 0 3 2",
+  '<rect width="3" height="2" fill="#050505"/><path d="M1.38 0h.24v2h-.24z" fill="#f1f1f1"/>',
+);
+export const detailedFlag = qaFlag(
+  "0 0 3 2",
+  '<rect width="3" height="2" fill="#e8ecef"/><path d="M0 0h3v.28H0zM0 1.72h3V2H0z" fill="#4b5560"/><circle cx="1.5" cy="1" r=".55" fill="none" stroke="#4b5560" stroke-width=".12"/><path d="m1.5 .52.12.34.36.01-.29.21.1.35-.29-.2-.29.2.1-.35-.29-.21.36-.01z" fill="#4b5560"/>',
+);
+
 export const PERSONALITY_QA_FIXTURES: PersonalityFixture[] = [
   {
     id: "oland",
@@ -145,8 +174,15 @@ export const FLAG_QA_CASES = [
 
 export const PERSONALITY_FLAG_QA_OPTIONS = [
   { id: "fixture", label: "Fixture flag" },
+  { id: "1-1", label: "1:1 square" },
+  { id: "3-2", label: "3:2 landscape" },
+  { id: "2-1", label: "2:1 wide" },
+  { id: "2-3", label: "2:3 portrait" },
+  { id: "transparent", label: "Transparent SVG" },
+  { id: "white-dominant", label: "White-dominant" },
+  { id: "black-dominant", label: "Black-dominant" },
+  { id: "detailed", label: "Detailed" },
   { id: "missing", label: "Missing flag" },
-  { id: "portrait", label: "Portrait flag" },
   { id: "network-failure", label: "Network failure" },
   { id: "slow-load", label: "Slow load" },
 ] as const;
@@ -155,8 +191,15 @@ export type PersonalityFlagQaMode = (typeof PERSONALITY_FLAG_QA_OPTIONS)[number]
 
 export function personalityFlagQaImage(mode: PersonalityFlagQaMode, fixture: PersonalityFixture) {
   if (mode === "fixture") return fixture.flagImage;
+  if (mode === "1-1") return squareFlag;
+  if (mode === "3-2") return ordinaryFlag;
+  if (mode === "2-1") return wideFlag;
+  if (mode === "2-3") return portraitFlag;
+  if (mode === "transparent") return transparentFlag;
+  if (mode === "white-dominant") return whiteDominantFlag;
+  if (mode === "black-dominant") return blackDominantFlag;
+  if (mode === "detailed") return detailedFlag;
   if (mode === "missing") return null;
-  if (mode === "portrait") return portraitFlag;
   if (mode === "network-failure") return "/personality-qa-flag-missing.svg";
   return "/personality-qa-flag.svg?slow=1";
 }
