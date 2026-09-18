@@ -195,7 +195,7 @@ function IntegrityHome({
         <button
           type="button"
           onClick={startReport}
-          className="group relative overflow-hidden rounded-[1.7rem] border border-emerald-300/15 bg-[linear-gradient(150deg,rgba(28,90,79,.22),rgba(6,22,43,.93))] p-5 text-left transition hover:-translate-y-0.5 hover:border-emerald-200/25 sm:p-6"
+          className="group relative overflow-hidden rounded-[1.7rem] border border-emerald-300/15 bg-[linear-gradient(150deg,rgba(28,90,79,.22),rgba(6,22,43,.93))] p-5 text-left transition-[background-color,border-color] duration-150 ease-out hover:border-emerald-200/25 sm:p-6"
         >
           <EyeOff className="size-7 text-emerald-200" />
           <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-emerald-200/75">
@@ -214,7 +214,7 @@ function IntegrityHome({
         <button
           type="button"
           onClick={() => setManualOpen((value) => !value)}
-          className="group rounded-[1.7rem] border border-sky-300/14 bg-[linear-gradient(150deg,rgba(35,72,110,.27),rgba(6,22,43,.93))] p-5 text-left transition hover:-translate-y-0.5 hover:border-sky-200/25 sm:p-6"
+          className="group rounded-[1.7rem] border border-sky-300/14 bg-[linear-gradient(150deg,rgba(35,72,110,.27),rgba(6,22,43,.93))] p-5 text-left transition-[background-color,border-color] duration-150 ease-out hover:border-sky-200/25 sm:p-6"
         >
           <KeyRound className="size-7 text-sky-200" />
           <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-sky-200/75">
