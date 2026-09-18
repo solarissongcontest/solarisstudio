@@ -31,11 +31,20 @@ export type FlagBounds = {
   mobile: readonly [width: number, height: number];
 };
 
+export type CountryPersonalityCompanionSource = {
+  sourceName: string;
+  repository: string;
+  pinnedRef: string;
+  license: string;
+};
+
 export type CountryPersonalitySource = {
   id: CountryHeroLayout;
   sourceName: string;
   repository: string | null;
   pinnedRef: string | null;
+  sourceUrl?: string;
+  companionSources?: readonly CountryPersonalityCompanionSource[];
   version: string | null;
   license: string;
   importMode: CountrySourceImportMode;
@@ -94,6 +103,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     sourceName: "Jesus Ramirez International Airline Ticket CSS",
     repository: null,
     pinnedRef: null,
+    sourceUrl: "https://codehim.com/html5-css3/international-airline-ticket-in-html-css/",
     version: null,
     license: "MIT",
     importMode: "translated-components",
@@ -139,6 +149,14 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     sourceName: "BBC GEL Grid + GEL Typography",
     repository: "bbc/gel-grid",
     pinnedRef: "65c2b3f878a3999104c7e17f989602075f9f6e22",
+    companionSources: [
+      {
+        sourceName: "BBC GEL Typography",
+        repository: "bbc/gel-typography",
+        pinnedRef: "d4fea6fc03586bc7fa066cd22abbae9fbd7005a6",
+        license: "MIT",
+      },
+    ],
     version: null,
     license: "MIT",
     importMode: "vendored-scss",
@@ -259,6 +277,14 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     sourceName: "Guardian Source / Interactive Style Library",
     repository: "guardian/source",
     pinnedRef: "d84c25d67ed51545994f53986eb4487d35c1aab4",
+    companionSources: [
+      {
+        sourceName: "Guardian Interactive Style Library",
+        repository: "guardian/interactive-style-library",
+        pinnedRef: "19533f580cfa7ff6f5e2db6ffc75334cd9cf02a8",
+        license: "Apache-2.0",
+      },
+    ],
     version: null,
     license: "Apache-2.0",
     importMode: "vendored-scss",
