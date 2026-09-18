@@ -9,10 +9,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
-import "@/anniversary-global.css";
-import "@/anniversary-sitewide.css";
-import "@/anniversary-season.css";
-import "@/anniversary-deep.css";
+import "@/anniversary-shell.css";
 import { AnniversaryNavLink } from "@/components/AnniversaryNavLink";
 import {
   getSolarisAnniversarySeason,

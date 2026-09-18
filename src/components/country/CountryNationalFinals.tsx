@@ -104,11 +104,11 @@ export function CountryNationalFinalsContent({
                       {nationalFinal.edition_number ? `SSC ${nationalFinal.edition_number}` : "National selection"}
                     </p>
                     {nationalFinal.results_published ? (
-                      <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-primary">
+                      <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
                         Results published
                       </span>
                     ) : (
-                      <span className="rounded-full border border-border bg-background/35 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground">
+                      <span className="rounded-full border border-border bg-background/35 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                         Line-up published
                       </span>
                     )}
@@ -179,12 +179,12 @@ export function CountryNationalFinalsContent({
                           {(entry.winner || entry.next_in_line) && (
                             <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
                               {entry.winner && (
-                                <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[8px] font-bold uppercase tracking-wide text-primary">
+                                <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">
                                   Winner
                                 </span>
                               )}
                               {entry.next_in_line && (
-                                <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-1 text-[8px] font-bold uppercase tracking-wide text-sky-200">
+                                <span className="rounded-full border border-sky-300/20 bg-sky-300/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-sky-200">
                                   Next in Line
                                 </span>
                               )}

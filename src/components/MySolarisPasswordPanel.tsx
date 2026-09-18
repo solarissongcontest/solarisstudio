@@ -1,5 +1,6 @@
 import { KeyRound } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
 import { setSolarisPassword } from "@/lib/country-auth";
@@ -25,13 +26,21 @@ export function MySolarisPasswordPanel() {
     }
 
     setBusy(true);
+    const savePromise = setSolarisPassword(newPassword);
+
+    toast.promise(savePromise, {
+      id: "mysolaris-password-change",
+      loading: "Checking & updating password…",
+      success: "Password changed successfully.",
+      error: (error) => error instanceof Error ? error.message : "Password could not be changed.",
+    });
+
     try {
-      await setSolarisPassword(newPassword);
+      await savePromise;
       setNewPassword("");
       setConfirmPassword("");
-      setMessage("Password changed successfully.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Password could not be changed.");
+    } catch {
+      // Sonner owns transient mutation failures; validation stays inline above.
     } finally {
       setBusy(false);
     }
@@ -48,7 +57,7 @@ export function MySolarisPasswordPanel() {
             setIsOpen((current) => !current);
             setMessage(null);
           }}
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold transition hover:border-primary/25 hover:bg-surface-strong"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold transition-[background-color,border-color,transform] duration-150 ease-out hover:border-primary/25 hover:bg-surface-strong active:scale-[0.98] motion-reduce:active:scale-100"
           aria-expanded={isOpen}
         >
           <KeyRound className="size-3.5 text-primary" />

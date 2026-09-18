@@ -226,7 +226,7 @@ function HomePage() {
           </div>
 
           <div className="mt-4 flex min-w-0 items-center gap-3 border-y border-border/60 py-2.5">
-            <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[8px] font-black uppercase tracking-[0.14em] text-primary-foreground">
+            <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-primary-foreground">
               {latestEditionIsActive
                 ? "Live"
                 : breakingStory?.intensity === "breaking"
@@ -267,10 +267,10 @@ function HomePage() {
 
               <div className="relative z-10 flex min-h-[350px] flex-col justify-between p-5 sm:min-h-[470px] sm:p-8">
                 <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-primary px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.16em] text-primary-foreground">
+                  <span className="rounded-full bg-primary px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-primary-foreground">
                     {leadStory.label}
                   </span>
-                  <span className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.15em] text-white/70 backdrop-blur">
+                  <span className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/70 backdrop-blur">
                     {editionLabel(latestCompletedEdition)} · {latestCompletedShow.name}
                   </span>
                 </div>
@@ -402,14 +402,14 @@ function HomePage() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{country.name}</p>
                         {index === 0 && (
-                          <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-primary">
+                          <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-primary">
                             Winner
                           </p>
                         )}
                       </div>
                       <span className="numeric shrink-0 text-xs font-black sm:text-sm">
                         {result.total_points}{" "}
-                        <span className="text-[8px] font-normal text-muted-foreground">pts</span>
+                        <span className="text-[10px] font-normal text-muted-foreground">pts</span>
                       </span>
                     </Link>
                   );
@@ -442,7 +442,7 @@ function HomePage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold">{show.name}</p>
-                        <p className="mt-1 truncate text-[8px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                        <p className="mt-1 truncate text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
                           {show.kind.replaceAll("-", " ")}
                         </p>
                       </div>
@@ -512,7 +512,7 @@ function HeadlineCard({ story, to }: { story: HomeNewsStory; to: string }) {
           : "border-border/70 bg-surface/45"
       } sm:min-h-[165px]`}
     >
-      <p className="text-[8px] font-black uppercase tracking-[0.19em] text-primary">
+      <p className="text-[10px] font-black uppercase tracking-[0.19em] text-primary">
         {breaking ? "● Breaking · " : ""}
         {story.label}
       </p>
@@ -578,7 +578,7 @@ function DestinationCard({
       to={to}
       className="group flex min-w-0 flex-col rounded-2xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface-strong"
     >
-      <p className="text-[8px] font-black uppercase tracking-[0.18em] text-primary">{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">{label}</p>
       <h3 className="mt-2 break-words font-display text-lg font-black">{title}</h3>
       <p className="mt-2 break-words text-[10px] leading-relaxed text-muted-foreground sm:text-xs">
         {description}

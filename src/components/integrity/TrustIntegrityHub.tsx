@@ -210,7 +210,7 @@ function PortalHome({ setView }: { setView: (view: PortalView) => void }) {
             type="button"
             onClick={() => setView(id)}
             className={cn(
-              "group min-h-52 rounded-[1.6rem] border p-5 text-left transition hover:-translate-y-0.5 hover:border-white/20",
+              "group min-h-52 rounded-[1.6rem] border p-5 text-left transition-[background-color,border-color] duration-150 ease-out hover:border-white/20",
               className,
             )}
           >

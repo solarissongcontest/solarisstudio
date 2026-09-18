@@ -191,7 +191,7 @@ function LatestEdition({ card }: { card: EditionCard }) {
         <div className="relative z-10 min-w-0">
           <div className="flex min-w-0 items-start justify-between gap-4">
             <div className="min-w-0">
-              <span className="inline-flex rounded-full border border-primary/25 bg-primary/[0.075] px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-primary">
+              <span className="inline-flex rounded-full border border-primary/25 bg-primary/[0.075] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-primary">
                 {edition.status === "completed" ? "Completed edition" : "Current edition"}
               </span>
               <p className="mt-4 text-[9px] font-black uppercase tracking-[0.2em] text-primary">
@@ -281,7 +281,7 @@ function ArchiveEdition({ card }: { card: EditionCard }) {
     <Link
       to="/editions/$slug"
       params={{ slug: edition.slug }}
-      className="solaris-family-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition duration-200 hover:-translate-y-0.5 sm:p-5"
+      className="solaris-family-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 sm:p-5"
     >
       <BackgroundFlag
         image={backgroundFlag}
@@ -372,7 +372,7 @@ function ArchiveEdition({ card }: { card: EditionCard }) {
 function LatestInfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0 rounded-xl bg-white/[0.028] p-2.5 sm:p-3">
-      <p className="mb-2 text-[8px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
         {label}
       </p>
       {children}
@@ -383,7 +383,7 @@ function LatestInfoBlock({ label, children }: { label: string; children: React.R
 function ArchiveInfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0 rounded-xl border border-white/[0.055] bg-black/10 p-2.5 sm:p-3">
-      <p className="mb-2 text-[8px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
         {label}
       </p>
       {children}
@@ -425,8 +425,8 @@ function HostSummary({ hosts, prominent = false }: { hosts: HostLocation[]; prom
             <p
               className={
                 prominent
-                  ? "text-[8px] font-bold uppercase tracking-[0.14em] text-white/45"
-                  : "text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
+                  ? "text-[10px] font-bold uppercase tracking-[0.14em] text-white/45"
+                  : "text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
               }
             >
               {hosts.length > 1 ? `Host ${index + 1}` : "Host"}

@@ -74,6 +74,51 @@ describe("Solaris UI craft foundations", () => {
     }
   });
 
+  it("keeps high-visibility status and wayfinding labels above decorative microtype", () => {
+    const files = [
+      "src/routes/index.tsx",
+      "src/routes/shows/index.tsx",
+      "src/routes/editions/index.tsx",
+      "src/routes/countries/index.tsx",
+      "src/routes/jury-voting.tsx",
+      "src/components/rules/RulesExperience.tsx",
+      "src/routes/_authenticated/admin/integrity-disclosure.tsx",
+      "src/components/country/CountryNationalFinals.tsx",
+    ];
+
+    for (const path of files) {
+      expect(source(path), path).not.toContain("text-[8px]");
+    }
+    expect(source("src/routes/_authenticated/admin/integrity-disclosure.tsx"))
+      .not.toContain("text-[9px]");
+  });
+
+  it("keeps operational rules and integrity controls free of decorative hover lift", () => {
+    const files = [
+      "src/components/rules/RulesExperience.tsx",
+      "src/components/integrity/IntegrityCentre.tsx",
+      "src/components/integrity/TrustIntegrityHub.tsx",
+    ];
+
+    for (const path of files) {
+      expect(source(path), path).not.toContain("hover:-translate-y");
+    }
+  });
+
+  it("separates inline validation from transient async mutation feedback", () => {
+    const myPassword = source("src/components/MySolarisPasswordPanel.tsx");
+    const adminPassword = source("src/components/admin/AdminCountryPasswordPanel.tsx");
+    const hodHistory = source("src/components/CountryHodHistoryPanel.tsx");
+
+    expect(myPassword).toContain("toast.promise");
+    expect(adminPassword).toContain("toast.promise");
+    expect(hodHistory).toContain("toast.promise");
+    expect(hodHistory).not.toContain("setIdentityMessage");
+    expect(hodHistory).not.toContain("setMessage");
+    expect(myPassword).toContain("Password must be at least 6 characters.");
+    expect(adminPassword).toContain("The passwords do not match.");
+  });
+
   it("gives core buttons immediate press feedback without forcing motion on reduced-motion users", () => {
     const button = source("src/components/ui/button.tsx");
     expect(button).toContain("active:scale-[0.97]");

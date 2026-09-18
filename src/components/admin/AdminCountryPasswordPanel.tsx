@@ -1,5 +1,6 @@
 import { KeyRound } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { AdminStatus } from "@/components/admin/AdminUI";
 import { adminSetSolarisPassword } from "@/lib/country-auth";
@@ -10,20 +11,16 @@ export function AdminCountryPasswordPanel({ account }: { account: AdminCountryAc
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     setPassword("");
     setConfirmPassword("");
     setMessage(null);
-    setSuccess(false);
   }, [account.user_id]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    setSuccess(false);
-
     if (password.length < 6) {
       setMessage("Password must be at least 6 characters.");
       return;
@@ -34,14 +31,21 @@ export function AdminCountryPasswordPanel({ account }: { account: AdminCountryAc
     }
 
     setBusy(true);
+    const savePromise = adminSetSolarisPassword(account.user_id, password);
+
+    toast.promise(savePromise, {
+      id: `admin-country-password-${account.user_id}`,
+      loading: `Changing password for ${account.country_name}…`,
+      success: `Password changed for ${account.country_name}.`,
+      error: (error) => error instanceof Error ? error.message : "Password could not be changed.",
+    });
+
     try {
-      await adminSetSolarisPassword(account.user_id, password);
+      await savePromise;
       setPassword("");
       setConfirmPassword("");
-      setSuccess(true);
-      setMessage(`Password changed for ${account.country_name}.`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Password could not be changed.");
+    } catch {
+      // Sonner owns transient mutation failures; validation stays inline above.
     } finally {
       setBusy(false);
     }
@@ -100,11 +104,7 @@ export function AdminCountryPasswordPanel({ account }: { account: AdminCountryAc
         {message ? (
           <div
             aria-live="polite"
-            className={`rounded-xl border p-3 text-sm ${
-              success
-                ? "border-emerald-200/15 bg-emerald-200/[0.045] text-emerald-50"
-                : "border-rose-200/15 bg-rose-200/[0.045] text-rose-50"
-            }`}
+            className="rounded-xl border border-rose-200/15 bg-rose-200/[0.045] p-3 text-sm text-rose-50"
           >
             {message}
           </div>
