@@ -55,7 +55,7 @@ upstream brand marks, proprietary fonts, photography and demo content.
 - Poster: RampStack Swiss Style Theme, MIT, commit `55e82b52f2c4c2893f79628c77ed31418d5975e6`.
 - Heritage: The National Archives Design System, MIT, `nationalarchives/design-system` commit `86202aabc033da76bb8a5171c39737bc1a6fef1d`.
 - Broadcast: BBC GEL Grid, MIT, commit `65c2b3f878a3999104c7e17f989602075f9f6e22`; BBC GEL Typography, MIT, commit `d4fea6fc03586bc7fa066cd22abbae9fbd7005a6`.
-- Atlas: MapLibre GL JS, BSD-3-Clause, commit `a55db8271998f1156f82a63726ef9c56bd9c5093`.
+- Atlas: MapLibre GL JS 6.10.0, BSD-3-Clause, commit `d1934699ed3159f1e5d689078dd2e677f3ed34e3`.
 - Diplomatic: GOV.UK Frontend, MIT, commit `b4a7543f133932fb04575b045330e8a01ab5c250`.
 - Festival: GDG-X Hoverboard, MIT, commit `80395b0ccc6e08cc1f0cdff50186ee119aad0b24`.
 - Brutalist: RampStack Brutalist Web Theme, MIT, commit `2ad20824755fb00b3d2c30d01df67ea63f2d9427`.
