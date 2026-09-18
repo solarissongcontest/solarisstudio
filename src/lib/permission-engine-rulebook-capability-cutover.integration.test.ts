@@ -38,7 +38,7 @@ describe("Rulebook Permission Engine capability cutover", () => {
   it("uses source-preserving rewrites and verifies the legacy helper is gone", () => {
     const sql = normalized(migration);
     expect(sql).toContain("v_def := pg_get_functiondef(v_oid)");
-    expect(sql).toContain("expected exactly one rulebook_is_organizer gate");
+    expect(sql.toLowerCase()).toContain("expected exactly one rulebook_is_organizer gate");
     expect(sql).toContain("public.studio2_access_allowed(%L, null, false)");
     expect(sql).toContain("drop function public.rulebook_is_organizer();");
     expect(sql).toContain("live rulebook semantic organizer references remain");
