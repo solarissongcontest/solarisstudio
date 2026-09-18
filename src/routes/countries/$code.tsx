@@ -539,7 +539,10 @@ function CountryProfilePage() {
                   </Panel>
                 )}
 
-                <CountryWorldSupplement country={country} />
+                <CountryWorldSupplement
+                  country={country}
+                  defaultLayout={publishedDesign?.content.defaultLayout}
+                />
               </>
             ) : (
               <Panel title="Solaris Song Contest">
