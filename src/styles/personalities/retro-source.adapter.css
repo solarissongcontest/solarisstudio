@@ -1,0 +1,104 @@
+/* 98.css v0.1.21 selective translated adapter.
+   Upstream: jdan/98.css @ b1d7a907371bbe523d6f64e3af97f714fdbd6d6a
+   License: MIT. Bevel/shadow recipes and core window colours come from 98.css;
+   Solaris deliberately enlarges controls to modern accessible hit targets. */
+
+.country-identity-hero[data-country-personality="sci-fi"] {
+  --retro-text: #222;
+  --retro-surface: #c0c0c0;
+  --retro-button-highlight: #fff;
+  --retro-button-face: #dfdfdf;
+  --retro-button-shadow: #808080;
+  --retro-window-frame: #0a0a0a;
+  --retro-dialog-blue: #000080;
+  --retro-dialog-blue-light: #1084d0;
+  position: relative;
+  padding: 3px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--retro-surface) !important;
+  color: var(--retro-text);
+  box-shadow:
+    inset -1px -1px var(--retro-window-frame),
+    inset 1px 1px var(--retro-button-face),
+    inset -2px -2px var(--retro-button-shadow),
+    inset 2px 2px var(--retro-button-highlight) !important;
+}
+
+.country-identity-hero[data-country-personality="sci-fi"]::before {
+  content: "SOLARIS COUNTRY DATABASE";
+  position: absolute;
+  z-index: 2;
+  inset: 3px 3px auto;
+  display: flex;
+  min-block-size: 1.75rem;
+  align-items: center;
+  padding-inline: .45rem;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--primary) 58%, var(--retro-dialog-blue)),
+    color-mix(in srgb, var(--primary) 42%, var(--retro-dialog-blue-light))
+  );
+  color: #fff;
+  font-family: Arial, sans-serif;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] .country-hero-layout {
+  margin-block-start: 1.75rem;
+  border: 0;
+  padding: 1rem;
+  background: var(--retro-surface);
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] .country-hero-title {
+  color: var(--retro-text);
+  font-family: var(--font-sans, Gotham, Arial, sans-serif);
+  line-height: 1;
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] :is(
+  .country-hero-eyebrow,
+  .country-hero-meta,
+  .country-flag-caption
+) {
+  color: var(--retro-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] .country-official-flag {
+  padding: 4px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow:
+    inset -1px -1px var(--retro-button-highlight),
+    inset 1px 1px var(--retro-button-shadow),
+    inset -2px -2px var(--retro-button-face),
+    inset 2px 2px var(--retro-window-frame);
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] .country-hero-actions :is(a, button) {
+  min-block-size: 2.75rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--retro-surface) !important;
+  color: var(--retro-text);
+  box-shadow:
+    inset -1px -1px var(--retro-window-frame),
+    inset 1px 1px var(--retro-button-highlight),
+    inset -2px -2px var(--retro-button-shadow),
+    inset 2px 2px var(--retro-button-face) !important;
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] .country-hero-actions :is(a, button):active {
+  transform: none;
+  box-shadow:
+    inset -1px -1px var(--retro-button-highlight),
+    inset 1px 1px var(--retro-window-frame),
+    inset -2px -2px var(--retro-button-face),
+    inset 2px 2px var(--retro-button-shadow) !important;
+}
