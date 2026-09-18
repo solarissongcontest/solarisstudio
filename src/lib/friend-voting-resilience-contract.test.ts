@@ -6,44 +6,64 @@ function source(path: string) {
 }
 
 describe("Friend-voting resilience", () => {
-  it("indexes reciprocal observations instead of rescanning the full history", () => {
-    const code = source("integrations/televoting/intelligence-v4.server.ts");
-    expect(code).toContain("buildReciprocalIndex");
-    expect(code).toContain("reverseIndex.get");
-    expect(code).toContain("reciprocalEvidence(pair, reverseIndex, currentEdition)");
-    expect(code).not.toContain("const reverse = all.filter");
+  it("uses one prepared advanced engine instead of rebuilding the voting universe twice", () => {
+    const compatibility = source("integrations/televoting/intelligence-v4.server.ts");
+    const v5 = source("integrations/televoting/intelligence-v5.server.ts");
+    const primary = source("integrations/televoting/intelligence.server.ts");
+    const model = source("integrations/televoting/advanced-friend-voting.ts");
+
+    expect(compatibility).toContain("getMergedIntelligenceV5Server");
+    expect(compatibility).not.toContain("loadCanonicalVotingContextServer");
+    expect(compatibility).not.toContain("vote_submissions");
+
+    expect(v5).toContain("getMergedIntelligenceServer");
+    expect(v5).toContain('mode: "advanced"');
+    expect(v5).not.toContain("loadCanonicalVotingContextServer");
+    expect(v5).not.toContain("vote_submissions");
+
+    expect(primary).toContain("const historicalScope = allObservations.filter");
+    expect(primary).toContain("const advancedAll = historicalScope.map(advancedObservation)");
+    expect(primary).toContain("row.editionNumber < selectedEditionNumber");
+    expect(primary).toContain("observationLookup");
+    expect(model).toContain("preparedHistoryCache");
+    expect(model).toContain("currentEditionNumberCache");
   });
 
-  it("keeps the lightweight payload bound and uses a true historical fast path", () => {
+  it("runs the same advanced model for full and payload-bounded endpoints", () => {
     const functions = source("integrations/televoting/intelligence.functions.ts");
-    const model = source("integrations/televoting/advanced-friend-voting.ts");
     expect(functions).toContain("LIGHTWEIGHT_RELATIONSHIP_LIMIT = 250");
     expect(functions).toContain("allRelationships.slice(0, LIGHTWEIGHT_RELATIONSHIP_LIMIT)");
-    expect(functions).toContain('mode: "historical" as const');
+    expect(functions).toContain("getMergedIntelligenceV5Server");
+    expect(functions).toContain('analysisMode: "advanced"');
+    expect(functions).not.toContain("isWorkerHeavyDefaultScope");
+    expect(functions).not.toContain("isHistoricalAllEditionsScope");
+    expect(functions).not.toContain("workerSafeHistoricalScope");
     expect(functions).not.toContain("Promise.race");
-    expect(functions).not.toContain("ADVANCED_ANALYSIS_TIMEOUT_MS");
-    expect(model).toContain('if (config.mode === "historical")');
-    expect(model).toContain("calculateHistoricalPatternRisk");
-    expect(model).toContain("resolveCurrentEditionNumberCached");
   });
 
-  it("keeps Retry intact and makes all four page tabs visible on narrow mobile screens", () => {
+  it("keeps historical mode only as an emergency fallback", () => {
+    const functions = source("integrations/televoting/intelligence.functions.ts");
+    const model = source("integrations/televoting/advanced-friend-voting.ts");
+    expect(functions).toContain("runHistoricalAnalysis");
+    expect(functions).toContain("Advanced Friend Voting analysis failed; using historical relationship fallback");
+    expect(functions).toContain('analysisMode: "fallback"');
+    expect(model).toContain('if (config.mode === "historical")');
+    expect(model).toContain("calculateHistoricalPatternRisk");
+  });
+
+  it("keeps Retry intact and all four page tabs visible on narrow mobile screens", () => {
     const code = source("routes/_authenticated/admin/friend-voting.tsx");
     expect(code).toContain("whitespace-nowrap");
     expect(code).toContain("flex flex-col gap-3 sm:flex-row");
     expect(code).toContain("grid grid-cols-2 gap-2 sm:flex");
-    expect(code).toContain("Historical relationship analysis");
     expect(code).toContain("retry: 0");
   });
 
-  it("exposes Friend voting as its own Voting workflow tab instead of folding it into Integrity", () => {
+  it("keeps Friend voting as its own Voting workflow", () => {
     const registry = source("components/admin/admin-contextual-navigation.ts");
     const sectionNav = source("components/admin/AdminSectionNav.tsx");
     expect(registry).toContain('"Friend voting"');
     expect(registry).toContain('"/admin/friend-voting"');
-    expect(registry).not.toContain(
-      'path.startsWith("/televoting/admin/anti-abuse") || path.startsWith("/admin/friend-voting")',
-    );
     expect(sectionNav).toContain("overflow-x-auto");
   });
 });

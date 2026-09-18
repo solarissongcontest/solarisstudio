@@ -5,19 +5,17 @@ function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-describe("Friend Voting Worker-safe scope", () => {
-  it("serves the broad default from the country-level combined historical path", () => {
+describe("Friend Voting prepared V5 scope", () => {
+  it("does not downgrade or rewrite broad relationship-analysis scopes", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("workerSafeHistoricalScope");
-    expect(code).toContain('lens: "country"');
-    expect(code).toContain('channel: "combined"');
-    expect(code).toContain('mode: "historical" as const');
-    expect(code).toContain("worker-safe country-level jury + televote history across all editions");
-    expect(code).not.toContain("workerSafeHistoricalTelevoteScope");
-    expect(code).not.toContain("analysing ${label} with all older editions retained as historical baseline evidence");
+    expect(code).toContain("const effectiveScope = requested");
+    expect(code).toContain("getMergedIntelligenceV5Server");
+    expect(code).not.toContain("workerSafeHistoricalScope");
+    expect(code).not.toContain("isWorkerHeavyDefaultScope");
+    expect(code).not.toContain("isHistoricalAllEditionsScope");
   });
 
-  it("does not launch network analysis for the dangerous broad HOD scope", () => {
+  it("keeps network analysis narrow even though relationship analysis can be broad", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
     expect(code).toContain("Network analysis requires a narrower scope");
     expect(code).toContain("Select an edition or a specific HOD before opening Network");
@@ -34,18 +32,9 @@ describe("Friend Voting Worker-safe scope", () => {
     expect(overview).toContain('to="/admin/friend-voting"');
   });
 
-  it("routes narrowed scopes to advanced analysis while keeping the all-editions country view historical", () => {
-    const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).not.toContain("allowAdvanced: false");
-    expect(code).toContain('return data.lens === "country" && !data.editionId && !data.hodPersonId;');
-    expect(code).toContain("isHistoricalAllEditionsScope(effectiveScope)");
+  it("keeps selected-edition history causal inside the primary engine", () => {
+    const primary = source("integrations/televoting/intelligence.server.ts");
+    expect(primary).toContain("selectedEditionNumber");
+    expect(primary).toContain("row.editionNumber < selectedEditionNumber");
   });
-
-  it("keeps later editions out of a selected-edition advanced baseline", () => {
-    const code = source("integrations/televoting/intelligence-v4.server.ts");
-    expect(code).toContain("const selectedEditionNumber = options.editionId ? editionNumber(options.editionId) : null;");
-    expect(code).toContain("return row.editionNumber < selectedEditionNumber;");
-    expect(code).toContain("const advancedAll = historicalScope.map(advanced);");
-  });
-
 });

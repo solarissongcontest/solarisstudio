@@ -136,7 +136,7 @@ function FriendVotingPage() {
       <AdminPageHeader
         eyebrow="Voting intelligence"
         title="Friend-voting intelligence"
-        description="Historical relationship analysis for jury and televote support. Pattern scores identify relationships worth reviewing; they are not findings that a country or HOD cheated."
+        description="Advanced relationship analysis for jury and televote support. Risk scores identify relationships worth reviewing; they are evidence signals, not findings that a country or HOD cheated."
         actions={
           <Link to="/admin/hod-history" className="admin-action-secondary">
             <UserRoundCog className="size-4" /> HOD history

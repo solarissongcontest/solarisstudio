@@ -6,29 +6,23 @@ function source(path: string) {
 }
 
 describe("Friend Voting default scope", () => {
-  it("serves the broad request from the all-editions country jury + televote history", () => {
+  it("runs the broad default through the prepared advanced engine", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    expect(code).toContain("workerSafeHistoricalScope");
-    expect(code).toContain('lens: "country"');
-    expect(code).toContain('channel: "combined"');
-    expect(code).toContain('mode: "historical" as const');
-    expect(code).toContain("worker-safe country-level jury + televote history across all editions");
-    expect(code).not.toContain("workerSafeHistoricalTelevoteScope");
-    expect(code).not.toContain("const safeScope = await resolveLatestCompletedEditionScope(data)");
-    expect(code).not.toContain("all older editions retained as historical baseline evidence");
+    expect(code).toContain("getMergedIntelligenceV5Server");
+    expect(code).toContain('analysisMode: "advanced"');
+    expect(code).toContain("const effectiveScope = requested");
+    expect(code).not.toContain("workerSafeHistoricalScope");
   });
 
-  it("does not launch v4 for the known Worker-heavy default scope", () => {
+  it("uses historical analysis only after advanced analysis fails", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
-    const heavyScope = code.indexOf("isWorkerHeavyDefaultScope(requested)");
-    const historicalBranch = code.indexOf("runHistoricalAnalysis(effectiveScope, settings)", heavyScope);
-    const advancedImport = code.indexOf('import("@/integrations/televoting/intelligence-v4.server")', historicalBranch);
-    expect(heavyScope).toBeGreaterThan(-1);
-    expect(historicalBranch).toBeGreaterThan(heavyScope);
-    expect(advancedImport).toBeGreaterThan(historicalBranch);
+    const advanced = code.indexOf("getMergedIntelligenceV5Server");
+    const fallback = code.indexOf("runHistoricalAnalysis(effectiveScope, settings)", advanced);
+    expect(advanced).toBeGreaterThan(-1);
+    expect(fallback).toBeGreaterThan(advanced);
   });
 
-  it("does not run Network for the broad default scope", () => {
+  it("does not run Network for the broad default HOD scope", () => {
     const code = source("integrations/televoting/intelligence.functions.ts");
     expect(code).toContain("Network analysis requires a narrower scope");
     expect(code).toContain("Select an edition or a specific HOD before opening Network");
