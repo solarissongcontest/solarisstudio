@@ -54,7 +54,7 @@
   margin-block-start: .75rem;
   font-family: var(--bw-font-display);
   font-size: clamp(3.5rem, 11cqi, 7.5rem);
-  font-weight: 700;
+  font-weight: 700 !important;
   letter-spacing: -.055em !important;
   line-height: .82 !important;
 }
