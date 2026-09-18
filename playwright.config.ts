@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
-const viewportMatrix = fullAudit
+const publicViewportMatrix = fullAudit
   ? ([
       { width: 320, height: 568 },
       { width: 360, height: 800 },
@@ -20,6 +20,18 @@ const viewportMatrix = fullAudit
       { width: 768, height: 1024 },
       { width: 1440, height: 900 },
     ] as const);
+const personalityViewportMatrix = [
+  { width: 320, height: 568 },
+  { width: 360, height: 800 },
+  { width: 375, height: 812 },
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 768, height: 1024 },
+  { width: 1024, height: 768 },
+  { width: 1280, height: 800 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+] as const;
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
 
 export default defineConfig({
@@ -62,9 +74,14 @@ export default defineConfig({
         timeout: 120_000,
       },
   projects: [
-    ...viewportMatrix.map(({ width, height }) => ({
+    ...publicViewportMatrix.map(({ width, height }) => ({
       name: `public-${width}`,
-      testMatch: /(?:public-routes|personality-contract)\.e2e\.ts/,
+      testMatch: /public-routes\.e2e\.ts/,
+      use: { viewport: { width, height } },
+    })),
+    ...personalityViewportMatrix.map(({ width, height }) => ({
+      name: `personality-${width}`,
+      testMatch: /personality-contract\.e2e\.ts/,
       use: { viewport: { width, height } },
     })),
     {
