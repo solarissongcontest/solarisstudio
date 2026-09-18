@@ -1,0 +1,591 @@
+/* ==========================================================================
+   brutalist-web-theme / components
+   --------------------------------------------------------------------------
+   Six components: link, button, card, input, badge, nav.
+
+   Link is the sixth, and it is a component here rather than a default
+   because "a link is underlined and colored like a link" is a claim this
+   register makes rather than a base style it inherits. Every other register
+   in the collection replaces the browser's link treatment. This one keeps it
+   and has to say so somewhere.
+
+   Every value here is a var() reference to tokens.css. There is not one color
+   literal in this file, which is what makes retheming a matter of editing one
+   file rather than auditing six.
+
+   The class names follow the shadcn shape: one base class carrying the
+   structure, one variant class carrying the intent (bw-btn + bw-btn-solid).
+   If you are on shadcn already, these map onto its variant prop directly.
+
+   Three things this file does that the register might be expected to refuse:
+   focus rings, 44px touch targets, and measured contrast. The register is
+   hostile to the reader's expectations about polish. It is not hostile to
+   readers who navigate by keyboard, tap with a thumb, or need the contrast.
+   Those are separable, and confusing them is how a brutalist site ends up
+   merely broken. structure.css states this as a rule.
+
+   Requires tokens.css to be loaded first. Load it explicitly rather than
+   letting this file pull it in, so the dependency is visible at the call site:
+
+     <link rel="stylesheet" href="tokens/tokens.css" />
+     <link rel="stylesheet" href="components/components.css" />
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Shared behavior
+   Focus is the one state the register spends a color on. Everything on the
+   page is already outlined in ink, so an ink focus ring would disappear into
+   the structure; the link blue is the only color a reader already reads as
+   interactive.
+   -------------------------------------------------------------------------- */
+.bw-focusable:focus-visible,
+.bw-link:focus-visible,
+.bw-btn:focus-visible,
+.bw-input:focus-visible,
+.bw-nav-link:focus-visible {
+  outline: var(--bw-focus-width) solid var(--bw-focus-color);
+  outline-offset: var(--bw-focus-offset);
+}
+
+/* ==========================================================================
+   LINK
+   Variants: (base), bw-link-plain
+   ========================================================================== */
+.bw-link {
+  color: var(--bw-link);
+  text-decoration: underline;
+  /* The underline is drawn at the working rule weight, so a link is marked
+     with the same line the page draws its structure with rather than with
+     the browser's hairline default. */
+  text-decoration-thickness: var(--bw-rule);
+  text-underline-offset: 2px;
+}
+
+.bw-link:visited {
+  color: var(--bw-link-visited);
+}
+
+.bw-link:hover {
+  background: var(--bw-link);
+  color: var(--bw-ground);
+  text-decoration-color: var(--bw-ground);
+}
+
+.bw-link:visited:hover {
+  background: var(--bw-link-visited);
+}
+
+/* A link that has to sit inside running text without the block hover, for
+   places where the inverted rectangle would break the line box visually. */
+.bw-link-plain:hover {
+  background: none;
+  color: var(--bw-link);
+  text-decoration-color: currentColor;
+}
+
+/* On an inverted band the link blue drops to 2.23:1 against black and fails.
+   Links there take the ground color and keep the underline, which is the
+   whole reason the underline is not optional in this register. */
+.bw-invert .bw-link,
+.bw-invert .bw-link:visited {
+  color: var(--bw-ground);
+}
+
+.bw-invert .bw-link:hover {
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+  text-decoration-color: var(--bw-ink);
+}
+
+/* ==========================================================================
+   BUTTON
+   Variants: bw-btn-default, bw-btn-solid, bw-btn-alarm, bw-btn-plain
+   Sizes:    bw-btn-sm, (base), bw-btn-lg
+   ========================================================================== */
+.bw-btn {
+  /* 44px minimum on both axes. Anything smaller fails on a real thumb, and
+     a thumb is not an aesthetic expectation. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--bw-space-2);
+  min-height: 44px;
+  padding: var(--bw-space-3) var(--bw-space-6);
+
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-text-sm);
+  font-weight: var(--bw-weight-bold);
+  line-height: var(--bw-leading-tight);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+
+  border: var(--bw-rule) solid var(--bw-rule-color);
+  border-radius: var(--bw-radius);
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+  cursor: pointer;
+
+  /* Zero duration, declared rather than omitted. The state change is
+     reported, not performed. */
+  transition: none;
+}
+
+.bw-btn-default {
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+}
+
+/* Hover inverts. There is no travel, no shadow to collapse into, and no
+   easing: the button is one thing and then it is the other thing. This is
+   the base behavior; the variants below restate it in their own colors. */
+.bw-btn:hover:not(:disabled) {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+}
+
+.bw-btn-solid {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+}
+
+.bw-btn-solid:hover:not(:disabled) {
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+}
+
+.bw-btn-alarm {
+  background: var(--bw-alarm);
+  color: var(--bw-ground);
+}
+
+.bw-btn-alarm:hover:not(:disabled) {
+  background: var(--bw-ground);
+  color: var(--bw-alarm);
+}
+
+/* The one button with no frame. It gets the frame on hover, which is how the
+   reader finds out it was a button. */
+.bw-btn-plain {
+  background: transparent;
+  border-color: transparent;
+  color: var(--bw-ink);
+}
+
+.bw-btn-plain:hover:not(:disabled) {
+  background: transparent;
+  color: var(--bw-ink);
+  border-color: var(--bw-rule-color);
+}
+
+.bw-btn:disabled,
+.bw-btn[aria-disabled="true"] {
+  /* Struck through rather than faded. A 50% opacity button is a button the
+     register would have to admit is decorative; a struck one states its
+     condition. */
+  color: var(--bw-ink-muted);
+  border-color: var(--bw-ink-muted);
+  background: var(--bw-shade);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.bw-btn:disabled:hover,
+.bw-btn[aria-disabled="true"]:hover {
+  background: var(--bw-shade);
+  color: var(--bw-ink-muted);
+}
+
+.bw-btn-sm {
+  min-height: 44px; /* the visual box shrinks, the touch target does not */
+  padding: var(--bw-space-2) var(--bw-space-3);
+  font-size: var(--bw-text-xs);
+}
+
+.bw-btn-lg {
+  padding: var(--bw-space-4) var(--bw-space-8);
+  font-size: var(--bw-text-h3);
+  border-width: var(--bw-rule-heavy);
+}
+
+/* ==========================================================================
+   CARD
+   Variants: (base), bw-card-heavy, bw-card-shade
+   Parts:    bw-card-header, bw-card-title, bw-card-body, bw-card-footer
+   ========================================================================== */
+.bw-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+  border: var(--bw-rule) solid var(--bw-rule-color);
+  border-radius: var(--bw-radius);
+  padding: var(--bw-space-6);
+}
+
+/* The heavy frame is how one block claims the screen, since there is no
+   elevation to raise it with. One per screen; two frames at six pixels read
+   as a stylesheet that lost track of itself. */
+.bw-card-heavy {
+  border-width: var(--bw-rule-heavy);
+}
+
+.bw-card-shade {
+  background: var(--bw-shade);
+}
+
+.bw-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--bw-space-4);
+  margin-bottom: var(--bw-space-4);
+  /* The header is divided from the body by a rule, because a gap alone is
+     the polished way to do it and this register draws the seam. */
+  padding-bottom: var(--bw-space-3);
+  border-bottom: var(--bw-rule) solid var(--bw-rule-color);
+}
+
+.bw-card-title {
+  margin: 0;
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-text-h3);
+  font-weight: var(--bw-weight-bold);
+  line-height: var(--bw-leading-tight);
+  letter-spacing: var(--bw-tracking-tight);
+  text-transform: uppercase;
+}
+
+.bw-card-body {
+  margin: 0;
+  font-family: var(--bw-font-text);
+  font-size: var(--bw-text-body);
+  line-height: var(--bw-leading-text);
+}
+
+.bw-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bw-space-3);
+  margin-top: var(--bw-space-6);
+}
+
+/* A card that is itself a link. It inverts whole, the same gesture the
+   buttons make, so the page has one hover behavior rather than several. */
+.bw-card-link {
+  text-decoration: none;
+  color: var(--bw-ink);
+}
+
+.bw-card-link:hover {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+  border-color: var(--bw-ink);
+}
+
+.bw-card-link:hover .bw-card-header {
+  border-bottom-color: var(--bw-ground);
+}
+
+.bw-card-link:focus-visible {
+  outline: var(--bw-focus-width) solid var(--bw-focus-color);
+  outline-offset: var(--bw-focus-offset);
+}
+
+/* ==========================================================================
+   INPUT
+   Parts:  bw-field, bw-label, bw-input, bw-hint, bw-error
+   States: default, :focus, aria-invalid="true", :disabled
+   ========================================================================== */
+.bw-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bw-space-2);
+}
+
+.bw-label {
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--bw-ink);
+}
+
+.bw-input {
+  /* Body size is 17px, comfortably above the 16px floor that stops iOS
+     Safari zooming the page on focus. */
+  width: 100%;
+  min-height: 44px;
+  padding: var(--bw-space-3);
+
+  /* Mono, because what goes in a field is data and the register says so. */
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-body);
+  color: var(--bw-ink);
+  background: var(--bw-ground);
+
+  border: var(--bw-rule) solid var(--bw-rule-color);
+  border-radius: var(--bw-radius);
+  transition: none;
+}
+
+.bw-input::placeholder {
+  color: var(--bw-ink-muted);
+  opacity: 1; /* Firefox dims placeholders by default; the token already
+                 decided how muted muted is */
+}
+
+.bw-input:focus {
+  outline: var(--bw-focus-width) solid var(--bw-focus-color);
+  outline-offset: var(--bw-focus-offset);
+}
+
+.bw-input[aria-invalid="true"] {
+  border-color: var(--bw-alarm);
+  border-width: var(--bw-rule-heavy);
+}
+
+.bw-input:disabled {
+  background: var(--bw-shade);
+  color: var(--bw-ink-muted);
+  border-color: var(--bw-ink-muted);
+  cursor: not-allowed;
+}
+
+.bw-hint {
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-xs);
+  color: var(--bw-ink-muted);
+}
+
+.bw-error {
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-bold);
+  color: var(--bw-alarm);
+  text-transform: uppercase;
+}
+
+/* Textarea and select inherit the input treatment. */
+.bw-input:where(textarea) {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* ==========================================================================
+   BADGE
+   Variants: bw-badge-default, bw-badge-solid, bw-badge-alarm, bw-badge-shade
+   ========================================================================== */
+.bw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bw-space-1);
+  padding: 2px var(--bw-space-2);
+
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-bold);
+  line-height: var(--bw-leading-tight);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  color: var(--bw-ink);
+  background: var(--bw-ground);
+  border: var(--bw-rule-hair) solid var(--bw-rule-color);
+  border-radius: var(--bw-radius);
+}
+
+.bw-badge-default {
+  background: var(--bw-ground);
+}
+
+.bw-badge-shade {
+  background: var(--bw-shade);
+}
+
+.bw-badge-solid {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+}
+
+.bw-badge-alarm {
+  background: var(--bw-alarm);
+  color: var(--bw-ground);
+  border-color: var(--bw-alarm);
+}
+
+/* ==========================================================================
+   NAV
+   A header bar with a brand block, inline links on desktop, and a disclosure
+   panel on mobile. The disclosure is a <details> element, so the pattern
+   needs no JavaScript and keeps working with the page's scripts disabled.
+   ========================================================================== */
+.bw-nav {
+  background: var(--bw-ground);
+  border-bottom: var(--bw-rule-heavy) solid var(--bw-rule-color);
+}
+
+.bw-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--bw-space-4);
+  max-width: var(--bw-container);
+  margin: 0 auto;
+  padding: var(--bw-space-3) var(--bw-space-4);
+}
+
+.bw-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bw-space-3);
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-text-h3);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-tight);
+  text-transform: uppercase;
+  color: var(--bw-ink);
+  text-decoration: none;
+}
+
+/* The brand mark is a filled square with a letter knocked out of it. It is
+   the smallest possible statement of the register: one rectangle, maximum
+   contrast, no corner treatment. */
+.bw-nav-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+  border-radius: var(--bw-radius);
+  font-size: var(--bw-text-h3);
+  font-weight: var(--bw-weight-bold);
+}
+
+.bw-nav-links {
+  display: none;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bw-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--bw-space-2) var(--bw-space-3);
+
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--bw-ink);
+  text-decoration: none;
+  border-radius: var(--bw-radius);
+}
+
+/* The links are divided by rules rather than by gaps, so the bar reads as a
+   row of cells. Left rule on each item after the first, so no double rule
+   forms where two items meet. */
+.bw-nav-links > li + li .bw-nav-link {
+  border-left: var(--bw-rule-hair) solid var(--bw-rule-color);
+}
+
+.bw-nav-link:hover {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+}
+
+.bw-nav-link[aria-current="page"] {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+}
+
+.bw-nav-cta {
+  display: none;
+}
+
+/* Mobile disclosure */
+.bw-nav-disclosure {
+  position: relative;
+}
+
+.bw-nav-disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--bw-space-2) var(--bw-space-3);
+
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--bw-ink);
+  background: var(--bw-ground);
+
+  border: var(--bw-rule) solid var(--bw-rule-color);
+  border-radius: var(--bw-radius);
+  cursor: pointer;
+  list-style: none;
+}
+
+.bw-nav-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bw-nav-disclosure > summary:focus-visible {
+  outline: var(--bw-focus-width) solid var(--bw-focus-color);
+  outline-offset: var(--bw-focus-offset);
+}
+
+.bw-nav-panel {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  min-width: 240px;
+  margin-top: var(--bw-space-2);
+  padding: 0;
+
+  list-style: none;
+  background: var(--bw-ground);
+  border: var(--bw-rule-heavy) solid var(--bw-rule-color);
+  border-radius: var(--bw-radius);
+}
+
+.bw-nav-panel .bw-nav-link {
+  display: flex;
+  width: 100%;
+  border-left: none;
+}
+
+.bw-nav-panel > li + li .bw-nav-link {
+  border-left: none;
+  border-top: var(--bw-rule-hair) solid var(--bw-rule-color);
+}
+
+/* At 768px the links come inline and the disclosure retires. */
+@media (min-width: 768px) {
+  .bw-nav-inner {
+    padding: var(--bw-space-3) var(--bw-space-6);
+  }
+
+  .bw-nav-links,
+  .bw-nav-cta {
+    display: flex;
+  }
+
+  .bw-nav-disclosure {
+    display: none;
+  }
+}
