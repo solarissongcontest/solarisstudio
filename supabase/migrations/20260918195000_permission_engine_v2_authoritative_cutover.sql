@@ -212,9 +212,25 @@ begin
 end
 $notice_cutover$;
 
--- The semantic legacy helpers no longer have live callers after the capability
--- migrations and are removed from the exposed RPC surface.
-drop function if exists public.integrity_is_organizer();
+-- Integrity has many stable governed RPCs that call the semantic helper.
+-- Keep the helper name as a compatibility boundary, but make its decision
+-- capability-only so none of those RPCs retain legacy Organizer semantics.
+create or replace function public.integrity_is_organizer()
+returns boolean
+language sql
+stable
+security definer
+set search_path = 'pg_catalog', 'public', 'private'
+as $function$
+  select public.studio2_access_allowed('integrity.manage', null, false)
+$function$;
+
+revoke all on function public.integrity_is_organizer()
+from public, anon;
+grant execute on function public.integrity_is_organizer()
+to authenticated, service_role;
+
+-- These helpers have no remaining authorization callers after cutover.
 drop function if exists public.organizer_exists();
 drop function if exists public.has_role(uuid, public.app_role);
 
