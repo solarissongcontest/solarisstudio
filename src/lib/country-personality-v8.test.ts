@@ -79,7 +79,7 @@ describe("source-driven Country personality foundation", () => {
   it("keeps Wiki article-first and personality-subordinate", () => {
     const wiki = source("src/country-wiki-v8.css");
     const components = source("src/country-wiki-components-v8.css");
-    expect(wiki).toContain("--wiki-measure: 72ch");
+    expect(wiki).toContain("--wiki-measure: 66ch");
     expect(wiki).toContain("grid-template-columns: var(--wiki-sidebar) minmax(0, 1fr) var(--wiki-infobox)");
     expect(wiki).toContain(".wiki-article-surface {");
     expect(wiki).toContain("background: transparent !important");
