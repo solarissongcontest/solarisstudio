@@ -1,0 +1,623 @@
+/* ==========================================================================
+   swiss-style-theme / components
+   --------------------------------------------------------------------------
+   Five components: button, card, input, badge, nav.
+
+   Every value here is a var() reference to tokens.css. There is not one
+   colour literal in this file, which is what makes retheming a matter of
+   editing one file rather than auditing five.
+
+   The class names follow the shadcn shape: one base class carrying the
+   structure, one variant class carrying the intent (sw-btn + sw-btn-primary).
+   If you are on shadcn already, these map onto its variant prop directly.
+
+   WHAT THIS REGISTER DOES TO A COMPONENT LIBRARY
+
+   Two conventions that hold across all five, and that are worth reading
+   before the code.
+
+   A surface is not an object. There are no shadows in this theme and no
+   radii, so a card cannot be raised off the page and cannot be rounded off
+   it. What delimits a block is a rule, and a rule belongs to the block below
+   it. That is why the card is a top border and some padding rather than a
+   box, and why the boxed variant is the exception rather than the base.
+
+   Status is not a colour. The palette is near-monochrome with one red, and
+   spending that red on four semantic fills would make it four colours and
+   make this a different register. So a badge has four variants that differ by
+   rule weight and fill rather than by hue, and the word inside it carries the
+   meaning. The theme asks the copy to do the work that a green pill usually
+   does.
+
+   Requires tokens.css to be loaded first. Load it explicitly rather than
+   letting this file pull it in, so the dependency is visible at the call
+   site. grid.css is a separate load and most pages will want it too:
+
+     <link rel="stylesheet" href="tokens/tokens.css" />
+     <link rel="stylesheet" href="components/grid.css" />
+     <link rel="stylesheet" href="components/components.css" />
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Shared behaviour
+   The focus ring is the accent, offset outside the border so it sits on the
+   ground rather than on the control. On an accent-filled button that offset
+   is the whole reason the ring stays visible.
+   -------------------------------------------------------------------------- */
+.sw-focusable:focus-visible {
+  outline: var(--sw-focus-width) solid var(--sw-focus);
+  outline-offset: var(--sw-focus-offset);
+}
+
+/* Inline links. Underlined at rest, because a link that announces itself only
+   on hover is a link the reader has to go looking for. */
+.sw-link {
+  color: var(--sw-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  text-decoration-thickness: var(--sw-rule-hair);
+  transition: color var(--sw-duration) var(--sw-ease);
+}
+
+.sw-link:hover {
+  color: var(--sw-accent);
+}
+
+.sw-link:focus-visible {
+  outline: var(--sw-focus-width) solid var(--sw-focus);
+  outline-offset: var(--sw-focus-offset);
+}
+
+/* ==========================================================================
+   BUTTON
+   Variants: sw-btn-primary, sw-btn-default, sw-btn-accent, sw-btn-quiet
+   Sizes:    sw-btn-sm, (base), sw-btn-lg
+   ========================================================================== */
+.sw-btn {
+  /* 44px on both axes at every size. The size classes change the type and the
+     horizontal padding; none of them shrinks the target. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sw-space-1);
+  min-height: 44px;
+  padding: var(--sw-space-1) var(--sw-space-3);
+
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-body);
+  line-height: var(--sw-leading-body);
+  font-weight: var(--sw-weight-bold);
+  letter-spacing: var(--sw-tracking-normal);
+  text-align: center;
+  text-decoration: none;
+
+  border: var(--sw-rule-hair) solid var(--sw-ink);
+  border-radius: var(--sw-radius);
+  cursor: pointer;
+
+  transition:
+    background-color var(--sw-duration) var(--sw-ease),
+    color var(--sw-duration) var(--sw-ease),
+    border-color var(--sw-duration) var(--sw-ease);
+}
+
+.sw-btn:focus-visible {
+  outline: var(--sw-focus-width) solid var(--sw-focus);
+  outline-offset: var(--sw-focus-offset);
+}
+
+.sw-btn:disabled,
+.sw-btn[aria-disabled="true"] {
+  color: var(--sw-ink-muted);
+  background: var(--sw-ground-shade);
+  border-color: var(--sw-rule);
+  cursor: not-allowed;
+}
+
+/* The default action is ink, not red. Red on every primary button would spend
+   the register's one colour on the most repeated element on the site, and
+   there would be nothing left to mark the thing that actually matters. */
+.sw-btn-primary {
+  background: var(--sw-ink);
+  color: var(--sw-ground);
+}
+
+.sw-btn-primary:hover:not(:disabled) {
+  background: var(--sw-ink-muted);
+  border-color: var(--sw-ink-muted);
+}
+
+.sw-btn-default {
+  background: var(--sw-ground);
+  color: var(--sw-ink);
+}
+
+.sw-btn-default:hover:not(:disabled) {
+  background: var(--sw-ground-shade);
+}
+
+/* One of these per page at most. It is the accent's loudest appearance and
+   the thing the rationing rule in tokens.css is protecting. */
+.sw-btn-accent {
+  background: var(--sw-accent);
+  color: var(--sw-accent-ink);
+  border-color: var(--sw-accent);
+}
+
+.sw-btn-accent:hover:not(:disabled) {
+  background: var(--sw-ink);
+  border-color: var(--sw-ink);
+  color: var(--sw-ground);
+}
+
+/* No border until it is wanted. The underline is what keeps it legible as
+   something you can press while it has no box. */
+.sw-btn-quiet {
+  background: transparent;
+  color: var(--sw-ink);
+  border-color: transparent;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  text-decoration-thickness: var(--sw-rule-hair);
+}
+
+.sw-btn-quiet:hover:not(:disabled) {
+  color: var(--sw-accent);
+}
+
+.sw-btn-sm {
+  padding: var(--sw-space-1) var(--sw-space-2);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  letter-spacing: var(--sw-tracking-label);
+  text-transform: uppercase;
+}
+
+.sw-btn-lg {
+  padding: var(--sw-space-2) var(--sw-space-4);
+  font-size: var(--sw-text-lead);
+  line-height: var(--sw-leading-lead);
+}
+
+/* ==========================================================================
+   CARD
+   Variants: (base), sw-card-featured, sw-card-boxed, sw-card-shade
+   Parts:    sw-card-header, sw-card-title, sw-card-body, sw-card-footer
+   ========================================================================== */
+
+/* The base card has no box. It is a rule and the material under it, which is
+   how a column of related blocks is set in print and is the only treatment
+   that leaves the grid visible through the content.
+
+   The rule weight is held in a custom property rather than written into the
+   border, so the padding below can subtract it and keep the first line of
+   type on the baseline. A variant that changes the weight then only has to
+   change the property, and its padding follows. Writing 4px into
+   .sw-card-featured's border alone would push its content 2px off the grid
+   and leave it looking almost right. */
+.sw-card {
+  --sw-card-rule: var(--sw-rule-mid);
+
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  color: var(--sw-ink);
+  border-top: var(--sw-card-rule) solid var(--sw-ink);
+  border-radius: var(--sw-radius);
+  padding-top: calc(var(--sw-space-2) - var(--sw-card-rule));
+}
+
+/* The accent's one structural appearance: a heavier rule in red over the
+   block that owns the page. */
+.sw-card-featured {
+  --sw-card-rule: var(--sw-rule-heavy);
+  border-top-color: var(--sw-accent);
+}
+
+/* Enclosure, for the cases that need it. A boxed card sits inside its grid
+   cell rather than spanning it edge to edge, so the padding comes with it.
+   The top padding is left alone: it is already compensating for the rule. */
+.sw-card-boxed {
+  border-right: var(--sw-rule-hair) solid var(--sw-rule);
+  border-bottom: var(--sw-rule-hair) solid var(--sw-rule);
+  border-left: var(--sw-rule-hair) solid var(--sw-rule);
+  padding-right: var(--sw-space-2);
+  padding-bottom: var(--sw-space-2);
+  padding-left: var(--sw-space-2);
+}
+
+.sw-card-shade {
+  background: var(--sw-ground-shade);
+  padding-right: var(--sw-space-2);
+  padding-bottom: var(--sw-space-2);
+  padding-left: var(--sw-space-2);
+}
+
+.sw-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sw-space-2);
+  margin-bottom: var(--sw-space-1);
+}
+
+.sw-card-title {
+  margin: 0;
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-h3);
+  line-height: var(--sw-leading-h3);
+  letter-spacing: var(--sw-tracking-normal);
+  font-weight: var(--sw-weight-bold);
+}
+
+.sw-card-body {
+  margin: 0;
+  color: var(--sw-ink-muted);
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-body);
+  line-height: var(--sw-leading-body);
+}
+
+.sw-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sw-space-2);
+  margin-top: var(--sw-space-2);
+}
+
+/* A card that is itself a link. Nothing lifts and nothing moves, because
+   there is no third dimension in this theme to move in. The rule turns red,
+   which is the same signal the focus ring gives and is the reason both can
+   share one colour without ambiguity. */
+.sw-card-link {
+  text-decoration: none;
+  transition: border-color var(--sw-duration) var(--sw-ease);
+}
+
+.sw-card-link:hover {
+  border-top-color: var(--sw-accent);
+}
+
+.sw-card-link:focus-visible {
+  outline: var(--sw-focus-width) solid var(--sw-focus);
+  outline-offset: var(--sw-focus-offset);
+}
+
+/* ==========================================================================
+   INPUT
+   Parts:  sw-field, sw-label, sw-input, sw-hint, sw-error
+   States: default, :focus, aria-invalid="true", :disabled
+   ========================================================================== */
+.sw-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sw-space-1);
+}
+
+.sw-label {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  letter-spacing: var(--sw-tracking-label);
+  font-weight: var(--sw-weight-bold);
+  text-transform: uppercase;
+  color: var(--sw-ink);
+}
+
+.sw-input {
+  /* 16px is the body step and also the floor that stops iOS Safari zooming
+     the page on focus. The two agreeing is a convenience, not a coincidence:
+     the scale base was chosen at 1rem partly for this. */
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sw-space-1) var(--sw-space-2);
+
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-body);
+  line-height: var(--sw-leading-body);
+  color: var(--sw-ink);
+  background: var(--sw-ground);
+
+  border: var(--sw-rule-hair) solid var(--sw-ink);
+  border-radius: var(--sw-radius);
+
+  transition: border-color var(--sw-duration) var(--sw-ease);
+}
+
+.sw-input::placeholder {
+  color: var(--sw-ink-muted);
+}
+
+.sw-input:focus {
+  outline: var(--sw-focus-width) solid var(--sw-focus);
+  outline-offset: var(--sw-focus-offset);
+}
+
+/* The error state and the accent are the same red, which is a decision rather
+   than an accident: a register with one colour cannot afford a separate alarm
+   colour. It holds because at this theme's sensory position the accent is
+   rare, so a red field reads unambiguously as a problem. If you move toward
+   Functional and start spending red on record status, give errors a second
+   signal in words rather than reaching for a second colour. */
+.sw-input[aria-invalid="true"] {
+  border-color: var(--sw-accent);
+  border-width: var(--sw-rule-mid);
+}
+
+.sw-input:disabled {
+  background: var(--sw-ground-shade);
+  color: var(--sw-ink-muted);
+  border-color: var(--sw-rule);
+  cursor: not-allowed;
+}
+
+.sw-hint {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  color: var(--sw-ink-muted);
+}
+
+.sw-error {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  font-weight: var(--sw-weight-bold);
+  color: var(--sw-accent);
+}
+
+.sw-input:where(textarea) {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* ==========================================================================
+   BADGE
+   Variants: sw-badge-outline, sw-badge-quiet, sw-badge-solid, sw-badge-accent
+
+   Four variants and no hues. What separates them is rule weight and fill,
+   and the word inside carries the meaning a coloured pill would have carried.
+   ========================================================================== */
+.sw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sw-space-1);
+  padding: 0 var(--sw-space-1);
+
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  font-weight: var(--sw-weight-bold);
+  letter-spacing: var(--sw-tracking-label);
+  text-transform: uppercase;
+
+  border: var(--sw-rule-hair) solid var(--sw-ink);
+  border-radius: var(--sw-radius);
+  white-space: nowrap;
+}
+
+.sw-badge-outline {
+  color: var(--sw-ink);
+  background: transparent;
+}
+
+.sw-badge-quiet {
+  color: var(--sw-ink-muted);
+  background: transparent;
+  border-color: var(--sw-rule);
+}
+
+.sw-badge-solid {
+  color: var(--sw-ground);
+  background: var(--sw-ink);
+}
+
+/* Ground text on the accent, never ink. Ink on this red reaches 3.21:1 and
+   fails AA, which is why --sw-accent-ink exists. */
+.sw-badge-accent {
+  color: var(--sw-accent-ink);
+  background: var(--sw-accent);
+  border-color: var(--sw-accent);
+}
+
+/* ==========================================================================
+   NAV
+   A masthead with a wordmark, inline links on desktop, and a disclosure panel
+   on mobile. The disclosure is a <details> element, so the pattern needs no
+   JavaScript and keeps working with the page's scripts disabled.
+   ========================================================================== */
+.sw-nav {
+  background: var(--sw-ground);
+  border-bottom: var(--sw-rule-heavy) solid var(--sw-ink);
+}
+
+.sw-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sw-space-3);
+  max-width: var(--sw-container);
+  margin: 0 auto;
+  padding: var(--sw-space-2);
+}
+
+.sw-nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sw-space-1);
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-h3);
+  line-height: var(--sw-leading-h3);
+  font-weight: var(--sw-weight-bold);
+  letter-spacing: var(--sw-tracking-display);
+  color: var(--sw-ink);
+  text-decoration: none;
+}
+
+/* A filled square, which is geometry rather than illustration and is the only
+   mark the register permits. Ground on ink clears at 18.88:1. */
+.sw-nav-mark {
+  display: grid;
+  place-items: center;
+  width: var(--sw-space-3);
+  height: var(--sw-space-3);
+  background: var(--sw-ink);
+  color: var(--sw-ground);
+  border-radius: var(--sw-radius);
+  font-size: var(--sw-text-meta);
+  line-height: 1;
+  font-weight: var(--sw-weight-bold);
+}
+
+.sw-nav-links {
+  display: none;
+  align-items: center;
+  gap: var(--sw-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sw-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--sw-space-1);
+
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  letter-spacing: var(--sw-tracking-label);
+  text-transform: uppercase;
+  font-weight: var(--sw-weight-bold);
+  color: var(--sw-ink);
+  text-decoration: none;
+
+  /* A transparent rule of the same weight the current page will use, so
+     nothing shifts by two pixels when the marker appears. */
+  border-bottom: var(--sw-rule-mid) solid transparent;
+  transition: border-color var(--sw-duration) var(--sw-ease);
+}
+
+.sw-nav-link:hover {
+  border-bottom-color: var(--sw-rule);
+}
+
+.sw-nav-link[aria-current="page"] {
+  border-bottom-color: var(--sw-accent);
+}
+
+.sw-nav-link:focus-visible {
+  outline: var(--sw-focus-width) solid var(--sw-focus);
+  outline-offset: var(--sw-focus-offset);
+}
+
+.sw-nav-cta {
+  display: none;
+}
+
+/* Mobile disclosure */
+.sw-nav-disclosure {
+  position: relative;
+}
+
+.sw-nav-disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--sw-space-2);
+
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  letter-spacing: var(--sw-tracking-label);
+  text-transform: uppercase;
+  font-weight: var(--sw-weight-bold);
+  color: var(--sw-ink);
+  background: var(--sw-ground);
+
+  border: var(--sw-rule-hair) solid var(--sw-ink);
+  border-radius: var(--sw-radius);
+  cursor: pointer;
+  list-style: none;
+}
+
+.sw-nav-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sw-nav-disclosure > summary:focus-visible {
+  outline: var(--sw-focus-width) solid var(--sw-focus);
+  outline-offset: var(--sw-focus-offset);
+}
+
+/* The panel hangs off the masthead rule rather than drawing one of its own.
+
+   Both parts of that matter. A panel with its own heavy top rule ends up with
+   two rules a few pixels apart, because the panel is positioned against the
+   disclosure button and the button sits inside the bar's padding. The result
+   is a short jog in what should be one continuous line across the top of the
+   page, and it reads as a rendering fault rather than as a border.
+
+   So the offset is the bar's bottom padding plus the bar's rule, which lands
+   the panel exactly on the outer edge of the masthead, and the top border is
+   dropped so the masthead rule is the panel's top edge. The offset is coupled
+   to .sw-nav-inner's padding on purpose; the disclosure only exists below
+   768px, where that padding is --sw-space-2. */
+.sw-nav-panel {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+  margin-top: calc(var(--sw-space-2) + var(--sw-rule-heavy));
+  padding: var(--sw-space-1) var(--sw-space-2);
+
+  list-style: none;
+  background: var(--sw-ground);
+  border: var(--sw-rule-hair) solid var(--sw-ink);
+  border-top: none;
+  border-radius: var(--sw-radius);
+}
+
+/* In a vertical list the marker moves to the leading edge. A bottom rule here
+   would be indistinguishable from the separator between two rows, and the
+   reader would read the current page as a divider. */
+.sw-nav-panel .sw-nav-link {
+  display: flex;
+  width: 100%;
+  padding-left: var(--sw-space-1);
+  border-bottom-color: transparent;
+  border-left: var(--sw-rule-mid) solid transparent;
+}
+
+.sw-nav-panel .sw-nav-link:hover {
+  border-left-color: var(--sw-rule);
+}
+
+.sw-nav-panel .sw-nav-link[aria-current="page"] {
+  border-left-color: var(--sw-accent);
+}
+
+.sw-nav-panel li + li {
+  border-top: var(--sw-rule-hair) solid var(--sw-rule);
+}
+
+/* At 768px the links come inline and the disclosure retires, which is the
+   same breakpoint at which grid.css opens the twelve columns. */
+@media (min-width: 768px) {
+  .sw-nav-inner {
+    padding: var(--sw-space-2) var(--sw-space-3);
+  }
+
+  .sw-nav-links,
+  .sw-nav-cta {
+    display: flex;
+  }
+
+  .sw-nav-disclosure {
+    display: none;
+  }
+}
