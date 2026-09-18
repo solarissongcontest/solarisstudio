@@ -21,7 +21,9 @@ describe("Friend-voting resilience", () => {
     expect(v5).not.toContain("loadCanonicalVotingContextServer");
     expect(v5).not.toContain("vote_submissions");
 
-    expect(primary).toContain("const advancedAll = allObservations.map(advancedObservation)");
+    expect(primary).toContain("const historicalScope = allObservations.filter");
+    expect(primary).toContain("const advancedAll = historicalScope.map(advancedObservation)");
+    expect(primary).toContain("row.editionNumber < selectedEditionNumber");
     expect(primary).toContain("observationLookup");
     expect(model).toContain("preparedHistoryCache");
     expect(model).toContain("currentEditionNumberCache");
