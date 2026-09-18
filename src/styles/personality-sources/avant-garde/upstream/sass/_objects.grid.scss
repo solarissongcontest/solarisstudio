@@ -1,0 +1,30 @@
+// Grid Templates
+//
+.o-grid {
+
+  @media screen and (min-width: $bp-md) {
+    display: grid;
+    justify-content: center;
+    grid-gap: $gap-sm;
+    transition: all .3s ease;
+    grid-template-columns: repeat(12, 51px);
+  }
+
+  @media screen and (min-width: $bp-lg) {
+    grid-template-columns: repeat(12, 70px);
+  }
+
+  @media screen and (min-width: $bp-xl) {
+    grid-gap: $gap-lg;
+    grid-template-columns: repeat(12, 74px);
+  }
+
+  @media screen and (min-width: $bp-xxl) {
+    grid-template-columns: repeat(12, 94px);
+  }
+}
+
+// TODO: Remove before production, grid sections should be spaced in different ways
+.o-grid+.o-grid {
+  margin-top: $gap-lg;
+}
