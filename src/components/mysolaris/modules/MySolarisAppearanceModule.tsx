@@ -372,6 +372,9 @@ function CountryThemePage() {
                     }}
                     className="block w-full text-xs text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:font-semibold file:text-primary"
                   />
+                  <span className="mt-2 block text-[11px] leading-4 text-muted-foreground">
+                    Use at least 1920×1080 for backgrounds; 2560×1440 is ideal for large desktop displays. Keep important artwork away from the extreme edges because responsive crop controls may trim them.
+                  </span>
                 </label>
                 <RangeField label="Horizontal crop" min={0} max={100} value={theme.backgroundPositionX} onChange={(value) => setThemeValue("backgroundPositionX", value)} />
                 <RangeField label="Vertical crop" min={0} max={100} value={theme.backgroundPositionY} onChange={(value) => setThemeValue("backgroundPositionY", value)} />
