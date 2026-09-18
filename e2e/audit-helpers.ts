@@ -173,8 +173,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         }
       }
 
+      // The contain/no-crop contract belongs to the Country/Wiki identity
+      // system. Edition participant flag chips intentionally use cover in some
+      // compact tables, so auditing every data-flag-role on the entire site
+      // turns a Country visual invariant into an unrelated Edition failure.
       const officialFlagProblems = [...document.querySelectorAll<HTMLImageElement>(
-        '[data-flag-role="official"] img, [data-flag-chip="true"][data-flag-role="official"] img',
+        '.country-identity-hero [data-flag-role="official"] img, .wiki-canvas [data-flag-role="official"] img',
       )].flatMap((image) => {
         const style = getComputedStyle(image);
         // Responsive Wiki variants intentionally keep a desktop infobox mounted
