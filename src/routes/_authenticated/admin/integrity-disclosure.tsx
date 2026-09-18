@@ -177,10 +177,10 @@ function DisclosureWorkspace({ detail, onChanged }: { detail: CaseDetail; onChan
               className={`w-full rounded-xl border p-3 text-left transition ${source?.id === item.id ? "border-violet-200/22 bg-violet-200/[0.055]" : "border-white/[0.07] bg-black/10 hover:border-white/[0.12]"}`}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-[.1em] text-sky-200">{item.evidence_type.replaceAll("_", " ")}</span>
-                {item.visible_to_reporter ? <span className="rounded-full border border-emerald-200/12 px-2 py-0.5 text-[8px] font-black uppercase text-emerald-100">reporter-visible</span> : <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[8px] font-black uppercase text-muted-foreground">internal</span>}
-                {item.redacted_from_id ? <span className="rounded-full border border-amber-200/12 px-2 py-0.5 text-[8px] font-black uppercase text-amber-100">redacted derivative</span> : null}
-                {item.disclosure_copy_of_id ? <span className="rounded-full border border-violet-200/12 px-2 py-0.5 text-[8px] font-black uppercase text-violet-100">disclosure copy</span> : null}
+                <span className="text-[10px] font-black uppercase tracking-[.1em] text-sky-200">{item.evidence_type.replaceAll("_", " ")}</span>
+                {item.visible_to_reporter ? <span className="rounded-full border border-emerald-200/12 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-100">reporter-visible</span> : <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] font-black uppercase text-muted-foreground">internal</span>}
+                {item.redacted_from_id ? <span className="rounded-full border border-amber-200/12 px-2 py-0.5 text-[10px] font-black uppercase text-amber-100">redacted derivative</span> : null}
+                {item.disclosure_copy_of_id ? <span className="rounded-full border border-violet-200/12 px-2 py-0.5 text-[10px] font-black uppercase text-violet-100">disclosure copy</span> : null}
               </div>
               <p className="mt-2 text-xs font-black">{item.title}</p>
               <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">{item.description ?? item.original_name ?? item.provenance ?? "No description"}</p>
@@ -286,7 +286,7 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
         <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Required internal reason for creating this derivative, including what was removed or why disclosure is necessary" className="mt-2 w-full rounded-lg border p-3 text-xs leading-5" />
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[9px] leading-4 text-muted-foreground">The disclosure event is audit-recorded. File downloads remain signed for 60 seconds and private bucket locators never appear here.</p>
+          <p className="text-[10px] leading-4 text-muted-foreground">The disclosure event is audit-recorded. File downloads remain signed for 60 seconds and private bucket locators never appear here.</p>
           <button type="button" disabled={!valid || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary">
             <GitBranch className="size-4" />{createMutation.isPending ? "Creating…" : "Create derivative"}
           </button>
@@ -307,7 +307,7 @@ function ModeButton({ active, onClick, icon: Icon, title, text }: { active: bool
 }
 
 function Metric({ label, value, tone, suffix }: { label: string; value: number; tone: "blocked" | "attention" | "ready" | "info"; suffix?: string }) {
-  return <AdminCard className="!p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-2xl font-black">{value}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-muted-foreground">{label}</p></div><AdminStatus tone={tone}>{suffix ?? (value ? "Available" : "None")}</AdminStatus></div></AdminCard>;
+  return <AdminCard className="!p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-2xl font-black">{value}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.12em] text-muted-foreground">{label}</p></div><AdminStatus tone={tone}>{suffix ?? (value ? "Available" : "None")}</AdminStatus></div></AdminCard>;
 }
 
 function LoadingState() {
