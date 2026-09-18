@@ -23,7 +23,8 @@ export type CountrySourceImportMode =
   | "vendored-css"
   | "vendored-scss"
   | "vendored-source"
-  | "translated-components";
+  | "translated-components"
+  | "remote-esm";
 
 export type CountrySourceStatus = "prototype" | "planned";
 export type CountryBackgroundMode = "solid" | "gradient" | "image";
@@ -199,7 +200,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     pinnedRef: "a55db8271998f1156f82a63726ef9c56bd9c5093",
     version: null,
     license: "BSD-3-Clause",
-    importMode: "package",
+    importMode: "remote-esm",
     visualAuthority: "Modern digital cartography",
     compositionFamily: "geographic",
     backgroundPolicy: "contained",
