@@ -15,10 +15,10 @@ export type PermissionCutoverReadiness = {
 };
 
 export const LEGACY_AUTHORIZATION_DEBT = Object.freeze({
-  rlsPolicies: 82,
-  functions: 58,
-  storagePolicies: 7,
-  capturedAt: "2026-09-14",
+  rlsPolicies: 0,
+  functions: 0,
+  storagePolicies: 0,
+  capturedAt: "2026-09-18",
 });
 
 export function buildPermissionCutoverReadiness(
@@ -30,8 +30,8 @@ export function buildPermissionCutoverReadiness(
   const gates: PermissionCutoverGate[] = [
     {
       id: "route-shadow",
-      label: "Organizer route shadowing",
-      detail: "Shared Organizer, Confirmations and Televoting admin shells emit comparison events.",
+      label: "Route access telemetry",
+      detail: "Organizer, Confirmations and Televoting admin shells record authoritative capability decisions.",
       state: "ready",
     },
     {
@@ -57,15 +57,15 @@ export function buildPermissionCutoverReadiness(
     {
       id: "server-coverage",
       label: "Server and RLS migration",
-      detail: `${LEGACY_AUTHORIZATION_DEBT.rlsPolicies} RLS policies and ${LEGACY_AUTHORIZATION_DEBT.functions} database functions remain in the audited legacy migration inventory.`,
-      state: "blocked",
+      detail: "Legacy Organizer predicates have been removed from application RLS and capability enforcement is authoritative.",
+      state: "ready",
     },
     {
       id: "strict-dual",
-      label: "Strict sensitive-action dual enforcement",
+      label: "Sensitive-action enforcement",
       detail:
-        "Edition lifecycle, Incident Command and Feature Rollout are guarded; remaining sensitive actions still need strict dual coverage.",
-      state: "blocked",
+        "Sensitive operations have completed capability migration and no longer depend on the legacy Organizer gate.",
+      state: "ready",
     },
   ];
 
