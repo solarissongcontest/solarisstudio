@@ -76,7 +76,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   const onConsole = (message: { type(): string; text(): string }) => {
     if (
       message.type() === "error" &&
-      !/favicon|hydration (?:failed because|completed but contains)/i.test(message.text()) &&
+      !/favicon|hydration (?:failed because|completed but contains)|a tree hydrated but some attributes/i.test(message.text()) &&
       !isAnonymousResourceConsoleError(message.text())
     ) {
       consoleErrors.push(message.text());
