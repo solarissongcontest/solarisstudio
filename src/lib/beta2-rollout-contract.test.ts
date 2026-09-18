@@ -120,9 +120,9 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(css).toContain("country-hero-glass-material");
     expect(hero).toContain('lazy(() =>');
     expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
-    expect(hero).toContain("<Suspense fallback={heroLayout}>");
+    expect(hero).toContain("<Suspense fallback={composition}>");
     expect(hero).toContain("country-hero-scene");
-    expect(hero).toContain("country-hero-layout");
+    expect(source("src/components/country/personality/PersonalityHeroRenderer.tsx")).toContain("country-composition-glass");
     expect(hero).not.toContain("country-liquid-glass-refraction");
   });
 
