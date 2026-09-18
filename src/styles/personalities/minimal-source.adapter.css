@@ -98,3 +98,23 @@ body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-head
   block-size: 1px;
   background: var(--cp-rule);
 }
+
+
+/* Country depth: the Pico-derived personality remains semantic below the hero. */
+.country-profile-v8[data-country-personality="minimal"] .data-panel {
+  border: 0 !important;
+  border-block-start: 1px solid var(--cp-rule);
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+}
+
+.country-profile-v8[data-country-personality="minimal"] .responsive-tabs :is(select, button) {
+  border-radius: var(--pico-border-radius, .25rem) !important;
+}
+
+.country-profile-v8[data-country-personality="minimal"] .responsive-tabs .md\:block > div {
+  border-radius: var(--pico-border-radius, .25rem) !important;
+  background: transparent;
+}
