@@ -314,6 +314,7 @@ function CountryProfilePage() {
           options={TABS}
           onChange={setTab}
           label="Country section"
+          collapseAt="lg"
           className="mb-5"
         />
 
