@@ -1254,28 +1254,15 @@ export function useIsOrganizer() {
           data,
           error,
         } =
-          await supabase
-            .from(
-              "user_roles",
-            )
-            .select(
-              "role",
-            )
-            .eq(
-              "user_id",
-              userResult.user.id,
-            )
-            .eq(
-              "role",
-              "organizer",
-            )
-            .maybeSingle();
+          await (supabase as any).rpc(
+            "studio2_is_global_organizer",
+          );
 
         if (error) {
           return false;
         }
 
-        return !!data;
+        return data === true;
       },
   });
 }
