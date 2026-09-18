@@ -1,0 +1,327 @@
+import type { CountryHeroLayout } from "@/lib/visual-theme";
+
+export type CountryCompositionFamily =
+  | "material"
+  | "document"
+  | "official-document"
+  | "institutional"
+  | "grid-graphic"
+  | "information"
+  | "event"
+  | "geographic"
+  | "software"
+  | "semantic";
+
+export type CountryBackgroundPolicy =
+  | "ambient"
+  | "contained"
+  | "disabled"
+  | "desktop-wallpaper";
+
+export type CountrySourceImportMode =
+  | "package"
+  | "vendored-css"
+  | "vendored-scss"
+  | "translated-components";
+
+export type CountrySourceStatus = "prototype" | "planned";
+
+export type FlagBounds = {
+  desktop: readonly [width: number, height: number];
+  mobile: readonly [width: number, height: number];
+};
+
+export type CountryPersonalitySource = {
+  id: CountryHeroLayout;
+  sourceName: string;
+  repository: string | null;
+  pinnedRef: string | null;
+  version: string | null;
+  license: string;
+  importMode: CountrySourceImportMode;
+  visualAuthority: string;
+  compositionFamily: CountryCompositionFamily;
+  backgroundPolicy: CountryBackgroundPolicy;
+  flag: FlagBounds;
+  density: "low" | "medium-low" | "medium" | "medium-high" | "high";
+  status: CountrySourceStatus;
+};
+
+/**
+ * Canonical source-driven personality registry.
+ *
+ * A personality is not a Solaris-invented skin. Its visual grammar comes from
+ * the human-designed source named here. Source substitutions are design changes
+ * and must update this registry deliberately.
+ *
+ * The four prototype sources are pinned now because they form the architecture
+ * proof: Minimal, Retro Digital, Glass and Editorial. Remaining sources stay
+ * explicit and are pinned as their implementation phase begins.
+ */
+export const COUNTRY_PERSONALITY_SOURCES = [
+  {
+    id: "glass-card",
+    sourceName: "Sam Asante liquid-glass",
+    repository: "samasante/liquid-glass",
+    pinnedRef: "4e7b769e1df7e5a7d3669fef22417fe3d2f79ade",
+    version: "0.1.1",
+    license: "MIT",
+    importMode: "package",
+    visualAuthority: "Apple Liquid Glass",
+    compositionFamily: "material",
+    backgroundPolicy: "ambient",
+    flag: { desktop: [176, 118], mobile: [144, 96] },
+    density: "medium",
+    status: "prototype",
+  },
+  {
+    id: "editorial",
+    sourceName: "Tufte CSS",
+    repository: "edwardtufte/tufte-css",
+    pinnedRef: "b5d7b7bbe5ce9c4c50fcfad4f19ee3646cfd7ae1",
+    version: "1.9.0",
+    license: "MIT",
+    importMode: "translated-components",
+    visualAuthority: "Edward Tufte editorial publishing",
+    compositionFamily: "document",
+    backgroundPolicy: "contained",
+    flag: { desktop: [144, 96], mobile: [120, 80] },
+    density: "medium-low",
+    status: "prototype",
+  },
+  {
+    id: "passport",
+    sourceName: "Jesus Ramirez International Airline Ticket CSS",
+    repository: null,
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "translated-components",
+    visualAuthority: "ICAO Doc 9303 document zoning",
+    compositionFamily: "official-document",
+    backgroundPolicy: "contained",
+    flag: { desktop: [152, 100], mobile: [136, 90] },
+    density: "high",
+    status: "planned",
+  },
+  {
+    id: "poster",
+    sourceName: "RampStack Swiss Style Theme",
+    repository: "rampstackco/swiss-style-theme",
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "vendored-css",
+    visualAuthority: "International Typographic Style",
+    compositionFamily: "grid-graphic",
+    backgroundPolicy: "disabled",
+    flag: { desktop: [184, 122], mobile: [160, 106] },
+    density: "medium-low",
+    status: "planned",
+  },
+  {
+    id: "heritage",
+    sourceName: "The National Archives Design System",
+    repository: null,
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "vendored-scss",
+    visualAuthority: "Archival and catalogue publishing",
+    compositionFamily: "document",
+    backgroundPolicy: "contained",
+    flag: { desktop: [160, 106], mobile: [144, 96] },
+    density: "medium",
+    status: "planned",
+  },
+  {
+    id: "broadcast",
+    sourceName: "BBC GEL Grid + GEL Typography",
+    repository: "bbc/gel-grid",
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "vendored-scss",
+    visualAuthority: "BBC Global Experience Language",
+    compositionFamily: "information",
+    backgroundPolicy: "contained",
+    flag: { desktop: [160, 106], mobile: [144, 96] },
+    density: "medium-high",
+    status: "planned",
+  },
+  {
+    id: "minimal",
+    sourceName: "Pico CSS",
+    repository: "picocss/pico",
+    pinnedRef: "1039a4788d6abc368d5485ae6bac84a8f0e3096f",
+    version: "2.1.1",
+    license: "MIT",
+    importMode: "translated-components",
+    visualAuthority: "Pico semantic minimalist UI",
+    compositionFamily: "semantic",
+    backgroundPolicy: "disabled",
+    flag: { desktop: [120, 80], mobile: [104, 70] },
+    density: "medium",
+    status: "prototype",
+  },
+  {
+    id: "panorama",
+    sourceName: "MapLibre GL JS",
+    repository: "maplibre/maplibre-gl-js",
+    pinnedRef: null,
+    version: null,
+    license: "BSD-3-Clause",
+    importMode: "package",
+    visualAuthority: "Modern digital cartography",
+    compositionFamily: "geographic",
+    backgroundPolicy: "contained",
+    flag: { desktop: [152, 100], mobile: [136, 90] },
+    density: "medium",
+    status: "planned",
+  },
+  {
+    id: "classic",
+    sourceName: "GOV.UK Frontend",
+    repository: "alphagov/govuk-frontend",
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "vendored-scss",
+    visualAuthority: "Institutional and government publishing",
+    compositionFamily: "institutional",
+    backgroundPolicy: "disabled",
+    flag: { desktop: [136, 90], mobile: [120, 80] },
+    density: "medium",
+    status: "planned",
+  },
+  {
+    id: "spotlight",
+    sourceName: "GDG-X Hoverboard",
+    repository: "gdg-x/hoverboard",
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "translated-components",
+    visualAuthority: "Contemporary event-site composition",
+    compositionFamily: "event",
+    backgroundPolicy: "ambient",
+    flag: { desktop: [176, 118], mobile: [156, 104] },
+    density: "medium",
+    status: "planned",
+  },
+  {
+    id: "duotone",
+    sourceName: "RampStack Brutalist Web Theme",
+    repository: "rampstackco/brutalist-web-theme",
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "vendored-css",
+    visualAuthority: "Web brutalism",
+    compositionFamily: "grid-graphic",
+    backgroundPolicy: "contained",
+    flag: { desktop: [176, 118], mobile: [156, 104] },
+    density: "medium-high",
+    status: "planned",
+  },
+  {
+    id: "sci-fi",
+    sourceName: "98.css",
+    repository: "jdan/98.css",
+    pinnedRef: "b1d7a907371bbe523d6f64e3af97f714fdbd6d6a",
+    version: "0.1.21",
+    license: "MIT",
+    importMode: "translated-components",
+    visualAuthority: "Classic Windows 98 UI grammar",
+    compositionFamily: "software",
+    backgroundPolicy: "desktop-wallpaper",
+    flag: { desktop: [144, 96], mobile: [128, 86] },
+    density: "high",
+    status: "prototype",
+  },
+  {
+    id: "monument",
+    sourceName: "Aimeos Pagible Luxury",
+    repository: "aimeos/pagible-themes-luxury",
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "vendored-css",
+    visualAuthority: "High-fashion editorial publishing",
+    compositionFamily: "document",
+    backgroundPolicy: "ambient",
+    flag: { desktop: [128, 86], mobile: [120, 80] },
+    density: "low",
+    status: "planned",
+  },
+  {
+    id: "newspaper",
+    sourceName: "Guardian Source / Interactive Style Library",
+    repository: "guardian/source",
+    pinnedRef: null,
+    version: null,
+    license: "Apache-2.0",
+    importMode: "vendored-scss",
+    visualAuthority: "Newspaper and editorial hierarchy",
+    compositionFamily: "document",
+    backgroundPolicy: "disabled",
+    flag: { desktop: [128, 86], mobile: [112, 74] },
+    density: "medium-high",
+    status: "planned",
+  },
+  {
+    id: "horizon",
+    sourceName: "IBM Carbon",
+    repository: "carbon-design-system/carbon",
+    pinnedRef: null,
+    version: null,
+    license: "Apache-2.0",
+    importMode: "vendored-scss",
+    visualAuthority: "Technical and data-oriented interface design",
+    compositionFamily: "information",
+    backgroundPolicy: "disabled",
+    flag: { desktop: [136, 90], mobile: [120, 80] },
+    density: "high",
+    status: "planned",
+  },
+  {
+    id: "flag-focus",
+    sourceName: "USWDS",
+    repository: "uswds/uswds",
+    pinnedRef: null,
+    version: null,
+    license: "CC0-1.0 + audited third-party notices",
+    importMode: "vendored-scss",
+    visualAuthority: "Civic and public-service information design",
+    compositionFamily: "institutional",
+    backgroundPolicy: "disabled",
+    flag: { desktop: [144, 96], mobile: [128, 86] },
+    density: "medium",
+    status: "planned",
+  },
+  {
+    id: "ribbon",
+    sourceName: "Superilles Grid System",
+    repository: "zetareticoli/superilles",
+    pinnedRef: null,
+    version: null,
+    license: "MIT",
+    importMode: "vendored-css",
+    visualAuthority: "Wim Crouwel modular-grid experimentation",
+    compositionFamily: "grid-graphic",
+    backgroundPolicy: "contained",
+    flag: { desktop: [168, 112], mobile: [152, 100] },
+    density: "medium-low",
+    status: "planned",
+  },
+] as const satisfies readonly CountryPersonalitySource[];
+
+const SOURCE_BY_ID = Object.fromEntries(
+  COUNTRY_PERSONALITY_SOURCES.map((source) => [source.id, source]),
+) as Partial<Record<CountryHeroLayout, CountryPersonalitySource>>;
+
+export function countryPersonalitySource(id: CountryHeroLayout): CountryPersonalitySource {
+  const source = SOURCE_BY_ID[id];
+  if (source) return source;
+  return SOURCE_BY_ID.classic ?? COUNTRY_PERSONALITY_SOURCES[8];
+}
