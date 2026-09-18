@@ -14,13 +14,13 @@ export type PersonalityFixture = {
   facts: Array<{ label: string; value: string }>;
 };
 
-const ordinaryFlag =
+export const ordinaryFlag =
   "data:image/svg+xml;charset=UTF-8," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 2"><rect width="3" height="2" fill="#e9edf2"/><rect width="1" height="2" x="1" fill="#6f7782"/></svg>',
   );
 
-const portraitFlag =
+export const portraitFlag =
   "data:image/svg+xml;charset=UTF-8," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 3"><rect width="2" height="3" fill="#f1f1f1"/><path d="M0 0h2v1H0z" fill="#353535"/><path d="M0 2h2v1H0z" fill="#9a9a9a"/></svg>',
@@ -119,3 +119,21 @@ export const FLAG_QA_CASES = [
   "network failure",
   "slow load",
 ] as const;
+
+export const PERSONALITY_FLAG_QA_OPTIONS = [
+  { id: "fixture", label: "Fixture flag" },
+  { id: "missing", label: "Missing flag" },
+  { id: "portrait", label: "Portrait flag" },
+  { id: "network-failure", label: "Network failure" },
+  { id: "slow-load", label: "Slow load" },
+] as const;
+
+export type PersonalityFlagQaMode = (typeof PERSONALITY_FLAG_QA_OPTIONS)[number]["id"];
+
+export function personalityFlagQaImage(mode: PersonalityFlagQaMode, fixture: PersonalityFixture) {
+  if (mode === "fixture") return fixture.flagImage;
+  if (mode === "missing") return null;
+  if (mode === "portrait") return portraitFlag;
+  if (mode === "network-failure") return "/personality-qa-flag-missing.svg";
+  return "/personality-qa-flag.svg?slow=1";
+}
