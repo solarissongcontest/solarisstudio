@@ -42,7 +42,10 @@ describe("Beta 2 hardened rollout contract", () => {
     const tabs = source("src/components/ResponsiveTabs.tsx");
     const show = source("src/routes/shows/$showId.tsx");
     expect(tabs).toContain("<select");
-    expect(tabs).toContain('className="md:hidden"');
+    expect(tabs).toContain('collapseAt = "md"');
+    expect(tabs).toContain('collapseAt === "lg" ? "lg:hidden" : "md:hidden"');
+    const country = source("src/routes/countries/$code.tsx");
+    expect(country).toContain('collapseAt="lg"');
     expect(tabs).toContain('className="scroll-slim hidden overflow-x-auto md:block"');
     expect(show).toContain("<ResponsiveTabs");
     expect(show).toContain('label="Show view"');
