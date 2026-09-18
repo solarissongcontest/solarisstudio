@@ -36,6 +36,10 @@ create table if not exists public.country_design_presets (
 
 alter table public.country_design_presets enable row level security;
 
+grant select on table public.country_design_presets to anon, authenticated;
+grant insert, update, delete on table public.country_design_presets to authenticated;
+grant all on table public.country_design_presets to service_role;
+
 drop policy if exists "country design presets readable" on public.country_design_presets;
 create policy "country design presets readable"
 on public.country_design_presets
@@ -80,6 +84,10 @@ create table if not exists public.country_font_assets (
 );
 
 alter table public.country_font_assets enable row level security;
+
+grant select on table public.country_font_assets to anon, authenticated;
+grant insert, delete on table public.country_font_assets to authenticated;
+grant all on table public.country_font_assets to service_role;
 
 drop policy if exists "country font assets public read" on public.country_font_assets;
 create policy "country font assets public read"
