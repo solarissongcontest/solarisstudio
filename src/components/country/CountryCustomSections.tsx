@@ -16,6 +16,7 @@ import {
   sectionVisibleOn,
   type CountryPageSection,
   type CountrySectionImageAspect,
+  type CountrySectionLayoutVariant,
 } from "@/lib/country-page-builder";
 import type { Country } from "@/lib/data";
 
@@ -92,12 +93,14 @@ export function CountryCustomSections({
   sections,
   media,
   surface,
+  defaultLayout = "wiki",
 }: {
   country: Country;
   profile?: CountryProfile | null;
   sections: CountryProfileSection[] | CountryPageSection[];
   media: CountryMedia[];
   surface: "country" | "wiki";
+  defaultLayout?: CountrySectionLayoutVariant;
 }) {
   const identityHistory = usePublicCountryIdentityHistory(country.id);
   const visible = (sections as CountryPageSection[])
@@ -128,6 +131,7 @@ export function CountryCustomSections({
           profile={profile}
           section={section}
           surface={surface}
+          defaultLayout={defaultLayout}
         />
       ))}
     </div>
@@ -138,6 +142,7 @@ export function FormerCountryIdentities({
   country,
   identities,
   article = false,
+  defaultLayout = "wiki",
 }: {
   country: Country;
   identities: FormerCountryIdentity[];
@@ -207,8 +212,9 @@ export function CountryCustomSectionContent({
   section: NormalizedCountrySection;
   surface: "country" | "wiki";
   article?: boolean;
+  defaultLayout?: CountrySectionLayoutVariant;
 }) {
-  const presentation = countrySectionPresentation(section);
+  const presentation = countrySectionPresentation(section, defaultLayout);
 
   // Gallery blocks are intentionally retired. Country images remain reusable
   // as article/feature assets, but there is no separate gallery surface.
