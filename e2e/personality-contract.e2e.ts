@@ -74,8 +74,7 @@ test("Personality Lab survives hostile content at 200% text, RTL and high contra
   expect(result.titleClipped).toBe(false);
 });
 
-test("manual reference-lock run captures all four canonical gallery views", async ({ page }, testInfo) => {
-  test.skip(process.env.PERSONALITY_REFERENCE_CAPTURE !== "1", "Reference-lock images are captured only in the deliberate manual audit.");
+test("reference-lock run captures all four canonical gallery views", async ({ page }, testInfo) => {
   test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Reference locks use canonical 390px and 1440px viewports.");
 
   await page.goto("/dev/personality-gallery", { waitUntil: "domcontentloaded" });
