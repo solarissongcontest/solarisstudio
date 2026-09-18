@@ -12,6 +12,9 @@ export type PersonalityFixture = {
   accentColor: string;
   geography?: CountryGeography | null;
   facts: Array<{ label: string; value: string }>;
+  currentEntry?: { artist: string; song: string; edition: string; status: string } | null;
+  history?: Array<{ edition: string; result: string }>;
+  emptyWiki?: boolean;
 };
 
 export const ordinaryFlag =
@@ -38,6 +41,11 @@ export const PERSONALITY_QA_FIXTURES: PersonalityFixture[] = [
       "A strong black-and-gold identity fixture used to catch hierarchy, flag scale and personality drift.",
     flagImage: ordinaryFlag,
     accentColor: "#d3aa32",
+    currentEntry: { artist: "Aurora Vale", song: "Northern Lights", edition: "SSC 22", status: "Published canonical entry" },
+    history: [
+      { edition: "SSC 21", result: "4th" },
+      { edition: "SSC 20", result: "12th" },
+    ],
     facts: [
       { label: "Capital", value: "Tetlehamn" },
       { label: "Region", value: "Averia" },
@@ -55,6 +63,11 @@ export const PERSONALITY_QA_FIXTURES: PersonalityFixture[] = [
       "A deliberately ordinary fixture with muted colours, average copy length and unremarkable proportions.",
     flagImage: ordinaryFlag,
     accentColor: "#727b86",
+    currentEntry: { artist: "Mira Sol", song: "Still Water", edition: "SSC 22", status: "Qualified" },
+    history: [
+      { edition: "SSC 21", result: "18th" },
+      { edition: "SSC 20", result: "9th" },
+    ],
     facts: [
       { label: "Capital", value: "Aurel" },
       { label: "Region", value: "Central Solaris" },
@@ -73,6 +86,13 @@ export const PERSONALITY_QA_FIXTURES: PersonalityFixture[] = [
       "This intentionally long fixture stresses wrapping, semantic flow, action placement, portrait flags and dense metadata without allowing ellipsis or overlap.",
     flagImage: portraitFlag,
     accentColor: "#655f72",
+    currentEntry: { artist: "The Northern Metropolitan Collective", song: "A Very Long Song Title for Layout Stress Testing", edition: "SSC 22", status: "Finalist" },
+    history: [
+      { edition: "SSC 21", result: "2nd" },
+      { edition: "SSC 20", result: "Semi-final 11th" },
+      { edition: "SSC 19", result: "Winner" },
+      { edition: "SSC 18", result: "23rd" },
+    ],
     facts: [
       { label: "Capital", value: "Port Aurelian Metropolitan Administrative District" },
       { label: "Region", value: "Northern Oceanic Territories and Outer Islands" },
@@ -94,6 +114,9 @@ export const PERSONALITY_QA_FIXTURES: PersonalityFixture[] = [
     flagImage: null,
     accentColor: "#8a8a8a",
     facts: [],
+    currentEntry: null,
+    history: [],
+    emptyWiki: true,
   },
 ];
 
