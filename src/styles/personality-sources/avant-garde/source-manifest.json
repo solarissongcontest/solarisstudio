@@ -4,8 +4,9 @@
   "repository": "zetareticoli/superilles",
   "version": null,
   "commit": "b4404a655115f030c0bedec45cf5693169d03470",
-  "license": "MIT",
+  "license": "ISC",
   "implementationMode": "translated-components",
+  "licenseEvidence": "upstream/package.json#license",
   "importedFiles": ["sass/_settings.scss", "sass/_objects.grid.scss", "sass/_layouts.featureds.scss"],
   "excludedFiles": ["demo content", "source full-viewport mobile story heights"],
   "solarisChanges": [
