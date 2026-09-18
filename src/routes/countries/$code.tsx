@@ -13,12 +13,13 @@ import {
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
-import { CountryWorldOverview } from "@/components/CountryWorldOverview";
+import { CountryWorldOverview, CountryWorldSupplement } from "@/components/CountryWorldOverview";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
+import { allTimeScoreForCountry } from "@/lib/all-time-ranking";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
@@ -121,6 +122,10 @@ function CountryProfilePage() {
   const form = useMemo(
     () => (country ? computeCountryForm(country.id, opts) : null),
     [country, opts],
+  );
+  const allTime = useMemo(
+    () => (country ? allTimeScoreForCountry(country.id, publicArchive.shows, publicArchive.results) : null),
+    [country, publicArchive],
   );
 
   const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
@@ -372,7 +377,7 @@ function CountryProfilePage() {
 
         {tab === "overview" && (
           <div className="space-y-5">
-            <CountryWorldOverview country={country} stats={stats} form={form} />
+            <CountryWorldOverview country={country} />
 
             {hasContestData && stats ? (
               <>
@@ -415,23 +420,6 @@ function CountryProfilePage() {
                     <p className="text-sm text-muted-foreground">No published entry is available yet.</p>
                   )}
                 </Panel>
-
-                {hostedEditions.length > 0 && (
-                  <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
-                    <div className="flex flex-wrap gap-2">
-                      {hostedEditions.map((edition) => (
-                        <Link
-                          key={edition.id}
-                          to="/editions/$slug"
-                          params={{ slug: edition.slug }}
-                          className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold hover:border-primary/40"
-                        >
-                          {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
-                        </Link>
-                      ))}
-                    </div>
-                  </Panel>
-                )}
 
                 <Panel
                   title="Recent SSC history"
@@ -485,6 +473,37 @@ function CountryProfilePage() {
                     <p className="text-sm text-muted-foreground">No edition history is available yet.</p>
                   )}
                 </Panel>
+
+                {allTime ? (
+                  <Panel
+                    title="All-time record"
+                    description="Cumulative published Grand Final score and the country's all-time position."
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <StatTile label="All-time score" value={allTime.score} />
+                      <StatTile label="All-time ranking" value={`#${allTime.rank}`} />
+                    </div>
+                  </Panel>
+                ) : null}
+
+                {hostedEditions.length > 0 && (
+                  <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
+                    <div className="flex flex-wrap gap-2">
+                      {hostedEditions.map((edition) => (
+                        <Link
+                          key={edition.id}
+                          to="/editions/$slug"
+                          params={{ slug: edition.slug }}
+                          className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold hover:border-primary/40"
+                        >
+                          {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                        </Link>
+                      ))}
+                    </div>
+                  </Panel>
+                )}
+
+                <CountryWorldSupplement country={country} />
               </>
             ) : (
               <Panel title="Solaris Song Contest">
