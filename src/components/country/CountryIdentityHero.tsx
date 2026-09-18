@@ -1,6 +1,7 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import { countryPersonality } from "@/lib/country-personality-system";
+import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,7 @@ export function CountryIdentityHero({
 }: CountryIdentityHeroProps) {
   const Root = as;
   const definition = countryPersonality(personality);
+  const sourceDefinition = countryPersonalitySource(definition.id);
   const isLiquidGlass = definition.id === "glass-card";
   const flagStyle = flagImage
     ? ({ "--country-flag-art": `url(${JSON.stringify(flagImage)})` } as CSSProperties)
@@ -82,6 +84,9 @@ export function CountryIdentityHero({
       )}
       data-country-personality={definition.id}
       data-country-layout={definition.layout}
+      data-country-composition={sourceDefinition.compositionFamily}
+      data-country-background-policy={sourceDefinition.backgroundPolicy}
+      data-country-source-status={sourceDefinition.status}
       data-country-decoration={decoration}
       data-country-has-art={definition.allowsGraphicArt ? "true" : "false"}
       data-liquid-glass={isLiquidGlass ? "true" : undefined}
