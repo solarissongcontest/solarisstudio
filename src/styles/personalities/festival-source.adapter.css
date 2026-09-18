@@ -12,7 +12,7 @@
   border: 0 !important;
   border-block-end: 1px solid var(--border) !important;
   border-radius: 0 !important;
-  background: var(--background);
+  background: var(--background) !important;
   box-shadow: none !important;
 }
 
