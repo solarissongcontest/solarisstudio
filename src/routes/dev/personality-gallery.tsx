@@ -40,7 +40,7 @@ function PersonalityGallery() {
 
   return (
     <AppShell>
-      <main className="space-y-5" data-personality-gallery>
+      <div className="space-y-5" data-personality-gallery>
         <header className="data-panel p-5">
           <p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">Collection QA</p>
           <h1 className="mt-2 text-3xl font-bold">Personality Gallery</h1>
@@ -72,13 +72,13 @@ function PersonalityGallery() {
                 </div>
                 <p className="text-xs text-muted-foreground">{source.flag.mobile[0]}×{source.flag.mobile[1]} mobile flag max</p>
               </div>
-              <div className={config.width > 500 ? "overflow-x-auto pb-2" : ""}>
+              <div className="overflow-x-auto pb-2">
                 <PersonalityQaPreview personality={source.id} fixture={fixture} surface={config.surface} viewport={config.width} />
               </div>
             </section>
           ))}
         </div>
-      </main>
+      </div>
     </AppShell>
   );
 }
