@@ -102,3 +102,62 @@
     inset -2px -2px var(--retro-button-face),
     inset 2px 2px var(--retro-button-shadow) !important;
 }
+
+
+/* Wiki: source window grammar is restricted to navigation/facts chrome so the
+   article remains a readable encyclopedia rather than a 1998 modal marathon. */
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-canvas {
+  --retro-text: #222;
+  --retro-surface: #c0c0c0;
+  --retro-button-highlight: #fff;
+  --retro-button-face: #dfdfdf;
+  --retro-button-shadow: #808080;
+  --retro-window-frame: #0a0a0a;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button,
+  .wiki-sheet-panel
+) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--retro-surface) !important;
+  color: var(--retro-text) !important;
+  box-shadow:
+    inset -1px -1px var(--retro-window-frame),
+    inset 1px 1px var(--retro-button-face),
+    inset -2px -2px var(--retro-button-shadow),
+    inset 2px 2px var(--retro-button-highlight) !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-infobox-identity {
+  margin: 3px;
+  border-block-end: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--primary) 58%, #000080),
+    color-mix(in srgb, var(--primary) 42%, #1084d0)
+  );
+  color: #fff;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-infobox-identity :is(h2, p) {
+  color: #fff;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-canvas :is(
+  .wiki-contents-nav,
+  .wiki-record-strip,
+  .wiki-infobox dl
+) {
+  font-variant-numeric: tabular-nums;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-canvas :is(
+  .wiki-contents-nav > p,
+  .wiki-section-kicker,
+  .wiki-infobox dt
+) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
