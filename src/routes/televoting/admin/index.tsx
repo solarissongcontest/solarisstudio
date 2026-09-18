@@ -179,8 +179,8 @@ function VotingAdminOverview() {
                 to="/admin/friend-voting"
                 icon={Network}
                 title="Friend-voting intelligence"
-                description="Historical relationships, reciprocity, repeated support, signals and HOD-aware network analysis."
-                detail="Historical analysis"
+                description="Advanced historical relationships, reciprocity, repeated support, cross-channel signals and HOD-aware network analysis."
+                detail="Advanced analysis"
               />
               <WorkspaceRow
                 to="/televoting/admin/integrity"
