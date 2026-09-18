@@ -13,14 +13,14 @@ test("Personality Lab survives hostile content at 200% text, RTL and high contra
   test.skip(testInfo.project.name !== "public-390", "The hostile interaction stress run uses the canonical 390×844 mobile viewport.");
 
   await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Country fixture").selectOption("hostile");
-  await page.getByLabel("Personality").selectOption("poster");
-  await page.getByLabel("Surface").selectOption("country");
-  await page.getByLabel("Viewport").selectOption("390");
-  await page.getByLabel("RTL").check();
-  await page.getByLabel("200% text").check();
-  await page.getByLabel("High contrast").check();
-  await page.getByLabel("Reduced motion").check();
+  await page.getByLabel("Country fixture", { exact: true }).selectOption("hostile");
+  await page.getByLabel("Personality", { exact: true }).selectOption("poster");
+  await page.getByLabel("Surface", { exact: true }).selectOption("country");
+  await page.getByLabel("Viewport", { exact: true }).selectOption("390");
+  await page.getByLabel("RTL", { exact: true }).check();
+  await page.getByLabel("200% text", { exact: true }).check();
+  await page.getByLabel("High contrast", { exact: true }).check();
+  await page.getByLabel("Reduced motion", { exact: true }).check();
 
   const preview = page.locator("[data-personality-qa-preview]");
   await expect(preview).toBeVisible();
