@@ -9,10 +9,11 @@ of the 17 personalities:
 - `canonical-desktop-wiki.png` at 1440×900
 
 The images are intentionally generated from the rendered application, not
-hand-authored placeholders. Run the **Browser audit** workflow manually. Manual
-dispatch enables `PERSONALITY_REFERENCE_CAPTURE=1`; the
-`personality-contract.e2e.ts` suite then captures all 68 rendered reference
-images as Playwright attachments in the browser-audit artifact.
+hand-authored placeholders. The **Browser audit** automatically captures the
+canonical 390px and 1440px Country/Wiki views on pull requests. The
+`personality-contract.e2e.ts` suite captures all 68 rendered reference images
+as Playwright attachments in the browser-audit artifact. Manual full-audit
+dispatches run the same capture against the exhaustive viewport inventory.
 
 After human source-fidelity, independent-quality and collection-quality review,
 approved images become the visual baselines. Screenshot changes are never
