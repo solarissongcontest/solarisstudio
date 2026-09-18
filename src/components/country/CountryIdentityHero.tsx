@@ -138,7 +138,7 @@ export function CountryIdentityHero({
               decoding="async"
               onLoad={() => setFlagState("ready")}
               onError={() => setFlagState("error")}
-              style={{ opacity: flagState === "ready" ? 1 : 0 }}
+              style={{ visibility: flagState === "ready" ? "visible" : "hidden" }}
             />
           ) : null}
           {flagState !== "ready" ? (
