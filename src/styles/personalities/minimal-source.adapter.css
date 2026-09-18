@@ -68,3 +68,33 @@
     padding: 1.5rem 0;
   }
 }
+
+
+/* Wiki: Pico's semantic restraint carries through the reading surface. */
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-canvas {
+  --wiki-measure: 66ch;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-canvas :is(
+  .wiki-introduction h2,
+  .wiki-article-section summary h2,
+  .wiki-feature-title,
+  .wiki-prose,
+  .wiki-custom-section-content p
+) {
+  font-family: var(--font-sans, Gotham, system-ui, sans-serif);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button,
+  .wiki-sheet-panel
+) {
+  border-radius: var(--pico-border-radius, .25rem) !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="minimal"] .wiki-heading-rule {
+  block-size: 1px;
+  background: var(--cp-rule);
+}
