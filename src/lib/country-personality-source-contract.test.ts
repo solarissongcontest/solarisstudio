@@ -91,6 +91,14 @@ describe("source-driven Country personality contract", () => {
     });
   });
 
+  it("exposes source composition metadata on the shared semantic hero", () => {
+    const hero = source("src/components/country/CountryIdentityHero.tsx");
+    expect(hero).toContain('countryPersonalitySource(definition.id)');
+    expect(hero).toContain("data-country-composition={sourceDefinition.compositionFamily}");
+    expect(hero).toContain("data-country-background-policy={sourceDefinition.backgroundPolicy}");
+    expect(hero).toContain("data-country-source-status={sourceDefinition.status}");
+  });
+
   it("loads the source foundation and first human-source adapters after V8", () => {
     const styles = source("src/components/CountryPersonalityStyles.tsx");
     expect(styles).toContain('import sourceFoundation from "@/country-personality-source-foundation.css?inline"');
@@ -124,6 +132,10 @@ describe("source-driven Country personality contract", () => {
     expect(tufte).toContain("Tufte CSS 1.9.0 selective translated adapter");
     expect(tufte).toContain("minmax(0, 55fr) minmax(0, 40fr)");
     expect(tufte).toContain("column-gap: 5%");
+
+    expect(pico).toContain('data-country-hero-layout="minimal"');
+    expect(retro).toContain('data-country-hero-layout="sci-fi"');
+    expect(tufte).toContain('data-country-hero-layout="editorial"');
   });
 
   it("records prototype provenance next to the adapters", () => {
