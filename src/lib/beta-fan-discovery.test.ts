@@ -115,15 +115,17 @@ describe("beta-informed fan discovery", () => {
     const posterCss = source("src/styles/personalities/poster-source.adapter.css");
     const broadcastCss = source("src/styles/personalities/broadcast-source.adapter.css");
     const styleLoader = source("src/components/CountryPersonalityStyles.tsx");
-    const editor = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+    const editor = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
     expect(countryRoute).toContain("<CountryIdentityHero");
+    expect(countryRoute).toContain("<CountryDesignV2Hero");
+    expect(countryRoute).toContain("isPublishedV2");
     expect(personalitySystem).toContain("COUNTRY_PERSONALITIES");
     expect(personalitySystem).toContain('name: "Avant-Garde"');
     expect(posterCss).toContain('data-country-personality="poster"');
     expect(broadcastCss).toContain('data-country-personality="broadcast"');
     expect(styleLoader).not.toContain("country-personality-system-v8.css");
-    expect(editor).toContain("mobilePreviewOpen");
-    expect(editor).toContain("Unsaved preview");
+    expect(editor).toContain("V1 compatibility is still public.");
+    expect(editor).toContain("Live public renderer");
   });
 
   it("puts listening links on the main public entry surfaces", () => {
