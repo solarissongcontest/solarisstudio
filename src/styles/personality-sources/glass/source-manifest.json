@@ -5,12 +5,17 @@
   "version": "0.1.1",
   "commit": "4e7b769e1df7e5a7d3669fef22417fe3d2f79ade",
   "license": "MIT",
-  "implementationMode": "package",
-  "importedFiles": ["@samasante/liquid-glass"],
-  "excludedFiles": ["site demo assets"],
+  "implementationMode": "vendored-source",
+  "importedFiles": [
+    "src/GlassMaterial.tsx",
+    "src/displacement.ts",
+    "src/signal.ts"
+  ],
+  "vendoredTo": "src/vendor/liquid-glass/",
+  "excludedFiles": ["WebGL video surface", "demo components", "site assets", "fonts"],
   "solarisChanges": [
-    "use one major Glass lens for the country identity plate",
-    "supply Solaris country scene, tint and content",
-    "retain static material fallback where live DOM bending is unavailable"
+    "wrap the canonical Country identity grid in the upstream GlassMaterial engine",
+    "keep one source-backed glass surface rather than layering simulated glass inside glass",
+    "map optics to a restrained identity plate while retaining the source browser fallbacks"
   ]
 }
