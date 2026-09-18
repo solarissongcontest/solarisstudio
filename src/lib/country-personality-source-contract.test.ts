@@ -97,6 +97,11 @@ describe("source-driven Country personality contract", () => {
     expect(hero).toContain("data-country-composition={sourceDefinition.compositionFamily}");
     expect(hero).toContain("data-country-background-policy={sourceDefinition.backgroundPolicy}");
     expect(hero).toContain("data-country-source-status={sourceDefinition.status}");
+
+    const countryRoute = source("src/routes/countries/$code.tsx");
+    expect(countryRoute).toContain("countryPersonalitySource(heroPersonality)");
+    expect(countryRoute).toContain("data-country-composition={sourcePersonality.compositionFamily}");
+    expect(countryRoute).toContain("data-country-background-policy={sourcePersonality.backgroundPolicy}");
   });
 
   it("loads the source foundation and first human-source adapters after V8", () => {
