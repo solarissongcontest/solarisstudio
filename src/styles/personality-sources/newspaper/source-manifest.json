@@ -1,0 +1,28 @@
+{
+  "personality": "newspaper",
+  "sourceName": "Guardian Source / Interactive Style Library",
+  "repository": "guardian/source",
+  "version": null,
+  "commit": "d84c25d67ed51545994f53986eb4487d35c1aab4",
+  "license": "Apache-2.0",
+  "implementationMode": "vendored-scss",
+  "companionSources": [
+    {
+      "sourceName": "Guardian Interactive Style Library",
+      "repository": "guardian/interactive-style-library",
+      "commit": "19533f580cfa7ff6f5e2db6ffc75334cd9cf02a8",
+      "license": "Apache-2.0"
+    }
+  ],
+  "importedFiles": [
+    "typography roles",
+    "breakpoints",
+    "labels",
+    "CSS-only editorial component patterns"
+  ],
+  "excludedFiles": [
+    "Guardian logos",
+    "Guardian font assets",
+    "brand palette wholesale"
+  ]
+}
