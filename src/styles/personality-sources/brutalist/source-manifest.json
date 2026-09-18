@@ -5,12 +5,12 @@
   "version": null,
   "commit": "2ad20824755fb00b3d2c30d01df67ea63f2d9427",
   "license": "MIT",
-  "implementationMode": "vendored-css",
-  "importedFiles": [
-    "tokens and structural component styles selected after file-level audit"
-  ],
-  "excludedFiles": [
-    "demo content",
-    "anything that reduces touch target, focus or readability below Solaris requirements"
+  "implementationMode": "translated-components",
+  "importedFiles": ["tokens/tokens.css", "components/components.css", "components/structure.css"],
+  "excludedFiles": ["demo assets", "ticker motion", "brand examples"],
+  "solarisChanges": [
+    "map pure source ink/ground roles to the active Solaris foreground/background pair",
+    "retain zero radius, zero shadow, zero transition and exposed rule hierarchy",
+    "retain grotesque display plus serif running copy and oversized responsive title scale"
   ]
 }
