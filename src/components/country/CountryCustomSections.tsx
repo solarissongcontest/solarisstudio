@@ -142,7 +142,6 @@ export function FormerCountryIdentities({
   country,
   identities,
   article = false,
-  defaultLayout = "wiki",
 }: {
   country: Country;
   identities: FormerCountryIdentity[];
@@ -206,6 +205,7 @@ export function CountryCustomSectionContent({
   section,
   surface,
   article = false,
+  defaultLayout = "wiki",
 }: {
   country: Country;
   profile?: CountryProfile | null;
