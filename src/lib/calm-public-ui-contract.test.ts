@@ -34,7 +34,7 @@ describe("calm public UI contract", () => {
     expect(glass).toContain('data-country-personality="glass-card"');
     expect(glass).toContain("country-hero-glass-material");
     expect(hero).toContain("<LazyGlassMaterial");
-    expect(hero).toContain("country-hero-layout");
+    expect(source("src/components/country/personality/PersonalityHeroRenderer.tsx")).toContain("country-composition-glass");
     expect(appearance).toContain("<CountryIdentityHero");
     expect(glass).not.toContain(".country-glass-panel-flag");
   });
