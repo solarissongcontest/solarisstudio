@@ -709,13 +709,20 @@
 .country-atlas-record {
   grid-area: record;
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "copy"
+    "flag"
+    "actions";
+  grid-template-rows: auto auto auto;
   gap: 1rem;
   padding: 1.75rem;
   border-inline-start: 1px solid var(--border);
   align-content: start;
 }
-.country-atlas-record .country-hero-flag-zone { justify-items: start; max-inline-size: 13rem; }
+.country-atlas-record .country-hero-copy { grid-area: copy; min-inline-size: 0; }
+.country-atlas-record .country-hero-flag-zone { grid-area: flag; justify-items: start; max-inline-size: 13rem; }
+.country-atlas-record .country-hero-actions { grid-area: actions; min-inline-size: 0; }
 
 @container country-identity (width < 48rem) {
   .country-identity-hero[data-country-personality="panorama"] .country-composition-atlas {
