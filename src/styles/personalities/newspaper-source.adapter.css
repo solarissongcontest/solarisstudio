@@ -53,7 +53,7 @@
   max-inline-size: 14ch !important;
   font-family: var(--guardian-headline);
   font-size: clamp(2.625rem, 6cqi, 4.375rem);
-  font-weight: 700;
+  font-weight: 700 !important;
   letter-spacing: -.035em !important;
   line-height: 1.02 !important;
 }
