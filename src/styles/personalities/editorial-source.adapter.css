@@ -75,3 +75,50 @@
     font-size: clamp(2.75rem, 14cqi, 4rem);
   }
 }
+
+
+/* Wiki: Tufte's source hierarchy is strongest in title/figure/margin
+   relationships. Long prose keeps the calibrated Solaris reading face until a
+   dedicated typography-parity review approves a serif body substitution. */
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-canvas {
+  --wiki-measure: 66ch;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-canvas :is(
+  .wiki-introduction h2,
+  .wiki-article-section summary h2,
+  .wiki-feature-title
+) {
+  font-family: var(--font-display, Classica, Georgia, serif);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.08;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-infobox {
+  border-inline: 0 !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-heading-rule {
+  inline-size: 55%;
+  block-size: 1px;
+  background: var(--cp-rule);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-media-gallery figure {
+  margin-block: 0 3rem;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="editorial"] .wiki-media-gallery figcaption {
+  max-inline-size: 40ch;
+  font-size: .8rem;
+  line-height: 1.45;
+}
