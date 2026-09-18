@@ -1,0 +1,93 @@
+/* Source-driven Country personality foundation
+   ==============================================
+   Loaded after V8. This file owns cross-source invariants only:
+   official flag bounds, source intensity hooks and background permissions.
+   It deliberately does not invent personality artwork. */
+
+:where(.country-identity-hero) {
+  --cp-flag-max-inline: 13rem;
+  --cp-flag-max-block: 8.75rem;
+  --cp-source-hero-intensity: 1;
+  --cp-source-navigation-intensity: .6;
+  --cp-source-content-intensity: .5;
+}
+
+.country-identity-hero .country-official-flag {
+  inline-size: min(100%, var(--cp-flag-max-inline));
+  min-block-size: 0;
+  max-inline-size: var(--cp-flag-max-inline);
+  max-block-size: var(--cp-flag-max-block);
+}
+
+.country-identity-hero .country-official-flag img {
+  inline-size: auto !important;
+  block-size: auto !important;
+  max-inline-size: 100% !important;
+  max-block-size: var(--cp-flag-max-block) !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.country-identity-hero[data-country-personality="glass-card"] { --cp-flag-max-inline: 11rem; --cp-flag-max-block: 7.375rem; }
+.country-identity-hero[data-country-personality="editorial"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+.country-identity-hero[data-country-personality="passport"] { --cp-flag-max-inline: 9.5rem; --cp-flag-max-block: 6.25rem; }
+.country-identity-hero[data-country-personality="poster"] { --cp-flag-max-inline: 11.5rem; --cp-flag-max-block: 7.625rem; }
+.country-identity-hero[data-country-personality="heritage"] { --cp-flag-max-inline: 10rem; --cp-flag-max-block: 6.625rem; }
+.country-identity-hero[data-country-personality="broadcast"] { --cp-flag-max-inline: 10rem; --cp-flag-max-block: 6.625rem; }
+.country-identity-hero[data-country-personality="minimal"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+.country-identity-hero[data-country-personality="panorama"] { --cp-flag-max-inline: 9.5rem; --cp-flag-max-block: 6.25rem; }
+.country-identity-hero[data-country-personality="classic"] { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
+.country-identity-hero[data-country-personality="spotlight"] { --cp-flag-max-inline: 11rem; --cp-flag-max-block: 7.375rem; }
+.country-identity-hero[data-country-personality="duotone"] { --cp-flag-max-inline: 11rem; --cp-flag-max-block: 7.375rem; }
+.country-identity-hero[data-country-personality="sci-fi"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+.country-identity-hero[data-country-personality="monument"] { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
+.country-identity-hero[data-country-personality="newspaper"] { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
+.country-identity-hero[data-country-personality="horizon"] { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
+.country-identity-hero[data-country-personality="flag-focus"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+.country-identity-hero[data-country-personality="ribbon"] { --cp-flag-max-inline: 10.5rem; --cp-flag-max-block: 7rem; }
+
+/* Background imagery is a source capability, not a universal theme control. */
+.country-identity-hero:is(
+  [data-country-personality="minimal"],
+  [data-country-personality="poster"],
+  [data-country-personality="classic"],
+  [data-country-personality="newspaper"],
+  [data-country-personality="horizon"],
+  [data-country-personality="flag-focus"]
+) .country-hero-scene {
+  display: none;
+}
+
+@media (max-width: 639px) {
+  .country-identity-hero {
+    --cp-flag-max-inline: 10.5rem;
+    --cp-flag-max-block: 7rem;
+  }
+
+  .country-identity-hero[data-country-personality="glass-card"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+  .country-identity-hero[data-country-personality="editorial"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="passport"] { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
+  .country-identity-hero[data-country-personality="poster"] { --cp-flag-max-inline: 10rem; --cp-flag-max-block: 6.625rem; }
+  .country-identity-hero[data-country-personality="heritage"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+  .country-identity-hero[data-country-personality="broadcast"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+  .country-identity-hero[data-country-personality="minimal"] { --cp-flag-max-inline: 6.5rem; --cp-flag-max-block: 4.375rem; }
+  .country-identity-hero[data-country-personality="panorama"] { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
+  .country-identity-hero[data-country-personality="classic"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="spotlight"] { --cp-flag-max-inline: 9.75rem; --cp-flag-max-block: 6.5rem; }
+  .country-identity-hero[data-country-personality="duotone"] { --cp-flag-max-inline: 9.75rem; --cp-flag-max-block: 6.5rem; }
+  .country-identity-hero[data-country-personality="sci-fi"] { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
+  .country-identity-hero[data-country-personality="monument"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="newspaper"] { --cp-flag-max-inline: 7rem; --cp-flag-max-block: 4.625rem; }
+  .country-identity-hero[data-country-personality="horizon"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="flag-focus"] { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
+  .country-identity-hero[data-country-personality="ribbon"] { --cp-flag-max-inline: 9.5rem; --cp-flag-max-block: 6.25rem; }
+
+  .country-identity-hero .country-hero-flag-zone {
+    inline-size: fit-content;
+    max-inline-size: 100%;
+  }
+
+  .country-identity-hero .country-official-flag {
+    inline-size: var(--cp-flag-max-inline);
+  }
+}
