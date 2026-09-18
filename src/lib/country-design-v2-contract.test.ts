@@ -45,6 +45,17 @@ describe("Country Design V2 integration contract", () => {
     expect(wiki).toContain("defaultLayout={publishedDesign?.content.defaultLayout}");
   });
 
+  it("keeps the V2 root as a canvas and restores the real liquid-glass engine", () => {
+    const css = source("src/country-design-v2.css");
+    const hero = source("src/components/country/CountryDesignV2Hero.tsx");
+    expect(css).toContain("V2 is a page canvas, not another card");
+    expect(css).toContain("padding: 0;");
+    expect(css).toContain("border-radius: 0;");
+    expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
+    expect(hero).toContain("country-v2-liquid-glass-material");
+    expect(hero).toContain("data-liquid-glass");
+  });
+
   it("does not inject anniversary notice cards into unrelated pages", () => {
     const anniversary = source("src/components/SolarisAnniversaryCelebration.tsx");
     expect(anniversary).not.toContain("solaris-anniversary-season-notice");
