@@ -190,6 +190,44 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         return problems;
       });
 
+      const countryHeroTitleProblems = [...document.querySelectorAll<HTMLElement>(
+        ".country-identity-hero .country-hero-title",
+      )].flatMap((title) => {
+        if (title.getClientRects().length === 0) return [];
+        const hero = title.closest<HTMLElement>(".country-identity-hero");
+        if (!hero) return [];
+        const titleRect = title.getBoundingClientRect();
+        const heroRect = hero.getBoundingClientRect();
+        const tolerance = 2;
+        const personality = hero.dataset.countryPersonality ?? "unknown";
+        const problems: string[] = [];
+        if (titleRect.top < heroRect.top - tolerance) {
+          problems.push(`${personality}: title paints above the Country hero`);
+        }
+        if (titleRect.bottom > heroRect.bottom + tolerance) {
+          problems.push(`${personality}: title paints below the Country hero`);
+        }
+        if (titleRect.left < heroRect.left - tolerance || titleRect.right > heroRect.right + tolerance) {
+          problems.push(`${personality}: title paints outside the Country hero horizontally`);
+        }
+        return problems;
+      });
+
+      const countryHeroMobileArtProblems = [...document.querySelectorAll<HTMLElement>(
+        ".country-identity-hero[data-country-has-art='true'] .country-hero-art",
+      )].flatMap((art) => {
+        if (window.innerWidth > 639 || art.getClientRects().length === 0) return [];
+        const style = getComputedStyle(art);
+        if (style.display === "none" || style.visibility === "hidden") return [];
+        const rect = art.getBoundingClientRect();
+        const personality =
+          art.closest<HTMLElement>(".country-identity-hero")?.dataset.countryPersonality ?? "unknown";
+        if (rect.height > 114) {
+          return [`${personality}: mobile personality art is ${Math.round(rect.height)}px tall`];
+        }
+        return [];
+      });
+
       const countryHeroFlagSizeProblems = [...document.querySelectorAll<HTMLImageElement>(
         '.country-identity-hero [data-flag-role="official"] img',
       )].flatMap((image) => {
@@ -213,6 +251,8 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         unnamedControls,
         countryHeroCollisions,
         officialFlagProblems,
+        countryHeroTitleProblems,
+        countryHeroMobileArtProblems,
         countryHeroFlagSizeProblems,
         title: document.title,
       };
@@ -226,6 +266,11 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(result.unnamedControls, `${path} has controls without accessible names`).toEqual([]);
     expect(result.countryHeroCollisions, `${path} has overlapping country hero semantic regions`).toEqual([]);
     expect(result.officialFlagProblems, `${path} distorts or hides official flag media`).toEqual([]);
+    expect(result.countryHeroTitleProblems, `${path} clips a Country hero title`).toEqual([]);
+    expect(
+      result.countryHeroMobileArtProblems,
+      `${path} renders a billboard-sized mobile personality art region`,
+    ).toEqual([]);
     expect(
       result.countryHeroFlagSizeProblems,
       `${path} renders an oversized mobile Country hero flag`,
