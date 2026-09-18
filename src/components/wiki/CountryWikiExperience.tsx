@@ -216,6 +216,8 @@ function CountryWikiArticle({
 
   const editionMap = new Map(opts.editions.map((edition) => [edition.id, edition]));
   const showMap = new Map(opts.shows.map((show) => [show.id, show]));
+  // Wiki is archival: show every published canonical entry. The first rows stay
+  // immediately readable and older editions collapse into the subarchive below.
   const latestEntries = canonicalEditionEntries(
     opts.participants.filter((entry) => entry.country_id === country.id),
   ).sort(
