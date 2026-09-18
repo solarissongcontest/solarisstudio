@@ -68,6 +68,11 @@ export default defineConfig({
       use: { viewport: { width, height } },
     })),
     {
+      name: "personality-touch-390",
+      testMatch: /personality-contract\.e2e\.ts/,
+      use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+    },
+    {
       name: "governance-mobile-390",
       testMatch: /governance\.e2e\.ts/,
       use: { viewport: { width: 390, height: 844 } },
