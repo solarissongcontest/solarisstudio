@@ -161,3 +161,34 @@ body[data-entity-theme="country"][data-country-hero-layout="sci-fi"] .wiki-canva
 ) {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
+
+
+/* Country depth: panels become 98.css-style group surfaces, not unrelated
+   modern rounded cards. */
+.country-profile-v8[data-country-personality="sci-fi"] .data-panel {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--retro-surface, #c0c0c0) !important;
+  color: var(--retro-text, #222) !important;
+  box-shadow:
+    inset -1px -1px var(--retro-button-highlight, #fff),
+    inset 1px 1px var(--retro-button-shadow, #808080),
+    inset -2px -2px var(--retro-button-face, #dfdfdf),
+    inset 2px 2px var(--retro-window-frame, #0a0a0a) !important;
+}
+
+.country-profile-v8[data-country-personality="sci-fi"] .data-panel :is(h2, p, span) {
+  text-shadow: none;
+}
+
+.country-profile-v8[data-country-personality="sci-fi"] .responsive-tabs :is(select, button) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--retro-surface, #c0c0c0) !important;
+  color: var(--retro-text, #222) !important;
+  box-shadow:
+    inset -1px -1px var(--retro-window-frame, #0a0a0a),
+    inset 1px 1px var(--retro-button-highlight, #fff),
+    inset -2px -2px var(--retro-button-shadow, #808080),
+    inset 2px 2px var(--retro-button-face, #dfdfdf) !important;
+}
