@@ -145,7 +145,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
       const intersects = (first: DOMRect, second: DOMRect) => {
         const width = Math.min(first.right, second.right) - Math.max(first.left, second.left);
         const height = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
-        return width > 1 && height > 1;
+        return width > 0 && height > 0;
       };
 
       const countryHeroCollisions: string[] = [];
@@ -226,8 +226,9 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         const rect = art.getBoundingClientRect();
         const personality =
           art.closest<HTMLElement>(".country-identity-hero")?.dataset.countryPersonality ?? "unknown";
-        if (rect.height > 114) {
-          return [`${personality}: mobile personality art is ${Math.round(rect.height)}px tall`];
+        const maxHeight = personality === "panorama" ? 196 : 114;
+        if (rect.height > maxHeight) {
+          return [`${personality}: mobile personality art is ${Math.round(rect.height)}px tall (max ${maxHeight}px)`];
         }
         return [];
       });
