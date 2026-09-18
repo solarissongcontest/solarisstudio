@@ -21,7 +21,24 @@ describe("canonical Country + Wiki completion contract", () => {
     expect(loader).toContain("country-personality-shared-foundation.css");
     expect(loader).not.toContain("country-personality-system-v8.css");
     expect(shared).not.toContain("data-country-personality=");
-    expect(existsSync(resolve(process.cwd(), "src/country-personality-system-v8.css"))).toBe(false);
+    const forbiddenLegacyCss = [
+      "src/country-personality-system-v8.css",
+      "src/country-glass-final.css",
+      "src/country-glass-parity.css",
+      "src/country-personalities-beta2.css",
+      "src/country-personalities-v2.css",
+      "src/country-personalities-v3.css",
+      "src/country-personalities-v4.css",
+      "src/country-personalities-v5.css",
+      "src/country-personalities-v6-layout.css",
+      "src/country-personalities-v6.css",
+      "src/country-personalities.css",
+      "src/country-personality-feedback.css",
+      "src/country-water-drop-v61.css",
+    ];
+    for (const path of forbiddenLegacyCss) {
+      expect(existsSync(resolve(process.cwd(), path)), `Legacy personality CSS returned: ${path}`).toBe(false);
+    }
   });
 
   it("ships the shared semantic Country and Wiki data contracts", () => {
