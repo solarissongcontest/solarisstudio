@@ -6,6 +6,7 @@ import {
   DEFAULT_COUNTRY_THEME,
   countryThemeToVisual,
   extractThemeFromImage,
+  getThemeColourReport,
   type CountryThemeRow,
   type CountryVisualTheme,
 } from "@/lib/visual-theme";
@@ -410,6 +411,24 @@ export function normalizeCountryDesignV2(input: unknown, fallbackTheme?: Country
   const typography = raw.typography && typeof raw.typography === "object" ? raw.typography : {};
   const content = raw.content && typeof raw.content === "object" ? raw.content : {};
 
+  const requestedPalette = {
+    backgroundPrimary: validHex(palette.backgroundPrimary, fallback.palette.backgroundPrimary),
+    backgroundSecondary: validHex(palette.backgroundSecondary, fallback.palette.backgroundSecondary),
+    backgroundTertiary: palette.backgroundTertiary == null ? null : validHex(palette.backgroundTertiary, fallback.palette.accent),
+    accent: validHex(palette.accent, fallback.palette.accent),
+    textPrimary: validHex(palette.textPrimary, fallback.palette.textPrimary),
+    textMuted: validHex(palette.textMuted, fallback.palette.textMuted),
+    surface: validHex(palette.surface, fallback.palette.surface),
+  };
+  const safeColours = getThemeColourReport({
+    backgroundPrimary: requestedPalette.backgroundPrimary,
+    backgroundSecondary: requestedPalette.backgroundSecondary,
+    accent: requestedPalette.accent,
+    textPrimary: requestedPalette.textPrimary,
+    textMuted: requestedPalette.textMuted,
+    surface: requestedPalette.surface,
+  });
+
   return {
     version: 2,
     surface: enumValue(raw.surface, COUNTRY_SURFACE_OPTIONS.map((option) => option.id), fallback.surface),
@@ -431,13 +450,10 @@ export function normalizeCountryDesignV2(input: unknown, fallbackTheme?: Country
     accent: enumValue(raw.accent, COUNTRY_ACCENT_OPTIONS.map((option) => option.id), fallback.accent),
     motion: enumValue(raw.motion, ["subtle", "medium", "heavy"] as const, fallback.motion),
     palette: {
-      backgroundPrimary: validHex(palette.backgroundPrimary, fallback.palette.backgroundPrimary),
-      backgroundSecondary: validHex(palette.backgroundSecondary, fallback.palette.backgroundSecondary),
-      backgroundTertiary: palette.backgroundTertiary == null ? null : validHex(palette.backgroundTertiary, fallback.palette.accent),
-      accent: validHex(palette.accent, fallback.palette.accent),
-      textPrimary: validHex(palette.textPrimary, fallback.palette.textPrimary),
-      textMuted: validHex(palette.textMuted, fallback.palette.textMuted),
-      surface: validHex(palette.surface, fallback.palette.surface),
+      ...requestedPalette,
+      textPrimary: safeColours.foreground,
+      textMuted: safeColours.mutedForeground,
+      surface: safeColours.surface,
     },
     background: {
       mode: enumValue(background.mode, ["solid", "gradient", "image"] as const, fallback.background.mode),
@@ -514,7 +530,10 @@ export function countryDesignCssVariables(design: CountryDesignV2): CSSPropertie
     "--country-v2-spacing": String(design.tuning.spacing),
     "--country-v2-content-width": `${design.tuning.contentWidth}px`,
     "--country-v2-shadow-depth": String(design.tuning.shadowDepth),
-    "--country-v2-transparency": String(design.tuning.transparency),
+    "--country-v2-shadow-y": `${8 + 20 * design.tuning.shadowDepth}px`,
+    "--country-v2-shadow-blur": `${18 + 42 * design.tuning.shadowDepth}px`,
+    "--country-v2-shadow-alpha": `${8 + 20 * design.tuning.shadowDepth}%`,
+    "--country-v2-transparency": `${Math.round(design.tuning.transparency * 100)}%`,
   } as CSSProperties;
 }
 
