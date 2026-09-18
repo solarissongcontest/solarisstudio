@@ -232,7 +232,7 @@ function IntegrityHome({
         <Link
           to="/rules/$ruleId"
           params={{ ruleId: "16.3" }}
-          className="group rounded-[1.7rem] border border-violet-300/14 bg-[linear-gradient(150deg,rgba(75,55,125,.22),rgba(6,22,43,.93))] p-5 transition hover:-translate-y-0.5 hover:border-violet-200/25 sm:p-6"
+          className="group rounded-[1.7rem] border border-violet-300/14 bg-[linear-gradient(150deg,rgba(75,55,125,.22),rgba(6,22,43,.93))] p-5 transition-[background-color,border-color] duration-150 ease-out hover:border-violet-200/25 sm:p-6"
         >
           <ShieldCheck className="size-7 text-violet-200" />
           <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-violet-200/75">
