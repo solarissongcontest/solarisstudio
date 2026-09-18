@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 const SOURCE_COUNT = 17;
 
 async function openPersonalityLab(page: import("@playwright/test").Page) {
-  await openPersonalityLab(page);
+  await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
   const controls = page.getByRole("region", { name: "Personality Lab controls" });
   await expect(controls).toBeVisible({ timeout: 60_000 });
   await expect(page.getByLabel("Country fixture", { exact: true })).toBeVisible({ timeout: 60_000 });
