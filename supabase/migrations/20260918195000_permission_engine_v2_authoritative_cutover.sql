@@ -286,6 +286,145 @@ from public, anon;
 grant execute on function public.integrity_is_organizer()
 to authenticated, service_role;
 
+-- Reconcile Integrity reviewer RPCs with the capability-native definitions
+-- already running in production. Clean migration history still carried direct
+-- user_roles reviewer checks, which would reject legitimate v2 role assignments.
+create or replace function public.admin_assign_integrity_reviewer(
+  _case_id uuid,
+  _user_id uuid,
+  _review_role text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $function$
+begin
+  if not public.studio2_access_allowed('integrity.manage', null, false) then
+    raise exception 'Integrity management capability required';
+  end if;
+  if _review_role not in ('triage', 'investigator', 'decision_maker', 'appeal_reviewer') then
+    raise exception 'Invalid review role';
+  end if;
+  if not private.studio2_user_has_capability(_user_id, 'integrity.manage', null) then
+    raise exception 'Reviewer must have integrity management capability';
+  end if;
+
+  insert into public.integrity_case_reviewers(case_id, user_id, review_role, assigned_by)
+  values (_case_id, _user_id, _review_role, auth.uid())
+  on conflict (case_id, user_id, review_role) do update
+    set assigned_by = excluded.assigned_by,
+        assigned_at = now(),
+        recused_at = null,
+        recusal_reason = null;
+
+  update public.integrity_cases
+  set assigned_to = case when _review_role = 'investigator' then _user_id else assigned_to end,
+      updated_at = now()
+  where id = _case_id;
+
+  insert into public.integrity_case_events(case_id, event_type, detail, visible_to_reporter, actor_user_id)
+  values (_case_id, 'reviewer.assigned', 'A ' || replace(_review_role, '_', ' ') || ' was assigned', false, auth.uid());
+
+  return jsonb_build_object('ok', true);
+end;
+$function$;
+
+create or replace function public.admin_assign_integrity_appeal_reviewer(
+  _appeal_id uuid,
+  _user_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, private, pg_temp
+as $function$
+declare
+  v_case_id uuid;
+  v_status text;
+  v_submitter uuid;
+  v_sanction_creator uuid;
+  v_finding_creator uuid;
+begin
+  if not public.studio2_access_allowed('integrity.sanction', null, false) then
+    raise exception 'Integrity sanction capability required';
+  end if;
+  if not private.studio2_user_has_capability(_user_id, 'integrity.sanction', null) then
+    raise exception 'Appeal reviewer must have integrity sanction capability';
+  end if;
+
+  select a.case_id, a.status, a.submitted_by_user_id, s.created_by, f.created_by
+  into v_case_id, v_status, v_submitter, v_sanction_creator, v_finding_creator
+  from public.integrity_case_appeals a
+  join public.integrity_case_sanctions s on s.id = a.sanction_id
+  join public.integrity_case_findings f on f.id = s.finding_id
+  where a.id = _appeal_id
+  for update of a;
+
+  if v_case_id is null then raise exception 'Appeal not found'; end if;
+  if v_status not in ('submitted', 'under_review') then
+    raise exception 'Only an active submitted appeal can receive a reviewer';
+  end if;
+  if v_submitter is not null and _user_id = v_submitter then
+    raise exception 'The appeal submitter cannot review their own appeal';
+  end if;
+  if _user_id = v_sanction_creator then
+    raise exception 'The original sanction decision-maker cannot be the appeal reviewer';
+  end if;
+  if _user_id = v_finding_creator then
+    raise exception 'The original finding author cannot be the appeal reviewer';
+  end if;
+
+  update public.integrity_case_appeals
+  set assigned_reviewer = _user_id,
+      status = 'under_review'
+  where id = _appeal_id;
+
+  insert into public.integrity_case_reviewers(case_id, user_id, review_role, assigned_by)
+  values (v_case_id, _user_id, 'appeal_reviewer', auth.uid())
+  on conflict (case_id, user_id, review_role) do update
+    set assigned_by = excluded.assigned_by,
+        assigned_at = now(),
+        recused_at = null,
+        recusal_reason = null;
+
+  insert into public.integrity_case_events(case_id, event_type, detail, visible_to_reporter, actor_user_id)
+  values (v_case_id, 'appeal.reviewer_assigned', 'A fresh appeal reviewer was assigned', false, auth.uid());
+
+  return jsonb_build_object('ok', true, 'status', 'under_review');
+end;
+$function$;
+
+create or replace function public.admin_organizer_directory()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private, auth
+as $function$
+begin
+  if not public.studio2_access_allowed('integrity.manage', null, false) then
+    raise exception 'Integrity management capability required';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(
+      jsonb_build_object('user_id', u.id, 'email', u.email)
+      order by u.email
+    )
+    from auth.users u
+    where private.studio2_user_has_capability(u.id, 'integrity.manage', null)
+  ), '[]'::jsonb);
+end;
+$function$;
+
+revoke all on function public.admin_assign_integrity_reviewer(uuid, uuid, text) from public, anon;
+grant execute on function public.admin_assign_integrity_reviewer(uuid, uuid, text) to authenticated, service_role;
+revoke all on function public.admin_assign_integrity_appeal_reviewer(uuid, uuid) from public, anon;
+grant execute on function public.admin_assign_integrity_appeal_reviewer(uuid, uuid) to authenticated, service_role;
+revoke all on function public.admin_organizer_directory() from public, anon;
+grant execute on function public.admin_organizer_directory() to authenticated, service_role;
+
 -- These helpers have no remaining authorization callers after cutover.
 drop function if exists public.organizer_exists();
 drop function if exists public.has_role(uuid, public.app_role);
