@@ -82,7 +82,7 @@
     inset 0 -1px rgb(255 255 255 / .06) !important;
 }
 
-.country-composition-glass {
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass {
   grid-template-columns: minmax(0, 1fr) minmax(7rem, 11rem);
   grid-template-areas:
     "copy flag"
@@ -93,10 +93,10 @@
   align-items: center;
 }
 
-.country-composition-glass .country-hero-copy { grid-area: copy; }
-.country-composition-glass > .country-hero-description { grid-area: description; margin: 0; }
-.country-composition-glass .country-hero-flag-zone { grid-area: flag; }
-.country-composition-glass .country-hero-actions { grid-area: actions; }
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass > .country-hero-description { grid-area: description; margin: 0; }
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-actions { grid-area: actions; }
 
 .country-identity-hero[data-country-personality="glass-card"] .country-hero-title {
   font-size: clamp(2.65rem, 8.5cqi, 5.7rem);
@@ -150,7 +150,7 @@
     inline-size: calc(100% - 1.3rem);
   }
 
-  .country-composition-glass {
+  .country-identity-hero[data-country-personality="glass-card"] .country-composition-glass {
     grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 7.5rem);
     grid-template-areas:
       "copy copy"
@@ -160,11 +160,11 @@
     gap: .85rem 1rem;
   }
 
-  .country-composition-glass .country-hero-title {
+  .country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-title {
     font-size: clamp(2.7rem, 15cqi, 4.15rem) !important;
   }
 
-  .country-composition-glass .country-hero-description {
+  .country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-description {
     align-self: center;
     font-size: .86rem;
     line-height: 1.45;
@@ -192,7 +192,7 @@
   display: none !important;
 }
 
-.country-composition-poster {
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster {
   grid-template-columns: repeat(12, minmax(0, 1fr));
   grid-template-areas:
     "index index index index index index index index index index index index"
@@ -204,7 +204,7 @@
   align-items: start;
 }
 
-.country-composition-poster .country-poster-index {
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-poster-index {
   grid-area: index;
   display: flex;
   justify-content: space-between;
@@ -217,9 +217,9 @@
   text-transform: uppercase;
 }
 
-.country-composition-poster .country-hero-copy { grid-area: copy; }
-.country-composition-poster .country-hero-flag-zone { grid-area: flag; align-self: end; justify-items: stretch; }
-.country-composition-poster .country-hero-actions { grid-area: actions; }
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-hero-flag-zone { grid-area: flag; align-self: end; justify-items: stretch; }
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-hero-actions { grid-area: actions; }
 
 .country-identity-hero[data-country-personality="poster"] .country-hero-title {
   max-inline-size: 8ch !important;
@@ -284,7 +284,7 @@
 }
 
 @container country-identity (width < 48rem) {
-  .country-composition-poster {
+  .country-identity-hero[data-country-personality="poster"] .country-composition-poster {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     grid-template-areas:
       "index index index index index index"
@@ -332,7 +332,7 @@
   display: none !important;
 }
 
-.country-composition-minimal {
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal {
   grid-template-columns: minmax(0, 1fr) minmax(7rem, 12rem);
   grid-template-areas:
     "copy flag"
@@ -342,9 +342,9 @@
   align-items: center;
 }
 
-.country-composition-minimal .country-hero-copy { grid-area: copy; }
-.country-composition-minimal .country-hero-flag-zone { grid-area: flag; }
-.country-composition-minimal .country-hero-actions { grid-area: actions; }
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-actions { grid-area: actions; }
 
 .country-identity-hero[data-country-personality="minimal"] .country-official-flag {
   min-block-size: 0;
@@ -363,7 +363,7 @@
 }
 
 @container country-identity (width < 40rem) {
-  .country-composition-minimal {
+  .country-identity-hero[data-country-personality="minimal"] .country-composition-minimal {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "copy"
@@ -373,7 +373,7 @@
     padding: 1.5rem 0 !important;
   }
 
-  .country-composition-minimal .country-hero-flag-zone {
+  .country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-flag-zone {
     justify-items: start;
     max-inline-size: 11rem;
   }
@@ -393,7 +393,7 @@
   content: none !important;
 }
 
-.country-composition-retro {
+.country-identity-hero[data-country-personality="sci-fi"] .country-composition-retro {
   display: block !important;
   padding: 0 !important;
   margin: 0 !important;
@@ -473,7 +473,7 @@
 /* EDITORIAL                                                                   */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-editorial {
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial {
   grid-template-columns: minmax(0, 55fr) minmax(12rem, 40fr);
   grid-template-areas:
     "copy flag"
@@ -483,9 +483,9 @@
   align-items: start;
 }
 
-.country-composition-editorial .country-hero-copy { grid-area: copy; }
-.country-composition-editorial .country-hero-flag-zone { grid-area: flag; margin: 0; }
-.country-composition-editorial .country-hero-actions { grid-area: actions; }
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-flag-zone { grid-area: flag; margin: 0; }
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-actions { grid-area: actions; }
 
 .country-editorial-caption {
   margin-block-start: .6rem;
@@ -495,14 +495,14 @@
 }
 
 @container country-identity (width < 40rem) {
-  .country-composition-editorial {
+  .country-identity-hero[data-country-personality="editorial"] .country-composition-editorial {
     grid-template-columns: 1fr;
     grid-template-areas: "copy" "flag" "actions";
     gap: 1.25rem;
     padding: 1.75rem 0 !important;
   }
 
-  .country-composition-editorial .country-hero-flag-zone {
+  .country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-flag-zone {
     justify-items: start;
     max-inline-size: 15rem;
   }
@@ -516,7 +516,7 @@
   display: none !important;
 }
 
-.country-composition-passport {
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport {
   grid-template-columns: minmax(0, 7fr) minmax(9rem, 3fr);
   grid-template-areas:
     "header header"
@@ -542,7 +542,7 @@
   text-transform: uppercase;
 }
 
-.country-composition-passport .country-hero-copy {
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-copy {
   grid-area: copy;
   padding: 1.25rem;
   border-inline-end: 1px solid var(--foreground);
@@ -573,7 +573,7 @@
 .country-passport-fields dt { font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .country-passport-fields dd { margin-block-start: .3rem !important; font-size: .82rem; font-weight: 700; }
 
-.country-composition-passport .country-hero-flag-zone {
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-flag-zone {
   grid-area: flag;
   padding: 1.25rem;
   align-self: stretch;
@@ -581,13 +581,13 @@
   border-block-end: 1px solid var(--foreground);
 }
 
-.country-composition-passport .country-hero-actions {
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-actions {
   grid-area: actions;
   padding: .75rem 1rem;
 }
 
 @container country-identity (width < 48rem) {
-  .country-composition-passport {
+  .country-identity-hero[data-country-personality="passport"] .country-composition-passport {
     grid-template-columns: 1fr;
     grid-template-areas:
       "header"
@@ -597,7 +597,7 @@
       "actions";
   }
 
-  .country-composition-passport .country-hero-copy,
+  .country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-copy,
   .country-passport-fields {
     border-inline-end: 0;
   }
@@ -612,7 +612,7 @@
     border-block-start: 1px solid var(--foreground);
   }
 
-  .country-composition-passport .country-hero-flag-zone {
+  .country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-flag-zone {
     justify-items: start;
     max-inline-size: 14rem;
   }
@@ -622,7 +622,7 @@
 /* HERITAGE                                                                    */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-heritage {
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage {
   grid-template-columns: minmax(0, 2fr) minmax(9rem, 1fr);
   grid-template-areas:
     "label label"
@@ -635,29 +635,29 @@
 }
 
 .country-archive-label { grid-area: label; margin: 0; padding-block-end: .6rem; border-block-end: 1px solid var(--border); font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.country-composition-heritage .country-hero-copy { grid-area: copy; }
-.country-composition-heritage .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-flag-zone { grid-area: flag; }
 .country-archive-fields { grid-area: fields; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); border-block-start: 1px solid var(--border); }
 .country-archive-fields div { padding-block: .65rem; }
 .country-archive-fields dt { color: var(--muted-foreground); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
 .country-archive-fields dd { margin-block-start: .25rem !important; font-weight: 600; }
-.country-composition-heritage .country-hero-actions { grid-area: actions; }
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-actions { grid-area: actions; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-heritage {
+  .country-identity-hero[data-country-personality="heritage"] .country-composition-heritage {
     grid-template-columns: 1fr;
     grid-template-areas: "label" "copy" "flag" "fields" "actions";
     gap: 1rem;
     padding: 1.5rem 1rem !important;
   }
-  .country-composition-heritage .country-hero-flag-zone { justify-items: start; max-inline-size: 14rem; }
+  .country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-flag-zone { justify-items: start; max-inline-size: 14rem; }
 }
 
 /* -------------------------------------------------------------------------- */
 /* BROADCAST                                                                   */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-broadcast {
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast {
   grid-template-columns: minmax(0, 8fr) minmax(9rem, 4fr);
   grid-template-areas:
     "channel channel"
@@ -679,24 +679,24 @@
   letter-spacing: .04em;
   text-transform: uppercase;
 }
-.country-composition-broadcast .country-hero-copy { grid-area: copy; }
-.country-composition-broadcast .country-hero-flag-zone { grid-area: flag; }
-.country-composition-broadcast .country-hero-actions { grid-area: actions; border-block-start: 1px solid var(--border); padding-block-start: 1rem; }
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-actions { grid-area: actions; border-block-start: 1px solid var(--border); padding-block-start: 1rem; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-broadcast {
+  .country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast {
     grid-template-columns: 1fr;
     grid-template-areas: "channel" "copy" "flag" "actions";
     gap: .9rem;
   }
-  .country-composition-broadcast .country-hero-flag-zone { justify-items: start; max-inline-size: 13rem; }
+  .country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-flag-zone { justify-items: start; max-inline-size: 13rem; }
 }
 
 /* -------------------------------------------------------------------------- */
 /* ATLAS                                                                       */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-atlas {
+.country-identity-hero[data-country-personality="panorama"] .country-composition-atlas {
   grid-template-columns: minmax(0, 7fr) minmax(15rem, 5fr);
   grid-template-areas: "map record";
   gap: 0;
@@ -718,7 +718,7 @@
 .country-atlas-record .country-hero-flag-zone { justify-items: start; max-inline-size: 13rem; }
 
 @container country-identity (width < 48rem) {
-  .country-composition-atlas {
+  .country-identity-hero[data-country-personality="panorama"] .country-composition-atlas {
     grid-template-columns: 1fr;
     grid-template-areas: "map" "record";
   }
@@ -730,7 +730,7 @@
 /* DIPLOMATIC                                                                  */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-diplomatic {
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic {
   grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr);
   grid-template-areas:
     "copy flag"
@@ -740,24 +740,24 @@
   padding: 2rem 0 !important;
   align-items: start;
 }
-.country-composition-diplomatic .country-hero-copy { grid-area: copy; }
-.country-composition-diplomatic .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-flag-zone { grid-area: flag; }
 .country-diplomatic-summary { grid-area: summary; border-block: 1px solid var(--border); }
 .country-diplomatic-summary div { display:grid; grid-template-columns:minmax(8rem,32%) 1fr; gap:1rem; padding:.55rem 0; border-block-end:1px solid var(--border); }
 .country-diplomatic-summary div:last-child { border-block-end:0; }
 .country-diplomatic-summary dt { font-weight:700; }
-.country-composition-diplomatic .country-hero-actions { grid-area: actions; }
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-actions { grid-area: actions; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-diplomatic { grid-template-columns:1fr; grid-template-areas:"copy" "flag" "summary" "actions"; gap:1rem; padding:1.5rem 0 !important; }
-  .country-composition-diplomatic .country-hero-flag-zone { justify-items:start; max-inline-size:13rem; }
+  .country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic { grid-template-columns:1fr; grid-template-areas:"copy" "flag" "summary" "actions"; gap:1rem; padding:1.5rem 0 !important; }
+  .country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-flag-zone { justify-items:start; max-inline-size:13rem; }
 }
 
 /* -------------------------------------------------------------------------- */
 /* FESTIVAL                                                                    */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-festival {
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival {
   grid-template-columns: minmax(0, 8fr) minmax(8rem, 4fr);
   grid-template-areas:
     "kicker kicker"
@@ -770,20 +770,20 @@
   color: white;
 }
 .country-festival-kicker { grid-area:kicker; inline-size:fit-content; padding:.35rem .55rem; background:white; color:#111; font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
-.country-composition-festival .country-hero-copy { grid-area:copy; }
-.country-composition-festival .country-hero-flag-zone { grid-area:flag; }
-.country-composition-festival .country-hero-actions { grid-area:actions; }
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-copy { grid-area:copy; }
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-flag-zone { grid-area:flag; }
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-actions { grid-area:actions; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-festival { grid-template-columns:1fr; grid-template-areas:"kicker" "copy" "flag" "actions"; min-block-size:0; gap:1rem; padding:3rem 1rem 1.5rem !important; }
-  .country-composition-festival .country-hero-flag-zone { justify-items:start; max-inline-size:12rem; }
+  .country-identity-hero[data-country-personality="spotlight"] .country-composition-festival { grid-template-columns:1fr; grid-template-areas:"kicker" "copy" "flag" "actions"; min-block-size:0; gap:1rem; padding:3rem 1rem 1.5rem !important; }
+  .country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-flag-zone { justify-items:start; max-inline-size:12rem; }
 }
 
 /* -------------------------------------------------------------------------- */
 /* BRUTALIST                                                                   */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-brutalist {
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist {
   grid-template-columns: minmax(0, 8fr) minmax(8rem, 4fr);
   grid-template-areas:
     "code flag"
@@ -793,23 +793,23 @@
   padding: 0 !important;
 }
 .country-brutalist-code { grid-area:code; padding:.65rem 1rem; border-block-end:2px solid var(--foreground); border-inline-end:2px solid var(--foreground); font:800 .8rem/1 var(--bw-font-display,Arial,sans-serif); letter-spacing:.12em; }
-.country-composition-brutalist .country-hero-copy { grid-area:copy; padding:1.25rem; border-inline-end:2px solid var(--foreground); }
-.country-composition-brutalist .country-hero-flag-zone { grid-area:flag; padding:1.25rem; }
-.country-composition-brutalist .country-hero-actions { grid-area:actions; border-block-start:2px solid var(--foreground); }
-.country-composition-brutalist .country-hero-actions :is(a,button) { flex:1 1 0; border:0 !important; border-inline-end:2px solid var(--foreground) !important; }
-.country-composition-brutalist .country-hero-actions :last-child { border-inline-end:0 !important; }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-copy { grid-area:copy; padding:1.25rem; border-inline-end:2px solid var(--foreground); }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-flag-zone { grid-area:flag; padding:1.25rem; }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-actions { grid-area:actions; border-block-start:2px solid var(--foreground); }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-actions :is(a,button) { flex:1 1 0; border:0 !important; border-inline-end:2px solid var(--foreground) !important; }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-actions :last-child { border-inline-end:0 !important; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-brutalist { grid-template-columns:1fr; grid-template-areas:"code" "copy" "flag" "actions"; }
-  .country-brutalist-code,.country-composition-brutalist .country-hero-copy { border-inline-end:0; }
-  .country-composition-brutalist .country-hero-flag-zone { justify-items:start; max-inline-size:14rem; border-block-start:2px solid var(--foreground); }
+  .country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist { grid-template-columns:1fr; grid-template-areas:"code" "copy" "flag" "actions"; }
+  .country-brutalist-code,.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-copy { border-inline-end:0; }
+  .country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-flag-zone { justify-items:start; max-inline-size:14rem; border-block-start:2px solid var(--foreground); }
 }
 
 /* -------------------------------------------------------------------------- */
 /* LUXURY                                                                      */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-luxury {
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury {
   display:grid !important;
   grid-template-columns:minmax(0,1fr) minmax(9rem,14rem);
   grid-template-areas:
@@ -823,23 +823,23 @@
   text-align:start !important;
   align-items:center;
 }
-.country-composition-luxury > .country-hero-eyebrow { grid-area:eyebrow; }
-.country-composition-luxury > .country-hero-title { grid-area:title; margin:0 !important; }
-.country-composition-luxury > .country-hero-meta { grid-area:meta; margin:0 !important; }
-.country-composition-luxury > .country-hero-description { grid-area:description; margin:0 !important; }
-.country-composition-luxury .country-hero-flag-zone { grid-area:flag; }
-.country-composition-luxury .country-hero-actions { grid-area:actions; justify-content:flex-start !important; border-block-start:1px solid color-mix(in srgb,var(--foreground) 18%,transparent); padding-block-start:1.25rem; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-eyebrow { grid-area:eyebrow; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-title { grid-area:title; margin:0 !important; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-meta { grid-area:meta; margin:0 !important; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-description { grid-area:description; margin:0 !important; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury .country-hero-flag-zone { grid-area:flag; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury .country-hero-actions { grid-area:actions; justify-content:flex-start !important; border-block-start:1px solid color-mix(in srgb,var(--foreground) 18%,transparent); padding-block-start:1.25rem; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-luxury { grid-template-columns:1fr; grid-template-areas:"eyebrow" "title" "meta" "flag" "description" "actions"; gap:.9rem; padding:2.25rem 1rem !important; }
-  .country-composition-luxury .country-hero-flag-zone { justify-items:start; max-inline-size:12rem; }
+  .country-identity-hero[data-country-personality="monument"] .country-composition-luxury { grid-template-columns:1fr; grid-template-areas:"eyebrow" "title" "meta" "flag" "description" "actions"; gap:.9rem; padding:2.25rem 1rem !important; }
+  .country-identity-hero[data-country-personality="monument"] .country-composition-luxury .country-hero-flag-zone { justify-items:start; max-inline-size:12rem; }
 }
 
 /* -------------------------------------------------------------------------- */
 /* NEWSPAPER                                                                   */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-newspaper {
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper {
   grid-template-columns:minmax(0,9fr) minmax(8rem,3fr);
   grid-template-areas:
     "masthead masthead"
@@ -850,14 +850,14 @@
   align-items:start;
 }
 .country-newspaper-masthead { grid-area:masthead; display:flex; justify-content:space-between; gap:1rem; padding:.5rem 0; border-block-end:1px solid var(--foreground); font:700 .72rem/1 var(--guardian-sans,Arial,sans-serif); }
-.country-composition-newspaper .country-hero-copy { grid-area:copy; }
-.country-composition-newspaper .country-hero-flag-zone { grid-area:flag; border-inline-start:1px solid var(--foreground); padding-inline-start:1rem; }
-.country-composition-newspaper .country-hero-actions { grid-area:actions; border-block-start:1px solid var(--foreground); padding-block-start:.65rem; }
-.country-composition-newspaper .country-hero-actions :is(a,button) { border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; padding-inline:0 1rem !important; text-decoration:underline; }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-copy { grid-area:copy; }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-flag-zone { grid-area:flag; border-inline-start:1px solid var(--foreground); padding-inline-start:1rem; }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-actions { grid-area:actions; border-block-start:1px solid var(--foreground); padding-block-start:.65rem; }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-actions :is(a,button) { border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; padding-inline:0 1rem !important; text-decoration:underline; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-newspaper { grid-template-columns:1fr; grid-template-areas:"masthead" "copy" "flag" "actions"; }
-  .country-composition-newspaper .country-hero-flag-zone { border-inline-start:0; padding-inline-start:0; justify-items:start; max-inline-size:13rem; }
+  .country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper { grid-template-columns:1fr; grid-template-areas:"masthead" "copy" "flag" "actions"; }
+  .country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-flag-zone { border-inline-start:0; padding-inline-start:0; justify-items:start; max-inline-size:13rem; }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -866,7 +866,7 @@
 
 .country-identity-hero[data-country-personality="horizon"] .country-hero-art { display:none !important; }
 
-.country-composition-scientific {
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific {
   grid-template-columns:minmax(0,7fr) minmax(9rem,3fr);
   grid-template-areas:
     "reference reference"
@@ -877,28 +877,28 @@
   padding:0 !important;
 }
 .country-scientific-reference { grid-area:reference; margin:0; padding:.75rem 1rem; border-block-end:1px solid var(--border); background:color-mix(in srgb,var(--surface) 88%,var(--background)); font:600 .75rem/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.05em; }
-.country-composition-scientific .country-hero-copy { grid-area:copy; padding:1.5rem 1rem 1rem; }
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-copy { grid-area:copy; padding:1.5rem 1rem 1rem; }
 .country-scientific-data { grid-area:data; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0 1rem 1.25rem !important; border-block:1px solid var(--border); }
 .country-scientific-data div { padding:.75rem; border-inline-end:1px solid var(--border); }
 .country-scientific-data div:last-child { border-inline-end:0; }
 .country-scientific-data dt { color:var(--muted-foreground); font-size:.68rem; }
 .country-scientific-data dd { margin-block-start:.3rem !important; font-weight:600; font-variant-numeric:tabular-nums; }
-.country-composition-scientific .country-hero-flag-zone { grid-area:flag; padding:1.5rem 1rem; }
-.country-composition-scientific .country-hero-actions { grid-area:actions; padding:1rem; border-block-start:1px solid var(--border); }
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-flag-zone { grid-area:flag; padding:1.5rem 1rem; }
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-actions { grid-area:actions; padding:1rem; border-block-start:1px solid var(--border); }
 
 @container country-identity (width < 40rem) {
-  .country-composition-scientific { grid-template-columns:1fr; grid-template-areas:"reference" "copy" "data" "flag" "actions"; gap:0; }
+  .country-identity-hero[data-country-personality="horizon"] .country-composition-scientific { grid-template-columns:1fr; grid-template-areas:"reference" "copy" "data" "flag" "actions"; gap:0; }
   .country-scientific-data { grid-template-columns:1fr; }
   .country-scientific-data div { border-inline-end:0; border-block-end:1px solid var(--border); }
   .country-scientific-data div:last-child { border-block-end:0; }
-  .country-composition-scientific .country-hero-flag-zone { justify-items:start; max-inline-size:14rem; }
+  .country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-flag-zone { justify-items:start; max-inline-size:14rem; }
 }
 
 /* -------------------------------------------------------------------------- */
 /* CIVIC                                                                       */
 /* -------------------------------------------------------------------------- */
 
-.country-composition-civic {
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic {
   grid-template-columns:minmax(0,2fr) minmax(9rem,1fr);
   grid-template-areas:
     "band band"
@@ -908,13 +908,13 @@
   padding:0 0 1.5rem !important;
 }
 .country-civic-band { grid-area:band; margin:0; padding:.55rem 1rem; background:var(--primary); color:var(--primary-foreground); font-size:.8rem; font-weight:700; }
-.country-composition-civic .country-hero-copy { grid-area:copy; padding-inline-start:1rem; }
-.country-composition-civic .country-hero-flag-zone { grid-area:flag; padding-inline-end:1rem; }
-.country-composition-civic .country-hero-actions { grid-area:actions; padding-inline-start:1rem; }
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-copy { grid-area:copy; padding-inline-start:1rem; }
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-flag-zone { grid-area:flag; padding-inline-end:1rem; }
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-actions { grid-area:actions; padding-inline-start:1rem; }
 
 @container country-identity (width < 40rem) {
-  .country-composition-civic { grid-template-columns:1fr; grid-template-areas:"band" "copy" "flag" "actions"; gap:1rem; }
-  .country-composition-civic .country-hero-flag-zone { justify-items:start; max-inline-size:13rem; padding-inline:1rem; }
+  .country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic { grid-template-columns:1fr; grid-template-areas:"band" "copy" "flag" "actions"; gap:1rem; }
+  .country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-flag-zone { justify-items:start; max-inline-size:13rem; padding-inline:1rem; }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -923,7 +923,7 @@
 
 .country-identity-hero[data-country-personality="ribbon"] .country-hero-art { display:none !important; }
 
-.country-composition-avant {
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant {
   grid-template-columns:repeat(12,minmax(0,1fr));
   grid-template-rows:auto auto auto auto;
   gap:1.5rem;
@@ -932,23 +932,23 @@
 }
 .country-avant-index { grid-column:1 / 3; grid-row:1; margin:0; font-size:clamp(2.5rem,6cqi,5rem); font-weight:800; line-height:.8; }
 .country-avant-region { grid-column:8 / 13; grid-row:1; margin:0; padding-block-start:.2rem; border-block-start:1px solid var(--foreground); font-size:.72rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
-.country-composition-avant > .country-hero-title { grid-column:2 / 9; grid-row:2; max-inline-size:none !important; margin:0 !important; font-size:clamp(4rem,10cqi,8rem) !important; line-height:.78 !important; }
-.country-composition-avant .country-hero-flag-zone { grid-column:9 / 13; grid-row:2 / 4; align-self:end; }
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant > .country-hero-title { grid-column:2 / 9; grid-row:2; max-inline-size:none !important; margin:0 !important; font-size:clamp(4rem,10cqi,8rem) !important; line-height:.78 !important; }
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-flag-zone { grid-column:9 / 13; grid-row:2 / 4; align-self:end; }
 .country-avant-copy { grid-column:2 / 8; grid-row:3; }
-.country-composition-avant .country-hero-actions { grid-column:1 / 9; grid-row:4; border-block-start:1px solid var(--foreground); padding-block-start:.75rem; }
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-actions { grid-column:1 / 9; grid-row:4; border-block-start:1px solid var(--foreground); padding-block-start:.75rem; }
 
 @container country-identity (width < 46.25rem) {
-  .country-composition-avant {
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant {
     grid-template-columns:repeat(6,minmax(0,1fr));
     gap:.8rem;
     padding:1rem 0 1.5rem !important;
   }
   .country-avant-index { grid-column:1 / 2; grid-row:1; font-size:2.5rem; }
   .country-avant-region { grid-column:3 / 7; grid-row:1; }
-  .country-composition-avant > .country-hero-title { grid-column:1 / 7; grid-row:2; font-size:clamp(3.5rem,18cqi,5.1rem) !important; }
-  .country-composition-avant .country-hero-flag-zone { grid-column:1 / 5; grid-row:3; justify-items:start; }
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant > .country-hero-title { grid-column:1 / 7; grid-row:2; font-size:clamp(3.5rem,18cqi,5.1rem) !important; }
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-flag-zone { grid-column:1 / 5; grid-row:3; justify-items:start; }
   .country-avant-copy { grid-column:2 / 7; grid-row:4; }
-  .country-composition-avant .country-hero-actions { grid-column:1 / 7; grid-row:5; }
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-actions { grid-column:1 / 7; grid-row:5; }
 }
 
 /* Keep factual media factual everywhere. */
