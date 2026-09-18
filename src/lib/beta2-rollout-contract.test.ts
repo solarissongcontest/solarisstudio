@@ -46,7 +46,8 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(tabs).toContain('collapseAt === "lg" ? "lg:hidden" : "md:hidden"');
     const country = source("src/routes/countries/$code.tsx");
     expect(country).toContain('collapseAt="lg"');
-    expect(tabs).toContain('className="scroll-slim hidden overflow-x-auto md:block"');
+    expect(tabs).toContain('const expandedVisibility = collapseAt === "lg" ? "hidden lg:block" : "hidden md:block"');
+    expect(tabs).toContain('cn("scroll-slim overflow-x-auto", expandedVisibility)');
     expect(show).toContain("<ResponsiveTabs");
     expect(show).toContain('label="Show view"');
   });
@@ -116,7 +117,10 @@ describe("Beta 2 hardened rollout contract", () => {
     const hero = source("src/components/country/CountryIdentityHero.tsx");
     expect(css).toContain("samasante/liquid-glass");
     expect(css).toContain(".country-hero-scene-flag");
-    expect(css).toContain("backdrop-filter: blur(20px) saturate(132%)");
+    expect(css).toContain("country-hero-glass-material");
+    expect(hero).toContain('lazy(() =>');
+    expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
+    expect(hero).toContain("<Suspense fallback={heroLayout}>");
     expect(hero).toContain("country-hero-scene");
     expect(hero).toContain("country-hero-layout");
     expect(hero).not.toContain("country-liquid-glass-refraction");
