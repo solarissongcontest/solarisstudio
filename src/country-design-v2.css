@@ -5,8 +5,8 @@
 .country-design-v2 {
   color: var(--country-v2-text);
   font-family: var(--country-v2-font-body);
-  max-width: none;
-  margin-inline: 0;
+  max-width: var(--country-v2-content-width);
+  margin-inline: auto;
   padding: 0;
   position: relative;
   isolation: isolate;
