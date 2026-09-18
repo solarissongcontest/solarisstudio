@@ -70,7 +70,7 @@ describe("source-driven Country personality foundation", () => {
     const wiki = source("src/country-wiki-v8.css");
     expect(hero).toContain("country-hero-scene");
     expect(hero).toContain("--glass-pointer-x");
-    expect(hero).toContain("<GlassMaterial");
+    expect(hero).toContain("<LazyGlassMaterial");
     expect(css).toContain("samasante/liquid-glass");
     expect(css).toContain("country-hero-glass-material");
     expect(wiki).toContain("exactly one functional glass header");
