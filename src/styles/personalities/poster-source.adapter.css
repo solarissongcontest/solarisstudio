@@ -56,7 +56,7 @@
   margin-block-start: .5rem;
   font-family: var(--sw-font);
   font-size: clamp(3.4rem, 9cqi, 6.5rem);
-  font-weight: 700;
+  font-weight: 700 !important;
   letter-spacing: -.022em !important;
   line-height: .92 !important;
 }
@@ -118,6 +118,7 @@
 .country-identity-hero[data-country-personality="poster"] .country-hero-actions :is(a, button) {
   min-block-size: 44px;
   border: var(--sw-rule-hair) solid var(--foreground);
+  border-width: var(--sw-rule-hair) !important;
   border-radius: 0;
   background: transparent;
   color: var(--foreground);
