@@ -1,0 +1,9 @@
+/* Solaris Anniversary global shell -------------------------------------------
+   One stable entrypoint for the sitewide anniversary experience. Keep layer
+   order explicit so celebration chrome, route integration, seasonal states and
+   deep-route effects do not drift into component-level CSS imports. */
+
+@import "./anniversary-global.css";
+@import "./anniversary-sitewide.css";
+@import "./anniversary-season.css";
+@import "./anniversary-deep.css";
