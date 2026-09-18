@@ -351,7 +351,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     repository: "zetareticoli/superilles",
     pinnedRef: "b4404a655115f030c0bedec45cf5693169d03470",
     version: null,
-    license: "MIT",
+    license: "ISC",
     importMode: "vendored-css",
     visualAuthority: "Wim Crouwel modular-grid experimentation",
     compositionFamily: "grid-graphic",
