@@ -6,7 +6,7 @@
 */
 
 .wiki-canvas {
-  --wiki-measure: 72ch;
+  --wiki-measure: 66ch;
   --wiki-sidebar: 13rem;
   --wiki-infobox: 18rem;
   min-inline-size: 0;
@@ -228,8 +228,8 @@
   max-inline-size: var(--wiki-measure);
   margin-block: 0 1rem;
   color: color-mix(in srgb, var(--foreground) 88%, transparent);
-  font-size: clamp(.98rem, .22vw + .94rem, 1.08rem);
-  line-height: 1.72;
+  font-size: 1rem;
+  line-height: 1.625;
   overflow-wrap: anywhere;
   text-wrap: pretty;
 }
