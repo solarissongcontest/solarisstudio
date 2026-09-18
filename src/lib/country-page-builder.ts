@@ -161,6 +161,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     sectionType: "facts",
     heading: "Quick facts",
     autoKind: "facts",
+    contentJson: { layoutVariant: "dashboard" },
   },
   {
     id: "custom-facts",
@@ -170,6 +171,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     heading: "Fun facts",
     contentJson: {
       factMode: "manual",
+      layoutVariant: "dashboard",
       customFacts: [
         { label: "Fact 01", value: "Write a fun fact" },
         { label: "Fact 02", value: "Write another fun fact" },
@@ -182,7 +184,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     description: "An image with optional heading, caption, text, size and directional fade.",
     sectionType: "image",
     heading: "Featured image",
-    contentJson: { imageSize: "medium", imageFade: "none" },
+    contentJson: { imageSize: "medium", imageFade: "none", layoutVariant: "showcase" },
   },
   {
     id: "editorial-feature",
@@ -192,7 +194,8 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     heading: "Feature",
     contentJson: {
       width: "wide",
-      panelStyle: "transparent",
+      layoutVariant: "magazine",
+      emphasis: "normal",
       spacing: "spacious",
       imageAspect: "16:9",
       imageSize: "large",
@@ -205,7 +208,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     description: "A prominent national quote, slogan, lyric-free motto or statement.",
     sectionType: "quote",
     heading: "Statement",
-    contentJson: { width: "narrow", textAlign: "center" },
+    contentJson: { width: "narrow", textAlign: "center", layoutVariant: "magazine" },
   },
   {
     id: "timeline",
