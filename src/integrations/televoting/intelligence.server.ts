@@ -170,8 +170,8 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
   const lens: IntelligenceLens = options.lens === "country" ? "country" : "hod";
   const channel: IntelligenceChannel = options.channel === "jury" || options.channel === "televote" ? options.channel : "combined";
   const canonical = await loadCanonicalVotingContextServer();
-  const editionNumberById = new Map(
-    canonical.hod.editions.map((edition: any) => [
+  const editionNumberById = new Map<string, number | null>(
+    canonical.hod.editions.map((edition: any): [string, number | null] => [
       String(edition.id),
       edition.edition_number == null ? null : Number(edition.edition_number),
     ]),
