@@ -75,7 +75,14 @@ using (public.studio2_access_allowed('rollout.manage', null, false));
 -- their policies when present and skip them safely on clean replay.
 do $optional_legacy_admin$
 begin
-  if to_regclass('public.admin_deadlines') is not null then
+  if exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relname = 'admin_deadlines'
+      and c.relkind in ('r', 'p')
+  ) then
     execute $policy$
       drop policy if exists "Organizers manage deadlines" on public.admin_deadlines
     $policy$;
@@ -101,7 +108,14 @@ begin
     $policy$;
   end if;
 
-  if to_regclass('public.admin_notifications') is not null then
+  if exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relname = 'admin_notifications'
+      and c.relkind in ('r', 'p')
+  ) then
     execute $policy$
       drop policy if exists "Organizers read own notifications" on public.admin_notifications
     $policy$;
@@ -135,7 +149,14 @@ begin
     $policy$;
   end if;
 
-  if to_regclass('public.admin_preferences') is not null then
+  if exists (
+    select 1
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public'
+      and c.relname = 'admin_preferences'
+      and c.relkind in ('r', 'p')
+  ) then
     execute $policy$
       drop policy if exists "Organizers manage own admin preferences" on public.admin_preferences
     $policy$;
