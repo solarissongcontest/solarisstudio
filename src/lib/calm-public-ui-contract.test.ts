@@ -27,15 +27,15 @@ describe("calm public UI contract", () => {
     expect(layout).not.toContain('Overview → Discover → Deep dive');
   });
 
-  it("keeps Glass Card country composition aligned with Wiki and preview", () => {
-    const glass = source("src/country-glass-parity.css");
-    expect(glass).toContain('data-country-hero-layout="glass-card"');
-    expect(glass).toContain('[data-preview-layout="glass-card"]');
-    expect(glass).toContain('content: none !important');
-    expect(glass).toContain('display: none !important');
-    expect(glass).toContain('[data-preview-layout="glass-card"] > .relative.z-10');
-    expect(glass).toContain('width: 100% !important');
-    expect(glass).toContain('max-width: none !important');
-    expect(glass).toContain('.country-glass-panel-flag');
+  it("keeps Glass Country, Wiki and preview on the canonical shared hero", () => {
+    const glass = source("src/styles/personalities/glass-source.adapter.css");
+    const hero = source("src/components/country/CountryIdentityHero.tsx");
+    const appearance = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+    expect(glass).toContain('data-country-personality="glass-card"');
+    expect(glass).toContain("country-hero-glass-material");
+    expect(hero).toContain("<GlassMaterial");
+    expect(hero).toContain("country-hero-layout");
+    expect(appearance).toContain("<CountryIdentityHero");
+    expect(glass).not.toContain(".country-glass-panel-flag");
   });
 });
