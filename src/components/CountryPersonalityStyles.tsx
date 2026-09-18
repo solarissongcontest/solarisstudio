@@ -6,6 +6,10 @@ import sourceFoundation from "@/country-personality-source-foundation.css?inline
 import minimalSource from "@/styles/personalities/minimal-source.adapter.css?inline";
 import retroSource from "@/styles/personalities/retro-source.adapter.css?inline";
 import editorialSource from "@/styles/personalities/editorial-source.adapter.css?inline";
+import posterSource from "@/styles/personalities/poster-source.adapter.css?inline";
+import diplomaticSource from "@/styles/personalities/diplomatic-source.adapter.css?inline";
+import broadcastSource from "@/styles/personalities/broadcast-source.adapter.css?inline";
+import heritageSource from "@/styles/personalities/heritage-source.adapter.css?inline";
 
 const countryPersonalityStyles = [
   buttonStyles,
@@ -16,6 +20,10 @@ const countryPersonalityStyles = [
   minimalSource,
   retroSource,
   editorialSource,
+  posterSource,
+  diplomaticSource,
+  broadcastSource,
+  heritageSource,
 ].join("\n");
 
 /**
