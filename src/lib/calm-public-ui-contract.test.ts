@@ -27,15 +27,17 @@ describe("calm public UI contract", () => {
     expect(layout).not.toContain('Overview → Discover → Deep dive');
   });
 
-  it("keeps Glass Country, Wiki and preview on the canonical shared hero", () => {
+  it("keeps canonical V1 Glass available while V2 uses its independent shared hero", () => {
     const glass = source("src/styles/personalities/glass-source.adapter.css");
     const hero = source("src/components/country/CountryIdentityHero.tsx");
-    const appearance = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+    const v2Hero = source("src/components/country/CountryDesignV2Hero.tsx");
+    const appearance = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
     expect(glass).toContain('data-country-personality="glass-card"');
     expect(glass).toContain("country-hero-glass-material");
     expect(hero).toContain("<LazyGlassMaterial");
     expect(source("src/components/country/personality/PersonalityHeroRenderer.tsx")).toContain("country-composition-glass");
-    expect(appearance).toContain("<CountryIdentityHero");
+    expect(v2Hero).toContain("data-country-v2-hero={layout}");
+    expect(appearance).toContain("<CountryDesignV2Hero");
     expect(glass).not.toContain(".country-glass-panel-flag");
   });
 });
