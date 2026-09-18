@@ -103,6 +103,15 @@ describe("source-driven Country personality contract", () => {
     ]);
   });
 
+  it("marks rendered source adapters as prototypes while keeping future sources planned", () => {
+    for (const id of ["glass-card", "editorial", "minimal", "sci-fi", "poster", "classic", "broadcast", "heritage"] as const) {
+      expect(countryPersonalitySource(id).status).toBe("prototype");
+    }
+    for (const id of ["passport", "panorama", "spotlight", "duotone", "monument", "newspaper", "horizon", "flag-focus", "ribbon"] as const) {
+      expect(countryPersonalitySource(id).status).toBe("planned");
+    }
+  });
+
   it("locks the deliberately small source-driven flag boxes", () => {
     expect(countryPersonalitySource("minimal").flag).toEqual({
       desktop: [120, 80],
@@ -141,6 +150,10 @@ describe("source-driven Country personality contract", () => {
     expect(styles).toContain('import minimalSource from "@/styles/personalities/minimal-source.adapter.css?inline"');
     expect(styles).toContain('import retroSource from "@/styles/personalities/retro-source.adapter.css?inline"');
     expect(styles).toContain('import editorialSource from "@/styles/personalities/editorial-source.adapter.css?inline"');
+    expect(styles).toContain('import posterSource from "@/styles/personalities/poster-source.adapter.css?inline"');
+    expect(styles).toContain('import diplomaticSource from "@/styles/personalities/diplomatic-source.adapter.css?inline"');
+    expect(styles).toContain('import broadcastSource from "@/styles/personalities/broadcast-source.adapter.css?inline"');
+    expect(styles).toContain('import heritageSource from "@/styles/personalities/heritage-source.adapter.css?inline"');
 
     const listStart = styles.indexOf("const countryPersonalityStyles");
     const v8 = styles.indexOf("personalityV8,", listStart);
@@ -155,6 +168,10 @@ describe("source-driven Country personality contract", () => {
     const pico = source("src/styles/personalities/minimal-source.adapter.css");
     const retro = source("src/styles/personalities/retro-source.adapter.css");
     const tufte = source("src/styles/personalities/editorial-source.adapter.css");
+    const swiss = source("src/styles/personalities/poster-source.adapter.css");
+    const govuk = source("src/styles/personalities/diplomatic-source.adapter.css");
+    const gel = source("src/styles/personalities/broadcast-source.adapter.css");
+    const archives = source("src/styles/personalities/heritage-source.adapter.css");
 
     expect(pico).toContain("Pico CSS v2.1.1 selective translated adapter");
     expect(pico).toContain("--pico-border-radius: .25rem");
@@ -172,6 +189,21 @@ describe("source-driven Country personality contract", () => {
     expect(pico).toContain('data-country-hero-layout="minimal"');
     expect(retro).toContain('data-country-hero-layout="sci-fi"');
     expect(tufte).toContain('data-country-hero-layout="editorial"');
+
+    expect(swiss).toContain("RampStack Swiss Style Theme translated adapter");
+    expect(swiss).toContain("grid-template-columns: repeat(12, minmax(0, 1fr))");
+    expect(swiss).toContain("--sw-scale-ratio: 1.25");
+
+    expect(govuk).toContain("GOV.UK Frontend translated adapter");
+    expect(govuk).toContain("--govuk-space-1: 5px");
+    expect(govuk).toContain("grid-template-columns: minmax(7rem, 30%)");
+
+    expect(gel).toContain("BBC GEL Grid + GEL Typography translated adapter");
+    expect(gel).toContain("--gel-unit: .5rem");
+    expect(gel).toContain("grid-template-columns: minmax(0, 8fr) minmax(9rem, 4fr)");
+
+    expect(archives).toContain("The National Archives Design System translated adapter");
+    expect(archives).toContain("grid-template-columns: minmax(0, 2fr) minmax(9rem, 1fr)");
   });
 
   it("records prototype provenance next to the adapters", () => {
@@ -179,11 +211,19 @@ describe("source-driven Country personality contract", () => {
     const retro = manifest("src/styles/personality-sources/retro-digital/source-manifest.json");
     const editorial = manifest("src/styles/personality-sources/editorial/source-manifest.json");
     const glass = manifest("src/styles/personality-sources/glass/source-manifest.json");
+    const poster = manifest("src/styles/personality-sources/poster/source-manifest.json");
+    const diplomatic = manifest("src/styles/personality-sources/diplomatic/source-manifest.json");
+    const broadcast = manifest("src/styles/personality-sources/broadcast/source-manifest.json");
+    const heritage = manifest("src/styles/personality-sources/heritage/source-manifest.json");
 
     expect(pico).toMatchObject({ repository: "picocss/pico", version: "2.1.1", license: "MIT" });
     expect(retro).toMatchObject({ repository: "jdan/98.css", version: "0.1.21", license: "MIT" });
     expect(editorial).toMatchObject({ repository: "edwardtufte/tufte-css", version: "1.9.0", license: "MIT" });
     expect(glass).toMatchObject({ repository: "samasante/liquid-glass", version: "0.1.1", license: "MIT" });
+    expect(poster).toMatchObject({ repository: "rampstackco/swiss-style-theme", license: "MIT" });
+    expect(diplomatic).toMatchObject({ repository: "alphagov/govuk-frontend", license: "MIT" });
+    expect(broadcast).toMatchObject({ repository: "bbc/gel-grid", license: "MIT" });
+    expect(heritage).toMatchObject({ repository: "nationalarchives/design-system", license: "MIT" });
 
     expect(source("THIRD_PARTY_DESIGN_LICENSES.md")).toContain("## Architecture prototypes");
   });
