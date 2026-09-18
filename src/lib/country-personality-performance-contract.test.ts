@@ -39,8 +39,13 @@ describe("personality performance budgets", () => {
   it("keeps ordinary CSS personalities free of dedicated runtime JS", () => {
     const atlasRuntime = statSync(resolve(process.cwd(), "src/components/country/AtlasMapModule.tsx")).size;
     const glassRuntime = statSync(resolve(process.cwd(), "src/vendor/liquid-glass/GlassMaterial.tsx")).size;
+    const hero = readFileSync(resolve(process.cwd(), "src/components/country/CountryIdentityHero.tsx"), "utf8");
     expect(atlasRuntime).toBeGreaterThan(0);
     expect(glassRuntime).toBeGreaterThan(0);
+    expect(hero).toContain('lazy(() =>');
+    expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
+    expect(hero).not.toContain('import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial"');
+    expect(hero).toContain("<Suspense fallback={heroLayout}>");
 
     for (const personality of COUNTRY_PERSONALITY_SOURCES) {
       if (personality.id === "panorama" || personality.id === "glass-card") continue;
