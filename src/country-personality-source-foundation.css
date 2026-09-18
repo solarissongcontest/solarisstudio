@@ -1,6 +1,6 @@
 /* Source-driven Country personality foundation
    ==============================================
-   Loaded after V8. This file owns cross-source invariants only:
+   Loaded after the source-neutral shared foundation. This file owns cross-source invariants only:
    official flag bounds, source intensity hooks and background permissions.
    It deliberately does not invent personality artwork. */
 
