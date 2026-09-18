@@ -214,9 +214,6 @@ export function SolarisAnniversaryCelebration() {
     const title = countdown
       ? season.daysUntil === 1 ? "Anniversary Day is tomorrow" : `${season.daysUntil} days until Anniversary Day`
       : `Solaris year ${season.age + 1} has begun`;
-    const detail = countdown
-      ? `The ${season.ordinal} anniversary is on 17 September.`
-      : `The ${season.ordinal} anniversary was on 17 September.`;
     return (
       <>
         {!badgeExpanded && <MobileBadgeTrigger />}
@@ -233,13 +230,6 @@ export function SolarisAnniversaryCelebration() {
             <strong>{countdown ? title : `Year ${season.age + 1} begins`}</strong>
           </span>
         </Link>
-        {!countryRoute && (
-          <aside className={`solaris-anniversary-season-notice ${countdown ? "solaris-anniversary-season-notice--countdown" : "solaris-anniversary-season-notice--after"}`}>
-            <div className="solaris-anniversary-season-mark" aria-hidden="true"><span>{countdown ? season.daysUntil : String(season.age + 1).padStart(2, "0")}</span></div>
-            <div className="solaris-anniversary-season-copy"><p>{countdown ? "Anniversary countdown" : "Anniversary week"}</p><strong>{title}</strong><span>{detail}</span></div>
-            <Link to="/anniversary" className="solaris-anniversary-season-action">Anniversary hub <span aria-hidden="true">→</span></Link>
-          </aside>
-        )}
       </>
     );
   }
@@ -279,13 +269,6 @@ export function SolarisAnniversaryCelebration() {
           <span>17 September</span><span className="solaris-anniversary-badge-divider">·</span><strong>{season.age} years of Solaris</strong>
         </span>
       </Link>
-      {pathname !== "/" && !isAdmin && !countryRoute && (
-        <aside className={`solaris-anniversary-context solaris-anniversary-context--${context.tone}`}>
-          <div className="solaris-anniversary-context-mark" aria-hidden="true"><span>{String(season.age).padStart(2, "0")}</span></div>
-          <div className="solaris-anniversary-context-copy"><p>{context.eyebrow}</p><strong>{context.title}</strong><span>{context.detail}</span></div>
-          <Link to="/anniversary" className="solaris-anniversary-context-action" data-anniversary-action="major">Anniversary hub <span aria-hidden="true">→</span></Link>
-        </aside>
-      )}
       {showIntro && (
         <div className="solaris-anniversary-intro" role="status" aria-live="polite">
           <div className="solaris-anniversary-intro-orbit" aria-hidden="true" /><p>17 · 09 · 2022</p><strong>{season.age} YEARS OF SOLARIS</strong><span>Anniversary Day</span>
