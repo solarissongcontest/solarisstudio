@@ -62,8 +62,9 @@ describe("country page personalities", () => {
 
   it("keeps unsaved preview reachable on mobile and persistent on desktop", () => {
     expect(themeEditor).toContain("mobilePreviewOpen");
-    expect(themeEditor).toContain("Preview country →");
-    expect(themeEditor).toContain("Preview Wiki →");
+    expect(themeEditor).toContain('aria-label="Preview page"');
+    expect(themeEditor).toContain('(["country", "wiki"] as const)');
+    expect(themeEditor).toContain("Unsaved preview");
     expect(themeEditor).toContain("sticky bottom-20");
     expect(themeEditor).toContain("xl:sticky xl:top-24");
   });
