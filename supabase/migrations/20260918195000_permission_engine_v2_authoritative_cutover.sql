@@ -243,6 +243,8 @@ set enabled = true,
     updated_by = null
 where key = 'permission_engine_v2';
 
+-- Final exact-head acceptance guard: this block must pass unchanged in clean
+-- replay, upgraded main, and production before authoritative rollout is merged.
 do $verify$
 declare
   v_missing_live_organizers bigint;
