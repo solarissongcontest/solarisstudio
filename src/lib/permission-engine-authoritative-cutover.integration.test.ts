@@ -54,6 +54,15 @@ describe("Permission Engine v2 authoritative cutover", () => {
     expect(migration).toContain("drop function if exists public.has_role(uuid, public.app_role)");
   });
 
+  it("makes Integrity reviewer eligibility and access simulation v2-only", () => {
+    expect(migration).toContain("Reviewer must have integrity management capability");
+    expect(migration).toContain("Appeal reviewer must have integrity sanction capability");
+    expect(migration).toContain("where private.studio2_user_has_capability(u.id, 'integrity.manage', null)");
+    expect(migration).toContain("create or replace function public.studio2_view_access_as");
+    expect(migration).toContain("from public.studio2_role_assignments a");
+    expect(migration).toContain("Legacy user_roles function dependency remains");
+  });
+
   it("enables Permission Engine v2 globally", () => {
     expect(migration).toContain("where key = 'permission_engine_v2'");
     expect(migration).toContain("set enabled = true");
