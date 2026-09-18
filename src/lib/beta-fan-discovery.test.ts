@@ -109,16 +109,19 @@ describe("beta-informed fan discovery", () => {
     expect(shell).not.toContain('label: "My country"');
   });
 
-  it("wires the V8 personality system to the actual public hero", () => {
+  it("wires the source-driven personality system to the actual public hero", () => {
     const countryRoute = source("src/routes/countries/$code.tsx");
     const personalitySystem = source("src/lib/country-personality-system.ts");
-    const personalityCss = source("src/country-personality-system-v8.css");
+    const posterCss = source("src/styles/personalities/poster-source.adapter.css");
+    const broadcastCss = source("src/styles/personalities/broadcast-source.adapter.css");
+    const styleLoader = source("src/components/CountryPersonalityStyles.tsx");
     const editor = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
     expect(countryRoute).toContain("<CountryIdentityHero");
     expect(personalitySystem).toContain("COUNTRY_PERSONALITIES");
     expect(personalitySystem).toContain('name: "Avant-Garde"');
-    expect(personalityCss).toContain('data-country-personality="poster"');
-    expect(personalityCss).toContain('data-country-personality="broadcast"');
+    expect(posterCss).toContain('data-country-personality="poster"');
+    expect(broadcastCss).toContain('data-country-personality="broadcast"');
+    expect(styleLoader).not.toContain("country-personality-system-v8.css");
     expect(editor).toContain("mobilePreviewOpen");
     expect(editor).toContain("Unsaved preview");
   });
