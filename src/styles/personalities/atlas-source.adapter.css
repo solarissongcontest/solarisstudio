@@ -1,0 +1,178 @@
+/* MapLibre GL JS translated adapter.
+   Upstream: maplibre/maplibre-gl-js @ a55db8271998f1156f82a63726ef9c56bd9c5093
+   License: BSD-3-Clause.
+
+   MapLibre's own UI starts from 12px/20px Helvetica Neue, 10px control
+   offsets, small white control groups, 3px popup radii and layered map chrome.
+   Solaris borrows that map-interface grammar without fabricating geography:
+   the bounded art panel is a neutral cartographic reference grid, not a map. */
+
+.country-identity-hero[data-country-personality="panorama"] {
+  --map-font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
+  --map-control-offset: 10px;
+  border: 0 !important;
+  border-block: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-scene {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-layout {
+  grid-template-columns: minmax(0, 5fr) minmax(12rem, 4fr) minmax(8rem, 2fr);
+  grid-template-areas:
+    "copy art flag"
+    "actions art flag";
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-copy {
+  padding: 2rem;
+  border-inline-end: 1px solid var(--border);
+  border-block-end: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-eyebrow,
+.country-identity-hero[data-country-personality="panorama"] .country-flag-caption {
+  font: var(--map-font);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-title {
+  max-inline-size: 13ch !important;
+  margin-block-start: .65rem;
+  font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+  font-size: clamp(3rem, 6.8cqi, 5rem);
+  font-weight: 600;
+  letter-spacing: -.04em !important;
+  line-height: .98 !important;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-meta {
+  margin-block-start: 1rem;
+  font: var(--map-font);
+  font-size: .8rem;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-description {
+  max-inline-size: 50ch;
+  margin-block-start: 1rem;
+  line-height: 1.55;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-art {
+  min-block-size: 18rem;
+  border: 0;
+  border-inline-end: 1px solid var(--border);
+  border-block-end: 1px solid var(--border);
+  border-radius: 0;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--primary) 7%, var(--background));
+  background-size: 2rem 2rem;
+  overflow: hidden;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-art::after {
+  content: "";
+  position: absolute;
+  inset: var(--map-control-offset);
+  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  pointer-events: none;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-art-primary {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  inline-size: 4rem;
+  block-size: 1px;
+  translate: -50% -50%;
+  background: var(--primary);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-art-secondary {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  inline-size: 1px;
+  block-size: 4rem;
+  translate: -50% -50%;
+  background: var(--primary);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-art-tertiary {
+  position: absolute;
+  inset: var(--map-control-offset) var(--map-control-offset) auto auto;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border: 1px solid rgb(0 0 0 / .12);
+  border-radius: 4px;
+  background: white;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .05);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-flag-zone {
+  padding: 2rem 1rem;
+  border-block-end: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-official-flag {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: white;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .1);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-actions {
+  padding: 1rem 2rem 2rem;
+  border-inline-end: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+  color: #111;
+  font: var(--map-font);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .1);
+}
+
+.country-profile-v8[data-country-personality="panorama"] .data-panel,
+body[data-entity-theme="country"][data-country-hero-layout="panorama"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: 3px !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .08) !important;
+}
+
+@container country-identity (width < 48rem) {
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "art"
+      "flag"
+      "actions";
+  }
+
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-copy,
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-art,
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-actions {
+    border-inline-end: 0;
+  }
+
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-art {
+    min-block-size: 7rem;
+    max-block-size: 7rem;
+  }
+}
