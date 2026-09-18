@@ -6,12 +6,21 @@
   "commit": "b1d7a907371bbe523d6f64e3af97f714fdbd6d6a",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["style.css"],
-  "excludedFiles": ["fonts", "docs assets"],
+  "importedFiles": [
+    "style.css"
+  ],
+  "excludedFiles": [
+    "fonts",
+    "docs assets"
+  ],
   "solarisChanges": [
     "scope window and control grammar to Retro Digital",
     "retain exact bevel and window-surface recipes",
     "increase controls to Solaris accessibility minimums",
     "map title-bar color role to country accent"
-  ]
+  ],
+  "source": "98.css",
+  "licenseFile": "src/styles/personality-sources/retro-digital/LICENSE",
+  "visualAuthority": "Classic Windows 98 UI grammar",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
