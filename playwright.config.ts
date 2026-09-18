@@ -1,9 +1,25 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
-const widths = fullAudit
-  ? ([360, 390, 430, 768, 1024, 1280, 1440, 1680, 1920] as const)
-  : ([360, 768, 1440, 1920] as const);
+const viewportMatrix = fullAudit
+  ? ([
+      { width: 320, height: 568 },
+      { width: 360, height: 800 },
+      { width: 375, height: 812 },
+      { width: 390, height: 844 },
+      { width: 430, height: 932 },
+      { width: 768, height: 1024 },
+      { width: 1024, height: 768 },
+      { width: 1280, height: 800 },
+      { width: 1440, height: 900 },
+      { width: 1920, height: 1080 },
+    ] as const)
+  : ([
+      { width: 360, height: 800 },
+      { width: 390, height: 844 },
+      { width: 768, height: 1024 },
+      { width: 1440, height: 900 },
+    ] as const);
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
 
 export default defineConfig({
@@ -46,10 +62,10 @@ export default defineConfig({
         timeout: 120_000,
       },
   projects: [
-    ...widths.map((width) => ({
+    ...viewportMatrix.map(({ width, height }) => ({
       name: `public-${width}`,
-      testMatch: /public-routes\.e2e\.ts/,
-      use: { viewport: { width, height: width < 768 ? 844 : 1000 } },
+      testMatch: /(?:public-routes|personality-contract)\.e2e\.ts/,
+      use: { viewport: { width, height } },
     })),
     {
       name: "governance-mobile-390",
