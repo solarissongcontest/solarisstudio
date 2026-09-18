@@ -53,24 +53,6 @@ const FALLING_STARS = Array.from({ length: 42 }, (_, index) => ({
   scale: 0.58 + ((index * 17) % 42) / 100,
 }));
 
-type AnniversaryRouteContext = {
-  eyebrow: string;
-  title: string;
-  detail: string;
-  tone: "archive" | "data" | "play" | "participate" | "personal" | "default";
-};
-
-function routeContext(pathname: string, age: number): AnniversaryRouteContext {
-  if (pathname.startsWith("/editions")) return { eyebrow: `${age} years, edition by edition`, title: "Solaris through the years", detail: "Browse every edition from the first contest to the latest.", tone: "archive" };
-  if (pathname.startsWith("/countries") || pathname.startsWith("/wiki")) return { eyebrow: "Across Terra Solaris", title: "Every delegation has a story", detail: "See each country's debuts, finals and wins.", tone: "archive" };
-  if (pathname.startsWith("/records")) return { eyebrow: `${age} years of records`, title: "Records", detail: "The biggest scores, longest streaks and all-time milestones.", tone: "data" };
-  if (pathname.startsWith("/results") || pathname.startsWith("/analysis") || pathname.startsWith("/relationships") || pathname.startsWith("/scorecharts") || pathname.startsWith("/broadcast-intelligence")) return { eyebrow: "In the numbers", title: `${age} years of results`, detail: "Revisit results, voting patterns and scoreboard turning points.", tone: "data" };
-  if (pathname.startsWith("/archive-games") || pathname.startsWith("/taste-dna") || pathname.startsWith("/result-lab") || pathname.startsWith("/compare") || pathname.startsWith("/predictions")) return { eyebrow: "Anniversary challenge", title: "Test your Solaris knowledge", detail: "Play with results and moments from across the contest's history.", tone: "play" };
-  if (pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me")) return { eyebrow: "Your Solaris story", title: "Your history in Solaris", detail: "See your country's participations, results and best moments.", tone: "personal" };
-  if (pathname.startsWith("/participate") || pathname.startsWith("/confirmations") || pathname.startsWith("/jury-voting") || pathname.startsWith("/televoting") || pathname.startsWith("/next-in-line")) return { eyebrow: "The next chapter", title: `Solaris year ${age + 1}`, detail: "Confirm your entry, vote and take part in the next contest year.", tone: "participate" };
-  return { eyebrow: "Anniversary Day", title: `${age} years of Solaris`, detail: "Celebrating Solaris Song Contest since 17 September 2022.", tone: "default" };
-}
-
 function withPreview(season: SolarisAnniversarySeason, phase: AnniversaryPhase | null): SolarisAnniversarySeason {
   if (!phase) return season;
   if (phase === "active") return { ...season, active: true, phase, daysUntil: 0, daysSince: 0 };
@@ -132,7 +114,6 @@ export function SolarisAnniversaryCelebration() {
   const previewPhase = useMemo(() => getAnniversaryPreviewPhase(searchStr), [searchStr, pathname]);
   const season = useMemo(() => withPreview(getSolarisAnniversarySeason(clock), previewPhase), [clock, previewPhase]);
   const active = season.phase === "active";
-  const context = useMemo(() => routeContext(pathname, season.age), [pathname, season.age]);
   const isAdmin = pathname.startsWith("/admin") || pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
   const personalRoute = pathname.startsWith("/my-solaris") || pathname.startsWith("/country-hub") || pathname.startsWith("/me");
   const countryRoute = pathname.startsWith("/countries/") || pathname.startsWith("/wiki/");
@@ -172,15 +153,14 @@ export function SolarisAnniversaryCelebration() {
     }
     document.body.dataset.solarisAnniversary = String(season.year);
     document.body.dataset.solarisAnniversaryPhase = season.phase;
-    if (active) document.body.dataset.solarisAnniversaryTone = context.tone;
-    else delete document.body.dataset.solarisAnniversaryTone;
+    delete document.body.dataset.solarisAnniversaryTone;
     return () => {
       document.body.classList.remove("solaris-anniversary-day");
       delete document.body.dataset.solarisAnniversary;
       delete document.body.dataset.solarisAnniversaryTone;
       delete document.body.dataset.solarisAnniversaryPhase;
     };
-  }, [active, context.tone, season.phase, season.year]);
+  }, [active, season.phase, season.year]);
 
   useEffect(() => {
     if (!active) return;
@@ -214,9 +194,6 @@ export function SolarisAnniversaryCelebration() {
     const title = countdown
       ? season.daysUntil === 1 ? "Anniversary Day is tomorrow" : `${season.daysUntil} days until Anniversary Day`
       : `Solaris year ${season.age + 1} has begun`;
-    const detail = countdown
-      ? `The ${season.ordinal} anniversary is on 17 September.`
-      : `The ${season.ordinal} anniversary was on 17 September.`;
     return (
       <>
         {!badgeExpanded && <MobileBadgeTrigger />}
@@ -233,13 +210,6 @@ export function SolarisAnniversaryCelebration() {
             <strong>{countdown ? title : `Year ${season.age + 1} begins`}</strong>
           </span>
         </Link>
-        {!countryRoute && (
-          <aside className={`solaris-anniversary-season-notice ${countdown ? "solaris-anniversary-season-notice--countdown" : "solaris-anniversary-season-notice--after"}`}>
-            <div className="solaris-anniversary-season-mark" aria-hidden="true"><span>{countdown ? season.daysUntil : String(season.age + 1).padStart(2, "0")}</span></div>
-            <div className="solaris-anniversary-season-copy"><p>{countdown ? "Anniversary countdown" : "Anniversary week"}</p><strong>{title}</strong><span>{detail}</span></div>
-            <Link to="/anniversary" className="solaris-anniversary-season-action">Anniversary hub <span aria-hidden="true">→</span></Link>
-          </aside>
-        )}
       </>
     );
   }
@@ -279,13 +249,6 @@ export function SolarisAnniversaryCelebration() {
           <span>17 September</span><span className="solaris-anniversary-badge-divider">·</span><strong>{season.age} years of Solaris</strong>
         </span>
       </Link>
-      {pathname !== "/" && !isAdmin && !countryRoute && (
-        <aside className={`solaris-anniversary-context solaris-anniversary-context--${context.tone}`}>
-          <div className="solaris-anniversary-context-mark" aria-hidden="true"><span>{String(season.age).padStart(2, "0")}</span></div>
-          <div className="solaris-anniversary-context-copy"><p>{context.eyebrow}</p><strong>{context.title}</strong><span>{context.detail}</span></div>
-          <Link to="/anniversary" className="solaris-anniversary-context-action" data-anniversary-action="major">Anniversary hub <span aria-hidden="true">→</span></Link>
-        </aside>
-      )}
       {showIntro && (
         <div className="solaris-anniversary-intro" role="status" aria-live="polite">
           <div className="solaris-anniversary-intro-orbit" aria-hidden="true" /><p>17 · 09 · 2022</p><strong>{season.age} YEARS OF SOLARIS</strong><span>Anniversary Day</span>

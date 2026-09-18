@@ -16,7 +16,8 @@ export type CountrySectionType =
   | "quote"
   | "facts"
   | "gallery"
-  | "divider";
+  | "divider"
+  | "timeline";
 export type CountrySectionContentMode = "manual" | "auto";
 export type CountrySectionImageLayout = "wide" | "split" | "left" | "right" | "full";
 export type CountrySectionWidth = "narrow" | "standard" | "wide" | "full";
@@ -28,6 +29,21 @@ export type CountrySectionImageFit = "cover" | "contain";
 export type CountrySectionImageSize = "small" | "medium" | "large" | "full";
 export type CountrySectionImageFade = "none" | "top" | "right" | "bottom" | "left";
 export type CountrySectionDividerStyle = "line" | "glow" | "dots";
+export type CountrySectionLayoutVariant =
+  | "wiki"
+  | "encyclopedia"
+  | "magazine"
+  | "dashboard"
+  | "showcase"
+  | "timeline";
+export type CountrySectionEmphasis = "normal" | "subtle" | "strong" | "accent" | "bordered";
+export type CountrySectionBackground = "none" | "tint" | "image";
+
+export type CountryTimelineItem = {
+  date: string;
+  title: string;
+  body: string;
+};
 
 export type CountryCustomFactRow = {
   label: string;
@@ -47,8 +63,14 @@ export type CountrySectionPresentation = {
   focalY: number;
   galleryColumns: 2 | 3 | 4;
   dividerStyle: CountrySectionDividerStyle;
+  layoutVariant: CountrySectionLayoutVariant;
+  countryLayout: CountrySectionLayoutVariant;
+  wikiLayout: CountrySectionLayoutVariant;
+  emphasis: CountrySectionEmphasis;
+  sectionBackground: CountrySectionBackground;
   factMode: "auto" | "manual";
   customFacts: CountryCustomFactRow[];
+  timelineItems: CountryTimelineItem[];
 };
 
 export type CountryPageSection = CountryProfileSection & {
@@ -141,6 +163,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     sectionType: "facts",
     heading: "Quick facts",
     autoKind: "facts",
+    contentJson: { layoutVariant: "dashboard" },
   },
   {
     id: "custom-facts",
@@ -150,6 +173,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     heading: "Fun facts",
     contentJson: {
       factMode: "manual",
+      layoutVariant: "dashboard",
       customFacts: [
         { label: "Fact 01", value: "Write a fun fact" },
         { label: "Fact 02", value: "Write another fun fact" },
@@ -162,7 +186,7 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     description: "An image with optional heading, caption, text, size and directional fade.",
     sectionType: "image",
     heading: "Featured image",
-    contentJson: { imageSize: "medium", imageFade: "none" },
+    contentJson: { imageSize: "medium", imageFade: "none", layoutVariant: "showcase" },
   },
   {
     id: "editorial-feature",
@@ -172,7 +196,8 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     heading: "Feature",
     contentJson: {
       width: "wide",
-      panelStyle: "transparent",
+      layoutVariant: "magazine",
+      emphasis: "normal",
       spacing: "spacious",
       imageAspect: "16:9",
       imageSize: "large",
@@ -185,7 +210,21 @@ export const COUNTRY_SECTION_TEMPLATES: CountrySectionTemplate[] = [
     description: "A prominent national quote, slogan, lyric-free motto or statement.",
     sectionType: "quote",
     heading: "Statement",
-    contentJson: { width: "narrow", textAlign: "center" },
+    contentJson: { width: "narrow", textAlign: "center", layoutVariant: "magazine" },
+  },
+  {
+    id: "timeline",
+    label: "Timeline",
+    description: "A chronological section for history, milestones, governments, eras or delegation moments.",
+    sectionType: "timeline",
+    heading: "Timeline",
+    contentJson: {
+      layoutVariant: "timeline",
+      timelineItems: [
+        { date: "2024", title: "Milestone", body: "Describe what happened." },
+        { date: "2025", title: "Next milestone", body: "Add another event." },
+      ],
+    },
   },
   {
     id: "divider",
@@ -224,6 +263,17 @@ export function countrySectionPresentation(
         .filter((row) => row.label || row.value)
         .slice(0, 24)
     : [];
+  const timelineItems = Array.isArray(json.timelineItems)
+    ? json.timelineItems
+        .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object"))
+        .map((row) => ({
+          date: String(row.date ?? "").trim(),
+          title: String(row.title ?? "").trim(),
+          body: String(row.body ?? "").trim(),
+        }))
+        .filter((row) => row.date || row.title || row.body)
+        .slice(0, 40)
+    : [];
   const columns = Math.round(boundedNumber(json.galleryColumns, 2, 4, 3));
 
   return {
@@ -239,8 +289,34 @@ export function countrySectionPresentation(
     focalY: Math.round(boundedNumber(json.focalY, 0, 100, 50)),
     galleryColumns: (columns === 2 || columns === 4 ? columns : 3) as 2 | 3 | 4,
     dividerStyle: enumValue(json.dividerStyle, ["line", "glow", "dots"] as const, "line"),
+    layoutVariant: enumValue(
+      json.layoutVariant,
+      ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
+      "wiki",
+    ),
+    countryLayout: enumValue(
+      json.countryLayout ?? json.layoutVariant,
+      ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
+      "wiki",
+    ),
+    wikiLayout: enumValue(
+      json.wikiLayout ?? json.layoutVariant,
+      ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
+      "wiki",
+    ),
+    emphasis: enumValue(
+      json.emphasis,
+      ["normal", "subtle", "strong", "accent", "bordered"] as const,
+      "normal",
+    ),
+    sectionBackground: enumValue(
+      json.sectionBackground,
+      ["none", "tint", "image"] as const,
+      "none",
+    ),
     factMode: enumValue(json.factMode, ["auto", "manual"] as const, "auto"),
     customFacts,
+    timelineItems,
   };
 }
 

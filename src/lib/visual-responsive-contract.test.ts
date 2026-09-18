@@ -10,7 +10,7 @@ const root = source("src/routes/__root.tsx");
 const motion = source("src/solaris-motion.css");
 const ambient = source("src/components/SolarisAmbientBackground.tsx");
 const entityTheme = source("src/entity-theme.css");
-const themeEditor = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+const themeEditor = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
 const adminDesktop = source("src/admin-desktop.css");
 const analysis = source("src/routes/analysis/index.tsx");
 const records = source("src/routes/records/index.tsx");
@@ -60,13 +60,14 @@ describe("country page personalities", () => {
     expect(entityTheme).toContain("padding-right: clamp(38%, 42vw, 48%)");
   });
 
-  it("keeps unsaved preview reachable on mobile and persistent on desktop", () => {
-    expect(themeEditor).toContain("mobilePreviewOpen");
-    expect(themeEditor).toContain('aria-label="Preview page"');
-    expect(themeEditor).toContain('(["country", "wiki"] as const)');
-    expect(themeEditor).toContain("Unsaved preview");
-    expect(themeEditor).toContain("sticky bottom-20");
-    expect(themeEditor).toContain("xl:sticky xl:top-24");
+  it("keeps the unsaved V2 renderer reachable across mobile and desktop", () => {
+    expect(themeEditor).toContain('type PreviewPage = "country" | "wiki"');
+    expect(themeEditor).toContain('type PreviewDevice = "desktop" | "mobile"');
+    expect(themeEditor).toContain("Live public renderer");
+    expect(themeEditor).toContain('setPreviewPage("country")');
+    expect(themeEditor).toContain('setPreviewPage("wiki")');
+    expect(themeEditor).toContain('setPreviewDevice("mobile")');
+    expect(themeEditor).toContain("2xl:sticky 2xl:top-24");
   });
 });
 

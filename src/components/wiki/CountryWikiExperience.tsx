@@ -12,12 +12,18 @@ import {
   buildCountryWikiCustomSections,
   groupFormerCountryIdentities,
 } from "@/components/country/CountryCustomSections";
+import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { CountryNationalFinalsContent } from "@/components/country/CountryNationalFinals";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { useCountryWorldProfile, type CountryMedia } from "@/lib/country-account";
 import { buildCountryAutoSection, type CountryPageSection } from "@/lib/country-page-builder";
 import { usePublicCountryIdentityHistory } from "@/lib/country-history";
+import {
+  countryDesignCssVariables,
+  countryDesignFontCss,
+  useCountryDesignV2,
+} from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
@@ -180,6 +186,8 @@ function CountryWikiArticle({
   const world = useCountryWorldProfile(country.id);
   const identityHistory = usePublicCountryIdentityHistory(country.id);
   const nationalFinals = useCountryNationalFinals(country.id);
+  const designV2Query = useCountryDesignV2(country.id);
+  const publishedDesign = designV2Query.data?.isPublishedV2 ? designV2Query.data.design : null;
   const profile = world.data?.profile;
   const sections = useMemo(
     () => (world.data?.sections ?? []) as CountryPageSection[],
@@ -277,7 +285,15 @@ function CountryWikiArticle({
 
   return (
     <AppShell>
-      <div className="wiki-canvas min-w-0">
+      <div
+        className={publishedDesign ? "wiki-canvas min-w-0 country-design-v2" : "wiki-canvas min-w-0"}
+        data-country-surface={publishedDesign?.surface}
+        data-country-accent={publishedDesign?.accent}
+        data-country-motion={publishedDesign?.motion}
+        data-country-default-layout={publishedDesign?.content.defaultLayout}
+        style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
+      >
+        {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
         <nav className="wiki-breadcrumbs" aria-label="Breadcrumb">
           <Link to="/wiki">Wiki</Link><span>/</span>
           <span aria-current="page">{country.name}</span>
@@ -470,8 +486,10 @@ function CountryWikiArticle({
 
 function CountryWikiHeader({ country }: { country: Country }) {
   const { data: countryThemeRow } = useCountryTheme(country.id);
+  const designV2Query = useCountryDesignV2(country.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
   const personality = canonicalCountryPersonalityId(visualTheme?.heroLayout ?? "classic");
+  const publishedDesign = designV2Query.data?.isPublishedV2 ? designV2Query.data.design : null;
   const identityModel: CountryIdentityModel = {
     code: country.short_code,
     name: country.name,
@@ -491,7 +509,26 @@ function CountryWikiHeader({ country }: { country: Country }) {
     },
   };
 
-  return (
+  return publishedDesign ? (
+    <CountryDesignV2Hero
+      as="header"
+      compact
+      design={publishedDesign}
+      code={identityModel.code}
+      name={identityModel.name}
+      nativeName={identityModel.nativeName}
+      region={identityModel.region}
+      description={identityModel.description}
+      flagImage={identityModel.flag.src}
+      eyebrow="Terra Solaris Wiki"
+      className="country-wiki-header mb-5"
+      actions={
+        <Link to="/countries/$code" params={{ code: country.short_code }}>
+          Open country dashboard →
+        </Link>
+      }
+    />
+  ) : (
     <CountryIdentityHero
       as="header"
       compact

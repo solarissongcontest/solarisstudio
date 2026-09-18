@@ -37,6 +37,7 @@ function fallbackSectionTitle(section: NormalizedCountrySection) {
   if (section.section_type === "quote") return "In their own words";
   if (section.section_type === "facts") return "Country facts";
   if (section.section_type === "image") return "Country feature";
+  if (section.section_type === "timeline") return "Timeline";
   return "Country and culture";
 }
 
@@ -222,9 +223,24 @@ export function CountryCustomSectionContent({
     return <div className={`${widthClass()} ${spacingClass(presentation.spacing, true)}`} aria-hidden="true">{divider}</div>;
   }
 
-  const style = section.background_tint
-    ? ({ backgroundColor: `${section.background_tint}d9` } as CSSProperties)
-    : undefined;
+  const style =
+    presentation.sectionBackground === "image" && section.image_url
+      ? ({
+          backgroundImage: `linear-gradient(rgba(0,0,0,.38), rgba(0,0,0,.38)), url(${JSON.stringify(section.image_url)})`,
+          backgroundSize: "cover",
+          backgroundPosition: `${presentation.focalX}% ${presentation.focalY}%`,
+        } as CSSProperties)
+      : presentation.sectionBackground === "tint" && section.background_tint
+        ? ({ backgroundColor: `${section.background_tint}d9` } as CSSProperties)
+        : undefined;
+
+  const effectiveLayout = surface === "wiki" ? presentation.wikiLayout : presentation.countryLayout;
+  const sectionData = {
+    "data-country-section-layout": effectiveLayout,
+    "data-country-section-emphasis": presentation.emphasis,
+    "data-country-v2-surface": "section",
+    "data-design-target": `section:${section.id}`,
+  } as const;
   const wrapperClass = article
     ? `wiki-custom-section-content min-w-0 ${presentation.textAlign === "center" ? "text-center" : "text-left"}`
     : [
@@ -238,7 +254,7 @@ export function CountryCustomSectionContent({
 
   if (section.section_type === "quote") {
     return (
-      <section className={wrapperClass} style={style}>
+      <section className={wrapperClass} style={style} {...sectionData}>
         {section.kicker && <Kicker>{section.kicker}</Kicker>}
         {!article && section.heading && <h2 className="font-display text-xl font-semibold">{section.heading}</h2>}
         <blockquote className={presentation.textAlign === "center"
@@ -250,14 +266,39 @@ export function CountryCustomSectionContent({
     );
   }
 
+
+  if (section.section_type === "timeline") {
+    const rows = presentation.timelineItems;
+    return (
+      <section className={wrapperClass} style={style} {...sectionData}>
+        {section.kicker && <Kicker>{section.kicker}</Kicker>}
+        {!article && <h2 className="font-display text-xl font-semibold">{section.heading || "Timeline"}</h2>}
+        {section.body ? <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">{section.body}</p> : null}
+        {rows.length ? (
+          <div className="country-v2-timeline">
+            {rows.map((row, index) => (
+              <div key={`${row.date}-${row.title}-${index}`} className="country-v2-timeline-row">
+                <div className="country-v2-timeline-date">{row.date || "—"}</div>
+                <div className="country-v2-timeline-copy">
+                  {row.title ? <strong>{row.title}</strong> : null}
+                  {row.body ? <p>{row.body}</p> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <p className="mt-3 text-sm text-muted-foreground">No timeline events have been added yet.</p>}
+      </section>
+    );
+  }
+
   if (section.section_type === "facts") {
     const rows = factRowsForSection(section, profile);
     return (
-      <section className={wrapperClass} style={style}>
+      <section className={wrapperClass} style={style} {...sectionData}>
         {section.kicker && <Kicker>{section.kicker}</Kicker>}
         {!article && <h2 className="font-display text-xl font-semibold">{section.heading || "Facts"}</h2>}
         {rows.length ? (
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="country-v2-facts mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3" data-country-fact-grid>
             {rows.map((row, index) => (
               <div key={`${row.label}-${index}`} className="rounded-xl border border-border/60 bg-background/20 p-3">
                 <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{row.label}</p>
@@ -315,6 +356,7 @@ export function CountryCustomSectionContent({
       className={wrapperClass}
       style={style}
       data-country-image-placement={compactAdaptiveImage ? "adaptive" : section.image_layout}
+      {...sectionData}
     >
       {full ? image : null}
       {sideBySide ? (

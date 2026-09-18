@@ -139,8 +139,10 @@ describe("source-driven Country personality contract", () => {
 
     const countryRoute = source("src/routes/countries/$code.tsx");
     expect(countryRoute).toContain("countryPersonalitySource(heroPersonality)");
-    expect(countryRoute).toContain("data-country-composition={sourcePersonality.compositionFamily}");
-    expect(countryRoute).toContain("data-country-background-policy={sourcePersonality.backgroundPolicy}");
+    expect(countryRoute).toContain("data-country-composition={publishedDesign ? undefined : sourcePersonality.compositionFamily}");
+    expect(countryRoute).toContain("data-country-background-policy={publishedDesign ? undefined : sourcePersonality.backgroundPolicy}");
+    expect(countryRoute).toContain("<CountryDesignV2Hero");
+    expect(countryRoute).toContain("<CountryIdentityHero");
   });
 
   it("loads the shared source-neutral foundation before all human-source adapters", () => {
@@ -320,7 +322,8 @@ describe("source-driven Country personality contract", () => {
     expect(typography).not.toContain("\n.country-hero-title,");
     expect(foundation).toContain("padding-block: .06em .09em");
     expect(foundation).toContain("max-block-size: 7rem");
-    expect(anniversary).toContain("!countryRoute && (");
+    expect(anniversary).not.toContain("solaris-anniversary-season-notice");
+    expect(anniversary).not.toContain("solaris-anniversary-context");
   });
 
   it("overrides the old giant mobile flag rule with per-personality source bounds", () => {
@@ -335,7 +338,7 @@ describe("source-driven Country personality contract", () => {
     expect(foundation).toContain("object-fit: contain !important");
   });
 
-  it("prevents the appearance editor from offering source-incompatible backgrounds", () => {
+  it("preserves V1 source background contracts while V2 makes background independent", () => {
     expect(countryPersonalitySource("glass-card").backgroundModes).toEqual(["solid", "gradient", "image"]);
     expect(countryPersonalitySource("spotlight").backgroundModes).toEqual(["solid", "gradient", "image"]);
     expect(countryPersonalitySource("sci-fi").backgroundModes).toEqual(["solid", "image"]);
@@ -343,11 +346,12 @@ describe("source-driven Country personality contract", () => {
     expect(countryPersonalitySource("poster").backgroundModes).toEqual(["solid"]);
     expect(countryPersonalitySource("flag-focus").backgroundModes).toEqual(["solid"]);
 
-    const appearance = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
-    expect(appearance).toContain("source.backgroundModes.includes(existing.backgroundMode)");
-    expect(appearance).toContain("source.backgroundModes.includes(current.backgroundMode)");
-    expect(appearance).toContain("sourcePersonality.backgroundModes.length > 1");
-    expect(appearance).toContain("Solid background locked by source design");
+    const appearance = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
+    expect(appearance).not.toContain("countryPersonalitySource");
+    expect(appearance).toContain('{ id: "solid", label: "Solid" }');
+    expect(appearance).toContain('{ id: "gradient", label: "Gradient" }');
+    expect(appearance).toContain('{ id: "image", label: "Image" }');
+    expect(appearance).toContain("V1 compatibility is still public.");
   });
 
   it("disables full atmospheric scenes where the canonical source design forbids them", () => {

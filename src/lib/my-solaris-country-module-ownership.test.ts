@@ -11,6 +11,7 @@ const historyRoute = source("src/routes/_authenticated/my-solaris/history.tsx");
 const countryModule = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
 const pageModule = source("src/components/mysolaris/modules/MySolarisPageMediaModule.tsx");
 const appearanceModule = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+const designV2Module = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
 const legacyCountry = source("src/routes/_authenticated/country-hub/index.tsx");
 const legacyPage = source("src/routes/_authenticated/country-hub/page-builder.tsx");
 const legacyAppearance = source("src/routes/_authenticated/country-hub/theme.tsx");
@@ -27,13 +28,14 @@ describe("native MySolaris country ownership", () => {
   });
 
   it("keeps implementations route-agnostic and native to MySolaris", () => {
-    for (const module of [countryModule, pageModule, appearanceModule]) {
+    for (const module of [countryModule, pageModule, appearanceModule, designV2Module]) {
       expect(module).not.toContain("createFileRoute");
       expect(module).not.toContain("throw redirect");
     }
     expect(pageModule).toContain('eyebrow="My country · Page & media"');
     expect(pageModule).toContain('title={`${country.name} page & media`}');
-    expect(appearanceModule).toContain("NAV_TARGETS.mySolarisPageBuilder");
+    expect(appearanceModule).toContain("MySolarisDesignV2Module");
+    expect(designV2Module).toContain("NAV_TARGETS.mySolarisPageBuilder");
   });
 
   it("leaves every legacy Country Hub URL as a search-preserving redirect", () => {
