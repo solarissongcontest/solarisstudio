@@ -24,9 +24,11 @@ import {
   type CountryPageSection,
   type CountryPageSectionInput,
   type CountrySectionImageLayout,
+  type CountrySectionLayoutVariant,
   type CountrySectionType,
 } from "@/lib/country-page-builder";
 import { useCountries, type Country } from "@/lib/data";
+import { useCountryDesignV2 } from "@/lib/country-design-v2";
 import { NAV_TARGETS, countrySearch } from "@/lib/navigation-targets";
 
 export function MySolarisPageMediaModule() {
@@ -88,6 +90,8 @@ function CountryPageBuilder({
   const reorder = useReorderCountryPageSections(country.id);
   const deleteSection = useDeleteCountrySection(country.id);
   const addMedia = useAddCountryMedia(country.id);
+  const designQuery = useCountryDesignV2(country.id);
+  const defaultLayout = designQuery.data?.design.content.defaultLayout ?? "wiki";
   const sections = useMemo(
     () => ((world.data?.sections ?? []) as CountryPageSection[]).map(normalizeCountryPageSection),
     [world.data?.sections],
@@ -253,6 +257,7 @@ function CountryPageBuilder({
                 media={media}
                 index={index}
                 count={sections.length}
+                defaultLayout={defaultLayout}
                 onMove={(direction) => move(index, direction)}
                 onDragStart={() => setDraggedSectionId(section.id)}
                 onDragEnd={() => setDraggedSectionId(null)}
@@ -322,7 +327,7 @@ function CountryPageBuilder({
             description="Cards keep one aligned outer width; the content inside can still vary."
           >
             <div className="space-y-2 text-xs leading-5 text-muted-foreground">
-              <p>Choose panel treatment, spacing and text alignment.</p>
+              <p>Choose Country/Wiki content layouts, emphasis, spacing and text alignment.</p>
               <p>Images can be small, medium, large or full width and can fade from any edge.</p>
               <p>Fact grids can use Solaris data or completely custom editable rows.</p>
             </div>
@@ -403,6 +408,7 @@ function SectionBuilderCard({
   media,
   index,
   count,
+  defaultLayout,
   onMove,
   onDragStart,
   onDragEnd,
@@ -417,6 +423,7 @@ function SectionBuilderCard({
   media: CountryMedia[];
   index: number;
   count: number;
+  defaultLayout: CountrySectionLayoutVariant;
   onMove: (direction: -1 | 1) => Promise<unknown>;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -443,7 +450,7 @@ function SectionBuilderCard({
   const [value, setValue] = useState(initial);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const presentation = countrySectionPresentation(value.contentJson);
+  const presentation = countrySectionPresentation(value.contentJson, defaultLayout);
 
   useEffect(() => setValue(initial()), [section]);
 
