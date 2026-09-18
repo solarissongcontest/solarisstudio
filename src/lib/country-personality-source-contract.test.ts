@@ -103,31 +103,9 @@ describe("source-driven Country personality contract", () => {
     ]);
   });
 
-  it("marks rendered source adapters as prototypes while keeping future sources planned", () => {
-    for (const id of [
-      "glass-card",
-      "editorial",
-      "poster",
-      "heritage",
-      "broadcast",
-      "minimal",
-      "classic",
-      "duotone",
-      "sci-fi",
-      "monument",
-      "horizon",
-      "flag-focus",
-    ] as const) {
-      expect(countryPersonalitySource(id).status).toBe("prototype");
-    }
-    for (const id of [
-      "passport",
-      "panorama",
-      "spotlight",
-      "newspaper",
-      "ribbon",
-    ] as const) {
-      expect(countryPersonalitySource(id).status).toBe("prototype");
+  it("marks all seventeen rendered source adapters as prototypes", () => {
+    for (const personality of COUNTRY_PERSONALITY_SOURCES) {
+      expect(countryPersonalitySource(personality.id).status).toBe("prototype");
     }
   });
 
@@ -182,6 +160,7 @@ describe("source-driven Country personality contract", () => {
     expect(styles).toContain('import avantGardeSource from "@/styles/personalities/avant-garde-source.adapter.css?inline"');
     expect(styles).toContain('import passportSource from "@/styles/personalities/passport-source.adapter.css?inline"');
     expect(styles).toContain('import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline"');
+    expect(styles).toContain('import glassSource from "@/styles/personalities/glass-source.adapter.css?inline"');
 
     const listStart = styles.indexOf("const countryPersonalityStyles");
     const v8 = styles.indexOf("personalityV8,", listStart);
@@ -281,12 +260,18 @@ describe("source-driven Country personality contract", () => {
     expect(pico).toMatchObject({ repository: "picocss/pico", version: "2.1.1", license: "MIT" });
     expect(retro).toMatchObject({ repository: "jdan/98.css", version: "0.1.21", license: "MIT" });
     expect(editorial).toMatchObject({ repository: "edwardtufte/tufte-css", version: "1.9.0", license: "MIT" });
-    expect(glass).toMatchObject({ repository: "samasante/liquid-glass", version: "0.1.1", license: "MIT" });
+    expect(glass).toMatchObject({
+      repository: "samasante/liquid-glass",
+      version: "0.1.1",
+      license: "MIT",
+      implementationMode: "vendored-source",
+      vendoredTo: "src/vendor/liquid-glass/",
+    });
     expect(poster).toMatchObject({ repository: "rampstackco/swiss-style-theme", license: "MIT" });
     expect(diplomatic).toMatchObject({ repository: "alphagov/govuk-frontend", license: "MIT" });
     expect(broadcast).toMatchObject({ repository: "bbc/gel-grid", license: "MIT" });
     expect(heritage).toMatchObject({ repository: "nationalarchives/design-system", license: "MIT" });
-    expect(passport).toMatchObject({ license: "MIT", visualAuthority: "ICAO Doc 9303 document zoning" });
+    expect(passport).toMatchObject({ license: "MIT", structuralAuthority: "ICAO Doc 9303 identity-document zoning" });
     expect(atlas).toMatchObject({ repository: "maplibre/maplibre-gl-js", license: "BSD-3-Clause" });
     expect(festival).toMatchObject({ repository: "gdg-x/hoverboard", license: "MIT" });
     expect(brutalist).toMatchObject({ repository: "rampstackco/brutalist-web-theme", license: "MIT" });
@@ -297,6 +282,33 @@ describe("source-driven Country personality contract", () => {
     expect(avantGarde).toMatchObject({ repository: "zetareticoli/superilles", license: "MIT" });
 
     expect(source("THIRD_PARTY_DESIGN_LICENSES.md")).toContain("## Architecture prototypes");
+  });
+
+  it("uses the real vendored liquid-glass material instead of a simulated CSS-only plate", () => {
+    const hero = source("src/components/country/CountryIdentityHero.tsx");
+    const glass = source("src/styles/personalities/glass-source.adapter.css");
+    const vendor = source("src/vendor/liquid-glass/GlassMaterial.tsx");
+    const license = source("src/vendor/liquid-glass/LICENSE");
+
+    expect(hero).toContain('import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial"');
+    expect(hero).toContain('<GlassMaterial');
+    expect(hero).toContain('className="country-hero-glass-material"');
+    expect(glass).toContain("samasante/liquid-glass");
+    expect(glass).toContain("exactly one glass surface");
+    expect(vendor).toContain("Vendored verbatim from samasante/liquid-glass");
+    expect(vendor).toContain("export const GlassMaterial");
+    expect(license).toContain("MIT License");
+  });
+
+  it("prevents the old clipped-title and anniversary-overlay regressions", () => {
+    const typography = source("src/card-typography.css");
+    const foundation = source("src/country-personality-source-foundation.css");
+    const anniversary = source("src/components/SolarisAnniversaryCelebration.tsx");
+
+    expect(typography).not.toContain("\n.country-hero-title,");
+    expect(foundation).toContain("padding-block: .06em .09em");
+    expect(foundation).toContain("max-block-size: 7rem");
+    expect(anniversary).toContain("!countryRoute && (");
   });
 
   it("overrides the old giant mobile flag rule with per-personality source bounds", () => {
