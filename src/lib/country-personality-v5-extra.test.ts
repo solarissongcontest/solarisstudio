@@ -1,15 +1,17 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const editor = readFileSync(
-  resolve(process.cwd(), "src/components/mysolaris/modules/MySolarisAppearanceModule.tsx"),
-  "utf8",
-);
+import {
+  canonicalCountryPersonalityId,
+  countryPersonality,
+} from "./country-personality-system";
 
-describe("country personality V5 compatibility labels", () => {
-  it("keeps old stored values but exposes the requested human-readable names", () => {
-    expect(editor).toContain('value: "monument", label: "Luxurious"');
-    expect(editor).toContain('value: "heritage", label: "Traditional"');
+describe("country personality legacy compatibility", () => {
+  it("keeps persisted values stable while exposing the V8 human-readable identities", () => {
+    expect(countryPersonality("monument").name).toBe("Luxury");
+    expect(countryPersonality("heritage").name).toBe("Heritage");
+    expect(canonicalCountryPersonalityId("split")).toBe("classic");
+    expect(countryPersonality("split").name).toBe("Diplomatic");
+    expect(canonicalCountryPersonalityId("water-drop")).toBe("glass-card");
+    expect(countryPersonality("water-drop").name).toBe("Glass");
   });
 });

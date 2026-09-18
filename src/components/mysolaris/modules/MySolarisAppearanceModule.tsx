@@ -1,12 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Eye, Image, Layers3, Palette, Sparkles, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Eye, Image, Layers3, Monitor, Palette, Smartphone, Sparkles, X } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
-import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
+import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { uploadCountryBackground } from "@/lib/country-background";
 import { useMyCountryAccount } from "@/lib/country-account";
+import {
+  COUNTRY_PERSONALITIES,
+  canonicalCountryPersonalityId,
+  countryPersonality,
+  personalityDecorations,
+  wikiStyleForPersonality,
+} from "@/lib/country-personality-system";
 import { useCountries } from "@/lib/data";
 import { NAV_TARGETS, countrySearch } from "@/lib/navigation-targets";
 import {
@@ -19,7 +26,6 @@ import {
   useCountryTheme,
   useSaveCountryTheme,
   type CountryDecorationStyle,
-  type CountryHeroLayout,
   type CountryVisualTheme,
 } from "@/lib/visual-theme";
 
@@ -32,75 +38,36 @@ export function MySolarisAppearanceModule() {
   );
 }
 
-type PersonalityOption = {
-  value: CountryHeroLayout;
-  label: string;
-  category: string;
-  description: string;
+const DECORATION_META: Record<CountryDecorationStyle, { label: string; description: string }> = {
+  auto: { label: "Designed default", description: "Use the treatment specified by the professional personality brief." },
+  none: { label: "None", description: "Remove optional art while keeping the personality's typography and composition." },
+  flag: { label: "Flag atmosphere", description: "Use a duplicated flag only as decorative material. The official flag remains fully contained." },
+  orbits: { label: "Orbits", description: "Fine orbital geometry, restricted to a dedicated art cell." },
+  rays: { label: "Rays", description: "Graphic rays, restricted to a dedicated art cell." },
+  grid: { label: "Reference grid", description: "A restrained technical or cartographic grid inside the art cell only." },
+  waves: { label: "Waves", description: "Curved reference lines inside the art cell only." },
+  aurora: { label: "Atmosphere", description: "Soft colour fields without hard lines crossing content." },
+  constellation: { label: "Constellation", description: "Fine technical points confined to an art cell." },
+  facets: { label: "Facets", description: "Angular planes confined to an art cell." },
+  topography: { label: "Topography", description: "Contour detail restricted to the Atlas art region." },
+  eclipse: { label: "Eclipse", description: "A restrained halo confined to decorative space." },
 };
 
-const PERSONALITIES: PersonalityOption[] = [
-  { value: "classic", label: "Classic", category: "Clean", description: "Timeless Solaris identity with a restrained flag and soft depth." },
-  { value: "editorial", label: "Editorial", category: "Editorial", description: "A proper magazine spread with a clean type field and flag edge." },
-  { value: "minimal", label: "Minimal", category: "Clean", description: "Precise, quiet and deliberately stripped back without feeling unfinished." },
-  { value: "flag-focus", label: "Flag focus", category: "Flag-led", description: "The flag becomes the main artwork with protected, readable identity text." },
-  { value: "poster", label: "Poster", category: "Graphic", description: "Bold key art with an oversized cropped flag and centred display typography." },
-  { value: "split", label: "Split", category: "Flag-led", description: "A crisp architectural text-and-flag split with no decorative clutter." },
-  { value: "spotlight", label: "Spotlight", category: "Stage", description: "Elegant stage lighting and restrained neon around a centred identity." },
-  { value: "broadcast", label: "Broadcast", category: "Stage", description: "An on-air package with a live flag source strip and technical graphics." },
-  { value: "panorama", label: "Panorama", category: "Cinematic", description: "A calm cinematic identity above a wide flag landscape." },
-  { value: "monument", label: "Luxurious", category: "Formal", description: "Premium ceremonial elegance, fine keylines and symmetrical flag drapes." },
-  { value: "glass-card", label: "Glass card", category: "Material", description: "One real liquid-glass surface with visible flag refraction underneath." },
-  { value: "newspaper", label: "Newspaper", category: "Editorial", description: "Print logic, masthead rules and square reference-page structure." },
-  { value: "ribbon", label: "Ribbon", category: "Flag-led", description: "One decisive diagonal flag ribbon across an otherwise clean composition." },
-  { value: "duotone", label: "Duotone", category: "Graphic", description: "Angular two-colour geometry with the flag embedded into the second field." },
-  { value: "passport", label: "Passport", category: "Formal", description: "A premium document identity with security patterning and one entry seal." },
-  { value: "horizon", label: "Horizon", category: "Clean", description: "Calm upper typography with a low flag horizon and one fine dividing line." },
-  { value: "heritage", label: "Traditional", category: "Cultural", description: "A refined cultural archive look with a small flag, book-like rules and ornament." },
-  { value: "sci-fi", label: "Sci-Fi", category: "Future", description: "A holographic technical interface with projected flag imagery and data details." },
-  { value: "water-drop", label: "Water Drop", category: "Material", description: "Organic liquid refraction with the flag suspended inside a sculpted droplet." },
-];
+type PreviewPage = "country" | "wiki";
+type PreviewDevice = "desktop" | "mobile";
 
-const DECORATIONS: Array<{
-  value: CountryDecorationStyle;
-  label: string;
-  description: string;
-}> = [
-  { value: "auto", label: "Best match", description: "Use the art-directed treatment designed for this personality." },
-  { value: "none", label: "None", description: "Keep the personality composition but remove optional decoration." },
-  { value: "flag", label: "Flag", description: "Use the flag as the main design material where the personality supports it." },
-  { value: "orbits", label: "Orbits", description: "Fine orbital rings made from the accent colour." },
-  { value: "rays", label: "Rays", description: "Angular rays for poster-like compositions." },
-  { value: "grid", label: "Grid", description: "A fine technical or editorial grid." },
-  { value: "waves", label: "Waves", description: "Layered curved lines for cinematic and liquid styles." },
-  { value: "aurora", label: "Aurora", description: "Soft atmospheric colour ribbons." },
-  { value: "constellation", label: "Constellation", description: "Fine star points and restrained connecting lines." },
-  { value: "facets", label: "Facets", description: "Crisp translucent planes for graphic styles." },
-  { value: "topography", label: "Topography", description: "Detailed contour lines with a cultural or premium feel." },
-  { value: "eclipse", label: "Eclipse", description: "A restrained halo for dark and stage-oriented styles." },
-];
-
-const CURATED_DECORATIONS: Record<CountryHeroLayout, CountryDecorationStyle[]> = {
-  classic: ["auto", "flag", "none"],
-  editorial: ["auto", "grid", "none"],
-  minimal: ["none"],
-  "flag-focus": ["auto", "flag", "none"],
-  poster: ["auto", "flag", "rays"],
-  split: ["auto", "flag", "none"],
-  spotlight: ["auto", "eclipse", "none"],
-  broadcast: ["auto", "grid", "flag"],
-  panorama: ["auto", "flag", "waves"],
-  monument: ["auto", "topography", "none"],
-  "glass-card": ["auto", "flag", "none"],
-  newspaper: ["auto", "grid", "none"],
-  ribbon: ["auto", "flag", "none"],
-  duotone: ["auto", "facets", "none"],
-  passport: ["auto", "grid", "none"],
-  horizon: ["auto", "waves", "none"],
-  heritage: ["auto", "topography", "none"],
-  "sci-fi": ["auto", "grid", "constellation", "none"],
-  "water-drop": ["auto", "waves", "flag", "none"],
-};
+function editorStyle(theme: CountryVisualTheme): CSSProperties {
+  const colour = getThemeColourReport(theme);
+  return {
+    ...themeStyleProperties(theme),
+    "--primary": theme.accent,
+    "--accent": theme.accent,
+    "--ring": theme.accent,
+    "--primary-foreground": colour.accentForeground,
+    "--country-page-background": countryBackgroundCss(theme),
+    "--country-page-position": `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
+  } as CSSProperties;
+}
 
 function CountryThemePage() {
   const search = useRouterState({ select: (state) => state.location.search });
@@ -114,7 +81,7 @@ function CountryThemePage() {
   const ownCountry = accountData?.country;
   const adminTarget =
     access?.isOrganizer && targetCountryId
-      ? (countries ?? []).find((country) => country.id === targetCountryId)
+      ? (countries ?? []).find((item) => item.id === targetCountryId)
       : null;
   const country = adminTarget ?? ownCountry;
   const { data: savedTheme } = useCountryTheme(country?.id);
@@ -123,55 +90,29 @@ function CountryThemePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [backgroundBusy, setBackgroundBusy] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
-  const [previewMode, setPreviewMode] = useState<"country" | "wiki">("country");
+  const [previewPage, setPreviewPage] = useState<PreviewPage>("country");
+  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("desktop");
 
   useEffect(() => {
     const existing = countryThemeToVisual(savedTheme);
     if (existing) {
-      const materialRestricted = ["glass-card", "water-drop"].includes(existing.heroLayout);
-      setTheme(
-        materialRestricted && !["auto", "flag", "none", "waves"].includes(existing.decorationStyle)
-          ? { ...existing, decorationStyle: "auto" }
-          : existing,
-      );
-    } else if (country?.accent_color) {
+      const personality = canonicalCountryPersonalityId(existing.heroLayout);
+      const allowed = personalityDecorations(personality);
+      setTheme({
+        ...existing,
+        heroLayout: personality,
+        decorationStyle: allowed.includes(existing.decorationStyle)
+          ? existing.decorationStyle
+          : allowed.includes("auto")
+            ? "auto"
+            : allowed[0] ?? "none",
+      });
+      return;
+    }
+    if (country?.accent_color) {
       setTheme((current) => ({ ...current, accent: country.accent_color }));
     }
   }, [savedTheme, country?.accent_color]);
-
-  useEffect(() => {
-    if (!country) return;
-    const body = document.body;
-    const previous = {
-      entityTheme: body.dataset.entityTheme,
-      heroLayout: body.dataset.countryHeroLayout,
-      decoration: body.dataset.countryDecoration,
-    };
-    body.dataset.entityTheme = "country";
-    body.dataset.countryHeroLayout = theme.heroLayout;
-    body.dataset.countryDecoration = theme.decorationStyle;
-    return () => {
-      if (previous.entityTheme) body.dataset.entityTheme = previous.entityTheme;
-      else delete body.dataset.entityTheme;
-      if (previous.heroLayout) body.dataset.countryHeroLayout = previous.heroLayout;
-      else delete body.dataset.countryHeroLayout;
-      if (previous.decoration) body.dataset.countryDecoration = previous.decoration;
-      else delete body.dataset.countryDecoration;
-    };
-  }, [country, theme.heroLayout, theme.decorationStyle]);
-
-  const colourReport = useMemo(() => getThemeColourReport(theme), [theme]);
-  const previewStyle = useMemo(
-    () => ({
-      "--country-preview-background": countryBackgroundCss(theme),
-      "--country-preview-position": `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
-      backgroundColor: theme.backgroundPrimary,
-      backgroundSize: theme.backgroundMode === "image" ? "cover" : undefined,
-      color: colourReport.foreground,
-      borderColor: `${theme.accent}55`,
-    }),
-    [theme, colourReport.foreground],
-  );
 
   useEffect(() => {
     if (!mobilePreviewOpen) return;
@@ -183,46 +124,60 @@ function CountryThemePage() {
   }, [mobilePreviewOpen]);
 
   if (isLoading) {
-    return (
-      <AppShell>
-        <p className="text-sm text-muted-foreground">Loading country appearance…</p>
-      </AppShell>
-    );
+    return <AppShell><p className="text-sm text-muted-foreground">Loading country appearance…</p></AppShell>;
   }
 
   if (!country) {
     return (
       <AppShell>
-        <PageHeader
-          eyebrow="Country appearance"
-          title="No country account"
-          description="Claim a country before creating its visual identity."
-        />
-        <Link to={NAV_TARGETS.mySolarisCountry} className="rounded-xl border border-border bg-surface px-4 py-2 text-sm">
-          Open MySolaris country
-        </Link>
+        <PageHeader eyebrow="Country appearance" title="No country account" description="Claim a country before creating its visual identity." />
+        <Link to={NAV_TARGETS.mySolarisCountry} className="rounded-xl border border-border bg-surface px-4 py-2 text-sm">Open MySolaris country</Link>
       </AppShell>
     );
   }
 
-  const selectedPersonality = PERSONALITIES.find((item) => item.value === theme.heroLayout);
+  const personality = countryPersonality(theme.heroLayout);
+  const allowedDecorations = personalityDecorations(theme.heroLayout);
+  const colourReport = getThemeColourReport(theme);
 
-  const setColour = (
-    key: keyof Pick<
-      CountryVisualTheme,
-      "backgroundPrimary" | "backgroundSecondary" | "backgroundTertiary" | "accent" | "surface" | "textPrimary" | "textMuted"
-    >,
-    value: string,
-  ) => setTheme((current) => ({ ...current, [key]: value }));
+  const setThemeValue = <K extends keyof CountryVisualTheme>(key: K, value: CountryVisualTheme[K]) => {
+    setTheme((current) => ({ ...current, [key]: value }));
+  };
+
+  const selectPersonality = (next: CountryVisualTheme["heroLayout"]) => {
+    const canonical = canonicalCountryPersonalityId(next);
+    const decorations = personalityDecorations(canonical);
+    setTheme((current) => ({
+      ...current,
+      heroLayout: canonical,
+      decorationStyle: decorations.includes(current.decorationStyle)
+        ? current.decorationStyle
+        : decorations.includes("auto")
+          ? "auto"
+          : decorations[0] ?? "none",
+    }));
+  };
 
   const save = async () => {
     setMessage(null);
     try {
-      await saveTheme.mutateAsync(theme);
-      setMessage("Appearance saved. Your country page and Wiki now share these settings.");
+      await saveTheme.mutateAsync({
+        ...theme,
+        heroLayout: canonicalCountryPersonalityId(theme.heroLayout),
+      });
+      setMessage("Appearance saved. Country and Wiki now use the V8 professional personality system.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Appearance could not be saved.");
     }
+  };
+
+  const reset = () => {
+    setTheme({
+      ...DEFAULT_COUNTRY_THEME,
+      heroLayout: "glass-card",
+      accent: country.accent_color || DEFAULT_COUNTRY_THEME.accent,
+    });
+    setMessage("Reset locally. Save to publish the reset appearance.");
   };
 
   const uploadBackground = async (file: File) => {
@@ -236,7 +191,7 @@ function CountryThemePage() {
         backgroundImageUrl: asset.publicUrl,
         backgroundImageStoragePath: asset.storagePath,
       }));
-      setMessage("Background uploaded. Adjust its crop and overlay, then save appearance.");
+      setMessage("Background uploaded. Adjust crop, overlay and blur, then save appearance.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Background upload failed.");
     } finally {
@@ -247,205 +202,220 @@ function CountryThemePage() {
   const preview = (
     <CountryThemePreview
       countryName={country.name}
+      nativeName={country.native_name}
+      code={country.short_code}
       region={country.region}
       description={country.description}
       flagImage={country.flag_image}
+      accentColor={country.accent_color}
       theme={theme}
-      previewStyle={previewStyle}
-      mode={previewMode}
+      page={previewPage}
+      device={previewDevice}
     />
   );
-
-  const curatedDecorations = CURATED_DECORATIONS[theme.heroLayout];
-  const decorationOptions = DECORATIONS.filter(({ value }) => curatedDecorations.includes(value));
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="My country · Appearance"
         title={`${country.name} appearance`}
-        description="Choose a real visual identity, then tune only the compatible details. Country and Wiki use the same design system."
+        description="Choose one of seventeen professionally grounded personalities. Solaris protects content geometry, flag aspect ratio, actions and responsive reflow so art direction cannot break usability."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link to={NAV_TARGETS.mySolarisCountry} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              ← MySolaris country
-            </Link>
-            <Link to={NAV_TARGETS.mySolarisPageBuilder} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              Page & media
-            </Link>
-            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              Preview country →
-            </Link>
-            <Link to="/wiki/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              Preview Wiki →
-            </Link>
+            <Link to={NAV_TARGETS.mySolarisCountry} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">← MySolaris country</Link>
+            <Link to={NAV_TARGETS.mySolarisPageBuilder} search={countrySearch(targetCountryId)} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Page & media</Link>
+            <Link to="/countries/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Country page →</Link>
+            <Link to="/wiki/$code" params={{ code: country.short_code }} className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">Wiki →</Link>
           </div>
         }
       />
 
       {message && <p className="mb-5 rounded-xl border border-border bg-surface px-4 py-3 text-sm">{message}</p>}
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,.92fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(360px,.92fr)]">
         <div className="space-y-5">
-          <Panel title="Background" description="Use a solid colour, a gradient or your own image.">
+          <Panel
+            title="Personality"
+            description="Each option is tied to a named professional design lineage. These are composition systems, not palette swaps."
+          >
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {COUNTRY_PERSONALITIES.map((option) => {
+                const selected = option.id === theme.heroLayout;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => selectPersonality(option.id)}
+                    aria-pressed={selected}
+                    className={`min-w-0 rounded-xl border p-2.5 text-left transition ${selected ? "border-primary bg-primary/10 ring-1 ring-primary/25" : "border-border bg-surface hover:border-primary/30"}`}
+                  >
+                    <div className="pointer-events-none overflow-hidden rounded-lg" style={editorStyle({ ...theme, heroLayout: option.id })}>
+                      <CountryIdentityHero
+                        compact
+                        personality={option.id}
+                        decoration={personalityDecorations(option.id)[0] ?? "none"}
+                        code={country.short_code}
+                        name={country.name}
+                        nativeName={country.native_name}
+                        region={country.region}
+                        flagImage={country.flag_image}
+                        accentColor={country.accent_color}
+                        className="[&_.country-hero-description]:hidden [&_.country-hero-actions]:hidden"
+                        style={{ "--cp-title-size": "clamp(1.25rem, 11cqi, 2rem)" } as CSSProperties}
+                      />
+                    </div>
+                    <span className="mt-2 block text-sm font-semibold">{option.name}</span>
+                    <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.13em] text-primary">{option.category}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{option.concept}</span>
+                    <span className="mt-2 block border-t border-border/60 pt-2 text-[10px] font-semibold leading-4 text-muted-foreground">Reference: {option.referenceFamily}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel
+            title="Design brief"
+            description={`${personality.name} · ${personality.referenceFamily} · ${personality.density} density · ${personality.wikiStyle} Wiki.`}
+          >
+            <p className="text-sm leading-6 text-muted-foreground">{personality.implementationReference}</p>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-border bg-background/45 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Required design rules</p>
+                <ul className="mt-2 space-y-2 text-sm leading-5 text-foreground">
+                  {personality.rules.map((rule) => <li key={rule}>✓ {rule}</li>)}
+                </ul>
+              </div>
+              <div className="rounded-xl border border-border bg-background/45 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Rejected patterns</p>
+                <ul className="mt-2 space-y-2 text-sm leading-5 text-muted-foreground">
+                  {personality.rejects.map((rule) => <li key={rule}>× {rule.replaceAll("-", " ")}</li>)}
+                </ul>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {personality.signature.map((item) => (
+                <div key={item} className="rounded-lg border border-border bg-background/45 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">Signature</p>
+                  <p className="mt-1 text-xs font-semibold capitalize">{item.replaceAll("-", " ")}</p>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel title="Decoration" description="Only bounded or soft-background treatments compatible with this personality are available. Hard graphics can never leave the dedicated art cell.">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {allowedDecorations.map((value) => {
+                const meta = DECORATION_META[value];
+                const selected = theme.decorationStyle === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setThemeValue("decorationStyle", value)}
+                    aria-pressed={selected}
+                    className={`min-h-20 rounded-xl border p-3 text-left ${selected ? "border-primary bg-primary/10" : "border-border bg-surface"}`}
+                  >
+                    <span className="text-xs font-semibold">{meta.label}</span>
+                    <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{meta.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel title="Background" description="Country-owned atmosphere. It never controls protected content geometry.">
             <div className="grid grid-cols-3 gap-2">
-              <ModeButton active={theme.backgroundMode === "solid"} icon={Palette} label="Solid" onClick={() => setTheme((current) => ({ ...current, backgroundMode: "solid" }))} />
-              <ModeButton active={theme.backgroundMode === "gradient"} icon={Sparkles} label="Gradient" onClick={() => setTheme((current) => ({ ...current, backgroundMode: "gradient" }))} />
-              <ModeButton active={theme.backgroundMode === "image"} icon={Image} label="Image" onClick={() => setTheme((current) => ({ ...current, backgroundMode: "image" }))} />
+              <ModeButton active={theme.backgroundMode === "solid"} icon={Palette} label="Solid" onClick={() => setThemeValue("backgroundMode", "solid")} />
+              <ModeButton active={theme.backgroundMode === "gradient"} icon={Sparkles} label="Gradient" onClick={() => setThemeValue("backgroundMode", "gradient")} />
+              <ModeButton active={theme.backgroundMode === "image"} icon={Image} label="Image" onClick={() => setThemeValue("backgroundMode", "image")} />
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <ColourField label="Background 1" value={theme.backgroundPrimary} onChange={(value) => setThemeValue("backgroundPrimary", value)} />
+              <ColourField label="Background 2" value={theme.backgroundSecondary} onChange={(value) => setThemeValue("backgroundSecondary", value)} />
             </div>
 
             {theme.backgroundMode === "gradient" && (
-              <div className="mt-4 space-y-4 rounded-xl border border-border bg-surface p-4">
+              <div className="mt-4 space-y-4 rounded-xl border border-border bg-background/45 p-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Gradient style</span>
+                  <select
+                    value={theme.gradientStyle}
+                    onChange={(event) => setThemeValue("gradientStyle", event.target.value as CountryVisualTheme["gradientStyle"])}
+                    className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                  >
+                    <option value="aurora">Aurora</option>
+                    <option value="linear">Linear</option>
+                    <option value="radial">Radial</option>
+                  </select>
+                </label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Gradient style</span>
-                    <select
-                      value={theme.gradientStyle}
-                      onChange={(event) => setTheme((current) => ({ ...current, gradientStyle: event.target.value as CountryVisualTheme["gradientStyle"] }))}
-                      className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                    >
-                      <option value="aurora">Aurora glow</option>
-                      <option value="linear">Linear</option>
-                      <option value="radial">Radial spotlight</option>
-                    </select>
-                  </label>
-                  <RangeField label={`Angle · ${theme.gradientAngle}°`} min={0} max={360} value={theme.gradientAngle} onChange={(value) => setTheme((current) => ({ ...current, gradientAngle: value }))} />
+                  <ColourField label="Background 3" value={theme.backgroundTertiary ?? suggestThirdBackground(theme)} onChange={(value) => setThemeValue("backgroundTertiary", value)} flush />
+                  <RangeField label="Angle" min={0} max={360} value={theme.gradientAngle} onChange={(value) => setThemeValue("gradientAngle", value)} />
                 </div>
-                {theme.gradientStyle !== "linear" && (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <RangeField label={`Glow position X · ${theme.backgroundPositionX}%`} min={0} max={100} value={theme.backgroundPositionX} onChange={(value) => setTheme((current) => ({ ...current, backgroundPositionX: value }))} />
-                    <RangeField label={`Glow position Y · ${theme.backgroundPositionY}%`} min={0} max={100} value={theme.backgroundPositionY} onChange={(value) => setTheme((current) => ({ ...current, backgroundPositionY: value }))} />
-                  </div>
-                )}
               </div>
             )}
 
             {theme.backgroundMode === "image" && (
-              <div className="mt-4 rounded-xl border border-border bg-surface p-4">
-                <p className="text-sm font-semibold">Custom background image</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Recommended:</strong> 1920×1080 or larger, ideally 2560×1440, 16:9. Keep important details near the centre because phones crop the sides. JPG, PNG, WebP or GIF, maximum 8 MB.</p>
-                {theme.backgroundImageUrl && (
-                  <img src={theme.backgroundImageUrl} alt="Current country background" className="mt-3 aspect-video w-full rounded-xl object-cover" style={{ objectPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%` }} />
-                )}
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={backgroundBusy} onChange={(event) => event.target.files?.[0] && void uploadBackground(event.target.files[0])} className="mt-3 block w-full text-xs" />
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <RangeField label={`Horizontal crop · ${theme.backgroundPositionX}%`} min={0} max={100} value={theme.backgroundPositionX} onChange={(value) => setTheme((current) => ({ ...current, backgroundPositionX: value }))} />
-                  <RangeField label={`Vertical crop · ${theme.backgroundPositionY}%`} min={0} max={100} value={theme.backgroundPositionY} onChange={(value) => setTheme((current) => ({ ...current, backgroundPositionY: value }))} />
-                  <RangeField label={`Dark overlay · ${Math.round(theme.backgroundOverlay * 100)}%`} min={0} max={90} value={Math.round(theme.backgroundOverlay * 100)} onChange={(value) => setTheme((current) => ({ ...current, backgroundOverlay: value / 100 }))} />
-                  <RangeField label={`Background blur · ${theme.backgroundBlur}px`} min={0} max={30} value={theme.backgroundBlur} onChange={(value) => setTheme((current) => ({ ...current, backgroundBlur: value }))} />
-                </div>
-                {theme.backgroundImageUrl && (
-                  <button type="button" onClick={() => setTheme((current) => ({ ...current, backgroundImageUrl: null, backgroundImageStoragePath: null, backgroundMode: "gradient" }))} className="mt-3 text-xs font-semibold text-destructive">
-                    Remove image from page
-                  </button>
-                )}
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Colours" description="Choose one to three matching background colours, plus the colours used for cards, buttons and text.">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ColourField label="Background 1" value={theme.backgroundPrimary} onChange={(value) => setColour("backgroundPrimary", value)} />
-              <ColourField label="Background 2" value={theme.backgroundSecondary} onChange={(value) => setColour("backgroundSecondary", value)} />
-              {theme.backgroundTertiary ? (
-                <div className="rounded-xl bg-surface p-3">
-                  <ColourField label="Background 3" value={theme.backgroundTertiary} onChange={(value) => setColour("backgroundTertiary", value)} flush />
-                  <button type="button" onClick={() => setTheme((current) => ({ ...current, backgroundTertiary: null }))} className="mt-2 text-xs font-semibold text-muted-foreground hover:text-foreground">Remove third colour</button>
-                </div>
-              ) : (
-                <button type="button" onClick={() => setTheme((current) => ({ ...current, backgroundTertiary: suggestThirdBackground(current) }))} className="min-h-24 rounded-xl border border-dashed border-border bg-surface p-3 text-left transition-colors hover:bg-surface-strong">
-                  <span className="block text-sm font-semibold">Add a matching third colour</span>
-                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">Solaris will suggest one that connects your background and accent.</span>
-                </button>
-              )}
-              <ColourField label="Accent" value={theme.accent} onChange={(value) => setColour("accent", value)} />
-              <ColourField label="Card / surface" value={theme.surface} onChange={(value) => setColour("surface", value)} />
-              <ColourField label="Main text" value={theme.textPrimary} onChange={(value) => setColour("textPrimary", value)} />
-              <ColourField label="Secondary text" value={theme.textMuted} onChange={(value) => setColour("textMuted", value)} />
-            </div>
-            <div className="mt-4 overflow-hidden rounded-xl border p-4" style={{ background: colourReport.surface, borderColor: `${theme.accent}55`, color: colourReport.foreground }}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Card and button check</p>
-                  <p className="mt-1 text-xs" style={{ color: colourReport.mutedForeground }}>Text and large card surfaces are balanced automatically for comfortable reading.</p>
-                </div>
-                <button type="button" className="rounded-full px-4 py-2 text-xs font-bold" style={{ background: theme.accent, color: colourReport.accentForeground }}>Example button</button>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
-                <span className="rounded-full border border-white/10 px-2.5 py-1">Main text {colourReport.mainTextContrast.toFixed(1)}:1</span>
-                <span className="rounded-full border border-white/10 px-2.5 py-1">Secondary text {colourReport.mutedTextContrast.toFixed(1)}:1</span>
-                <span className="rounded-full border border-white/10 px-2.5 py-1">Button {colourReport.buttonContrast.toFixed(1)}:1</span>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel title="Page personality" description="Pick a genuinely different composition. The thumbnails use your current flag and colours.">
-            <div className="country-personality-picker grid grid-cols-2 gap-2">
-              {PERSONALITIES.map(({ value, label, category }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setTheme((current) => ({
-                    ...current,
-                    heroLayout: value,
-                    decorationStyle: CURATED_DECORATIONS[value].includes(current.decorationStyle)
-                      ? current.decorationStyle
-                      : CURATED_DECORATIONS[value][0],
-                  }))}
-                  className={`country-personality-option group min-w-0 overflow-hidden rounded-xl border p-2 text-left transition-[background-color,border-color,box-shadow] duration-200 ${theme.heroLayout === value ? "border-primary bg-primary/10 ring-1 ring-primary/15" : "border-border bg-surface hover:bg-surface-strong"}`}
-                >
-                  <PersonalityMiniature layout={value} countryName={country.name} flagImage={country.flag_image} theme={theme} />
-                  <span className="mt-2 block truncate px-0.5 text-sm font-semibold">{label}</span>
-                  <span className="mt-1 inline-flex rounded-full border border-border/70 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{category}</span>
-                </button>
-              ))}
-            </div>
-            {selectedPersonality && (
-              <div className="mt-3 rounded-xl border border-primary/15 bg-primary/[0.05] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <strong className="text-sm">{selectedPersonality.label}</strong>
-                  <span className="text-[9px] font-bold uppercase tracking-[0.13em] text-primary">{selectedPersonality.category}</span>
-                </div>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{selectedPersonality.description}</p>
-              </div>
-            )}
-          </Panel>
-
-          <Panel title="Decoration" description="Only compatible choices are shown for this personality, so the design cannot collapse into a random combination of effects.">
-            <div className="grid gap-2 sm:grid-cols-2">
-              {decorationOptions.map(({ value, label, description }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setTheme((current) => ({ ...current, decorationStyle: value }))}
-                  className={`min-h-20 rounded-xl border p-3 text-left transition-colors ${theme.decorationStyle === value ? "border-primary bg-primary/10" : "border-border bg-surface hover:bg-surface-strong"}`}
-                >
-                  <DecorationSwatch decoration={value} flagImage={country.flag_image} accent={theme.accent} />
-                  <span className="flex items-center justify-between gap-2 text-sm font-semibold">
-                    {label}
-                    {value === curatedDecorations[0] && <small className="rounded-full bg-primary/10 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-primary">Best match</small>}
+              <div className="mt-4 space-y-4 rounded-xl border border-border bg-background/45 p-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">Country background image</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/avif"
+                    disabled={backgroundBusy}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void uploadBackground(file);
+                      event.currentTarget.value = "";
+                    }}
+                    className="block w-full text-xs text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:font-semibold file:text-primary"
+                  />
+                  <span className="mt-2 block text-[11px] leading-4 text-muted-foreground">
+                    Use at least 1920×1080 for backgrounds; 2560×1440 is ideal for large desktop displays. Keep important artwork away from the extreme edges because responsive crop controls may trim them.
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
-                </button>
-              ))}
+                </label>
+                <RangeField label="Horizontal crop" min={0} max={100} value={theme.backgroundPositionX} onChange={(value) => setThemeValue("backgroundPositionX", value)} />
+                <RangeField label="Vertical crop" min={0} max={100} value={theme.backgroundPositionY} onChange={(value) => setThemeValue("backgroundPositionY", value)} />
+                <RangeField label="Dark overlay" min={0} max={90} value={Math.round(theme.backgroundOverlay * 100)} onChange={(value) => setThemeValue("backgroundOverlay", value / 100)} />
+                <RangeField label="Background blur" min={0} max={30} value={theme.backgroundBlur} onChange={(value) => setThemeValue("backgroundBlur", value)} />
+              </div>
+            )}
+          </Panel>
+
+          <Panel title="Colour roles" description="Brand colours are converted into readable semantic roles instead of being applied blindly to text.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <ColourField label="Accent" value={theme.accent} onChange={(value) => setThemeValue("accent", value)} />
+              <ColourField label="Surface" value={theme.surface} onChange={(value) => setThemeValue("surface", value)} />
+              <ColourField label="Primary text preference" value={theme.textPrimary} onChange={(value) => setThemeValue("textPrimary", value)} />
+              <ColourField label="Muted text preference" value={theme.textMuted} onChange={(value) => setThemeValue("textMuted", value)} />
             </div>
-            {theme.decorationStyle === "flag" && !country.flag_image && <p className="mt-3 rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted-foreground">This country has no flag image yet, so the flag treatment will appear once one is uploaded.</p>}
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <ContrastStat label="Main text" value={colourReport.mainTextContrast} target={4.5} />
+              <ContrastStat label="Muted text" value={colourReport.mutedTextContrast} target={3.4} />
+              <ContrastStat label="Accent control" value={colourReport.buttonContrast} target={4.5} />
+            </div>
           </Panel>
 
           <div className="sticky bottom-20 z-20 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 rounded-2xl border border-border bg-background/95 p-3 shadow-xl backdrop-blur sm:bottom-4 xl:grid-cols-[minmax(0,1fr)_auto]">
             <button type="button" onClick={() => setMobilePreviewOpen(true)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.07] px-3 text-sm font-semibold xl:hidden"><Eye className="size-4" /> Preview</button>
             <button type="button" onClick={save} disabled={saveTheme.isPending || backgroundBusy} className="min-h-12 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60">{saveTheme.isPending ? "Saving…" : "Save appearance"}</button>
-            <button type="button" onClick={() => setTheme({ ...DEFAULT_COUNTRY_THEME, accent: country.accent_color || DEFAULT_COUNTRY_THEME.accent })} className="min-h-12 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">Reset</button>
+            <button type="button" onClick={reset} className="min-h-12 rounded-xl border border-border bg-surface px-4 text-sm font-semibold">Reset</button>
           </div>
         </div>
 
         <div className="hidden xl:block xl:sticky xl:top-24 xl:self-start">
-          <Panel title="Live preview" description="Switch between the country dashboard and Wiki before saving." actions={<PreviewModeSwitch value={previewMode} onChange={setPreviewMode} />}>
+          <Panel
+            title="Live preview"
+            description="This uses the same CountryIdentityHero component as the public Country and Wiki routes."
+            actions={<PreviewControls page={previewPage} device={previewDevice} onPage={setPreviewPage} onDevice={setPreviewDevice} />}
+          >
             {preview}
           </Panel>
           <div className="mt-3 flex items-start gap-2 rounded-xl border border-border bg-surface p-3 text-xs leading-5 text-muted-foreground">
             <Layers3 className="mt-0.5 size-4 shrink-0" />
-            <span>Content order, custom sections, images and country/Wiki visibility are controlled from the page builder in MySolaris.</span>
+            <span>Semantic copy, official flag and actions live in protected grid regions. Hard art is physically clipped to its own cell, so a personality cannot draw through a button.</span>
           </div>
         </div>
       </div>
@@ -453,15 +423,12 @@ function CountryThemePage() {
       {mobilePreviewOpen && (
         <div className="fixed inset-0 z-[120] xl:hidden" role="dialog" aria-modal="true" aria-label="Country appearance preview">
           <button type="button" className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-label="Close preview" onClick={() => setMobilePreviewOpen(false)} />
-          <section className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-[1.75rem] border border-border bg-background p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
+          <section className="absolute inset-x-0 bottom-0 max-h-[90dvh] overflow-y-auto rounded-t-[1.75rem] border border-border bg-background p-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-3 px-1">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Unsaved preview</p>
-                <p className="mt-1 text-sm font-semibold">{selectedPersonality?.label}</p>
-              </div>
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Unsaved preview</p><p className="mt-1 text-sm font-semibold">{personality.name}</p></div>
               <button type="button" onClick={() => setMobilePreviewOpen(false)} className="grid size-11 place-items-center rounded-xl border border-border bg-surface" aria-label="Close preview"><X className="size-4" /></button>
             </div>
-            <PreviewModeSwitch value={previewMode} onChange={setPreviewMode} />
+            <PreviewControls page={previewPage} device="mobile" onPage={setPreviewPage} onDevice={setPreviewDevice} compact />
             {preview}
             <button type="button" onClick={() => setMobilePreviewOpen(false)} className="mt-3 min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">Back to editing</button>
           </section>
@@ -471,162 +438,137 @@ function CountryThemePage() {
   );
 }
 
-function effectiveDecoration(theme: CountryVisualTheme): Exclude<CountryDecorationStyle, "auto"> {
-  if (["glass-card", "water-drop"].includes(theme.heroLayout)) {
-    return theme.decorationStyle === "none" ? "none" : "flag";
-  }
-  if (theme.decorationStyle !== "auto") return theme.decorationStyle;
-  if (theme.heroLayout === "minimal") return "none";
-  return "flag";
-}
-
 function CountryThemePreview({
   countryName,
+  nativeName,
+  code,
   region,
   description,
   flagImage,
+  accentColor,
   theme,
-  previewStyle,
-  mode,
+  page,
+  device,
 }: {
   countryName: string;
+  nativeName: string | null;
+  code: string;
   region: string;
   description: string | null;
   flagImage: string | null;
+  accentColor: string;
   theme: CountryVisualTheme;
-  previewStyle: React.CSSProperties;
-  mode: "country" | "wiki";
+  page: PreviewPage;
+  device: PreviewDevice;
 }) {
-  const layout = theme.heroLayout;
-  const decoration = effectiveDecoration(theme);
-  const compact = ["minimal", "passport", "newspaper"].includes(layout);
-  const previewHeight = layout === "poster" ? "min-h-[350px]" : compact ? "min-h-[250px]" : "min-h-[300px]";
+  const personality = canonicalCountryPersonalityId(theme.heroLayout);
+  const wikiStyle = wikiStyleForPersonality(personality);
+  const style = {
+    ...editorStyle(theme),
+    background: countryBackgroundCss(theme),
+    backgroundPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`,
+    backgroundSize: theme.backgroundMode === "image" ? "cover" : undefined,
+  } as CSSProperties;
 
   return (
-    <div className={`country-theme-preview-context ${mode === "wiki" ? "is-wiki" : "is-country"}`}>
-      <div
-        className={`country-theme-live-preview ${mode === "wiki" ? "wiki-public-hero" : "country-public-hero"} glass relative ${previewHeight} overflow-hidden px-5 py-6 sm:px-7 sm:py-8`}
-        style={{ ...previewStyle, ...themeStyleProperties(theme) } as React.CSSProperties}
-        data-preview-layout={layout}
-        data-preview-decoration={decoration}
-      >
-        {theme.backgroundMode === "image" && theme.backgroundBlur > 0 && (
-          <div className="pointer-events-none absolute -inset-8" style={{ backgroundImage: theme.backgroundImageUrl ? `url(${JSON.stringify(theme.backgroundImageUrl)})` : undefined, backgroundSize: "cover", backgroundPosition: `${theme.backgroundPositionX}% ${theme.backgroundPositionY}%`, filter: `blur(${theme.backgroundBlur}px)`, opacity: 0.35 }} />
-        )}
-
-        <BackgroundFlag image={flagImage} className="country-hero-background-flag -right-20 -top-24 h-80 w-80" opacity={0.1} />
-
-        {decoration !== "flag" && decoration !== "none" && (
-          <div aria-hidden="true" className="country-decoration-layer" data-decoration={decoration} style={{ "--decoration-accent": theme.accent } as React.CSSProperties} />
-        )}
-
-        <div aria-hidden="true" className="country-personality-signature" />
-
-        <div className="relative z-10 max-w-3xl">
-          {layout === "glass-card" && decoration === "flag" && flagImage && (
-            <div aria-hidden="true" className="country-glass-panel-flag" style={{ backgroundImage: `url(${JSON.stringify(flagImage)})` }} />
-          )}
-          <div className={layout === "broadcast" ? "w-full border-l-4 bg-black/35 p-4 backdrop-blur-sm" : ""} style={layout === "broadcast" ? { borderColor: theme.accent } : undefined}>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: theme.accent }}>
-              {layout === "broadcast"
-                ? "LIVE · COUNTRY PROFILE"
-                : layout === "passport"
-                  ? "TERRA SOLARIS · NATIONAL FILE"
-                  : layout === "sci-fi"
-                    ? "TERRA SOLARIS // ACTIVE"
-                    : `Terra Solaris · ${region}`}
-            </p>
-            <h1 className="country-hero-title mt-2 break-words font-display text-3xl font-bold sm:text-5xl">{countryName}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: theme.textMuted }}>{description || "Your national story, SSC history and custom sections live here."}</p>
+    <div className="country-theme-preview-context mt-4 overflow-x-auto rounded-xl border border-border bg-background/45 p-2 sm:p-3" style={style}>
+      <div className={device === "mobile" ? "mx-auto w-[min(390px,100%)]" : "w-full"}>
+        {page === "country" ? (
+          <div className="country-profile-v8" data-country-personality={personality}>
+            <CountryIdentityHero
+              personality={personality}
+              decoration={theme.decorationStyle}
+              code={code}
+              name={countryName}
+              nativeName={nativeName}
+              region={region}
+              description={description || "National story, SSC history and custom sections are presented below this identity area."}
+              flagImage={flagImage}
+              accentColor={accentColor}
+              actions={<><button type="button">Wiki</button><button type="button">Compare</button><button type="button">Follow</button></>}
+            />
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="data-panel p-4"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">Country facts</p><p className="mt-2 text-sm text-muted-foreground">Structured content stays calm while the identity hero carries the selected art direction.</p></div>
+              <div className="data-panel p-4"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-primary">SSC record</p><p className="mt-2 text-sm text-muted-foreground">Results and history keep stable information geometry across personalities.</p></div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="wiki-canvas" data-country-personality={personality} data-wiki-style={wikiStyle}>
+            <CountryIdentityHero
+              as="header"
+              compact
+              personality={personality}
+              decoration={theme.decorationStyle}
+              code={code}
+              name={countryName}
+              nativeName={nativeName}
+              region={region}
+              flagImage={flagImage}
+              accentColor={accentColor}
+              eyebrow="Terra Solaris Wiki"
+              className="country-wiki-header"
+              actions={<button type="button">Country page →</button>}
+            />
+            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_13rem]">
+              <article className="wiki-article-surface min-w-0">
+                <p className="wiki-section-kicker">Terra Solaris Wiki</p>
+                <h2>Introduction</h2>
+                <div className="wiki-heading-rule" />
+                <p className="wiki-prose">{countryName} is a country in {region || "Terra Solaris"}. The Wiki keeps one stable encyclopedia architecture and inherits the personality only as restrained art direction.</p>
+                <section className="wiki-article-section mt-5 border-t border-border/60 pt-4">
+                  <h2>Country and culture</h2>
+                  <p className="wiki-prose mt-3">Long-form content remains readable, uncropped and free from dashboard decoration.</p>
+                </section>
+              </article>
+              <aside className="wiki-infobox">
+                <div className="wiki-infobox-identity">
+                  {flagImage ? <img src={flagImage} alt="" className="max-h-20 w-full object-contain" /> : <span>{code}</span>}
+                  <div><h2>{countryName}</h2><p>{region}</p></div>
+                </div>
+                <dl><div><dt>Region</dt><dd>{region}</dd></div><div><dt>Style</dt><dd className="capitalize">{wikiStyle}</dd></div></dl>
+              </aside>
+            </div>
+          </div>
+        )}
       </div>
-      {mode === "wiki" && (
-        <div className="country-theme-wiki-preview" style={themeStyleProperties(theme) as React.CSSProperties}>
-          <nav><span className="is-active">01 Introduction</span><span>02 Country</span><span>03 SSC history</span></nav>
-          <article>
-            <p>Terra Solaris Wiki</p>
-            <h2>Introduction</h2>
-            <i />
-            <span>{countryName} is a country in Terra Solaris. This preview shows how normal article text, headings and section rules use the selected theme.</span>
-            <h3>Country and culture</h3>
-          </article>
-          <aside>
-            <div>{flagImage ? <img src={flagImage} alt="" /> : <span>{countryName.slice(0, 3).toUpperCase()}</span>}</div>
-            <strong>{countryName}</strong>
-            <dl><div><dt>Region</dt><dd>{region}</dd></div><div><dt>Capital</dt><dd>Country fact</dd></div></dl>
-          </aside>
+    </div>
+  );
+}
+
+function PreviewControls({ page, device, onPage, onDevice, compact = false }: { page: PreviewPage; device: PreviewDevice; onPage: (value: PreviewPage) => void; onDevice: (value: PreviewDevice) => void; compact?: boolean }) {
+  return (
+    <div className={`flex flex-wrap gap-2 ${compact ? "mt-2" : ""}`}>
+      <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/45 p-1" aria-label="Preview page">
+        {(["country", "wiki"] as const).map((value) => <button key={value} type="button" onClick={() => onPage(value)} aria-pressed={page === value} className={`min-h-9 rounded-lg px-3 text-xs font-semibold capitalize ${page === value ? "bg-primary/12 text-primary" : "text-muted-foreground"}`}>{value}</button>)}
+      </div>
+      {!compact && (
+        <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/45 p-1" aria-label="Preview device">
+          <button type="button" onClick={() => onDevice("desktop")} aria-pressed={device === "desktop"} className={`grid min-h-9 place-items-center rounded-lg px-3 ${device === "desktop" ? "bg-primary/12 text-primary" : "text-muted-foreground"}`} aria-label="Desktop preview"><Monitor className="size-4" /></button>
+          <button type="button" onClick={() => onDevice("mobile")} aria-pressed={device === "mobile"} className={`grid min-h-9 place-items-center rounded-lg px-3 ${device === "mobile" ? "bg-primary/12 text-primary" : "text-muted-foreground"}`} aria-label="Mobile preview"><Smartphone className="size-4" /></button>
         </div>
       )}
     </div>
   );
 }
 
-function PreviewModeSwitch({ value, onChange }: { value: "country" | "wiki"; onChange: (value: "country" | "wiki") => void; }) {
-  return (
-    <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-background/45 p-1" aria-label="Preview page">
-      {(["country", "wiki"] as const).map((mode) => (
-        <button key={mode} type="button" onClick={() => onChange(mode)} aria-pressed={value === mode} className={`min-h-9 rounded-lg px-3 text-xs font-semibold capitalize ${value === mode ? "bg-primary/12 text-primary" : "text-muted-foreground"}`}>
-          {mode}
-        </button>
-      ))}
-    </div>
-  );
+function ModeButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: typeof Palette; label: string; onClick: () => void }) {
+  return <button type="button" onClick={onClick} className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border text-xs font-semibold ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface"}`}><Icon className="size-4" />{label}</button>;
 }
 
-function PersonalityMiniature({ layout, countryName, flagImage, theme }: { layout: CountryHeroLayout; countryName: string; flagImage: string | null; theme: CountryVisualTheme; }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="personality-miniature relative block overflow-hidden rounded-lg border border-white/10"
-      data-preview-layout={layout}
-      style={{ ...themeStyleProperties(theme), background: `linear-gradient(135deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})` } as React.CSSProperties}
-    >
-      {flagImage && <span className="absolute inset-y-0 right-0 w-2/5 bg-contain bg-center bg-no-repeat opacity-60" style={{ backgroundImage: `url(${JSON.stringify(flagImage)})` }} />}
-      <span className="absolute inset-x-3 bottom-2 truncate font-display text-sm font-bold" style={{ color: theme.textPrimary }}>{countryName}</span>
-    </span>
-  );
+function RangeField({ label, min, max, value, onChange }: { label: string; min: number; max: number; value: number; onChange: (value: number) => void }) {
+  return <label className="block"><span className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground"><span>{label}</span><span className="numeric text-[10px]">{value}</span></span><input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-current" /></label>;
 }
 
-function DecorationSwatch({ decoration, flagImage, accent }: { decoration: CountryDecorationStyle; flagImage: string | null; accent: string; }) {
-  const resolved = decoration === "auto" ? "aurora" : decoration;
-  return (
-    <span aria-hidden="true" className="relative mb-2 block h-10 overflow-hidden rounded-lg border border-white/10 bg-background/50">
-      {(resolved === "flag" || decoration === "auto") && flagImage ? (
-        <span className="absolute inset-0 bg-cover bg-center opacity-55" style={{ backgroundImage: `url(${JSON.stringify(flagImage)})` }} />
-      ) : resolved !== "none" ? (
-        <span className="country-decoration-layer" data-decoration={resolved} style={{ "--decoration-accent": accent } as React.CSSProperties} />
-      ) : null}
-    </span>
-  );
-}
-
-function ModeButton({ active, icon: Icon, label, onClick }: { active: boolean; icon: typeof Palette; label: string; onClick: () => void; }) {
-  return (
-    <button type="button" onClick={onClick} className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border text-xs font-semibold ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-surface"}`}>
-      <Icon className="size-4" />
-      {label}
-    </button>
-  );
-}
-
-function RangeField({ label, min, max, value, onChange }: { label: string; min: number; max: number; value: number; onChange: (value: number) => void; }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-muted-foreground">{label}</span>
-      <input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-current" />
-    </label>
-  );
-}
-
-function ColourField({ label, value, onChange, flush = false }: { label: string; value: string; onChange: (value: string) => void; flush?: boolean; }) {
+function ColourField({ label, value, onChange, flush = false }: { label: string; value: string; onChange: (value: string) => void; flush?: boolean }) {
   return (
     <label className={flush ? "block" : "block rounded-xl bg-surface p-3"}>
       <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-12 rounded-lg border border-border bg-background p-1" />
-        <input value={value} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && onChange(event.target.value)} className="min-h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-xs" />
-      </div>
+      <div className="flex items-center gap-2"><input type="color" value={value} onChange={(event) => onChange(event.target.value)} className="h-10 w-12 rounded-lg border border-border bg-background p-1" /><input value={value} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && onChange(event.target.value)} className="min-h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-mono text-xs" /></div>
     </label>
   );
+}
+
+function ContrastStat({ label, value, target }: { label: string; value: number; target: number }) {
+  const pass = value >= target;
+  return <div className="rounded-xl border border-border bg-background/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">{label}</p><div className="mt-1 flex items-baseline justify-between gap-2"><strong className="numeric text-lg">{value.toFixed(2)}:1</strong><span className={`text-[10px] font-bold ${pass ? "text-emerald-300" : "text-amber-300"}`}>{pass ? "PASS" : "AUTO-CORRECTED"}</span></div></div>;
 }

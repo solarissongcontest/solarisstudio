@@ -109,16 +109,16 @@ describe("beta-informed fan discovery", () => {
     expect(shell).not.toContain('label: "My country"');
   });
 
-  it("wires all eight country personalities to the actual public hero", () => {
+  it("wires the V8 personality system to the actual public hero", () => {
     const countryRoute = source("src/routes/countries/$code.tsx");
-    const visualTheme = source("src/lib/visual-theme.ts");
-    const entityCss = source("src/entity-theme.css");
+    const personalitySystem = source("src/lib/country-personality-system.ts");
+    const personalityCss = source("src/country-personality-system-v8.css");
     const editor = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
-    expect(countryRoute).toContain("country-public-hero");
-    for (const layout of ["poster", "split", "spotlight", "broadcast"]) {
-      expect(visualTheme).toContain(`"${layout}"`);
-      expect(entityCss).toContain(`data-country-hero-layout="${layout}"`);
-    }
+    expect(countryRoute).toContain("<CountryIdentityHero");
+    expect(personalitySystem).toContain("COUNTRY_PERSONALITIES");
+    expect(personalitySystem).toContain('name: "Avant-Garde"');
+    expect(personalityCss).toContain('data-country-personality="poster"');
+    expect(personalityCss).toContain('data-country-personality="broadcast"');
     expect(editor).toContain("mobilePreviewOpen");
     expect(editor).toContain("Unsaved preview");
   });

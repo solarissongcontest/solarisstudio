@@ -78,46 +78,52 @@ describe("Beta 2 hardened rollout contract", () => {
     }
   });
 
-  it("loads the isolated Beta 2 personality polish after the established repair layer", () => {
+  it("replaces the old personality repair stack with the consolidated V8 system", () => {
     const visual = source("src/components/CountryPersonalityStyles.tsx");
-    const css = source("src/country-personalities-beta2.css");
-    expect(visual.indexOf("country-personalities-beta2.css")).toBeGreaterThan(
-      visual.indexOf("country-personalities-v4.css"),
-    );
-    for (const layout of ["ribbon", "duotone", "broadcast", "monument", "horizon"]) {
-      expect(css).toContain(`data-country-hero-layout="${layout}"`);
-      expect(css).toContain(`data-preview-layout="${layout}"`);
+    const registry = source("src/lib/country-personality-system.ts");
+    const css = source("src/country-personality-system-v8.css");
+    const wiki = source("src/country-wiki-v8.css");
+    expect(visual).toContain("country-personality-system-v8.css");
+    expect(visual).toContain("country-wiki-v8.css");
+    expect(visual).not.toContain("country-personality-system-v7.css");
+    expect(visual).not.toContain("country-personality-v7-production-bridge.css");
+    expect(visual).not.toContain("country-liquid-glass-public-v7.css");
+    for (const name of ["Glass", "Editorial", "Passport", "Poster", "Heritage", "Broadcast", "Minimal", "Atlas", "Diplomatic", "Festival", "Brutalist", "Retro Digital", "Luxury", "Newspaper", "Scientific", "Civic", "Avant-Garde"]) {
+      expect(registry).toContain(`name: "${name}"`);
     }
-    expect(css).toContain("@media (max-width: 767px)");
+    expect(registry).toContain("referenceFamily:");
+    expect(registry).toContain("implementationReference:");
+    expect(css).toContain("@media (max-width: 639px)");
+    expect(css).toContain("@media (forced-colors: active)");
+    expect(wiki).toContain("--wiki-measure: 72ch");
   });
 
-  it("keeps Broadcast as a fading top source strip without the preview-only opaque block", () => {
-    const css = source("src/country-personalities-beta2.css");
-    expect(css).toContain("BROADCAST correction");
-    expect(css).toContain("height: clamp(4.2rem, 9vw, 6.4rem) !important");
-    expect(css).toContain("linear-gradient(180deg, #000 0 55%");
-    expect(css).toContain('[data-preview-layout="broadcast"] > .relative.z-10 > div');
-    expect(css).toContain("background: transparent !important");
-    expect(css).not.toContain("padding-right: clamp(34%, 39vw, 44%)");
+  it("keeps Broadcast grid-based with a bounded metadata band instead of free-floating technical lines", () => {
+    const css = source("src/country-personality-system-v8.css");
+    expect(css).toContain("06 BROADCAST — BBC GEL");
+    expect(css).toContain(".country-hero-actions {");
+    expect(css).toContain("background: var(--primary)");
+    expect(css).not.toContain("country-hero-signature-a");
+    expect(css).not.toContain("signal-line");
   });
 
-  it("uses one Glass Card surface and matches its preview geometry", () => {
-    const css = source("src/country-personalities-beta2.css");
-    expect(css).toContain("GLASS CARD correction");
-    expect(css).toContain('data-country-hero-layout="glass-card"');
-    expect(css).toContain('[data-preview-layout="glass-card"] > .relative.z-10');
-    expect(css).toContain("background: transparent !important");
-    expect(css).toContain("width: min(100%, 41rem) !important");
-    expect(css).toContain("backdrop-filter: blur(24px) saturate(175%) brightness(1.06) !important");
+  it("uses one Glass identity plate over the visual scene", () => {
+    const css = source("src/country-personality-system-v8.css");
+    const hero = source("src/components/country/CountryIdentityHero.tsx");
+    expect(css).toContain("01 GLASS — APPLE LIQUID GLASS PRINCIPLES");
+    expect(css).toContain(".country-hero-scene-flag");
+    expect(css).toContain("backdrop-filter: blur(20px) saturate(132%)");
+    expect(hero).toContain("country-hero-scene");
+    expect(hero).toContain("country-hero-layout");
+    expect(hero).not.toContain("country-liquid-glass-refraction");
   });
 
   it("lets entity colours reach the page chrome and interactive controls", () => {
-    const css = source("src/country-personalities-beta2.css");
-    expect(css).toContain("body[data-entity-theme] .site-nav");
-    expect(css).toContain("body[data-entity-theme] .mobile-quick-nav");
+    const css = source("src/calm-public-chrome.css");
+    expect(css).toContain(".site-nav");
+    expect(css).toContain(".mobile-quick-nav");
     expect(css).toContain(":is(.public-drawer, .nav-menu-panel)");
-    expect(css).toContain('body[data-entity-theme] :is(input:not([type="checkbox"])');
-    expect(css).toContain('body[data-entity-theme] :is(.bg-aurora:is(button, a, [role="button"])');
+    expect(css).toContain(".directory-page-filter");
   });
 
   it("shows the planned ten-second pending to confirmed receipt for submissions and voting", () => {
