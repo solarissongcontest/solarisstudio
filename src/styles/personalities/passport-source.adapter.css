@@ -1,0 +1,194 @@
+/* Jesus Ramirez International Airline Ticket translated adapter.
+   Public source: CodeHim / CodePen, MIT.
+   Structural authority: ICAO Doc 9303 identity-document zoning.
+
+   The human source is organized into a coloured top identity zone, a white
+   information zone, aligned label/value rows and one machine-like code strip.
+   Solaris translates that zoning without copying airline branding, fixed
+   270×575 geometry, fake flight data or the source's absolute-position maze. */
+
+.country-identity-hero[data-country-personality="passport"] {
+  --document-pad: clamp(1rem, 3cqi, 2rem);
+  border: 1px solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: var(--background) !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-scene {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-layout {
+  grid-template-columns: minmax(0, 7fr) minmax(8rem, 2fr) minmax(9rem, 3fr);
+  grid-template-areas:
+    "copy art flag"
+    "actions art flag";
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-copy {
+  padding: var(--document-pad);
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+  border-inline-end: 1px solid var(--foreground);
+  border-block-end: 1px solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-eyebrow {
+  margin-block-end: 1rem;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-title {
+  max-inline-size: 12ch !important;
+  font-family: "Open Sans", var(--font-sans, Arial, sans-serif);
+  font-size: clamp(3rem, 7cqi, 5rem);
+  font-weight: 700;
+  letter-spacing: -.04em !important;
+  line-height: .9 !important;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-meta {
+  display: inline-flex;
+  margin-block-start: 1rem;
+  padding-block-start: .75rem;
+  border-block-start: 1px solid color-mix(in srgb, var(--foreground) 45%, transparent);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-description {
+  max-inline-size: 50ch;
+  margin-block-start: 1rem;
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-art {
+  min-block-size: 100%;
+  border: 0;
+  border-inline-end: 1px solid var(--foreground);
+  border-block-end: 1px solid var(--foreground);
+  border-radius: 0;
+  background: var(--background);
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-art-primary {
+  position: absolute;
+  inset: 12% 20% auto;
+  block-size: 1px;
+  background: var(--foreground);
+  box-shadow:
+    0 1.4rem var(--foreground),
+    0 2.8rem var(--foreground),
+    0 4.2rem var(--foreground);
+  opacity: .38;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-art-secondary {
+  position: absolute;
+  inset: auto 20% 12%;
+  block-size: 2.7rem;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--foreground) 0 2px,
+    transparent 2px 5px,
+    var(--foreground) 5px 6px,
+    transparent 6px 10px
+  );
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-art-tertiary {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  inline-size: 2.6rem;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border: 1px solid var(--primary);
+  border-radius: 50%;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-flag-zone {
+  padding: var(--document-pad);
+  align-self: stretch;
+  align-content: start;
+  border-block-end: 1px solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-official-flag {
+  border: 1px solid var(--foreground);
+  border-radius: 0;
+  background: white;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-flag-caption {
+  margin-block-start: .6rem;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-actions {
+  padding: 1rem var(--document-pad) var(--document-pad);
+  border-inline-end: 1px solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 1px solid var(--foreground);
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.country-profile-v8[data-country-personality="passport"] .data-panel,
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="passport"] .data-panel h2,
+body[data-entity-theme="country"][data-country-hero-layout="passport"] .wiki-section-kicker {
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+@container country-identity (width < 48rem) {
+  .country-identity-hero[data-country-personality="passport"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "art"
+      "actions";
+  }
+
+  .country-identity-hero[data-country-personality="passport"] .country-hero-copy,
+  .country-identity-hero[data-country-personality="passport"] .country-hero-actions {
+    border-inline-end: 0;
+  }
+
+  .country-identity-hero[data-country-personality="passport"] .country-hero-art {
+    min-block-size: 4rem;
+    max-block-size: 4rem;
+    border-inline-end: 0;
+  }
+
+  .country-identity-hero[data-country-personality="passport"] .country-hero-art-tertiary {
+    display: none;
+  }
+}
