@@ -17,7 +17,7 @@ export type SourceDivergenceDecision = {
  * visual replacement percentages become "approved" only after the rendered
  * source-vs-Solaris review has measured them.
  */
-export const COUNTRY_PERSONALITY_DIVERGENCE: Record<CountryHeroLayout, SourceDivergenceDecision> = {
+export const COUNTRY_PERSONALITY_DIVERGENCE: Partial<Record<CountryHeroLayout, SourceDivergenceDecision>> = {
   "glass-card": {
     keep: ["DOM material/refraction engine", "lens edge response", "browser fallbacks"],
     remap: ["material tint to country palette", "typography to Solaris roles"],
@@ -157,5 +157,5 @@ export const COUNTRY_PERSONALITY_DIVERGENCE: Record<CountryHeroLayout, SourceDiv
 };
 
 export function countryPersonalityDivergence(id: CountryHeroLayout) {
-  return COUNTRY_PERSONALITY_DIVERGENCE[id] ?? COUNTRY_PERSONALITY_DIVERGENCE.classic;
+  return COUNTRY_PERSONALITY_DIVERGENCE[id] ?? COUNTRY_PERSONALITY_DIVERGENCE.classic!;
 }
