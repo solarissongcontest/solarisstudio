@@ -1,0 +1,405 @@
+@use 'sass-mq/mq';
+@use 'gel-sass-tools/sass-tools';
+@use 'settings';
+@use 'sass:map';
+@use 'sass:math';
+
+///*------------------------------------*\
+//    # GEL GRID - TOOLS
+//\*------------------------------------*/
+
+// Grid container, used to wrap all grid elements and apply the correct maximum widths
+//
+// @author Shaun Bent
+//
+@mixin gel-wrap() {
+  @if settings.$gel-grid-enable--box-sizing {
+    box-sizing: border-box;
+  }
+  margin: 0 auto;
+  max-width: settings.$gel-grid-max-width-1008;
+  #{sass-tools.$padding-right}: sass-tools.$gel-spacing-unit;
+  #{sass-tools.$padding-left}: sass-tools.$gel-spacing-unit;
+
+  @include mq.mq($from: settings.$gel-grid-margin-change) {
+    #{sass-tools.$padding-left}: sass-tools.double(sass-tools.$gel-spacing-unit);
+    #{sass-tools.$padding-right}: sass-tools.double(sass-tools.$gel-spacing-unit);
+  }
+
+  @if settings.$gel-grid-enable--1280-breakpoint {
+    @if settings.$gel-grid-1280-toggle-class != null {
+      .#{settings.$gel-grid-1280-toggle-class} & {
+        @include gel-wrap-1280-breakpoint;
+      }
+    } @else {
+      @include gel-wrap-1280-breakpoint;
+    }
+  }
+}
+
+@mixin gel-wrap-1280-breakpoint() {
+  @include mq.mq($from: settings.$gel-grid-max-width-1280) {
+    max-width: settings.$gel-grid-max-width-1280;
+  }
+}
+
+// A single layout group/row, this wraps individual layout items
+//
+// We want fine-grain control over which implementations of flexbox we support
+// so we will manually handle prefixes
+//
+// 1. Remove any default list styling if the layout is applied to a list
+// 2. Remove any margin and padding which may effect our layout
+//
+// @author Shaun Bent
+//
+@mixin gel-layout() {
+  direction: sass-tools.flip(ltr, rtl);
+  display: flex;
+  flex-flow: row wrap;
+  flex-grow: 1;
+  list-style: none; // [1]
+  #{sass-tools.$margin-right}: 0; // [2]
+  #{sass-tools.$margin-left}: -(sass-tools.$gel-spacing-unit);
+  #{sass-tools.$padding-right}: 0; // [2]
+  #{sass-tools.$padding-left}: 0; // [2]
+  text-align: sass-tools.flip(left, right);
+
+  @if settings.$gel-grid-enable--whitespace-fix {
+    letter-spacing: -0.31em;
+    text-rendering: optimizespeed;
+  }
+
+  @if settings.$gel-grid-enable--whitespace-fix {
+    @at-root {
+      #{&} {
+        word-spacing: -0.43em;
+      }
+    }
+  }
+
+  @include mq.mq($from: settings.$gel-grid-gutter-change) {
+    #{sass-tools.$margin-left}: sass-tools.double(-(sass-tools.$gel-spacing-unit));
+  }
+}
+
+// A single layout group/row, this wraps individual layout items
+//
+// 1. Cause columns to stack side-by-side
+// 2. Space columns apart
+// 3. Ensure all text is aligned correctly
+// 4. Align columns to the tops of each other
+//
+// @author  Shaun Bent
+//
+@mixin gel-layout-item() {
+  @if settings.$gel-grid-enable--box-sizing {
+    box-sizing: border-box;
+  }
+  display: inline-block; // [1]
+  #{sass-tools.$padding-left}: sass-tools.$gel-spacing-unit; // [2]
+  text-align: sass-tools.flip(left, right); // [3]
+  vertical-align: top; // [4]
+  width: 100%;
+
+  @if settings.$gel-grid-enable--whitespace-fix {
+    letter-spacing: normal;
+    text-rendering: auto;
+    word-spacing: normal;
+  }
+
+  @include mq.mq($from: settings.$gel-grid-gutter-change) {
+    #{sass-tools.$padding-left}: sass-tools.double(sass-tools.$gel-spacing-unit); // [2]
+  }
+}
+
+// Outputs a collection of generic grid classes
+//
+// @author Shaun Bent
+//
+@mixin gel-output-grid() {
+  /**
+    * Grid containing element
+    */
+  .#{settings.$gel-grid-namespace}wrap {
+    @include gel-wrap;
+  }
+
+  /**
+    * A grid row
+    */
+  .#{settings.$gel-grid-namespace}layout {
+    @include gel-layout;
+  }
+
+  /**
+    * A single grid item
+    */
+  .#{settings.$gel-grid-namespace}layout__item {
+    @include gel-layout-item;
+  }
+
+  /**
+    * Layouts with no gutters.
+    */
+  .#{settings.$gel-grid-namespace}layout--flush {
+    #{sass-tools.$margin-left}: 0;
+  }
+
+  .#{settings.$gel-grid-namespace}layout--flush {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      #{sass-tools.$padding-left}: 0;
+    }
+  }
+
+  /**
+    * Reversed rendered order of layout items, e.g. items 1, 2, 3, 4 in your
+    * markup will display in order 4, 3, 2, 1 on your page
+    */
+  .#{settings.$gel-grid-namespace}layout--rev {
+    flex-direction: row-reverse;
+  }
+
+  .#{settings.$gel-grid-namespace}layout--rev {
+    .#{settings.$gel-grid-flexbox-feature-detection-class} & {
+      direction: sass-tools.flip(rtl, ltr);
+      text-align: sass-tools.flip(left, right);
+    }
+  }
+
+  .#{settings.$gel-grid-namespace}layout--rev {
+    .#{settings.$gel-grid-flexbox-feature-detection-class} & {
+      > .#{settings.$gel-grid-namespace}layout__item,
+      > %#{settings.$gel-grid-namespace}layout__item {
+        direction: sass-tools.flip(ltr, rtl);
+        text-align: sass-tools.flip(left, right);
+      }
+    }
+  }
+
+  /**
+    * Align layout items to the vertical centers of each other
+    */
+  .#{settings.$gel-grid-namespace}layout--middle {
+    align-items: center;
+  }
+
+  .#{settings.$gel-grid-namespace}layout--middle {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      vertical-align: middle;
+    }
+  }
+
+  /**
+    * Align layout items to the vertical bottoms of each other
+    */
+  .#{settings.$gel-grid-namespace}layout--bottom {
+    align-items: flex-end;
+  }
+
+  .#{settings.$gel-grid-namespace}layout--bottom {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      vertical-align: bottom;
+    }
+  }
+
+  /**
+    * Make the layout items fill up from the right hand side
+    */
+  .#{settings.$gel-grid-namespace}layout--right {
+    text-align: sass-tools.flip(right, left);
+    justify-content: flex-end;
+  }
+
+  .#{settings.$gel-grid-namespace}layout--right {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      text-align: sass-tools.flip(left, right);
+    }
+  }
+
+  /**
+    * Make the layout items fill up from the center outward
+    */
+  .#{settings.$gel-grid-namespace}layout--center {
+    text-align: center;
+    justify-content: center;
+  }
+
+  .#{settings.$gel-grid-namespace}layout--center {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      text-align: sass-tools.flip(left, right);
+    }
+  }
+
+  /**
+    * Cause layout items to take up a non-explicit amount of width
+    */
+  .#{settings.$gel-grid-namespace}layout--auto {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      width: auto;
+    }
+  }
+
+  /**
+    * Disable the flexbox grid
+    *
+    * 1. Prevents floated layout items from shrinking the layout
+    */
+  .#{settings.$gel-grid-namespace}layout--no-flex {
+    min-width: 100%; // [1]
+  }
+
+  .#{settings.$gel-grid-namespace}layout--no-flex {
+    &,
+    > .#{settings.$gel-grid-namespace}layout__item {
+      display: inline-block;
+    }
+  }
+
+  /**
+    * Force items to be of equal height
+    */
+  .#{settings.$gel-grid-namespace}layout--equal {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      display: flex;
+    }
+  }
+
+  /**
+    * Allow items to devide the space equally between the number of items
+    */
+  .#{settings.$gel-grid-namespace}layout--fit {
+    > .#{settings.$gel-grid-namespace}layout__item {
+      width: auto;
+      flex: 1 1 auto;
+    }
+  }
+
+  /**
+    * Align a single grid item to the top
+    */
+  .#{settings.$gel-grid-namespace}layout__item--top {
+    align-self: flex-start;
+  }
+
+  /**
+        * Align a single grid item to the center
+        */
+  .#{settings.$gel-grid-namespace}layout__item--center {
+    align-self: center;
+  }
+
+  /**
+    * Align a single grid item to the bottom
+    */
+  .#{settings.$gel-grid-namespace}layout__item--bottom {
+    align-self: flex-end;
+  }
+}
+
+// Outputs a collection of grid-agnostic width utility classes which can be applied be
+// combined with the grid system or applied to any element to give it a percentage based with.
+//
+// If the optional 1280 toggle class is defined then all 1280 width classes will be wrapped
+// in the specified toggle class
+//
+// @author Shaun Bent
+//
+@mixin gel-output-widths() {
+  @include _gel-widths(settings.$gel-grid-columns);
+
+  @each $breakpoint in settings.$gel-grid-breakpoints {
+    @include mq.mq($from: '#{settings.$gel-grid-breakpoint-namespace}#{$breakpoint}') {
+      @include _gel-widths(settings.$gel-grid-columns, $breakpoint);
+    }
+  }
+
+  @if settings.$gel-grid-1280-toggle-class != null {
+    .#{settings.$gel-grid-1280-toggle-class} {
+      @each $breakpoint in settings.$gel-grid-breakpoints--1280 {
+        @include mq.mq($from: '#{settings.$gel-grid-breakpoint-namespace}#{$breakpoint}') {
+          @include _gel-widths(settings.$gel-grid-columns, $breakpoint);
+        }
+      }
+    }
+  }
+}
+
+// Returns a percentage value for the required number of columns
+//
+// @param {Number}  $span - number of columns required to span
+// @param {Number}  $columns (settings.$gel-grid-default-columns) - total number of columns available
+//
+// @return {Number} Percentage for the required number of columns
+//
+// @author          Shaun Bent
+//
+@function gel-columns($span, $columns: settings.$gel-grid-default-columns) {
+  @if $span >= 1 {
+    // Convert the given span to a fraction of the columns
+    @return math.percentage(math.div($span, $columns));
+  } @else {
+    // A fraction has been supplied so lets just converting it to a percentage
+    @return math.percentage($span);
+  }
+}
+
+// Get a width for a specific number of columns
+//
+// @param {Number} $span - number of columns required to span
+// @param {Number} $columns (settings.$gel-grid-default-columns) - total number of columns available
+//
+// @author Shaun Bent
+//
+@mixin gel-columns($span, $columns: settings.$gel-grid-default-columns) {
+  width: gel-columns($span, $columns);
+}
+
+// Generate width classes for the requested columns and breakpoint modifier
+//
+// @param {List} $columns - a list of all the columns you'd like to be output
+// @param {String} $breakpoint - any breakpoint suffix appended to the class
+//
+// @author Shaun Bent
+//
+@mixin _gel-widths($columns, $breakpoint: null) {
+  $output-widths: ();
+  $breakpoint-suffix: '';
+
+  @if $breakpoint != null {
+    $breakpoint-suffix: \@#{$breakpoint};
+  }
+
+  @each $column in $columns {
+    @if $column == 1 {
+      // no point outputting 100% several times so lets just do it once
+      .#{settings.$gel-grid-namespace}#{$column}\/#{$column}#{$breakpoint-suffix} {
+        width: 100% !important;
+      }
+    } @else {
+      @for $i from 1 to $column {
+        // dart-sass does not support precision, so do it manually
+        $width: math.div(round(math.div($i, $column) * 10000000), 10000000);
+
+        @if map.has-key($output-widths, $width) == false {
+          $output-widths: map.merge(
+            $output-widths,
+            (
+              $width: true,
+            )
+          );
+
+          .#{settings.$gel-grid-namespace}#{$i}\/#{$column}#{$breakpoint-suffix} {
+            width: gel-columns($width) !important;
+          }
+        }
+      }
+    }
+  }
+}
+
+//  Create our width helper classes prefixed with any given alias.
+@if settings.$gel-grid-enable--markup-output {
+  @include gel-output-grid;
+  @include gel-output-widths;
+}
