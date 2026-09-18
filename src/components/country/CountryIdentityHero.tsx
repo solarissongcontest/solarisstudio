@@ -1,7 +1,9 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
+import { AtlasMapModule } from "@/components/country/AtlasMapModule";
 import { countryPersonality } from "@/lib/country-personality-system";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
+import type { CountryGeography } from "@/lib/country-semantic-model";
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
 import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial";
@@ -17,6 +19,7 @@ type CountryIdentityHeroProps = {
   description?: string | null;
   flagImage?: string | null;
   accentColor?: string | null;
+  geography?: CountryGeography | null;
   eyebrow?: string;
   actions?: ReactNode;
   compact?: boolean;
@@ -43,6 +46,7 @@ export function CountryIdentityHero({
   description,
   flagImage,
   accentColor,
+  geography,
   eyebrow = "Terra Solaris",
   actions,
   compact = false,
@@ -90,11 +94,21 @@ export function CountryIdentityHero({
       </div>
 
       {definition.allowsGraphicArt ? (
-        <div className="country-hero-art" aria-hidden="true">
-          <span className="country-hero-art-primary" />
-          <span className="country-hero-art-secondary" />
-          <span className="country-hero-art-tertiary" />
-        </div>
+        definition.id === "panorama" ? (
+          <div className="country-hero-art country-hero-art--atlas">
+            <AtlasMapModule
+              countryName={name}
+              region={region}
+              geography={geography}
+            />
+          </div>
+        ) : (
+          <div className="country-hero-art" aria-hidden="true">
+            <span className="country-hero-art-primary" />
+            <span className="country-hero-art-secondary" />
+            <span className="country-hero-art-tertiary" />
+          </div>
+        )
       ) : null}
 
       <div className="country-hero-flag-zone">
