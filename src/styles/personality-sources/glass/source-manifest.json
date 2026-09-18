@@ -12,10 +12,19 @@
     "src/signal.ts"
   ],
   "vendoredTo": "src/vendor/liquid-glass/",
-  "excludedFiles": ["WebGL video surface", "demo components", "site assets", "fonts"],
+  "excludedFiles": [
+    "WebGL video surface",
+    "demo components",
+    "site assets",
+    "fonts"
+  ],
   "solarisChanges": [
     "wrap the canonical Country identity grid in the upstream GlassMaterial engine",
     "keep one source-backed glass surface rather than layering simulated glass inside glass",
     "map optics to a restrained identity plate while retaining the source browser fallbacks"
-  ]
+  ],
+  "source": "Sam Asante liquid-glass",
+  "licenseFile": "src/vendor/liquid-glass/LICENSE",
+  "visualAuthority": "Apple Liquid Glass",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
