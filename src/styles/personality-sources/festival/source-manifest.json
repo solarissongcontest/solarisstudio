@@ -6,11 +6,22 @@
   "commit": "80395b0ccc6e08cc1f0cdff50186ee119aad0b24",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["src/components/hero/hero-block.ts", "src/pages/home-page.ts"],
-  "excludedFiles": ["Google/GDG marks", "demo event assets", "negative header-overlap positioning"],
+  "importedFiles": [
+    "src/components/hero/hero-block.ts",
+    "src/pages/home-page.ts"
+  ],
+  "excludedFiles": [
+    "Google/GDG marks",
+    "demo event assets",
+    "negative header-overlap positioning"
+  ],
   "solarisChanges": [
     "retain the source 0.6 media overlay, 32px side padding and event hero hierarchy",
     "remove the source negative top margin so Solaris navigation never clips country identity",
     "map event call-to-action roles to country-safe accessible controls"
-  ]
+  ],
+  "source": "GDG-X Hoverboard",
+  "licenseFile": "src/styles/personality-sources/festival/LICENSE",
+  "visualAuthority": "Contemporary event-site composition",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
