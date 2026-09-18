@@ -10,7 +10,7 @@ describe("Solaris typography policy", () => {
     expect(cardTypography).toContain('--font-display: "Classica Crastao", Georgia, serif;');
     expect(cardTypography).toContain('--font-sans: "Gotham", ui-sans-serif, system-ui, sans-serif;');
     expect(cardTypography).toContain('font-family: "Gotham", ui-sans-serif, system-ui, sans-serif !important;');
-    expect(cardTypography).toContain('.country-hero-title,');
+    expect(cardTypography).not.toContain('\n.country-hero-title,');
     expect(cardTypography).toContain('font-family: "Classica Crastao", Georgia, serif !important;');
   });
 
