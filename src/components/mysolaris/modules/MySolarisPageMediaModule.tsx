@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, Eye, EyeOff, ImagePlus, Plus, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, ImagePlus, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
@@ -96,6 +96,7 @@ function CountryPageBuilder({
   const profile = world.data?.profile ?? null;
   const [message, setMessage] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
 
   const run = async (task: () => Promise<unknown>, success: string) => {
     setMessage(null);
@@ -112,6 +113,18 @@ function CountryPageBuilder({
     if (target < 0 || target >= sections.length) return;
     const next = [...sections];
     [next[index], next[target]] = [next[target], next[index]];
+    await run(
+      () => reorder.mutateAsync(next.map((section) => section.id)),
+      "Section order updated.",
+    );
+  };
+
+  const moveToIndex = async (sourceId: string, targetIndex: number) => {
+    const sourceIndex = sections.findIndex((section) => section.id === sourceId);
+    if (sourceIndex < 0 || targetIndex < 0 || targetIndex >= sections.length || sourceIndex === targetIndex) return;
+    const next = [...sections];
+    const [moved] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, moved);
     await run(
       () => reorder.mutateAsync(next.map((section) => section.id)),
       "Section order updated.",
@@ -241,6 +254,12 @@ function CountryPageBuilder({
                 index={index}
                 count={sections.length}
                 onMove={(direction) => move(index, direction)}
+                onDragStart={() => setDraggedSectionId(section.id)}
+                onDragEnd={() => setDraggedSectionId(null)}
+                onDrop={() => {
+                  if (draggedSectionId) void moveToIndex(draggedSectionId, index);
+                  setDraggedSectionId(null);
+                }}
                 onSave={(input) => run(() => saveSection.mutateAsync(input), "Section saved.")}
                 onDelete={() =>
                   run(() => deleteSection.mutateAsync(section.id), "Section deleted.")
@@ -385,6 +404,9 @@ function SectionBuilderCard({
   index,
   count,
   onMove,
+  onDragStart,
+  onDragEnd,
+  onDrop,
   onSave,
   onDelete,
   onAddMedia,
@@ -396,6 +418,9 @@ function SectionBuilderCard({
   index: number;
   count: number;
   onMove: (direction: -1 | 1) => Promise<unknown>;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDrop: () => void;
   onSave: (input: CountryPageSectionInput) => Promise<unknown>;
   onDelete: () => Promise<unknown>;
   onAddMedia: (file: File) => Promise<unknown>;
@@ -433,6 +458,10 @@ function SectionBuilderCard({
     setJson({ factMode: "manual", customFacts: rows });
   };
 
+  const setTimelineItems = (rows: Array<{ date: string; title: string; body: string }>) => {
+    setJson({ layoutVariant: "timeline", timelineItems: rows });
+  };
+
   const regenerate = () => {
     const autoKind = String(value.contentJson.autoKind ?? "overview");
     setValue((current) => ({
@@ -468,8 +497,29 @@ function SectionBuilderCard({
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+    <section
+      className="overflow-hidden rounded-2xl border border-border bg-surface"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDrop();
+      }}
+    >
       <div className="flex min-h-16 items-center gap-2 p-3">
+        <button
+          type="button"
+          draggable
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = "move";
+            onDragStart();
+          }}
+          onDragEnd={onDragEnd}
+          aria-label="Drag to reorder section"
+          title="Drag to reorder"
+          className="grid size-10 shrink-0 cursor-grab place-items-center rounded-lg border border-border bg-background active:cursor-grabbing"
+        >
+          <GripVertical className="size-4" />
+        </button>
         <div className="grid grid-cols-1 gap-1">
           <button
             type="button"
@@ -559,6 +609,7 @@ function SectionBuilderCard({
                 ["image", "Image feature"],
                 ["quote", "Quote / statement"],
                 ["facts", "Facts / stats"],
+                ["timeline", "Timeline"],
                 ["divider", "Divider"],
               ]}
             />
@@ -609,17 +660,40 @@ function SectionBuilderCard({
               Every card uses the same outer width so the page stays aligned; these settings change
               what happens inside it.
             </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <SelectField
-                label="Panel style"
-                value={presentation.panelStyle}
-                onChange={(next) => setJson({ panelStyle: next })}
+                label="Content layout"
+                value={presentation.layoutVariant}
+                onChange={(next) => setJson({ layoutVariant: next })}
                 options={[
-                  ["glass", "Glass / page default"],
-                  ["solid", "Solid card"],
-                  ["outline", "Outline only"],
-                  ["transparent", "No card"],
-                  ["accent", "Accent highlight"],
+                  ["wiki", "Wiki"],
+                  ["encyclopedia", "Encyclopedia"],
+                  ["magazine", "Magazine"],
+                  ["dashboard", "Dashboard"],
+                  ["showcase", "Showcase"],
+                  ["timeline", "Timeline"],
+                ]}
+              />
+              <SelectField
+                label="Emphasis"
+                value={presentation.emphasis}
+                onChange={(next) => setJson({ emphasis: next })}
+                options={[
+                  ["normal", "Normal"],
+                  ["subtle", "Subtle"],
+                  ["strong", "Strong"],
+                  ["accent", "Accent"],
+                  ["bordered", "Bordered"],
+                ]}
+              />
+              <SelectField
+                label="Section background"
+                value={presentation.sectionBackground}
+                onChange={(next) => setJson({ sectionBackground: next })}
+                options={[
+                  ["none", "Page surface"],
+                  ["tint", "Tint colour"],
+                  ["image", "Use section image"],
                 ]}
               />
               <SelectField
@@ -642,6 +716,9 @@ function SectionBuilderCard({
                 ]}
               />
             </div>
+            <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+              Surface material is controlled once in Country Design. These controls change composition and emphasis without mixing Glass, Opaque and other materials on one page.
+            </p>
           </div>
 
           {value.sectionType !== "divider" && (
@@ -698,6 +775,71 @@ function SectionBuilderCard({
               ) : null}
             </div>
           ) : null}
+
+          {value.sectionType === "timeline" && (
+            <div className="mt-4 rounded-xl border border-border bg-background p-3">
+              <div>
+                <p className="text-xs font-semibold">Timeline events</p>
+                <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+                  Use this for history, eras, governments, milestones or delegation chronology.
+                </p>
+              </div>
+              <div className="mt-3 space-y-3">
+                {presentation.timelineItems.map((row, rowIndex) => (
+                  <div key={rowIndex} className="grid gap-2 rounded-xl border border-border bg-surface p-3 sm:grid-cols-[8rem_minmax(0,1fr)_auto]">
+                    <input
+                      value={row.date}
+                      onChange={(event) => {
+                        const rows = [...presentation.timelineItems];
+                        rows[rowIndex] = { ...row, date: event.target.value };
+                        setTimelineItems(rows);
+                      }}
+                      placeholder="2026"
+                      className="min-h-10 rounded-lg border border-border bg-background px-3 text-xs"
+                    />
+                    <div className="grid gap-2">
+                      <input
+                        value={row.title}
+                        onChange={(event) => {
+                          const rows = [...presentation.timelineItems];
+                          rows[rowIndex] = { ...row, title: event.target.value };
+                          setTimelineItems(rows);
+                        }}
+                        placeholder="Milestone title"
+                        className="min-h-10 rounded-lg border border-border bg-background px-3 text-xs"
+                      />
+                      <textarea
+                        value={row.body}
+                        onChange={(event) => {
+                          const rows = [...presentation.timelineItems];
+                          rows[rowIndex] = { ...row, body: event.target.value };
+                          setTimelineItems(rows);
+                        }}
+                        placeholder="What happened?"
+                        rows={2}
+                        className="rounded-lg border border-border bg-background px-3 py-2 text-xs"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTimelineItems(presentation.timelineItems.filter((_, index) => index !== rowIndex))}
+                      className="grid size-10 place-items-center rounded-lg border border-border text-muted-foreground"
+                      aria-label="Remove timeline event"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setTimelineItems([...presentation.timelineItems, { date: "", title: "", body: "" }])}
+                  className="min-h-10 rounded-xl border border-primary/25 bg-primary/[0.07] px-3 text-xs font-semibold text-primary"
+                >
+                  <Plus className="mr-1 inline size-3.5" /> Add event
+                </button>
+              </div>
+            </div>
+          )}
 
           {value.sectionType === "facts" && (
             <div className="mt-4 rounded-xl border border-border bg-background p-3">
