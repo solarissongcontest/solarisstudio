@@ -18,7 +18,9 @@
 .country-design-v2::before {
   content: "";
   position: absolute;
-  inset: 0;
+  inset-block: 0;
+  left: 50%;
+  width: 100vw;
   z-index: -2;
   pointer-events: none;
   border-radius: 0;
@@ -26,7 +28,7 @@
   background-position: var(--country-v2-bg-position);
   background-size: cover;
   filter: blur(var(--country-v2-bg-blur));
-  transform: translateZ(0);
+  transform: translateX(-50%) translateZ(0);
 }
 
 .country-design-v2,
@@ -351,11 +353,40 @@
 }
 
 .country-v2-hero[data-country-v2-hero="centered"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "flag"
+    "copy"
+    "actions";
+  align-content: center;
+  justify-items: center;
   text-align: center;
+  gap: 1.1rem;
+}
+.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-copy {
+  grid-area: copy;
+  width: min(100%, 54rem);
+  justify-self: center;
+}
+.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-description {
+  margin-inline: auto;
+}
+.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-flag {
+  grid-area: flag;
+  width: min(14rem, 72%);
+  justify-self: center;
   justify-items: center;
 }
-.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-copy { max-width: 54rem; }
-.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-actions { justify-content: center; }
+.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-flag img {
+  width: 100%;
+  max-height: 9rem;
+}
+.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-actions {
+  grid-area: actions;
+  width: auto;
+  justify-self: center;
+  justify-content: center;
+}
 
 .country-v2-hero[data-country-v2-hero="left"] {
   grid-template-columns: minmax(0,1fr) minmax(10rem, .4fr);
@@ -543,7 +574,11 @@
     font-size: clamp(3.4rem, 18vw, 6.5rem);
   }
   .country-v2-hero-flag { justify-items: start; }
-  .country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-flag { justify-items: center; }
+  .country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-flag {
+    width: min(11rem, 62%);
+    justify-self: center;
+    justify-items: center;
+  }
   .country-v2-hero-actions { width: 100%; }
   .country-v2-hero-actions :is(a,button) { flex: 1 1 auto; }
 }
