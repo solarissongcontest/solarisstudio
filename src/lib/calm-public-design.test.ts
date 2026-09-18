@@ -46,7 +46,7 @@ describe("calm public design contract", () => {
     expect(css).toContain(".country-hero-scene-flag");
     expect(css).toContain("country-hero-glass-material");
     expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
-    expect(hero).toContain("<Suspense fallback={heroLayout}>");
+    expect(hero).toContain("<Suspense fallback={composition}>");
     expect(css).not.toContain("country-liquid-glass-refraction");
     expect(css).not.toContain("country-liquid-glass-specular");
     expect(hero).toContain("moveGlassLight");
