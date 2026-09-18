@@ -363,7 +363,7 @@ function ModeRail({ mode, setMode }: { mode: Mode; setMode: (mode: Mode) => void
               <Icon className="size-4" />
             </span>
             <span>
-              <span className="block text-[8px] font-black tracking-[.15em] opacity-60">
+              <span className="block text-[10px] font-black tracking-[.15em] opacity-60">
                 {eyebrow}
               </span>
               <span className="block text-xs font-bold">{label}</span>
@@ -571,7 +571,7 @@ function EligibilityFlow() {
             <Link
               to="/rules/$ruleId"
               params={{ ruleId: gate.rule }}
-              className="group block h-full min-h-56 rounded-[1.6rem] border border-white/[0.08] bg-[linear-gradient(155deg,rgba(17,49,82,.82),rgba(5,18,39,.95))] p-5 transition hover:-translate-y-1 hover:border-sky-200/20"
+              className="group block h-full min-h-56 rounded-[1.6rem] border border-white/[0.08] bg-[linear-gradient(155deg,rgba(17,49,82,.82),rgba(5,18,39,.95))] p-5 transition-[background-color,border-color] duration-150 ease-out hover:border-sky-200/20"
             >
               <div className="flex items-center justify-between">
                 <span className="font-mono text-3xl font-black text-white/[0.14]">{gate.step}</span>
@@ -713,7 +713,7 @@ function ZoneCard({
                 <ChapterIcon className="size-4 text-sky-100" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[8px] font-black uppercase tracking-[.14em] text-muted-foreground">
+                <span className="block text-[10px] font-black uppercase tracking-[.14em] text-muted-foreground">
                   CHAPTER {String(number).padStart(2, "0")}
                 </span>
                 <span className="mt-0.5 block truncate text-sm font-bold">{chapter.title}</span>
@@ -933,7 +933,7 @@ function Rulebook({
                       <Icon className="size-3.5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[8px] font-black uppercase tracking-[.12em] opacity-55">
+                      <span className="block text-[10px] font-black uppercase tracking-[.12em] opacity-55">
                         CH {String(item.number).padStart(2, "0")}
                       </span>
                       <span className="block truncate text-[11px] font-bold">
@@ -1008,7 +1008,7 @@ function RuleCard({ rule, index }: { rule: SscRule; index: number }) {
     <Link
       to="/rules/$ruleId"
       params={{ ruleId: rule.id }}
-      className="group relative overflow-hidden rounded-[1.45rem] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(18,43,74,.75),rgba(5,18,39,.93))] p-4 transition hover:-translate-y-0.5 hover:border-sky-200/20"
+      className="group relative overflow-hidden rounded-[1.45rem] border border-white/[0.075] bg-[linear-gradient(145deg,rgba(18,43,74,.75),rgba(5,18,39,.93))] p-4 transition-[background-color,border-color] duration-150 ease-out hover:border-sky-200/20"
     >
       <span
         aria-hidden="true"
@@ -1061,7 +1061,7 @@ function ExpandableRule({ rule }: { rule: SscRule }) {
             <span className="font-black">{rule.title}</span>
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase",
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black uppercase",
                 tone.className,
               )}
             >
