@@ -5,13 +5,14 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("calm public design contract", () => {
-  it("actually loads the calm public chrome and consolidated V8 country layers", () => {
+  it("actually loads the calm public chrome and source-driven Country layers", () => {
     const visual = source("src/components/RouteVisualTheme.tsx");
     const personalityStyles = source("src/components/CountryPersonalityStyles.tsx");
     expect(visual).toContain('import "@/calm-public-layout.css"');
     expect(visual).toContain('import "@/calm-public-chrome.css"');
     expect(personalityStyles).toContain('import buttonStyles from "@/country-button-theme.css?inline"');
-    expect(personalityStyles).toContain('import personalityV8 from "@/country-personality-system-v8.css?inline"');
+    expect(personalityStyles).toContain('import sharedFoundation from "@/country-personality-shared-foundation.css?inline"');
+    expect(personalityStyles).not.toContain("country-personality-system-v8.css");
     expect(personalityStyles).toContain('import wikiV8 from "@/country-wiki-v8.css?inline"');
     expect(personalityStyles).toContain('import wikiComponentsV8 from "@/country-wiki-components-v8.css?inline"');
     expect(personalityStyles).not.toContain("country-wiki.css?inline");
@@ -38,13 +39,13 @@ describe("calm public design contract", () => {
   });
 
   it("renders Glass as one Liquid Glass identity plate instead of stacked opaque cards", () => {
-    const css = source("src/country-personality-system-v8.css");
+    const css = source("src/styles/personalities/glass-source.adapter.css");
     const wiki = source("src/country-wiki-v8.css");
     const hero = source("src/components/country/CountryIdentityHero.tsx");
-    expect(css).toContain("01 GLASS — APPLE LIQUID GLASS PRINCIPLES");
+    expect(css).toContain("samasante/liquid-glass");
     expect(css).toContain(".country-hero-scene-flag");
-    expect(css).toContain("backdrop-filter: blur(20px) saturate(132%)");
-    expect(css).toContain("@supports not ((backdrop-filter: blur(1px))");
+    expect(css).toContain("country-hero-glass-material");
+    expect(css).toContain("@supports not");
     expect(css).not.toContain("country-liquid-glass-refraction");
     expect(css).not.toContain("country-liquid-glass-specular");
     expect(hero).toContain("moveGlassLight");
