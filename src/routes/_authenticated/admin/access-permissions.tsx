@@ -183,13 +183,13 @@ function AccessPermissionsPage() {
         <AdminPageHeader
           eyebrow="Administration"
           title="Access & permissions"
-          description="Assign clear role presets, add narrow exceptions and compare capability decisions with the current organizer gate before enforcement changes."
-          actions={<AdminStatus tone="attention">Shadow mode</AdminStatus>}
+          description="Assign role presets, add narrow exceptions and review the capability decisions that now authorize Solaris Studio."
+          actions={<AdminStatus tone="ready">Authoritative</AdminStatus>}
         />
 
-        <div className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-4 py-3 text-sm text-amber-50">
-          <span className="font-bold">Not authoritative yet.</span> Existing access rules still
-          decide requests while this workspace records comparison data.
+        <div className="rounded-xl border border-emerald-200/20 bg-emerald-200/[0.06] px-4 py-3 text-sm text-emerald-50">
+          <span className="font-bold">Capability enforcement is authoritative.</span> Route
+          evaluations continue to be recorded for audit and operational review.
         </div>
 
         <section
@@ -212,9 +212,9 @@ function AccessPermissionsPage() {
             hint="Named operations"
           />
           <Metric
-            label="30-day mismatches"
-            value={summary?.mismatched ?? 0}
-            hint={summary ? `${summary.evaluations} evaluations` : "Loading telemetry"}
+            label="30-day evaluations"
+            value={summary?.evaluations ?? 0}
+            hint={summary ? `${summary.mismatched} historical mismatches` : "Loading telemetry"}
             attention={Boolean(summary?.mismatched)}
           />
         </section>
@@ -385,7 +385,11 @@ function UsersTab({
                 {user.email ?? "No email shown"}
               </span>
               <span className="mt-2 block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                {user.legacyRoles.length ? user.legacyRoles.join(", ") : "Capability access"}
+                {user.assignments.length
+                  ? user.assignments.map((assignment) => assignment.roleKey).join(", ")
+                  : user.directGrants.length
+                    ? "Direct capability access"
+                    : "No active access"}
               </span>
             </button>
           ))}
@@ -416,7 +420,7 @@ function UsersTab({
             <div className="mb-4 flex flex-wrap gap-2">
               {selectedUser.legacyRoles.map((role) => (
                 <AdminStatus key={role} tone="info">
-                  Legacy {role}
+                  Historical {role}
                 </AdminStatus>
               ))}
               {!selectedUser.legacyRoles.length ? <AdminStatus>Capability-only</AdminStatus> : null}

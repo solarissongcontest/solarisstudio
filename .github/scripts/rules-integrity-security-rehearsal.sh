@@ -229,9 +229,9 @@ sign_in organizer-a-security@solaris.invalid; ORGANIZER_A_TOKEN="$LAST_TOKEN"
 sign_in organizer-b-security@solaris.invalid; ORGANIZER_B_TOKEN="$LAST_TOKEN"
 sign_in participant-security@solaris.invalid; PARTICIPANT_TOKEN="$LAST_TOKEN"
 
-# Seed organizer authority through the database, then use only user-scoped JWTs
-# for the hostile calls below.
-db_exec "insert into public.user_roles(user_id, role) values ('$ORGANIZER_A_ID'::uuid, 'organizer'), ('$ORGANIZER_B_ID'::uuid, 'organizer') on conflict do nothing;"
+# Seed authoritative Organizer access through Permission Engine v2, then use
+# only user-scoped JWTs for the hostile calls below.
+db_exec "insert into public.studio2_role_assignments(user_id, role_key, edition_id, expires_at, assigned_by) values ('$ORGANIZER_A_ID'::uuid, 'organizer', null, null, null), ('$ORGANIZER_B_ID'::uuid, 'organizer', null, null, null) on conflict do nothing;"
 
 log "Case privacy and anonymous-mode abuse tests"
 create_protected_case "$REPORTER_A_TOKEN" confidential report "Reporter A private case"; CASE_A="$LAST_CASE_ID"
@@ -412,9 +412,9 @@ rpc_request "$ORGANIZER_A_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_app
 expect_failure "original finding/sanction author cannot review the appeal"
 assert_db_eq "conflicted reviewer failure leaves appeal unassigned" "select assigned_reviewer is null from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "t"
 
-# Temporarily grant the reporter organizer authority solely to prove the overlap
-# case: being an organizer does not let an appellant review their own appeal.
-db_exec "insert into public.user_roles(user_id,role) values ('$REPORTER_A_ID'::uuid,'organizer') on conflict do nothing;"
+# Temporarily grant the reporter authoritative Organizer access solely to prove
+# the overlap case: being an Organizer does not let an appellant review their own appeal.
+db_exec "insert into public.studio2_role_assignments(user_id,role_key,edition_id,expires_at,assigned_by) values ('$REPORTER_A_ID'::uuid,'organizer',null,null,null) on conflict do nothing;"
 rpc_request "$ORGANIZER_B_TOKEN" admin_assign_integrity_appeal_reviewer "{\"_appeal_id\":\"$APPEAL_ID\",\"_user_id\":\"$REPORTER_A_ID\"}"
 expect_failure "organizer-role appellant cannot review their own appeal"
 assert_db_eq "self-review rejection leaves appeal unassigned" "select assigned_reviewer is null from public.integrity_case_appeals where id='$APPEAL_ID'::uuid;" "t"
