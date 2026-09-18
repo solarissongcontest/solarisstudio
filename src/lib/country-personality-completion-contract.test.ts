@@ -34,6 +34,9 @@ describe("canonical Country + Wiki completion contract", () => {
     expect(adapter).toContain("real MapLibre map");
     expect(manifest).toContain('"implementationMode": "remote-esm"');
     expect(manifest).toContain("never infer or fabricate coordinates");
+    const registry = source("src/lib/country-personality-sources.ts");
+    expect(registry).toContain('pinnedRef: "codehim-2024-03-04"');
+    expect(registry).toContain('version: "2024-03-04"');
   });
 
   it("ships the mandatory Personality Lab, Gallery and hostile QA fixtures", () => {
