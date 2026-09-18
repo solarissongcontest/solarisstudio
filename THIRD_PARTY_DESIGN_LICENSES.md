@@ -6,7 +6,7 @@ human-designed systems instead of inventing seventeen unrelated visual skins.
 This register tracks source provenance. Upstream brand marks, proprietary fonts,
 photography and demo assets are excluded unless separately licensed.
 
-## Architecture prototypes
+## Implemented source-driven personalities
 
 ### Glass
 - Source: Sam Asante `liquid-glass`
@@ -14,7 +14,7 @@ photography and demo assets are excluded unless separately licensed.
 - Version: 0.1.1
 - Commit: `4e7b769e1df7e5a7d3669fef22417fe3d2f79ade`
 - License: MIT
-- Use: package-backed liquid-glass optics and fallback material
+- Use: vendored `GlassMaterial`, displacement and signal engine, wrapped around the shared Country identity grid
 - Excluded: demo/site branding and media
 
 ### Editorial
@@ -44,11 +44,12 @@ photography and demo assets are excluded unless separately licensed.
 - Use: window chrome, bevel recipes, status/control grammar
 - Excluded: Pixelated MS Sans Serif font files and docs assets
 
-## Canonical source pins for remaining implementation phases
+## Implemented translated adapters
 
-These repositories are pinned now so later personality work cannot silently
-substitute a different design system. File-level import/license audits still
-happen when the corresponding adapter is implemented.
+Every source below is pinned and now has a rendered Country/Wiki adapter plus a
+file-level manifest under `src/styles/personality-sources/`. The implementation
+translates layout, typography, spacing and surface grammar while excluding
+upstream brand marks, proprietary fonts, photography and demo content.
 
 - Passport: Jesus Ramirez International Airline Ticket CSS, MIT. Source snapshot: https://codehim.com/html5-css3/international-airline-ticket-in-html-css/ . ICAO Doc 9303 remains the structural authority.
 - Poster: RampStack Swiss Style Theme, MIT, commit `55e82b52f2c4c2893f79628c77ed31418d5975e6`.
@@ -65,5 +66,7 @@ happen when the corresponding adapter is implemented.
 - Avant-Garde: Superilles Grid System, MIT, commit `b4404a655115f030c0bedec45cf5693169d03470`.
 
 A pinned commit is not permission to import everything in that repository.
-Fonts, logos, imagery and nested third-party assets remain excluded until their
-individual licensing is verified.
+Fonts, logos, imagery and nested third-party assets remain excluded unless their
+individual licensing is verified. The Glass engine is the sole exception where
+selected MIT-licensed upstream source files are vendored verbatim and preserved
+with their upstream license in `src/vendor/liquid-glass/`.
