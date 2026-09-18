@@ -282,8 +282,9 @@ function TasteDnaPage() {
       <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4 sm:space-y-5">
           <Panel title="1. Choose the field" description="Taste DNA needs public jury and televote results">
-            <label className="block text-xs font-semibold text-muted-foreground">Edition</label>
+            <label htmlFor="taste-dna-edition" className="block text-xs font-semibold text-muted-foreground">Edition</label>
             <select
+              id="taste-dna-edition"
               value={editionId}
               onChange={(event) => {
                 setEditionId(event.target.value);
@@ -296,8 +297,9 @@ function TasteDnaPage() {
               ))}
             </select>
 
-            <label className="mt-4 block text-xs font-semibold text-muted-foreground">Show</label>
+            <label htmlFor="taste-dna-show" className="mt-4 block text-xs font-semibold text-muted-foreground">Show</label>
             <select
+              id="taste-dna-show"
               value={showId}
               onChange={(event) => setShowId(event.target.value)}
               disabled={!eligibleShows.length}
