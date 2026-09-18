@@ -10,7 +10,7 @@ const account = source("src/lib/country-account.ts");
 const hub = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
 const shell = source("src/components/AppShell.tsx");
 const publicNavigation = source("src/components/public/PublicSiteNavigation.tsx");
-const appearance = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+const appearance = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
 const builder = source("src/components/mysolaris/modules/MySolarisPageMediaModule.tsx");
 const entryMigration = source("supabase/migrations/20260819212500_edition_level_country_entries.sql");
 const cleanRpcMigration = source("supabase/migrations/20260819215500_clean_edition_entry_rpcs.sql");
@@ -75,14 +75,14 @@ describe("country claims and unified account workspace", () => {
 });
 
 describe("country page customization", () => {
-  it("keeps full background customization and image guidance", () => {
-    expect(appearance).toContain("1920×1080");
-    expect(appearance).toContain("2560×1440");
-    expect(appearance).toContain('backgroundMode === "image"');
-    expect(appearance).toContain('backgroundMode === "gradient"');
-    expect(appearance).toContain("Gradient style");
-    expect(appearance).toContain("Dark overlay");
-    expect(appearance).toContain("Background blur");
+  it("keeps full V2 background customization and image controls", () => {
+    expect(appearance).toContain('design.background.mode === "image"');
+    expect(appearance).toContain('design.background.mode === "gradient"');
+    expect(appearance).toContain('title="Background"');
+    expect(appearance).toContain('label="Gradient"');
+    expect(appearance).toContain('label="Overlay"');
+    expect(appearance).toContain('label="Blur"');
+    expect(appearance).toContain("uploadCountryBackground");
   });
 
   it("keeps modular country/wiki blocks, editable generated writing, visibility and ordering controls", () => {
