@@ -859,7 +859,7 @@ function patchPalette(
 }
 
 function patchBackground(
-  key: keyof CountryDesignV2["background"],
+  key: "positionX" | "positionY" | "overlay" | "blur",
   value: number,
   setDesign: React.Dispatch<React.SetStateAction<CountryDesignV2>>,
 ) {
