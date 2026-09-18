@@ -5,17 +5,12 @@
   "version": null,
   "commit": "df0764db7057cc631dd2dea1bd466a8e995a3637",
   "license": "MIT",
-  "implementationMode": "vendored-css",
-  "importedFiles": [
-    "hero",
-    "article",
-    "TOC",
-    "page/docs layout",
-    "table styles selected after audit"
-  ],
-  "excludedFiles": [
-    "PHP/Blade app implementation",
-    "source fonts",
-    "demo media"
+  "implementationMode": "translated-components",
+  "importedFiles": ["public/cms.css", "public/hero.css"],
+  "excludedFiles": ["CMS templates", "demo imagery", "external webfonts"],
+  "solarisChanges": [
+    "retain Didot/Bodoni fallback display stack, tracked uppercase labels and zero radius",
+    "map antique-gold source accents to each country's accessible primary role",
+    "translate centered luxury hero and generous negative space to factual country identity"
   ]
 }
