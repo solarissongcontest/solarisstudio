@@ -39,7 +39,7 @@ export type CountryPersonalityDefinition = {
 };
 
 /**
- * Country Personality System V8
+ * Canonical source-driven Country Personality System
  *
  * Persisted hero-layout values remain stable to avoid a database migration, but
  * each value now maps to a concrete design lineage and an explicit structural
@@ -326,7 +326,7 @@ export const COUNTRY_PERSONALITIES = [
   },
 ] as const satisfies readonly CountryPersonalityDefinition[];
 
-/** Older persisted values remain valid and resolve to the closest deliberate V8 concept. */
+/** Older persisted values remain valid and resolve to the closest canonical source-driven concept. */
 export const LEGACY_PERSONALITY_ALIASES: Partial<Record<CountryHeroLayout, CountryHeroLayout>> = {
   split: "classic",
   "water-drop": "glass-card",
