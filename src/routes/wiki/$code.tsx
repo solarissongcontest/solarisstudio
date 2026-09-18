@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
+import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryWikiExperience } from "@/components/wiki/CountryWikiExperience";
 
 export const Route = createFileRoute("/wiki/$code")({
@@ -23,6 +24,7 @@ function CountryWikiRoute() {
   return (
     <>
       <CountryPersonalityStyles />
+      <CountryDesignV2Styles />
       {clientReady ? <CountryWikiExperience code={code} /> : <WikiHydrationSkeleton />}
     </>
   );
