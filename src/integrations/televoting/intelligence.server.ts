@@ -104,6 +104,7 @@ type Observation = {
   controllerPersonId: string | null;
   controllerName: string | null;
   editionId: string;
+  editionNumber: number | null;
   showOrRoundId: string;
   channel: "televote" | "jury";
   voterCountryCode: string;
@@ -169,6 +170,13 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
   const lens: IntelligenceLens = options.lens === "country" ? "country" : "hod";
   const channel: IntelligenceChannel = options.channel === "jury" || options.channel === "televote" ? options.channel : "combined";
   const canonical = await loadCanonicalVotingContextServer();
+  const editionNumberById = new Map(
+    canonical.hod.editions.map((edition: any) => [
+      String(edition.id),
+      edition.edition_number == null ? null : Number(edition.edition_number),
+    ]),
+  );
+  const editionNumber = (editionId: string) => editionNumberById.get(editionId) ?? null;
 
   const [submissionResult, roundResult, roundEntryResult, countryResult, voteEntryResult] = await Promise.all([
     televotingAdmin
@@ -262,6 +270,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
           controllerPersonId: hod?.personId ?? null,
           controllerName: lens === "hod" && hod ? hod.displayName : null,
           editionId,
+          editionNumber: editionNumber(editionId),
           showOrRoundId: submission.round_id,
           channel: "televote",
           voterCountryCode: voterCode,
@@ -333,6 +342,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
           controllerPersonId: hod?.personId ?? null,
           controllerName: lens === "hod" && hod ? hod.displayName : null,
           editionId,
+          editionNumber: editionNumber(editionId),
           showOrRoundId: String(first.show_id ?? ballotKey),
           channel: "jury",
           voterCountryCode: voterCode,
@@ -349,7 +359,15 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
     }
   }
 
-  const observations = allObservations.filter((observation) => {
+  const selectedEditionNumber = options.editionId ? editionNumber(options.editionId) : null;
+  const historicalScope = allObservations.filter((row) => {
+    if (!options.editionId) return true;
+    if (row.editionId === options.editionId) return true;
+    if (selectedEditionNumber == null || row.editionNumber == null) return false;
+    return row.editionNumber < selectedEditionNumber;
+  });
+
+  const observations = historicalScope.filter((observation) => {
     if (options.editionId && observation.editionId !== options.editionId) return false;
     if (options.hodPersonId && observation.controllerPersonId !== options.hodPersonId) return false;
     return true;
@@ -406,7 +424,7 @@ export async function getMergedIntelligenceServer(options: IntelligenceOptions =
     pairs.set(key, current);
   }
 
-  const advancedAll = allObservations.map(advancedObservation);
+  const advancedAll = historicalScope.map(advancedObservation);
   const relationships: IntelligencePair[] = [];
 
   for (const value of pairs.values()) {
