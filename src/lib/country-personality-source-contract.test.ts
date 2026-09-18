@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { COUNTRY_PERSONALITY_DIVERGENCE } from "./country-personality-divergence";
 import {
   COUNTRY_PERSONALITY_SOURCES,
   countryPersonalitySource,
@@ -282,7 +283,7 @@ describe("source-driven Country personality contract", () => {
     expect(newspaper).toMatchObject({ repository: "guardian/source", license: "Apache-2.0" });
     expect(scientific).toMatchObject({ repository: "carbon-design-system/carbon", license: "Apache-2.0" });
     expect(civic).toMatchObject({ repository: "uswds/uswds" });
-    expect(avantGarde).toMatchObject({ repository: "zetareticoli/superilles", license: "MIT" });
+    expect(avantGarde).toMatchObject({ repository: "zetareticoli/superilles", license: "ISC" });
 
     expect(source("THIRD_PARTY_DESIGN_LICENSES.md")).toContain("## Implemented source-driven personalities");
   });
@@ -293,7 +294,9 @@ describe("source-driven Country personality contract", () => {
     const vendor = source("src/vendor/liquid-glass/GlassMaterial.tsx");
     const license = source("src/vendor/liquid-glass/LICENSE");
 
-    expect(hero).toContain('import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial"');
+    expect(hero).toContain('lazy(() =>');
+    expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
+    expect(hero).toContain("<Suspense fallback={heroLayout}>");
     expect(hero).toContain('<LazyGlassMaterial');
     expect(hero).toContain('className="country-hero-glass-material"');
     expect(glass).toContain("samasante/liquid-glass");
@@ -399,16 +402,17 @@ describe("source-driven Country personality contract", () => {
   });
 
   it("keeps source-divergence decisions explicit without fabricated percentages", () => {
-    const divergence = source("src/lib/country-personality-divergence.ts");
+    const divergenceSource = source("src/lib/country-personality-divergence.ts");
     for (const personality of COUNTRY_PERSONALITY_SOURCES) {
-      expect(divergence).toContain(`"${personality.id}"`);
+      expect(COUNTRY_PERSONALITY_DIVERGENCE[personality.id]).toMatchObject({
+        budgetStatus: "review-required",
+      });
     }
     for (const classification of ["keep:", "remap:", "removeForSafety:", "solarisAdd:"]) {
-      expect(divergence).toContain(classification);
+      expect(divergenceSource).toContain(classification);
     }
-    expect(divergence).toContain('budgetStatus: "review-required"');
-    expect(divergence).not.toContain("structuralReplacementPercent:");
-    expect(divergence).not.toContain("visualGrammarReplacementPercent:");
+    expect(divergenceSource).not.toContain("structuralReplacementPercent:");
+    expect(divergenceSource).not.toContain("visualGrammarReplacementPercent:");
   });
 
 });
