@@ -142,7 +142,7 @@ describe("source-driven Country personality contract", () => {
     expect(countryRoute).toContain("data-country-background-policy={sourcePersonality.backgroundPolicy}");
   });
 
-  it("loads the source foundation and first human-source adapters after V8", () => {
+  it("loads the shared source-neutral foundation before all human-source adapters", () => {
     const styles = source("src/components/CountryPersonalityStyles.tsx");
     expect(styles).toContain('import sourceFoundation from "@/country-personality-source-foundation.css?inline"');
     expect(styles).toContain('import minimalSource from "@/styles/personalities/minimal-source.adapter.css?inline"');
@@ -163,12 +163,14 @@ describe("source-driven Country personality contract", () => {
     expect(styles).toContain('import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline"');
     expect(styles).toContain('import glassSource from "@/styles/personalities/glass-source.adapter.css?inline"');
 
+    expect(styles).toContain('import sharedFoundation from "@/country-personality-shared-foundation.css?inline"');
+    expect(styles).not.toContain("country-personality-system-v8.css");
     const listStart = styles.indexOf("const countryPersonalityStyles");
-    const v8 = styles.indexOf("personalityV8,", listStart);
+    const shared = styles.indexOf("sharedFoundation,", listStart);
     const sourceFoundation = styles.indexOf("sourceFoundation,", listStart);
     const minimal = styles.indexOf("minimalSource,", listStart);
-    expect(v8).toBeGreaterThan(-1);
-    expect(sourceFoundation).toBeGreaterThan(v8);
+    expect(shared).toBeGreaterThan(-1);
+    expect(sourceFoundation).toBeGreaterThan(shared);
     expect(minimal).toBeGreaterThan(sourceFoundation);
   });
 
