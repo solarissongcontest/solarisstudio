@@ -52,23 +52,6 @@ const emptyCoordination = (warning: string | null = null): CoordinationPayload =
   analysisWarning: warning,
 });
 
-function isWorkerHeavyDefaultScope(data: NormalizedInput) {
-  return data.lens === "hod" && data.channel === "combined" && !data.editionId && !data.hodPersonId;
-}
-
-function isHistoricalAllEditionsScope(data: NormalizedInput) {
-  return data.lens === "country" && !data.editionId && !data.hodPersonId;
-}
-
-function workerSafeHistoricalScope(): NormalizedInput {
-  return {
-    lens: "country",
-    channel: "combined",
-    hodPersonId: null,
-    editionId: null,
-  };
-}
-
 function sanitizeResultForScope(result: any, scope: NormalizedInput) {
   const stats = { ...result.stats };
 
@@ -127,36 +110,14 @@ async function runHistoricalAnalysis(data: NormalizedInput, settings: any) {
 
 async function getResilientFriendVotingIntelligence(
   requested: NormalizedInput,
-  options: { allowAdvanced?: boolean } = {},
 ) {
   const { loadFriendVotingSettingsServer } = await import("@/integrations/televoting/friend-voting-settings.server");
   const settings = await loadFriendVotingSettingsServer();
-
-  const effectiveScope = isWorkerHeavyDefaultScope(requested)
-    ? workerSafeHistoricalScope()
-    : requested;
-
-  // Lightweight Organizer requests deliberately use a descriptive historical relationship model.
-  // It returns before the expensive advanced baseline/deviation/network calculations and therefore
-  // does not need a timeout race that leaves the losing Worker computation running in the background.
-  if (!options.allowAdvanced || isWorkerHeavyDefaultScope(requested) || isHistoricalAllEditionsScope(effectiveScope)) {
-    const result = await runHistoricalAnalysis(effectiveScope, settings);
-    return {
-      result,
-      settings,
-      effectiveScope,
-      analysisMode: "historical" as AnalysisMode,
-      riskSemantics: "pattern" as RiskSemantics,
-      analysisDegraded: false,
-      analysisWarning: isWorkerHeavyDefaultScope(requested)
-        ? "Showing the worker-safe country-level jury + televote history across all editions. This includes the corrected SSC20 and SSC21 historical televote ballots plus the longer jury baseline."
-        : null,
-    };
-  }
+  const effectiveScope = requested;
 
   try {
-    const { getMergedIntelligenceV4Server } = await import("@/integrations/televoting/intelligence-v4.server");
-    const advanced = await getMergedIntelligenceV4Server(effectiveScope, settings);
+    const { getMergedIntelligenceV5Server } = await import("@/integrations/televoting/intelligence-v5.server");
+    const advanced = await getMergedIntelligenceV5Server(effectiveScope, settings);
     if (!advanced) throw new Error("Advanced friend-voting analysis returned no data");
     return {
       result: sanitizeResultForScope(advanced, effectiveScope),
@@ -168,7 +129,10 @@ async function getResilientFriendVotingIntelligence(
       analysisWarning: null as string | null,
     };
   } catch (error) {
-    console.error("Advanced friend-voting analysis failed; using historical relationship analysis", error);
+    console.error(
+      "Advanced Friend Voting analysis failed; using historical relationship fallback",
+      error,
+    );
     const result = await runHistoricalAnalysis(effectiveScope, settings);
     return {
       result,
@@ -200,7 +164,7 @@ function addCommonMetadata(payload: any, resilient: Awaited<ReturnType<typeof ge
 export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: true });
+    const resilient = await getResilientFriendVotingIntelligence(data);
     const { result, settings, effectiveScope } = resilient;
     let coordination: CoordinationPayload = emptyCoordination();
 
@@ -243,7 +207,7 @@ export const getMergedTelevotingIntelligence = createServerFn({ method: "POST" }
 export const getLightweightFriendVotingIntelligence = createServerFn({ method: "POST" })
   .inputValidator(normalizeInput)
   .handler(async ({ data }) => {
-    const resilient = await getResilientFriendVotingIntelligence(data, { allowAdvanced: true });
+    const resilient = await getResilientFriendVotingIntelligence(data);
     const { result, settings } = resilient;
     const allRelationships = result.relationships;
     const payload = {
