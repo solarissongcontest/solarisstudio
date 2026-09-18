@@ -5,6 +5,9 @@
     "vite.config.ts",
     "eslint.config.js"
   ],
+  "exclude": [
+    "src/styles/personality-sources/**/upstream/**/*"
+  ],
 
   "compilerOptions": {
     "target": "ES2022",
