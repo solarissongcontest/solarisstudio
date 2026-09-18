@@ -177,6 +177,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         '[data-flag-role="official"] img, [data-flag-chip="true"][data-flag-role="official"] img',
       )].flatMap((image) => {
         const style = getComputedStyle(image);
+        // Responsive Wiki variants intentionally keep a desktop infobox mounted
+        // while hiding it on smaller viewports. Audit only flags that actually
+        // participate in layout; a display:none ancestor produces no client rects.
+        if (image.getClientRects().length === 0 || style.display === "none" || style.visibility === "hidden") {
+          return [];
+        }
         const problems: string[] = [];
         if (style.objectFit !== "contain") problems.push(`${image.alt || image.src}: object-fit=${style.objectFit}`);
         const rect = image.getBoundingClientRect();
