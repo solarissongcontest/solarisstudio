@@ -35,8 +35,9 @@ describe("Permission Engine v2 authoritative cutover", () => {
     expect(migration).toContain("v_capability_allowed, v_capability_allowed");
   });
 
-  it("removes exposed legacy helper RPCs", () => {
-    expect(migration).toContain("drop function if exists public.integrity_is_organizer()");
+  it("keeps Integrity compatibility capability-only and removes obsolete role helpers", () => {
+    expect(migration).toContain("create or replace function public.integrity_is_organizer()");
+    expect(migration).toContain("studio2_access_allowed('integrity.manage', null, false)");
     expect(migration).toContain("drop function if exists public.organizer_exists()");
     expect(migration).toContain("drop function if exists public.has_role(uuid, public.app_role)");
   });
