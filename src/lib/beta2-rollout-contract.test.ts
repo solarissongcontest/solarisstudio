@@ -81,12 +81,13 @@ describe("Beta 2 hardened rollout contract", () => {
     }
   });
 
-  it("replaces the old personality repair stack with the consolidated V8 system", () => {
+  it("replaces the old personality repair stack with the source-driven system", () => {
     const visual = source("src/components/CountryPersonalityStyles.tsx");
     const registry = source("src/lib/country-personality-system.ts");
-    const css = source("src/country-personality-system-v8.css");
+    const css = source("src/country-personality-shared-foundation.css");
     const wiki = source("src/country-wiki-v8.css");
-    expect(visual).toContain("country-personality-system-v8.css");
+    expect(visual).toContain("country-personality-shared-foundation.css");
+    expect(visual).not.toContain("country-personality-system-v8.css");
     expect(visual).toContain("country-wiki-v8.css");
     expect(visual).not.toContain("country-personality-system-v7.css");
     expect(visual).not.toContain("country-personality-v7-production-bridge.css");
@@ -102,8 +103,8 @@ describe("Beta 2 hardened rollout contract", () => {
   });
 
   it("keeps Broadcast grid-based with a bounded metadata band instead of free-floating technical lines", () => {
-    const css = source("src/country-personality-system-v8.css");
-    expect(css).toContain("06 BROADCAST — BBC GEL");
+    const css = source("src/styles/personalities/broadcast-source.adapter.css");
+    expect(css).toContain("BBC GEL Grid + GEL Typography translated adapter");
     expect(css).toContain(".country-hero-actions {");
     expect(css).toContain("background: var(--primary)");
     expect(css).not.toContain("country-hero-signature-a");
@@ -111,9 +112,9 @@ describe("Beta 2 hardened rollout contract", () => {
   });
 
   it("uses one Glass identity plate over the visual scene", () => {
-    const css = source("src/country-personality-system-v8.css");
+    const css = source("src/styles/personalities/glass-source.adapter.css");
     const hero = source("src/components/country/CountryIdentityHero.tsx");
-    expect(css).toContain("01 GLASS — APPLE LIQUID GLASS PRINCIPLES");
+    expect(css).toContain("samasante/liquid-glass");
     expect(css).toContain(".country-hero-scene-flag");
     expect(css).toContain("backdrop-filter: blur(20px) saturate(132%)");
     expect(hero).toContain("country-hero-scene");
