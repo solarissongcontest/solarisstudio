@@ -1,5 +1,5 @@
 import buttonStyles from "@/country-button-theme.css?inline";
-import personalityV8 from "@/country-personality-system-v8.css?inline";
+import sharedFoundation from "@/country-personality-shared-foundation.css?inline";
 import wikiV8 from "@/country-wiki-v8.css?inline";
 import wikiComponentsV8 from "@/country-wiki-components-v8.css?inline";
 import sourceFoundation from "@/country-personality-source-foundation.css?inline";
@@ -23,7 +23,7 @@ import glassSource from "@/styles/personalities/glass-source.adapter.css?inline"
 
 const countryPersonalityStyles = [
   buttonStyles,
-  personalityV8,
+  sharedFoundation,
   wikiV8,
   wikiComponentsV8,
   sourceFoundation,
@@ -49,9 +49,9 @@ const countryPersonalityStyles = [
 /**
  * One route-scoped style payload.
  *
- * V8 remains the compatibility foundation while the source-driven system is
- * introduced personality by personality. Source adapters load last so the
- * human-designed source grammar wins without restoring the old repair cascade.
+ * The shared foundation owns semantic geometry only. Source adapters load
+ * afterwards and are the sole personality-specific visual authority. No legacy
+ * all-personality stylesheet participates in production rendering.
  */
 export function CountryPersonalityStyles() {
   return <style data-country-personality-styles>{countryPersonalityStyles}</style>;
