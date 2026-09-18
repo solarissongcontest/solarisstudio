@@ -37,7 +37,7 @@ function CountryDesignV2Lab() {
     return {
       ...base,
       surface,
-      hero: { ...base.hero, layout, alignment: hero === "centered" ? "center" : "left" },
+      hero: { ...base.hero, layout: hero, alignment: hero === "centered" ? "center" : "left" },
       content: { defaultLayout: layout },
       accent,
       motion,
