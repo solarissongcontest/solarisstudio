@@ -16,7 +16,7 @@ const migrationName = migrations.find((name) =>
   name.endsWith("_permission_engine_v2_foundation.sql"),
 );
 
-describe("Permission Engine v2 shadow administration", () => {
+describe("Permission Engine v2 administration", () => {
   it("is discoverable inside Administration without creating another product surface", () => {
     expect(navigation).toContain("Access & permissions");
     expect(navigation).toContain("/admin/access-permissions");
@@ -27,12 +27,12 @@ describe("Permission Engine v2 shadow administration", () => {
     }
   });
 
-  it("blocks cutover when there is no real observation evidence", () => {
+  it("shows authoritative readiness and keeps recent evidence visible", () => {
     const readiness = source("src/components/admin/PermissionCutoverReadinessPanel.tsx");
     expect(route).toContain("<PermissionCutoverReadinessPanel");
-    expect(readiness).toContain("Not ready to enable");
-    expect(readiness).toContain("Rollout blocked");
-    expect(readiness).toContain("Advanced · cutover order");
+    expect(readiness).toContain("Authoritative and verified");
+    expect(readiness).toContain("Authoritative");
+    expect(readiness).toContain("Advanced · completed cutover");
   });
 
   it("keeps access simulation explicitly read-only", () => {
@@ -47,9 +47,9 @@ describe("Permission Engine v2 shadow administration", () => {
     expect(client).toContain("studio2_view_access_as");
   });
 
-  it("records shadow decisions but does not present them as enforcement", () => {
-    expect(route).toContain("Not authoritative yet.");
-    expect(route).toMatch(/Existing access rules still\s+decide requests/);
+  it("records authoritative decisions and presents v2 as enforcement", () => {
+    expect(route).toContain("Permission Engine v2 is authoritative.");
+    expect(route).toMatch(/Active role\s+assignments and direct capability grants now decide protected access/);
     expect(client).toContain("studio2_check_capability_shadow");
     expect(route).toContain('action: "permissions.workspace.view"');
   });
