@@ -1,7 +1,19 @@
-import type { CSSProperties, ReactNode } from "react";
+import {
+  Suspense,
+  lazy,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
 import { cn } from "@/lib/utils";
+
+const LazyGlassMaterial = lazy(() =>
+  import("@/vendor/liquid-glass/GlassMaterial").then((module) => ({
+    default: module.GlassMaterial,
+  })),
+);
 
 type CountryDesignV2HeroProps = {
   as?: "section" | "header";
@@ -40,18 +52,74 @@ export function CountryDesignV2Hero({
 }: CountryDesignV2HeroProps) {
   const Root = as;
   const layout = compact ? "compact" : design.hero.layout;
+  const liquidGlass = design.surface === "glass";
+
+  const moveGlassLight = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!liquidGlass || event.pointerType === "touch") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+    event.currentTarget.style.setProperty("--glass-pointer-x", `${x}%`);
+    event.currentTarget.style.setProperty("--glass-pointer-y", `${y}%`);
+    event.currentTarget.dataset.glassActive = "true";
+  };
+
+  const resetGlassLight = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!liquidGlass) return;
+    event.currentTarget.style.setProperty("--glass-pointer-x", "74%");
+    event.currentTarget.style.setProperty("--glass-pointer-y", "16%");
+    delete event.currentTarget.dataset.glassActive;
+  };
 
   return (
     <Root
-      className={cn("country-v2-hero", className)}
+      className={cn("country-v2-hero", liquidGlass && "country-v2-hero--liquid", className)}
       data-country-v2-hero={layout}
       data-design-target="hero"
       data-design-active={editorActive ? "true" : undefined}
+      data-liquid-glass={liquidGlass ? "true" : undefined}
       style={{
         textAlign: design.hero.alignment,
         ...style,
       }}
+      onPointerMove={moveGlassLight}
+      onPointerLeave={resetGlassLight}
     >
+      {liquidGlass ? (
+        <>
+          <div className="country-v2-liquid-glass-scene" aria-hidden="true">
+            {flagImage ? (
+              <img
+                className="country-v2-liquid-glass-scene-flag"
+                src={flagImage}
+                alt=""
+                decoding="async"
+              />
+            ) : null}
+            <span className="country-v2-liquid-glass-light country-v2-liquid-glass-light-a" />
+            <span className="country-v2-liquid-glass-light country-v2-liquid-glass-light-b" />
+          </div>
+          <Suspense fallback={<div className="country-v2-liquid-glass-fallback" aria-hidden="true" />}>
+            <LazyGlassMaterial
+              className="country-v2-liquid-glass-material"
+              aria-hidden="true"
+              optics={{
+                strength: 0.055,
+                depth: 0.56,
+                curvature: 0.3,
+                dispersion: 0.22,
+                frost: 7,
+                saturate: 1.18,
+                sheen: 0.34,
+                glow: 0.07,
+              }}
+            />
+          </Suspense>
+        </>
+      ) : null}
+
       <div className="country-v2-hero-copy">
         <p className="country-v2-hero-eyebrow">{eyebrow}</p>
         <h1 className="country-v2-hero-title country-v2-display">{name}</h1>
