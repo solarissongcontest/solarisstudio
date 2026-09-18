@@ -322,7 +322,8 @@ describe("source-driven Country personality contract", () => {
     expect(typography).not.toContain("\n.country-hero-title,");
     expect(foundation).toContain("padding-block: .06em .09em");
     expect(foundation).toContain("max-block-size: 7rem");
-    expect(anniversary).toContain("!countryRoute && (");
+    expect(anniversary).not.toContain("solaris-anniversary-season-notice");
+    expect(anniversary).not.toContain("solaris-anniversary-context");
   });
 
   it("overrides the old giant mobile flag rule with per-personality source bounds", () => {
