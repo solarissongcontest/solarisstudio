@@ -96,4 +96,18 @@ describe("canonical Country + Wiki completion contract", () => {
     expect(audit).toContain("return width > 0 && height > 0");
     expect(audit).toContain('personality === "panorama" ? 196 : 114');
   });
+  it("keeps all source adapters on logical CSS for RTL-safe layout", () => {
+    const adapters = [
+      "minimal", "retro", "editorial", "poster", "diplomatic", "broadcast", "heritage",
+      "brutalist", "luxury", "scientific", "civic", "festival", "newspaper",
+      "avant-garde", "passport", "atlas", "glass",
+    ];
+    for (const adapter of adapters) {
+      const css = source(`src/styles/personalities/${adapter}-source.adapter.css`);
+      expect(css, `${adapter} contains physical left/right layout CSS`).not.toMatch(
+        /\b(?:margin-left|margin-right|padding-left|padding-right|border-left|border-right|left:|right:)\b/,
+      );
+    }
+  });
+
 });
