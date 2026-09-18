@@ -18,11 +18,11 @@ export function PermissionCutoverReadinessPanel({
     <AdminCard strong>
       <AdminCardHeader
         eyebrow="Permission Engine v2"
-        title={readiness.ready ? "Ready for authoritative review" : "Not ready to enable"}
-        description="Cutover remains blocked until real shadow evidence, migrated server enforcement and strict dual checks are all complete."
+        title={readiness.ready ? "Authoritative and verified" : "Verification needs attention"}
+        description="Permission Engine v2 is authoritative. This panel now verifies recent evidence and the completed migration rather than gating a future cutover."
         action={
           <AdminStatus tone={readiness.ready ? "ready" : "blocked"}>
-            {readiness.ready ? "Review cutover" : "Rollout blocked"}
+            {readiness.ready ? "Authoritative" : "Review needed"}
           </AdminStatus>
         }
       />
@@ -52,14 +52,14 @@ export function PermissionCutoverReadinessPanel({
 
       <details className="mt-4 rounded-xl border border-white/[0.07] bg-black/10 p-3">
         <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
-          Advanced · cutover order
+          Advanced · completed cutover
         </summary>
         <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-xs leading-5 text-muted-foreground">
-          <li>Collect and classify real shadow decisions.</li>
-          <li>Migrate RPC, server, Edge Function and RLS authorization.</li>
-          <li>Require both legacy and capability approval for sensitive actions.</li>
-          <li>Review zero or fully understood mismatches.</li>
-          <li>Make capability enforcement authoritative, then enable Feature Rollout.</li>
+          <li>Collected and reviewed real authorization decisions.</li>
+          <li>Migrated RPC, server and RLS authorization to capabilities.</li>
+          <li>Preserved independent lifecycle, publication and integrity safeguards.</li>
+          <li>Verified zero unresolved pre-cutover mismatches.</li>
+          <li>Retired legacy authorization fallbacks and enabled Permission Engine v2.</li>
         </ol>
       </details>
     </AdminCard>
