@@ -72,6 +72,35 @@ describe("source-driven Country personality contract", () => {
     });
   });
 
+  it("pins every GitHub-backed canonical source before visual implementation starts", () => {
+    for (const personality of COUNTRY_PERSONALITY_SOURCES) {
+      if (personality.repository) {
+        expect(personality.pinnedRef, `${personality.id} must pin its canonical source`).toMatch(/^[a-f0-9]{40}$/);
+      } else {
+        expect(personality.id).toBe("passport");
+        expect(personality.sourceUrl).toContain("international-airline-ticket");
+      }
+
+      for (const companion of personality.companionSources ?? []) {
+        expect(companion.repository.length).toBeGreaterThan(5);
+        expect(companion.pinnedRef).toMatch(/^[a-f0-9]{40}$/);
+      }
+    }
+
+    expect(countryPersonalitySource("broadcast").companionSources).toEqual([
+      expect.objectContaining({
+        repository: "bbc/gel-typography",
+        pinnedRef: "d4fea6fc03586bc7fa066cd22abbae9fbd7005a6",
+      }),
+    ]);
+    expect(countryPersonalitySource("newspaper").companionSources).toEqual([
+      expect.objectContaining({
+        repository: "guardian/interactive-style-library",
+        pinnedRef: "19533f580cfa7ff6f5e2db6ffc75334cd9cf02a8",
+      }),
+    ]);
+  });
+
   it("locks the deliberately small source-driven flag boxes", () => {
     expect(countryPersonalitySource("minimal").flag).toEqual({
       desktop: [120, 80],
