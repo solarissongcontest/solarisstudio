@@ -64,6 +64,8 @@ export type CountrySectionPresentation = {
   galleryColumns: 2 | 3 | 4;
   dividerStyle: CountrySectionDividerStyle;
   layoutVariant: CountrySectionLayoutVariant;
+  countryLayout: CountrySectionLayoutVariant;
+  wikiLayout: CountrySectionLayoutVariant;
   emphasis: CountrySectionEmphasis;
   sectionBackground: CountrySectionBackground;
   factMode: "auto" | "manual";
@@ -289,6 +291,16 @@ export function countrySectionPresentation(
     dividerStyle: enumValue(json.dividerStyle, ["line", "glow", "dots"] as const, "line"),
     layoutVariant: enumValue(
       json.layoutVariant,
+      ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
+      "wiki",
+    ),
+    countryLayout: enumValue(
+      json.countryLayout ?? json.layoutVariant,
+      ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
+      "wiki",
+    ),
+    wikiLayout: enumValue(
+      json.wikiLayout ?? json.layoutVariant,
       ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
       "wiki",
     ),
