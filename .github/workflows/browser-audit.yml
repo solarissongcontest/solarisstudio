@@ -86,9 +86,10 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           # Pull requests run a representative smoke set. Manual dispatch keeps
-          # the exhaustive nine-width + sitemap inventory available without
+          # the exhaustive ten-viewport + sitemap inventory available without
           # turning every PR into a 40-minute crawl of the same archive data.
           E2E_FULL_AUDIT: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+          PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
           E2E_COUNTRY_EMAIL: ${{ secrets.E2E_COUNTRY_EMAIL }}
