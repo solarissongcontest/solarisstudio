@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -349,4 +349,66 @@ describe("source-driven Country personality contract", () => {
     expect(foundation).toContain(".country-hero-scene {");
     expect(foundation).toContain("display: none;");
   });
+  it("normalizes all seventeen source manifests to the governance schema", () => {
+    const directories: Record<string, string> = {
+      "glass-card": "glass",
+      editorial: "editorial",
+      passport: "passport",
+      poster: "poster",
+      heritage: "heritage",
+      broadcast: "broadcast",
+      minimal: "minimal",
+      panorama: "atlas",
+      classic: "diplomatic",
+      spotlight: "festival",
+      duotone: "brutalist",
+      "sci-fi": "retro-digital",
+      monument: "luxury",
+      newspaper: "newspaper",
+      horizon: "scientific",
+      "flag-focus": "civic",
+      ribbon: "avant-garde",
+    };
+
+    for (const personality of COUNTRY_PERSONALITY_SOURCES) {
+      const directory = directories[personality.id];
+      const data = manifest(`src/styles/personality-sources/${directory}/source-manifest.json`);
+      expect(data.source).toBe(personality.sourceName);
+      expect(data.license).toBe(personality.license);
+      expect(data.visualAuthority).toBe(personality.visualAuthority);
+      expect(typeof data.implementationMode).toBe("string");
+      expect(Array.isArray(data.importedFiles)).toBe(true);
+      expect(Array.isArray(data.excludedFiles)).toBe(true);
+      expect(Array.isArray(data.solarisChanges)).toBe(true);
+      expect(typeof data.notes).toBe("string");
+
+      const evidence = String(data.licenseFile ?? "").split("#")[0];
+      expect(evidence.length).toBeGreaterThan(0);
+      expect(existsSync(resolve(process.cwd(), evidence)), `Missing licence evidence for ${personality.sourceName}`).toBe(true);
+
+      if (personality.repository && personality.id !== "glass-card") {
+        expect(
+          existsSync(resolve(process.cwd(), `src/styles/personality-sources/${directory}/upstream`)),
+          `Missing pristine upstream snapshot for ${personality.sourceName}`,
+        ).toBe(true);
+      }
+    }
+
+    expect(existsSync(resolve(process.cwd(), "src/vendor/liquid-glass/GlassMaterial.tsx"))).toBe(true);
+    expect(existsSync(resolve(process.cwd(), "src/vendor/liquid-glass/LICENSE"))).toBe(true);
+  });
+
+  it("keeps source-divergence decisions explicit without fabricated percentages", () => {
+    const divergence = source("src/lib/country-personality-divergence.ts");
+    for (const personality of COUNTRY_PERSONALITY_SOURCES) {
+      expect(divergence).toContain(`"${personality.id}"`);
+    }
+    for (const classification of ["keep:", "remap:", "removeForSafety:", "solarisAdd:"]) {
+      expect(divergence).toContain(classification);
+    }
+    expect(divergence).toContain('budgetStatus: "review-required"');
+    expect(divergence).not.toContain("structuralReplacementPercent:");
+    expect(divergence).not.toContain("visualGrammarReplacementPercent:");
+  });
+
 });
