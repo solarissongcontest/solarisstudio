@@ -242,7 +242,8 @@ describe("source-driven Country personality contract", () => {
     expect(avantGarde).toContain("Superilles Grid System translated adapter");
     expect(avantGarde).toContain("grid-template-columns: repeat(12, minmax(0, 1fr))");
     expect(passport).toContain("Jesus Ramirez International Airline Ticket translated adapter");
-    expect(passport).toContain("repeating-linear-gradient");
+    expect(passport).not.toContain("country-hero-art-primary");
+    expect(source("src/components/country/personality/PersonalityHeroRenderer.tsx")).toContain("country-passport-fields");
     expect(atlas).toContain("MapLibre GL JS translated adapter");
     expect(atlas).toContain("12px/20px");
   });
