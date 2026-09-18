@@ -10,6 +10,10 @@ import posterSource from "@/styles/personalities/poster-source.adapter.css?inlin
 import diplomaticSource from "@/styles/personalities/diplomatic-source.adapter.css?inline";
 import broadcastSource from "@/styles/personalities/broadcast-source.adapter.css?inline";
 import heritageSource from "@/styles/personalities/heritage-source.adapter.css?inline";
+import brutalistSource from "@/styles/personalities/brutalist-source.adapter.css?inline";
+import luxurySource from "@/styles/personalities/luxury-source.adapter.css?inline";
+import scientificSource from "@/styles/personalities/scientific-source.adapter.css?inline";
+import civicSource from "@/styles/personalities/civic-source.adapter.css?inline";
 
 const countryPersonalityStyles = [
   buttonStyles,
@@ -24,6 +28,10 @@ const countryPersonalityStyles = [
   diplomaticSource,
   broadcastSource,
   heritageSource,
+  brutalistSource,
+  luxurySource,
+  scientificSource,
+  civicSource,
 ].join("\n");
 
 /**
