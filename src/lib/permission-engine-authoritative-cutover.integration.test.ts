@@ -35,6 +35,18 @@ describe("Permission Engine v2 authoritative cutover", () => {
     expect(migration).toContain("v_capability_allowed, v_capability_allowed");
   });
 
+  it("migrates clean-replay-only result and publication RPCs to narrow capabilities", () => {
+    expect(migration).toContain("public.publish_show_results(uuid,jsonb)");
+    expect(migration).toContain("results.publish");
+    expect(migration).toContain("public.refresh_show_results(uuid)");
+    expect(migration).toContain("results.verify");
+    expect(migration).toContain("public.sync_one_edition_publication(uuid)");
+    expect(migration).toContain("publishing.manage");
+    expect(migration).toContain("Could not migrate publish_show_results legacy Organizer guard");
+    expect(migration).toContain("Could not migrate refresh_show_results legacy Organizer guard");
+    expect(migration).toContain("Could not migrate sync_one_edition_publication legacy Organizer guard");
+  });
+
   it("keeps Integrity compatibility capability-only and removes obsolete role helpers", () => {
     expect(migration).toContain("create or replace function public.integrity_is_organizer()");
     expect(migration).toContain("studio2_access_allowed('integrity.manage', null, false)");
