@@ -55,7 +55,7 @@
   max-inline-size: 12ch !important;
   font-family: var(--font-sans, Arial, sans-serif);
   font-size: clamp(3rem, 7.2cqi, 5.4rem);
-  font-weight: 700;
+  font-weight: 700 !important;
   letter-spacing: -.045em !important;
   line-height: .95 !important;
 }
