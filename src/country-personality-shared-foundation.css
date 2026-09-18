@@ -164,6 +164,10 @@
   background: color-mix(in srgb, var(--surface) 94%, var(--background));
 }
 
+.country-official-flag > :is(img, .country-official-flag-fallback) {
+  grid-area: 1 / 1;
+}
+
 .country-official-flag img,
 [data-flag-role="official"] img,
 [data-flag-chip="true"] img {
