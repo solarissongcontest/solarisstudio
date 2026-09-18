@@ -1,0 +1,77 @@
+/* Tufte CSS 1.9.0 selective translated adapter.
+   Upstream: edwardtufte/tufte-css @ b5d7b7bbe5ce9c4c50fcfad4f19ee3646cfd7ae1
+   License: MIT. The source's 55% primary reading measure / 40% margin area is
+   translated into safe CSS grid rather than its negative-margin sidenote hack. */
+
+.country-identity-hero[data-country-personality="editorial"] {
+  border: 0 !important;
+  border-block: 1px solid var(--cp-rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-hero-layout {
+  grid-template-columns: minmax(0, 55fr) minmax(0, 40fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  column-gap: 5%;
+  row-gap: 1.5rem;
+  padding: 3.5rem 0;
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-hero-title {
+  max-inline-size: 10ch !important;
+  font-family: var(--font-display, Classica, Georgia, serif);
+  font-size: clamp(3.2rem, 8cqi, 5.5rem);
+  font-weight: 400 !important;
+  letter-spacing: -.045em !important;
+  line-height: 1 !important;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-hero-meta {
+  margin-block-start: 1rem;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-hero-description {
+  max-inline-size: 55ch;
+  margin-block-start: 1.4rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-hero-flag-zone {
+  justify-items: start;
+  align-self: start;
+  padding-block-start: .3rem;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-official-flag {
+  border-radius: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-hero-actions :is(a, button) {
+  border-radius: 0;
+  background: transparent;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="editorial"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: 1.5rem;
+    padding: 2rem 0;
+  }
+
+  .country-identity-hero[data-country-personality="editorial"] .country-hero-title {
+    font-size: clamp(2.75rem, 14cqi, 4rem);
+  }
+}
