@@ -24,5 +24,9 @@
     "retain field/value hierarchy and segmented document geometry",
     "replace flight-specific fields with Country identity metadata",
     "apply ICAO-inspired zoning without imitating a real identity document"
-  ]
+  ],
+  "source": "Jesus Ramirez International Airline Ticket CSS",
+  "licenseFile": "src/styles/personality-sources/passport/LICENSE-EVIDENCE.md",
+  "visualAuthority": "ICAO Doc 9303 document zoning",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
