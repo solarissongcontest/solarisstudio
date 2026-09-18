@@ -75,7 +75,7 @@ export function PersonalityQaPreview({
             <section className="data-panel p-4">
               <p className="text-xs font-semibold uppercase tracking-[.08em] text-muted-foreground">Quick facts</p>
               <dl className="mt-3 space-y-2">
-                {(fixture.facts.length ? fixture.facts.slice(0, 4) : [{ label: "Status", value: "No facts" }]).map((fact) => (
+                {(fixture.facts.length ? fixture.facts : [{ label: "Status", value: "No facts" }]).map((fact) => (
                   <div key={fact.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-xs">
                     <dt className="text-muted-foreground">{fact.label}</dt>
                     <dd className="text-right font-medium">{fact.value}</dd>
@@ -85,8 +85,29 @@ export function PersonalityQaPreview({
             </section>
             <section className="data-panel p-4 lg:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-[.08em] text-muted-foreground">Current entry</p>
-              <p className="mt-2 text-sm font-semibold">Aurora Vale · Northern Lights</p>
-              <p className="mt-1 text-xs text-muted-foreground">SSC 22 · Published canonical entry</p>
+              {fixture.currentEntry ? (
+                <>
+                  <p className="mt-2 text-sm font-semibold">{fixture.currentEntry.artist} · {fixture.currentEntry.song}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{fixture.currentEntry.edition} · {fixture.currentEntry.status}</p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">No current entry is available.</p>
+              )}
+            </section>
+            <section className="data-panel p-4 lg:col-span-2">
+              <p className="text-xs font-semibold uppercase tracking-[.08em] text-muted-foreground">Recent history</p>
+              {fixture.history?.length ? (
+                <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {fixture.history.map((item) => (
+                    <li key={item.edition} className="flex items-center justify-between gap-3 text-xs">
+                      <span>{item.edition}</span>
+                      <strong>{item.result}</strong>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">No participation history is available.</p>
+              )}
             </section>
           </div>
         ) : (
@@ -101,18 +122,26 @@ export function PersonalityQaPreview({
             </aside>
             <article className="min-w-0">
               <h2 className="text-xl font-semibold">Introduction</h2>
-              <p className="mt-3 max-w-[66ch] text-sm leading-7">
-                This deliberately plain paragraph checks that personality intensity fades into long-form reading rather than turning every sentence into a themed component.
-              </p>
-              <h2 className="mt-6 text-xl font-semibold">Solaris Song Contest</h2>
-              <p className="mt-3 max-w-[66ch] text-sm leading-7">
-                Article structure stays readable while headings, factual surfaces and metadata retain enough of the selected source grammar to keep the identity coherent.
-              </p>
+              {fixture.emptyWiki ? (
+                <p className="mt-3 max-w-[66ch] text-sm leading-7 text-muted-foreground">
+                  No Wiki article content is available for this country yet.
+                </p>
+              ) : (
+                <>
+                  <p className="mt-3 max-w-[66ch] text-sm leading-7">
+                    This deliberately plain paragraph checks that personality intensity fades into long-form reading rather than turning every sentence into a themed component.
+                  </p>
+                  <h2 className="mt-6 text-xl font-semibold">Solaris Song Contest</h2>
+                  <p className="mt-3 max-w-[66ch] text-sm leading-7">
+                    Article structure stays readable while headings, factual surfaces and metadata retain enough of the selected source grammar to keep the identity coherent.
+                  </p>
+                </>
+              )}
             </article>
             <aside className="wiki-infobox data-panel p-4">
               <p className="text-xs font-semibold uppercase tracking-[.08em]">Quick facts</p>
               <dl className="mt-3 space-y-2">
-                {(fixture.facts.length ? fixture.facts.slice(0, 5) : [{ label: "Status", value: "No facts" }]).map((fact) => (
+                {(fixture.facts.length ? fixture.facts : [{ label: "Status", value: "No facts" }]).map((fact) => (
                   <div key={fact.label} className="text-xs">
                     <dt className="text-muted-foreground">{fact.label}</dt>
                     <dd className="mt-0.5 font-medium">{fact.value}</dd>
