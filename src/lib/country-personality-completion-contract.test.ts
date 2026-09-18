@@ -110,4 +110,18 @@ describe("canonical Country + Wiki completion contract", () => {
     }
   });
 
+  it("keeps Overview in the canonical information order", () => {
+    const route = source("src/routes/countries/$code.tsx");
+    const world = source("src/components/CountryWorldOverview.tsx");
+    expect(world.indexOf('title="About"')).toBeLessThan(world.indexOf('title="Quick Facts"'));
+    const glance = route.indexOf('title="SSC at a glance"');
+    const current = route.indexOf('title="Current entry"');
+    const recent = route.indexOf('title="Recent SSC history"');
+    const allTime = route.indexOf('title="All-time record"');
+    expect(glance).toBeGreaterThan(-1);
+    expect(glance).toBeLessThan(current);
+    expect(current).toBeLessThan(recent);
+    expect(recent).toBeLessThan(allTime);
+  });
+
 });
