@@ -1,0 +1,21 @@
+{
+  "personality": "monument",
+  "sourceName": "Aimeos Pagible Luxury",
+  "repository": "aimeos/pagible-themes-luxury",
+  "version": null,
+  "commit": "df0764db7057cc631dd2dea1bd466a8e995a3637",
+  "license": "MIT",
+  "implementationMode": "vendored-css",
+  "importedFiles": [
+    "hero",
+    "article",
+    "TOC",
+    "page/docs layout",
+    "table styles selected after audit"
+  ],
+  "excludedFiles": [
+    "PHP/Blade app implementation",
+    "source fonts",
+    "demo media"
+  ]
+}
