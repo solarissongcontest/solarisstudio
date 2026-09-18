@@ -226,7 +226,7 @@ begin
     v_before := pg_get_functiondef(v_oid);
     v_after := regexp_replace(
       v_before,
-      'IF\\s+NOT\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+THEN\\s+RAISE\\s+EXCEPTION\\s+''Only organizers can publish results\\.''\\s+USING\\s+ERRCODE\\s*=\\s*''42501'';\\s+END\\s+IF;',
+      E'IF\\s+NOT\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+THEN\\s+RAISE\\s+EXCEPTION\\s+''Only organizers can publish results\\.''\\s+USING\\s+ERRCODE\\s*=\\s*''42501'';\\s+END\\s+IF;',
       'IF NOT public.studio2_access_allowed(''results.publish'', (select s.edition_id from public.shows s where s.id = p_show_id), false) THEN RAISE EXCEPTION ''Missing Solaris capability: results.publish'' USING ERRCODE = ''42501''; END IF;',
       'i'
     );
@@ -241,7 +241,7 @@ begin
     v_before := pg_get_functiondef(v_oid);
     v_after := regexp_replace(
       v_before,
-      'if\\s+auth\\.uid\\(\\)\\s+is\\s+not\\s+null\\s+and\\s+not\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+then\\s+raise\\s+exception\\s+''Only organizers can refresh show results\\.''\\s+using\\s+errcode\\s*=\\s*''42501'';\\s+end\\s+if;',
+      E'if\\s+auth\\.uid\\(\\)\\s+is\\s+not\\s+null\\s+and\\s+not\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+then\\s+raise\\s+exception\\s+''Only organizers can refresh show results\\.''\\s+using\\s+errcode\\s*=\\s*''42501'';\\s+end\\s+if;',
       'if auth.uid() is not null and not public.studio2_access_allowed(''results.verify'', (select s.edition_id from public.shows s where s.id = p_show_id), false) then raise exception ''Missing Solaris capability: results.verify'' using errcode = ''42501''; end if;',
       'i'
     );
@@ -256,7 +256,7 @@ begin
     v_before := pg_get_functiondef(v_oid);
     v_after := regexp_replace(
       v_before,
-      'if\\s+auth\\.uid\\(\\)\\s+is\\s+not\\s+null\\s+and\\s+not\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+then\\s+raise\\s+exception\\s+''Only organizers can sync edition publication\\.''\\s+using\\s+errcode\\s*=\\s*''42501'';\\s+end\\s+if;',
+      E'if\\s+auth\\.uid\\(\\)\\s+is\\s+not\\s+null\\s+and\\s+not\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+then\\s+raise\\s+exception\\s+''Only organizers can sync edition publication\\.''\\s+using\\s+errcode\\s*=\\s*''42501'';\\s+end\\s+if;',
       'if auth.uid() is not null and not public.studio2_access_allowed(''publishing.manage'', p_edition_id, false) then raise exception ''Missing Solaris capability: publishing.manage'' using errcode = ''42501''; end if;',
       'i'
     );
