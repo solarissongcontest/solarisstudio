@@ -8,11 +8,22 @@
   "companionCommit": "d4fea6fc03586bc7fa066cd22abbae9fbd7005a6",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["lib/_tools.scss", "GEL typography role outputs"],
-  "excludedFiles": ["BBC marks", "brand assets", "demo-only normalization bundle"],
+  "importedFiles": [
+    "lib/_tools.scss",
+    "GEL typography role outputs"
+  ],
+  "excludedFiles": [
+    "BBC marks",
+    "brand assets",
+    "demo-only normalization bundle"
+  ],
   "solarisChanges": [
     "translate GEL flex fractions into equivalent collision-safe CSS Grid fractions",
     "map broadcast bands to country primary and neutral surfaces",
     "retain GEL gutter rhythm and explicit type-role hierarchy"
-  ]
+  ],
+  "source": "BBC GEL Grid + GEL Typography",
+  "licenseFile": "src/styles/personality-sources/broadcast/LICENSE",
+  "visualAuthority": "BBC Global Experience Language",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
