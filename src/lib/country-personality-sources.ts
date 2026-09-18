@@ -65,9 +65,9 @@ export type CountryPersonalitySource = {
  * the human-designed source named here. Source substitutions are design changes
  * and must update this registry deliberately.
  *
- * The four prototype sources are pinned now because they form the architecture
- * proof: Minimal, Retro Digital, Glass and Editorial. Remaining sources stay
- * explicit and are pinned as their implementation phase begins.
+ * Source pins and adapter status are explicit. A "prototype" source already
+ * has a live Solaris translation; a "planned" source is pinned and licensed
+ * but may not yet alter the rendered Country/Wiki surfaces.
  */
 export const COUNTRY_PERSONALITY_SOURCES = [
   {
@@ -133,7 +133,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [184, 122], mobile: [160, 106] },
     density: "medium-low",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "heritage",
@@ -149,7 +149,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [160, 106], mobile: [144, 96] },
     density: "medium",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "broadcast",
@@ -173,7 +173,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [160, 106], mobile: [144, 96] },
     density: "medium-high",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "minimal",
@@ -221,7 +221,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [136, 90], mobile: [120, 80] },
     density: "medium",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "spotlight",
