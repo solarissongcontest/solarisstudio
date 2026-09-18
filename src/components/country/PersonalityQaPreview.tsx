@@ -27,7 +27,8 @@ export function PersonalityQaPreview({
     <div
       className="mx-auto overflow-hidden rounded-xl border border-border bg-background"
       style={{
-        width: `min(100%, ${viewport}px)`,
+        width: `${viewport}px`,
+        flexShrink: 0,
         fontSize: `${textScale}em`,
         filter: highContrast ? "contrast(1.18)" : undefined,
       }}
