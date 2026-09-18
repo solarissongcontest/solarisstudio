@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
@@ -42,6 +42,11 @@ function PersonalityLab() {
   const [highContrast, setHighContrast] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [flagMode, setFlagMode] = useState<PersonalityFlagQaMode>("fixture");
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    setReady(true);
+  }, []);
 
   const source = countryPersonalitySource(personality);
   const divergence = countryPersonalityDivergence(personality);
@@ -52,7 +57,7 @@ function PersonalityLab() {
 
   return (
     <AppShell>
-      <div className="space-y-5" data-personality-lab>
+      <div className="space-y-5" data-personality-lab data-personality-lab-ready={ready ? "true" : "false"}>
         <header className="data-panel p-5">
           <p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">Design QA</p>
           <h1 className="mt-2 text-3xl font-bold">Personality Lab</h1>
