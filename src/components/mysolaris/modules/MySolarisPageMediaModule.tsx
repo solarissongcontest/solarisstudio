@@ -662,9 +662,22 @@ function SectionBuilderCard({
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <SelectField
-                label="Content layout"
-                value={presentation.layoutVariant}
-                onChange={(next) => setJson({ layoutVariant: next })}
+                label="Country layout"
+                value={presentation.countryLayout}
+                onChange={(next) => setJson({ countryLayout: next })}
+                options={[
+                  ["wiki", "Wiki"],
+                  ["encyclopedia", "Encyclopedia"],
+                  ["magazine", "Magazine"],
+                  ["dashboard", "Dashboard"],
+                  ["showcase", "Showcase"],
+                  ["timeline", "Timeline"],
+                ]}
+              />
+              <SelectField
+                label="Wiki layout"
+                value={presentation.wikiLayout}
+                onChange={(next) => setJson({ wikiLayout: next })}
                 options={[
                   ["wiki", "Wiki"],
                   ["encyclopedia", "Encyclopedia"],
@@ -717,7 +730,7 @@ function SectionBuilderCard({
               />
             </div>
             <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
-              Surface material is controlled once in Country Design. These controls change composition and emphasis without mixing Glass, Opaque and other materials on one page.
+              Surface material is controlled once in Country Design. Country and Wiki may use different compositions for the same content block without mixing Glass, Opaque and other materials on one page.
             </p>
           </div>
 
