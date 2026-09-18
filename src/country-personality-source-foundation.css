@@ -90,6 +90,14 @@
   .country-identity-hero .country-official-flag {
     inline-size: var(--cp-flag-max-inline);
   }
+
+  /* Mobile source personalities may keep a compact identity accent, never the
+     old second billboard-sized art slab. Individual source adapters can choose
+     anything smaller than this cap. */
+  .country-identity-hero[data-country-has-art="true"] .country-hero-art {
+    min-block-size: 0;
+    max-block-size: 7rem;
+  }
 }
 
 
