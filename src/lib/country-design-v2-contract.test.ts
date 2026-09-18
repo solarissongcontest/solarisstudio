@@ -56,6 +56,20 @@ describe("Country Design V2 integration contract", () => {
     expect(hero).toContain("data-liquid-glass");
   });
 
+  it("keeps the V2 atmosphere full-bleed instead of a ghost card", () => {
+    const css = source("src/country-design-v2.css");
+    expect(css).toContain("width: 100vw;");
+    expect(css).toContain("transform: translateX(-50%) translateZ(0);");
+    expect(css).not.toContain("inset: 0;\n  z-index: -2;\n  pointer-events: none;\n  border-radius: 0;\n  background: var(--country-v2-page-background)");
+  });
+
+  it("makes Centered a real flag-first centered composition", () => {
+    const css = source("src/country-design-v2.css");
+    expect(css).toContain('grid-template-areas:\n    "flag"\n    "copy"\n    "actions";');
+    expect(css).toContain('.country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-flag');
+    expect(css).toContain("justify-self: center;");
+  });
+
   it("does not inject anniversary notice cards into unrelated pages", () => {
     const anniversary = source("src/components/SolarisAnniversaryCelebration.tsx");
     expect(anniversary).not.toContain("solaris-anniversary-season-notice");
