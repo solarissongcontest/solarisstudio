@@ -69,41 +69,41 @@ function PersonalityLab() {
         <section className="data-panel grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Personality Lab controls">
           <label className="grid gap-1 text-xs font-semibold">
             Country fixture
-            <select value={fixtureId} onChange={(event) => setFixtureId(event.target.value as typeof fixtureId)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
+            <select data-personality-control="fixture" value={fixtureId} onChange={(event) => setFixtureId(event.target.value as typeof fixtureId)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
               {PERSONALITY_QA_FIXTURES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
             </select>
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Personality
-            <select value={personality} onChange={(event) => setPersonality(event.target.value as CountryHeroLayout)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
+            <select data-personality-control="personality" value={personality} onChange={(event) => setPersonality(event.target.value as CountryHeroLayout)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
               {COUNTRY_PERSONALITY_SOURCES.map((item) => <option key={item.id} value={item.id}>{item.sourceName}</option>)}
             </select>
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Surface
-            <select value={surface} onChange={(event) => setSurface(event.target.value as PersonalityPreviewSurface)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
+            <select data-personality-control="surface" value={surface} onChange={(event) => setSurface(event.target.value as PersonalityPreviewSurface)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
               <option value="country">Country</option>
               <option value="wiki">Wiki</option>
             </select>
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Viewport
-            <select value={viewport} onChange={(event) => setViewport(Number(event.target.value))} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
+            <select data-personality-control="viewport" value={viewport} onChange={(event) => setViewport(Number(event.target.value))} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
               {VIEWPORTS.map((width) => <option key={width} value={width}>{width}px</option>)}
             </select>
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Flag state
-            <select value={flagMode} onChange={(event) => setFlagMode(event.target.value as PersonalityFlagQaMode)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
+            <select data-personality-control="flag" value={flagMode} onChange={(event) => setFlagMode(event.target.value as PersonalityFlagQaMode)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
               {PERSONALITY_FLAG_QA_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
             </select>
           </label>
 
-          <Toggle label="Light mode" checked={light} onChange={setLight} />
-          <Toggle label="RTL" checked={rtl} onChange={setRtl} />
-          <Toggle label="200% text" checked={text200} onChange={setText200} />
-          <Toggle label="High contrast" checked={highContrast} onChange={setHighContrast} />
-          <Toggle label="Reduced motion" checked={reducedMotion} onChange={setReducedMotion} />
+          <Toggle control="light" label="Light mode" checked={light} onChange={setLight} />
+          <Toggle control="rtl" label="RTL" checked={rtl} onChange={setRtl} />
+          <Toggle control="text-200" label="200% text" checked={text200} onChange={setText200} />
+          <Toggle control="contrast" label="High contrast" checked={highContrast} onChange={setHighContrast} />
+          <Toggle control="motion" label="Reduced motion" checked={reducedMotion} onChange={setReducedMotion} />
         </section>
 
         <section className={light ? "light overflow-x-auto rounded-xl bg-background p-3 text-foreground" : "dark overflow-x-auto rounded-xl bg-background p-3 text-foreground"} data-reduced-motion={reducedMotion ? "true" : "false"}>
@@ -149,11 +149,11 @@ function PersonalityLab() {
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
+function Toggle({ control, label, checked, onChange }: { control: string; label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return (
     <label className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 text-sm font-medium">
       {label}
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input data-personality-control={control} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
     </label>
   );
 }
