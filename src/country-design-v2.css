@@ -47,11 +47,11 @@
 }
 
 .country-design-v2 {
-  --country-v2-card-bg: color-mix(in srgb, var(--country-v2-surface) calc(var(--country-v2-transparency) * 100%), transparent);
+  --country-v2-card-bg: color-mix(in srgb, var(--country-v2-surface) var(--country-v2-transparency), transparent);
   --country-v2-card-border: color-mix(in srgb, var(--country-v2-text) 14%, transparent);
-  --country-v2-card-shadow: 0 calc(8px + 20px * var(--country-v2-shadow-depth))
-    calc(18px + 42px * var(--country-v2-shadow-depth))
-    color-mix(in srgb, #000 calc(8% + 20% * var(--country-v2-shadow-depth)), transparent);
+  --country-v2-card-shadow: 0 var(--country-v2-shadow-y)
+    var(--country-v2-shadow-blur)
+    color-mix(in srgb, #000 var(--country-v2-shadow-alpha), transparent);
 }
 
 .country-design-v2[data-country-surface="opaque"] {
@@ -83,9 +83,9 @@
   --country-v2-card-border: color-mix(in srgb, white 16%, transparent);
   --country-v2-card-shadow:
     0 2px 0 color-mix(in srgb, white 8%, transparent) inset,
-    0 calc(14px + 24px * var(--country-v2-shadow-depth))
-    calc(30px + 44px * var(--country-v2-shadow-depth))
-    color-mix(in srgb, #000 calc(18% + 24% * var(--country-v2-shadow-depth)), transparent);
+    0 var(--country-v2-shadow-y)
+    var(--country-v2-shadow-blur)
+    color-mix(in srgb, #000 var(--country-v2-shadow-alpha), transparent);
 }
 
 .country-design-v2[data-country-surface="editorial"] {
