@@ -1,6 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import { Flag, History, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
 import { uploadCountryAsset, useMyCountryAccount } from "@/lib/country-account";
@@ -62,8 +63,6 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
   const setAuto = useSetOwnedHodAutoAssign();
   const setIdentity = useSetOwnedCountryEditionIdentity();
   const clearIdentity = useClearOwnedCountryEditionIdentity();
-  const [message, setMessage] = useState<string | null>(null);
-  const [identityMessage, setIdentityMessage] = useState<string | null>(null);
   const [oldName, setOldName] = useState("");
   const [oldFlagFile, setOldFlagFile] = useState<File | null>(null);
   const [selectedEditionIds, setSelectedEditionIds] = useState<string[]>([]);
@@ -80,33 +79,39 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
   if (!eligible || !ownCountry) return null;
 
   const updateStatus = async (editionId: string, status: OwnedHodEditionStatus) => {
-    setMessage(null);
-    try {
-      await setStatus.mutateAsync({ editionId, status });
-      setMessage(
+    const savePromise = setStatus.mutateAsync({ editionId, status });
+    toast.promise(savePromise, {
+      id: `hod-status-${editionId}`,
+      loading: "Saving HOD status…",
+      success:
         status === "mine"
-          ? "Saved. That edition now belongs to your HOD history."
-          : "Saved. That edition will not be treated as part of your HOD voting pattern.",
-      );
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "HOD history could not be saved.");
+          ? "Edition added to your HOD history."
+          : "Edition excluded from your personal HOD voting pattern.",
+      error: (error) => error instanceof Error ? error.message : "HOD history could not be saved.",
+    });
+    try {
+      await savePromise;
+    } catch {
+      // Sonner owns transient mutation failures.
     }
   };
 
   const toggleAuto = async () => {
     const next = !(history.data?.auto_assign_future ?? true);
-    setMessage(null);
-    try {
-      await setAuto.mutateAsync(next);
-      setMessage(
-        next
-          ? "Future editions will automatically be added to your HOD history when your country participates."
-          : "Automatic HOD carry-forward is off. New editions will stay unassigned until you choose a HOD status.",
-      );
-    } catch (error) {
-      setMessage(
+    const savePromise = setAuto.mutateAsync(next);
+    toast.promise(savePromise, {
+      id: "hod-auto-assign",
+      loading: "Updating automatic HOD assignment…",
+      success: next
+        ? "Future participating editions will be added to your HOD history automatically."
+        : "Automatic HOD carry-forward is off.",
+      error: (error) =>
         error instanceof Error ? error.message : "Automatic HOD setting could not be changed.",
-      );
+    });
+    try {
+      await savePromise;
+    } catch {
+      // Sonner owns transient mutation failures.
     }
   };
 
@@ -121,9 +126,10 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
   const applyHistoricalIdentity = async () => {
     const name = oldName.trim();
     if (!name || !selectedEditionIds.length) return;
+    const count = selectedEditionIds.length;
     setIdentityBusy(true);
-    setIdentityMessage(null);
-    try {
+
+    const savePromise = (async () => {
       let flagImage: string | null = null;
       if (oldFlagFile) {
         const asset = await uploadCountryAsset(ownCountry.id, oldFlagFile, "flags");
@@ -132,29 +138,41 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
       for (const editionId of selectedEditionIds) {
         await setIdentity.mutateAsync({ editionId, displayName: name, flagImage });
       }
-      const count = selectedEditionIds.length;
       setOldName("");
       setOldFlagFile(null);
       setSelectedEditionIds([]);
-      setIdentityMessage(`Saved ${name} for ${count} edition${count === 1 ? "" : "s"}.`);
-    } catch (error) {
-      setIdentityMessage(
+    })();
+
+    toast.promise(savePromise, {
+      id: "historical-country-identity-save",
+      loading: `Saving historical identity to ${count} edition${count === 1 ? "" : "s"}…`,
+      success: `Saved ${name} for ${count} edition${count === 1 ? "" : "s"}.`,
+      error: (error) =>
         error instanceof Error ? error.message : "Historical identity could not be saved.",
-      );
+    });
+
+    try {
+      await savePromise;
+    } catch {
+      // Sonner owns transient mutation failures.
     } finally {
       setIdentityBusy(false);
     }
   };
 
   const removeHistoricalIdentity = async (editionId: string) => {
-    setIdentityMessage(null);
-    try {
-      await clearIdentity.mutateAsync(editionId);
-      setIdentityMessage("That edition now uses the country's current name and flag again.");
-    } catch (error) {
-      setIdentityMessage(
+    const removePromise = clearIdentity.mutateAsync(editionId);
+    toast.promise(removePromise, {
+      id: `historical-country-identity-remove-${editionId}`,
+      loading: "Restoring current country identity…",
+      success: "That edition now uses the country's current name and flag again.",
+      error: (error) =>
         error instanceof Error ? error.message : "Historical identity could not be removed.",
-      );
+    });
+    try {
+      await removePromise;
+    } catch {
+      // Sonner owns transient mutation failures.
     }
   };
 
@@ -243,11 +261,6 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
             names and flags are only presentation and never change the HOD or country identity used
             by voting security.
           </p>
-          {message ? (
-            <p className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs text-foreground">
-              {message}
-            </p>
-          ) : null}
         </div>
       )}
     </Panel>
@@ -415,11 +428,6 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
             integrity checks continue using the permanent country ID, permanent country code and the
             HOD assignment for each edition.
           </div>
-          {identityMessage ? (
-            <p className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs text-foreground">
-              {identityMessage}
-            </p>
-          ) : null}
         </div>
       )}
     </Panel>
