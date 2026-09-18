@@ -213,10 +213,10 @@ function FeaturedShow({ card, priority }: { card: ShowCard; priority?: boolean }
       <div className="relative z-10 flex min-h-[inherit] h-full flex-col justify-between p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-md bg-primary px-2 py-1 text-[8px] font-black uppercase tracking-[0.15em] text-primary-foreground">
+            <span className="rounded-md bg-primary px-2 py-1 text-[10px] font-black uppercase tracking-[0.15em] text-primary-foreground">
               {showKindLabel(show.kind)}
             </span>
-            <span className="rounded-md border border-white/15 bg-black/20 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.13em] text-white/65">
+            <span className="rounded-md border border-white/15 bg-black/20 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-white/65">
               {editionLabel(edition)}
             </span>
           </div>
@@ -241,7 +241,7 @@ function FeaturedShow({ card, priority }: { card: ShowCard; priority?: boolean }
                   size="sm"
                 />
                 <div className="min-w-0">
-                  <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-white/45">Winner</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">Winner</p>
                   <p className="truncate font-semibold text-white">
                     {winner.name}{winnerPoints != null ? ` · ${winnerPoints} pts` : ""}
                   </p>
@@ -265,11 +265,11 @@ function ArchiveShow({ card }: { card: ShowCard }) {
     <Link
       to="/shows/$showId"
       params={{ showId: show.id }}
-      className="solaris-family-card group min-w-0 rounded-2xl border p-4 transition duration-200 hover:-translate-y-0.5"
+      className="solaris-family-card group min-w-0 rounded-2xl border p-4 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[8px] font-black uppercase tracking-[0.17em] text-primary">
+          <p className="text-[10px] font-black uppercase tracking-[0.17em] text-primary">
             {editionLabel(edition)} · {showKindLabel(show.kind)}
           </p>
           <h3 className="mt-1 break-words font-display text-xl font-black tracking-[-0.035em]">
@@ -289,7 +289,7 @@ function ArchiveShow({ card }: { card: ShowCard }) {
               size="sm"
             />
             <div className="min-w-0 flex-1">
-              <p className="text-[8px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Winner</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Winner</p>
               <p className="truncate text-xs font-semibold">{winner.name}</p>
             </div>
             {winnerPoints != null && (
@@ -311,7 +311,7 @@ function ArchiveShow({ card }: { card: ShowCard }) {
 function ArchiveStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="bg-surface px-4 py-4 sm:px-5">
-      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
       <p className="numeric mt-1.5 text-xl font-black tracking-[-0.03em] sm:text-2xl">{value}</p>
     </div>
   );
