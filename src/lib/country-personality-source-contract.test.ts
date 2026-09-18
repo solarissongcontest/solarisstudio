@@ -163,6 +163,7 @@ describe("source-driven Country personality contract", () => {
     expect(styles).toContain('import passportSource from "@/styles/personalities/passport-source.adapter.css?inline"');
     expect(styles).toContain('import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline"');
     expect(styles).toContain('import glassSource from "@/styles/personalities/glass-source.adapter.css?inline"');
+    expect(styles).toContain('import personalityCompositions from "@/styles/personality-compositions.css?inline"');
 
     expect(styles).toContain('import sharedFoundation from "@/country-personality-shared-foundation.css?inline"');
     expect(styles).not.toContain("country-personality-system-v8.css");
@@ -170,9 +171,13 @@ describe("source-driven Country personality contract", () => {
     const shared = styles.indexOf("sharedFoundation,", listStart);
     const sourceFoundation = styles.indexOf("sourceFoundation,", listStart);
     const minimal = styles.indexOf("minimalSource,", listStart);
+    const glass = styles.indexOf("glassSource,", listStart);
+    const compositions = styles.indexOf("personalityCompositions,", listStart);
     expect(shared).toBeGreaterThan(-1);
     expect(sourceFoundation).toBeGreaterThan(shared);
     expect(minimal).toBeGreaterThan(sourceFoundation);
+    expect(glass).toBeGreaterThan(minimal);
+    expect(compositions).toBeGreaterThan(glass);
   });
 
   it("uses source-derived prototype adapters rather than invented blank-slate skins", () => {
@@ -296,7 +301,7 @@ describe("source-driven Country personality contract", () => {
 
     expect(hero).toContain('lazy(() =>');
     expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
-    expect(hero).toContain("<Suspense fallback={heroLayout}>");
+    expect(hero).toContain("<Suspense fallback={composition}>");
     expect(hero).toContain('<LazyGlassMaterial');
     expect(hero).toContain('className="country-hero-glass-material"');
     expect(glass).toContain("samasante/liquid-glass");
