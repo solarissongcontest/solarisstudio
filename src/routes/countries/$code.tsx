@@ -18,10 +18,17 @@ import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
+import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { allTimeScoreForCountry } from "@/lib/all-time-ranking";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
+import {
+  countryDesignCssVariables,
+  countryDesignFontCss,
+  useCountryDesignV2,
+} from "@/lib/country-design-v2";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
@@ -57,6 +64,7 @@ function CountryProfileRoute() {
   return (
     <>
       <CountryPersonalityStyles />
+      <CountryDesignV2Styles />
       <CountryProfilePage />
     </>
   );
@@ -95,7 +103,9 @@ function CountryProfilePage() {
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
   );
   const { data: countryThemeRow } = useCountryTheme(country?.id);
+  const designV2Query = useCountryDesignV2(country?.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
+  const publishedDesign = designV2Query.data?.isPublishedV2 ? designV2Query.data.design : null;
   const heroPersonality = canonicalCountryPersonalityId(visualTheme?.heroLayout ?? "classic");
   const sourcePersonality = countryPersonalitySource(heroPersonality);
   const heroDecoration = visualTheme?.decorationStyle ?? "auto";
@@ -339,32 +349,58 @@ function CountryProfilePage() {
   return (
     <AppShell>
       <div
-        className="country-profile-v8"
-        data-country-personality={heroPersonality}
-        data-country-composition={sourcePersonality.compositionFamily}
-        data-country-background-policy={sourcePersonality.backgroundPolicy}
-        data-country-source-status={sourcePersonality.status}
+        className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
+        data-country-personality={publishedDesign ? undefined : heroPersonality}
+        data-country-composition={publishedDesign ? undefined : sourcePersonality.compositionFamily}
+        data-country-background-policy={publishedDesign ? undefined : sourcePersonality.backgroundPolicy}
+        data-country-source-status={publishedDesign ? undefined : sourcePersonality.status}
+        data-country-surface={publishedDesign?.surface}
+        data-country-accent={publishedDesign?.accent}
+        data-country-motion={publishedDesign?.motion}
+        data-country-default-layout={publishedDesign?.content.defaultLayout}
+        style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
-        <CountryIdentityHero
-          personality={heroPersonality}
-          decoration={heroDecoration}
-          code={identityModel.code}
-          name={identityModel.name}
-          nativeName={identityModel.nativeName}
-          region={identityModel.region}
-          description={identityModel.description}
-          flagImage={identityModel.flag.src}
-          accentColor={identityModel.colors.accent}
-          geography={identityModel.geography}
-          className="mb-6"
-          actions={
-            <>
-              <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
-              <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
-              <FollowButton entityType="country" entityId={country.id} label={country.name} />
-            </>
-          }
-        />
+        {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
+        {publishedDesign ? (
+          <CountryDesignV2Hero
+            design={publishedDesign}
+            code={identityModel.code}
+            name={identityModel.name}
+            nativeName={identityModel.nativeName}
+            region={identityModel.region}
+            description={identityModel.description}
+            flagImage={identityModel.flag.src}
+            className="mb-6"
+            actions={
+              <>
+                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                <FollowButton entityType="country" entityId={country.id} label={country.name} />
+              </>
+            }
+          />
+        ) : (
+          <CountryIdentityHero
+            personality={heroPersonality}
+            decoration={heroDecoration}
+            code={identityModel.code}
+            name={identityModel.name}
+            nativeName={identityModel.nativeName}
+            region={identityModel.region}
+            description={identityModel.description}
+            flagImage={identityModel.flag.src}
+            accentColor={identityModel.colors.accent}
+            geography={identityModel.geography}
+            className="mb-6"
+            actions={
+              <>
+                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                <FollowButton entityType="country" entityId={country.id} label={country.name} />
+              </>
+            }
+          />
+        )}
 
         <ResponsiveTabs
           value={tab}
