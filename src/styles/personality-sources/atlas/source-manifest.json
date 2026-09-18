@@ -2,15 +2,26 @@
   "personality": "panorama",
   "sourceName": "MapLibre GL JS",
   "repository": "maplibre/maplibre-gl-js",
-  "version": null,
+  "version": "6.10.0",
   "commit": "a55db8271998f1156f82a63726ef9c56bd9c5093",
   "license": "BSD-3-Clause",
-  "implementationMode": "translated-components",
-  "importedFiles": ["src/css/maplibre-gl.css"],
-  "excludedFiles": ["map assets", "glyphs", "sprites", "geographic datasets"],
+  "implementationMode": "remote-esm",
+  "runtimeModule": "https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.mjs",
+  "runtimeCss": "https://unpkg.com/maplibre-gl@6.10.0/dist/maplibre-gl.css",
+  "importedFiles": [
+    "dist/maplibre-gl.mjs",
+    "dist/maplibre-gl.css"
+  ],
+  "excludedFiles": [
+    "demo assets",
+    "glyphs",
+    "sprites",
+    "unverified geographic datasets"
+  ],
   "solarisChanges": [
-    "translate MapLibre's 12px/20px Helvetica map chrome and compact control geometry",
-    "use a neutral bounded reference grid instead of inventing geographic features",
-    "retain 3px/4px source control radii and subtle 1px/2px information shadows"
+    "load the pinned MapLibre browser ESM only when Atlas has verified coordinates, bounds or GeoJSON",
+    "render verified country geometry when supplied and fit to verified bounds",
+    "fall back to an explicit geographic fact module when Solaris has no valid geography",
+    "never infer or fabricate coordinates from a country name"
   ]
 }
