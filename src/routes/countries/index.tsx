@@ -327,7 +327,7 @@ function LeaderCard({ row, rank }: { row: CountryRow; rank: number }) {
     <Link
       to="/countries/$code"
       params={{ code: country.short_code }}
-      className="directory-country-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition duration-200"
+      className="directory-country-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-[background-color,border-color,box-shadow] duration-150 ease-out"
       style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
     >
       <div className="flex items-start justify-between gap-3">
@@ -339,7 +339,7 @@ function LeaderCard({ row, rank }: { row: CountryRow; rank: number }) {
             size="lg"
           />
           <div className="min-w-0">
-            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-primary">Archive rank #{rank}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Archive rank #{rank}</p>
             <h3 className="truncate font-display text-xl font-black tracking-[-0.035em]">{country.name}</h3>
             <p className="mt-0.5 text-[10px] text-muted-foreground">{country.region || "Terra Solaris"}</p>
           </div>
@@ -363,7 +363,7 @@ function CountryCard({ row }: { row: CountryRow }) {
     <Link
       to="/countries/$code"
       params={{ code: country.short_code }}
-      className="directory-country-card group min-w-0 rounded-2xl border p-4 transition duration-200"
+      className="directory-country-card group min-w-0 rounded-2xl border p-4 transition-[background-color,border-color,box-shadow] duration-150 ease-out"
       style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -394,7 +394,7 @@ function CountryCard({ row }: { row: CountryRow }) {
 function DirectoryStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="bg-surface px-4 py-4 sm:px-5">
-      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
       <p className="numeric mt-1.5 text-xl font-black tracking-[-0.03em] sm:text-2xl">{value}</p>
     </div>
   );
@@ -411,7 +411,7 @@ function MiniStat({
 }) {
   return (
     <div className="min-w-0">
-      <p className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <p className={`numeric mt-1 text-sm font-black ${emphasis ? "text-primary" : ""}`}>{value}</p>
     </div>
   );
