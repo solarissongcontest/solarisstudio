@@ -19,6 +19,7 @@ import newspaperSource from "@/styles/personalities/newspaper-source.adapter.css
 import avantGardeSource from "@/styles/personalities/avant-garde-source.adapter.css?inline";
 import passportSource from "@/styles/personalities/passport-source.adapter.css?inline";
 import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline";
+import glassSource from "@/styles/personalities/glass-source.adapter.css?inline";
 
 const countryPersonalityStyles = [
   buttonStyles,
@@ -42,6 +43,7 @@ const countryPersonalityStyles = [
   avantGardeSource,
   passportSource,
   atlasSource,
+  glassSource,
 ].join("\n");
 
 /**
