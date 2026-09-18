@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   COUNTRY_PERSONALITY_SOURCES,
   countryPersonalitySource,
+  type CountryPersonalitySource,
 } from "./country-personality-sources";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
@@ -83,7 +84,7 @@ describe("source-driven Country personality contract", () => {
         expect(personality.sourceUrl).toContain("international-airline-ticket");
       }
 
-      for (const companion of personality.companionSources ?? []) {
+      for (const companion of (personality as CountryPersonalitySource).companionSources ?? []) {
         expect(companion.repository.length).toBeGreaterThan(5);
         expect(companion.pinnedRef).toMatch(/^[a-f0-9]{40}$/);
       }
