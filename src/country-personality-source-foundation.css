@@ -58,34 +58,34 @@
   display: none;
 }
 
-@media (max-width: 639px) {
-  .country-identity-hero {
+@container country-identity (width < 40rem) {
+  /* Variables live on the descendant flag zone because a container cannot query
+     its own size. This also makes the MySolaris 390px preview use the real mobile
+     bounds even when the browser viewport itself is desktop-sized. */
+  .country-identity-hero .country-hero-flag-zone {
     --cp-flag-max-inline: 10.5rem;
     --cp-flag-max-block: 7rem;
-  }
-
-  .country-identity-hero[data-country-personality="glass-card"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
-  .country-identity-hero[data-country-personality="editorial"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
-  .country-identity-hero[data-country-personality="passport"] { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
-  .country-identity-hero[data-country-personality="poster"] { --cp-flag-max-inline: 10rem; --cp-flag-max-block: 6.625rem; }
-  .country-identity-hero[data-country-personality="heritage"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
-  .country-identity-hero[data-country-personality="broadcast"] { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
-  .country-identity-hero[data-country-personality="minimal"] { --cp-flag-max-inline: 6.5rem; --cp-flag-max-block: 4.375rem; }
-  .country-identity-hero[data-country-personality="panorama"] { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
-  .country-identity-hero[data-country-personality="classic"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
-  .country-identity-hero[data-country-personality="spotlight"] { --cp-flag-max-inline: 9.75rem; --cp-flag-max-block: 6.5rem; }
-  .country-identity-hero[data-country-personality="duotone"] { --cp-flag-max-inline: 9.75rem; --cp-flag-max-block: 6.5rem; }
-  .country-identity-hero[data-country-personality="sci-fi"] { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
-  .country-identity-hero[data-country-personality="monument"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
-  .country-identity-hero[data-country-personality="newspaper"] { --cp-flag-max-inline: 7rem; --cp-flag-max-block: 4.625rem; }
-  .country-identity-hero[data-country-personality="horizon"] { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
-  .country-identity-hero[data-country-personality="flag-focus"] { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
-  .country-identity-hero[data-country-personality="ribbon"] { --cp-flag-max-inline: 9.5rem; --cp-flag-max-block: 6.25rem; }
-
-  .country-identity-hero .country-hero-flag-zone {
     inline-size: fit-content;
     max-inline-size: 100%;
   }
+
+  .country-identity-hero[data-country-personality="glass-card"] .country-hero-flag-zone { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+  .country-identity-hero[data-country-personality="editorial"] .country-hero-flag-zone { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="passport"] .country-hero-flag-zone { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
+  .country-identity-hero[data-country-personality="poster"] .country-hero-flag-zone { --cp-flag-max-inline: 10rem; --cp-flag-max-block: 6.625rem; }
+  .country-identity-hero[data-country-personality="heritage"] .country-hero-flag-zone { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+  .country-identity-hero[data-country-personality="broadcast"] .country-hero-flag-zone { --cp-flag-max-inline: 9rem; --cp-flag-max-block: 6rem; }
+  .country-identity-hero[data-country-personality="minimal"] .country-hero-flag-zone { --cp-flag-max-inline: 6.5rem; --cp-flag-max-block: 4.375rem; }
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-flag-zone { --cp-flag-max-inline: 8.5rem; --cp-flag-max-block: 5.625rem; }
+  .country-identity-hero[data-country-personality="classic"] .country-hero-flag-zone { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="spotlight"] .country-hero-flag-zone { --cp-flag-max-inline: 9.75rem; --cp-flag-max-block: 6.5rem; }
+  .country-identity-hero[data-country-personality="duotone"] .country-hero-flag-zone { --cp-flag-max-inline: 9.75rem; --cp-flag-max-block: 6.5rem; }
+  .country-identity-hero[data-country-personality="sci-fi"] .country-hero-flag-zone { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
+  .country-identity-hero[data-country-personality="monument"] .country-hero-flag-zone { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="newspaper"] .country-hero-flag-zone { --cp-flag-max-inline: 7rem; --cp-flag-max-block: 4.625rem; }
+  .country-identity-hero[data-country-personality="horizon"] .country-hero-flag-zone { --cp-flag-max-inline: 7.5rem; --cp-flag-max-block: 5rem; }
+  .country-identity-hero[data-country-personality="flag-focus"] .country-hero-flag-zone { --cp-flag-max-inline: 8rem; --cp-flag-max-block: 5.375rem; }
+  .country-identity-hero[data-country-personality="ribbon"] .country-hero-flag-zone { --cp-flag-max-inline: 9.5rem; --cp-flag-max-block: 6.25rem; }
 
   .country-identity-hero .country-official-flag {
     inline-size: var(--cp-flag-max-inline);
@@ -99,7 +99,6 @@
     max-block-size: 7rem;
   }
 }
-
 
 /* Source titles own their font metrics. Keep a tiny glyph-safe inset because
    display faces with aggressive ascenders can paint outside a very tight line
