@@ -1,0 +1,21 @@
+{
+  "personality": "flag-focus",
+  "sourceName": "USWDS",
+  "repository": "uswds/uswds",
+  "version": null,
+  "commit": "fca24584304e836f1314a98b8847985b801503c3",
+  "license": "CC0-1.0 for GSA work plus audited third-party notices",
+  "implementationMode": "vendored-scss",
+  "importedFiles": [
+    "summary-list",
+    "button",
+    "tag",
+    "table",
+    "navigation",
+    "breadcrumb/details patterns selected after license audit"
+  ],
+  "excludedFiles": [
+    "third-party font/icon assets unless separately approved",
+    "US government branding"
+  ]
+}
