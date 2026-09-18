@@ -73,12 +73,10 @@ function geoJsonBounds(geojson: Record<string, unknown>) {
 }
 
 async function loadMapLibre() {
-  // Vite must leave this browser-only remote ESM import untouched. MapLibre's
-  // own documentation supports direct, pinned CDN ESM loading.
-  const dynamicImport = new Function("url", "return import(url)") as (
-    url: string,
-  ) => Promise<MapLibreModule>;
-  return dynamicImport(MAPLIBRE_MODULE_URL);
+  // Leave this pinned browser-only remote ESM import outside the critical app
+  // bundle. @vite-ignore keeps the URL runtime-resolved without eval/new Function,
+  // which remains compatible with strict Content Security Policy.
+  return import(/* @vite-ignore */ MAPLIBRE_MODULE_URL) as Promise<MapLibreModule>;
 }
 
 export function AtlasMapModule({
