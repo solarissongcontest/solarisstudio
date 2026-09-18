@@ -23,5 +23,9 @@
     "render verified country geometry when supplied and fit to verified bounds",
     "fall back to an explicit geographic fact module when Solaris has no valid geography",
     "never infer or fabricate coordinates from a country name"
-  ]
+  ],
+  "source": "MapLibre GL JS",
+  "licenseFile": "src/styles/personality-sources/atlas/LICENSE.txt",
+  "visualAuthority": "Modern digital cartography",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
