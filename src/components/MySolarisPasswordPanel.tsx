@@ -1,5 +1,6 @@
 import { KeyRound } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
 import { setSolarisPassword } from "@/lib/country-auth";
@@ -25,13 +26,21 @@ export function MySolarisPasswordPanel() {
     }
 
     setBusy(true);
+    const savePromise = setSolarisPassword(newPassword);
+
+    toast.promise(savePromise, {
+      id: "mysolaris-password-change",
+      loading: "Checking & updating password…",
+      success: "Password changed successfully.",
+      error: (error) => error instanceof Error ? error.message : "Password could not be changed.",
+    });
+
     try {
-      await setSolarisPassword(newPassword);
+      await savePromise;
       setNewPassword("");
       setConfirmPassword("");
-      setMessage("Password changed successfully.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Password could not be changed.");
+    } catch {
+      // Sonner owns transient mutation failures; validation stays inline above.
     } finally {
       setBusy(false);
     }
