@@ -17,6 +17,8 @@ import civicSource from "@/styles/personalities/civic-source.adapter.css?inline"
 import festivalSource from "@/styles/personalities/festival-source.adapter.css?inline";
 import newspaperSource from "@/styles/personalities/newspaper-source.adapter.css?inline";
 import avantGardeSource from "@/styles/personalities/avant-garde-source.adapter.css?inline";
+import passportSource from "@/styles/personalities/passport-source.adapter.css?inline";
+import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline";
 
 const countryPersonalityStyles = [
   buttonStyles,
@@ -38,6 +40,8 @@ const countryPersonalityStyles = [
   festivalSource,
   newspaperSource,
   avantGardeSource,
+  passportSource,
+  atlasSource,
 ].join("\n");
 
 /**
