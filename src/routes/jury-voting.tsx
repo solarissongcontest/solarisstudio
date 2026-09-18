@@ -332,7 +332,7 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
             const selected = selections[index] ?? "";
             return (
               <div key={`${points}-${index}`} className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-border bg-surface p-2.5">
-                <div className="text-center"><p className="numeric text-xl font-black text-primary">{points}</p><p className="text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground">points</p></div>
+                <div className="text-center"><p className="numeric text-xl font-black text-primary">{points}</p><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">points</p></div>
                 <select value={selected} onChange={(event) => selectCountry(index, event.target.value)} className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"><option value="">Choose entry…</option>{round.entries.filter((entry) => round.allow_self_vote || entry.country_id !== country.id).map((entry) => <option key={entry.country_id} value={entry.country_id}>{entry.name} · {[entry.artist, entry.song].filter(Boolean).join(" — ") || entry.short_code}</option>)}</select>
               </div>
             );
