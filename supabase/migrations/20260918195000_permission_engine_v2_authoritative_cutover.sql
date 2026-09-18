@@ -212,6 +212,62 @@ begin
 end
 $notice_cutover$;
 
+-- Clean migration replay still carries three old publication/result RPCs that
+-- long-lived production no longer exposes. Rewrite them when present so a fresh
+-- Solaris database reaches the same capability-only authorization state.
+do $legacy_publication_cutover$
+declare
+  v_oid oid;
+  v_before text;
+  v_after text;
+begin
+  v_oid := to_regprocedure('public.publish_show_results(uuid,jsonb)');
+  if v_oid is not null then
+    v_before := pg_get_functiondef(v_oid);
+    v_after := regexp_replace(
+      v_before,
+      'IF\\s+NOT\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+THEN\\s+RAISE\\s+EXCEPTION\\s+''Only organizers can publish results\\.''\\s+USING\\s+ERRCODE\\s*=\\s*''42501'';\\s+END\\s+IF;',
+      'IF NOT public.studio2_access_allowed(''results.publish'', (select s.edition_id from public.shows s where s.id = p_show_id), false) THEN RAISE EXCEPTION ''Missing Solaris capability: results.publish'' USING ERRCODE = ''42501''; END IF;',
+      'i'
+    );
+    if v_after = v_before or v_after ilike '%public.has_role%' then
+      raise exception 'Could not migrate publish_show_results legacy Organizer guard';
+    end if;
+    execute v_after;
+  end if;
+
+  v_oid := to_regprocedure('public.refresh_show_results(uuid)');
+  if v_oid is not null then
+    v_before := pg_get_functiondef(v_oid);
+    v_after := regexp_replace(
+      v_before,
+      'if\\s+auth\\.uid\\(\\)\\s+is\\s+not\\s+null\\s+and\\s+not\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+then\\s+raise\\s+exception\\s+''Only organizers can refresh show results\\.''\\s+using\\s+errcode\\s*=\\s*''42501'';\\s+end\\s+if;',
+      'if auth.uid() is not null and not public.studio2_access_allowed(''results.verify'', (select s.edition_id from public.shows s where s.id = p_show_id), false) then raise exception ''Missing Solaris capability: results.verify'' using errcode = ''42501''; end if;',
+      'i'
+    );
+    if v_after = v_before or v_after ilike '%public.has_role%' then
+      raise exception 'Could not migrate refresh_show_results legacy Organizer guard';
+    end if;
+    execute v_after;
+  end if;
+
+  v_oid := to_regprocedure('public.sync_one_edition_publication(uuid)');
+  if v_oid is not null then
+    v_before := pg_get_functiondef(v_oid);
+    v_after := regexp_replace(
+      v_before,
+      'if\\s+auth\\.uid\\(\\)\\s+is\\s+not\\s+null\\s+and\\s+not\\s+public\\.has_role\\(\\s*auth\\.uid\\(\\),\\s*''organizer''::public\\.app_role\\s*\\)\\s+then\\s+raise\\s+exception\\s+''Only organizers can sync edition publication\\.''\\s+using\\s+errcode\\s*=\\s*''42501'';\\s+end\\s+if;',
+      'if auth.uid() is not null and not public.studio2_access_allowed(''publishing.manage'', p_edition_id, false) then raise exception ''Missing Solaris capability: publishing.manage'' using errcode = ''42501''; end if;',
+      'i'
+    );
+    if v_after = v_before or v_after ilike '%public.has_role%' then
+      raise exception 'Could not migrate sync_one_edition_publication legacy Organizer guard';
+    end if;
+    execute v_after;
+  end if;
+end
+$legacy_publication_cutover$;
+
 -- Integrity has many stable governed RPCs that call the semantic helper.
 -- Keep the helper name as a compatibility boundary, but make its decision
 -- capability-only so none of those RPCs retain legacy Organizer semantics.
