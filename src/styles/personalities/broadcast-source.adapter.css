@@ -1,0 +1,160 @@
+/* BBC GEL Grid + GEL Typography translated adapter.
+   Upstream grid: bbc/gel-grid @ 65c2b3f878a3999104c7e17f989602075f9f6e22
+   Upstream type: bbc/gel-typography @ d4fea6fc03586bc7fa066cd22abbae9fbd7005a6
+   License: MIT.
+
+   GEL's real architecture is a wrapping grid with 8px/16px gutters and
+   explicit type roles. Solaris translates that to CSS Grid while preserving
+   the same fractional information hierarchy and rectangular broadcast bands. */
+
+.country-identity-hero[data-country-personality="broadcast"] {
+  --gel-unit: .5rem;
+  --gel-gutter: 1rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-scene,
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-art {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-layout {
+  grid-template-columns: minmax(0, 8fr) minmax(9rem, 4fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: calc(var(--gel-gutter) * 2);
+  padding-block: calc(var(--gel-unit) * 5);
+  border-block-start: calc(var(--gel-unit) / 2) solid var(--primary);
+  border-block-end: 1px solid var(--border);
+  align-items: stretch;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-copy {
+  align-self: end;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-eyebrow {
+  display: inline-flex;
+  inline-size: fit-content;
+  margin-block-end: var(--gel-gutter);
+  padding: calc(var(--gel-unit) / 2) var(--gel-unit);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 1rem;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-title {
+  max-inline-size: 12ch !important;
+  font-family: var(--font-sans, Arial, sans-serif);
+  font-size: clamp(3rem, 7.2cqi, 5.4rem);
+  font-weight: 700;
+  letter-spacing: -.045em !important;
+  line-height: .95 !important;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-meta {
+  margin-block-start: var(--gel-gutter);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-description {
+  max-inline-size: 54ch;
+  margin-block-start: var(--gel-gutter);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-flag-zone {
+  align-self: end;
+  padding-block-start: var(--gel-gutter);
+  border-block-start: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-official-flag {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-flag-caption {
+  margin-block-start: var(--gel-unit);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-actions {
+  border-block-start: 1px solid var(--border);
+  padding-block-start: var(--gel-gutter);
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 0;
+  border-radius: 0;
+  background: var(--foreground);
+  color: var(--background);
+  font-weight: 700;
+}
+
+.country-identity-hero[data-country-personality="broadcast"] .country-hero-actions :is(a, button):first-child {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Broadcast content uses aligned straps and square information blocks. */
+.country-profile-v8[data-country-personality="broadcast"] .data-panel {
+  border: 0 !important;
+  border-block-start: .25rem solid var(--primary) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="broadcast"] .data-panel > div:first-child {
+  border-block-end-color: var(--border);
+}
+
+.country-profile-v8[data-country-personality="broadcast"] .responsive-tabs :is(select, button),
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: 0 !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .wiki-record-strip {
+  border-block-start: .25rem solid var(--primary);
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="broadcast"] .wiki-section-kicker {
+  inline-size: fit-content;
+  padding: .2rem .4rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="broadcast"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: var(--gel-gutter);
+    padding-block: calc(var(--gel-unit) * 4);
+  }
+
+  .country-identity-hero[data-country-personality="broadcast"] .country-hero-title {
+    font-size: clamp(2.8rem, 14cqi, 4rem);
+  }
+}
