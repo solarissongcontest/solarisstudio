@@ -34,7 +34,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data-live";
-import { canonicalEntryFor } from "@/lib/entry-utils";
+import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
@@ -62,6 +62,7 @@ function CountryProfileRoute() {
 
 const TABS = [
   { value: "overview", label: "Overview" },
+  { value: "entries", label: "Entries" },
   { value: "results", label: "Results" },
   { value: "voting", label: "Voting" },
   { value: "relationships", label: "Relationships" },
@@ -176,6 +177,15 @@ function CountryProfilePage() {
 
   const qualificationFor = (editionId: string) =>
     resolveCountryEditionQualification(country.id, editionId, publicArchive);
+
+  const entryHistory = canonicalEditionEntries(myParticipants)
+    .slice()
+    .sort(
+      (a, b) =>
+        (editionMap.get(b.edition_id)?.edition_number ?? -1) -
+        (editionMap.get(a.edition_id)?.edition_number ?? -1),
+    );
+  const latestEntry = entryHistory[0] ?? null;
 
   const qualificationEditionIds = new Set<string>();
   myParticipants.forEach((participant) => qualificationEditionIds.add(participant.edition_id));
@@ -329,6 +339,30 @@ function CountryProfilePage() {
                   </div>
                 </Panel>
 
+                <Panel
+                  title="Current entry"
+                  description="The latest published canonical entry for this delegation."
+                >
+                  {latestEntry ? (
+                    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">
+                          {[latestEntry.artist, latestEntry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {editionMap.get(latestEntry.edition_id)
+                            ? editionLabel(editionMap.get(latestEntry.edition_id)!)
+                            : "Latest published edition"}
+                        </p>
+                        <EntryListenLinks entry={latestEntry} compact className="mt-3" />
+                      </div>
+                      <QualificationBadge status={qualificationFor(latestEntry.edition_id)} />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No published entry is available yet.</p>
+                  )}
+                </Panel>
+
                 {hostedEditions.length > 0 && (
                   <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
                     <div className="flex flex-wrap gap-2">
@@ -407,6 +441,68 @@ function CountryProfilePage() {
               </Panel>
             )}
           </div>
+        )}
+
+        {tab === "entries" && (
+          hasContestData ? (
+            <div className="space-y-5">
+              <Panel
+                title="Latest entry"
+                description="The newest published canonical entry remains prominent; the full chronology follows below."
+              >
+                {latestEntry ? (
+                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold">
+                        {[latestEntry.artist, latestEntry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {editionMap.get(latestEntry.edition_id)
+                          ? editionLabel(editionMap.get(latestEntry.edition_id)!)
+                          : "Edition"}
+                      </p>
+                      <EntryListenLinks entry={latestEntry} compact className="mt-3" />
+                    </div>
+                    <QualificationBadge status={qualificationFor(latestEntry.edition_id)} />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No published entry is available yet.</p>
+                )}
+              </Panel>
+
+              <Panel
+                title="Entry history"
+                description="Canonical entries in reverse chronological order. Chronology is never rearranged for personality styling."
+              >
+                {entryHistory.length ? (
+                  <div className="divide-y divide-border/60">
+                    {entryHistory.map((entry) => {
+                      const edition = editionMap.get(entry.edition_id);
+                      const status = qualificationFor(entry.edition_id);
+                      return (
+                        <div key={entry.id} className="py-3 first:pt-0 last:pb-0">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {edition ? editionLabel(edition) : "Edition"}
+                              </p>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
+                                {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                              </p>
+                              <EntryListenLinks entry={entry} compact className="mt-2" />
+                            </div>
+                            <QualificationBadge status={status} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No published entry history is available yet.</p>
+                )}
+              </Panel>
+            </div>
+          ) : <NoContestData countryName={country.name} />
         )}
 
         {tab === "results" && (
