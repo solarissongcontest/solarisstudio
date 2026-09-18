@@ -1,0 +1,18 @@
+{
+  "personality": "ribbon",
+  "sourceName": "Superilles Grid System",
+  "repository": "zetareticoli/superilles",
+  "version": null,
+  "commit": "b4404a655115f030c0bedec45cf5693169d03470",
+  "license": "MIT",
+  "implementationMode": "vendored-css",
+  "visualAuthority": "Wim Crouwel modular-grid experimentation",
+  "importedFiles": [
+    "responsive superblock/grid definitions",
+    "headline/mosaic layout logic"
+  ],
+  "excludedFiles": [
+    "demo branding",
+    "overlap behaviors that violate Solaris semantic collision rules"
+  ]
+}
