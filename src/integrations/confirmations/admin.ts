@@ -68,15 +68,12 @@ export async function requireConfirmationsAdmin() {
   const user = userData.user;
   if (!user) return null;
 
-  const { data: role, error: roleError } = await solarisSupabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "organizer")
-    .maybeSingle();
+  const { data: allowed, error: accessError } = await (solarisSupabase as any).rpc(
+    "studio2_is_global_organizer",
+  );
 
-  if (roleError) throw roleError;
-  return role ? user : null;
+  if (accessError) throw accessError;
+  return allowed === true ? user : null;
 }
 
 export async function loadConfirmationEditions(): Promise<ConfirmationEdition[]> {
