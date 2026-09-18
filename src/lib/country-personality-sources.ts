@@ -117,7 +117,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [152, 100], mobile: [136, 90] },
     density: "high",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "poster",
@@ -205,7 +205,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [152, 100], mobile: [136, 90] },
     density: "medium",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "classic",
