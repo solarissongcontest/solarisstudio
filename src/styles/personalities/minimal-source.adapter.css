@@ -1,0 +1,70 @@
+/* Pico CSS v2.1.1 selective translated adapter.
+   Upstream: picocss/pico @ 1039a4788d6abc368d5485ae6bac84a8f0e3096f
+   License: MIT. Values intentionally preserve Pico's 1rem spacing, .25rem
+   radius, 1.5 body leading and 1.125 h1 leading while mapping to Solaris. */
+
+.country-identity-hero[data-country-personality="minimal"] {
+  --pico-spacing: 1rem;
+  --pico-border-radius: .25rem;
+  --pico-transition: .2s ease-in-out;
+  border: 0;
+  border-block-end: 1px solid var(--cp-rule);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.country-identity-hero[data-country-personality="minimal"] :is(.country-hero-scene, .country-hero-art) {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-hero-layout {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: calc(var(--pico-spacing) * 1.5) calc(var(--pico-spacing) * 2);
+  padding: 3rem 0;
+  align-items: center;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-hero-eyebrow {
+  margin-block-end: var(--pico-spacing);
+  letter-spacing: .08em;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-hero-title {
+  font-family: var(--font-sans, Gotham, system-ui, sans-serif);
+  font-size: clamp(2.75rem, 7cqi, 4rem);
+  font-weight: 700;
+  letter-spacing: -.04em;
+  line-height: 1.125;
+}
+
+.country-identity-hero[data-country-personality="minimal"] :is(.country-hero-meta, .country-hero-description) {
+  line-height: 1.5;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-official-flag {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-hero-actions :is(a, button) {
+  border-radius: var(--pico-border-radius);
+  background: transparent;
+  transition: border-color var(--pico-transition), background-color var(--pico-transition);
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="minimal"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: 1.5rem;
+    padding: 1.5rem 0;
+  }
+}
