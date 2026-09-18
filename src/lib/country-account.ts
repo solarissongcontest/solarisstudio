@@ -118,12 +118,7 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
   }
 
   const [roleResult, countryResult] = await Promise.all([
-    typedSupabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", resolvedUserId)
-      .eq("role", "organizer")
-      .maybeSingle(),
+    (typedSupabase as any).rpc("studio2_is_global_organizer"),
     supabase
       .from("country_accounts")
       .select("country_id,status,suspension_reason")
@@ -132,7 +127,7 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
   ]);
 
   if (roleResult.error && !missingCountrySchema(roleResult.error)) {
-    console.warn("Could not resolve organizer role", roleResult.error);
+    console.warn("Could not resolve organizer access", roleResult.error);
   }
 
   if (countryResult.error && !missingCountrySchema(countryResult.error)) {
