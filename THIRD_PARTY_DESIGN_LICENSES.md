@@ -44,21 +44,26 @@ photography and demo assets are excluded unless separately licensed.
 - Use: window chrome, bevel recipes, status/control grammar
 - Excluded: Pixelated MS Sans Serif font files and docs assets
 
-## Canonical sources still to be pinned during their implementation phase
+## Canonical source pins for remaining implementation phases
 
-- Passport: Jesus Ramirez International Airline Ticket CSS, MIT; ICAO Doc 9303 is the structural authority.
-- Poster: RampStack Swiss Style Theme, MIT.
-- Heritage: The National Archives Design System, MIT.
-- Broadcast: BBC GEL Grid + GEL Typography, MIT.
-- Atlas: MapLibre GL JS, BSD-3-Clause.
-- Diplomatic: GOV.UK Frontend, MIT.
-- Festival: GDG-X Hoverboard, MIT.
-- Brutalist: RampStack Brutalist Web Theme, MIT.
-- Luxury: Aimeos Pagible Luxury, MIT.
-- Newspaper: Guardian Source / Interactive Style Library, Apache-2.0 for Source.
-- Scientific: IBM Carbon, Apache-2.0.
-- Civic: USWDS, CC0-1.0 for GSA work plus audited third-party notices.
-- Avant-Garde: Superilles Grid System, MIT.
+These repositories are pinned now so later personality work cannot silently
+substitute a different design system. File-level import/license audits still
+happen when the corresponding adapter is implemented.
 
-Each remaining source must receive an exact version/commit and file-level license
-audit before its source layer is merged.
+- Passport: Jesus Ramirez International Airline Ticket CSS, MIT. Source snapshot: https://codehim.com/html5-css3/international-airline-ticket-in-html-css/ . ICAO Doc 9303 remains the structural authority.
+- Poster: RampStack Swiss Style Theme, MIT, commit `55e82b52f2c4c2893f79628c77ed31418d5975e6`.
+- Heritage: The National Archives Design System, MIT, `nationalarchives/design-system` commit `86202aabc033da76bb8a5171c39737bc1a6fef1d`.
+- Broadcast: BBC GEL Grid, MIT, commit `65c2b3f878a3999104c7e17f989602075f9f6e22`; BBC GEL Typography, MIT, commit `d4fea6fc03586bc7fa066cd22abbae9fbd7005a6`.
+- Atlas: MapLibre GL JS, BSD-3-Clause, commit `a55db8271998f1156f82a63726ef9c56bd9c5093`.
+- Diplomatic: GOV.UK Frontend, MIT, commit `b4a7543f133932fb04575b045330e8a01ab5c250`.
+- Festival: GDG-X Hoverboard, MIT, commit `80395b0ccc6e08cc1f0cdff50186ee119aad0b24`.
+- Brutalist: RampStack Brutalist Web Theme, MIT, commit `2ad20824755fb00b3d2c30d01df67ea63f2d9427`.
+- Luxury: Aimeos Pagible Luxury, MIT, commit `df0764db7057cc631dd2dea1bd466a8e995a3637`.
+- Newspaper: Guardian Source, Apache-2.0, commit `d84c25d67ed51545994f53986eb4487d35c1aab4`; Guardian Interactive Style Library, commit `19533f580cfa7ff6f5e2db6ffc75334cd9cf02a8`.
+- Scientific: IBM Carbon, Apache-2.0, commit `717c76d8b81c0ece1ce845caffe70f6d64a1a6bb`.
+- Civic: USWDS, CC0-1.0 for GSA work plus audited third-party notices, commit `fca24584304e836f1314a98b8847985b801503c3`.
+- Avant-Garde: Superilles Grid System, MIT, commit `b4404a655115f030c0bedec45cf5693169d03470`.
+
+A pinned commit is not permission to import everything in that repository.
+Fonts, logos, imagery and nested third-party assets remain excluded until their
+individual licensing is verified.
