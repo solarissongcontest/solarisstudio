@@ -16,19 +16,27 @@ describe("source-driven Country personality foundation", () => {
     expect(wiki).toContain("useCountryTheme(country.id)");
   });
 
-  it("reserves bounded semantic cells for copy, flag, actions and optional art", () => {
+  it("delegates one semantic identity model to source-specific composition renderers", () => {
     const hero = source("src/components/country/CountryIdentityHero.tsx");
-    const css = source("src/country-personality-shared-foundation.css");
-    expect(hero).toContain("country-hero-copy");
-    expect(hero).toContain("country-hero-flag-zone");
-    expect(hero).toContain("country-hero-actions");
-    expect(hero).toContain("country-hero-art");
-    expect(hero).toContain('data-country-has-art={definition.allowsGraphicArt ? "true" : "false"}');
+    const renderer = source("src/components/country/personality/PersonalityHeroRenderer.tsx");
+    const compositions = source("src/styles/personality-compositions.css");
+    expect(hero).toContain("<PersonalityHeroRenderer");
     expect(hero).toContain('data-flag-role="official"');
-    expect(hero).toContain('dir="auto"');
-    expect(css).toContain(".country-hero-art {");
-    expect(css).toContain("overflow: hidden;");
-    expect(css).toContain('grid-template-areas:\n    "copy art flag"\n    "actions art flag"');
+    expect(hero).toContain('data-country-has-art={definition.id === "panorama" ? "true" : "false"}');
+    expect(renderer).toContain("function GlassRenderer");
+    expect(renderer).toContain("function PosterRenderer");
+    expect(renderer).toContain("function PassportRenderer");
+    expect(renderer).toContain("function RetroRenderer");
+    expect(renderer).toContain("function AtlasRenderer");
+    expect(renderer).toContain("function AvantGardeRenderer");
+    expect(renderer).toContain('dir="auto"');
+    expect(renderer).not.toContain("country-hero-art-primary");
+    expect(renderer).not.toContain("country-hero-art-secondary");
+    expect(renderer).not.toContain("country-hero-art-tertiary");
+    expect(compositions).toContain(".country-composition-glass");
+    expect(compositions).toContain(".country-composition-poster");
+    expect(compositions).toContain(".country-composition-retro");
+    expect(compositions).toContain(".country-composition-atlas");
   });
 
   it("protects official flags from stretching or unintended cropping", () => {
@@ -48,20 +56,24 @@ describe("source-driven Country personality foundation", () => {
     expect(styles).toContain('import sourceFoundation from "@/country-personality-source-foundation.css?inline"');
     expect(styles).toContain('import wikiV8 from "@/country-wiki-v8.css?inline"');
     expect(styles).toContain('import wikiComponentsV8 from "@/country-wiki-components-v8.css?inline"');
+    expect(styles).toContain('import personalityCompositions from "@/styles/personality-compositions.css?inline"');
     expect(styles).not.toContain("country-personality-system-v8.css");
     expect(styles).not.toContain("country-personality-system-v7.css");
     expect(styles).not.toContain("country-personality-v7-production-bridge.css");
     expect(styles).not.toContain("country-liquid-glass-public-v7.css");
   });
 
-  it("keeps hard decoration confined to the art cell", () => {
+  it("removes generic decorative art from rendered personality composition", () => {
     const css = source("src/country-personality-shared-foundation.css");
+    const renderer = source("src/components/country/personality/PersonalityHeroRenderer.tsx");
+    const compositions = source("src/styles/personality-compositions.css");
     expect(css).toContain("Old decorative layers are disabled");
     expect(css).toContain(":is(.country-personality-signature, .country-glass-panel-flag) {");
-    expect(css).toContain("display: none !important;");
-    expect(css).not.toContain("country-hero-signature-a");
-    expect(css).not.toContain("country-hero-signature-b");
-    expect(css).not.toContain("z-index: 999");
+    expect(renderer).not.toContain("country-hero-art-primary");
+    expect(renderer).not.toContain("country-hero-art-secondary");
+    expect(renderer).not.toContain("country-hero-art-tertiary");
+    expect(compositions).toContain("content is the graphic");
+    expect(compositions).not.toContain("z-index: 999");
   });
 
   it("implements Glass from the vendored liquid-glass source adapter", () => {
