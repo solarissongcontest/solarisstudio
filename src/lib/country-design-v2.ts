@@ -543,7 +543,7 @@ export function countryDesignFontCss(design: CountryDesignV2) {
   const customs = [...new Map(fonts.filter((font) => font.source === "custom" && font.fileUrl).map((font) => [font.family, font])).values()];
   return [
     ...imports.map((url) => `@import url("${url}");`),
-    ...customs.map((font) => `@font-face{font-family:${JSON.stringify(font.family)};src:url(${JSON.stringify(font.fileUrl)}) format("woff2");font-display:swap;font-style:normal;font-weight:100 900;}`),
+    ...customs.map((font) => `@font-face{font-family:${JSON.stringify(font.family)};src:url(${JSON.stringify(font.fileUrl)});font-display:swap;font-style:normal;font-weight:100 900;}`),
   ].join("\n");
 }
 
