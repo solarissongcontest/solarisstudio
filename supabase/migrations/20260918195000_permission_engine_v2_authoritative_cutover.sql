@@ -429,6 +429,51 @@ grant execute on function public.admin_organizer_directory() to authenticated, s
 drop function if exists public.organizer_exists();
 drop function if exists public.has_role(uuid, public.app_role);
 
+-- Access simulation must show the authoritative V2 role model, not dead
+-- legacy role history. The access-user directory still exposes legacy_roles as
+-- explicitly historical audit metadata.
+create or replace function public.studio2_view_access_as(
+  p_user_id uuid,
+  p_edition_id uuid default null
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = 'pg_catalog', 'public', 'private'
+as $function$
+declare
+  v_actor uuid := auth.uid();
+begin
+  if v_actor is null or not private.studio2_can_manage_permissions(v_actor) then
+    raise exception 'Permission management capability required' using errcode = '42501';
+  end if;
+  if p_user_id is null or not exists (select 1 from auth.users where id = p_user_id) then
+    raise exception 'Access simulation user is required' using errcode = '22023';
+  end if;
+  return jsonb_build_object(
+    'userId', p_user_id,
+    'editionId', p_edition_id,
+    'roles', coalesce((
+      select jsonb_agg(a.role_key order by a.role_key)
+      from public.studio2_role_assignments a
+      where a.user_id = p_user_id
+        and (a.expires_at is null or a.expires_at > now())
+        and (a.edition_id is null or (p_edition_id is not null and a.edition_id = p_edition_id))
+    ), '[]'::jsonb),
+    'capabilities', coalesce((
+      select jsonb_agg(c.key order by c.key)
+      from public.studio2_capabilities c
+      where private.studio2_user_has_capability(p_user_id, c.key, p_edition_id)
+    ), '[]'::jsonb),
+    'readOnly', true
+  );
+end
+$function$;
+
+revoke all on function public.studio2_view_access_as(uuid, uuid) from public, anon;
+grant execute on function public.studio2_view_access_as(uuid, uuid) to authenticated, service_role;
+
 -- Make Permission Engine v2 globally authoritative.
 update public.studio2_feature_flags
 set enabled = true,
@@ -446,6 +491,8 @@ declare
   v_legacy_policy_debt bigint;
   v_direct_role_function_debt bigint;
   v_direct_role_function_names text;
+  v_legacy_table_function_debt bigint;
+  v_legacy_table_function_names text;
   v_flag_enabled boolean;
 begin
   select count(*) into v_missing_live_organizers
@@ -493,6 +540,26 @@ begin
     raise exception 'Direct legacy role function debt remains: % [%]',
       v_direct_role_function_debt,
       coalesce(v_direct_role_function_names, 'unknown');
+  end if;
+
+  select
+    count(*),
+    string_agg(
+      format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)),
+      ', ' order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)
+    )
+  into v_legacy_table_function_debt, v_legacy_table_function_names
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where p.prokind = 'f'
+    and n.nspname in ('public', 'private', 'televoting')
+    and pg_get_functiondef(p.oid) ilike '%user_roles%'
+    and not (n.nspname = 'public' and p.proname = 'studio2_access_users');
+
+  if v_legacy_table_function_debt <> 0 then
+    raise exception 'Legacy user_roles function dependency remains: % [%]',
+      v_legacy_table_function_debt,
+      coalesce(v_legacy_table_function_names, 'unknown');
   end if;
 
   select enabled and not admins_only
