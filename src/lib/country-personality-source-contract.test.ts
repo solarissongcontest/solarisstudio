@@ -294,7 +294,7 @@ describe("source-driven Country personality contract", () => {
     const license = source("src/vendor/liquid-glass/LICENSE");
 
     expect(hero).toContain('import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial"');
-    expect(hero).toContain('<GlassMaterial');
+    expect(hero).toContain('<LazyGlassMaterial');
     expect(hero).toContain('className="country-hero-glass-material"');
     expect(glass).toContain("samasante/liquid-glass");
     expect(glass).toContain("exactly one glass surface");
