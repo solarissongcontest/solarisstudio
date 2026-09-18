@@ -12,7 +12,7 @@ import {
   countryPersonalitySource,
 } from "@/lib/country-personality-sources";
 import { countryPersonalityDivergence } from "@/lib/country-personality-divergence";
-import { PERSONALITY_QA_FIXTURES } from "@/lib/personality-fixtures";
+import { PERSONALITY_FLAG_QA_OPTIONS, PERSONALITY_QA_FIXTURES, personalityFlagQaImage, type PersonalityFlagQaMode } from "@/lib/personality-fixtures";
 import type { CountryHeroLayout } from "@/lib/visual-theme";
 
 export const Route = createFileRoute("/dev/personality-lab")({
@@ -41,6 +41,7 @@ function PersonalityLab() {
   const [text200, setText200] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [flagMode, setFlagMode] = useState<PersonalityFlagQaMode>("fixture");
 
   const source = countryPersonalitySource(personality);
   const divergence = countryPersonalityDivergence(personality);
@@ -86,6 +87,12 @@ function PersonalityLab() {
               {VIEWPORTS.map((width) => <option key={width} value={width}>{width}px</option>)}
             </select>
           </label>
+          <label className="grid gap-1 text-xs font-semibold">
+            Flag state
+            <select value={flagMode} onChange={(event) => setFlagMode(event.target.value as PersonalityFlagQaMode)} className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm">
+              {PERSONALITY_FLAG_QA_OPTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+            </select>
+          </label>
 
           <Toggle label="Light mode" checked={light} onChange={setLight} />
           <Toggle label="RTL" checked={rtl} onChange={setRtl} />
@@ -106,6 +113,7 @@ function PersonalityLab() {
             textScale={text200 ? 2 : 1}
             rtl={rtl}
             highContrast={highContrast}
+            flagImageOverride={personalityFlagQaImage(flagMode, fixture)}
           />
         </section>
 
