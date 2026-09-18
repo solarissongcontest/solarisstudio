@@ -83,6 +83,85 @@ test("all personalities survive hostile content at 200% text, RTL and high contr
 
 
 
+test("all canonical flag fixtures preserve intrinsic aspect ratio", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "personality-390", "Flag geometry QA uses the canonical mobile Lab.");
+
+  await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
+  const flag = page.locator("[data-personality-qa-preview] [data-flag-role='official']");
+  const cases = ["1-1", "3-2", "2-1", "2-3", "transparent", "white-dominant", "black-dominant", "detailed"] as const;
+
+  for (const flagCase of cases) {
+    await page.getByLabel("Flag state", { exact: true }).selectOption(flagCase);
+    await expect(flag).toHaveAttribute("data-flag-state", "ready");
+    const metrics = await flag.getByRole("img").evaluate((image) => {
+      const img = image as HTMLImageElement;
+      const rect = img.getBoundingClientRect();
+      const style = getComputedStyle(img);
+      return {
+        naturalRatio: img.naturalWidth / img.naturalHeight,
+        renderedRatio: rect.width / rect.height,
+        objectFit: style.objectFit,
+        opacity: style.opacity,
+      };
+    });
+    expect(metrics.objectFit, `${flagCase} object-fit`).toBe("contain");
+    expect(metrics.opacity, `${flagCase} factual flag opacity`).toBe("1");
+    expect(
+      Math.abs(metrics.naturalRatio - metrics.renderedRatio),
+      `${flagCase} aspect-ratio distortion`,
+    ).toBeLessThan(0.03);
+  }
+});
+
+test("neutral and sparse fixtures remain robust across Country and Wiki for all personalities", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "personality-390", "Fixture matrix QA uses the canonical mobile viewport.");
+
+  await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("Viewport", { exact: true }).selectOption("390");
+  const personalities = await page.getByLabel("Personality", { exact: true }).locator("option").evaluateAll(
+    (options) => options.map((option) => (option as HTMLOptionElement).value),
+  );
+
+  for (const fixture of ["neutral", "sparse"] as const) {
+    await page.getByLabel("Country fixture", { exact: true }).selectOption(fixture);
+    for (const surface of ["country", "wiki"] as const) {
+      await page.getByLabel("Surface", { exact: true }).selectOption(surface);
+      for (const personality of personalities) {
+        await page.getByLabel("Personality", { exact: true }).selectOption(personality);
+        const preview = page.locator("[data-personality-qa-preview]");
+        await expect(preview.locator(".country-identity-hero")).toHaveAttribute("data-country-personality", personality);
+
+        const result = await preview.evaluate((root) => {
+          const hero = root.querySelector<HTMLElement>(".country-identity-hero");
+          const title = root.querySelector<HTMLElement>(".country-hero-title");
+          if (!hero || !title) return { overflow: 999, clipped: true };
+          const titleRect = title.getBoundingClientRect();
+          const heroRect = hero.getBoundingClientRect();
+          return {
+            overflow: root.scrollWidth - root.clientWidth,
+            clipped:
+              titleRect.left < heroRect.left - 1 ||
+              titleRect.right > heroRect.right + 1 ||
+              titleRect.top < heroRect.top - 1 ||
+              titleRect.bottom > heroRect.bottom + 1,
+          };
+        });
+
+        expect(result.overflow, `${fixture}/${surface}/${personality} overflow`).toBeLessThanOrEqual(2);
+        expect(result.clipped, `${fixture}/${surface}/${personality} title clipping`).toBe(false);
+
+        if (fixture === "sparse" && surface === "country") {
+          await expect(preview.getByText("No current entry is available.")).toBeVisible();
+          await expect(preview.getByText("No participation history is available.")).toBeVisible();
+        }
+        if (fixture === "sparse" && surface === "wiki") {
+          await expect(preview.getByText("No Wiki article content is available for this country yet.")).toBeVisible();
+        }
+      }
+    }
+  }
+});
+
 test("flag loading, failure and fallback states are deterministic", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "personality-390", "Flag lifecycle QA uses the canonical mobile Lab.");
 
