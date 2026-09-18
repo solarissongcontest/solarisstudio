@@ -49,7 +49,7 @@ function PersonalityLab() {
 
   return (
     <AppShell>
-      <main className="space-y-5" data-personality-lab>
+      <div className="space-y-5" data-personality-lab>
         <header className="data-panel p-5">
           <p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">Design QA</p>
           <h1 className="mt-2 text-3xl font-bold">Personality Lab</h1>
@@ -92,7 +92,7 @@ function PersonalityLab() {
           <Toggle label="Reduced motion" checked={reducedMotion} onChange={setReducedMotion} />
         </section>
 
-        <section className={light ? "light rounded-xl bg-background p-3 text-foreground" : "dark rounded-xl bg-background p-3 text-foreground"} data-reduced-motion={reducedMotion ? "true" : "false"}>
+        <section className={light ? "light overflow-x-auto rounded-xl bg-background p-3 text-foreground" : "dark overflow-x-auto rounded-xl bg-background p-3 text-foreground"} data-reduced-motion={reducedMotion ? "true" : "false"}>
           {reducedMotion ? (
             <style>{`[data-reduced-motion="true"] *, [data-reduced-motion="true"] *::before, [data-reduced-motion="true"] *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }`}</style>
           ) : null}
@@ -117,7 +117,7 @@ function PersonalityLab() {
           <Meta label="Source divergence" value="Adapter review required" />
           <Meta label="QA status" value="Lab-ready · human approval pending" />
         </section>
-      </main>
+      </div>
     </AppShell>
   );
 }
