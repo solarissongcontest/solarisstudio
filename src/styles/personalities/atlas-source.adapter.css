@@ -1,15 +1,15 @@
-/* MapLibre GL JS translated adapter.
+/* MapLibre GL JS source adapter.
    Upstream: maplibre/maplibre-gl-js @ a55db8271998f1156f82a63726ef9c56bd9c5093
+   Runtime: pinned browser ESM maplibre-gl@6.10.0
    License: BSD-3-Clause.
 
-   MapLibre's own UI starts from 12px/20px Helvetica Neue, 10px control
-   offsets, small white control groups, 3px popup radii and layered map chrome.
-   Solaris borrows that map-interface grammar without fabricating geography:
-   the bounded art panel is a neutral cartographic reference grid, not a map. */
+   Atlas is geography-first. The art region contains a real MapLibre map when
+   Solaris owns verified coordinates, bounds or GeoJSON. Without verified
+   geography, the same region becomes an explicit geographic-fact fallback.
+   No fake coordinates, contour wallpaper or decorative pseudo-map is used. */
 
 .country-identity-hero[data-country-personality="panorama"] {
   --map-font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
-  --map-control-offset: 10px;
   border: 0 !important;
   border-block: 1px solid var(--border) !important;
   border-radius: 0 !important;
@@ -22,10 +22,11 @@
 }
 
 .country-identity-hero[data-country-personality="panorama"] .country-hero-layout {
-  grid-template-columns: minmax(0, 5fr) minmax(12rem, 4fr) minmax(8rem, 2fr);
+  grid-template-columns: minmax(0, 7fr) minmax(15rem, 5fr);
   grid-template-areas:
-    "copy art flag"
-    "actions art flag";
+    "copy art"
+    "flag art"
+    "actions art";
   gap: 0;
   padding: 0;
   align-items: stretch;
@@ -68,59 +69,73 @@
 }
 
 .country-identity-hero[data-country-personality="panorama"] .country-hero-art {
-  min-block-size: 18rem;
+  position: relative;
+  min-block-size: 22rem;
   border: 0;
-  border-inline-end: 1px solid var(--border);
-  border-block-end: 1px solid var(--border);
   border-radius: 0;
-  background:
-    linear-gradient(to right, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px),
-    color-mix(in srgb, var(--primary) 7%, var(--background));
-  background-size: 2rem 2rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--primary));
   overflow: hidden;
 }
 
-.country-identity-hero[data-country-personality="panorama"] .country-hero-art::after {
-  content: "";
-  position: absolute;
-  inset: var(--map-control-offset);
-  border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent);
-  pointer-events: none;
+.country-identity-hero[data-country-personality="panorama"] .atlas-map-shell,
+.country-identity-hero[data-country-personality="panorama"] .atlas-map-canvas {
+  inline-size: 100%;
+  block-size: 100%;
+  min-block-size: inherit;
 }
 
-.country-identity-hero[data-country-personality="panorama"] .country-hero-art-primary {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  inline-size: 4rem;
-  block-size: 1px;
-  translate: -50% -50%;
-  background: var(--primary);
+.country-identity-hero[data-country-personality="panorama"] .atlas-map-shell {
+  position: relative;
 }
 
-.country-identity-hero[data-country-personality="panorama"] .country-hero-art-secondary {
+.country-identity-hero[data-country-personality="panorama"] .atlas-map-loading {
   position: absolute;
-  inset: 50% auto auto 50%;
-  inline-size: 1px;
-  block-size: 4rem;
-  translate: -50% -50%;
-  background: var(--primary);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  font: var(--map-font);
+  font-weight: 700;
 }
 
-.country-identity-hero[data-country-personality="panorama"] .country-hero-art-tertiary {
-  position: absolute;
-  inset: var(--map-control-offset) var(--map-control-offset) auto auto;
-  inline-size: 2rem;
-  block-size: 2rem;
-  border: 1px solid rgb(0 0 0 / .12);
-  border-radius: 4px;
-  background: white;
-  box-shadow: 0 0 0 1px rgb(0 0 0 / .05);
+.country-identity-hero[data-country-personality="panorama"] .atlas-geographic-fallback {
+  min-block-size: inherit;
+  display: grid;
+  align-content: center;
+  gap: .65rem;
+  padding: 2rem;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--border) 42%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--border) 42%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--primary) 5%, var(--background));
+  background-size: 2.5rem 2.5rem;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .atlas-geographic-kicker {
+  font: var(--map-font);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.country-identity-hero[data-country-personality="panorama"] .atlas-geographic-fallback strong {
+  max-inline-size: 18ch;
+  font-size: clamp(1.35rem, 3cqi, 2rem);
+  line-height: 1;
+}
+
+.country-identity-hero[data-country-personality="panorama"] .atlas-geographic-fallback span:last-child {
+  max-inline-size: 34ch;
+  font: var(--map-font);
+  color: var(--muted-foreground);
 }
 
 .country-identity-hero[data-country-personality="panorama"] .country-hero-flag-zone {
-  padding: 2rem 1rem;
+  padding: 1rem 2rem;
+  border-inline-end: 1px solid var(--border);
   border-block-end: 1px solid var(--border);
+  justify-content: flex-start;
 }
 
 .country-identity-hero[data-country-personality="panorama"] .country-official-flag {
@@ -155,6 +170,12 @@ body[data-entity-theme="country"][data-country-hero-layout="panorama"] .wiki-can
   box-shadow: 0 1px 2px rgb(0 0 0 / .08) !important;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .country-identity-hero[data-country-personality="panorama"] .maplibregl-canvas {
+    scroll-behavior: auto !important;
+  }
+}
+
 @container country-identity (width < 48rem) {
   .country-identity-hero[data-country-personality="panorama"] .country-hero-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -166,13 +187,16 @@ body[data-entity-theme="country"][data-country-hero-layout="panorama"] .wiki-can
   }
 
   .country-identity-hero[data-country-personality="panorama"] .country-hero-copy,
-  .country-identity-hero[data-country-personality="panorama"] .country-hero-art,
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-flag-zone,
   .country-identity-hero[data-country-personality="panorama"] .country-hero-actions {
     border-inline-end: 0;
   }
 
-  .country-identity-hero[data-country-personality="panorama"] .country-hero-art {
-    min-block-size: 7rem;
-    max-block-size: 7rem;
+  .country-identity-hero[data-country-personality="panorama"] .country-hero-art,
+  .country-identity-hero[data-country-personality="panorama"] .atlas-map-shell,
+  .country-identity-hero[data-country-personality="panorama"] .atlas-map-canvas,
+  .country-identity-hero[data-country-personality="panorama"] .atlas-geographic-fallback {
+    min-block-size: 12rem;
+    max-block-size: 12rem;
   }
 }
