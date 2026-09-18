@@ -1,0 +1,508 @@
+/* Solaris Country Source-Driven Shared Foundation
+   =====================================
+   The personality layer is allowed to change art direction, not semantic
+   geometry. All required content stays in normal flow. Hard graphics are
+   confined to .country-hero-art. Official flag media always uses contain.
+
+   Shared semantic geometry only. Personality art direction lives exclusively in the source adapters.\n*/
+
+/* -------------------------------------------------------------------------- */
+/* SHARED TOKENS                                                              */
+/* -------------------------------------------------------------------------- */
+
+:where(.country-identity-hero, .country-public-hero, .wiki-public-hero) {
+  --cp-space-1: .25rem;
+  --cp-space-2: .5rem;
+  --cp-space-3: .75rem;
+  --cp-space-4: 1rem;
+  --cp-space-5: 1.5rem;
+  --cp-space-6: 2rem;
+  --cp-space-7: 3rem;
+  --cp-space-8: 4rem;
+  --cp-radius-sm: .5rem;
+  --cp-radius-md: .75rem;
+  --cp-radius-lg: 1.25rem;
+  --cp-rule: color-mix(in srgb, var(--border) 72%, transparent);
+  --cp-solid-surface: color-mix(in srgb, var(--surface) 96%, var(--background));
+  --cp-soft-surface: color-mix(in srgb, var(--surface) 90%, transparent);
+  --cp-title-size: clamp(2.65rem, 8cqi, 6.4rem);
+  --cp-title-leading: .92;
+  --cp-copy-measure: 64ch;
+  --cp-transition: 160ms cubic-bezier(.2,.7,.2,1);
+}
+
+/* -------------------------------------------------------------------------- */
+/* CANONICAL HERO FOUNDATION                                                  */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero {
+  position: relative;
+  isolation: isolate;
+  container: country-identity / inline-size;
+  min-inline-size: 0;
+  overflow: clip;
+  border: 1px solid var(--cp-rule);
+  border-radius: var(--cp-radius-lg);
+  background: var(--cp-solid-surface);
+  color: var(--foreground);
+}
+
+.country-identity-hero--compact {
+  --cp-title-size: clamp(2.2rem, 6.5cqi, 4.5rem);
+}
+
+.country-hero-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.country-hero-scene-flag {
+  display: none;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.country-hero-scene-light {
+  position: absolute;
+  display: none;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.country-hero-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-inline-size: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(10rem, 16rem);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  align-items: end;
+  gap: clamp(var(--cp-space-5), 3cqi, var(--cp-space-7));
+  padding: clamp(var(--cp-space-5), 4cqi, var(--cp-space-7));
+}
+
+.country-identity-hero[data-country-has-art="true"] .country-hero-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(8rem, .42fr) minmax(10rem, 15rem);
+  grid-template-areas:
+    "copy art flag"
+    "actions art flag";
+}
+
+.country-hero-copy {
+  grid-area: copy;
+  min-inline-size: 0;
+  align-self: center;
+}
+
+.country-hero-eyebrow {
+  margin: 0 0 var(--cp-space-3);
+  color: var(--primary);
+  font-size: clamp(.66rem, 1.2cqi, .78rem);
+  font-weight: 800;
+  letter-spacing: .15em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.country-hero-title {
+  max-inline-size: 100%;
+  margin: 0;
+  color: var(--foreground);
+  font-family: var(--font-display, inherit);
+  font-size: var(--cp-title-size);
+  font-weight: 760;
+  letter-spacing: -.055em;
+  line-height: var(--cp-title-leading);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.country-hero-meta {
+  max-inline-size: var(--cp-copy-measure);
+  margin: var(--cp-space-3) 0 0;
+  color: var(--muted-foreground);
+  font-size: clamp(.8rem, 1.3cqi, .96rem);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.country-hero-description {
+  max-inline-size: var(--cp-copy-measure);
+  margin: var(--cp-space-4) 0 0;
+  color: color-mix(in srgb, var(--foreground) 74%, transparent);
+  font-size: clamp(.9rem, 1.25cqi, 1rem);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.country-hero-flag-zone {
+  grid-area: flag;
+  display: grid;
+  min-inline-size: 0;
+  align-self: center;
+  justify-items: center;
+  gap: var(--cp-space-2);
+}
+
+.country-official-flag {
+  display: grid;
+  inline-size: min(100%, 15rem);
+  min-block-size: 6.5rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--cp-rule);
+  border-radius: var(--cp-radius-md);
+  background: color-mix(in srgb, var(--surface) 94%, var(--background));
+}
+
+.country-official-flag img,
+[data-flag-role="official"] img,
+[data-flag-chip="true"] img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: 100%;
+  max-block-size: 12rem;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+.country-official-flag-fallback {
+  display: grid;
+  inline-size: 100%;
+  min-block-size: 6.5rem;
+  place-items: center;
+  border: 1px dashed currentColor;
+  color: var(--muted-foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.country-flag-caption {
+  color: var(--muted-foreground);
+  font-size: .64rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.country-hero-actions {
+  grid-area: actions;
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  gap: var(--cp-space-2);
+  align-items: center;
+}
+
+.country-hero-actions :is(a, button) {
+  display: inline-flex;
+  min-block-size: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cp-rule);
+  border-radius: .65rem;
+  background: var(--cp-solid-surface);
+  color: var(--foreground);
+  font-size: .78rem;
+  font-weight: 750;
+  line-height: 1.15;
+  text-decoration: none;
+  transition: border-color var(--cp-transition), background-color var(--cp-transition), transform var(--cp-transition);
+}
+
+.country-hero-actions :is(a, button):hover {
+  border-color: color-mix(in srgb, var(--primary) 56%, var(--border));
+  background: color-mix(in srgb, var(--cp-solid-surface) 94%, var(--primary) 6%);
+}
+
+.country-hero-actions :is(a, button):active {
+  transform: translateY(1px);
+}
+
+.country-hero-actions :is(a, button):focus-visible,
+.country-identity-hero :is(a, button):focus-visible,
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) :is(a, button):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 74%, white 26%);
+  outline-offset: 3px;
+}
+
+/* Graphic art is always bounded. Nothing inside may escape into semantic cells. */
+.country-hero-art {
+  grid-area: art;
+  position: relative;
+  min-inline-size: 0;
+  min-block-size: 11rem;
+  align-self: stretch;
+  overflow: hidden;
+  border-radius: var(--cp-radius-sm);
+  pointer-events: none;
+}
+
+.country-hero-art > span {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* LEGACY PUBLIC-MARKUP SAFETY CONTRACT                                       */
+/* -------------------------------------------------------------------------- */
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+  position: relative;
+  isolation: isolate;
+  container: country-production-hero / inline-size;
+  min-inline-size: 0;
+  min-block-size: 16rem;
+  overflow: clip;
+  padding: clamp(var(--cp-space-5), 4cqi, var(--cp-space-7)) !important;
+  border: 1px solid var(--cp-rule) !important;
+  border-radius: var(--cp-radius-lg) !important;
+  background: var(--cp-solid-surface) !important;
+  box-shadow: none !important;
+  text-align: start !important;
+}
+
+body[data-entity-theme="country"] .wiki-public-hero {
+  min-block-size: 11rem;
+}
+
+/* Old decorative layers are disabled. The source-driven system does not permit free-floating hard art. */
+body[data-entity-theme="country"] :is(.country-personality-signature, .country-glass-panel-flag) {
+  display: none !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-background-flag {
+  display: none !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+  position: relative !important;
+  z-index: 1 !important;
+  display: grid !important;
+  min-inline-size: 0;
+  inline-size: 100%;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: end !important;
+  gap: clamp(var(--cp-space-5), 3cqi, var(--cp-space-7)) !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-identity {
+  display: flex !important;
+  min-inline-size: 0;
+  align-items: center !important;
+  gap: clamp(var(--cp-space-3), 2cqi, var(--cp-space-5)) !important;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-identity > div {
+  min-inline-size: 0;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title {
+  position: static !important;
+  max-inline-size: 100% !important;
+  margin-inline: 0 !important;
+  transform: none !important;
+  font-size: var(--cp-title-size) !important;
+  font-weight: 760 !important;
+  letter-spacing: -.055em !important;
+  line-height: var(--cp-title-leading) !important;
+  overflow-wrap: anywhere !important;
+  text-align: start !important;
+  text-wrap: balance;
+}
+
+body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) [data-flag-chip="true"] {
+  position: static !important;
+  flex: 0 0 auto;
+  transform: none !important;
+}
+
+body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > :last-child,
+body[data-entity-theme="country"] .wiki-public-hero .wiki-dashboard-link {
+  position: static !important;
+  z-index: 1;
+  min-inline-size: 0;
+  transform: none !important;
+}
+
+body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > :last-child {
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cp-space-2);
+}
+
+body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > :last-child :is(a, button),
+body[data-entity-theme="country"] .wiki-public-hero .wiki-dashboard-link {
+  min-block-size: 2.75rem;
+  border: 1px solid var(--cp-rule) !important;
+  background: var(--cp-solid-surface) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* RESPONSIVE RECOMPOSITION                                                   */
+/* -------------------------------------------------------------------------- */
+
+@container country-identity (width < 52rem) {
+  .country-identity-hero[data-country-has-art="true"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(9rem, 13rem);
+    grid-template-areas:
+      "copy flag"
+      "art flag"
+      "actions actions";
+  }
+
+  .country-hero-art {
+    min-block-size: 7rem;
+  }
+}
+
+@container country-identity (width < 40rem) {
+  .country-hero-layout,
+  .country-identity-hero[data-country-has-art="true"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "art"
+      "actions";
+    align-items: start;
+    gap: var(--cp-space-4);
+    padding: var(--cp-space-5);
+  }
+
+  .country-identity-hero:not([data-country-has-art="true"]) .country-hero-art {
+    display: none;
+  }
+
+  .country-hero-flag-zone {
+    justify-items: start;
+  }
+
+  .country-official-flag {
+    inline-size: min(100%, 19rem);
+  }
+
+  .country-hero-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    inline-size: 100%;
+  }
+
+  .country-hero-actions :is(a, button) {
+    inline-size: 100%;
+  }
+
+  .country-hero-actions > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@container country-production-hero (width < 42rem) {
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+
+  body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > :last-child {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 639px) {
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) {
+    min-block-size: 0;
+    padding: var(--cp-space-5) !important;
+    border-radius: .85rem !important;
+  }
+
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) > .relative.z-10 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: var(--cp-space-4) !important;
+  }
+
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-identity {
+    align-items: flex-start !important;
+  }
+
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) .country-hero-title {
+    font-size: clamp(2.2rem, 12vw, 3.8rem) !important;
+    line-height: .9 !important;
+  }
+
+  body[data-entity-theme="country"] :is(.country-public-hero, .wiki-public-hero) [data-flag-chip="true"] {
+    inline-size: min(7.5rem, 32vw) !important;
+    block-size: auto !important;
+    aspect-ratio: 3 / 2;
+  }
+
+  body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > :last-child {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    inline-size: 100%;
+  }
+
+  body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > :last-child :is(a, button) {
+    inline-size: 100%;
+  }
+
+  body[data-entity-theme="country"] .country-public-hero > .relative.z-10 > :last-child > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* ACCESSIBILITY / USER PREFERENCES                                           */
+/* -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.country-identity-hero, .country-public-hero, .wiki-public-hero) *,
+  :where(.country-identity-hero, .country-public-hero, .wiki-public-hero) {
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :where(.country-identity-hero, .country-public-hero, .wiki-public-hero) {
+    border-color: currentColor !important;
+  }
+
+  :where(.country-identity-hero, .country-public-hero, .wiki-public-hero) :is(.country-hero-meta, .country-hero-description) {
+    color: var(--foreground) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.country-identity-hero, .country-public-hero, .wiki-public-hero),
+  :where(.country-identity-hero, .country-public-hero, .wiki-public-hero) :is(.country-official-flag, a, button) {
+    border-color: CanvasText !important;
+    background: Canvas !important;
+    box-shadow: none !important;
+    color: CanvasText !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .country-hero-scene,
+  .country-hero-art,
+  body[data-entity-theme="country"] .country-hero-background-flag {
+    display: none !important;
+  }
+}
