@@ -6,12 +6,20 @@
   "commit": "b5d7b7bbe5ce9c4c50fcfad4f19ee3646cfd7ae1",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["tufte.css"],
-  "excludedFiles": ["et-book font directory"],
+  "importedFiles": [
+    "tufte.css"
+  ],
+  "excludedFiles": [
+    "et-book font directory"
+  ],
   "solarisChanges": [
     "translate the 55/40 document and margin relationship into collision-safe CSS grid",
     "map ET Book display role to Solaris Classica",
     "map UI and body roles to Solaris Gotham",
     "retain Tufte rhythm, marginalia logic and figure proportions"
-  ]
+  ],
+  "source": "Tufte CSS",
+  "licenseFile": "src/styles/personality-sources/editorial/LICENSE",
+  "visualAuthority": "Edward Tufte editorial publishing",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }

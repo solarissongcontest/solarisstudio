@@ -1,5 +1,5 @@
 import buttonStyles from "@/country-button-theme.css?inline";
-import personalityV8 from "@/country-personality-system-v8.css?inline";
+import sharedFoundation from "@/country-personality-shared-foundation.css?inline";
 import wikiV8 from "@/country-wiki-v8.css?inline";
 import wikiComponentsV8 from "@/country-wiki-components-v8.css?inline";
 import sourceFoundation from "@/country-personality-source-foundation.css?inline";
@@ -20,10 +20,11 @@ import avantGardeSource from "@/styles/personalities/avant-garde-source.adapter.
 import passportSource from "@/styles/personalities/passport-source.adapter.css?inline";
 import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline";
 import glassSource from "@/styles/personalities/glass-source.adapter.css?inline";
+import personalityCompositions from "@/styles/personality-compositions.css?inline";
 
 const countryPersonalityStyles = [
   buttonStyles,
-  personalityV8,
+  sharedFoundation,
   wikiV8,
   wikiComponentsV8,
   sourceFoundation,
@@ -44,14 +45,16 @@ const countryPersonalityStyles = [
   passportSource,
   atlasSource,
   glassSource,
+  personalityCompositions,
 ].join("\n");
 
 /**
  * One route-scoped style payload.
  *
- * V8 remains the compatibility foundation while the source-driven system is
- * introduced personality by personality. Source adapters load last so the
- * human-designed source grammar wins without restoring the old repair cascade.
+ * The shared foundation owns semantic geometry. Source adapters provide pinned
+ * source-derived design grammar, then the Solaris composition layer arranges
+ * semantic country content per personality. No legacy all-personality stylesheet
+ * participates in production rendering.
  */
 export function CountryPersonalityStyles() {
   return <style data-country-personality-styles>{countryPersonalityStyles}</style>;

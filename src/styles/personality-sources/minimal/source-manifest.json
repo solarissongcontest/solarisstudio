@@ -6,12 +6,22 @@
   "commit": "1039a4788d6abc368d5485ae6bac84a8f0e3096f",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["css/pico.css"],
-  "excludedFiles": ["fonts", "icons", "demo assets"],
+  "importedFiles": [
+    "css/pico.css"
+  ],
+  "excludedFiles": [
+    "fonts",
+    "icons",
+    "demo assets"
+  ],
   "solarisChanges": [
     "scope declarations to Minimal country and Wiki surfaces",
     "map font family to Solaris Gotham",
     "map primary color to accessible country accent",
     "preserve Pico spacing, radius and type-leading relationships"
-  ]
+  ],
+  "source": "Pico CSS",
+  "licenseFile": "src/styles/personality-sources/minimal/LICENSE",
+  "visualAuthority": "Pico semantic minimalist UI",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }

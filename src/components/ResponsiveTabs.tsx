@@ -13,6 +13,7 @@ export function ResponsiveTabs<T extends string>({
   label = "Page",
   className,
   sticky = false,
+  collapseAt = "md",
 }: {
   value: T;
   options: readonly ResponsiveTabOption<T>[];
@@ -20,6 +21,7 @@ export function ResponsiveTabs<T extends string>({
   label?: string;
   className?: string;
   sticky?: boolean;
+  collapseAt?: "md" | "lg";
 }) {
   const visibleOptions =
     label === "Manage edition"
@@ -34,6 +36,9 @@ export function ResponsiveTabs<T extends string>({
     ? value
     : visibleOptions[0]?.value ?? value;
 
+  const compactVisibility = collapseAt === "lg" ? "lg:hidden" : "md:hidden";
+  const expandedVisibility = collapseAt === "lg" ? "hidden lg:block" : "hidden md:block";
+
   return (
     <div
       className={cn(
@@ -43,7 +48,7 @@ export function ResponsiveTabs<T extends string>({
         className,
       )}
     >
-      <div className="md:hidden">
+      <div className={compactVisibility}>
         <label className="block">
           <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {label}
@@ -52,7 +57,7 @@ export function ResponsiveTabs<T extends string>({
           <select
             value={visibleValue}
             onChange={(event) => onChange(event.target.value as T)}
-            className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none focus:border-primary"
+            className="min-h-12 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none focus:border-primary"
           >
             {visibleOptions.map((item) => (
               <option key={item.value} value={item.value} className="bg-background">
@@ -63,7 +68,7 @@ export function ResponsiveTabs<T extends string>({
         </label>
       </div>
 
-      <div className="scroll-slim hidden overflow-x-auto md:block">
+      <div className={cn("scroll-slim overflow-x-auto", expandedVisibility)}>
         <div className="flex min-w-max gap-1 rounded-xl bg-surface/50 p-1">
           {visibleOptions.map((item) => {
             const active = visibleValue === item.value;

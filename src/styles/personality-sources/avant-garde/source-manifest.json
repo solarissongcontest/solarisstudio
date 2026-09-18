@@ -4,13 +4,25 @@
   "repository": "zetareticoli/superilles",
   "version": null,
   "commit": "b4404a655115f030c0bedec45cf5693169d03470",
-  "license": "MIT",
+  "license": "ISC",
   "implementationMode": "translated-components",
-  "importedFiles": ["sass/_settings.scss", "sass/_objects.grid.scss", "sass/_layouts.featureds.scss"],
-  "excludedFiles": ["demo content", "source full-viewport mobile story heights"],
+  "licenseEvidence": "upstream/package.json#license",
+  "importedFiles": [
+    "sass/_settings.scss",
+    "sass/_objects.grid.scss",
+    "sass/_layouts.featureds.scss"
+  ],
+  "excludedFiles": [
+    "demo content",
+    "source full-viewport mobile story heights"
+  ],
   "solarisChanges": [
     "retain the 12-track editorial grid and 12/24px source gaps",
     "use uneven track occupancy for post-Swiss tension without semantic overlap",
     "collapse to normal document flow below the source 740px editorial breakpoint"
-  ]
+  ],
+  "source": "Superilles Grid System",
+  "licenseFile": "src/styles/personality-sources/avant-garde/upstream/package.json#license",
+  "visualAuthority": "Wim Crouwel modular-grid experimentation",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }

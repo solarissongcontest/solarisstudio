@@ -1,0 +1,486 @@
+/* ==========================================================================
+   brutalist-web-theme / exposure layer
+   --------------------------------------------------------------------------
+   The half of this register a token file cannot hold. Tokens can say how
+   thick a rule is. They cannot say that the grid is drawn instead of implied,
+   that a table is left looking like a table, that the page carries a ticker,
+   or that type is set at a size which stops being typography and starts being
+   architecture. Those are structural decisions, and they live here.
+
+   Every value here is a var() reference to tokens.css. There is not one color
+   literal in this file.
+
+   Requires tokens.css. Load it, then components.css, then this:
+
+     <link rel="stylesheet" href="tokens/tokens.css" />
+     <link rel="stylesheet" href="components/components.css" />
+     <link rel="stylesheet" href="components/structure.css" />
+
+   THE ANTI-POLISH RULES.
+
+   Stated as rules, because a register defined only by what it looks like gets
+   copied badly. Each of these is a refusal, and each refusal is a choice with
+   a cost that was accepted rather than an effort that was skipped. That
+   distinction is the whole difference between this register and an
+   unfinished stylesheet.
+
+   1. No radius. A rounded corner is a softening gesture aimed at the reader.
+      The cost is that nothing here looks friendly. The token is zero rather
+      than absent so the refusal is visible and editable.
+
+   2. No shadow, and no elevation model at all. Depth asks the reader to
+      believe in a room with a light source in it. This page is a surface with
+      lines on it. The cost is that hierarchy has to be carried by rule
+      weight, scale and inversion, which is harder and less forgiving.
+
+   3. No transition. Duration is zero, declared rather than omitted. An eased
+      hover is the interface performing responsiveness. The cost is that the
+      page feels abrupt, and abrupt is the intended reading.
+
+   4. No gradient, no tint, no translucency. Every fill is one flat value.
+      The cost is a palette with nowhere to hide a weak hierarchy.
+
+   5. Links keep the browser's colors and their underline. The cost is a blue
+      that clashes with everything, which is the point: the reader never has
+      to work out what is clickable.
+
+   6. Structure stays visible. Grids are drawn, tables keep their rules, and
+      seams between bands are lines rather than changes in whitespace.
+
+   WHAT IS NOT REFUSED, AND WHY.
+
+   Focus rings, 44px touch targets, measured contrast, real headings, and
+   markup that works without JavaScript all stay. The register is hostile to
+   the reader's expectations about polish. It is not hostile to readers who
+   navigate by keyboard, tap with a thumb, or need the contrast to read at
+   all. Dropping those does not make a page more brutalist; it makes it
+   broken, and broken is a different thing that merely looks similar in a
+   screenshot.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   DOCUMENT SCOPE
+   Inside .bw-doc, an anchor carrying no class of its own gets the register's
+   link treatment. Anchors that carry a class are left alone, so components
+   keep their own behavior and this rule never has to be undone.
+   -------------------------------------------------------------------------- */
+.bw-doc {
+  font-family: var(--bw-font-text);
+  font-size: var(--bw-text-body);
+  line-height: var(--bw-leading-text);
+  color: var(--bw-ink);
+}
+
+.bw-doc a:not([class]) {
+  color: var(--bw-link);
+  text-decoration: underline;
+  text-decoration-thickness: var(--bw-rule);
+  text-underline-offset: 2px;
+}
+
+.bw-doc a:not([class]):visited {
+  color: var(--bw-link-visited);
+}
+
+.bw-doc a:not([class]):hover {
+  background: var(--bw-link);
+  color: var(--bw-ground);
+  text-decoration-color: var(--bw-ground);
+}
+
+.bw-doc a:not([class]):visited:hover {
+  background: var(--bw-link-visited);
+}
+
+.bw-doc a:not([class]):focus-visible {
+  outline: var(--bw-focus-width) solid var(--bw-focus-color);
+  outline-offset: var(--bw-focus-offset);
+}
+
+/* --------------------------------------------------------------------------
+   OVERSIZED TYPE
+   The register's loudness is spent here rather than on color. Set flush, so
+   the lines of a multi-line heading touch and read as a stacked block instead
+   of as separate lines of text.
+   -------------------------------------------------------------------------- */
+.bw-mega,
+.bw-display,
+.bw-h1 {
+  font-family: var(--bw-font-display);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-tight);
+  text-transform: uppercase;
+  margin: 0;
+  /* A single unbroken word at 120px is wider than a phone. Breaking it is
+     less bad than shipping a headline with its last characters offscreen. */
+  overflow-wrap: break-word;
+}
+
+.bw-mega {
+  font-size: var(--bw-text-mega);
+  line-height: var(--bw-leading-flush);
+}
+
+.bw-display {
+  font-size: var(--bw-text-display);
+  line-height: var(--bw-leading-flush);
+}
+
+.bw-h1 {
+  font-size: var(--bw-text-h1);
+  line-height: var(--bw-leading-tight);
+}
+
+.bw-h2 {
+  font-family: var(--bw-font-display);
+  font-size: var(--bw-text-h2);
+  font-weight: var(--bw-weight-bold);
+  line-height: var(--bw-leading-tight);
+  letter-spacing: var(--bw-tracking-tight);
+  text-transform: uppercase;
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+/* A label set in mono and tracked out. The register's small voice. */
+.bw-label-line {
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  color: var(--bw-ink-muted);
+  margin: 0;
+}
+
+.bw-prose {
+  font-family: var(--bw-font-text);
+  font-size: var(--bw-text-body);
+  line-height: var(--bw-leading-text);
+  max-width: var(--bw-measure);
+}
+
+/* --------------------------------------------------------------------------
+   BANDS, SEAMS AND FRAMES
+   A band boundary is a rule. Not a change in background, not a gap: a line,
+   at the heaviest weight, so the page reads as a set of stacked plates.
+   -------------------------------------------------------------------------- */
+.bw-band {
+  border-top: var(--bw-rule-heavy) solid var(--bw-rule-color);
+}
+
+.bw-band-shade {
+  background: var(--bw-shade);
+}
+
+/* The inverted band. Every rule inside it has to change color or it goes
+   invisible against the ink, so the rule color token is redefined in scope
+   rather than restated on each descendant. The muted and focus tokens are
+   swapped for the same reason: on black, muted ink is 2.37:1 and the link
+   blue used for focus is 2.23:1, and both fail. */
+.bw-invert {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+  --bw-rule-color: var(--bw-ground);
+  --bw-ink-muted: var(--bw-ink-muted-inverse);
+  --bw-focus-color: var(--bw-ground);
+}
+
+/* Order matters in this block. The base treatments come first and the
+   variants override them, because every selector here is one class plus one
+   descendant class and they all tie on specificity: whichever is written
+   last wins. Put .bw-invert .bw-btn after .bw-invert .bw-btn-solid and the
+   solid button silently stops inverting. */
+.bw-invert .bw-card,
+.bw-invert .bw-badge,
+.bw-invert .bw-btn {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+}
+
+.bw-invert .bw-btn:hover:not(:disabled) {
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+}
+
+.bw-invert .bw-badge-solid,
+.bw-invert .bw-btn-solid {
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+}
+
+.bw-invert .bw-btn-solid:hover:not(:disabled) {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+}
+
+/* The alarm keeps its color on a black band. It is the one loud value in the
+   theme and the band is exactly where something being wrong still has to
+   read as wrong. Ground text on the alarm fill is 5.66:1 either way, so the
+   badge and button stay legible without changing the fill. */
+.bw-invert .bw-badge-alarm,
+.bw-invert .bw-btn-alarm {
+  background: var(--bw-alarm);
+  color: var(--bw-ground);
+  border-color: var(--bw-alarm);
+}
+
+.bw-invert .bw-btn-alarm:hover:not(:disabled) {
+  background: var(--bw-ground);
+  color: var(--bw-alarm);
+  border-color: var(--bw-ground);
+}
+
+/* The page frame. A hard border around the whole document, which is the
+   oldest move in this register: the page announces it is a page. */
+.bw-frame {
+  border: var(--bw-rule-heavy) solid var(--bw-rule-color);
+}
+
+/* --------------------------------------------------------------------------
+   THE EXPOSED GRID
+   Most layouts imply a grid and hide it. This one draws it. The column lines
+   are painted as a repeating gradient across the container, so they show
+   through the empty tracks as well as the filled ones, which is the whole
+   difference between a drawn grid and a set of bordered boxes.
+
+   The stop positions are a twelfth of the container each, computed from the
+   same token the track list uses, so the painted lines and the real columns
+   cannot drift apart.
+   -------------------------------------------------------------------------- */
+.bw-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--bw-grid-columns), minmax(0, 1fr));
+  border: var(--bw-rule) solid var(--bw-rule-color);
+}
+
+.bw-grid-exposed {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--bw-rule-color) 0,
+    var(--bw-rule-color) var(--bw-rule-hair),
+    transparent var(--bw-rule-hair),
+    transparent calc(100% / var(--bw-grid-columns))
+  );
+}
+
+.bw-grid > * {
+  /* Cells carry their own padding rather than the grid carrying a gap. A gap
+     would put a gutter between the drawn lines and the content sitting in
+     them, and the alignment is the point of drawing the lines at all. */
+  padding: var(--bw-space-4);
+  min-width: 0;
+
+  /* Opaque, so the painted ruler stops where content starts. Without this
+     the twelve lines run behind the text and strike through it, which reads
+     as a rendering fault rather than as exposed structure. The ruler is
+     therefore visible exactly in the tracks nothing occupies, which is the
+     useful half of drawing it: the grid shows you where it has room left. */
+  background: var(--bw-ground);
+}
+
+/* The boundary between two occupied cells is drawn, since the ruler behind
+   them is covered. */
+.bw-grid > * + * {
+  border-left: var(--bw-rule-hair) solid var(--bw-rule-color);
+}
+
+.bw-invert .bw-grid > * {
+  background: var(--bw-ink);
+}
+
+/* Spans. Twelve divides by two, three, four and six, which is the reason the
+   column count is twelve. */
+.bw-span-2 { grid-column: span 2; }
+.bw-span-3 { grid-column: span 3; }
+.bw-span-4 { grid-column: span 4; }
+.bw-span-6 { grid-column: span 6; }
+.bw-span-8 { grid-column: span 8; }
+.bw-span-12 { grid-column: span 12; }
+
+/* Below the phone breakpoint a twelve-column grid is twelve columns of two
+   characters each. Every span collapses to full width and the drawn lines
+   retire with them, because a painted grid the content no longer follows is
+   the off-grid drift this layer exists to prevent. */
+@media (max-width: 767px) {
+  .bw-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bw-grid-exposed {
+    background-image: none;
+  }
+
+  .bw-grid > * {
+    grid-column: auto;
+  }
+
+  .bw-grid > * + * {
+    border-top: var(--bw-rule-hair) solid var(--bw-rule-color);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   RAW TABLE
+   A table left looking like a table. Every cell edge is drawn, the header is
+   inverted, and numbers are tabular so columns of figures line up on the
+   decimal. Most design systems spend real effort making a table stop looking
+   like one; this register treats the default as correct and invests in
+   density instead.
+   -------------------------------------------------------------------------- */
+.bw-table-scroll {
+  /* A dense table on a phone is wider than the phone. It scrolls inside its
+     own box so the page never scrolls sideways. */
+  overflow-x: auto;
+  border: var(--bw-rule) solid var(--bw-rule-color);
+}
+
+.bw-table {
+  width: 100%;
+  /* Below this a five column table squeezes its prose column to about 200px,
+     every such cell wraps to four lines, and the rows grow to 190px of
+     mostly empty space. Scrolling the table sideways inside its own frame
+     costs the reader one gesture; squeezing it costs them the shape of the
+     data. Measured on the demo at 390px, where 640px was still too narrow to
+     stop it. */
+  min-width: 900px;
+  border-collapse: collapse;
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-sm);
+  /* Inherited rather than set to ink, so the same table works inside an
+     inverted band. Declaring the color here makes the body text black on
+     black in there, which is invisible and compiles perfectly. */
+  color: inherit;
+}
+
+.bw-table caption {
+  padding: var(--bw-space-3);
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-xs);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: var(--bw-rule) solid var(--bw-rule-color);
+}
+
+.bw-table th,
+.bw-table td {
+  padding: var(--bw-space-2) var(--bw-space-3);
+  border: var(--bw-rule-hair) solid var(--bw-rule-color);
+  text-align: left;
+  vertical-align: top;
+}
+
+.bw-table thead th {
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+  font-size: var(--bw-text-xs);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bw-table tbody tr:nth-child(even) {
+  background: var(--bw-shade);
+}
+
+/* Row headers stay legible as headers without becoming a second inverted
+   band running down the left of the table. */
+.bw-table tbody th {
+  font-weight: var(--bw-weight-bold);
+  white-space: nowrap;
+}
+
+.bw-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bw-invert .bw-table thead th {
+  background: var(--bw-ground);
+  color: var(--bw-ink);
+}
+
+.bw-invert .bw-table tbody tr:nth-child(even) {
+  background: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   MARQUEE
+   The one piece of motion the register owns. It is a ticker rather than an
+   animation: long duration, constant speed, no easing, no entrance.
+
+   The track is duplicated in the markup and the copy is aria-hidden, which is
+   what makes the loop continuous without the content being announced twice.
+   -------------------------------------------------------------------------- */
+.bw-marquee {
+  display: flex;
+  overflow: hidden;
+  background: var(--bw-ink);
+  color: var(--bw-ground);
+  border-top: var(--bw-rule) solid var(--bw-ink);
+  border-bottom: var(--bw-rule) solid var(--bw-ink);
+}
+
+.bw-marquee-track {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--bw-space-8);
+  padding: var(--bw-space-2) 0;
+  padding-right: var(--bw-space-8);
+  min-width: 100%;
+
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-sm);
+  font-weight: var(--bw-weight-bold);
+  letter-spacing: var(--bw-tracking-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  animation: bw-marquee var(--bw-marquee-duration) linear infinite;
+}
+
+@keyframes bw-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+/* Reduced motion, handled honestly. The animation stops, and the content it
+   was carrying stays on the page: the strip becomes a scrollable row rather
+   than disappearing. Hiding the content along with the motion would be the
+   easy version and it would cost the reader the information. The duplicate
+   track goes, since its only job was to make the loop continuous. */
+@media (prefers-reduced-motion: reduce) {
+  .bw-marquee {
+    overflow-x: auto;
+  }
+
+  .bw-marquee-track {
+    animation: none;
+  }
+
+  .bw-marquee-track[aria-hidden="true"] {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   CODE
+   Preformatted text keeps its own frame and scrolls inside it.
+   -------------------------------------------------------------------------- */
+.bw-code {
+  overflow-x: auto;
+  margin: 0;
+  padding: var(--bw-space-4);
+  background: var(--bw-shade);
+  border: var(--bw-rule) solid var(--bw-rule-color);
+  font-family: var(--bw-font-mono);
+  font-size: var(--bw-text-sm);
+  line-height: var(--bw-leading-text);
+}

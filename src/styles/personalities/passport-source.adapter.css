@@ -70,50 +70,6 @@
   line-height: 1.55;
 }
 
-.country-identity-hero[data-country-personality="passport"] .country-hero-art {
-  min-block-size: 100%;
-  border: 0;
-  border-inline-end: 1px solid var(--foreground);
-  border-block-end: 1px solid var(--foreground);
-  border-radius: 0;
-  background: var(--background);
-}
-
-.country-identity-hero[data-country-personality="passport"] .country-hero-art-primary {
-  position: absolute;
-  inset: 12% 20% auto;
-  block-size: 1px;
-  background: var(--foreground);
-  box-shadow:
-    0 1.4rem var(--foreground),
-    0 2.8rem var(--foreground),
-    0 4.2rem var(--foreground);
-  opacity: .38;
-}
-
-.country-identity-hero[data-country-personality="passport"] .country-hero-art-secondary {
-  position: absolute;
-  inset: auto 20% 12%;
-  block-size: 2.7rem;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--foreground) 0 2px,
-    transparent 2px 5px,
-    var(--foreground) 5px 6px,
-    transparent 6px 10px
-  );
-}
-
-.country-identity-hero[data-country-personality="passport"] .country-hero-art-tertiary {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  inline-size: 2.6rem;
-  aspect-ratio: 1;
-  translate: -50% -50%;
-  border: 1px solid var(--primary);
-  border-radius: 50%;
-}
-
 .country-identity-hero[data-country-personality="passport"] .country-hero-flag-zone {
   padding: var(--document-pad);
   align-self: stretch;
@@ -182,13 +138,4 @@ body[data-entity-theme="country"][data-country-hero-layout="passport"] .wiki-sec
     border-inline-end: 0;
   }
 
-  .country-identity-hero[data-country-personality="passport"] .country-hero-art {
-    min-block-size: 4rem;
-    max-block-size: 4rem;
-    border-inline-end: 0;
-  }
-
-  .country-identity-hero[data-country-personality="passport"] .country-hero-art-tertiary {
-    display: none;
-  }
 }

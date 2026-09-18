@@ -1,202 +1,30 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
 
 import { Panel } from "@/components/AppShell";
 import { CountryCustomSections } from "@/components/country/CountryCustomSections";
 import { CountryNationalFinals } from "@/components/country/CountryNationalFinals";
-import { allTimeScoreForCountry } from "@/lib/all-time-ranking";
 import { useCountryWorldProfile } from "@/lib/country-account";
-import type {
-  CountryContestSnapshot,
-  CountryFormSnapshot,
-} from "@/lib/country-wiki";
-import {
-  editionLabel,
-  useAllShows,
-  useEditions,
-  type Country,
-  type Participant,
-  type Show,
-} from "@/lib/data";
-import { useAllParticipants, useAllResults } from "@/lib/data-live";
-import { buildPublicCountryArchive } from "@/lib/public-country-archive";
-import {
-  qualificationCountsAsQualified,
-  qualificationLabel,
-  resolveCountryEditionQualification,
-  type QualificationStatus,
-} from "@/lib/qualification";
+import type { Country } from "@/lib/data";
 
 function Fact({ label, value }: { label: string; value?: string | number | null }) {
   if (value == null || value === "") return null;
   return (
-    <div className="min-w-0 rounded-xl bg-surface px-3 py-3">
-      <p className="text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words text-sm font-semibold">{value}</p>
+    <div className="min-w-0 border-block-end border-border/60 py-2 last:border-block-end-0">
+      <dt className="text-[11px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold">{value}</dd>
     </div>
   );
 }
 
-function qualificationBadgeClass(status: QualificationStatus) {
-  if (status === "wildcard") {
-    return "rounded-full bg-amber-300/12 px-2 py-1 text-[10px] font-semibold uppercase text-amber-200";
-  }
-  if (qualificationCountsAsQualified(status)) {
-    return "rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase text-primary";
-  }
-  return "rounded-full bg-surface px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground";
-}
-
-export function CountryWorldOverview({
-  country,
-  stats,
-  form: _form,
-}: {
-  country: Country;
-  stats?: CountryContestSnapshot | null;
-  form?: CountryFormSnapshot | null;
-}) {
-  void _form;
+/**
+ * The primary Country overview is intentionally narrow in purpose:
+ * About first, then Quick Facts. Contest-specific modules are rendered by the
+ * parent route afterwards so the canonical Overview order cannot drift.
+ */
+export function CountryWorldOverview({ country }: { country: Country }) {
   const { data } = useCountryWorldProfile(country.id);
-  const { data: rawParticipants } = useAllParticipants({ realtime: false });
-  const { data: rawResults } = useAllResults({ realtime: false });
-  const { data: editions } = useEditions();
-  const { data: rawShows } = useAllShows();
-
-  // The parent country route owns the live archive subscriptions. Keep using
-  // the complete paginated archive cache here, but do not mount competing
-  // realtime channels in this nested overview. Re-apply the public gate here
-  // because this component must remain safe if it is ever rendered elsewhere.
-  const archive = useMemo(
-    () => buildPublicCountryArchive({
-      editions: editions ?? [],
-      shows: rawShows ?? [],
-      participants: rawParticipants ?? [],
-      results: rawResults ?? [],
-      jury: [],
-      televote: [],
-    }),
-    [editions, rawShows, rawParticipants, rawResults],
-  );
-
-  const editionMap = new Map(archive.editions.map((edition) => [edition.id, edition]));
-  const showMap = new Map(archive.shows.map((show) => [show.id, show]));
-  const myParticipants = archive.participants.filter((participant) => participant.country_id === country.id);
-
-  const entryByEdition = new Map<string, Participant>();
-  myParticipants.forEach((participant) => {
-    const existing = entryByEdition.get(participant.edition_id);
-    if (!existing || entryQuality(participant, showMap) > entryQuality(existing, showMap)) {
-      entryByEdition.set(participant.edition_id, participant);
-    }
-  });
-
-  const qualificationForEdition = (editionId: string) =>
-    resolveCountryEditionQualification(country.id, editionId, archive);
-
-  const entryRows = [...entryByEdition.values()].sort(
-    (a, b) =>
-      (editionMap.get(b.edition_id)?.edition_number ?? -1) -
-      (editionMap.get(a.edition_id)?.edition_number ?? -1),
-  );
-
-  const allTime = allTimeScoreForCountry(country.id, archive.shows, archive.results);
-
   const profile = data?.profile;
-  const hasWorldContent = Boolean(
-    data?.schemaReady &&
-      (profile?.summary ||
-        profile?.capital ||
-        profile?.government_type ||
-        profile?.leader_name ||
-        profile?.motto ||
-        data.sections.length),
-  );
-
-  const entryPanel = (
-    <Panel
-      title="Entries"
-      description="Each edition has one entry. The semi-final and final use that same entry."
-      actions={
-        <Link
-          to="/countries/$code"
-          params={{ code: country.short_code }}
-          className="text-xs font-semibold text-primary"
-          onClick={(event) => {
-            event.preventDefault();
-            document.querySelector('[aria-label="Country section"]')?.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            });
-          }}
-        >
-          Full history below ↓
-        </Link>
-      }
-    >
-      {entryRows.length ? (
-        <div className="divide-y divide-border/60">
-          {entryRows.slice(0, 6).map((participant) => {
-            const edition = editionMap.get(participant.edition_id);
-            const show = showMap.get(participant.show_id ?? "");
-            const entry = [participant.artist, participant.song].filter(Boolean).join(" · ");
-            const qualification = qualificationForEdition(participant.edition_id);
-            const label = qualificationLabel(qualification);
-
-            return (
-              <div
-                key={participant.edition_id}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">
-                    {entry || "Entry details not available yet"}
-                  </p>
-                  <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                    {edition ? editionLabel(edition) : "Edition"}
-                    {show?.name ? ` · latest stored appearance: ${show.name}` : ""}
-                  </p>
-                </div>
-                {label && (
-                  <span className={qualificationBadgeClass(qualification)}>{label}</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          No entry details are available for {country.name} yet.
-        </p>
-      )}
-      <p className="mt-4 border-t border-border/60 pt-3 text-[11px] leading-relaxed text-muted-foreground">
-        Historical information reflects the editions currently available in Solaris Studio. Missing editions are not counted as zeroes.
-      </p>
-    </Panel>
-  );
-
-  const allTimePanel = stats ? (
-    <Panel
-      title="All-time record"
-      description="The all-time score is the country's cumulative published Grand Final score. The position ranks every country by that same score, with equal scores sharing a place."
-    >
-      <div className="grid grid-cols-2 gap-2">
-        <Fact label="All-time score" value={allTime?.score ?? 0} />
-        <Fact label="All-time ranking" value={allTime ? `#${allTime.rank}` : "—"} />
-      </div>
-    </Panel>
-  ) : null;
-
-  if (!hasWorldContent || !data?.schemaReady) {
-    return (
-      <div className="space-y-5">
-        {entryPanel}
-        {allTimePanel}
-        <CountryNationalFinals country={country} />
-      </div>
-    );
-  }
-
+  const summary = profile?.summary || country.description;
   const facts = [
     ["Capital", profile?.capital],
     ["Government", profile?.government_type],
@@ -205,15 +33,12 @@ export function CountryWorldOverview({
     ["Languages", profile?.official_languages],
     ["Currency", profile?.currency],
   ] as const;
+  const hasFacts = facts.some(([, value]) => Boolean(value));
 
   return (
-    <div className="space-y-5">
-      {entryPanel}
-      {allTimePanel}
-      <CountryNationalFinals country={country} />
-
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]">
       <Panel
-        title={`Inside ${country.name}`}
+        title="About"
         description="Terra Solaris national profile"
         actions={
           <Link
@@ -226,42 +51,55 @@ export function CountryWorldOverview({
         }
       >
         {profile?.motto && (
-          <p className="mb-4 rounded-xl bg-surface px-4 py-3 font-display text-sm italic leading-relaxed sm:text-base">
+          <p className="mb-4 border-inline-start-2 border-primary ps-4 font-display text-sm italic leading-relaxed sm:text-base">
             “{profile.motto}”
           </p>
         )}
-
-        {(profile?.summary || country.description) && (
-          <p className="max-w-4xl whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
-            {profile?.summary || country.description}
+        {summary ? (
+          <p className="max-w-[66ch] whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
+            {summary}
           </p>
-        )}
-
-        {facts.some(([, value]) => Boolean(value)) && (
-          <div className="mt-4 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
-            {facts.map(([label, value]) => (
-              <Fact key={label} label={label} value={value} />
-            ))}
-          </div>
+        ) : (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            No national profile description is available for {country.name} yet.
+          </p>
         )}
       </Panel>
 
-      <CountryCustomSections
-        country={country}
-        profile={profile}
-        sections={data.sections}
-        media={data.media}
-        surface="country"
-      />
+      <Panel title="Quick Facts" description="National profile facts">
+        {hasFacts ? (
+          <dl className="divide-y divide-border/60">
+            {facts.map(([label, value]) => <Fact key={label} label={label} value={value} />)}
+          </dl>
+        ) : (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            No national profile facts are available yet.
+          </p>
+        )}
+      </Panel>
     </div>
   );
 }
 
-function entryQuality(participant: Participant, showMap: Map<string, Show>) {
-  const show = showMap.get(participant.show_id ?? "");
+/**
+ * Supporting world-profile content deliberately follows the canonical SSC
+ * Overview sequence instead of competing with About/Quick Facts above it.
+ */
+export function CountryWorldSupplement({ country }: { country: Country }) {
+  const { data } = useCountryWorldProfile(country.id);
+
   return (
-    (participant.artist ? 2 : 0) +
-    (participant.song ? 2 : 0) +
-    (show?.kind === "grand-final" || show?.kind === "final" ? 1 : 0)
+    <div className="space-y-5">
+      <CountryNationalFinals country={country} />
+      {data?.schemaReady ? (
+        <CountryCustomSections
+          country={country}
+          profile={data.profile}
+          sections={data.sections}
+          media={data.media}
+          surface="country"
+        />
+      ) : null}
+    </div>
   );
 }

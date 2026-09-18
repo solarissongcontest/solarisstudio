@@ -1,0 +1,208 @@
+/* ==========================================================================
+   brutalist-web-theme / tokens
+   --------------------------------------------------------------------------
+   This file is the single source of truth. Every literal value in the theme
+   lives here exactly once. The Tailwind adapters next to it (theme.css for
+   v4, preset.js for v3) hold no values of their own; they point at these
+   custom properties with var().
+
+   Each group is annotated with the creative-direction axis the choice serves.
+   The four axes are tone register, aesthetic philosophy, audience
+   relationship, and sensory ambition. Read them at
+   https://rampstack.co/framework/creative-direction
+
+   Contrast ratios in the comments are WCAG 2.1 relative-luminance figures,
+   measured against the ground or the fill named. Every text pairing here
+   clears AA. The register is hostile to the reader's expectations and not to
+   the reader's eyes, and those are separable.
+   ========================================================================== */
+
+:root {
+  /* ----------------------------------------------------------------------
+     GROUND AND INK
+     Aesthetic philosophy axis. Pure white and pure black, the two values a
+     browser reaches for when nobody has told it otherwise. Softer pairings
+     are the sound of a design system apologizing for the contrast it needs.
+     This register wants the maximum, and it wants the reader to recognize
+     the maximum as the untouched default rather than as a palette.
+     ---------------------------------------------------------------------- */
+  --bw-ground: #ffffff;      /* the page. 21:1 against ink */
+  --bw-ink: #000000;         /* text and every rule on the page */
+  --bw-ink-muted: #4a4a4a;   /* metadata and timestamps. 8.86:1 on ground */
+  --bw-shade: #e8e8e8;       /* table stripes and code blocks. ink on it: 17.14:1 */
+
+  /* Inverted bands reuse the two values above rather than adding a dark
+     palette. A black band is this ground and this ink swapped, which is why
+     there is no third and fourth color here to keep in sync.
+
+     One value cannot be reused that way. Muted ink on a black band is
+     2.37:1 and fails, so the muted role gets a second value for that case
+     and structure.css swaps it in on .bw-invert. */
+  --bw-ink-muted-inverse: #8a8a8a;  /* 6.08:1 on ink */
+
+  /* ----------------------------------------------------------------------
+     LINK
+     Audience relationship axis. These are the browser's own link colors,
+     kept on purpose. Every other register in the collection replaces them,
+     and replacing them is how a link stops announcing itself as a link and
+     starts depending on context to be understood. Peer means the reader is
+     handed the convention they already know instead of a house style they
+     have to learn.
+     ---------------------------------------------------------------------- */
+  --bw-link: #0000ee;          /* 9.40:1 on ground, 7.67:1 on shade */
+  --bw-link-visited: #551a8b;  /* 11.01:1 on ground */
+
+  /* On an inverted band this blue drops to 2.23:1 and fails, so the link
+     rule in components.css hands links the ground color inside .bw-invert.
+     The underline is what still marks them, which is the whole argument for
+     keeping underlines on links. */
+
+  /* ----------------------------------------------------------------------
+     ALARM
+     Tone register axis. One color, spent only on the thing that is actually
+     wrong. Provocative earns its volume by keeping the volume rare: a
+     register with a red for errors and an amber for warnings and a green for
+     healthy has three colors saying what words could say, and it has spent
+     the alarm before anything went wrong.
+     ---------------------------------------------------------------------- */
+  --bw-alarm: #d10000;  /* 5.66:1 on ground. Ground text on it: 5.66:1 */
+
+  /* ----------------------------------------------------------------------
+     RULE
+     Aesthetic philosophy axis. Borders here are construction rather than
+     decoration, so they are named rules and they are drawn at weights the
+     reader cannot mistake for a hairline finish. Two pixels is the working
+     weight. Six is structural and belongs to the frame of a band. One pixel
+     is the data weight: it exists so a dense table can draw every cell edge
+     without the table turning into a black grid.
+     ---------------------------------------------------------------------- */
+  --bw-rule: 2px;
+  --bw-rule-heavy: 6px;
+  --bw-rule-hair: 1px;
+  --bw-rule-color: var(--bw-ink);
+
+  /* ----------------------------------------------------------------------
+     RADIUS
+     Audience relationship axis. Zero, and it is a token rather than an
+     absent property so the refusal is editable in one place. A rounded
+     corner is a softening gesture aimed at the reader, and this register
+     does not make it. CUSTOMIZE.md moves this token first, because it is the
+     single value that carries most of the distance to a composed sibling.
+     ---------------------------------------------------------------------- */
+  --bw-radius: 0;
+
+  /* There is no shadow group in this file. An offset shadow claims one plane
+     sits above another, and this register draws structure with rules on a
+     single plane instead. The refusal is stated as a rule in structure.css
+     alongside the others. */
+
+  /* ----------------------------------------------------------------------
+     TYPE
+     Tone register axis. Two stacks, both of them fonts the machine already
+     has, so the theme loads no webfont and makes no network request.
+
+     The display stack is the grotesque the register was built on, set very
+     large and tracked tight. The text stack is the browser's default serif,
+     which is the other pole of web brutalism and the one that reads as a
+     document nobody styled. Running both is deliberate: the huge grotesque
+     over serif body is the fashion end of this register, and the serif body
+     on its own is the functional end.
+
+     Weights stop at 700 because Helvetica and Arial ship 400 and 700 and
+     nothing between. Declaring 800 here would get the reader a synthesized
+     bold, which is a smeared outline rather than a heavier cut.
+     ---------------------------------------------------------------------- */
+  --bw-font-display: "Helvetica Neue", Helvetica, Arial, "Liberation Sans",
+    sans-serif;
+  --bw-font-text: Times, "Times New Roman", "Liberation Serif", serif;
+  --bw-font-mono: "Courier New", Courier, ui-monospace, monospace;
+
+  --bw-weight-text: 400;
+  --bw-weight-bold: 700;
+
+  /* The three largest steps are fluid. A fixed 120px headline is not a
+     statement on a 390px phone, it is a headline with its last three
+     characters outside the viewport. */
+  --bw-text-mega: clamp(3rem, 13vw, 7.5rem);        /* 48px to 120px */
+  --bw-text-display: clamp(2.25rem, 7vw, 4.5rem);   /* 36px to 72px */
+  --bw-text-h1: clamp(1.875rem, 4.5vw, 3rem);       /* 30px to 48px */
+  --bw-text-h2: 2rem;         /* 32px */
+  --bw-text-h3: 1.375rem;     /* 22px */
+  --bw-text-body: 1.0625rem;  /* 17px. Times runs small, so the body step is
+                                 one notch up from the usual 16px floor */
+  --bw-text-sm: 0.9375rem;    /* 15px */
+  --bw-text-xs: 0.8125rem;    /* 13px, labels and table metadata only */
+
+  --bw-leading-flush: 0.85;  /* mega type, set tight enough that the lines touch */
+  --bw-leading-tight: 1.05;
+  --bw-leading-text: 1.45;
+
+  --bw-tracking-tight: -0.03em;  /* large grotesque opens up and needs closing */
+  --bw-tracking-wide: 0.08em;    /* uppercase labels */
+
+  /* ----------------------------------------------------------------------
+     SPACE
+     Aesthetic philosophy axis. The scale is ordinary because the register's
+     loudness is spent on scale and contrast rather than on irregular
+     spacing. Space that is unpredictable as well as tight reads as a broken
+     stylesheet, and a broken stylesheet is the one thing this register keeps
+     being mistaken for.
+     ---------------------------------------------------------------------- */
+  --bw-space-1: 4px;
+  --bw-space-2: 8px;
+  --bw-space-3: 12px;
+  --bw-space-4: 16px;
+  --bw-space-6: 24px;
+  --bw-space-8: 32px;
+  --bw-space-12: 48px;
+  --bw-space-16: 64px;
+  --bw-space-24: 96px;
+
+  /* A measure past the comfortable 65 to 75 characters. The reader gets the
+     full width of the column, which is what an unstyled document does. This
+     is a real cost in reading comfort and it is the position, not an
+     oversight. CUSTOMIZE.md pulls it back as part of the composed move. */
+  --bw-measure: 78ch;
+  --bw-container: 1240px;
+
+  /* ----------------------------------------------------------------------
+     GRID
+     Aesthetic philosophy axis. The column count is a token because the
+     exposure system draws the grid rather than implying it, so the number of
+     columns is a visible fact on the page and has to be editable in one
+     place. Twelve divides by two, three, four and six, which is what makes
+     an exposed grid usable rather than decorative.
+     ---------------------------------------------------------------------- */
+  --bw-grid-columns: 12;
+
+  /* ----------------------------------------------------------------------
+     MOTION
+     Sensory ambition axis. The duration is zero. Hover and focus states
+     arrive instantly, because an eased transition is the interface
+     performing responsiveness, and Functional wants the state change
+     reported rather than staged. There is no easing token here for the same
+     reason: nothing eases.
+
+     The marquee is the exception, and it is the one piece of motion the
+     register historically owns. It is long on purpose, so it reads as a
+     ticker rather than as an animation demanding attention.
+     ---------------------------------------------------------------------- */
+  --bw-duration: 0s;
+  --bw-marquee-duration: 26s;
+
+  /* ----------------------------------------------------------------------
+     FOCUS
+     Audience relationship axis. Everything on this page is already outlined
+     in ink, so a black focus ring would be invisible against the structure.
+     The ring takes the link blue, which is the one color on the page the
+     reader already reads as interactive.
+     ---------------------------------------------------------------------- */
+  --bw-focus-color: var(--bw-link);  /* 9.40:1 on ground, clears the 3:1 UI floor */
+  --bw-focus-width: 3px;
+  --bw-focus-offset: 2px;
+}
+
+/* Anyone who has asked the operating system to stop animating gets a theme
+   with no motion at all. The marquee stops and its content stays on the page,
+   readable and static, rather than being hidden along with the animation. The
+   rule that does this lives in structure.css next to the marquee itself. */

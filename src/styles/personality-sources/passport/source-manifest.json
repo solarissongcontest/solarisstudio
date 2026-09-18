@@ -3,16 +3,30 @@
   "sourceName": "Jesus Ramirez International Airline Ticket CSS",
   "repository": null,
   "sourceUrl": "https://codehim.com/html5-css3/international-airline-ticket-in-html-css/",
-  "version": null,
-  "commit": null,
+  "version": "2024-03-04",
+  "commit": "codehim-2024-03-04",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["published HTML structure", "published CSS ticket zones"],
   "structuralAuthority": "ICAO Doc 9303 identity-document zoning",
-  "excludedFiles": ["Font Awesome icons", "Google Fonts", "airline/travel sample data"],
+  "importedFiles": [
+    "published HTML structure",
+    "published ticket CSS"
+  ],
+  "excludedFiles": [
+    "Font Awesome icon dependency",
+    "airline branding",
+    "airplane metaphors",
+    "seat/gate fields",
+    "Google Fonts"
+  ],
   "solarisChanges": [
-    "translate the source colour-top / white-detail zoning into responsive country identity zones",
-    "replace absolute fixed-size ticket geometry with collision-safe CSS Grid",
-    "retain aligned label/value rhythm and a decorative machine-code strip without fabricating identity data"
-  ]
+    "freeze the cited CodeHim publication snapshot by publication date instead of following an unversioned latest page",
+    "retain field/value hierarchy and segmented document geometry",
+    "replace flight-specific fields with Country identity metadata",
+    "apply ICAO-inspired zoning without imitating a real identity document"
+  ],
+  "source": "Jesus Ramirez International Airline Ticket CSS",
+  "licenseFile": "src/styles/personality-sources/passport/LICENSE-EVIDENCE.md",
+  "visualAuthority": "ICAO Doc 9303 document zoning",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }

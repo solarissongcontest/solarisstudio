@@ -2,8 +2,8 @@
    Upstream: samasante/liquid-glass @ 4e7b769e1df7e5a7d3669fef22417fe3d2f79ade
    License: MIT. Engine source is vendored in src/vendor/liquid-glass/.
 
-   One source-backed material wraps the semantic identity grid. V8's prior
-   simulated backdrop layer is disabled so there is exactly one glass surface. */
+   One source-backed material wraps the semantic identity grid. The prior
+   simulated backdrop approach is gone, so there is exactly one glass surface. */
 
 .country-identity-hero[data-country-personality="glass-card"] {
   border: 0 !important;

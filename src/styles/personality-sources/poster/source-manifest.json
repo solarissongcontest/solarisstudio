@@ -6,12 +6,23 @@
   "commit": "55e82b52f2c4c2893f79628c77ed31418d5975e6",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["tokens/tokens.css", "components/grid.css", "components/components.css"],
-  "excludedFiles": ["demo assets", "development grid reveal overlays"],
+  "importedFiles": [
+    "tokens/tokens.css",
+    "components/grid.css",
+    "components/components.css"
+  ],
+  "excludedFiles": [
+    "demo assets",
+    "development grid reveal overlays"
+  ],
   "solarisChanges": [
     "map the source accent to each country's accessible primary role",
     "keep the source 8px baseline and 12-column desktop grammar",
     "collapse honestly to one column on narrow containers",
     "preserve source square corners, rule hierarchy and one-grotesque typography"
-  ]
+  ],
+  "source": "RampStack Swiss Style Theme",
+  "licenseFile": "src/styles/personality-sources/poster/LICENSE",
+  "visualAuthority": "International Typographic Style",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }

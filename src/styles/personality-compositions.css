@@ -1,0 +1,1089 @@
+/* Solaris personality composition layer
+   =====================================
+   Source adapters define source-derived tokens and component grammar.
+   This file owns Solaris composition only. It intentionally loads AFTER every
+   source adapter so a personality can arrange the shared semantic content
+   without reverting to the old one-grid-fits-all hero. */
+
+.country-personality-composition {
+  position: relative;
+  z-index: 1;
+  min-inline-size: 0;
+}
+
+.country-personality-composition .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+}
+
+.country-personality-composition :is(.country-passport-fields, .country-archive-fields, .country-diplomatic-summary, .country-scientific-data) {
+  margin: 0;
+}
+
+.country-personality-composition :is(.country-passport-fields, .country-archive-fields, .country-diplomatic-summary, .country-scientific-data) div {
+  min-inline-size: 0;
+}
+
+.country-personality-composition :is(.country-passport-fields, .country-archive-fields, .country-diplomatic-summary, .country-scientific-data) :is(dt, dd) {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------------------- */
+/* GLASS — one material, not a card inside a card                             */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="glass-card"] {
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: clamp(.75rem, 2.5cqi, 1.5rem);
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-hero-scene {
+  display: block;
+  border-radius: clamp(1.15rem, 3cqi, 2rem);
+  background:
+    radial-gradient(circle at 78% 18%, rgb(var(--solaris-accent) / .30), transparent 28%),
+    linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .88), rgb(var(--solaris-bg-secondary) / .66));
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-hero-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgb(4 8 15 / .12), rgb(4 8 15 / .28)),
+    radial-gradient(circle at var(--glass-pointer-x, 74%) var(--glass-pointer-y, 16%), rgb(255 255 255 / .16), transparent 26%);
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-hero-scene-flag {
+  display: block;
+  opacity: .34;
+  filter: blur(18px) saturate(1.25);
+  transform: scale(1.22);
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material {
+  position: relative;
+  z-index: 1;
+  inline-size: min(100%, 64rem);
+  margin: clamp(1rem, 4cqi, 3rem) auto !important;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / .24) !important;
+  border-radius: clamp(1rem, 2.5cqi, 1.6rem) !important;
+  background:
+    radial-gradient(circle at var(--glass-pointer-x, 74%) var(--glass-pointer-y, 16%), rgb(255 255 255 / .15), transparent 26%),
+    linear-gradient(145deg, rgb(255 255 255 / .11), rgb(255 255 255 / .035)) !important;
+  box-shadow:
+    0 1.25rem 3.5rem rgb(0 0 0 / .22),
+    inset 0 1px rgb(255 255 255 / .22),
+    inset 0 -1px rgb(255 255 255 / .06) !important;
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass {
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 11rem);
+  grid-template-areas:
+    "copy flag"
+    "description flag"
+    "actions actions";
+  gap: .9rem 1.25rem;
+  padding: clamp(1.15rem, 3.8cqi, 2rem) !important;
+  align-items: center;
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass > .country-hero-description { grid-area: description; margin: 0; }
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-actions { grid-area: actions; }
+
+.country-identity-hero[data-country-personality="glass-card"] .country-hero-title {
+  font-size: clamp(2.65rem, 8.5cqi, 5.7rem);
+  line-height: .92 !important;
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-official-flag {
+  min-block-size: 0;
+  border: 1px solid rgb(255 255 255 / .26) !important;
+  border-radius: .7rem !important;
+  background: rgb(255 255 255 / .05) !important;
+  box-shadow: inset 0 1px rgb(255 255 255 / .12) !important;
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-official-flag img {
+  max-block-size: 9rem;
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-hero-actions {
+  gap: .5rem;
+  border-block-start: 1px solid rgb(255 255 255 / .15);
+  padding-block-start: .85rem;
+}
+
+.country-identity-hero[data-country-personality="glass-card"] .country-hero-actions :is(a, button) {
+  inline-size: auto !important;
+  flex: 0 0 auto !important;
+  padding-inline: 1rem !important;
+  border: 1px solid rgb(255 255 255 / .20) !important;
+  border-radius: 999px !important;
+  background: rgb(8 13 23 / .28) !important;
+  box-shadow: inset 0 1px rgb(255 255 255 / .11) !important;
+  backdrop-filter: blur(12px);
+}
+
+.country-profile-v8[data-country-personality="glass-card"] .data-panel {
+  border: 1px solid rgb(255 255 255 / .13) !important;
+  border-radius: 1rem !important;
+  background: color-mix(in srgb, var(--surface) 42%, transparent) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px);
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="glass-card"] {
+    padding: .55rem;
+  }
+
+  .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material {
+    margin: .65rem auto !important;
+    inline-size: calc(100% - 1.3rem);
+  }
+
+  .country-identity-hero[data-country-personality="glass-card"] .country-composition-glass {
+    grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 7.5rem);
+    grid-template-areas:
+      "copy copy"
+      "flag description"
+      "actions actions";
+    padding: 1.1rem !important;
+    gap: .85rem 1rem;
+  }
+
+  .country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-title {
+    font-size: clamp(2.7rem, 15cqi, 4.15rem) !important;
+  }
+
+  .country-identity-hero[data-country-personality="glass-card"] .country-composition-glass .country-hero-description {
+    align-self: center;
+    font-size: .86rem;
+    line-height: 1.45;
+  }
+
+  .country-identity-hero[data-country-personality="glass-card"] .country-hero-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* POSTER — content is the graphic                                            */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="poster"] {
+  border: 0 !important;
+  border-block-start: 4px solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-scene,
+.country-identity-hero[data-country-personality="poster"] .country-hero-art {
+  display: none !important;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "index index index index index index index index index index index index"
+    "copy copy copy copy copy copy copy flag flag flag flag flag"
+    "copy copy copy copy copy copy copy flag flag flag flag flag"
+    "actions actions actions actions actions actions actions actions actions actions actions actions";
+  gap: 1.5rem;
+  padding: 1.25rem 0 2rem !important;
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-poster-index {
+  grid-area: index;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding-block-end: .65rem;
+  border-block-end: 1px solid var(--foreground);
+  font: 700 .72rem/1 var(--sw-font, "Helvetica Neue", Arial, sans-serif);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-hero-flag-zone { grid-area: flag; align-self: end; justify-items: stretch; }
+.country-identity-hero[data-country-personality="poster"] .country-composition-poster .country-hero-actions { grid-area: actions; }
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-title {
+  max-inline-size: 8ch !important;
+  margin: 0 !important;
+  font-size: clamp(4rem, 11cqi, 8.4rem) !important;
+  letter-spacing: -.055em !important;
+  line-height: .82 !important;
+  text-transform: none;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-meta {
+  inline-size: fit-content;
+  margin-block-start: 1rem;
+  padding: .35rem .5rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 700;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-official-flag {
+  inline-size: 100%;
+  max-inline-size: none;
+  min-block-size: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-official-flag img {
+  max-block-size: 15rem;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-flag-caption {
+  justify-self: end;
+  margin-block-start: .5rem;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-block: 1px solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-actions :is(a, button) {
+  min-inline-size: 0;
+  border: 0 !important;
+  border-inline-end: 1px solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--foreground) !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-actions :is(a, button):first-child {
+  background: var(--foreground) !important;
+  color: var(--background) !important;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-actions :is(a, button):last-child {
+  border-inline-end: 0 !important;
+}
+
+@container country-identity (width < 48rem) {
+  .country-identity-hero[data-country-personality="poster"] .country-composition-poster {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-areas:
+      "index index index index index index"
+      "copy copy copy copy copy copy"
+      "copy copy copy copy copy copy"
+      "flag flag flag flag . ."
+      "actions actions actions actions actions actions";
+    gap: 1rem;
+    padding-block: 1rem 1.5rem !important;
+  }
+
+  .country-identity-hero[data-country-personality="poster"] .country-hero-title {
+    max-inline-size: 100% !important;
+    font-size: clamp(3.5rem, 18cqi, 5.25rem) !important;
+  }
+
+  .country-identity-hero[data-country-personality="poster"] .country-hero-description {
+    margin-block-start: 1rem;
+    font-size: .9rem;
+  }
+
+  .country-identity-hero[data-country-personality="poster"] .country-hero-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .country-identity-hero[data-country-personality="poster"] .country-hero-actions :is(a, button):last-child {
+    grid-column: 1 / -1;
+    border-block-start: 1px solid var(--foreground) !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* MINIMAL                                                                     */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="minimal"] {
+  border: 0 !important;
+  border-block-end: 1px solid var(--cp-rule) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="minimal"] :is(.country-hero-scene, .country-hero-art) {
+  display: none !important;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal {
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 12rem);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: 1.5rem 2.5rem;
+  padding: 2.5rem 0 !important;
+  align-items: center;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-actions { grid-area: actions; }
+
+.country-identity-hero[data-country-personality="minimal"] .country-official-flag {
+  min-block-size: 0;
+  border: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="minimal"] .country-hero-actions :is(a, button) {
+  border: 0 !important;
+  border-block-end: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+  margin-inline-end: 1rem;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="minimal"] .country-composition-minimal {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: 1.1rem;
+    padding: 1.5rem 0 !important;
+  }
+
+  .country-identity-hero[data-country-personality="minimal"] .country-composition-minimal .country-hero-flag-zone {
+    justify-items: start;
+    max-inline-size: 11rem;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* RETRO DIGITAL — one real window                                             */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="sci-fi"] {
+  padding: 3px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.country-identity-hero[data-country-personality="sci-fi"]::before {
+  content: none !important;
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] .country-composition-retro {
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: var(--retro-surface, #c0c0c0);
+}
+
+.country-retro-titlebar {
+  display: flex;
+  min-block-size: 1.9rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .2rem .4rem;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 58%, #000080), color-mix(in srgb, var(--primary) 42%, #1084d0));
+  color: white;
+  font: 700 .75rem/1.1 Arial, sans-serif;
+}
+
+.country-retro-window-controls {
+  font-family: monospace;
+  letter-spacing: .12em;
+}
+
+.country-retro-client {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 11rem);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: 1rem;
+  padding: 1rem;
+  align-items: center;
+}
+
+.country-retro-client .country-hero-copy { grid-area: copy; }
+.country-retro-client .country-hero-flag-zone { grid-area: flag; }
+.country-retro-client .country-hero-actions { grid-area: actions; }
+
+.country-retro-status {
+  display: flex;
+  min-block-size: 1.6rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin: 0 3px 3px;
+  padding: .25rem .4rem;
+  background: var(--retro-surface, #c0c0c0);
+  color: var(--retro-text, #222);
+  font: .72rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  box-shadow:
+    inset -1px -1px var(--retro-button-highlight, #fff),
+    inset 1px 1px var(--retro-button-shadow, #808080);
+}
+
+.country-identity-hero[data-country-personality="sci-fi"] .country-official-flag {
+  min-block-size: 0;
+}
+
+@container country-identity (width < 40rem) {
+  .country-retro-client {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: .8rem;
+    padding: .8rem;
+  }
+
+  .country-retro-client .country-hero-flag-zone {
+    justify-items: start;
+    max-inline-size: 12rem;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* EDITORIAL                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial {
+  grid-template-columns: minmax(0, 55fr) minmax(12rem, 40fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: 1.5rem 5%;
+  padding: 3rem 0 !important;
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-flag-zone { grid-area: flag; margin: 0; }
+.country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-actions { grid-area: actions; }
+
+.country-editorial-caption {
+  margin-block-start: .6rem;
+  color: var(--muted-foreground);
+  font-size: .75rem;
+  line-height: 1.4;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="editorial"] .country-composition-editorial {
+    grid-template-columns: 1fr;
+    grid-template-areas: "copy" "flag" "actions";
+    gap: 1.25rem;
+    padding: 1.75rem 0 !important;
+  }
+
+  .country-identity-hero[data-country-personality="editorial"] .country-composition-editorial .country-hero-flag-zone {
+    justify-items: start;
+    max-inline-size: 15rem;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* PASSPORT — real fields, no fake barcode/seal art                            */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="passport"] .country-hero-art {
+  display: none !important;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport {
+  grid-template-columns: minmax(0, 7fr) minmax(9rem, 3fr);
+  grid-template-areas:
+    "header header"
+    "copy flag"
+    "fields flag"
+    "actions actions";
+  gap: 0;
+  padding: 0 !important;
+  align-items: stretch;
+}
+
+.country-passport-header {
+  grid-area: header;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .75rem 1rem;
+  border-block-end: 1px solid var(--foreground);
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-copy {
+  grid-area: copy;
+  padding: 1.25rem;
+  border-inline-end: 1px solid var(--foreground);
+}
+
+.country-passport-field-label {
+  margin: 0 0 .45rem;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.country-passport-fields {
+  grid-area: fields;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block-start: 1px solid var(--foreground);
+  border-inline-end: 1px solid var(--foreground);
+}
+
+.country-passport-fields div {
+  padding: .75rem;
+  border-inline-end: 1px solid var(--foreground);
+}
+
+.country-passport-fields div:last-child { border-inline-end: 0; }
+.country-passport-fields dt { font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.country-passport-fields dd { margin-block-start: .3rem !important; font-size: .82rem; font-weight: 700; }
+
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-flag-zone {
+  grid-area: flag;
+  padding: 1.25rem;
+  align-self: stretch;
+  align-content: start;
+  border-block-end: 1px solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-actions {
+  grid-area: actions;
+  padding: .75rem 1rem;
+}
+
+@container country-identity (width < 48rem) {
+  .country-identity-hero[data-country-personality="passport"] .country-composition-passport {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "copy"
+      "fields"
+      "flag"
+      "actions";
+  }
+
+  .country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-copy,
+  .country-passport-fields {
+    border-inline-end: 0;
+  }
+
+  .country-passport-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .country-passport-fields div:nth-child(2) { border-inline-end: 0; }
+  .country-passport-fields div:last-child {
+    grid-column: 1 / -1;
+    border-block-start: 1px solid var(--foreground);
+  }
+
+  .country-identity-hero[data-country-personality="passport"] .country-composition-passport .country-hero-flag-zone {
+    justify-items: start;
+    max-inline-size: 14rem;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* HERITAGE                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage {
+  grid-template-columns: minmax(0, 2fr) minmax(9rem, 1fr);
+  grid-template-areas:
+    "label label"
+    "copy flag"
+    "fields flag"
+    "actions actions";
+  gap: 1.25rem 2.5rem;
+  padding: 2.5rem 1rem !important;
+  align-items: start;
+}
+
+.country-archive-label { grid-area: label; margin: 0; padding-block-end: .6rem; border-block-end: 1px solid var(--border); font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-flag-zone { grid-area: flag; }
+.country-archive-fields { grid-area: fields; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); border-block-start: 1px solid var(--border); }
+.country-archive-fields div { padding-block: .65rem; }
+.country-archive-fields dt { color: var(--muted-foreground); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+.country-archive-fields dd { margin-block-start: .25rem !important; font-weight: 600; }
+.country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-actions { grid-area: actions; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="heritage"] .country-composition-heritage {
+    grid-template-columns: 1fr;
+    grid-template-areas: "label" "copy" "flag" "fields" "actions";
+    gap: 1rem;
+    padding: 1.5rem 1rem !important;
+  }
+  .country-identity-hero[data-country-personality="heritage"] .country-composition-heritage .country-hero-flag-zone { justify-items: start; max-inline-size: 14rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* BROADCAST                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast {
+  grid-template-columns: minmax(0, 8fr) minmax(9rem, 4fr);
+  grid-template-areas:
+    "channel channel"
+    "copy flag"
+    "actions flag";
+  gap: 1rem 2rem;
+  padding: 0 0 1.5rem !important;
+  align-items: end;
+}
+
+.country-broadcast-channel {
+  grid-area: channel;
+  margin: 0;
+  padding: .4rem .6rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-flag-zone { grid-area: flag; }
+.country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-actions { grid-area: actions; border-block-start: 1px solid var(--border); padding-block-start: 1rem; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast {
+    grid-template-columns: 1fr;
+    grid-template-areas: "channel" "copy" "flag" "actions";
+    gap: .9rem;
+  }
+  .country-identity-hero[data-country-personality="broadcast"] .country-composition-broadcast .country-hero-flag-zone { justify-items: start; max-inline-size: 13rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* ATLAS                                                                       */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="panorama"] .country-composition-atlas {
+  grid-template-columns: minmax(0, 7fr) minmax(15rem, 5fr);
+  grid-template-areas: "map record";
+  gap: 0;
+  padding: 0 !important;
+  align-items: stretch;
+}
+
+.country-atlas-map { grid-area: map; min-block-size: 24rem; }
+.country-atlas-map :is(.atlas-map-shell, .atlas-map-canvas, .atlas-geographic-fallback) { min-block-size: inherit; block-size: 100%; }
+.country-atlas-record {
+  grid-area: record;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "copy"
+    "flag"
+    "actions";
+  grid-template-rows: auto auto auto;
+  gap: 1rem;
+  padding: 1.75rem;
+  border-inline-start: 1px solid var(--border);
+  align-content: start;
+}
+.country-atlas-record .country-hero-copy { grid-area: copy; min-inline-size: 0; }
+.country-atlas-record .country-hero-flag-zone { grid-area: flag; justify-items: start; max-inline-size: 13rem; }
+.country-atlas-record .country-hero-actions { grid-area: actions; min-inline-size: 0; }
+
+@container country-identity (width < 48rem) {
+  .country-identity-hero[data-country-personality="panorama"] .country-composition-atlas {
+    grid-template-columns: 1fr;
+    grid-template-areas: "map" "record";
+  }
+  .country-atlas-map { min-block-size: 13rem; max-block-size: 13rem; }
+  .country-atlas-record { border-inline-start: 0; border-block-start: 1px solid var(--border); padding: 1rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* DIPLOMATIC                                                                  */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic {
+  grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr);
+  grid-template-areas:
+    "copy flag"
+    "summary flag"
+    "actions actions";
+  gap: 1rem 2rem;
+  padding: 2rem 0 !important;
+  align-items: start;
+}
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-copy { grid-area: copy; }
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-flag-zone { grid-area: flag; }
+.country-diplomatic-summary { grid-area: summary; border-block: 1px solid var(--border); }
+.country-diplomatic-summary div { display:grid; grid-template-columns:minmax(8rem,32%) 1fr; gap:1rem; padding:.55rem 0; border-block-end:1px solid var(--border); }
+.country-diplomatic-summary div:last-child { border-block-end:0; }
+.country-diplomatic-summary dt { font-weight:700; }
+.country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-actions { grid-area: actions; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic { grid-template-columns:1fr; grid-template-areas:"copy" "flag" "summary" "actions"; gap:1rem; padding:1.5rem 0 !important; }
+  .country-identity-hero[data-country-personality="classic"] .country-composition-diplomatic .country-hero-flag-zone { justify-items:start; max-inline-size:13rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* FESTIVAL                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival {
+  grid-template-columns: minmax(0, 8fr) minmax(8rem, 4fr);
+  grid-template-areas:
+    "kicker kicker"
+    "copy flag"
+    "actions flag";
+  gap: 1rem 2rem;
+  min-block-size: 22rem;
+  padding: 6rem 2rem 2rem !important;
+  align-items: end;
+  color: white;
+}
+.country-festival-kicker { grid-area:kicker; inline-size:fit-content; padding:.35rem .55rem; background:white; color:#111; font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-copy { grid-area:copy; }
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-flag-zone { grid-area:flag; }
+.country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-actions { grid-area:actions; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="spotlight"] .country-composition-festival { grid-template-columns:1fr; grid-template-areas:"kicker" "copy" "flag" "actions"; min-block-size:0; gap:1rem; padding:3rem 1rem 1.5rem !important; }
+  .country-identity-hero[data-country-personality="spotlight"] .country-composition-festival .country-hero-flag-zone { justify-items:start; max-inline-size:12rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* BRUTALIST                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist {
+  grid-template-columns: minmax(0, 8fr) minmax(8rem, 4fr);
+  grid-template-areas:
+    "code flag"
+    "copy flag"
+    "actions actions";
+  gap: 0;
+  padding: 0 !important;
+}
+.country-brutalist-code { grid-area:code; padding:.65rem 1rem; border-block-end:2px solid var(--foreground); border-inline-end:2px solid var(--foreground); font:800 .8rem/1 var(--bw-font-display,Arial,sans-serif); letter-spacing:.12em; }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-copy { grid-area:copy; padding:1.25rem; border-inline-end:2px solid var(--foreground); }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-flag-zone { grid-area:flag; padding:1.25rem; }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-actions { grid-area:actions; border-block-start:2px solid var(--foreground); }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-actions :is(a,button) { flex:1 1 0; border:0 !important; border-inline-end:2px solid var(--foreground) !important; }
+.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-actions :last-child { border-inline-end:0 !important; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist { grid-template-columns:1fr; grid-template-areas:"code" "copy" "flag" "actions"; }
+  .country-brutalist-code,.country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-copy { border-inline-end:0; }
+  .country-identity-hero[data-country-personality="duotone"] .country-composition-brutalist .country-hero-flag-zone { justify-items:start; max-inline-size:14rem; border-block-start:2px solid var(--foreground); }
+}
+
+/* -------------------------------------------------------------------------- */
+/* LUXURY                                                                      */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) minmax(9rem,14rem);
+  grid-template-areas:
+    "eyebrow eyebrow"
+    "title flag"
+    "meta flag"
+    "description flag"
+    "actions actions";
+  gap:1rem 3rem;
+  padding:clamp(3rem,7cqi,6rem) clamp(1rem,3cqi,2rem) !important;
+  text-align:start !important;
+  align-items:center;
+}
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-eyebrow { grid-area:eyebrow; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-title { grid-area:title; margin:0 !important; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-meta { grid-area:meta; margin:0 !important; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury > .country-hero-description { grid-area:description; margin:0 !important; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury .country-hero-flag-zone { grid-area:flag; }
+.country-identity-hero[data-country-personality="monument"] .country-composition-luxury .country-hero-actions { grid-area:actions; justify-content:flex-start !important; border-block-start:1px solid color-mix(in srgb,var(--foreground) 18%,transparent); padding-block-start:1.25rem; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="monument"] .country-composition-luxury { grid-template-columns:1fr; grid-template-areas:"eyebrow" "title" "meta" "flag" "description" "actions"; gap:.9rem; padding:2.25rem 1rem !important; }
+  .country-identity-hero[data-country-personality="monument"] .country-composition-luxury .country-hero-flag-zone { justify-items:start; max-inline-size:12rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* NEWSPAPER                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper {
+  grid-template-columns:minmax(0,9fr) minmax(8rem,3fr);
+  grid-template-areas:
+    "masthead masthead"
+    "copy flag"
+    "actions actions";
+  gap:1rem 1.5rem;
+  padding:0 0 1.5rem !important;
+  align-items:start;
+}
+.country-newspaper-masthead { grid-area:masthead; display:flex; justify-content:space-between; gap:1rem; padding:.5rem 0; border-block-end:1px solid var(--foreground); font:700 .72rem/1 var(--guardian-sans,Arial,sans-serif); }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-copy { grid-area:copy; }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-flag-zone { grid-area:flag; border-inline-start:1px solid var(--foreground); padding-inline-start:1rem; }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-actions { grid-area:actions; border-block-start:1px solid var(--foreground); padding-block-start:.65rem; }
+.country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-actions :is(a,button) { border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; padding-inline:0 1rem !important; text-decoration:underline; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper { grid-template-columns:1fr; grid-template-areas:"masthead" "copy" "flag" "actions"; }
+  .country-identity-hero[data-country-personality="newspaper"] .country-composition-newspaper .country-hero-flag-zone { border-inline-start:0; padding-inline-start:0; justify-items:start; max-inline-size:13rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* SCIENTIFIC / CARBON                                                         */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-art { display:none !important; }
+
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific {
+  grid-template-columns:minmax(0,7fr) minmax(9rem,3fr);
+  grid-template-areas:
+    "reference reference"
+    "copy flag"
+    "data flag"
+    "actions actions";
+  gap:0 2rem;
+  padding:0 !important;
+}
+.country-scientific-reference { grid-area:reference; margin:0; padding:.75rem 1rem; border-block-end:1px solid var(--border); background:color-mix(in srgb,var(--surface) 88%,var(--background)); font:600 .75rem/1.2 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.05em; }
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-copy { grid-area:copy; padding:1.5rem 1rem 1rem; }
+.country-scientific-data { grid-area:data; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0 1rem 1.25rem !important; border-block:1px solid var(--border); }
+.country-scientific-data div { padding:.75rem; border-inline-end:1px solid var(--border); }
+.country-scientific-data div:last-child { border-inline-end:0; }
+.country-scientific-data dt { color:var(--muted-foreground); font-size:.68rem; }
+.country-scientific-data dd { margin-block-start:.3rem !important; font-weight:600; font-variant-numeric:tabular-nums; }
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-flag-zone { grid-area:flag; padding:1.5rem 1rem; }
+.country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-actions { grid-area:actions; padding:1rem; border-block-start:1px solid var(--border); }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="horizon"] .country-composition-scientific { grid-template-columns:1fr; grid-template-areas:"reference" "copy" "data" "flag" "actions"; gap:0; }
+  .country-scientific-data { grid-template-columns:1fr; }
+  .country-scientific-data div { border-inline-end:0; border-block-end:1px solid var(--border); }
+  .country-scientific-data div:last-child { border-block-end:0; }
+  .country-identity-hero[data-country-personality="horizon"] .country-composition-scientific .country-hero-flag-zone { justify-items:start; max-inline-size:14rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* CIVIC                                                                       */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic {
+  grid-template-columns:minmax(0,2fr) minmax(9rem,1fr);
+  grid-template-areas:
+    "band band"
+    "copy flag"
+    "actions flag";
+  gap:1.25rem 2rem;
+  padding:0 0 1.5rem !important;
+}
+.country-civic-band { grid-area:band; margin:0; padding:.55rem 1rem; background:var(--primary); color:var(--primary-foreground); font-size:.8rem; font-weight:700; }
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-copy { grid-area:copy; padding-inline-start:1rem; }
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-flag-zone { grid-area:flag; padding-inline-end:1rem; }
+.country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-actions { grid-area:actions; padding-inline-start:1rem; }
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic { grid-template-columns:1fr; grid-template-areas:"band" "copy" "flag" "actions"; gap:1rem; }
+  .country-identity-hero[data-country-personality="flag-focus"] .country-composition-civic .country-hero-flag-zone { justify-items:start; max-inline-size:13rem; padding-inline:1rem; }
+}
+
+/* -------------------------------------------------------------------------- */
+/* AVANT-GARDE — asymmetry from real content, never generic rectangles         */
+/* -------------------------------------------------------------------------- */
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-art { display:none !important; }
+
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant {
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  grid-template-rows:auto auto auto auto;
+  gap:1.5rem;
+  padding:1.5rem 0 2rem !important;
+  align-items:start;
+}
+.country-avant-index { grid-column:1 / 3; grid-row:1; margin:0; font-size:clamp(2.5rem,6cqi,5rem); font-weight:800; line-height:.8; }
+.country-avant-region { grid-column:8 / 13; grid-row:1; margin:0; padding-block-start:.2rem; border-block-start:1px solid var(--foreground); font-size:.72rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant > .country-hero-title { grid-column:2 / 9; grid-row:2; max-inline-size:none !important; margin:0 !important; font-size:clamp(4rem,10cqi,8rem) !important; line-height:.78 !important; }
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-flag-zone { grid-column:9 / 13; grid-row:2 / 4; align-self:end; }
+.country-avant-copy { grid-column:2 / 8; grid-row:3; }
+.country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-actions { grid-column:1 / 9; grid-row:4; border-block-start:1px solid var(--foreground); padding-block-start:.75rem; }
+
+@container country-identity (width < 46.25rem) {
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant {
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:.8rem;
+    padding:1rem 0 1.5rem !important;
+  }
+  .country-avant-index { grid-column:1 / 2; grid-row:1; font-size:2.5rem; }
+  .country-avant-region { grid-column:3 / 7; grid-row:1; }
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant > .country-hero-title { grid-column:1 / 7; grid-row:2; font-size:clamp(3.5rem,18cqi,5.1rem) !important; }
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-flag-zone { grid-column:1 / 5; grid-row:3; justify-items:start; }
+  .country-avant-copy { grid-column:2 / 7; grid-row:4; }
+  .country-identity-hero[data-country-personality="ribbon"] .country-composition-avant .country-hero-actions { grid-column:1 / 7; grid-row:5; }
+}
+
+/* Keep factual media factual everywhere. */
+.country-personality-composition [data-flag-role="official"] img {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+  object-fit: contain !important;
+}
+
+@media (forced-colors: active) {
+  .country-personality-composition :is(.country-poster-index, .country-passport-header, .country-civic-band, .country-broadcast-channel, .country-retro-titlebar) {
+    forced-color-adjust: auto;
+    background: Canvas;
+    color: CanvasText;
+    border-color: CanvasText;
+  }
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* COUNTRY SECTION NAVIGATION — keep the personality below the hero            */
+/* -------------------------------------------------------------------------- */
+
+.country-profile-v8[data-country-personality="glass-card"] .responsive-tabs :is(select, button) {
+  border: 1px solid rgb(255 255 255 / .16) !important;
+  border-radius: .8rem !important;
+  background: rgb(8 13 23 / .24) !important;
+  box-shadow: inset 0 1px rgb(255 255 255 / .08) !important;
+  backdrop-filter: blur(12px);
+}
+
+.country-profile-v8[data-country-personality="poster"] .responsive-tabs :is(select, button) {
+  border: 0 !important;
+  border-block: 1px solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: var(--sw-font, "Helvetica Neue", Arial, sans-serif);
+  font-weight: 700;
+}
+
+.country-profile-v8[data-country-personality="editorial"] .responsive-tabs :is(select, button),
+.country-profile-v8[data-country-personality="heritage"] .responsive-tabs :is(select, button),
+.country-profile-v8[data-country-personality="newspaper"] .responsive-tabs :is(select, button),
+.country-profile-v8[data-country-personality="monument"] .responsive-tabs :is(select, button) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="passport"] .responsive-tabs :is(select, button) {
+  border: 1px solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: var(--background) !important;
+  box-shadow: none !important;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.country-profile-v8[data-country-personality="broadcast"] .responsive-tabs :is(select, button) {
+  border: 0 !important;
+  border-block-start: .25rem solid var(--primary) !important;
+  border-radius: 0 !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+  font-weight: 700;
+}
+
+.country-profile-v8[data-country-personality="minimal"] .responsive-tabs :is(select, button) {
+  border-radius: .25rem !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="panorama"] .responsive-tabs :is(select, button) {
+  border-radius: 3px !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .08) !important;
+}
+
+.country-profile-v8[data-country-personality="classic"] .responsive-tabs :is(select, button) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="spotlight"] .responsive-tabs :is(select, button) {
+  border-radius: .25rem !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="duotone"] .responsive-tabs :is(select, button) {
+  border: 2px solid var(--foreground) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.country-profile-v8[data-country-personality="monument"] .responsive-tabs :is(select, button) {
+  border-block: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent) !important;
+  background: transparent !important;
+  font-family: var(--lux-sans, sans-serif);
+  font-size: .72rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.country-profile-v8[data-country-personality="newspaper"] .responsive-tabs :is(select, button) {
+  border: 0 !important;
+  border-block: 1px solid var(--foreground) !important;
+  background: transparent !important;
+  font-family: var(--guardian-sans, Arial, sans-serif);
+}
+
+.country-profile-v8[data-country-personality="horizon"] .responsive-tabs :is(select, button) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.country-profile-v8[data-country-personality="flag-focus"] .responsive-tabs :is(select, button) {
+  border-radius: .25rem !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="ribbon"] .responsive-tabs :is(select, button) {
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-block: 1px solid var(--foreground) !important;
+}

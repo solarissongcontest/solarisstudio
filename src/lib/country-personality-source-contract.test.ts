@@ -1,7 +1,8 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { COUNTRY_PERSONALITY_DIVERGENCE } from "./country-personality-divergence";
 import {
   COUNTRY_PERSONALITY_SOURCES,
   countryPersonalitySource,
@@ -142,7 +143,7 @@ describe("source-driven Country personality contract", () => {
     expect(countryRoute).toContain("data-country-background-policy={sourcePersonality.backgroundPolicy}");
   });
 
-  it("loads the source foundation and first human-source adapters after V8", () => {
+  it("loads the shared source-neutral foundation before all human-source adapters", () => {
     const styles = source("src/components/CountryPersonalityStyles.tsx");
     expect(styles).toContain('import sourceFoundation from "@/country-personality-source-foundation.css?inline"');
     expect(styles).toContain('import minimalSource from "@/styles/personalities/minimal-source.adapter.css?inline"');
@@ -162,14 +163,21 @@ describe("source-driven Country personality contract", () => {
     expect(styles).toContain('import passportSource from "@/styles/personalities/passport-source.adapter.css?inline"');
     expect(styles).toContain('import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline"');
     expect(styles).toContain('import glassSource from "@/styles/personalities/glass-source.adapter.css?inline"');
+    expect(styles).toContain('import personalityCompositions from "@/styles/personality-compositions.css?inline"');
 
+    expect(styles).toContain('import sharedFoundation from "@/country-personality-shared-foundation.css?inline"');
+    expect(styles).not.toContain("country-personality-system-v8.css");
     const listStart = styles.indexOf("const countryPersonalityStyles");
-    const v8 = styles.indexOf("personalityV8,", listStart);
+    const shared = styles.indexOf("sharedFoundation,", listStart);
     const sourceFoundation = styles.indexOf("sourceFoundation,", listStart);
     const minimal = styles.indexOf("minimalSource,", listStart);
-    expect(v8).toBeGreaterThan(-1);
-    expect(sourceFoundation).toBeGreaterThan(v8);
+    const glass = styles.indexOf("glassSource,", listStart);
+    const compositions = styles.indexOf("personalityCompositions,", listStart);
+    expect(shared).toBeGreaterThan(-1);
+    expect(sourceFoundation).toBeGreaterThan(shared);
     expect(minimal).toBeGreaterThan(sourceFoundation);
+    expect(glass).toBeGreaterThan(minimal);
+    expect(compositions).toBeGreaterThan(glass);
   });
 
   it("uses source-derived prototype adapters rather than invented blank-slate skins", () => {
@@ -234,7 +242,8 @@ describe("source-driven Country personality contract", () => {
     expect(avantGarde).toContain("Superilles Grid System translated adapter");
     expect(avantGarde).toContain("grid-template-columns: repeat(12, minmax(0, 1fr))");
     expect(passport).toContain("Jesus Ramirez International Airline Ticket translated adapter");
-    expect(passport).toContain("repeating-linear-gradient");
+    expect(passport).not.toContain("country-hero-art-primary");
+    expect(source("src/components/country/personality/PersonalityHeroRenderer.tsx")).toContain("country-passport-fields");
     expect(atlas).toContain("MapLibre GL JS translated adapter");
     expect(atlas).toContain("12px/20px");
   });
@@ -280,7 +289,7 @@ describe("source-driven Country personality contract", () => {
     expect(newspaper).toMatchObject({ repository: "guardian/source", license: "Apache-2.0" });
     expect(scientific).toMatchObject({ repository: "carbon-design-system/carbon", license: "Apache-2.0" });
     expect(civic).toMatchObject({ repository: "uswds/uswds" });
-    expect(avantGarde).toMatchObject({ repository: "zetareticoli/superilles", license: "MIT" });
+    expect(avantGarde).toMatchObject({ repository: "zetareticoli/superilles", license: "ISC" });
 
     expect(source("THIRD_PARTY_DESIGN_LICENSES.md")).toContain("## Implemented source-driven personalities");
   });
@@ -291,8 +300,10 @@ describe("source-driven Country personality contract", () => {
     const vendor = source("src/vendor/liquid-glass/GlassMaterial.tsx");
     const license = source("src/vendor/liquid-glass/LICENSE");
 
-    expect(hero).toContain('import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial"');
-    expect(hero).toContain('<GlassMaterial');
+    expect(hero).toContain('lazy(() =>');
+    expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
+    expect(hero).toContain("<Suspense fallback={composition}>");
+    expect(hero).toContain('<LazyGlassMaterial');
     expect(hero).toContain('className="country-hero-glass-material"');
     expect(glass).toContain("samasante/liquid-glass");
     expect(glass).toContain("exactly one glass surface");
@@ -347,4 +358,67 @@ describe("source-driven Country personality contract", () => {
     expect(foundation).toContain(".country-hero-scene {");
     expect(foundation).toContain("display: none;");
   });
+  it("normalizes all seventeen source manifests to the governance schema", () => {
+    const directories: Record<string, string> = {
+      "glass-card": "glass",
+      editorial: "editorial",
+      passport: "passport",
+      poster: "poster",
+      heritage: "heritage",
+      broadcast: "broadcast",
+      minimal: "minimal",
+      panorama: "atlas",
+      classic: "diplomatic",
+      spotlight: "festival",
+      duotone: "brutalist",
+      "sci-fi": "retro-digital",
+      monument: "luxury",
+      newspaper: "newspaper",
+      horizon: "scientific",
+      "flag-focus": "civic",
+      ribbon: "avant-garde",
+    };
+
+    for (const personality of COUNTRY_PERSONALITY_SOURCES) {
+      const directory = directories[personality.id];
+      const data = manifest(`src/styles/personality-sources/${directory}/source-manifest.json`);
+      expect(data.source).toBe(personality.sourceName);
+      expect(data.license).toBe(personality.license);
+      expect(data.visualAuthority).toBe(personality.visualAuthority);
+      expect(data.implementationMode).toBe(personality.importMode);
+      expect(Array.isArray(data.importedFiles)).toBe(true);
+      expect(Array.isArray(data.excludedFiles)).toBe(true);
+      expect(Array.isArray(data.solarisChanges)).toBe(true);
+      expect(typeof data.notes).toBe("string");
+
+      const evidence = String(data.licenseFile ?? "").split("#")[0];
+      expect(evidence.length).toBeGreaterThan(0);
+      expect(existsSync(resolve(process.cwd(), evidence)), `Missing licence evidence for ${personality.sourceName}`).toBe(true);
+
+      if (personality.repository && personality.id !== "glass-card") {
+        expect(
+          existsSync(resolve(process.cwd(), `src/styles/personality-sources/${directory}/upstream`)),
+          `Missing pristine upstream snapshot for ${personality.sourceName}`,
+        ).toBe(true);
+      }
+    }
+
+    expect(existsSync(resolve(process.cwd(), "src/vendor/liquid-glass/GlassMaterial.tsx"))).toBe(true);
+    expect(existsSync(resolve(process.cwd(), "src/vendor/liquid-glass/LICENSE"))).toBe(true);
+  });
+
+  it("keeps source-divergence decisions explicit without fabricated percentages", () => {
+    const divergenceSource = source("src/lib/country-personality-divergence.ts");
+    for (const personality of COUNTRY_PERSONALITY_SOURCES) {
+      expect(COUNTRY_PERSONALITY_DIVERGENCE[personality.id]).toMatchObject({
+        budgetStatus: "review-required",
+      });
+    }
+    for (const classification of ["keep:", "remap:", "removeForSafety:", "solarisAdd:"]) {
+      expect(divergenceSource).toContain(classification);
+    }
+    expect(divergenceSource).not.toContain("structuralReplacementPercent:");
+    expect(divergenceSource).not.toContain("visualGrammarReplacementPercent:");
+  });
+
 });

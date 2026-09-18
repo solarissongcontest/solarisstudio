@@ -19,6 +19,7 @@ import { useCountryWorldProfile, type CountryMedia } from "@/lib/country-account
 import { buildCountryAutoSection, type CountryPageSection } from "@/lib/country-page-builder";
 import { usePublicCountryIdentityHistory } from "@/lib/country-history";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
+import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import { buildCountryCharacter, buildCountryFunFacts } from "@/lib/country-wiki";
 import type { Country, Edition, Participant } from "@/lib/data";
 import {
@@ -471,6 +472,24 @@ function CountryWikiHeader({ country }: { country: Country }) {
   const { data: countryThemeRow } = useCountryTheme(country.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
   const personality = canonicalCountryPersonalityId(visualTheme?.heroLayout ?? "classic");
+  const identityModel: CountryIdentityModel = {
+    code: country.short_code,
+    name: country.name,
+    nativeName: country.native_name,
+    region: country.region,
+    description: country.description,
+    flag: { src: country.flag_image, alt: `Flag of ${country.name}` },
+    colors: { primary: country.accent_color, accent: country.accent_color },
+    facts: country.region ? [{ id: "region", label: "Region", value: country.region }] : [],
+    statistics: [],
+    history: [],
+    geography: null,
+    actions: {
+      wiki: { label: "Wiki", href: `/wiki/${country.short_code}` },
+      compare: { label: "Compare", href: `/compare?a=${country.short_code}` },
+      follow: { label: "Country", href: `/countries/${country.short_code}` },
+    },
+  };
 
   return (
     <CountryIdentityHero
@@ -478,12 +497,14 @@ function CountryWikiHeader({ country }: { country: Country }) {
       compact
       personality={personality}
       decoration={visualTheme?.decorationStyle ?? "auto"}
-      code={country.short_code}
-      name={country.name}
-      nativeName={country.native_name}
-      region={country.region}
-      flagImage={country.flag_image}
-      accentColor={country.accent_color}
+      code={identityModel.code}
+      name={identityModel.name}
+      nativeName={identityModel.nativeName}
+      region={identityModel.region}
+      description={identityModel.description}
+      flagImage={identityModel.flag.src}
+      accentColor={identityModel.colors.accent}
+      geography={identityModel.geography}
       eyebrow="Terra Solaris Wiki"
       className="country-wiki-header mb-5"
       actions={

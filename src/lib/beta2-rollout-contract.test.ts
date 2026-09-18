@@ -42,8 +42,12 @@ describe("Beta 2 hardened rollout contract", () => {
     const tabs = source("src/components/ResponsiveTabs.tsx");
     const show = source("src/routes/shows/$showId.tsx");
     expect(tabs).toContain("<select");
-    expect(tabs).toContain('className="md:hidden"');
-    expect(tabs).toContain('className="scroll-slim hidden overflow-x-auto md:block"');
+    expect(tabs).toContain('collapseAt = "md"');
+    expect(tabs).toContain('collapseAt === "lg" ? "lg:hidden" : "md:hidden"');
+    const country = source("src/routes/countries/$code.tsx");
+    expect(country).toContain('collapseAt="lg"');
+    expect(tabs).toContain('const expandedVisibility = collapseAt === "lg" ? "hidden lg:block" : "hidden md:block"');
+    expect(tabs).toContain('cn("scroll-slim overflow-x-auto", expandedVisibility)');
     expect(show).toContain("<ResponsiveTabs");
     expect(show).toContain('label="Show view"');
   });
@@ -78,12 +82,13 @@ describe("Beta 2 hardened rollout contract", () => {
     }
   });
 
-  it("replaces the old personality repair stack with the consolidated V8 system", () => {
+  it("replaces the old personality repair stack with the source-driven system", () => {
     const visual = source("src/components/CountryPersonalityStyles.tsx");
     const registry = source("src/lib/country-personality-system.ts");
-    const css = source("src/country-personality-system-v8.css");
+    const css = source("src/country-personality-shared-foundation.css");
     const wiki = source("src/country-wiki-v8.css");
-    expect(visual).toContain("country-personality-system-v8.css");
+    expect(visual).toContain("country-personality-shared-foundation.css");
+    expect(visual).not.toContain("country-personality-system-v8.css");
     expect(visual).toContain("country-wiki-v8.css");
     expect(visual).not.toContain("country-personality-system-v7.css");
     expect(visual).not.toContain("country-personality-v7-production-bridge.css");
@@ -95,12 +100,12 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(registry).toContain("implementationReference:");
     expect(css).toContain("@media (max-width: 639px)");
     expect(css).toContain("@media (forced-colors: active)");
-    expect(wiki).toContain("--wiki-measure: 72ch");
+    expect(wiki).toContain("--wiki-measure: 66ch");
   });
 
   it("keeps Broadcast grid-based with a bounded metadata band instead of free-floating technical lines", () => {
-    const css = source("src/country-personality-system-v8.css");
-    expect(css).toContain("06 BROADCAST — BBC GEL");
+    const css = source("src/styles/personalities/broadcast-source.adapter.css");
+    expect(css).toContain("BBC GEL Grid + GEL Typography translated adapter");
     expect(css).toContain(".country-hero-actions {");
     expect(css).toContain("background: var(--primary)");
     expect(css).not.toContain("country-hero-signature-a");
@@ -108,13 +113,16 @@ describe("Beta 2 hardened rollout contract", () => {
   });
 
   it("uses one Glass identity plate over the visual scene", () => {
-    const css = source("src/country-personality-system-v8.css");
+    const css = source("src/styles/personalities/glass-source.adapter.css");
     const hero = source("src/components/country/CountryIdentityHero.tsx");
-    expect(css).toContain("01 GLASS — APPLE LIQUID GLASS PRINCIPLES");
+    expect(css).toContain("samasante/liquid-glass");
     expect(css).toContain(".country-hero-scene-flag");
-    expect(css).toContain("backdrop-filter: blur(20px) saturate(132%)");
+    expect(css).toContain("country-hero-glass-material");
+    expect(hero).toContain('lazy(() =>');
+    expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
+    expect(hero).toContain("<Suspense fallback={composition}>");
     expect(hero).toContain("country-hero-scene");
-    expect(hero).toContain("country-hero-layout");
+    expect(source("src/components/country/personality/PersonalityHeroRenderer.tsx")).toContain("country-composition-glass");
     expect(hero).not.toContain("country-liquid-glass-refraction");
   });
 

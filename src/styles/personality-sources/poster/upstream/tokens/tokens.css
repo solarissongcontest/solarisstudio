@@ -1,0 +1,334 @@
+/* ==========================================================================
+   swiss-style-theme / tokens
+   --------------------------------------------------------------------------
+   This file is the single source of truth. Every literal value in the theme
+   lives here exactly once. The Tailwind adapters next to it (theme.css for
+   v4, preset.js for v3) hold no values of their own; they point at these
+   custom properties with var().
+
+   Each group is annotated with the creative-direction axis the choice serves.
+   The four axes are tone register, aesthetic philosophy, audience
+   relationship, and sensory ambition. Read them at
+   https://rampstack.co/framework/creative-direction
+
+   Contrast ratios in the comments are measured against the ground
+   (--sw-ground) or the fill named, and are WCAG 2.1 relative-luminance
+   figures. Every text pairing here clears AA.
+
+   One structural note before the values. The type scale in this file is not a
+   list of sizes; it is a ratio and six multiplications, written as calc()
+   chains so the derivation is executable rather than described. Change
+   --sw-scale-ratio and every size in the theme moves with it. That is the
+   register's central claim made mechanical: in the international typographic
+   style the system is the design, so the system has to be a real one.
+   ========================================================================== */
+
+:root {
+  /* ----------------------------------------------------------------------
+     GROUND AND INK
+     Aesthetic philosophy axis. The ground is paper white rather than the warm
+     off-white a softer register would reach for. Warmth here would read as an
+     apology for the austerity, and the austerity is the position. The ink is
+     near-black rather than #000 because a true black holds no headroom: with
+     a single family doing all the work, the darkest thing on the page has to
+     be reserved for type, and #111111 leaves the page somewhere to go.
+     ---------------------------------------------------------------------- */
+  --sw-ground: #ffffff;        /* the page, and every surface on it */
+  --sw-ground-shade: #f2f2f0;  /* alternating bands, table stripes, recessed cells */
+  --sw-ink: #111111;           /* type and control borders. 18.88:1 on ground */
+  --sw-ink-muted: #565654;     /* secondary type. 7.36:1 on ground, 6.56:1 on shade */
+
+  /* ----------------------------------------------------------------------
+     THE RULE
+     Aesthetic philosophy axis. In this register the hairline is not trim; it
+     is the visible edge of the grid, and it is the only structural device the
+     theme has. So it is held to the 3:1 non-text contrast floor rather than
+     being allowed to fade toward decoration. A rule you have to look for is a
+     rule that has stopped doing its job.
+
+     The value is set from the harder of the two grounds it has to survive.
+     Against paper white it would clear 3:1 several shades lighter; against
+     --sw-ground-shade it would not, and a rule that meets the floor on half
+     the page has not met it. Both figures are given below because a rule
+     quoted only against white is the usual way this gets overstated.
+
+     Weight is the rule's only variable. With the palette near-monochrome
+     there is no second colour to spend on hierarchy, so hierarchy among rules
+     is carried by 1px, 2px and 4px and nothing else.
+     ---------------------------------------------------------------------- */
+  --sw-rule: #8c8c88;          /* 3.37:1 on ground, 3.01:1 on shade */
+  --sw-rule-hair: 1px;         /* between rows and grid cells */
+  --sw-rule-mid: 2px;          /* under a section head */
+  --sw-rule-heavy: 4px;        /* above a section, and under the masthead */
+
+  /* ----------------------------------------------------------------------
+     THE ACCENT
+     Sensory ambition axis. One red, and the axis position is decided by how
+     often it appears rather than by which red it is. At Considered it is
+     spent on composition: a handful of marks per page, placed where the grid
+     wants the eye to land. At Functional the same red becomes a working
+     signal and turns up wherever a record needs flagging. CUSTOMIZE.md works
+     that move through as the theme's main axis move.
+
+     Ground text on the accent clears AA at 5.88:1. Ink text on the accent
+     reaches only 3.21:1 and fails, so an accent fill always takes ground
+     text. That asymmetry is the reason --sw-accent-ink exists as its own
+     token rather than being assumed.
+     ---------------------------------------------------------------------- */
+  --sw-accent: #c8102e;                 /* 5.88:1 on ground, 5.25:1 on shade */
+  --sw-accent-ink: var(--sw-ground);    /* ground on accent: 5.88:1 */
+
+  /* ----------------------------------------------------------------------
+     TYPE: THE FAMILY
+     Tone register axis. One grotesque, doing everything. The theme loads no
+     webfont and makes no network request, so the stack names the grotesques
+     that are already on the machine: Helvetica Neue on macOS, Arial on
+     Windows, Liberation Sans or Nimbus Sans on most Linux. All three sit in
+     the Akzidenz lineage the register came out of.
+
+     system-ui is the last entry before the generic and it is the one that can
+     resolve to something that is not a grotesque, since Segoe UI is humanist.
+     That is a deliberate trade. A page set in the wrong sans is recoverable;
+     a page waiting on a font that never arrives is not.
+
+     There is no monospace token. A second family would be a second voice, and
+     the register does not have one. Identifiers, call numbers and dates line
+     up through font-variant-numeric: tabular-nums instead, which is what the
+     grotesque was designed to do in a timetable.
+     ---------------------------------------------------------------------- */
+  --sw-font: "Helvetica Neue", Helvetica, "Arial Nova", Arial,
+    "Liberation Sans", "Nimbus Sans", system-ui, sans-serif;
+
+  /* ----------------------------------------------------------------------
+     TYPE: WEIGHT
+     Tone register axis. Two weights. A grotesque used for structure takes its
+     hierarchy from size and from position on the grid, and a third weight is
+     mostly a way of avoiding the decision about which of the two a thing is.
+     Where a heading needs to assert harder, it moves a step up the scale.
+     ---------------------------------------------------------------------- */
+  --sw-weight-regular: 400;
+  --sw-weight-bold: 700;
+
+  /* ----------------------------------------------------------------------
+     TYPE: THE MODULAR SCALE
+     Aesthetic philosophy axis. A stated ratio and six multiplications.
+
+     The ratio is 1.25, the major third. Larger ratios are more dramatic and
+     less useful here: at 1.5 the fourth step is already past 80px, which on a
+     1200px measure is a heading of two words, and the steps a text-dense page
+     actually needs all collapse into the bottom of the scale. 1.25 puts six
+     of its seven steps in the band between 12.8px and 49px, which is the band
+     an archive spends its whole life in.
+
+     The steps are calc() chains rather than typed-out values on purpose. Each
+     one multiplies the step below it, so the scale is derived at render time
+     and cannot drift out of true. Change --sw-scale-ratio and all seven move.
+
+       step  derivation              px at a 16px root
+       -1    base / 1.25             12.80
+        0    base                    16.00
+        1    step 0 * 1.25           20.00
+        2    step 1 * 1.25           25.00
+        3    step 2 * 1.25           31.25
+        4    step 3 * 1.25           39.06
+        5    step 4 * 1.25           48.83
+
+     The base is 1rem rather than 16px so the whole scale follows a reader who
+     has raised their browser's default text size.
+     ---------------------------------------------------------------------- */
+  --sw-scale-ratio: 1.25;
+  --sw-scale-base: 1rem;
+
+  --sw-step--1: calc(var(--sw-scale-base) / var(--sw-scale-ratio));
+  --sw-step-0: var(--sw-scale-base);
+  --sw-step-1: calc(var(--sw-step-0) * var(--sw-scale-ratio));
+  --sw-step-2: calc(var(--sw-step-1) * var(--sw-scale-ratio));
+  --sw-step-3: calc(var(--sw-step-2) * var(--sw-scale-ratio));
+  --sw-step-4: calc(var(--sw-step-3) * var(--sw-scale-ratio));
+  --sw-step-5: calc(var(--sw-step-4) * var(--sw-scale-ratio));
+
+  /* Seven steps, seven roles, and every step is spent. There is no size here
+     for "slightly smaller body copy", because a change of size in this
+     register means a change of level. Secondary text stays at --sw-text-body
+     and moves to --sw-ink-muted instead. */
+  --sw-text-display: var(--sw-step-5);  /* 48.83px, the masthead statement */
+  --sw-text-h1: var(--sw-step-4);       /* 39.06px */
+  --sw-text-h2: var(--sw-step-3);       /* 31.25px */
+  --sw-text-h3: var(--sw-step-2);       /* 25.00px */
+  --sw-text-lead: var(--sw-step-1);     /* 20.00px */
+  --sw-text-body: var(--sw-step-0);     /* 16.00px, and the floor for prose */
+  --sw-text-meta: var(--sw-step--1);    /* 12.80px, labels and record fields only */
+
+  /* ----------------------------------------------------------------------
+     THE BASELINE
+     Aesthetic philosophy axis. Everything vertical in this theme is a whole
+     multiple of one unit, and this is the unit.
+
+     It is declared in rem rather than px so it scales with the type. A reader
+     who sets their browser to 20px moves the scale base and the baseline by
+     the same factor, and the rhythm survives the change instead of shearing.
+     ---------------------------------------------------------------------- */
+  --sw-baseline: 0.5rem;  /* 8px at a 16px root */
+
+  /* ----------------------------------------------------------------------
+     TYPE: LEADING, MEASURED IN BASELINES
+     Aesthetic philosophy axis. Leading here is a length, not a ratio.
+
+     This is the one place the theme departs from normal web practice, and it
+     is deliberate. A unitless line-height of 1.5 gives 24px on 16px type and
+     58.6px on the display step, and neither of those has any relationship to
+     a grid. The register works the other way round: the grid is fixed first
+     and the type is set into it, which is why a Müller-Brockmann grid is
+     specified in lines per column rather than in leading ratios.
+
+     So each role takes a whole number of baselines. Every line box in the
+     theme lands on the grid by construction rather than by adjustment.
+
+       role      baselines   computed   implied ratio
+       meta          2         16px        1.25
+       body          3         24px        1.50
+       lead          4         32px        1.60
+       h3            4         32px        1.28
+       h2            5         40px        1.28
+       h1            6         48px        1.23
+       display       7         56px        1.15
+
+     The cost is real and worth naming: a length line-height does not respond
+     to a font-size override applied further down the tree. Override the size
+     on an element and set its leading in the same rule.
+     ---------------------------------------------------------------------- */
+  --sw-leading-meta: calc(var(--sw-baseline) * 2);
+  --sw-leading-body: calc(var(--sw-baseline) * 3);
+  --sw-leading-lead: calc(var(--sw-baseline) * 4);
+  --sw-leading-h3: calc(var(--sw-baseline) * 4);
+  --sw-leading-h2: calc(var(--sw-baseline) * 5);
+  --sw-leading-h1: calc(var(--sw-baseline) * 6);
+  --sw-leading-display: calc(var(--sw-baseline) * 7);
+
+  /* ----------------------------------------------------------------------
+     TYPE: TRACKING
+     Tone register axis. A grotesque set large closes up and needs letting
+     out; set small in all caps it crowds and needs opening. Both corrections
+     are optical, and neither is a style choice, which is why the values are
+     small enough that nobody will notice them working.
+     ---------------------------------------------------------------------- */
+  --sw-tracking-display: -0.022em;  /* h1 and above */
+  --sw-tracking-normal: 0;
+  --sw-tracking-label: 0.08em;      /* small caps labels and column heads */
+
+  /* ----------------------------------------------------------------------
+     SPACE
+     Aesthetic philosophy axis. Every step is a whole number of baselines, and
+     the name says how many. An arbitrary value between two of these is the
+     thing that breaks the rhythm, and the rhythm is most of what the reader
+     is responding to when they call a page like this calm.
+     ---------------------------------------------------------------------- */
+  --sw-space-1: calc(var(--sw-baseline) * 1);    /* 8px */
+  --sw-space-2: calc(var(--sw-baseline) * 2);    /* 16px */
+  --sw-space-3: calc(var(--sw-baseline) * 3);    /* 24px */
+  --sw-space-4: calc(var(--sw-baseline) * 4);    /* 32px */
+  --sw-space-6: calc(var(--sw-baseline) * 6);    /* 48px */
+  --sw-space-8: calc(var(--sw-baseline) * 8);    /* 64px */
+  --sw-space-12: calc(var(--sw-baseline) * 12);  /* 96px */
+  --sw-space-16: calc(var(--sw-baseline) * 16);  /* 128px */
+
+  /* ----------------------------------------------------------------------
+     THE COLUMN GRID
+     Aesthetic philosophy axis. Twelve columns, because twelve divides by two,
+     three, four and six, and an asymmetric layout needs the three and the
+     four more than it needs the two.
+
+     The container is sized so the columns come out whole:
+
+       12 columns * 78px  =  936px
+       11 gutters * 24px  =  264px
+                             ------
+                             1200px
+
+     Whole columns are not a vanity. They are what lets a rule drawn at a
+     column boundary land on the same pixel as the text edge above it, which
+     is the difference between a grid the reader can feel and a grid that
+     merely exists in the stylesheet.
+     ---------------------------------------------------------------------- */
+  --sw-columns: 12;
+  --sw-gutter: var(--sw-space-3);  /* 24px */
+  --sw-container: 1200px;
+
+  /* ----------------------------------------------------------------------
+     MEASURE
+     Audience relationship axis. 66 characters, near the top of the 45 to 75
+     band that reading research keeps landing on.
+
+     The choice sits on this axis rather than on spacing because a measure is
+     a statement about who is expected to read the page. Authority addresses a
+     reader who has come to read, so the line is allowed to run long enough to
+     hold a complete thought. Cutting to 45 would be the same page addressing
+     a reader assumed to be skimming.
+     ---------------------------------------------------------------------- */
+  --sw-measure: 66ch;
+
+  /* ----------------------------------------------------------------------
+     RADIUS
+     Audience relationship axis. Zero.
+
+     The token exists and is zero on purpose. Every corner in the theme reads
+     this value, so a consumer moving off the register has one line to edit
+     rather than a stylesheet to audit. Square corners are the Authority
+     position stated in geometry: the page is not softening itself to be
+     easier to approach, because it is not asking to be approached. It is
+     stating what it holds.
+     ---------------------------------------------------------------------- */
+  --sw-radius: 0;
+
+  /* ----------------------------------------------------------------------
+     FOCUS
+     Audience relationship axis, and the one place the accent is not rationed.
+
+     The ring is the accent, offset outside the border so it sits on the
+     ground rather than on the control. That keeps it legible on an
+     accent-filled button, where a ring of the same colour drawn on the fill
+     would vanish.
+
+     Spending the register's only colour on focus resolves what looks like a
+     conflict with the rationing rule above. Focus is on exactly one element
+     at a time and moves when the reader moves, so it costs the composition
+     nothing, and it makes the accent's job legible: the red marks the thing
+     that matters right now.
+     ---------------------------------------------------------------------- */
+  --sw-focus: var(--sw-accent);  /* 5.88:1 on ground, clears the 3:1 UI floor */
+  --sw-focus-width: 2px;
+  --sw-focus-offset: 2px;
+
+  /* ----------------------------------------------------------------------
+     MOTION
+     Sensory ambition axis. Nothing in this theme moves. The only transitions
+     are colour, on hover and focus, and they are short and unshaped because
+     an eased colour change is a small performance and the register does not
+     perform. Linear is the honest curve when the distance is zero.
+     ---------------------------------------------------------------------- */
+  --sw-duration: 80ms;
+  --sw-ease: linear;
+
+  /* ----------------------------------------------------------------------
+     THE GRID REVEAL
+     Sensory ambition axis. Both values are derived from tokens above with
+     color-mix rather than being new literals, so the overlay stays in tune
+     with the palette when the palette changes.
+
+     color-mix has been Baseline widely available since 2023. Where it is not
+     supported the overlay paints nothing and the page is unchanged, which is
+     acceptable for a development aid in a way it would not be for a surface.
+     ---------------------------------------------------------------------- */
+  --sw-reveal-column: color-mix(in srgb, var(--sw-accent) 8%, transparent);
+  --sw-reveal-baseline: color-mix(in srgb, var(--sw-ink) 12%, transparent);
+}
+
+/* Nothing in this theme travels, so there is no motion to remove. The colour
+   transitions are cut to an imperceptible duration anyway, because a reader
+   who has asked the system to stop animating has asked for state changes to
+   be instant rather than merely quick. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --sw-duration: 1ms;
+  }
+}

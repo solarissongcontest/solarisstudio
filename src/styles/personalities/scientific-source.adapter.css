@@ -76,36 +76,6 @@
   line-height: 1.55;
 }
 
-.country-identity-hero[data-country-personality="horizon"] .country-hero-art {
-  min-block-size: 100%;
-  border: 0;
-  border-inline-end: 1px solid var(--border);
-  border-block-end: 1px solid var(--border);
-  border-radius: 0;
-  background:
-    linear-gradient(to right, transparent calc(50% - .5px), var(--border) 50%, transparent calc(50% + .5px)),
-    linear-gradient(to bottom, transparent calc(50% - .5px), var(--border) 50%, transparent calc(50% + .5px));
-}
-
-.country-identity-hero[data-country-personality="horizon"] .country-hero-art-primary {
-  position: absolute;
-  inset: 1rem;
-  border: 1px solid var(--primary);
-}
-
-.country-identity-hero[data-country-personality="horizon"] .country-hero-art-secondary {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  inline-size: .5rem;
-  block-size: .5rem;
-  translate: -50% -50%;
-  background: var(--primary);
-}
-
-.country-identity-hero[data-country-personality="horizon"] .country-hero-art-tertiary {
-  display: none;
-}
-
 .country-identity-hero[data-country-personality="horizon"] .country-hero-flag-zone {
   padding: var(--carbon-07);
   border-block-end: 1px solid var(--border);
@@ -165,16 +135,5 @@ body[data-entity-theme="country"][data-country-hero-layout="horizon"] .wiki-canv
       "art"
       "flag"
       "actions";
-  }
-
-  .country-identity-hero[data-country-personality="horizon"] .country-hero-copy,
-  .country-identity-hero[data-country-personality="horizon"] .country-hero-art,
-  .country-identity-hero[data-country-personality="horizon"] .country-hero-actions {
-    border-inline-end: 0;
-  }
-
-  .country-identity-hero[data-country-personality="horizon"] .country-hero-art {
-    min-block-size: 4.5rem;
-    max-block-size: 4.5rem;
   }
 }

@@ -13,16 +13,18 @@ import {
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
-import { CountryWorldOverview } from "@/components/CountryWorldOverview";
+import { CountryWorldOverview, CountryWorldSupplement } from "@/components/CountryWorldOverview";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
+import { allTimeScoreForCountry } from "@/lib/all-time-ranking";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
+import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import {
   editionLabel,
   type Participant,
@@ -34,7 +36,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data-live";
-import { canonicalEntryFor } from "@/lib/entry-utils";
+import { canonicalEditionEntries, canonicalEntryFor } from "@/lib/entry-utils";
 import { computeCountryForm } from "@/lib/form";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import {
@@ -62,6 +64,7 @@ function CountryProfileRoute() {
 
 const TABS = [
   { value: "overview", label: "Overview" },
+  { value: "entries", label: "Entries" },
   { value: "results", label: "Results" },
   { value: "voting", label: "Voting" },
   { value: "relationships", label: "Relationships" },
@@ -120,6 +123,10 @@ function CountryProfilePage() {
     () => (country ? computeCountryForm(country.id, opts) : null),
     [country, opts],
   );
+  const allTime = useMemo(
+    () => (country ? allTimeScoreForCountry(country.id, publicArchive.shows, publicArchive.results) : null),
+    [country, publicArchive],
+  );
 
   const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading country profile…" /></AppShell>;
@@ -176,6 +183,15 @@ function CountryProfilePage() {
 
   const qualificationFor = (editionId: string) =>
     resolveCountryEditionQualification(country.id, editionId, publicArchive);
+
+  const entryHistory = canonicalEditionEntries(myParticipants)
+    .slice()
+    .sort(
+      (a, b) =>
+        (editionMap.get(b.edition_id)?.edition_number ?? -1) -
+        (editionMap.get(a.edition_id)?.edition_number ?? -1),
+    );
+  const latestEntry = entryHistory[0] ?? null;
 
   const qualificationEditionIds = new Set<string>();
   myParticipants.forEach((participant) => qualificationEditionIds.add(participant.edition_id));
@@ -265,6 +281,56 @@ function CountryProfilePage() {
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
     .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore);
 
+  const identityModel: CountryIdentityModel = {
+    code: country.short_code,
+    name: country.name,
+    nativeName: country.native_name,
+    region: country.region,
+    description: country.description,
+    flag: {
+      src: country.flag_image,
+      alt: `Flag of ${country.name}`,
+    },
+    colors: {
+      primary: country.accent_color,
+      accent: country.accent_color,
+    },
+    facts: country.region ? [{ id: "region", label: "Region", value: country.region }] : [],
+    statistics: stats
+      ? [
+          { id: "participations", label: "Participations", value: stats.participations },
+          { id: "wins", label: "Wins", value: stats.wins },
+          { id: "podiums", label: "Podiums", value: stats.podiums },
+        ]
+      : [],
+    currentEntry: latestEntry
+      ? {
+          editionId: latestEntry.edition_id,
+          editionLabel: editionMap.get(latestEntry.edition_id)
+            ? editionLabel(editionMap.get(latestEntry.edition_id)!)
+            : "Edition",
+          artist: latestEntry.artist,
+          song: latestEntry.song,
+          status: qualificationFor(latestEntry.edition_id),
+        }
+      : null,
+    history: entryHistory.map((entry) => ({
+      editionId: entry.edition_id,
+      editionLabel: editionMap.get(entry.edition_id)
+        ? editionLabel(editionMap.get(entry.edition_id)!)
+        : "Edition",
+      artist: entry.artist,
+      song: entry.song,
+      status: qualificationFor(entry.edition_id),
+    })),
+    geography: null,
+    actions: {
+      wiki: { label: "Wiki", href: `/wiki/${country.short_code}` },
+      compare: { label: "Compare", href: `/compare?a=${country.short_code}` },
+      follow: { label: "Follow", href: `/countries/${country.short_code}` },
+    },
+  };
+
   const chartData =
     stats?.timeline
       .filter((point) => point.rank != null)
@@ -282,13 +348,14 @@ function CountryProfilePage() {
         <CountryIdentityHero
           personality={heroPersonality}
           decoration={heroDecoration}
-          code={country.short_code}
-          name={country.name}
-          nativeName={country.native_name}
-          region={country.region}
-          description={country.description}
-          flagImage={country.flag_image}
-          accentColor={country.accent_color}
+          code={identityModel.code}
+          name={identityModel.name}
+          nativeName={identityModel.nativeName}
+          region={identityModel.region}
+          description={identityModel.description}
+          flagImage={identityModel.flag.src}
+          accentColor={identityModel.colors.accent}
+          geography={identityModel.geography}
           className="mb-6"
           actions={
             <>
@@ -304,12 +371,13 @@ function CountryProfilePage() {
           options={TABS}
           onChange={setTab}
           label="Country section"
+          collapseAt="lg"
           className="mb-5"
         />
 
         {tab === "overview" && (
           <div className="space-y-5">
-            <CountryWorldOverview country={country} stats={stats} form={form} />
+            <CountryWorldOverview country={country} />
 
             {hasContestData && stats ? (
               <>
@@ -329,22 +397,29 @@ function CountryProfilePage() {
                   </div>
                 </Panel>
 
-                {hostedEditions.length > 0 && (
-                  <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
-                    <div className="flex flex-wrap gap-2">
-                      {hostedEditions.map((edition) => (
-                        <Link
-                          key={edition.id}
-                          to="/editions/$slug"
-                          params={{ slug: edition.slug }}
-                          className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold hover:border-primary/40"
-                        >
-                          {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
-                        </Link>
-                      ))}
+                <Panel
+                  title="Current entry"
+                  description="The latest published canonical entry for this delegation."
+                >
+                  {latestEntry ? (
+                    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">
+                          {[latestEntry.artist, latestEntry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {editionMap.get(latestEntry.edition_id)
+                            ? editionLabel(editionMap.get(latestEntry.edition_id)!)
+                            : "Latest published edition"}
+                        </p>
+                        <EntryListenLinks entry={latestEntry} compact className="mt-3" />
+                      </div>
+                      <QualificationBadge status={qualificationFor(latestEntry.edition_id)} />
                     </div>
-                  </Panel>
-                )}
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No published entry is available yet.</p>
+                  )}
+                </Panel>
 
                 <Panel
                   title="Recent SSC history"
@@ -398,6 +473,37 @@ function CountryProfilePage() {
                     <p className="text-sm text-muted-foreground">No edition history is available yet.</p>
                   )}
                 </Panel>
+
+                {allTime ? (
+                  <Panel
+                    title="All-time record"
+                    description="Cumulative published Grand Final score and the country's all-time position."
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <StatTile label="All-time score" value={allTime.score} />
+                      <StatTile label="All-time ranking" value={`#${allTime.rank}`} />
+                    </div>
+                  </Panel>
+                ) : null}
+
+                {hostedEditions.length > 0 && (
+                  <Panel title="Hosted editions" description="Published SSC editions hosted by this country.">
+                    <div className="flex flex-wrap gap-2">
+                      {hostedEditions.map((edition) => (
+                        <Link
+                          key={edition.id}
+                          to="/editions/$slug"
+                          params={{ slug: edition.slug }}
+                          className="rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold hover:border-primary/40"
+                        >
+                          {editionLabel(edition)}{edition.host_city ? ` · ${edition.host_city}` : ""}
+                        </Link>
+                      ))}
+                    </div>
+                  </Panel>
+                )}
+
+                <CountryWorldSupplement country={country} />
               </>
             ) : (
               <Panel title="Solaris Song Contest">
@@ -407,6 +513,68 @@ function CountryProfilePage() {
               </Panel>
             )}
           </div>
+        )}
+
+        {tab === "entries" && (
+          hasContestData ? (
+            <div className="space-y-5">
+              <Panel
+                title="Latest entry"
+                description="The newest published canonical entry remains prominent; the full chronology follows below."
+              >
+                {latestEntry ? (
+                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold">
+                        {[latestEntry.artist, latestEntry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {editionMap.get(latestEntry.edition_id)
+                          ? editionLabel(editionMap.get(latestEntry.edition_id)!)
+                          : "Edition"}
+                      </p>
+                      <EntryListenLinks entry={latestEntry} compact className="mt-3" />
+                    </div>
+                    <QualificationBadge status={qualificationFor(latestEntry.edition_id)} />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No published entry is available yet.</p>
+                )}
+              </Panel>
+
+              <Panel
+                title="Entry history"
+                description="Canonical entries in reverse chronological order. Chronology is never rearranged for personality styling."
+              >
+                {entryHistory.length ? (
+                  <div className="divide-y divide-border/60">
+                    {entryHistory.map((entry) => {
+                      const edition = editionMap.get(entry.edition_id);
+                      const status = qualificationFor(entry.edition_id);
+                      return (
+                        <div key={entry.id} className="py-3 first:pt-0 last:pb-0">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {edition ? editionLabel(edition) : "Edition"}
+                              </p>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
+                                {[entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details unavailable"}
+                              </p>
+                              <EntryListenLinks entry={entry} compact className="mt-2" />
+                            </div>
+                            <QualificationBadge status={status} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No published entry history is available yet.</p>
+                )}
+              </Panel>
+            </div>
+          ) : <NoContestData countryName={country.name} />
         )}
 
         {tab === "results" && (

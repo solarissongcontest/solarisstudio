@@ -10,10 +10,18 @@
     "packages/govuk-frontend/src/govuk/settings/_spacing.scss",
     "packages/govuk-frontend/src/govuk/components/summary-list/_mixin.scss"
   ],
-  "excludedFiles": ["GOV.UK crown/logotype assets", "fonts", "service-specific branding"],
+  "excludedFiles": [
+    "GOV.UK crown/logotype assets",
+    "fonts",
+    "service-specific branding"
+  ],
   "solarisChanges": [
     "map GOV.UK service colour roles to Solaris country tokens",
     "translate 5px spacing steps and summary-list row grammar",
     "retain conventional high-clarity actions without reproducing GOV.UK branding"
-  ]
+  ],
+  "source": "GOV.UK Frontend",
+  "licenseFile": "src/styles/personality-sources/diplomatic/LICENSE",
+  "visualAuthority": "Institutional and government publishing",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }

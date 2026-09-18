@@ -1,0 +1,355 @@
+/* ==========================================================================
+   swiss-style-theme / the grid layer
+   --------------------------------------------------------------------------
+   The typographic and grid discipline, which is the part of this register a
+   token file cannot hold.
+
+   tokens.css can hold a size and it can hold a leading. What it cannot hold
+   is the fact that they are one decision. On a baseline grid, choosing
+   --sw-text-h2 without also choosing --sw-leading-h2 puts the whole column
+   off the rhythm from that heading down, and nothing in a list of custom
+   properties says so. This file is where a size, its leading, its tracking
+   and its weight ship as a single class, so the pairing cannot come apart.
+
+   The same is true of the column grid. The container width, the column count
+   and the gutter are three tokens that only mean something together, and the
+   arithmetic that turns them into a layout lives here.
+
+   A NOTE ON SEPARABILITY
+
+   The neobrutalism sibling ships an extra layer, play.css, that can be
+   deleted whole. This file is not that. Delete it and the tokens still
+   resolve, the components still render, and what you have left is a page set
+   in one grotesque with no system running underneath it. That is a page, but
+   it is not this register.
+
+   What is separable is the last section: the two reveal classes. They are a
+   development aid, they paint nothing that ships, and removing them costs the
+   theme nothing but the ability to show its own skeleton.
+
+   Every value here is a var() reference to tokens.css. There is not one
+   colour literal in this file.
+
+   Requires tokens.css. Load it first:
+
+     <link rel="stylesheet" href="tokens/tokens.css" />
+     <link rel="stylesheet" href="components/grid.css" />
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   THE PAGE
+   The container is the reason the columns come out whole. At 1200px of
+   content a twelve-column grid with 24px gutters gives 78px columns, and a
+   rule drawn at a column boundary lands on the same pixel as the text edge
+   above it. Below the container width the columns go fractional and the grid
+   stops being something the reader can feel, which is the trade every fluid
+   grid makes and is worth naming rather than hiding.
+
+   --sw-container is the CONTENT width, so the max-width here has to add the
+   page padding back on. Setting max-width to the container alone would take
+   the padding out of the twelve columns instead of out of the margins, and
+   the tracks would come out at 74px rather than 78px. The arithmetic in
+   tokens.css would still be arithmetic, and it would no longer describe
+   anything on the screen.
+   -------------------------------------------------------------------------- */
+.sw-page {
+  max-width: calc(var(--sw-container) + var(--sw-space-2) * 2);
+  margin-inline: auto;
+  padding-inline: var(--sw-space-2);
+}
+
+@media (min-width: 768px) {
+  .sw-page {
+    max-width: calc(var(--sw-container) + var(--sw-space-3) * 2);
+    padding-inline: var(--sw-space-3);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   TYPE ROLES
+   Seven classes for seven steps. Each one binds a size to the leading it was
+   measured against, so the baseline rhythm holds without anyone having to
+   remember the pairing.
+
+   Weight is the only thing that varies inside a role, and it varies twice:
+   headings are bold, running text is regular. Anything that wants to be
+   louder than its role moves up a step rather than gaining a weight.
+   -------------------------------------------------------------------------- */
+.sw-display {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-display);
+  line-height: var(--sw-leading-display);
+  letter-spacing: var(--sw-tracking-display);
+  font-weight: var(--sw-weight-bold);
+  margin: 0;
+}
+
+.sw-h1 {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-h1);
+  line-height: var(--sw-leading-h1);
+  letter-spacing: var(--sw-tracking-display);
+  font-weight: var(--sw-weight-bold);
+  margin: 0;
+}
+
+.sw-h2 {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-h2);
+  line-height: var(--sw-leading-h2);
+  letter-spacing: var(--sw-tracking-display);
+  font-weight: var(--sw-weight-bold);
+  margin: 0;
+}
+
+.sw-h3 {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-h3);
+  line-height: var(--sw-leading-h3);
+  letter-spacing: var(--sw-tracking-normal);
+  font-weight: var(--sw-weight-bold);
+  margin: 0;
+}
+
+/* The lead is the one running-text role set above body size. It is regular
+   weight on purpose: a bold lead would be a heading that had not admitted it. */
+.sw-lead {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-lead);
+  line-height: var(--sw-leading-lead);
+  letter-spacing: var(--sw-tracking-normal);
+  font-weight: var(--sw-weight-regular);
+  margin: 0;
+}
+
+.sw-body {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-body);
+  line-height: var(--sw-leading-body);
+  letter-spacing: var(--sw-tracking-normal);
+  font-weight: var(--sw-weight-regular);
+  margin: 0;
+}
+
+.sw-meta {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  letter-spacing: var(--sw-tracking-normal);
+  font-weight: var(--sw-weight-regular);
+  margin: 0;
+}
+
+/* Column heads and field labels. Caps at this size crowd, so this is the one
+   role that opens its tracking. */
+.sw-meta-caps {
+  font-family: var(--sw-font);
+  font-size: var(--sw-text-meta);
+  line-height: var(--sw-leading-meta);
+  letter-spacing: var(--sw-tracking-label);
+  font-weight: var(--sw-weight-bold);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Secondary text keeps its size and changes its colour. A smaller step would
+   read as a different level, and it is not one. */
+.sw-muted {
+  color: var(--sw-ink-muted);
+}
+
+/* Dates, call numbers, counts. The grotesque was drawn for exactly this job,
+   which is why the theme has no monospace family to fall back on. */
+.sw-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   MEASURE
+   Prose that runs the full width of a twelve-column grid is unreadable at any
+   type size. Cap it.
+   -------------------------------------------------------------------------- */
+.sw-measure {
+  max-width: var(--sw-measure);
+}
+
+/* --------------------------------------------------------------------------
+   BASELINE FLOW
+   Vertical space between siblings, in whole baselines. This is the second
+   half of the rhythm: the leading puts each line on the grid, and this keeps
+   the gaps between blocks on it too.
+   -------------------------------------------------------------------------- */
+.sw-flow > * + * {
+  margin-top: var(--sw-space-3); /* 3 baselines */
+}
+
+.sw-flow-tight > * + * {
+  margin-top: var(--sw-space-2); /* 2 baselines */
+}
+
+.sw-flow-loose > * + * {
+  margin-top: var(--sw-space-6); /* 6 baselines */
+}
+
+/* --------------------------------------------------------------------------
+   RULES
+   The register's only structural device, in its three weights. A rule above a
+   block rather than below it, because in a column of stacked material the
+   rule belongs to the thing it introduces.
+
+   A RULE PAYS FOR ITS OWN WEIGHT
+
+   Each of these takes its border width back out of the padding beneath it, so
+   the distance from the top of the rule to the first line of type is a whole
+   number of baselines rather than a whole number plus a border.
+
+   This is easy to get wrong and invisible until you look for it. A 2px rule
+   over 16px of padding puts everything below it 18px down, which is two
+   pixels off the grid, and every block after it inherits the error. Turning
+   on .sw-reveal-baseline is the fastest way to find one.
+   -------------------------------------------------------------------------- */
+.sw-rule-above {
+  border-top: var(--sw-rule-hair) solid var(--sw-rule);
+  padding-top: calc(var(--sw-space-2) - var(--sw-rule-hair));
+}
+
+.sw-rule-above-mid {
+  border-top: var(--sw-rule-mid) solid var(--sw-ink);
+  padding-top: calc(var(--sw-space-2) - var(--sw-rule-mid));
+}
+
+.sw-rule-above-heavy {
+  border-top: var(--sw-rule-heavy) solid var(--sw-ink);
+  padding-top: calc(var(--sw-space-3) - var(--sw-rule-heavy));
+}
+
+/* --------------------------------------------------------------------------
+   THE COLUMN GRID
+   One column below 768px and twelve above it.
+
+   There is no intermediate step. A six-column grid on a 600px screen gives
+   columns narrower than a word, so the spans would all collapse to full width
+   anyway and the grid would be a fiction maintained in the stylesheet. The
+   register is honest about structure, and the honest structure of a phone
+   column is one column.
+   -------------------------------------------------------------------------- */
+.sw-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sw-gutter);
+}
+
+@media (min-width: 768px) {
+  .sw-grid {
+    grid-template-columns: repeat(var(--sw-columns), minmax(0, 1fr));
+  }
+
+  /* Span classes set the end edge only, so a start class can be combined with
+     any of them without the two fighting over grid-column. */
+  .sw-col-1 { grid-column-end: span 1; }
+  .sw-col-2 { grid-column-end: span 2; }
+  .sw-col-3 { grid-column-end: span 3; }
+  .sw-col-4 { grid-column-end: span 4; }
+  .sw-col-5 { grid-column-end: span 5; }
+  .sw-col-6 { grid-column-end: span 6; }
+  .sw-col-7 { grid-column-end: span 7; }
+  .sw-col-8 { grid-column-end: span 8; }
+  .sw-col-9 { grid-column-end: span 9; }
+  .sw-col-10 { grid-column-end: span 10; }
+  .sw-col-11 { grid-column-end: span 11; }
+  .sw-col-12 { grid-column-end: span 12; }
+
+  /* Asymmetry is the register's normal state, and it is built by starting a
+     block somewhere other than column one. */
+  .sw-start-1 { grid-column-start: 1; }
+  .sw-start-2 { grid-column-start: 2; }
+  .sw-start-3 { grid-column-start: 3; }
+  .sw-start-4 { grid-column-start: 4; }
+  .sw-start-5 { grid-column-start: 5; }
+  .sw-start-6 { grid-column-start: 6; }
+  .sw-start-7 { grid-column-start: 7; }
+  .sw-start-8 { grid-column-start: 8; }
+  .sw-start-9 { grid-column-start: 9; }
+  .sw-start-10 { grid-column-start: 10; }
+  .sw-start-11 { grid-column-start: 11; }
+  .sw-start-12 { grid-column-start: 12; }
+}
+
+/* ==========================================================================
+   THE REVEAL
+   --------------------------------------------------------------------------
+   Everything below this line is a development aid. It paints two overlays
+   that draw the structure the rest of the file is built on: the columns, and
+   the baseline. Delete this section and nothing else in the theme changes.
+
+   It is here because in this register the skeleton is the argument. A page
+   that claims a grid discipline should be able to show the grid, and a reader
+   evaluating whether the discipline is real should not have to take it on
+   trust. Turning the overlay on is the fastest way to find the block that was
+   nudged four pixels to make something fit.
+
+   MECHANICS
+
+   Both overlays are pseudo-elements at z-index -1 on a host that carries
+   isolation: isolate. The isolation is what makes the layering deterministic:
+   it turns the host into a stacking context, so the overlay paints above the
+   host's own background and below every descendant. Without it a negative
+   z-index child can slide behind the host's background and disappear, and
+   z-index 0 would put the overlay on top of the text instead.
+
+   The columns overlay uses ::before and the baseline overlay uses ::after, so
+   a host carrying both classes gets both.
+   ========================================================================== */
+
+/* The column band width, derived the same way the grid derives it:
+   twelve columns share what is left after eleven gutters. */
+.sw-reveal-columns {
+  --sw-reveal-band: calc(
+    (100% - (var(--sw-columns) - 1) * var(--sw-gutter)) / var(--sw-columns)
+  );
+  position: relative;
+  isolation: isolate;
+}
+
+/* Below 768px the grid is one column, so there is nothing to reveal and the
+   overlay paints nothing rather than drawing twelve bands that are not
+   there. */
+@media (min-width: 768px) {
+  .sw-reveal-columns::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--sw-reveal-column) 0,
+      var(--sw-reveal-column) var(--sw-reveal-band),
+      transparent var(--sw-reveal-band),
+      transparent calc(var(--sw-reveal-band) + var(--sw-gutter))
+    );
+  }
+}
+
+/* One line per baseline. The lines are measured from the top of this
+   element's padding box, so put the class on a block whose top edge is
+   already on the grid or every line will read as off by the same amount. */
+.sw-reveal-baseline {
+  position: relative;
+  isolation: isolate;
+}
+
+.sw-reveal-baseline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--sw-reveal-baseline) 0,
+    var(--sw-reveal-baseline) 1px,
+    transparent 1px,
+    transparent var(--sw-baseline)
+  );
+}

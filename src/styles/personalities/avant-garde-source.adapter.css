@@ -66,35 +66,6 @@
   line-height: 1.55;
 }
 
-.country-identity-hero[data-country-personality="ribbon"] .country-hero-art {
-  min-block-size: 18rem;
-  border: 0;
-  border-radius: 0;
-  background: var(--foreground);
-}
-
-.country-identity-hero[data-country-personality="ribbon"] .country-hero-art-primary {
-  position: absolute;
-  inset: var(--superilles-gap-lg);
-  border: 1px solid color-mix(in srgb, var(--background) 70%, transparent);
-}
-
-.country-identity-hero[data-country-personality="ribbon"] .country-hero-art-secondary {
-  position: absolute;
-  inset: var(--superilles-gap-lg) auto auto var(--superilles-gap-lg);
-  inline-size: 42%;
-  block-size: 30%;
-  background: var(--primary);
-}
-
-.country-identity-hero[data-country-personality="ribbon"] .country-hero-art-tertiary {
-  position: absolute;
-  inset: auto var(--superilles-gap-lg) var(--superilles-gap-lg) auto;
-  inline-size: 22%;
-  block-size: 48%;
-  border: 1px solid var(--background);
-}
-
 .country-identity-hero[data-country-personality="ribbon"] .country-hero-flag-zone {
   justify-items: start;
   padding-block-start: var(--superilles-gap-sm);
@@ -152,11 +123,6 @@ body[data-entity-theme="country"][data-country-hero-layout="ribbon"] .wiki-canva
   .country-identity-hero[data-country-personality="ribbon"] .country-hero-copy {
     padding-inline-end: 0;
     border-inline-end: 0;
-  }
-
-  .country-identity-hero[data-country-personality="ribbon"] .country-hero-art {
-    min-block-size: 4rem;
-    max-block-size: 4rem;
   }
 
   .country-identity-hero[data-country-personality="ribbon"] .country-hero-title {

@@ -180,7 +180,7 @@ function CountryThemePage() {
           ? theme.backgroundMode
           : source.backgroundModes[0] ?? "solid",
       });
-      setMessage("Appearance saved. Country and Wiki now use the V8 professional personality system.");
+      setMessage("Appearance saved. Country and Wiki now use the canonical source-driven personality system.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Appearance could not be saved.");
     }
