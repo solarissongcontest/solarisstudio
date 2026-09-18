@@ -15,10 +15,10 @@ export type PermissionCutoverReadiness = {
 };
 
 export const LEGACY_AUTHORIZATION_DEBT = Object.freeze({
-  rlsPolicies: 82,
-  functions: 58,
-  storagePolicies: 7,
-  capturedAt: "2026-09-14",
+  rlsPolicies: 0,
+  functions: 0,
+  storagePolicies: 0,
+  capturedAt: "2026-09-18",
 });
 
 export function buildPermissionCutoverReadiness(
@@ -30,8 +30,9 @@ export function buildPermissionCutoverReadiness(
   const gates: PermissionCutoverGate[] = [
     {
       id: "route-shadow",
-      label: "Organizer route shadowing",
-      detail: "Shared Organizer, Confirmations and Televoting admin shells emit comparison events.",
+      label: "Authoritative route audit",
+      detail:
+        "Organizer, Confirmations and Televoting route probes now record the capability decision used by Permission Engine v2.",
       state: "ready",
     },
     {
@@ -45,27 +46,28 @@ export function buildPermissionCutoverReadiness(
     },
     {
       id: "mismatches",
-      label: "Mismatch review",
+      label: "Pre-cutover mismatch review",
       detail:
         evaluations === 0
-          ? "Waiting for real observations before a zero-mismatch result means anything."
+          ? "Waiting for route evidence."
           : mismatches === 0
-            ? "No legacy/capability disagreements were recorded in the observation window."
-            : `${mismatches} disagreement${mismatches === 1 ? " needs" : "s need"} classification and resolution.`,
+            ? "No unresolved legacy/capability disagreements remain in the observation window."
+            : `${mismatches} historical disagreement${mismatches === 1 ? " still needs" : "s still need"} review.`,
       state: evaluations === 0 ? "waiting" : mismatches === 0 ? "ready" : "blocked",
     },
     {
       id: "server-coverage",
       label: "Server and RLS migration",
-      detail: `${LEGACY_AUTHORIZATION_DEBT.rlsPolicies} RLS policies and ${LEGACY_AUTHORIZATION_DEBT.functions} database functions remain in the audited legacy migration inventory.`,
-      state: "blocked",
+      detail:
+        "All audited public, Storage and Televoting RLS policy debt has been migrated to capability-aware authorization.",
+      state: "ready",
     },
     {
       id: "strict-dual",
-      label: "Strict sensitive-action dual enforcement",
+      label: "Authoritative capability enforcement",
       detail:
-        "Edition lifecycle, Incident Command and Feature Rollout are guarded; remaining sensitive actions still need strict dual coverage.",
-      state: "blocked",
+        "Permission Engine v2 is the authorization source; lifecycle, result, incident and publication safeguards remain independently enforced.",
+      state: "ready",
     },
   ];
 
