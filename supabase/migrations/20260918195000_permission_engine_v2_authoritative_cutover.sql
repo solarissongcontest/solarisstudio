@@ -250,6 +250,7 @@ declare
   v_missing_live_organizers bigint;
   v_legacy_policy_debt bigint;
   v_direct_role_function_debt bigint;
+  v_direct_role_function_names text;
   v_flag_enabled boolean;
 begin
   select count(*) into v_missing_live_organizers
@@ -280,7 +281,13 @@ begin
     raise exception 'Legacy role RLS debt remains: %', v_legacy_policy_debt;
   end if;
 
-  select count(*) into v_direct_role_function_debt
+  select
+    count(*),
+    string_agg(
+      format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)),
+      ', ' order by n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)
+    )
+  into v_direct_role_function_debt, v_direct_role_function_names
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
   where p.prokind = 'f'
@@ -288,7 +295,9 @@ begin
     and pg_get_functiondef(p.oid) ilike '%public.has_role%';
 
   if v_direct_role_function_debt <> 0 then
-    raise exception 'Direct legacy role function debt remains: %', v_direct_role_function_debt;
+    raise exception 'Direct legacy role function debt remains: % [%]',
+      v_direct_role_function_debt,
+      coalesce(v_direct_role_function_names, 'unknown');
   end if;
 
   select enabled and not admins_only
