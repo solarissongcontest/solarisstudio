@@ -140,7 +140,7 @@ export const COUNTRY_PERSONALITIES = [
     density: "compact",
     wikiStyle: "modern",
     layout: "broadcast-grid",
-    referenceFamily: "BBC GEL",
+    referenceFamily: "BBC Global Experience Language (GEL)",
     implementationReference: "Responsive broadcast grid, clear strap hierarchy, tabular numbers and solid information bands.",
     signature: ["lower-third", "channel-bug", "data-strap"],
     decorations: ["auto", "none"],
