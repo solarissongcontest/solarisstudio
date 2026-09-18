@@ -23,6 +23,7 @@ import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
 import { countryPersonalitySource } from "@/lib/country-personality-sources";
+import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import {
   editionLabel,
   type Participant,
@@ -275,6 +276,56 @@ function CountryProfilePage() {
     .filter((row): row is NonNullable<typeof row> => Boolean(row))
     .sort((a, b) => b.relationship.friendshipScore - a.relationship.friendshipScore);
 
+  const identityModel: CountryIdentityModel = {
+    code: country.short_code,
+    name: country.name,
+    nativeName: country.native_name,
+    region: country.region,
+    description: country.description,
+    flag: {
+      src: country.flag_image,
+      alt: `Flag of ${country.name}`,
+    },
+    colors: {
+      primary: country.accent_color,
+      accent: country.accent_color,
+    },
+    facts: country.region ? [{ id: "region", label: "Region", value: country.region }] : [],
+    statistics: stats
+      ? [
+          { id: "participations", label: "Participations", value: stats.participations },
+          { id: "wins", label: "Wins", value: stats.wins },
+          { id: "podiums", label: "Podiums", value: stats.podiums },
+        ]
+      : [],
+    currentEntry: latestEntry
+      ? {
+          editionId: latestEntry.edition_id,
+          editionLabel: editionMap.get(latestEntry.edition_id)
+            ? editionLabel(editionMap.get(latestEntry.edition_id)!)
+            : "Edition",
+          artist: latestEntry.artist,
+          song: latestEntry.song,
+          status: qualificationFor(latestEntry.edition_id),
+        }
+      : null,
+    history: entryHistory.map((entry) => ({
+      editionId: entry.edition_id,
+      editionLabel: editionMap.get(entry.edition_id)
+        ? editionLabel(editionMap.get(entry.edition_id)!)
+        : "Edition",
+      artist: entry.artist,
+      song: entry.song,
+      status: qualificationFor(entry.edition_id),
+    })),
+    geography: null,
+    actions: {
+      wiki: { label: "Wiki", href: `/wiki/${country.short_code}` },
+      compare: { label: "Compare", href: `/compare?a=${country.short_code}` },
+      follow: { label: "Follow", href: `/countries/${country.short_code}` },
+    },
+  };
+
   const chartData =
     stats?.timeline
       .filter((point) => point.rank != null)
@@ -292,13 +343,14 @@ function CountryProfilePage() {
         <CountryIdentityHero
           personality={heroPersonality}
           decoration={heroDecoration}
-          code={country.short_code}
-          name={country.name}
-          nativeName={country.native_name}
-          region={country.region}
-          description={country.description}
-          flagImage={country.flag_image}
-          accentColor={country.accent_color}
+          code={identityModel.code}
+          name={identityModel.name}
+          nativeName={identityModel.nativeName}
+          region={identityModel.region}
+          description={identityModel.description}
+          flagImage={identityModel.flag.src}
+          accentColor={identityModel.colors.accent}
+          geography={identityModel.geography}
           className="mb-6"
           actions={
             <>
