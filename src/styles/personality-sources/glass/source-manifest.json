@@ -1,0 +1,16 @@
+{
+  "personality": "glass-card",
+  "sourceName": "Sam Asante liquid-glass",
+  "repository": "samasante/liquid-glass",
+  "version": "0.1.1",
+  "commit": "4e7b769e1df7e5a7d3669fef22417fe3d2f79ade",
+  "license": "MIT",
+  "implementationMode": "package",
+  "importedFiles": ["@samasante/liquid-glass"],
+  "excludedFiles": ["site demo assets"],
+  "solarisChanges": [
+    "use one major Glass lens for the country identity plate",
+    "supply Solaris country scene, tint and content",
+    "retain static material fallback where live DOM bending is unavailable"
+  ]
+}
