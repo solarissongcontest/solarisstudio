@@ -6,11 +6,22 @@
   "commit": "717c76d8b81c0ece1ce845caffe70f6d64a1a6bb",
   "license": "Apache-2.0",
   "implementationMode": "translated-components",
-  "importedFiles": ["packages/layout/scss/_spacing.scss", "Carbon data/card/grid conventions"],
-  "excludedFiles": ["IBM marks", "Carbon icons", "product-specific brand assets"],
+  "importedFiles": [
+    "packages/layout/scss/_spacing.scss",
+    "Carbon data/card/grid conventions"
+  ],
+  "excludedFiles": [
+    "IBM marks",
+    "Carbon icons",
+    "product-specific brand assets"
+  ],
   "solarisChanges": [
     "translate Carbon spacing increments into source-named local tokens",
     "retain square technical surfaces, tabular data and one interactive accent",
     "contain measurement art inside the dedicated graphic cell"
-  ]
+  ],
+  "source": "IBM Carbon",
+  "licenseFile": "src/styles/personality-sources/scientific/LICENSE",
+  "visualAuthority": "Technical and data-oriented interface design",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
