@@ -41,6 +41,8 @@ describe("source-driven Country personality contract", () => {
       expect(personality.visualAuthority.length).toBeGreaterThan(8);
       expect(personality.flag.mobile[0]).toBeLessThanOrEqual(168);
       expect(personality.flag.mobile[1]).toBeLessThanOrEqual(112);
+      expect(personality.backgroundModes.length).toBeGreaterThan(0);
+      expect(personality.backgroundModes).toContain("solid");
       expect(countryPersonalitySource(personality.id).sourceName).toBe(personality.sourceName);
     }
   });
@@ -196,6 +198,21 @@ describe("source-driven Country personality contract", () => {
     expect(foundation).toContain("--cp-flag-max-inline: 9rem");
     expect(foundation).toContain("inline-size: auto !important");
     expect(foundation).toContain("object-fit: contain !important");
+  });
+
+  it("prevents the appearance editor from offering source-incompatible backgrounds", () => {
+    expect(countryPersonalitySource("glass-card").backgroundModes).toEqual(["solid", "gradient", "image"]);
+    expect(countryPersonalitySource("spotlight").backgroundModes).toEqual(["solid", "gradient", "image"]);
+    expect(countryPersonalitySource("sci-fi").backgroundModes).toEqual(["solid", "image"]);
+    expect(countryPersonalitySource("minimal").backgroundModes).toEqual(["solid"]);
+    expect(countryPersonalitySource("poster").backgroundModes).toEqual(["solid"]);
+    expect(countryPersonalitySource("flag-focus").backgroundModes).toEqual(["solid"]);
+
+    const appearance = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
+    expect(appearance).toContain("source.backgroundModes.includes(existing.backgroundMode)");
+    expect(appearance).toContain("source.backgroundModes.includes(current.backgroundMode)");
+    expect(appearance).toContain("sourcePersonality.backgroundModes.length > 1");
+    expect(appearance).toContain("Solid background locked by source design");
   });
 
   it("disables full atmospheric scenes where the canonical source design forbids them", () => {
