@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { contrastRatio } from "@/lib/visual-theme";
+
 import {
   COUNTRY_ACCENT_OPTIONS,
   COUNTRY_CONTENT_LAYOUT_OPTIONS,
@@ -78,6 +80,6 @@ describe("Country Design Builder V2", () => {
     expect(design.surface).toBe("opaque");
     expect(design.tuning.radius).toBe(40);
     expect(design.tuning.contentWidth).toBe(760);
-    expect(design.palette.textPrimary).not.toBe("#ffffff");
+    expect(contrastRatio(design.palette.textPrimary, design.palette.surface)).toBeGreaterThanOrEqual(4.5);
   });
 });
