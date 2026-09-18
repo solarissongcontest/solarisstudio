@@ -51,7 +51,7 @@ describe("personality performance budgets", () => {
 
   it("keeps MapLibre lazy and outside the critical Country identity render", () => {
     const atlas = readFileSync(resolve(process.cwd(), "src/components/country/AtlasMapModule.tsx"), "utf8");
-    expect(atlas).toContain('new Function("url", "return import(url)")');
+    expect(atlas).toContain('import(/* @vite-ignore */ MAPLIBRE_MODULE_URL)');
     expect(atlas).toContain('state === "error"');
     expect(atlas).toContain("No verified map geometry is stored");
   });
