@@ -11,6 +11,7 @@ import {
   COUNTRY_PERSONALITY_SOURCES,
   countryPersonalitySource,
 } from "@/lib/country-personality-sources";
+import { countryPersonalityDivergence } from "@/lib/country-personality-divergence";
 import { PERSONALITY_QA_FIXTURES } from "@/lib/personality-fixtures";
 import type { CountryHeroLayout } from "@/lib/visual-theme";
 
@@ -42,6 +43,7 @@ function PersonalityLab() {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   const source = countryPersonalitySource(personality);
+  const divergence = countryPersonalityDivergence(personality);
   const fixture = useMemo(
     () => PERSONALITY_QA_FIXTURES.find((item) => item.id === fixtureId) ?? PERSONALITY_QA_FIXTURES[0],
     [fixtureId],
@@ -114,8 +116,20 @@ function PersonalityLab() {
           <Meta label="Composition" value={source.compositionFamily} />
           <Meta label="Flag max desktop" value={`${source.flag.desktop[0]}×${source.flag.desktop[1]}`} />
           <Meta label="Flag max mobile" value={`${source.flag.mobile[0]}×${source.flag.mobile[1]}`} />
-          <Meta label="Source divergence" value="Adapter review required" />
+          <Meta label="Source divergence" value={divergence.budgetStatus === "approved" ? "Approved" : "Classified · visual budget review pending"} />
           <Meta label="QA status" value="Lab-ready · human approval pending" />
+        </section>
+
+        <section className="data-panel p-4" aria-label="Source divergence decisions">
+          <div className="grid gap-4 lg:grid-cols-4">
+            <DivergenceList label="KEEP" values={divergence.keep} />
+            <DivergenceList label="REMAP" values={divergence.remap} />
+            <DivergenceList label="REMOVE FOR SAFETY" values={divergence.removeForSafety} />
+            <DivergenceList label="SOLARIS ADD" values={divergence.solarisAdd} />
+          </div>
+          <p className="mt-4 border-t border-border/60 pt-3 text-xs leading-relaxed text-muted-foreground">
+            {divergence.note} Structural and visual replacement percentages are intentionally not fabricated; approval is recorded only after rendered source-vs-Solaris review.
+          </p>
         </section>
       </div>
     </AppShell>
@@ -133,4 +147,15 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 
 function Meta({ label, value }: { label: string; value: string }) {
   return <div><p className="text-[10px] font-semibold uppercase tracking-[.1em] text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm font-medium">{value}</p></div>;
+}
+
+function DivergenceList({ label, values }: { label: string; values: readonly string[] }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-[.1em] text-muted-foreground">{label}</p>
+      <ul className="mt-2 space-y-1.5 text-xs leading-relaxed">
+        {values.map((value) => <li key={value}>• {value}</li>)}
+      </ul>
+    </div>
+  );
 }
