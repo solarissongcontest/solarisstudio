@@ -253,7 +253,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [176, 118], mobile: [156, 104] },
     density: "medium-high",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "sci-fi",
@@ -285,7 +285,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid","image"],
     flag: { desktop: [128, 86], mobile: [120, 80] },
     density: "low",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "newspaper",
@@ -325,7 +325,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [136, 90], mobile: [120, 80] },
     density: "high",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "flag-focus",
@@ -341,7 +341,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     backgroundModes: ["solid"],
     flag: { desktop: [144, 96], mobile: [128, 86] },
     density: "medium",
-    status: "planned",
+    status: "prototype",
   },
   {
     id: "ribbon",
