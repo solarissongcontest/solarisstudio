@@ -99,7 +99,7 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(registry).toContain("implementationReference:");
     expect(css).toContain("@media (max-width: 639px)");
     expect(css).toContain("@media (forced-colors: active)");
-    expect(wiki).toContain("--wiki-measure: 72ch");
+    expect(wiki).toContain("--wiki-measure: 66ch");
   });
 
   it("keeps Broadcast grid-based with a bounded metadata band instead of free-floating technical lines", () => {
