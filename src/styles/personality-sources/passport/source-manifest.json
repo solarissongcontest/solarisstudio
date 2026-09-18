@@ -1,20 +1,18 @@
 {
   "personality": "passport",
   "sourceName": "Jesus Ramirez International Airline Ticket CSS",
-  "sourceUrl": "https://codehim.com/html5-css3/international-airline-ticket-in-html-css/",
   "repository": null,
+  "sourceUrl": "https://codehim.com/html5-css3/international-airline-ticket-in-html-css/",
   "version": null,
   "commit": null,
   "license": "MIT",
   "implementationMode": "translated-components",
-  "visualAuthority": "ICAO Doc 9303 document zoning",
-  "importedFiles": [
-    "HTML/CSS geometry and information-zone patterns"
-  ],
-  "excludedFiles": [
-    "airline branding",
-    "airplane icons",
-    "demo imagery",
-    "unnecessary font/icon dependencies"
+  "importedFiles": ["published HTML structure", "published CSS ticket zones"],
+  "structuralAuthority": "ICAO Doc 9303 identity-document zoning",
+  "excludedFiles": ["Font Awesome icons", "Google Fonts", "airline/travel sample data"],
+  "solarisChanges": [
+    "translate the source colour-top / white-detail zoning into responsive country identity zones",
+    "replace absolute fixed-size ticket geometry with collision-safe CSS Grid",
+    "retain aligned label/value rhythm and a decorative machine-code strip without fabricating identity data"
   ]
 }
