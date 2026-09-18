@@ -25,6 +25,7 @@ export type CountrySourceImportMode =
   | "translated-components";
 
 export type CountrySourceStatus = "prototype" | "planned";
+export type CountryBackgroundMode = "solid" | "gradient" | "image";
 
 export type FlagBounds = {
   desktop: readonly [width: number, height: number];
@@ -51,6 +52,7 @@ export type CountryPersonalitySource = {
   visualAuthority: string;
   compositionFamily: CountryCompositionFamily;
   backgroundPolicy: CountryBackgroundPolicy;
+  backgroundModes: readonly CountryBackgroundMode[];
   flag: FlagBounds;
   density: "low" | "medium-low" | "medium" | "medium-high" | "high";
   status: CountrySourceStatus;
@@ -79,6 +81,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Apple Liquid Glass",
     compositionFamily: "material",
     backgroundPolicy: "ambient",
+    backgroundModes: ["solid","gradient","image"],
     flag: { desktop: [176, 118], mobile: [144, 96] },
     density: "medium",
     status: "prototype",
@@ -94,6 +97,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Edward Tufte editorial publishing",
     compositionFamily: "document",
     backgroundPolicy: "contained",
+    backgroundModes: ["solid"],
     flag: { desktop: [144, 96], mobile: [120, 80] },
     density: "medium-low",
     status: "prototype",
@@ -110,6 +114,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "ICAO Doc 9303 document zoning",
     compositionFamily: "official-document",
     backgroundPolicy: "contained",
+    backgroundModes: ["solid"],
     flag: { desktop: [152, 100], mobile: [136, 90] },
     density: "high",
     status: "planned",
@@ -125,6 +130,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "International Typographic Style",
     compositionFamily: "grid-graphic",
     backgroundPolicy: "disabled",
+    backgroundModes: ["solid"],
     flag: { desktop: [184, 122], mobile: [160, 106] },
     density: "medium-low",
     status: "planned",
@@ -140,6 +146,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Archival and catalogue publishing",
     compositionFamily: "document",
     backgroundPolicy: "contained",
+    backgroundModes: ["solid"],
     flag: { desktop: [160, 106], mobile: [144, 96] },
     density: "medium",
     status: "planned",
@@ -163,6 +170,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "BBC Global Experience Language",
     compositionFamily: "information",
     backgroundPolicy: "contained",
+    backgroundModes: ["solid"],
     flag: { desktop: [160, 106], mobile: [144, 96] },
     density: "medium-high",
     status: "planned",
@@ -178,6 +186,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Pico semantic minimalist UI",
     compositionFamily: "semantic",
     backgroundPolicy: "disabled",
+    backgroundModes: ["solid"],
     flag: { desktop: [120, 80], mobile: [104, 70] },
     density: "medium",
     status: "prototype",
@@ -193,6 +202,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Modern digital cartography",
     compositionFamily: "geographic",
     backgroundPolicy: "contained",
+    backgroundModes: ["solid"],
     flag: { desktop: [152, 100], mobile: [136, 90] },
     density: "medium",
     status: "planned",
@@ -208,6 +218,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Institutional and government publishing",
     compositionFamily: "institutional",
     backgroundPolicy: "disabled",
+    backgroundModes: ["solid"],
     flag: { desktop: [136, 90], mobile: [120, 80] },
     density: "medium",
     status: "planned",
@@ -223,6 +234,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Contemporary event-site composition",
     compositionFamily: "event",
     backgroundPolicy: "ambient",
+    backgroundModes: ["solid","gradient","image"],
     flag: { desktop: [176, 118], mobile: [156, 104] },
     density: "medium",
     status: "planned",
@@ -238,6 +250,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Web brutalism",
     compositionFamily: "grid-graphic",
     backgroundPolicy: "contained",
+    backgroundModes: ["solid"],
     flag: { desktop: [176, 118], mobile: [156, 104] },
     density: "medium-high",
     status: "planned",
@@ -253,6 +266,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Classic Windows 98 UI grammar",
     compositionFamily: "software",
     backgroundPolicy: "desktop-wallpaper",
+    backgroundModes: ["solid","image"],
     flag: { desktop: [144, 96], mobile: [128, 86] },
     density: "high",
     status: "prototype",
@@ -268,6 +282,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "High-fashion editorial publishing",
     compositionFamily: "document",
     backgroundPolicy: "ambient",
+    backgroundModes: ["solid","image"],
     flag: { desktop: [128, 86], mobile: [120, 80] },
     density: "low",
     status: "planned",
@@ -291,6 +306,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Newspaper and editorial hierarchy",
     compositionFamily: "document",
     backgroundPolicy: "disabled",
+    backgroundModes: ["solid"],
     flag: { desktop: [128, 86], mobile: [112, 74] },
     density: "medium-high",
     status: "planned",
@@ -306,6 +322,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Technical and data-oriented interface design",
     compositionFamily: "information",
     backgroundPolicy: "disabled",
+    backgroundModes: ["solid"],
     flag: { desktop: [136, 90], mobile: [120, 80] },
     density: "high",
     status: "planned",
@@ -321,6 +338,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Civic and public-service information design",
     compositionFamily: "institutional",
     backgroundPolicy: "disabled",
+    backgroundModes: ["solid"],
     flag: { desktop: [144, 96], mobile: [128, 86] },
     density: "medium",
     status: "planned",
@@ -336,6 +354,7 @@ export const COUNTRY_PERSONALITY_SOURCES = [
     visualAuthority: "Wim Crouwel modular-grid experimentation",
     compositionFamily: "grid-graphic",
     backgroundPolicy: "contained",
+    backgroundModes: ["solid"],
     flag: { desktop: [168, 112], mobile: [152, 100] },
     density: "medium-low",
     status: "planned",
