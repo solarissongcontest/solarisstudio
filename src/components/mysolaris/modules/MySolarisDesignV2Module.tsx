@@ -31,6 +31,13 @@ import {
   type CountryDesignV2,
   type CountryFontChoice,
 } from "@/lib/country-design-v2";
+import {
+  countrySectionPresentation,
+  normalizeCountryPageSection,
+  useSaveCountryPageSection,
+  type CountryPageSection,
+  type CountrySectionLayoutVariant,
+} from "@/lib/country-page-builder";
 import { useCountries } from "@/lib/data";
 import { NAV_TARGETS, countrySearch } from "@/lib/navigation-targets";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
@@ -576,7 +583,15 @@ function CountryDesignEditor({
                 </div>
               }
             >
-              <div className="overflow-x-auto rounded-xl bg-background/40 p-2">
+              <DirectDesignInspector
+                countryId={country.id}
+                activeTarget={activeTarget}
+                page={previewPage}
+                design={design}
+                setDesign={setDesign}
+                sections={(world.data?.sections ?? []) as CountryPageSection[]}
+              />
+              <div className="mt-3 overflow-x-auto rounded-xl bg-background/40 p-2">
                 <div className={previewDevice === "mobile" ? "mx-auto w-[min(390px,100%)]" : "w-full"}>
                   <DesignPreview
                     country={country}
@@ -593,6 +608,150 @@ function CountryDesignEditor({
         </div>
       </AppShell>
     </>
+  );
+}
+
+function DirectDesignInspector({
+  countryId,
+  activeTarget,
+  page,
+  design,
+  setDesign,
+  sections,
+}: {
+  countryId: string;
+  activeTarget: string;
+  page: PreviewPage;
+  design: CountryDesignV2;
+  setDesign: React.Dispatch<React.SetStateAction<CountryDesignV2>>;
+  sections: CountryPageSection[];
+}) {
+  const saveSection = useSaveCountryPageSection(countryId);
+  const sectionId = activeTarget.startsWith("section:") ? activeTarget.slice("section:".length) : null;
+  const rawSection = sectionId ? sections.find((item) => item.id === sectionId) : null;
+  const section = rawSection ? normalizeCountryPageSection(rawSection) : null;
+  const presentation = section ? countrySectionPresentation(section) : null;
+
+  const saveSectionDesign = async (patch: Record<string, unknown>) => {
+    if (!section) return;
+    await saveSection.mutateAsync({
+      id: section.id,
+      heading: section.heading,
+      body: section.body,
+      sectionType: section.section_type,
+      kicker: section.kicker ?? "",
+      contentMode: section.content_mode,
+      visibleOnCountry: section.visible_on_country,
+      visibleOnWiki: section.visible_on_wiki,
+      imageUrl: section.image_url ?? null,
+      imageCaption: section.image_caption ?? null,
+      imageLayout: section.image_layout,
+      backgroundTint: section.background_tint ?? null,
+      contentJson: { ...(section.content_json ?? {}), ...patch },
+      sortOrder: section.sort_order,
+    });
+  };
+
+  if (section && presentation) {
+    const activeLayout = page === "wiki" ? presentation.wikiLayout : presentation.countryLayout;
+    return (
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.055] p-3" data-direct-design-inspector>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Direct edit · section</p>
+            <p className="mt-1 text-sm font-semibold">{section.heading || "Untitled section"}</p>
+          </div>
+          {saveSection.isPending ? <span className="text-[10px] text-muted-foreground">Saving…</span> : null}
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <Select
+            label={page === "wiki" ? "Wiki layout" : "Country layout"}
+            value={activeLayout}
+            options={[
+              ["wiki", "Wiki"],
+              ["encyclopedia", "Encyclopedia"],
+              ["magazine", "Magazine"],
+              ["dashboard", "Dashboard"],
+              ["showcase", "Showcase"],
+              ["timeline", "Timeline"],
+            ]}
+            onChange={(value) => void saveSectionDesign({
+              [page === "wiki" ? "wikiLayout" : "countryLayout"]: value as CountrySectionLayoutVariant,
+            })}
+          />
+          <Select
+            label="Emphasis"
+            value={presentation.emphasis}
+            options={[
+              ["normal", "Normal"],
+              ["subtle", "Subtle"],
+              ["strong", "Strong"],
+              ["accent", "Accent"],
+              ["bordered", "Bordered"],
+            ]}
+            onChange={(value) => void saveSectionDesign({ emphasis: value })}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTarget === "content") {
+    return (
+      <div className="rounded-xl border border-primary/25 bg-primary/[0.055] p-3" data-direct-design-inspector>
+        <p className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Direct edit · page content</p>
+        <div className="mt-3">
+          <Select
+            label="Default layout"
+            value={design.content.defaultLayout}
+            options={COUNTRY_CONTENT_LAYOUT_OPTIONS.map((item) => [item.id, item.label] as const)}
+            onChange={(defaultLayout) => setDesign((current) => ({
+              ...current,
+              content: { defaultLayout: defaultLayout as CountryDesignV2["content"]["defaultLayout"] },
+            }))}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-primary/25 bg-primary/[0.055] p-3" data-direct-design-inspector>
+      <p className="text-[10px] font-bold uppercase tracking-[.12em] text-primary">Direct edit · hero</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <Select
+          label="Hero layout"
+          value={design.hero.layout}
+          options={COUNTRY_HERO_V2_OPTIONS.map((item) => [item.id, item.label] as const)}
+          onChange={(layout) => setDesign((current) => ({
+            ...current,
+            hero: {
+              ...current.hero,
+              layout: layout as CountryDesignV2["hero"]["layout"],
+              alignment: layout === "centered" ? "center" : current.hero.alignment,
+            },
+          }))}
+        />
+        <Select
+          label="Text alignment"
+          value={design.hero.alignment}
+          options={[["left", "Left"], ["center", "Center"], ["right", "Right"]]}
+          onChange={(alignment) => setDesign((current) => ({
+            ...current,
+            hero: { ...current.hero, alignment: alignment as CountryDesignV2["hero"]["alignment"] },
+          }))}
+        />
+      </div>
+      <Toggle
+        label="Show flag"
+        checked={design.hero.showFlag}
+        onChange={(showFlag) => setDesign((current) => ({
+          ...current,
+          hero: { ...current.hero, showFlag },
+        }))}
+        className="mt-2"
+      />
+    </div>
   );
 }
 
