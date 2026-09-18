@@ -251,6 +251,7 @@ function boundedNumber(value: unknown, min: number, max: number, fallback: numbe
 
 export function countrySectionPresentation(
   sectionOrJson?: Pick<CountryPageSection, "content_json"> | Record<string, unknown> | null,
+  defaultLayout: CountrySectionLayoutVariant = "wiki",
 ): CountrySectionPresentation {
   const raw = sectionOrJson && "content_json" in sectionOrJson
     ? sectionOrJson.content_json ?? {}
@@ -292,17 +293,17 @@ export function countrySectionPresentation(
     layoutVariant: enumValue(
       json.layoutVariant,
       ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
-      "wiki",
+      defaultLayout,
     ),
     countryLayout: enumValue(
       json.countryLayout ?? json.layoutVariant,
       ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
-      "wiki",
+      defaultLayout,
     ),
     wikiLayout: enumValue(
       json.wikiLayout ?? json.layoutVariant,
       ["wiki", "encyclopedia", "magazine", "dashboard", "showcase", "timeline"] as const,
-      "wiki",
+      defaultLayout,
     ),
     emphasis: enumValue(
       json.emphasis,
