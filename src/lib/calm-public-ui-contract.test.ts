@@ -33,7 +33,7 @@ describe("calm public UI contract", () => {
     const appearance = source("src/components/mysolaris/modules/MySolarisAppearanceModule.tsx");
     expect(glass).toContain('data-country-personality="glass-card"');
     expect(glass).toContain("country-hero-glass-material");
-    expect(hero).toContain("<GlassMaterial");
+    expect(hero).toContain("<LazyGlassMaterial");
     expect(hero).toContain("country-hero-layout");
     expect(appearance).toContain("<CountryIdentityHero");
     expect(glass).not.toContain(".country-glass-panel-flag");
