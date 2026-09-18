@@ -91,3 +91,13 @@
     inline-size: var(--cp-flag-max-inline);
   }
 }
+
+
+/* Source titles own their font metrics. Keep a tiny glyph-safe inset because
+   display faces with aggressive ascenders can paint outside a very tight line
+   box, especially on iOS. This prevents the old clipped-OLAND failure without
+   inflating the whole hero. */
+.country-identity-hero .country-hero-title {
+  overflow: visible;
+  padding-block: .06em .09em;
+}
