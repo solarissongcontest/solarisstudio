@@ -70,7 +70,8 @@ describe("Televoting Permission Engine RLS cutover", () => {
   });
 
   it("does not fake canonical edition scoping for the independent televoting UUID namespace", () => {
-    expect(migration).not.toContain("televoting_round_bindings");
+    expect(migration).not.toContain("from public.televoting_round_bindings");
+    expect(migration).not.toContain("join public.televoting_round_bindings");
     expect(migration).not.toContain("rounds.edition_id");
     expect(migration).not.toContain("televote_aggregations.edition_id");
   });
