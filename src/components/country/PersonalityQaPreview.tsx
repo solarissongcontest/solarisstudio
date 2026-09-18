@@ -14,6 +14,7 @@ export function PersonalityQaPreview({
   textScale = 1,
   rtl = false,
   highContrast = false,
+  flagImageOverride,
 }: {
   personality: CountryHeroLayout;
   fixture: PersonalityFixture;
@@ -22,6 +23,7 @@ export function PersonalityQaPreview({
   textScale?: number;
   rtl?: boolean;
   highContrast?: boolean;
+  flagImageOverride?: string | null;
 }) {
   return (
     <div
@@ -49,7 +51,7 @@ export function PersonalityQaPreview({
           nativeName={fixture.nativeName}
           region={fixture.region}
           description={fixture.description}
-          flagImage={fixture.flagImage}
+          flagImage={flagImageOverride === undefined ? fixture.flagImage : flagImageOverride}
           accentColor={fixture.accentColor}
           compact={surface === "wiki"}
           eyebrow={surface === "wiki" ? "Solaris Wiki" : "Terra Solaris"}
