@@ -1,0 +1,151 @@
+/* GOV.UK Frontend translated adapter.
+   Upstream: alphagov/govuk-frontend @ b4a7543f133932fb04575b045330e8a01ab5c250
+   License: MIT / Crown Copyright.
+
+   The source's core grammar is used directly: 5px spacing increments,
+   border-separated factual rows, plain containers, strong legible headings,
+   conventional actions and almost no decorative chrome. */
+
+.country-identity-hero[data-country-personality="classic"] {
+  --govuk-space-1: 5px;
+  --govuk-space-2: 10px;
+  --govuk-space-3: 15px;
+  --govuk-space-4: 20px;
+  --govuk-space-5: 25px;
+  --govuk-space-6: 30px;
+  border: 0 !important;
+  border-block-start: 5px solid var(--primary) !important;
+  border-block-end: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-scene,
+.country-identity-hero[data-country-personality="classic"] .country-hero-art {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-layout {
+  grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: var(--govuk-space-6);
+  padding-block: var(--govuk-space-6);
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-title {
+  max-inline-size: 14ch !important;
+  font-family: var(--font-sans, Arial, sans-serif);
+  font-size: clamp(2.5rem, 6cqi, 4.3rem);
+  font-weight: 700;
+  letter-spacing: -.03em !important;
+  line-height: 1 !important;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-eyebrow {
+  margin-block-end: var(--govuk-space-3);
+  color: var(--primary);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-meta {
+  margin-block-start: var(--govuk-space-3);
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-description {
+  max-inline-size: 50ch;
+  margin-block-start: var(--govuk-space-4);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-official-flag {
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-flag-caption {
+  margin-block-start: var(--govuk-space-2);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-actions {
+  gap: var(--govuk-space-2);
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 700;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--primary) 60%, black);
+}
+
+.country-identity-hero[data-country-personality="classic"] .country-hero-actions :is(a, button):not(:first-child) {
+  border-color: var(--foreground);
+  background: transparent;
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+/* GOV.UK summary-list logic: factual sections are separated by borders rather
+   than floating rounded cards. */
+.country-profile-v8[data-country-personality="classic"] .data-panel {
+  border: 0 !important;
+  border-block-start: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+}
+
+.country-profile-v8[data-country-personality="classic"] .stat-line {
+  border-inline-start-color: var(--border);
+}
+
+.country-profile-v8[data-country-personality="classic"] .responsive-tabs :is(select, button),
+body[data-entity-theme="country"][data-country-hero-layout="classic"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="classic"] .wiki-infobox {
+  border: 1px solid var(--border) !important;
+  background: transparent !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="classic"] .wiki-infobox dl > div {
+  grid-template-columns: minmax(7rem, 30%) minmax(0, 1fr);
+  padding-block: var(--govuk-space-2, 10px);
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="classic"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: var(--govuk-space-4);
+    padding-block: var(--govuk-space-5);
+  }
+
+  .country-identity-hero[data-country-personality="classic"] .country-hero-flag-zone {
+    justify-items: start;
+  }
+}
