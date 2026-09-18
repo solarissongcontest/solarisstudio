@@ -1,4 +1,4 @@
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 import { AtlasMapModule } from "@/components/country/AtlasMapModule";
 import { countryPersonality } from "@/lib/country-personality-system";
@@ -57,6 +57,13 @@ export function CountryIdentityHero({
   const definition = countryPersonality(personality);
   const sourceDefinition = countryPersonalitySource(definition.id);
   const isLiquidGlass = definition.id === "glass-card";
+  const [flagState, setFlagState] = useState<"missing" | "loading" | "ready" | "error">(
+    flagImage ? "loading" : "missing",
+  );
+
+  useEffect(() => {
+    setFlagState(flagImage ? "loading" : "missing");
+  }, [flagImage]);
   const flagStyle = flagImage
     ? ({ "--country-flag-art": `url(${JSON.stringify(flagImage)})` } as CSSProperties)
     : undefined;
@@ -112,23 +119,38 @@ export function CountryIdentityHero({
       ) : null}
 
       <div className="country-hero-flag-zone">
-        <div className="country-official-flag" data-flag-role="official">
+        <div
+          className="country-official-flag"
+          data-flag-role="official"
+          data-flag-state={flagState}
+          aria-busy={flagState === "loading" ? "true" : undefined}
+        >
           {flagImage ? (
             <img
               src={flagImage}
-              alt={`Flag of ${name}`}
+              alt={flagState === "ready" ? `Flag of ${name}` : ""}
               loading="eager"
               decoding="async"
+              onLoad={() => setFlagState("ready")}
+              onError={() => setFlagState("error")}
+              style={{ opacity: flagState === "ready" ? 1 : 0 }}
             />
-          ) : (
+          ) : null}
+          {flagState !== "ready" ? (
             <span
               className="country-official-flag-fallback"
-              aria-label={`Flag unavailable for ${name}`}
+              role="status"
+              aria-live="polite"
+              aria-label={
+                flagState === "loading"
+                  ? `Flag loading for ${name}`
+                  : `Flag unavailable for ${name}`
+              }
               style={{ borderColor: accentColor || undefined }}
             >
-              {code}
+              {flagState === "loading" ? "…" : code}
             </span>
-          )}
+          ) : null}
         </div>
         <span className="country-flag-caption">{code}</span>
       </div>
