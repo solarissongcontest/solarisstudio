@@ -1,0 +1,168 @@
+/* Guardian Source translated adapter.
+   Upstream: guardian/source @ d84c25d67ed51545994f53986eb4487d35c1aab4
+   Companion: guardian/interactive-style-library @ 19533f580cfa7ff6f5e2db6ffc75334cd9cf02a8
+   License: Apache-2.0.
+
+   Source foundations used here are literal Guardian scale relationships:
+   4/8/12/16/20/24/36/48/96 spacing, headline steps 17..50px, titlepiece
+   42/50/70px, tight 1.15 leading and breakpoints 320/375/480/660/740/980. */
+
+.country-identity-hero[data-country-personality="newspaper"] {
+  --guardian-space-1: .25rem;
+  --guardian-space-2: .5rem;
+  --guardian-space-3: .75rem;
+  --guardian-space-4: 1rem;
+  --guardian-space-5: 1.25rem;
+  --guardian-space-6: 1.5rem;
+  --guardian-space-9: 2.25rem;
+  --guardian-space-12: 3rem;
+  --guardian-headline: Georgia, "Times New Roman", serif;
+  --guardian-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  border: 0 !important;
+  border-block-start: 1px solid var(--foreground) !important;
+  border-block-end: 4px double var(--foreground) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] :is(.country-hero-scene, .country-hero-art) {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-layout {
+  grid-template-columns: minmax(0, 9fr) minmax(7rem, 3fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: var(--guardian-space-6);
+  padding-block: var(--guardian-space-4) var(--guardian-space-6);
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-eyebrow {
+  margin-block-end: var(--guardian-space-2);
+  font-family: var(--guardian-sans);
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-title {
+  max-inline-size: 14ch !important;
+  font-family: var(--guardian-headline);
+  font-size: clamp(2.625rem, 6cqi, 4.375rem);
+  font-weight: 700;
+  letter-spacing: -.035em !important;
+  line-height: 1.02 !important;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-meta {
+  margin-block-start: var(--guardian-space-2);
+  padding-block-start: var(--guardian-space-2);
+  border-block-start: 1px solid var(--border);
+  font-family: var(--guardian-sans);
+  font-size: .875rem;
+  line-height: 1.35;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-description {
+  max-inline-size: 58ch;
+  margin-block-start: var(--guardian-space-4);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-flag-zone {
+  padding-inline-start: var(--guardian-space-4);
+  border-inline-start: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-official-flag {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-flag-caption {
+  margin-block-start: var(--guardian-space-2);
+  font-family: var(--guardian-sans);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-actions {
+  padding-block-start: var(--guardian-space-3);
+  border-block-start: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="newspaper"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 1px solid var(--foreground);
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-family: var(--guardian-sans);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.country-profile-v8[data-country-personality="newspaper"] .data-panel {
+  border: 0 !important;
+  border-block-start: 1px solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+}
+
+.country-profile-v8[data-country-personality="newspaper"] .data-panel h2,
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-canvas :is(
+  .wiki-introduction h2,
+  .wiki-article-section summary h2,
+  .wiki-feature-title
+) {
+  font-family: var(--guardian-headline);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-canvas {
+  --wiki-measure: 66ch;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-prose {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="newspaper"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: var(--guardian-space-4);
+  }
+
+  .country-identity-hero[data-country-personality="newspaper"] .country-hero-flag-zone {
+    justify-items: start;
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+
+  .country-identity-hero[data-country-personality="newspaper"] .country-hero-title {
+    font-size: clamp(2.625rem, 13cqi, 3.6rem);
+  }
+}
