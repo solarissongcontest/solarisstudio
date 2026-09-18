@@ -10,7 +10,7 @@ test("Personality Gallery renders all seventeen source-driven systems", async ({
 });
 
 test("all personalities survive hostile content at 200% text, RTL and high contrast", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "public-390", "The hostile interaction stress run uses the canonical 390×844 mobile viewport.");
+  test.skip(testInfo.project.name !== "personality-390", "The hostile interaction stress run uses the canonical 390×844 mobile viewport.");
 
   await page.goto("/dev/personality-lab", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Country fixture", { exact: true }).selectOption("hostile");
@@ -84,7 +84,7 @@ test("all personalities survive hostile content at 200% text, RTL and high contr
 
 
 test("flag loading, failure and fallback states are deterministic", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "public-390", "Flag lifecycle QA uses the canonical mobile Lab.");
+  test.skip(testInfo.project.name !== "personality-390", "Flag lifecycle QA uses the canonical mobile Lab.");
 
   await page.route("**/personality-qa-flag.svg?slow=1", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 700));
@@ -115,7 +115,7 @@ test("flag loading, failure and fallback states are deterministic", async ({ pag
 });
 
 test("all personalities retain semantics and visible keyboard focus in forced colors", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "public-390", "Forced-colors accessibility QA uses the canonical mobile viewport.");
+  test.skip(testInfo.project.name !== "personality-390", "Forced-colors accessibility QA uses the canonical mobile viewport.");
 
   await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce", colorScheme: "dark" });
   await page.goto("/dev/personality-gallery", { waitUntil: "domcontentloaded" });
@@ -168,11 +168,11 @@ test("all personalities preserve coarse-pointer touch targets", async ({ page },
 });
 
 test("reference-lock run captures all four canonical gallery views", async ({ page }, testInfo) => {
-  test.skip(!["public-390", "public-1440"].includes(testInfo.project.name), "Reference locks use canonical 390px and 1440px viewports.");
+  test.skip(!["personality-390", "personality-1440"].includes(testInfo.project.name), "Reference locks use canonical 390px and 1440px viewports.");
 
   await page.goto("/dev/personality-gallery", { waitUntil: "domcontentloaded" });
 
-  const isMobile = testInfo.project.name === "public-390";
+  const isMobile = testInfo.project.name === "personality-390";
   const views = isMobile
     ? (["country-mobile", "wiki-mobile"] as const)
     : (["country-desktop", "wiki-desktop"] as const);
