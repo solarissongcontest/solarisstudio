@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -15,6 +15,15 @@ describe("canonical Country + Wiki completion contract", () => {
     expect(route).toContain("canonicalEditionEntries");
   });
 
+  it("removes the legacy all-personality V8 layer from production", () => {
+    const loader = source("src/components/CountryPersonalityStyles.tsx");
+    const shared = source("src/country-personality-shared-foundation.css");
+    expect(loader).toContain("country-personality-shared-foundation.css");
+    expect(loader).not.toContain("country-personality-system-v8.css");
+    expect(shared).not.toContain("data-country-personality=");
+    expect(existsSync(resolve(process.cwd(), "src/country-personality-system-v8.css"))).toBe(false);
+  });
+
   it("ships the shared semantic Country and Wiki data contracts", () => {
     const model = source("src/lib/country-semantic-model.ts");
     expect(model).toContain("interface CountryIdentityModel");
@@ -28,7 +37,7 @@ describe("canonical Country + Wiki completion contract", () => {
     const adapter = source("src/styles/personalities/atlas-source.adapter.css");
     const manifest = source("src/styles/personality-sources/atlas/source-manifest.json");
     expect(atlas).toContain('MAPLIBRE_VERSION = "6.10.0"');
-    expect(atlas).toContain("return import(url)");
+    expect(atlas).toContain('import(/* @vite-ignore */ MAPLIBRE_MODULE_URL)');
     expect(atlas).toContain("No verified map geometry is stored");
     expect(atlas).toContain('addSource("solaris-country"');
     expect(adapter).toContain("real MapLibre map");
