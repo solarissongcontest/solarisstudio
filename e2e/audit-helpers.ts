@@ -190,6 +190,21 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         return problems;
       });
 
+      const countryHeroFlagSizeProblems = [...document.querySelectorAll<HTMLImageElement>(
+        '.country-identity-hero [data-flag-role="official"] img',
+      )].flatMap((image) => {
+        if (window.innerWidth > 639 || image.getClientRects().length === 0) return [];
+        const rect = image.getBoundingClientRect();
+        const personality =
+          image.closest<HTMLElement>(".country-identity-hero")?.dataset.countryPersonality ?? "unknown";
+        // Source-driven mobile flag boxes top out at 168 × 112px. A tiny
+        // tolerance keeps fractional browser pixels from turning QA into theatre.
+        if (rect.width > 170 || rect.height > 114) {
+          return [`${personality}: mobile official flag rendered ${Math.round(rect.width)}×${Math.round(rect.height)}px`];
+        }
+        return [];
+      });
+
       return {
         overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
         mainCount: document.querySelectorAll("main").length,
@@ -198,6 +213,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         unnamedControls,
         countryHeroCollisions,
         officialFlagProblems,
+        countryHeroFlagSizeProblems,
         title: document.title,
       };
     });
@@ -210,6 +226,10 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(result.unnamedControls, `${path} has controls without accessible names`).toEqual([]);
     expect(result.countryHeroCollisions, `${path} has overlapping country hero semantic regions`).toEqual([]);
     expect(result.officialFlagProblems, `${path} distorts or hides official flag media`).toEqual([]);
+    expect(
+      result.countryHeroFlagSizeProblems,
+      `${path} renders an oversized mobile Country hero flag`,
+    ).toEqual([]);
     expect(pageErrors, `${path} raised browser errors`).toEqual([]);
     expect(consoleErrors, `${path} logged console errors`).toEqual([]);
     expect(failedRequests, `${path} had failed requests`).toEqual([]);
