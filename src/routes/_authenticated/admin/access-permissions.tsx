@@ -183,13 +183,13 @@ function AccessPermissionsPage() {
         <AdminPageHeader
           eyebrow="Administration"
           title="Access & permissions"
-          description="Assign clear role presets, add narrow exceptions and compare capability decisions with the current organizer gate before enforcement changes."
-          actions={<AdminStatus tone="attention">Shadow mode</AdminStatus>}
+          description="Assign role presets and narrow exceptions. Permission Engine v2 now decides protected access; legacy roles remain visible only as audit history."
+          actions={<AdminStatus tone="ready">Authoritative</AdminStatus>}
         />
 
-        <div className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-4 py-3 text-sm text-amber-50">
-          <span className="font-bold">Not authoritative yet.</span> Existing access rules still
-          decide requests while this workspace records comparison data.
+        <div className="rounded-xl border border-emerald-200/20 bg-emerald-200/[0.06] px-4 py-3 text-sm text-emerald-50">
+          <span className="font-bold">Permission Engine v2 is authoritative.</span> Active role
+          assignments and direct capability grants now decide protected access.
         </div>
 
         <section
