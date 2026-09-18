@@ -1,0 +1,16 @@
+{
+  "personality": "duotone",
+  "sourceName": "RampStack Brutalist Web Theme",
+  "repository": "rampstackco/brutalist-web-theme",
+  "version": null,
+  "commit": "2ad20824755fb00b3d2c30d01df67ea63f2d9427",
+  "license": "MIT",
+  "implementationMode": "vendored-css",
+  "importedFiles": [
+    "tokens and structural component styles selected after file-level audit"
+  ],
+  "excludedFiles": [
+    "demo content",
+    "anything that reduces touch target, focus or readability below Solaris requirements"
+  ]
+}
