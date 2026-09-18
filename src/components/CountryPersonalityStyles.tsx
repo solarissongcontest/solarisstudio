@@ -20,6 +20,7 @@ import avantGardeSource from "@/styles/personalities/avant-garde-source.adapter.
 import passportSource from "@/styles/personalities/passport-source.adapter.css?inline";
 import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline";
 import glassSource from "@/styles/personalities/glass-source.adapter.css?inline";
+import personalityCompositions from "@/styles/personality-compositions.css?inline";
 
 const countryPersonalityStyles = [
   buttonStyles,
@@ -44,14 +45,16 @@ const countryPersonalityStyles = [
   passportSource,
   atlasSource,
   glassSource,
+  personalityCompositions,
 ].join("\n");
 
 /**
  * One route-scoped style payload.
  *
- * The shared foundation owns semantic geometry only. Source adapters load
- * afterwards and are the sole personality-specific visual authority. No legacy
- * all-personality stylesheet participates in production rendering.
+ * The shared foundation owns semantic geometry. Source adapters provide pinned
+ * source-derived design grammar, then the Solaris composition layer arranges
+ * semantic country content per personality. No legacy all-personality stylesheet
+ * participates in production rendering.
  */
 export function CountryPersonalityStyles() {
   return <style data-country-personality-styles>{countryPersonalityStyles}</style>;
