@@ -1,0 +1,19 @@
+{
+  "personality": "horizon",
+  "sourceName": "IBM Carbon",
+  "repository": "carbon-design-system/carbon",
+  "version": null,
+  "commit": "717c76d8b81c0ece1ce845caffe70f6d64a1a6bb",
+  "license": "Apache-2.0",
+  "implementationMode": "vendored-scss",
+  "importedFiles": [
+    "layout/type tokens",
+    "data-table structure",
+    "technical labels",
+    "component-state patterns"
+  ],
+  "excludedFiles": [
+    "IBM brand assets",
+    "IBM Plex font files"
+  ]
+}
