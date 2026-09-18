@@ -281,7 +281,7 @@ describe("source-driven Country personality contract", () => {
     expect(civic).toMatchObject({ repository: "uswds/uswds" });
     expect(avantGarde).toMatchObject({ repository: "zetareticoli/superilles", license: "MIT" });
 
-    expect(source("THIRD_PARTY_DESIGN_LICENSES.md")).toContain("## Architecture prototypes");
+    expect(source("THIRD_PARTY_DESIGN_LICENSES.md")).toContain("## Implemented source-driven personalities");
   });
 
   it("uses the real vendored liquid-glass material instead of a simulated CSS-only plate", () => {
