@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 import { AtlasMapModule } from "@/components/country/AtlasMapModule";
 import { countryPersonality } from "@/lib/country-personality-system";
@@ -6,7 +6,12 @@ import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryGeography } from "@/lib/country-semantic-model";
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
-import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial";
+
+const LazyGlassMaterial = lazy(() =>
+  import("@/vendor/liquid-glass/GlassMaterial").then((module) => ({
+    default: module.GlassMaterial,
+  })),
+);
 
 type CountryIdentityHeroProps = {
   as?: "section" | "header";
@@ -185,21 +190,23 @@ export function CountryIdentityHero({
       </div>
 
       {isLiquidGlass ? (
-        <GlassMaterial
-          className="country-hero-glass-material"
-          optics={{
-            strength: 0.045,
-            depth: 0.52,
-            curvature: 0.34,
-            dispersion: 0.24,
-            frost: 10,
-            saturate: 1.24,
-            sheen: 0.28,
-            glow: 0.08,
-          }}
-        >
-          {heroLayout}
-        </GlassMaterial>
+        <Suspense fallback={heroLayout}>
+          <LazyGlassMaterial
+            className="country-hero-glass-material"
+            optics={{
+              strength: 0.045,
+              depth: 0.52,
+              curvature: 0.34,
+              dispersion: 0.24,
+              frost: 10,
+              saturate: 1.24,
+              sheen: 0.28,
+              glow: 0.08,
+            }}
+          >
+            {heroLayout}
+          </LazyGlassMaterial>
+        </Suspense>
       ) : heroLayout}
 
     </Root>
