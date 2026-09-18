@@ -120,8 +120,14 @@ describe("source-driven Country personality contract", () => {
     ] as const) {
       expect(countryPersonalitySource(id).status).toBe("prototype");
     }
-    for (const id of ["passport", "panorama", "spotlight", "newspaper", "ribbon"] as const) {
-      expect(countryPersonalitySource(id).status).toBe("planned");
+    for (const id of [
+      "passport",
+      "panorama",
+      "spotlight",
+      "newspaper",
+      "ribbon",
+    ] as const) {
+      expect(countryPersonalitySource(id).status).toBe("prototype");
     }
   });
 
@@ -171,6 +177,11 @@ describe("source-driven Country personality contract", () => {
     expect(styles).toContain('import luxurySource from "@/styles/personalities/luxury-source.adapter.css?inline"');
     expect(styles).toContain('import scientificSource from "@/styles/personalities/scientific-source.adapter.css?inline"');
     expect(styles).toContain('import civicSource from "@/styles/personalities/civic-source.adapter.css?inline"');
+    expect(styles).toContain('import festivalSource from "@/styles/personalities/festival-source.adapter.css?inline"');
+    expect(styles).toContain('import newspaperSource from "@/styles/personalities/newspaper-source.adapter.css?inline"');
+    expect(styles).toContain('import avantGardeSource from "@/styles/personalities/avant-garde-source.adapter.css?inline"');
+    expect(styles).toContain('import passportSource from "@/styles/personalities/passport-source.adapter.css?inline"');
+    expect(styles).toContain('import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline"');
 
     const listStart = styles.indexOf("const countryPersonalityStyles");
     const v8 = styles.indexOf("personalityV8,", listStart);
@@ -193,6 +204,11 @@ describe("source-driven Country personality contract", () => {
     const luxury = source("src/styles/personalities/luxury-source.adapter.css");
     const scientific = source("src/styles/personalities/scientific-source.adapter.css");
     const civic = source("src/styles/personalities/civic-source.adapter.css");
+    const festival = source("src/styles/personalities/festival-source.adapter.css");
+    const newspaper = source("src/styles/personalities/newspaper-source.adapter.css");
+    const avantGarde = source("src/styles/personalities/avant-garde-source.adapter.css");
+    const passport = source("src/styles/personalities/passport-source.adapter.css");
+    const atlas = source("src/styles/personalities/atlas-source.adapter.css");
 
     expect(pico).toContain("Pico CSS v2.1.1 selective translated adapter");
     expect(pico).toContain("--pico-border-radius: .25rem");
@@ -229,7 +245,18 @@ describe("source-driven Country personality contract", () => {
     expect(brutalist).toContain("RampStack Brutalist Web Theme translated adapter");
     expect(luxury).toContain("Aimeos Pagible Luxury translated adapter");
     expect(scientific).toContain("IBM Carbon translated adapter");
-    expect(civic).toContain("USWDS translated adapter");
+    expect(civic).toContain("U.S. Web Design System translated adapter");
+
+    expect(festival).toContain("GDG-X Hoverboard translated adapter");
+    expect(festival).toContain("background: rgb(0 0 0 / .6)");
+    expect(newspaper).toContain("Guardian Source translated adapter");
+    expect(newspaper).toContain("--guardian-space-24");
+    expect(avantGarde).toContain("Superilles Grid System translated adapter");
+    expect(avantGarde).toContain("grid-template-columns: repeat(12, minmax(0, 1fr))");
+    expect(passport).toContain("Jesus Ramirez International Airline Ticket translated adapter");
+    expect(passport).toContain("repeating-linear-gradient");
+    expect(atlas).toContain("MapLibre GL JS translated adapter");
+    expect(atlas).toContain("12px/20px");
   });
 
   it("records prototype provenance next to the adapters", () => {
