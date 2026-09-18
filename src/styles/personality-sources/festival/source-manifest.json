@@ -6,15 +6,11 @@
   "commit": "80395b0ccc6e08cc1f0cdff50186ee119aad0b24",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": [
-    "event hero composition",
-    "event-card rhythm",
-    "schedule-style structure",
-    "responsive navigation"
-  ],
-  "excludedFiles": [
-    "Google/GDG branding",
-    "demo content",
-    "event-specific assets"
+  "importedFiles": ["src/components/hero/hero-block.ts", "src/pages/home-page.ts"],
+  "excludedFiles": ["Google/GDG marks", "demo event assets", "negative header-overlap positioning"],
+  "solarisChanges": [
+    "retain the source 0.6 media overlay, 32px side padding and event hero hierarchy",
+    "remove the source negative top margin so Solaris navigation never clips country identity",
+    "map event call-to-action roles to country-safe accessible controls"
   ]
 }
