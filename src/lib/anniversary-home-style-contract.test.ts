@@ -37,6 +37,27 @@ describe("Anniversary home style architecture", () => {
     expect(existsSync(resolve(process.cwd(), "src/anniversary-home-heading-fix.css"))).toBe(false);
   });
 
+  it("keeps one stable stylesheet entrypoint for the global anniversary shell", () => {
+    const celebration = source("src/components/SolarisAnniversaryCelebration.tsx");
+    const shell = source("src/anniversary-shell.css");
+
+    expect(celebration).toContain('import "@/anniversary-shell.css"');
+    expect(celebration).not.toContain("anniversary-global.css");
+    expect(celebration).not.toContain("anniversary-sitewide.css");
+    expect(celebration).not.toContain("anniversary-season.css");
+    expect(celebration).not.toContain("anniversary-deep.css");
+
+    const globalIndex = shell.indexOf('anniversary-global.css');
+    const sitewideIndex = shell.indexOf('anniversary-sitewide.css');
+    const seasonIndex = shell.indexOf('anniversary-season.css');
+    const deepIndex = shell.indexOf('anniversary-deep.css');
+
+    expect(globalIndex).toBeGreaterThanOrEqual(0);
+    expect(sitewideIndex).toBeGreaterThan(globalIndex);
+    expect(seasonIndex).toBeGreaterThan(sitewideIndex);
+    expect(deepIndex).toBeGreaterThan(seasonIndex);
+  });
+
   it("styles the decorative anniversary artwork used by the current DOM", () => {
     const takeover = source("src/components/AnniversaryTakeover.tsx");
     const composition = source("src/anniversary-home-editorial-v3.css");
