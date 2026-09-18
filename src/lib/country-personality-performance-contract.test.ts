@@ -45,7 +45,7 @@ describe("personality performance budgets", () => {
     expect(hero).toContain('lazy(() =>');
     expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
     expect(hero).not.toContain('import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial"');
-    expect(hero).toContain("<Suspense fallback={heroLayout}>");
+    expect(hero).toContain("<Suspense fallback={composition}>");
 
     for (const personality of COUNTRY_PERSONALITY_SOURCES) {
       if (personality.id === "panorama" || personality.id === "glass-card") continue;
