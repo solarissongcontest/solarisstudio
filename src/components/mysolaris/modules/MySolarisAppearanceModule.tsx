@@ -14,6 +14,7 @@ import {
   personalityDecorations,
   wikiStyleForPersonality,
 } from "@/lib/country-personality-system";
+import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import { useCountries } from "@/lib/data";
 import { NAV_TARGETS, countrySearch } from "@/lib/navigation-targets";
 import {
@@ -98,9 +99,13 @@ function CountryThemePage() {
     if (existing) {
       const personality = canonicalCountryPersonalityId(existing.heroLayout);
       const allowed = personalityDecorations(personality);
+      const source = countryPersonalitySource(personality);
       setTheme({
         ...existing,
         heroLayout: personality,
+        backgroundMode: source.backgroundModes.includes(existing.backgroundMode)
+          ? existing.backgroundMode
+          : source.backgroundModes[0] ?? "solid",
         decorationStyle: allowed.includes(existing.decorationStyle)
           ? existing.decorationStyle
           : allowed.includes("auto")
@@ -137,6 +142,7 @@ function CountryThemePage() {
   }
 
   const personality = countryPersonality(theme.heroLayout);
+  const sourcePersonality = countryPersonalitySource(theme.heroLayout);
   const allowedDecorations = personalityDecorations(theme.heroLayout);
   const colourReport = getThemeColourReport(theme);
 
@@ -147,9 +153,13 @@ function CountryThemePage() {
   const selectPersonality = (next: CountryVisualTheme["heroLayout"]) => {
     const canonical = canonicalCountryPersonalityId(next);
     const decorations = personalityDecorations(canonical);
+    const source = countryPersonalitySource(canonical);
     setTheme((current) => ({
       ...current,
       heroLayout: canonical,
+      backgroundMode: source.backgroundModes.includes(current.backgroundMode)
+        ? current.backgroundMode
+        : source.backgroundModes[0] ?? "solid",
       decorationStyle: decorations.includes(current.decorationStyle)
         ? current.decorationStyle
         : decorations.includes("auto")
@@ -161,9 +171,14 @@ function CountryThemePage() {
   const save = async () => {
     setMessage(null);
     try {
+      const canonical = canonicalCountryPersonalityId(theme.heroLayout);
+      const source = countryPersonalitySource(canonical);
       await saveTheme.mutateAsync({
         ...theme,
-        heroLayout: canonicalCountryPersonalityId(theme.heroLayout),
+        heroLayout: canonical,
+        backgroundMode: source.backgroundModes.includes(theme.backgroundMode)
+          ? theme.backgroundMode
+          : source.backgroundModes[0] ?? "solid",
       });
       setMessage("Appearance saved. Country and Wiki now use the V8 professional personality system.");
     } catch (error) {
@@ -324,12 +339,33 @@ function CountryThemePage() {
             </div>
           </Panel>
 
-          <Panel title="Background" description="Country-owned atmosphere. It never controls protected content geometry.">
-            <div className="grid grid-cols-3 gap-2">
-              <ModeButton active={theme.backgroundMode === "solid"} icon={Palette} label="Solid" onClick={() => setThemeValue("backgroundMode", "solid")} />
-              <ModeButton active={theme.backgroundMode === "gradient"} icon={Sparkles} label="Gradient" onClick={() => setThemeValue("backgroundMode", "gradient")} />
-              <ModeButton active={theme.backgroundMode === "image"} icon={Image} label="Image" onClick={() => setThemeValue("backgroundMode", "image")} />
-            </div>
+          <Panel
+            title="Background"
+            description={`${sourcePersonality.sourceName} controls which page-background modes are safe for this personality. Unsupported modes are not offered.`}
+          >
+            {sourcePersonality.backgroundModes.length > 1 ? (
+              <div
+                className="grid gap-2"
+                style={{ gridTemplateColumns: `repeat(${sourcePersonality.backgroundModes.length}, minmax(0, 1fr))` }}
+              >
+                {sourcePersonality.backgroundModes.includes("solid") && (
+                  <ModeButton active={theme.backgroundMode === "solid"} icon={Palette} label="Solid" onClick={() => setThemeValue("backgroundMode", "solid")} />
+                )}
+                {sourcePersonality.backgroundModes.includes("gradient") && (
+                  <ModeButton active={theme.backgroundMode === "gradient"} icon={Sparkles} label="Gradient" onClick={() => setThemeValue("backgroundMode", "gradient")} />
+                )}
+                {sourcePersonality.backgroundModes.includes("image") && (
+                  <ModeButton active={theme.backgroundMode === "image"} icon={Image} label="Image" onClick={() => setThemeValue("backgroundMode", "image")} />
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-background/45 p-3">
+                <p className="text-xs font-semibold">Solid background locked by source design</p>
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                  {sourcePersonality.sourceName} does not use a free-form page gradient or background image. Country colours still map into the source design's approved surfaces.
+                </p>
+              </div>
+            )}
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <ColourField label="Background 1" value={theme.backgroundPrimary} onChange={(value) => setThemeValue("backgroundPrimary", value)} />

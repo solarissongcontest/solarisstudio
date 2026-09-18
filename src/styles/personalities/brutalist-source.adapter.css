@@ -1,0 +1,159 @@
+/* RampStack Brutalist Web Theme translated adapter.
+   Upstream: rampstackco/brutalist-web-theme @ 2ad20824755fb00b3d2c30d01df67ea63f2d9427
+   License: MIT.
+
+   This adapter keeps the source's real refusals: zero radius, zero shadow,
+   zero transition, exposed 2px/6px structure, oversized grotesque display,
+   serif running copy and no decorative gradient pretending to be brutalism. */
+
+.country-identity-hero[data-country-personality="duotone"] {
+  --bw-rule: 2px;
+  --bw-rule-heavy: 6px;
+  --bw-rule-hair: 1px;
+  --bw-radius: 0;
+  --bw-font-display: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  --bw-font-text: Times, "Times New Roman", "Liberation Serif", serif;
+  border: var(--bw-rule-heavy) solid var(--foreground) !important;
+  border-radius: var(--bw-radius) !important;
+  background: var(--background) !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-scene,
+.country-identity-hero[data-country-personality="duotone"] .country-hero-art {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-layout {
+  grid-template-columns: minmax(0, 8fr) minmax(9rem, 4fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-copy {
+  padding: 1.5rem;
+  border-inline-end: var(--bw-rule) solid var(--foreground);
+  border-block-end: var(--bw-rule) solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-eyebrow,
+.country-identity-hero[data-country-personality="duotone"] .country-flag-caption {
+  font-family: var(--bw-font-display);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-title {
+  max-inline-size: 10ch !important;
+  margin-block-start: .75rem;
+  font-family: var(--bw-font-display);
+  font-size: clamp(3.5rem, 11cqi, 7.5rem);
+  font-weight: 700 !important;
+  letter-spacing: -.055em !important;
+  line-height: .82 !important;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-meta {
+  margin-block-start: 1rem;
+  font-family: var(--bw-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-description {
+  max-inline-size: 58ch;
+  margin-block-start: 1rem;
+  font-family: var(--bw-font-text);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-flag-zone {
+  justify-content: center;
+  padding: 1.5rem;
+  border-block-end: var(--bw-rule) solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-official-flag {
+  border: var(--bw-rule) solid var(--foreground);
+  border-radius: 0;
+  background: var(--background);
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-actions {
+  padding: .75rem 1.5rem 1.5rem;
+  border-inline-end: var(--bw-rule) solid var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: var(--bw-rule) solid var(--foreground);
+  border-radius: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--bw-font-display);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  transition: none !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="duotone"] .country-hero-actions :is(a, button):hover {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.country-profile-v8[data-country-personality="duotone"] .data-panel,
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-record-strip,
+  .wiki-mobile-toolbar button
+) {
+  border: var(--bw-rule) solid var(--foreground) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="duotone"] .data-panel h2,
+body[data-entity-theme="country"][data-country-hero-layout="duotone"] .wiki-canvas :is(
+  .wiki-introduction h2,
+  .wiki-article-section summary h2,
+  .wiki-feature-title
+) {
+  font-family: var(--bw-font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.country-profile-v8[data-country-personality="duotone"] .responsive-tabs :is(select, button) {
+  border: var(--bw-rule) solid var(--foreground) !important;
+  border-radius: 0 !important;
+  transition: none !important;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="duotone"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+  }
+
+  .country-identity-hero[data-country-personality="duotone"] .country-hero-copy,
+  .country-identity-hero[data-country-personality="duotone"] .country-hero-actions {
+    border-inline-end: 0;
+  }
+
+  .country-identity-hero[data-country-personality="duotone"] .country-hero-title {
+    font-size: clamp(3rem, 18cqi, 5.3rem);
+  }
+}

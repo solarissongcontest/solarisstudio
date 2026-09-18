@@ -1,0 +1,130 @@
+/* U.S. Web Design System translated adapter.
+   Upstream: uswds/uswds @ fca24584304e836f1314a98b8847985b801503c3
+   License: CC0-1.0 for GSA work, with upstream third-party notices audited.
+
+   USWDS civic grammar is expressed through responsive site margins, a clear
+   information band, summary-box surfaces, readable system typography and
+   conventional high-contrast actions. */
+
+.country-identity-hero[data-country-personality="flag-focus"] {
+  --uswds-site-mobile: 1rem;
+  --uswds-site-wide: 2rem;
+  border: 0 !important;
+  border-block-start: .5rem solid var(--primary) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-scene,
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-art {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-layout {
+  grid-template-columns: minmax(0, 2fr) minmax(9rem, 1fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: 2rem;
+  padding: 2rem;
+  background: color-mix(in srgb, var(--surface) 82%, var(--background));
+  border-block-end: 1px solid var(--border);
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-eyebrow {
+  margin-block-end: .75rem;
+  color: var(--primary);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-title {
+  max-inline-size: 14ch !important;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: clamp(2.6rem, 6cqi, 4.5rem);
+  font-weight: 700;
+  letter-spacing: -.035em !important;
+  line-height: 1 !important;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-meta {
+  margin-block-start: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-description {
+  max-inline-size: 52ch;
+  margin-block-start: 1rem;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-official-flag {
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--background);
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-flag-caption {
+  margin-block-start: .5rem;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 2px solid var(--primary);
+  border-radius: .25rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.country-identity-hero[data-country-personality="flag-focus"] .country-hero-actions :is(a, button):not(:first-child) {
+  background: transparent;
+  color: var(--primary);
+}
+
+/* USWDS summary-box translation for factual content. */
+.country-profile-v8[data-country-personality="flag-focus"] .data-panel,
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .wiki-infobox {
+  border: 1px solid color-mix(in srgb, var(--primary) 42%, var(--border)) !important;
+  border-radius: .25rem !important;
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface)) !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="flag-focus"] .responsive-tabs :is(select, button),
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .wiki-mobile-toolbar button {
+  border-radius: .25rem !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="flag-focus"] .wiki-section-kicker {
+  color: var(--primary);
+  letter-spacing: .08em;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="flag-focus"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: 1.25rem;
+    padding: var(--uswds-site-mobile);
+  }
+
+  .country-identity-hero[data-country-personality="flag-focus"] .country-hero-flag-zone {
+    justify-items: start;
+  }
+}

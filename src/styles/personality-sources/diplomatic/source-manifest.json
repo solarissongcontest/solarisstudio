@@ -1,0 +1,19 @@
+{
+  "personality": "classic",
+  "sourceName": "GOV.UK Frontend",
+  "repository": "alphagov/govuk-frontend",
+  "version": null,
+  "commit": "b4a7543f133932fb04575b045330e8a01ab5c250",
+  "license": "MIT",
+  "implementationMode": "translated-components",
+  "importedFiles": [
+    "packages/govuk-frontend/src/govuk/settings/_spacing.scss",
+    "packages/govuk-frontend/src/govuk/components/summary-list/_mixin.scss"
+  ],
+  "excludedFiles": ["GOV.UK crown/logotype assets", "fonts", "service-specific branding"],
+  "solarisChanges": [
+    "map GOV.UK service colour roles to Solaris country tokens",
+    "translate 5px spacing steps and summary-list row grammar",
+    "retain conventional high-clarity actions without reproducing GOV.UK branding"
+  ]
+}

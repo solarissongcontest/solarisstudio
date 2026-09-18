@@ -1,0 +1,165 @@
+/* Superilles Grid System translated adapter.
+   Upstream: zetareticoli/superilles @ b4404a655115f030c0bedec45cf5693169d03470
+   License: MIT.
+
+   Superilles supplies the actual editorial grid logic: 12 tracks, 12px gap
+   from 740px, 24px gap at wider widths, and headline layouts that occupy
+   uneven track spans. Solaris keeps that modular tension but removes source
+   full-viewport mobile story heights and never overlaps semantic regions. */
+
+.country-identity-hero[data-country-personality="ribbon"] {
+  --superilles-gap-sm: 12px;
+  --superilles-gap-lg: 24px;
+  border: 0 !important;
+  border-block: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-scene {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-layout {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "copy copy copy copy copy copy copy copy art art art art"
+    "actions actions actions actions flag flag flag flag art art art art";
+  gap: var(--superilles-gap-lg);
+  padding-block: var(--superilles-gap-lg);
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-copy {
+  padding-inline-end: var(--superilles-gap-lg);
+  border-inline-end: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-eyebrow {
+  margin-block-end: var(--superilles-gap-sm);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-title {
+  max-inline-size: 11ch !important;
+  font-family: var(--font-sans, Helvetica, Arial, sans-serif);
+  font-size: clamp(3.25rem, 8.5cqi, 6.2rem);
+  font-weight: 700 !important;
+  letter-spacing: -.06em !important;
+  line-height: .86 !important;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-meta {
+  margin-block-start: var(--superilles-gap-sm);
+  max-inline-size: 30rem;
+  font-size: .9rem;
+  line-height: 1.4;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-description {
+  max-inline-size: 52ch;
+  margin-block-start: var(--superilles-gap-lg);
+  line-height: 1.55;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-art {
+  min-block-size: 18rem;
+  border: 0;
+  border-radius: 0;
+  background: var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-art-primary {
+  position: absolute;
+  inset: var(--superilles-gap-lg);
+  border: 1px solid color-mix(in srgb, var(--background) 70%, transparent);
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-art-secondary {
+  position: absolute;
+  inset: var(--superilles-gap-lg) auto auto var(--superilles-gap-lg);
+  inline-size: 42%;
+  block-size: 30%;
+  background: var(--primary);
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-art-tertiary {
+  position: absolute;
+  inset: auto var(--superilles-gap-lg) var(--superilles-gap-lg) auto;
+  inline-size: 22%;
+  block-size: 48%;
+  border: 1px solid var(--background);
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-flag-zone {
+  justify-items: start;
+  padding-block-start: var(--superilles-gap-sm);
+  border-block-start: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-official-flag {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-actions {
+  align-self: start;
+  padding-block-start: var(--superilles-gap-sm);
+  border-block-start: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="ribbon"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 1px solid var(--foreground);
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.country-profile-v8[data-country-personality="ribbon"] .data-panel {
+  border: 0 !important;
+  border-block-start: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="ribbon"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+@container country-identity (width < 46.25rem) {
+  .country-identity-hero[data-country-personality="ribbon"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "art"
+      "flag"
+      "actions";
+    gap: var(--superilles-gap-sm);
+  }
+
+  .country-identity-hero[data-country-personality="ribbon"] .country-hero-copy {
+    padding-inline-end: 0;
+    border-inline-end: 0;
+  }
+
+  .country-identity-hero[data-country-personality="ribbon"] .country-hero-art {
+    min-block-size: 4rem;
+    max-block-size: 4rem;
+  }
+
+  .country-identity-hero[data-country-personality="ribbon"] .country-hero-title {
+    font-size: clamp(2.8rem, 15cqi, 4rem);
+  }
+}

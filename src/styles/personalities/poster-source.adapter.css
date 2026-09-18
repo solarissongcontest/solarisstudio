@@ -1,0 +1,183 @@
+/* RampStack Swiss Style Theme translated adapter.
+   Upstream: rampstackco/swiss-style-theme @ 55e82b52f2c4c2893f79628c77ed31418d5975e6
+   License: MIT.
+
+   The source's real visual grammar is preserved here: one grotesque, a 1.25
+   type ratio, 8px baseline rhythm, 12-column desktop grid, hairlines instead
+   of card chrome, square corners, and one accent spent sparingly. */
+
+.country-identity-hero[data-country-personality="poster"] {
+  --sw-baseline: .5rem;
+  --sw-space-1: calc(var(--sw-baseline) * 1);
+  --sw-space-2: calc(var(--sw-baseline) * 2);
+  --sw-space-3: calc(var(--sw-baseline) * 3);
+  --sw-space-6: calc(var(--sw-baseline) * 6);
+  --sw-rule-hair: 1px;
+  --sw-rule-mid: 2px;
+  --sw-rule-heavy: 4px;
+  --sw-font: "Helvetica Neue", Helvetica, "Arial Nova", Arial, "Liberation Sans", "Nimbus Sans", system-ui, sans-serif;
+  --sw-scale-ratio: 1.25;
+  border: 0 !important;
+  border-block-start: var(--sw-rule-heavy) solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-scene {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-layout {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "copy copy copy copy copy copy copy art art flag flag flag"
+    "actions actions actions actions actions actions actions art art flag flag flag";
+  gap: var(--sw-space-3);
+  padding-block: calc(var(--sw-space-6) - var(--sw-rule-heavy)) var(--sw-space-6);
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-copy {
+  align-self: start;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-eyebrow,
+.country-identity-hero[data-country-personality="poster"] .country-flag-caption {
+  font-family: var(--sw-font);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1rem;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-title {
+  max-inline-size: 9ch !important;
+  margin-block-start: .5rem;
+  font-family: var(--sw-font);
+  font-size: clamp(3.4rem, 9cqi, 6.5rem);
+  font-weight: 700 !important;
+  letter-spacing: -.022em !important;
+  line-height: .92 !important;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-meta {
+  margin-block-start: 1rem;
+  font-family: var(--sw-font);
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-description {
+  max-inline-size: 52ch;
+  margin-block-start: 1.5rem;
+  font-family: var(--sw-font);
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-art {
+  min-block-size: 13rem;
+  border: 0;
+  border-radius: 0;
+  background: var(--primary);
+  overflow: hidden;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-art-primary {
+  position: absolute;
+  inset: 0 auto auto 0;
+  inline-size: 100%;
+  block-size: 4px;
+  background: var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-art-secondary {
+  position: absolute;
+  inset: auto 0 0 auto;
+  inline-size: 38%;
+  block-size: 38%;
+  background: var(--background);
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-art-tertiary {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  inline-size: .75rem;
+  block-size: .75rem;
+  translate: -50% -50%;
+  background: var(--foreground);
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-official-flag {
+  border: var(--sw-rule-hair) solid color-mix(in srgb, var(--foreground) 40%, transparent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: var(--sw-rule-hair) solid var(--foreground);
+  border-width: var(--sw-rule-hair) !important;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-family: var(--sw-font);
+  font-weight: 700;
+}
+
+.country-identity-hero[data-country-personality="poster"] .country-hero-actions :is(a, button):first-child {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+/* Country and Wiki surfaces follow the source's rule-first component model. */
+.country-profile-v8[data-country-personality="poster"] .data-panel,
+body[data-entity-theme="country"][data-country-hero-layout="poster"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border: 0 !important;
+  border-block-start: var(--sw-rule-mid) solid var(--foreground) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="poster"] .data-panel {
+  padding-inline: 0 !important;
+}
+
+.country-profile-v8[data-country-personality="poster"] .data-panel h2,
+body[data-entity-theme="country"][data-country-hero-layout="poster"] .wiki-canvas :is(
+  .wiki-introduction h2,
+  .wiki-article-section summary h2,
+  .wiki-feature-title
+) {
+  font-family: var(--sw-font);
+  font-weight: 700;
+  letter-spacing: -.022em;
+}
+
+@container country-identity (width < 48rem) {
+  .country-identity-hero[data-country-personality="poster"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "art"
+      "flag"
+      "actions";
+    gap: 1.5rem;
+    padding-block: 1.5rem 2rem;
+  }
+
+  .country-identity-hero[data-country-personality="poster"] .country-hero-title {
+    max-inline-size: 100% !important;
+    font-size: clamp(2.9rem, 15cqi, 4.6rem);
+  }
+
+  .country-identity-hero[data-country-personality="poster"] .country-hero-art {
+    min-block-size: 4rem;
+    max-block-size: 4rem;
+  }
+}

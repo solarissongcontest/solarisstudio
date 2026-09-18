@@ -1,0 +1,21 @@
+{
+  "personality": "glass-card",
+  "sourceName": "Sam Asante liquid-glass",
+  "repository": "samasante/liquid-glass",
+  "version": "0.1.1",
+  "commit": "4e7b769e1df7e5a7d3669fef22417fe3d2f79ade",
+  "license": "MIT",
+  "implementationMode": "vendored-source",
+  "importedFiles": [
+    "src/GlassMaterial.tsx",
+    "src/displacement.ts",
+    "src/signal.ts"
+  ],
+  "vendoredTo": "src/vendor/liquid-glass/",
+  "excludedFiles": ["WebGL video surface", "demo components", "site assets", "fonts"],
+  "solarisChanges": [
+    "wrap the canonical Country identity grid in the upstream GlassMaterial engine",
+    "keep one source-backed glass surface rather than layering simulated glass inside glass",
+    "map optics to a restrained identity plate while retaining the source browser fallbacks"
+  ]
+}

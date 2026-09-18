@@ -1,0 +1,20 @@
+{
+  "personality": "flag-focus",
+  "sourceName": "USWDS",
+  "repository": "uswds/uswds",
+  "version": null,
+  "commit": "fca24584304e836f1314a98b8847985b801503c3",
+  "license": "CC0-1.0 + audited third-party notices",
+  "implementationMode": "translated-components",
+  "importedFiles": [
+    "packages/usa-summary-box/src/styles/_usa-summary-box.scss",
+    "packages/uswds-core/src/styles/settings/_settings-spacing.scss",
+    "packages/uswds-core/src/styles/mixins/layout-grid/_grid-container.scss"
+  ],
+  "excludedFiles": ["U.S. government marks", "icons", "third-party fonts"],
+  "solarisChanges": [
+    "map civic color roles to country primary and app-neutral tokens",
+    "retain summary-box border/background logic and responsive site margins",
+    "keep public-service actions conventional and high contrast"
+  ]
+}

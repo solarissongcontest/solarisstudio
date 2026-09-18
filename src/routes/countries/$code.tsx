@@ -22,6 +22,7 @@ import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import { canonicalCountryPersonalityId } from "@/lib/country-personality-system";
+import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import {
   editionLabel,
   type Participant,
@@ -93,6 +94,7 @@ function CountryProfilePage() {
   const { data: countryThemeRow } = useCountryTheme(country?.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
   const heroPersonality = canonicalCountryPersonalityId(visualTheme?.heroLayout ?? "classic");
+  const sourcePersonality = countryPersonalitySource(heroPersonality);
   const heroDecoration = visualTheme?.decorationStyle ?? "auto";
 
   const publicArchive = useMemo(
@@ -270,7 +272,13 @@ function CountryProfilePage() {
 
   return (
     <AppShell>
-      <div className="country-profile-v8" data-country-personality={heroPersonality}>
+      <div
+        className="country-profile-v8"
+        data-country-personality={heroPersonality}
+        data-country-composition={sourcePersonality.compositionFamily}
+        data-country-background-policy={sourcePersonality.backgroundPolicy}
+        data-country-source-status={sourcePersonality.status}
+      >
         <CountryIdentityHero
           personality={heroPersonality}
           decoration={heroDecoration}

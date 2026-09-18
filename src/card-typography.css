@@ -55,11 +55,13 @@ h6.font-display,
   letter-spacing: -0.02em !important;
 }
 
-/* Explicit opt-in for the few headlines that should actually look editorial. */
+/* Explicit opt-in for the few headlines that should actually look editorial.
+   Country personality titles are intentionally excluded: their typeface,
+   weight and tracking belong to the selected human-designed source system,
+   not this global Solaris editorial rule. */
 .display-headline,
 .page-header h1,
 h1.font-display,
-.country-hero-title,
 .site-nav .font-display {
   font-family: "Classica Crastao", Georgia, serif !important;
   font-weight: 400 !important;

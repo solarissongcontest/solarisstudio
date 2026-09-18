@@ -1,8 +1,10 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import { countryPersonality } from "@/lib/country-personality-system";
+import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
+import { GlassMaterial } from "@/vendor/liquid-glass/GlassMaterial";
 
 type CountryIdentityHeroProps = {
   as?: "section" | "header";
@@ -49,6 +51,7 @@ export function CountryIdentityHero({
 }: CountryIdentityHeroProps) {
   const Root = as;
   const definition = countryPersonality(personality);
+  const sourceDefinition = countryPersonalitySource(definition.id);
   const isLiquidGlass = definition.id === "glass-card";
   const flagStyle = flagImage
     ? ({ "--country-flag-art": `url(${JSON.stringify(flagImage)})` } as CSSProperties)
@@ -73,6 +76,53 @@ export function CountryIdentityHero({
     delete event.currentTarget.dataset.glassActive;
   };
 
+  const heroLayout = (
+    <div className="country-hero-layout">
+      <div className="country-hero-copy">
+        <p className="country-hero-eyebrow">{eyebrow}{region ? ` · ${region}` : ""}</p>
+        <h1 className="country-hero-title" dir="auto">{name}</h1>
+        {(nativeName && nativeName !== name) || region ? (
+          <p className="country-hero-meta" dir="auto">
+            {[nativeName && nativeName !== name ? nativeName : null, region].filter(Boolean).join(" · ")}
+          </p>
+        ) : null}
+        {description ? <p className="country-hero-description" dir="auto">{description}</p> : null}
+      </div>
+
+      {definition.allowsGraphicArt ? (
+        <div className="country-hero-art" aria-hidden="true">
+          <span className="country-hero-art-primary" />
+          <span className="country-hero-art-secondary" />
+          <span className="country-hero-art-tertiary" />
+        </div>
+      ) : null}
+
+      <div className="country-hero-flag-zone">
+        <div className="country-official-flag" data-flag-role="official">
+          {flagImage ? (
+            <img
+              src={flagImage}
+              alt={`Flag of ${name}`}
+              loading="eager"
+              decoding="async"
+            />
+          ) : (
+            <span
+              className="country-official-flag-fallback"
+              aria-label={`Flag unavailable for ${name}`}
+              style={{ borderColor: accentColor || undefined }}
+            >
+              {code}
+            </span>
+          )}
+        </div>
+        <span className="country-flag-caption">{code}</span>
+      </div>
+
+      {actions ? <div className="country-hero-actions">{actions}</div> : null}
+    </div>
+  );
+
   return (
     <Root
       className={cn(
@@ -82,6 +132,9 @@ export function CountryIdentityHero({
       )}
       data-country-personality={definition.id}
       data-country-layout={definition.layout}
+      data-country-composition={sourceDefinition.compositionFamily}
+      data-country-background-policy={sourceDefinition.backgroundPolicy}
+      data-country-source-status={sourceDefinition.status}
       data-country-decoration={decoration}
       data-country-has-art={definition.allowsGraphicArt ? "true" : "false"}
       data-liquid-glass={isLiquidGlass ? "true" : undefined}
@@ -95,50 +148,24 @@ export function CountryIdentityHero({
         <span className="country-hero-scene-light country-hero-scene-light-b" />
       </div>
 
-      <div className="country-hero-layout">
-        <div className="country-hero-copy">
-          <p className="country-hero-eyebrow">{eyebrow}{region ? ` · ${region}` : ""}</p>
-          <h1 className="country-hero-title" dir="auto">{name}</h1>
-          {(nativeName && nativeName !== name) || region ? (
-            <p className="country-hero-meta" dir="auto">
-              {[nativeName && nativeName !== name ? nativeName : null, region].filter(Boolean).join(" · ")}
-            </p>
-          ) : null}
-          {description ? <p className="country-hero-description" dir="auto">{description}</p> : null}
-        </div>
+      {isLiquidGlass ? (
+        <GlassMaterial
+          className="country-hero-glass-material"
+          optics={{
+            strength: 0.045,
+            depth: 0.52,
+            curvature: 0.34,
+            dispersion: 0.24,
+            frost: 10,
+            saturate: 1.24,
+            sheen: 0.28,
+            glow: 0.08,
+          }}
+        >
+          {heroLayout}
+        </GlassMaterial>
+      ) : heroLayout}
 
-        {definition.allowsGraphicArt ? (
-          <div className="country-hero-art" aria-hidden="true">
-            <span className="country-hero-art-primary" />
-            <span className="country-hero-art-secondary" />
-            <span className="country-hero-art-tertiary" />
-          </div>
-        ) : null}
-
-        <div className="country-hero-flag-zone">
-          <div className="country-official-flag" data-flag-role="official">
-            {flagImage ? (
-              <img
-                src={flagImage}
-                alt={`Flag of ${name}`}
-                loading="eager"
-                decoding="async"
-              />
-            ) : (
-              <span
-                className="country-official-flag-fallback"
-                aria-label={`Flag unavailable for ${name}`}
-                style={{ borderColor: accentColor || undefined }}
-              >
-                {code}
-              </span>
-            )}
-          </div>
-          <span className="country-flag-caption">{code}</span>
-        </div>
-
-        {actions ? <div className="country-hero-actions">{actions}</div> : null}
-      </div>
     </Root>
   );
 }

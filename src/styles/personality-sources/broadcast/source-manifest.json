@@ -1,0 +1,18 @@
+{
+  "personality": "broadcast",
+  "sourceName": "BBC GEL Grid + GEL Typography",
+  "repository": "bbc/gel-grid",
+  "version": null,
+  "commit": "65c2b3f878a3999104c7e17f989602075f9f6e22",
+  "companionRepository": "bbc/gel-typography",
+  "companionCommit": "d4fea6fc03586bc7fa066cd22abbae9fbd7005a6",
+  "license": "MIT",
+  "implementationMode": "translated-components",
+  "importedFiles": ["lib/_tools.scss", "GEL typography role outputs"],
+  "excludedFiles": ["BBC marks", "brand assets", "demo-only normalization bundle"],
+  "solarisChanges": [
+    "translate GEL flex fractions into equivalent collision-safe CSS Grid fractions",
+    "map broadcast bands to country primary and neutral surfaces",
+    "retain GEL gutter rhythm and explicit type-role hierarchy"
+  ]
+}

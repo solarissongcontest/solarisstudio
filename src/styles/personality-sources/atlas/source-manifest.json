@@ -1,0 +1,16 @@
+{
+  "personality": "panorama",
+  "sourceName": "MapLibre GL JS",
+  "repository": "maplibre/maplibre-gl-js",
+  "version": null,
+  "commit": "a55db8271998f1156f82a63726ef9c56bd9c5093",
+  "license": "BSD-3-Clause",
+  "implementationMode": "translated-components",
+  "importedFiles": ["src/css/maplibre-gl.css"],
+  "excludedFiles": ["map assets", "glyphs", "sprites", "geographic datasets"],
+  "solarisChanges": [
+    "translate MapLibre's 12px/20px Helvetica map chrome and compact control geometry",
+    "use a neutral bounded reference grid instead of inventing geographic features",
+    "retain 3px/4px source control radii and subtle 1px/2px information shadows"
+  ]
+}

@@ -1,0 +1,180 @@
+/* IBM Carbon translated adapter.
+   Upstream: carbon-design-system/carbon @ 717c76d8b81c0ece1ce845caffe70f6d64a1a6bb
+   License: Apache-2.0.
+
+   Carbon's technical rhythm is translated through its 2x spacing logic,
+   square data surfaces, strong grid alignment, tabular metadata and a single
+   interactive accent. */
+
+.country-identity-hero[data-country-personality="horizon"] {
+  --carbon-01: .125rem;
+  --carbon-02: .25rem;
+  --carbon-03: .5rem;
+  --carbon-04: .75rem;
+  --carbon-05: 1rem;
+  --carbon-06: 1.5rem;
+  --carbon-07: 2rem;
+  border: 0 !important;
+  border-block-start: 1px solid var(--border) !important;
+  border-block-end: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-scene {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-layout {
+  grid-template-columns: minmax(0, 7fr) minmax(8rem, 2fr) minmax(8rem, 3fr);
+  grid-template-areas:
+    "copy art flag"
+    "actions art flag";
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-copy {
+  padding: var(--carbon-07);
+  border-inline-end: 1px solid var(--border);
+  border-block-end: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-eyebrow,
+.country-identity-hero[data-country-personality="horizon"] .country-flag-caption {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: .7rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-title {
+  max-inline-size: 13ch !important;
+  margin-block-start: var(--carbon-04);
+  font-family: var(--font-sans, Arial, sans-serif);
+  font-size: clamp(3rem, 7cqi, 5rem);
+  font-weight: 400 !important;
+  letter-spacing: -.04em !important;
+  line-height: .98 !important;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-meta {
+  margin-block-start: var(--carbon-05);
+  font-variant-numeric: tabular-nums;
+  font-size: .875rem;
+  line-height: 1.45;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-description {
+  max-inline-size: 56ch;
+  margin-block-start: var(--carbon-06);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-art {
+  min-block-size: 100%;
+  border: 0;
+  border-inline-end: 1px solid var(--border);
+  border-block-end: 1px solid var(--border);
+  border-radius: 0;
+  background:
+    linear-gradient(to right, transparent calc(50% - .5px), var(--border) 50%, transparent calc(50% + .5px)),
+    linear-gradient(to bottom, transparent calc(50% - .5px), var(--border) 50%, transparent calc(50% + .5px));
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-art-primary {
+  position: absolute;
+  inset: 1rem;
+  border: 1px solid var(--primary);
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-art-secondary {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  inline-size: .5rem;
+  block-size: .5rem;
+  translate: -50% -50%;
+  background: var(--primary);
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-art-tertiary {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-flag-zone {
+  padding: var(--carbon-07);
+  border-block-end: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-official-flag {
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--background);
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-actions {
+  padding: var(--carbon-05) var(--carbon-07) var(--carbon-07);
+  border-inline-end: 1px solid var(--border);
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-actions :is(a, button) {
+  min-block-size: 48px;
+  border: 0;
+  border-radius: 0;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: .8rem;
+  box-shadow: none;
+}
+
+.country-identity-hero[data-country-personality="horizon"] .country-hero-actions :is(a, button):first-child {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.country-profile-v8[data-country-personality="horizon"] .data-panel,
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-record-strip,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="horizon"] .data-panel {
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+}
+
+.country-profile-v8[data-country-personality="horizon"] :is(.numeric, .stat-line),
+body[data-entity-theme="country"][data-country-hero-layout="horizon"] .wiki-canvas {
+  font-variant-numeric: tabular-nums;
+}
+
+@container country-identity (width < 48rem) {
+  .country-identity-hero[data-country-personality="horizon"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "art"
+      "flag"
+      "actions";
+  }
+
+  .country-identity-hero[data-country-personality="horizon"] .country-hero-copy,
+  .country-identity-hero[data-country-personality="horizon"] .country-hero-art,
+  .country-identity-hero[data-country-personality="horizon"] .country-hero-actions {
+    border-inline-end: 0;
+  }
+
+  .country-identity-hero[data-country-personality="horizon"] .country-hero-art {
+    min-block-size: 4.5rem;
+    max-block-size: 4.5rem;
+  }
+}

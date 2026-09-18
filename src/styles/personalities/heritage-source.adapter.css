@@ -1,0 +1,148 @@
+/* The National Archives Design System translated adapter.
+   Upstream: nationalarchives/design-system @ 86202aabc033da76bb8a5171c39737bc1a6fef1d
+   License: MIT.
+
+   The adapter follows the source's actual page model: a container, a strong
+   two-thirds reading column, full-width mobile reflow, archive headings,
+   scene-setting copy and restrained tinted factual surfaces. */
+
+.country-identity-hero[data-country-personality="heritage"] {
+  border: 0 !important;
+  border-block-start: 1px solid var(--border) !important;
+  border-block-end: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: color-mix(in srgb, var(--surface) 38%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-scene,
+.country-identity-hero[data-country-personality="heritage"] .country-hero-art {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-layout {
+  grid-template-columns: minmax(0, 2fr) minmax(9rem, 1fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: clamp(1.5rem, 4vw, 3rem);
+  padding: clamp(2rem, 5cqi, 4rem) clamp(1rem, 3cqi, 2rem);
+  align-items: start;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-eyebrow {
+  margin-block-end: .75rem;
+  color: var(--muted-foreground);
+  font-size: .8rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-title {
+  max-inline-size: 12ch !important;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(2.8rem, 6.6cqi, 5rem);
+  font-weight: 600 !important;
+  letter-spacing: -.035em !important;
+  line-height: 1 !important;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-meta {
+  margin-block-start: 1rem;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-description {
+  max-inline-size: 52ch;
+  margin-block-start: 1.25rem;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-official-flag {
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--background);
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-flag-caption {
+  margin-block-start: .5rem;
+  font-size: .75rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 1px solid var(--foreground);
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.country-identity-hero[data-country-personality="heritage"] .country-hero-actions :is(a, button):first-child {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+/* Archive/catalogue content remains page-like rather than card-like. */
+.country-profile-v8[data-country-personality="heritage"] .data-panel {
+  border: 0 !important;
+  border-block-start: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-inline: 0 !important;
+}
+
+.country-profile-v8[data-country-personality="heritage"] .data-panel h2,
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .wiki-canvas :is(
+  .wiki-introduction h2,
+  .wiki-article-section summary h2,
+  .wiki-feature-title
+) {
+  font-family: var(--font-display, Georgia, serif);
+  font-weight: 600;
+}
+
+.country-profile-v8[data-country-personality="heritage"] .responsive-tabs :is(select, button),
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button,
+  .wiki-sheet-panel
+) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .wiki-canvas {
+  --wiki-measure: 68ch;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="heritage"] .wiki-infobox {
+  background: color-mix(in srgb, var(--surface) 55%, transparent) !important;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="heritage"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    gap: 1.25rem;
+    padding: 1.5rem 1rem;
+  }
+
+  .country-identity-hero[data-country-personality="heritage"] .country-hero-title {
+    font-size: clamp(2.6rem, 13cqi, 3.9rem);
+  }
+
+  .country-identity-hero[data-country-personality="heritage"] .country-hero-flag-zone {
+    justify-items: start;
+  }
+}

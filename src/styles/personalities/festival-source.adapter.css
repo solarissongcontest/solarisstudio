@@ -1,0 +1,145 @@
+/* GDG-X Hoverboard translated adapter.
+   Upstream: gdg-x/hoverboard @ 80395b0ccc6e08cc1f0cdff50186ee119aad0b24
+   License: MIT.
+
+   Hoverboard's source hero uses a full-bleed image, 0.6 black overlay, 32px
+   side padding, a 40px hero title and roomy event content. Solaris keeps that
+   event grammar but deliberately drops Hoverboard's negative top margin,
+   because hiding headings under navigation is not a personality trait. */
+
+.country-identity-hero[data-country-personality="spotlight"] {
+  --festival-side: 2rem;
+  border: 0 !important;
+  border-block-end: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: var(--background) !important;
+  box-shadow: none !important;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-scene {
+  display: block;
+  opacity: 1;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-scene-flag {
+  filter: saturate(.65);
+  opacity: .28;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / .6);
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-layout {
+  grid-template-columns: minmax(0, 8fr) minmax(8rem, 4fr);
+  grid-template-areas:
+    "copy flag"
+    "actions flag";
+  gap: 2rem;
+  min-block-size: 24rem;
+  padding: 7.5rem var(--festival-side) 3.75rem;
+  align-items: end;
+  color: white;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-art {
+  display: none;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-eyebrow {
+  margin-block-end: 1rem;
+  color: white;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-title {
+  max-inline-size: 12ch !important;
+  color: white;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: clamp(2.5rem, 7cqi, 5rem);
+  font-weight: 700;
+  letter-spacing: -.04em !important;
+  line-height: .96 !important;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] :is(.country-hero-meta, .country-hero-description) {
+  color: rgb(255 255 255 / .86);
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-description {
+  max-inline-size: 37.5rem;
+  margin-block-start: 1rem;
+  line-height: 1.55;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-flag-zone {
+  align-self: end;
+  justify-items: start;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-official-flag {
+  border: 1px solid rgb(255 255 255 / .48);
+  border-radius: 0;
+  background: rgb(0 0 0 / .28);
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-flag-caption {
+  color: white;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-actions :is(a, button) {
+  min-block-size: 44px;
+  border: 1px solid white;
+  border-radius: .25rem;
+  background: white;
+  color: #111;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.country-identity-hero[data-country-personality="spotlight"] .country-hero-actions :is(a, button):not(:first-child) {
+  background: transparent;
+  color: white;
+}
+
+.country-profile-v8[data-country-personality="spotlight"] .data-panel {
+  border: 0 !important;
+  border-block-start: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.country-profile-v8[data-country-personality="spotlight"] .data-panel h2 {
+  font-weight: 700;
+}
+
+body[data-entity-theme="country"][data-country-hero-layout="spotlight"] .wiki-canvas :is(
+  .wiki-infobox,
+  .wiki-mobile-toolbar button
+) {
+  border-radius: .25rem !important;
+  box-shadow: none !important;
+}
+
+@container country-identity (width < 40rem) {
+  .country-identity-hero[data-country-personality="spotlight"] .country-hero-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "flag"
+      "actions";
+    min-block-size: 0;
+    gap: 1.25rem;
+    padding: 3.5rem 1rem 2rem;
+  }
+
+  .country-identity-hero[data-country-personality="spotlight"] .country-hero-title {
+    font-size: clamp(2.5rem, 14cqi, 3.8rem);
+  }
+}
