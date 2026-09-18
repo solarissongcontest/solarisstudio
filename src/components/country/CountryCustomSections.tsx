@@ -234,9 +234,11 @@ export function CountryCustomSectionContent({
         ? ({ backgroundColor: `${section.background_tint}d9` } as CSSProperties)
         : undefined;
 
+  const effectiveLayout = surface === "wiki" ? presentation.wikiLayout : presentation.countryLayout;
   const sectionData = {
-    "data-country-section-layout": presentation.layoutVariant,
+    "data-country-section-layout": effectiveLayout,
     "data-country-section-emphasis": presentation.emphasis,
+    "data-country-v2-surface": "section",
     "data-design-target": `section:${section.id}`,
   } as const;
   const wrapperClass = article
