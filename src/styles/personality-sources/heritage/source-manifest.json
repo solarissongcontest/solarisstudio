@@ -6,11 +6,23 @@
   "commit": "86202aabc033da76bb8a5171c39737bc1a6fef1d",
   "license": "MIT",
   "implementationMode": "translated-components",
-  "importedFiles": ["layouts/simple-with-nav.njk", "layouts/sitemap.njk", "src/styles/grid/index.md"],
-  "excludedFiles": ["The National Archives marks", "Font Awesome assets", "service branding"],
+  "importedFiles": [
+    "layouts/simple-with-nav.njk",
+    "layouts/sitemap.njk",
+    "src/styles/grid/index.md"
+  ],
+  "excludedFiles": [
+    "The National Archives marks",
+    "Font Awesome assets",
+    "service branding"
+  ],
   "solarisChanges": [
     "translate the source two-thirds reading column and full-width mobile reflow",
     "map archive scene-setting hierarchy to country identity",
     "retain restrained tinted factual surfaces without reproducing institutional branding"
-  ]
+  ],
+  "source": "The National Archives Design System",
+  "licenseFile": "src/styles/personality-sources/heritage/LICENSE",
+  "visualAuthority": "Archival and catalogue publishing",
+  "notes": "Pristine upstream material is retained separately from the Solaris adapter; brand assets and unlicensed fonts remain excluded."
 }
