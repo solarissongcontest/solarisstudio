@@ -85,16 +85,19 @@ create table if not exists public.country_font_assets (
 
 alter table public.country_font_assets enable row level security;
 
-grant select on table public.country_font_assets to anon, authenticated;
-grant insert, delete on table public.country_font_assets to authenticated;
+grant select, insert, delete on table public.country_font_assets to authenticated;
 grant all on table public.country_font_assets to service_role;
 
-drop policy if exists "country font assets public read" on public.country_font_assets;
-create policy "country font assets public read"
+drop policy if exists "country font assets owner or capability read" on public.country_font_assets;
+create policy "country font assets owner or capability read"
 on public.country_font_assets
 for select
-to anon, authenticated
-using (true);
+to authenticated
+using (
+  owner_user_id=(select auth.uid())
+  or public.owns_country(country_id)
+  or public.studio2_access_allowed('delegation.manage'::text, null::uuid, true)
+);
 
 drop policy if exists "country font assets owner or capability insert" on public.country_font_assets;
 create policy "country font assets owner or capability insert"
