@@ -1,6 +1,6 @@
 # Permission Engine v2 authorization inventory
 
-Status: shadow plus strict-dual migration in progress. The current organizer gate remains authoritative. Organizer route decisions are recorded for comparison, while the first organizer-only high-risk write boundaries now require both the legacy Organizer role and the matching capability without enabling the global Permission Engine flag.
+Status: authoritative capability enforcement. Permission Engine v2 is the authorization source for Solaris Studio; legacy `user_roles` data is retained read-only only as rollback/history context. Route decisions continue to be recorded for audit and troubleshooting.
 
 ## Decision model
 
@@ -76,26 +76,21 @@ Country ownership, public publication rules, transition approvals, result verifi
 
 ## Legacy debt snapshot
 
-Production inventory captured 2026-09-14:
+The migration began from the production inventory captured on 2026-09-14: 82 RLS policies and 58 functions still referenced the legacy Organizer role.
 
-- 82 RLS policies across 59 tables still mention `has_role`.
-- 58 public/private functions still mention `has_role`.
-- Seven storage policies are included in that policy total.
-- The largest individual policy concentration is `storage.objects` (7), followed by `participants` (3); the remaining tables have one or two legacy policies each.
+The completed cutover removes direct legacy-role predicates from application RLS, rewrites the remaining compatibility helpers to capabilities, preserves live Organizers as explicit v2 assignments, and freezes `user_roles` as read-only rollback/history data. The authoritative migration fails closed if any application RLS policy or live authorization function still depends on `public.has_role`.
 
-These references are migration work, not permission mismatches. They remain intentionally unchanged until each table or RPC has an operation-level capability mapping, an edition-scope test and a rollback-safe migration.
+## Authoritative acceptance gates
 
-## Promotion gates
+The authoritative cutover requires all of the following and verifies the database-side invariants during migration:
 
-The `permission_engine_v2` flag stays disabled until all of the following are true:
-
-1. High-risk writes are dual-enforced server-side with table/RPC tests.
-2. Shadow telemetry covers meaningful organizer routes and has an understood observation window.
-3. Every mismatch is classified as expected legacy compatibility, missing assignment, missing scope, or implementation defect.
-4. “Legacy allow / capability deny” is zero for required operators after role assignment.
-5. “Legacy deny / capability allow” is zero unless a reviewed delegation explicitly requires it.
-6. Security and performance advisors introduce no unexplained finding from this migration. Authenticated `SECURITY DEFINER` RPC notices are expected for the guarded API boundary; anonymous execute remains revoked.
-7. Exact-head Quality and Browser Audit pass before merge, followed by post-merge verification on `main`.
+1. Every live legacy Organizer has an active v2 Organizer or Superadmin assignment.
+2. Application RLS contains zero direct `has_role` predicates.
+3. Live authorization helpers contain zero direct `public.has_role` fallbacks.
+4. Sensitive operations use capability checks while retaining their independent domain safeguards.
+5. Route telemetry has real observations and no unexplained legacy/capability mismatches.
+6. Exact-head Quality, Browser Audit and migration/security replay pass before production rollout and merge.
+7. `permission_engine_v2` is globally enabled with no user- or edition-scoped rollout restriction.
 
 ## Completed migration batches
 
@@ -103,7 +98,12 @@ The `permission_engine_v2` flag stays disabled until all of the following are tr
 - `20260914035308_permission_engine_v2_fk_indexes`: covering indexes for the new permission foreign keys.
 - `20260914041917_permission_engine_v2_dual_enforcement`: capability-aware jury roster and feature-rollout paths, including global-scope protection across existing and requested rollout scopes.
 - `20260914140500_permission_engine_v2_strict_dual_guards`: authoritative table guards for edition lifecycle, Incident Command and Feature Rollout. Each accepted authenticated write records a server-side comparison event and requires legacy Organizer plus capability approval.
+- `20260918192636_permission_engine_v2_storage_rls_cutover`: storage policies moved to capability/ownership authorization.
+- `20260918192719_permission_engine_v2_public_legacy_rls_cutover`: remaining public-schema legacy RLS migrated.
+- `20260918192731_permission_engine_v2_televoting_rls_cutover`: raw Televoting legacy RLS migrated.
+- `20260918192743_permission_engine_v2_rulebook_capability_cutover`: Rulebook Organizer helper retired in favor of rules capabilities.
+- `20260918195000_permission_engine_v2_authoritative_cutover`: final capability-only authorization, read-only legacy role history and global authoritative rollout.
 - Organizer route shadow probes cover the shared shell, including the specialist Confirmations and Televoting admin families. The access simulation explains domains, routes and actions without impersonation.
 - Access & Permissions exposes an explicit Readiness view. Zero observations remain a waiting state rather than being presented as a successful zero-mismatch result.
 
-The remaining cutover work is server/RPC/RLS coverage, strict sensitive-action dual enforcement, mismatch observation and classification, then authoritative capability enforcement. The rollout flag remains disabled until those gates pass.
+The final authoritative batch removes the remaining compatibility fallbacks, keeps the Integrity helper name as a capability-backed compatibility boundary, enables `permission_engine_v2` globally, and leaves route telemetry active for audit.
