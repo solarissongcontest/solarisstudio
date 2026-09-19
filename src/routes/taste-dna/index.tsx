@@ -266,8 +266,8 @@ function TasteDnaPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Personal analytics"
-        title="Taste DNA"
+        eyebrow="Taste DNA"
+        title="Explore your voting taste"
         description="Rank a published field and Solaris compares your taste with the jury, televote, overall consensus and individual voting juries. Saved ballots are private to your account."
         actions={
           <Link
