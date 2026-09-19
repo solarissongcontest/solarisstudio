@@ -115,6 +115,7 @@ describe("Organizer domain navigation", () => {
       "Rules",
       "Jury",
       "Public vote",
+      "Friend voting",
       "Integrity",
       "Results",
     ]);
