@@ -33,11 +33,6 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 test.describe("Rules and Integrity governance discovery", () => {
-  test.beforeEach(async ({ context }) => {
-    await context.addInitScript(() => {
-      window.localStorage.setItem("solaris:public-ia-v3-beta", "1");
-    });
-  });
   test("governance stays discoverable without a universal public sidebar", async ({ page }) => {
     const problems = failOnGovernanceConsoleProblems(page);
 
