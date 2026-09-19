@@ -2,11 +2,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   Ban,
+  ClipboardCheck,
+  Eye,
   ListChecks,
   ListOrdered,
+  RadioTower,
   RefreshCw,
   Trophy,
   Users,
+  Vote,
 } from "lucide-react";
 
 import {
@@ -106,10 +110,64 @@ function ContestOverview({ slug }: { slug: string }) {
   return (
     <div className="mx-auto max-w-5xl">
       <AdminPageHeader
-        eyebrow="Contest"
+        eyebrow="Current edition"
         title={editionLabel(edition)}
-        description={`${edition.name}${edition.host_city ? ` · ${edition.host_city}` : ""}`}
+        description={`${edition.name}${edition.host_city ? ` · ${edition.host_city}` : ""}. Start with the workspace that matches the job you need to do.`}
       />
+
+      <AdminCard className="mb-4">
+        <AdminCardHeader
+          eyebrow="Edition workspaces"
+          title="Everything for this edition"
+          description="Core workflows stay visible here. Specialist tools live inside the relevant workspace instead of being hidden behind Search."
+        />
+        <div className="divide-y divide-white/[0.07]">
+          <WorkspaceRow
+            icon={ClipboardCheck}
+            title="Delegations & confirmations"
+            description="Country readiness, confirmations, responses, submission rounds, calendar and delegation access."
+            to="/admin/countries"
+            detail="Confirmations live here"
+          />
+          <WorkspaceRow
+            icon={ListChecks}
+            title="Contest"
+            description="Shows, entries, line-ups, allocation draw, running order and participation status."
+            to={`/admin/shows/${slug}`}
+            detail="Structure & entries"
+          />
+          <WorkspaceRow
+            icon={Vote}
+            title="Voting & results"
+            description="Voting rules, juries, televote, integrity checks, calculations, review and results."
+            to="/televoting/admin"
+            detail="Voting lifecycle"
+          />
+          <WorkspaceRow
+            icon={RadioTower}
+            title="Live operations"
+            description="Control room, workflows, incidents, rundown and rehearsal tools."
+            to="/admin/control-room"
+            detail="Run the show"
+          />
+          <WorkspaceRow
+            icon={Eye}
+            title="Publish & design"
+            description="Public release controls, communications, media, storytelling and broadcast design."
+            to={`/admin/publication/${slug}`}
+            detail="Release safely"
+          />
+        </div>
+        <details className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.018] p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">More edition tools</summary>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Link to="/admin/hosts" className="admin-action-secondary justify-start">Hosting</Link>
+            <Link to="/admin/eligibility" className="admin-action-secondary justify-start">Eligibility</Link>
+            <Link to="/admin/media-assets" className="admin-action-secondary justify-start">Media assets</Link>
+            <Link to="/admin/communications" className="admin-action-secondary justify-start">Communications</Link>
+          </div>
+        </details>
+      </AdminCard>
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <AdminCard strong>
