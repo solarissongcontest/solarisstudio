@@ -7,6 +7,7 @@ import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
+import { PublicStatus } from "@/components/public/PublicStatus";
 import { StoryCards } from "@/components/StoryCards";
 import {
   editionLabel,
@@ -25,9 +26,42 @@ import { usePublicEditionParticipants } from "@/lib/public-participants";
 import { buildShowStories } from "@/lib/stories";
 
 export const Route = createFileRoute("/editions/$slug")({
-  head: ({ params }) => ({
-    meta: [{ title: `${params.slug} — Solaris Song Contest` }],
-  }),
+  head: ({ params }) => {
+    const url = `https://studio.solaris-song-contest.workers.dev/editions/${encodeURIComponent(params.slug)}`;
+    return {
+      meta: [
+        { title: `${params.slug} — Solaris Song Contest` },
+        {
+          name: "description",
+          content: "Edition overview, participants, entries, shows and published Solaris Song Contest results.",
+        },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Editions",
+                item: "https://studio.solaris-song-contest.workers.dev/editions",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: params.slug,
+                item: url,
+              },
+            ],
+          }),
+        },
+      ],
+    };
+  },
   component: EditionPage,
 });
 
@@ -182,9 +216,11 @@ function EditionPage() {
         <section className="relative overflow-hidden rounded-[2rem] border border-primary/20 bg-surface/80 shadow-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgb(var(--solaris-bg-primary)/0.18),transparent_42%),linear-gradient(145deg,rgb(var(--solaris-bg-deep-2)/0.94),rgb(var(--solaris-bg-deep)/0.88))]" />
           <div className="relative z-20 flex flex-col gap-10 p-5 sm:p-8 lg:p-10">
-            <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-              {editionState.statusLabel}
-            </span>
+            <PublicStatus
+              status={editionState.statusKey}
+              label={editionState.statusLabel}
+              className="w-fit"
+            />
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{edition.host_city ?? "Solaris Song Contest"}</p>
               <h1 className="mt-2 font-display text-5xl font-bold leading-[0.9] tracking-[-0.055em] text-white sm:text-7xl">{editionLabel(edition)}</h1>
