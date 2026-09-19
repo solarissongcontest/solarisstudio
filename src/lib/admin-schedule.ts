@@ -112,12 +112,15 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
       const showNameById = new Map(
         (showsResult.data ?? []).map((show: { id: string; name: string }) => [show.id, show.name] as const),
       );
-      const televoteBindingByRemoteId = new Map(
+      const televoteBindingByRemoteId = new Map<
+        string,
+        { remote_round_id: string; show_id: string | null }
+      >(
         (televoteBindingsResult.data ?? []).map(
           (binding: { remote_round_id: string; show_id: string | null }) => [
             binding.remote_round_id,
             binding,
-          ] as const,
+          ],
         ),
       );
 
