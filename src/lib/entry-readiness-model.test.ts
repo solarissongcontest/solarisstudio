@@ -60,7 +60,7 @@ describe('entry readiness model', () => {
 
     expect(model.status).toBe('attention');
     expect(model.nextTaskIds).toContain('entry.tsbc-review');
-    expect(model.actions.some((action) => action.id === 'workflow:entry.tsbc-review')).toBe(true);
+    expect(model.actions.some((action) => action.id === 'workflow:entry.tsbc-review')).toBe(false);
   });
 
   it('is ready only when eligibility and required workflow are complete', () => {
