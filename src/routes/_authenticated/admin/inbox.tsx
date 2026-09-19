@@ -22,6 +22,7 @@ import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useResolveAdminNotification,
+  useResolveAdminNotification,
   type AdminNotification,
 } from "@/lib/admin-ops";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,7 @@ function OrganizerInbox() {
   const { data: notifications = [], isLoading, isError, refetch } = useAdminNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const resolveItem = useResolveAdminNotification();
   const resolveItem = useResolveAdminNotification();
   const [filter, setFilter] = useState<InboxFilter>("needs-attention");
 
@@ -97,7 +99,7 @@ function OrganizerInbox() {
             </FilterButton>
             <FilterButton active={filter === "unread"} onClick={() => setFilter("unread")}>
               Unread
-              {unread.length ? <span className="numeric">{unread.length}</span> : null}
+              {unresolved.length ? <span className="numeric">{unresolved.length}</span> : null}
             </FilterButton>
             <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
               All
@@ -186,9 +188,10 @@ function InboxRow({
   const urgent = item.severity === "critical" || item.severity === "urgent";
   const attention = urgent || item.severity === "warning" || item.severity === "action";
   const Icon = urgent ? ShieldAlert : attention ? TriangleAlert : Inbox;
+  const resolved = Boolean(item.resolved_at);
 
-  const content = (
-    <>
+  return (
+    <div className="admin-list-row">
       <span
         className={cn(
           "grid size-10 shrink-0 place-items-center rounded-xl border",
@@ -205,7 +208,7 @@ function InboxRow({
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-foreground">{item.title}</span>
           {!item.read_at ? <AdminStatus tone={urgent ? "blocked" : "attention"}>New</AdminStatus> : null}
-          {item.resolved_at ? <AdminStatus tone="ready">Resolved</AdminStatus> : item.requires_action ? <AdminStatus tone="attention">Open</AdminStatus> : null}
+          {resolved ? <AdminStatus tone="ready">Resolved</AdminStatus> : <AdminStatus tone="attention">Open</AdminStatus>}
         </span>
         {item.body ? (
           <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.body}</span>
@@ -216,32 +219,23 @@ function InboxRow({
             timeStyle: "short",
           }).format(new Date(item.created_at))}
         </span>
+        <span className="mt-2 flex flex-wrap gap-2">
+          {item.href ? (
+            <Link to={item.href as any} onClick={onSeen} className="admin-action-quiet">
+              Open <ArrowRight className="size-4" />
+            </Link>
+          ) : !item.read_at ? (
+            <button type="button" onClick={onSeen} className="admin-action-quiet">
+              Mark seen
+            </button>
+          ) : null}
+          {!resolved ? (
+            <button type="button" disabled={resolving} onClick={onResolve} className="admin-action-quiet">
+              <CheckCircle2 className="size-4" /> Mark resolved
+            </button>
+          ) : null}
+        </span>
       </span>
-      {item.href ? <ArrowRight className="size-4 shrink-0 text-muted-foreground" /> : null}
-    </>
-  );
-
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      {item.href ? (
-        <Link to={item.href as any} onClick={onSeen} className="admin-list-row group min-w-0 flex-1">
-          {content}
-        </Link>
-      ) : (
-        <button type="button" onClick={onSeen} className="admin-list-row min-w-0 flex-1 text-left">
-          {content}
-        </button>
-      )}
-      {item.requires_action ? (
-        <button
-          type="button"
-          disabled={resolving}
-          onClick={onResolve}
-          className="admin-action-secondary mr-2 shrink-0"
-        >
-          {item.resolved_at ? "Reopen" : "Resolve"}
-        </button>
-      ) : null}
     </div>
   );
 }
