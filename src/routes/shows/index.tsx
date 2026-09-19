@@ -24,6 +24,12 @@ export const Route = createFileRoute("/shows/")({
           "Browse published Solaris Song Contest semi-finals, finals and result broadcasts across every edition.",
       },
     ],
+    links: [
+      {
+        rel: "canonical",
+        href: "https://studio.solaris-song-contest.workers.dev/shows",
+      },
+    ],
   }),
   component: ShowsPage,
 });
