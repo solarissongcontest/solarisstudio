@@ -19,6 +19,7 @@ import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
+import { formatEventDateTime } from "@/lib/public-time";
 import {
   primaryParticipationAction,
   sortParticipationActions,
@@ -146,7 +147,7 @@ function ParticipatePage() {
           status: "available",
           title: openConfirmation.name,
           description: openConfirmation.closes_at
-            ? `Confirmations are open now · closes ${formatDate(openConfirmation.closes_at)}.`
+            ? `Confirmations are open now · closes ${formatEventDateTime(openConfirmation.closes_at)}.`
             : "Confirmations are open now.",
           to: "/confirmations",
           priority: 10,
@@ -158,7 +159,7 @@ function ParticipatePage() {
             status: "upcoming",
             title: upcomingConfirmation.name,
             description: upcomingConfirmation.opens_at
-              ? `Confirmations open ${formatDate(upcomingConfirmation.opens_at)}.`
+              ? `Confirmations open ${formatEventDateTime(upcomingConfirmation.opens_at)}.`
               : "A confirmation round is scheduled.",
             to: "/confirmations",
             priority: 10,
@@ -350,9 +351,3 @@ function iconForAction(action: ParticipationAction) {
   return Vote;
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
