@@ -9,8 +9,10 @@ describe("admin country password reset", () => {
   it("requires an authenticated organizer and only targets country accounts", () => {
     const edge = source("../supabase/functions/admin-country-password/index.ts");
     expect(edge).toContain('req.headers.get("authorization")');
-    expect(edge).toContain('.from("user_roles")');
-    expect(edge).toContain('.eq("role", "organizer")');
+    expect(edge).toContain('.from("studio2_role_assignments")');
+    expect(edge).toContain('.in("role_key", ["organizer", "superadmin"])');
+    expect(edge).toContain('.is("edition_id", null)');
+    expect(edge).not.toContain('.from("user_roles")');
     expect(edge).toContain('return json({ error: "Organizer access is required." }, 403)');
     expect(edge).toContain('.from("country_accounts")');
     expect(edge).toContain('.eq("user_id", targetUserId)');
