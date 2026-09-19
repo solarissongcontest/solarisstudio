@@ -284,7 +284,17 @@ function PublicationWorkspace() {
               </div>
             </section>
 
-            <button type="button" disabled={busy} onClick={requestSave} className="admin-action-primary w-full">{busy ? "Saving…" : hasAnyPublicInformation(draft.config) ? "Save publication" : "Make show private"}</button>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setDraft(null)}
+                className="admin-action-secondary"
+              >
+                Close
+              </button>
+              <button type="button" disabled={busy} onClick={requestSave} className="admin-action-primary w-full">{busy ? "Saving…" : hasAnyPublicInformation(draft.config) ? "Save publication" : "Make show private"}</button>
+            </div>
           </div>
         ) : null}
       </AdminSheet>
