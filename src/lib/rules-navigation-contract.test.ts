@@ -17,7 +17,7 @@ const adminNavigation = readFileSync(
   "utf8",
 );
 const publicNavigation = readFileSync(
-  resolve(process.cwd(), "src/components/public/PublicSiteNavigation.tsx"),
+  resolve(process.cwd(), "src/lib/public-navigation.ts"),
   "utf8",
 );
 const libraryProvider = readFileSync(
@@ -57,13 +57,14 @@ describe("Rules and Integrity navigation", () => {
     expect(libraryProvider).toContain("governanceRuleResults");
   });
 
-  it("provides one complete public sidebar with Rules as a section", () => {
-    expect(appShell).toContain("<PublicSiteSidebar");
+  it("keeps Rules discoverable through contextual navigation and the full directory", () => {
+    expect(appShell).toContain("<PublicSectionNav");
     expect(appShell).toContain("<PublicDrawerNavigation");
-    expect(appShell).toContain('label="Rules & help"');
-    expect(publicNavigation).toContain('label: "Rules & help"');
+    expect(appShell).not.toContain("<PublicSiteSidebar");
+    expect(appShell).toContain('to="/guide"');
     for (const route of ["/rules", "/rules/changes", "/rules/interpretations", "/integrity", "/integrity/appeals"])
-      expect(publicNavigation).toContain(`"${route}",`);
+      expect(publicNavigation).toContain(`"${route}"`);
+    expect(publicNavigation).toContain('"Rule clarifications"');
     expect(publicNavigation).not.toContain('label: "Library"');
     expect(legacyLibraryRoute).toContain('createFileRoute("/library")');
     expect(legacyLibraryRoute).toContain('redirect({ to: "/rules"');
