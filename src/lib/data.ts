@@ -4,6 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import {
   supabase,
 } from "@/integrations/supabase/client";
@@ -1250,32 +1251,13 @@ export function useIsOrganizer() {
           return false;
         }
 
-        const {
-          data,
-          error,
-        } =
-          await supabase
-            .from(
-              "user_roles",
-            )
-            .select(
-              "role",
-            )
-            .eq(
-              "user_id",
-              userResult.user.id,
-            )
-            .eq(
-              "role",
-              "organizer",
-            )
-            .maybeSingle();
-
-        if (error) {
+        try {
+          return await hasSolarisOrganizerAccess(
+            userResult.user.id,
+          );
+        } catch {
           return false;
         }
-
-        return !!data;
       },
   });
 }
