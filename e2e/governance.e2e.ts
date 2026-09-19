@@ -50,7 +50,11 @@ test.describe("Rules and Integrity governance discovery", () => {
       await expect(taskNavigation.locator('a[href="/participate"]')).toBeVisible();
       await expect(page.getByRole("complementary", { name: "Participate navigation" })).toHaveCount(0);
       await expect(page.locator('a[href="/integrity/appeals"]')).toHaveCount(0);
-      await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
+      await expect(
+        page
+          .getByRole("navigation", { name: "Main navigation" })
+          .getByRole("link", { name: "Help", exact: true }),
+      ).toBeVisible();
     } else {
       await page.waitForTimeout(3_000);
       await page.getByRole("button", { name: "Open navigation" }).click();
@@ -61,13 +65,15 @@ test.describe("Rules and Integrity governance discovery", () => {
     }
 
     await page.goto("/site-directory");
-    const search = page.getByRole("searchbox");
+    const search = page.getByRole("searchbox", { name: "Search Solaris Studio pages" });
+    const helpResults = page.locator('section[aria-labelledby="directory-help"]');
+
     await search.fill("appeal");
-    await expect(page.locator('a[href="/integrity/appeals"]')).toBeVisible();
+    await expect(helpResults.locator('a[href="/integrity/appeals"]')).toBeVisible();
     await search.fill("preclearance");
-    await expect(page.locator('a[href="/integrity/preclearance"]')).toBeVisible();
+    await expect(helpResults.locator('a[href="/integrity/preclearance"]')).toBeVisible();
     await search.fill("interpretations");
-    await expect(page.locator('a[href="/rules/interpretations"]')).toBeVisible();
+    await expect(helpResults.locator('a[href="/rules/interpretations"]')).toBeVisible();
 
     await page.goto("/library");
     await expect(page).toHaveURL(/\/rules\/?$/);
@@ -124,7 +130,11 @@ test.describe("Rules and Integrity governance discovery", () => {
         page.getByRole("navigation", { name: "Mobile navigation" }).locator('a[href="/rules"]'),
       ).toBeVisible();
     } else {
-      await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
+      await expect(
+        page
+          .getByRole("navigation", { name: "Main navigation" })
+          .getByRole("link", { name: "Help", exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByRole("navigation", { name: "Participation task navigation" }),
       ).toBeVisible();
