@@ -12,6 +12,12 @@ export type EntryReadinessAction = {
   priority: EntryReadinessActionPriority;
 };
 
+const PARTICIPANT_ACTIONABLE_WORKFLOW_TASK_IDS = new Set([
+  'entry.song-info',
+  'entry.artist-info',
+  'entry.media',
+]);
+
 export type EntryReadinessModel = {
   status: EntryReadinessStatus;
   score: number;
@@ -63,7 +69,9 @@ export function buildEntryReadinessModel(
   const nextTasks = workflow.tasks.filter((task) => nextTaskSet.has(task.id));
 
   const eligibilityActions = [...eligibility.blockers, ...eligibility.warnings].map(eligibilityAction);
-  const workflowActions = nextTasks.map(workflowAction);
+  const workflowActions = nextTasks
+    .filter((task) => PARTICIPANT_ACTIONABLE_WORKFLOW_TASK_IDS.has(task.id))
+    .map(workflowAction);
   const actions = [...eligibilityActions, ...workflowActions];
 
   // Dependency-blocked workflow tasks are normal future steps, not entry-level
