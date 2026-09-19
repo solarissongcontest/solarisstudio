@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { useState } from "react";
 
 import {
   publicAreaForPath,
@@ -11,8 +12,15 @@ import {
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
-export function PublicSectionNav({ pathname }: { pathname: string }) {
+export function PublicSectionNav({
+  pathname,
+  collapsible = false,
+}: {
+  pathname: string;
+  collapsible?: boolean;
+}) {
   const area = publicAreaForPath(pathname);
+  const [collapsed, setCollapsed] = useState(collapsible);
   if (!hasLocalNavigation(area)) return null;
 
   const items = publicDestinationsForArea(area, { includeContextual: false });
@@ -25,8 +33,33 @@ export function PublicSectionNav({ pathname }: { pathname: string }) {
     .sort((a, b) => b.to.length - a.to.length)[0]?.to;
 
   return (
-    <aside className="public-site-sidebar" aria-label={`${sectionLabel(area)} navigation`}>
-      <nav>
+    <aside
+      className={cn(
+        "public-site-sidebar public-section-navigation",
+        collapsible && "is-collapsible",
+        collapsible && collapsed && "is-collapsed",
+      )}
+      aria-label={`${sectionLabel(area)} navigation`}
+    >
+      {collapsible ? (
+        <button
+          type="button"
+          className="public-section-nav-toggle"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? `Expand ${sectionLabel(area)} navigation` : `Collapse ${sectionLabel(area)} navigation`}
+          title={collapsed ? "Expand navigation" : "Collapse navigation"}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="size-4" aria-hidden="true" />
+          ) : (
+            <PanelLeftClose className="size-4" aria-hidden="true" />
+          )}
+          <span>{collapsed ? sectionLabel(area) : "Collapse"}</span>
+        </button>
+      ) : null}
+
+      <nav className="public-section-nav-body">
         <div className="px-2">
           <p className="public-site-sidebar-label">{sectionLabel(area)}</p>
           <p className="mt-1 text-[11px] leading-4 text-muted-foreground/70">
