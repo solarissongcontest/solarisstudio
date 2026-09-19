@@ -113,6 +113,9 @@ export function useAdminNotifications() {
 
       return (data ?? []) as AdminNotification[];
     },
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 }
 
