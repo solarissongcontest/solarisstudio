@@ -1,5 +1,6 @@
 import type { Edition, ResultRow, Show } from "./data";
 import { normalizeLegacyEditionStatus, type EditionState } from "./edition-state";
+import { resolveShowPublication } from "./publication";
 
 export type PublicContestPhase =
   | "between_editions"
@@ -69,8 +70,8 @@ function finalResultPublished(
       .filter(
         (show) =>
           show.edition_id === edition.id &&
-          show.kind === "grand-final" &&
-          show.published,
+          (show.kind === "grand-final" || show.kind === "final") &&
+          resolveShowPublication(show).results,
       )
       .map((show) => show.id),
   );
