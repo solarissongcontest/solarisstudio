@@ -111,9 +111,14 @@ describe("Organizer domain navigation", () => {
     const voting = buildAdminContextualSection("/televoting/admin/intelligence", "ssc-21");
     expect(voting?.domain.id).toBe("edition");
     expect(voting?.workflow?.label).toBe("Voting workflow");
-    expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Friend voting");
-    expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Declarations");
-    expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Official results");
+    expect(voting?.workflow?.tabs.map((tab) => tab.label)).toEqual([
+      "Overview",
+      "Rules",
+      "Jury",
+      "Public vote",
+      "Integrity",
+      "Results",
+    ]);
 
     expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe("Publish workflow");
   });
