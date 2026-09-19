@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 
 import {
@@ -10,10 +10,22 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { publicBreadcrumbsForPath } from "@/lib/public-breadcrumbs";
+import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
 export function PublicBreadcrumbs({ pathname }: { pathname: string }) {
-  const crumbs = publicBreadcrumbsForPath(pathname);
+  const { data: countries = [] } = useCountries();
+  const { data: editions = [] } = useEditions();
+  const { data: shows = [] } = useAllShows();
+  const crumbs = useMemo(
+    () =>
+      publicBreadcrumbsForPath(pathname, {
+        countries,
+        editions,
+        shows,
+      }),
+    [countries, editions, pathname, shows],
+  );
   if (!crumbs.length) return null;
 
   return (
