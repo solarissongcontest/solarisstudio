@@ -18,6 +18,7 @@ import {
   ParticipationRouteChrome,
   ParticipationServiceShell,
 } from "@/components/ParticipationServiceShell";
+import { PublicStatus } from "@/components/public/PublicStatus";
 import { Button } from "@/components/ui/button";
 import {
   createCountryAccountConfirmationEditToken,
@@ -70,37 +71,17 @@ function useNow() {
 }
 
 function StatePill({ round }: { round: PublicRound }) {
-  const reason = roundReason(round);
-  const state = availabilityBadge(reason);
-  const copy =
-    state === "open"
-      ? "Open"
+  const state = availabilityBadge(roundReason(round));
+  const status =
+    state === "scheduled"
+      ? "upcoming"
       : state === "full"
-        ? "Full"
-        : state === "scheduled"
-          ? "Upcoming"
-          : "Closed";
+        ? "full"
+        : state === "open"
+          ? "open"
+          : "closed";
 
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold",
-        state === "open" && "border-emerald-300/25 bg-emerald-300/10 text-emerald-200",
-        state === "full" && "border-amber-200/25 bg-amber-200/10 text-amber-100",
-        state === "scheduled" && "border-sky-200/25 bg-sky-200/10 text-sky-100",
-        state === "closed" && "border-border bg-surface text-muted-foreground",
-      )}
-    >
-      {state === "open" ? (
-        <CheckCircle2 className="size-3" />
-      ) : state === "scheduled" ? (
-        <Clock3 className="size-3" />
-      ) : (
-        <LockKeyhole className="size-3" />
-      )}
-      {copy}
-    </span>
-  );
+  return <PublicStatus status={status} />;
 }
 
 function ConfirmationsPage() {
