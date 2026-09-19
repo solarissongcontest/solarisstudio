@@ -95,8 +95,8 @@ describe("beta-informed fan discovery", () => {
   it("makes Analysis discovery-first and removes the unexplained public label", () => {
     const analysis = source("src/routes/analysis/index.tsx");
     expect(analysis).toContain('useState<Tab>("discover")');
-    expect(analysis).toContain('label="Winner radar"');
-    expect(analysis).not.toContain('label="Kingmaker"');
+    expect(analysis).toContain('eyebrow="Winner radar"');
+    expect(analysis).not.toContain('eyebrow="Kingmaker"');
     expect(analysis).toContain('value: "connections", label: "Connections map"');
   });
 
