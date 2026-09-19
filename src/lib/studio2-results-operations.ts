@@ -282,6 +282,18 @@ export function availableStudio2ResultActions(row: Studio2ResultOperationRow): S
   return actions;
 }
 
+export function isStudio2ResultReleaseReady(row: Studio2ResultOperationRow | null | undefined) {
+  if (!row) return false;
+  const version = row.calculationVersion;
+  return (
+    version > 0 &&
+    row.preconditions.resultReady &&
+    row.reviewedVersion === version &&
+    row.lockedVersion === version &&
+    row.revealReadyVersion === version
+  );
+}
+
 export function summarizeStudio2ResultsOperations(rows: readonly Studio2ResultOperationRow[]) {
   return {
     shows: rows.length,

@@ -7,13 +7,10 @@ import {
   ClipboardCheck,
   Clock3,
   Eye,
-  Flag,
   Layers3,
   RadioTower,
-  Settings2,
   ShieldAlert,
   Trophy,
-  Users,
   Vote,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -30,33 +27,28 @@ import {
 } from "@/components/admin/AdminUI";
 import { buildEditionReadiness, type AdminIssue } from "@/lib/admin-readiness";
 import { useAdminReadinessData } from "@/lib/admin-readiness-data";
-import {
-  useAdminDeadlines,
-  useAdminNotifications,
-  useMarkNotificationRead,
-} from "@/lib/admin-ops";
-import { editionLabel, useAllParticipants, useAllShows, useCountries, useEditions } from "@/lib/data";
+import { useAdminNotifications, useMarkNotificationRead } from "@/lib/admin-ops";
+import { useAdminOperationalSchedule } from "@/lib/admin-schedule";
+import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
     meta: [
-      { title: "Overview — Solaris Organizer" },
+      { title: "Home — Solaris Organizer" },
       { name: "robots", content: "noindex" },
       {
         name: "description",
-        content: "See what is ready, what is missing and what to do next for the current Solaris Song Contest edition.",
+        content: "See what needs attention, what is coming up and the state of the current Solaris edition.",
       },
     ],
   }),
-  component: OrganizerOverview,
+  component: OrganizerHome,
 });
 
-function OrganizerOverview() {
+function OrganizerHome() {
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
-  const { data: countries = [] } = useCountries();
   const { data: shows = [] } = useAllShows();
-  const { data: allParticipants = [] } = useAllParticipants();
 
   const activeEdition = useMemo(() => {
     const ordered = [...editions].sort(
@@ -68,7 +60,10 @@ function OrganizerOverview() {
   const { data: readinessData, isLoading: readinessLoading } = useAdminReadinessData(
     activeEdition?.id,
   );
-  const { data: deadlines = [] } = useAdminDeadlines(activeEdition?.id ?? null);
+  const {
+    data: schedule = [],
+    isError: scheduleError,
+  } = useAdminOperationalSchedule(activeEdition?.id ?? null, activeEdition?.slug ?? null);
   const { data: notifications = [] } = useAdminNotifications();
   const markRead = useMarkNotificationRead();
 
@@ -89,40 +84,27 @@ function OrganizerOverview() {
     [activeEdition, shows, readinessData],
   );
 
-  const openDeadlines = [...deadlines]
-    .filter((item) => !item.completed_at)
-    .sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
-  const upcoming = openDeadlines[0] ?? null;
+  const upcoming =
+    schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
   const unread = notifications.filter((item) => !item.read_at);
   const issues = readiness?.issues ?? [];
-  const topIssues = issues.slice(0, 6);
+  const topIssues = issues.slice(0, 4);
 
   return (
     <AdminPage>
       <div className="mx-auto max-w-5xl">
         <AdminPageHeader
-          eyebrow="Organizer overview"
-          title={activeEdition ? editionLabel(activeEdition) : "Solaris Organizer"}
-          description={
-            activeEdition
-              ? `${activeEdition.name} · see what is ready, what needs attention and what to do next.`
-              : "Choose or create an edition to begin organizing."
-          }
-          actions={
-            activeEdition ? (
-              <Link to={`/admin/${activeEdition.slug}` as any} className="admin-action-secondary">
-                Open contest <ArrowRight className="size-4" />
-              </Link>
-            ) : null
-          }
+          eyebrow="Home"
+          title="Solaris Organizer"
+          description="What needs attention, what is coming up and where to continue. Everything else stays out of the way until you need it."
         />
 
         {!activeEdition ? (
           <AdminCard>
             <AdminEmptyState
               icon={Trophy}
-              title="No active edition"
-              description="Choose an existing edition or create a new one first."
+              title="No current edition"
+              description="Choose or create an edition before starting contest operations."
               action={
                 <Link to="/admin" className="admin-action-primary">
                   Manage editions
@@ -132,56 +114,29 @@ function OrganizerOverview() {
           </AdminCard>
         ) : (
           <>
-            <AdminCard strong className="mb-4">
-              <div className="flex min-w-0 items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="admin-section-label">Edition readiness</p>
-                  <p className="numeric mt-2 text-3xl font-bold tracking-[-.04em]">
-                    {readinessLoading ? "…" : `${readiness?.progress ?? 0}%`}
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    This checks contest setup, entries, jury voting, public voting, results and publication.
-                  </p>
-                </div>
-                <AdminStatus
-                  tone={
-                    readiness?.status === "ready"
-                      ? "ready"
-                      : readiness?.status === "blocked"
-                        ? "blocked"
-                        : "attention"
-                  }
-                >
-                  {readinessLoading
-                    ? "Checking"
-                    : readiness?.status === "ready"
-                      ? "Ready"
-                      : readiness?.status === "blocked"
-                        ? "Blocked"
-                        : "Needs attention"}
-                </AdminStatus>
-              </div>
-              <div className="mt-4">
-                <AdminProgress value={readiness?.progress ?? 0} />
-              </div>
-            </AdminCard>
-
-            <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
-              <AdminCard>
+            <div className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
+              <AdminCard strong>
                 <AdminCardHeader
-                  eyebrow="Next actions"
+                  eyebrow="Do now"
                   title={
                     readinessLoading
                       ? "Checking the edition…"
                       : issues.length
-                        ? `${issues.length} ${issues.length === 1 ? "thing needs" : "things need"} attention`
-                        : "Nothing is blocking the contest"
+                        ? `${issues.length} ${issues.length === 1 ? "item needs" : "items need"} attention`
+                        : "Nothing is blocking the edition"
                   }
-                  description="The most important items are first. Open one to go to the page where you can fix it."
+                  description="Only actionable edition problems appear here. Each item opens the place where it can be fixed."
+                  action={
+                    <Link to="/admin/action-center" className="text-xs font-semibold text-sky-100">
+                      Action Center →
+                    </Link>
+                  }
                 />
 
                 {readinessLoading ? (
-                  <p className="py-6 text-center text-sm text-muted-foreground">Checking what is ready…</p>
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    Checking current edition state…
+                  </p>
                 ) : topIssues.length ? (
                   <div className="divide-y divide-white/[0.07]">
                     {topIssues.map((issue) => (
@@ -193,84 +148,33 @@ function OrganizerOverview() {
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
                       <p className="text-sm leading-relaxed text-muted-foreground">
-                        All current checks pass. You can keep working on the edition normally.
+                        Current automated checks have no blocking edition issue.
                       </p>
                     </div>
                   </div>
                 )}
 
                 {issues.length > topIssues.length ? (
-                  <details className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.018] p-3">
-                    <summary className="cursor-pointer text-sm font-semibold text-muted-foreground hover:text-foreground">
-                      Show {issues.length - topIssues.length} more item
-                      {issues.length - topIssues.length === 1 ? "" : "s"}
-                    </summary>
-                    <div className="mt-3 divide-y divide-white/[0.07]">
-                      {issues.slice(topIssues.length).map((issue) => (
-                        <IssueLink key={issue.id} issue={issue} slug={activeEdition.slug} />
-                      ))}
-                    </div>
-                  </details>
+                  <Link
+                    to={`/admin/${activeEdition.slug}` as any}
+                    className="admin-action-secondary mt-3"
+                  >
+                    Review all {issues.length} edition items <ArrowRight className="size-4" />
+                  </Link>
                 ) : null}
               </AdminCard>
 
               <div className="space-y-4">
                 <AdminCard>
                   <AdminCardHeader
-                    eyebrow="Readiness"
-                    title="By area"
-                    description="Open an area to see what still needs work."
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    {(readiness?.areas ?? []).map((area) => (
-                      <Link
-                        key={area.key}
-                        to={areaHref(activeEdition.slug, area.key)}
-                        className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3 transition hover:bg-white/[0.045]"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-foreground">{area.label}</p>
-                          <AdminStatus
-                            tone={
-                              area.status === "complete"
-                                ? "ready"
-                                : area.status === "critical"
-                                  ? "blocked"
-                                  : "attention"
-                            }
-                          >
-                            {area.status === "complete"
-                              ? "Clear"
-                              : area.status === "critical"
-                                ? "Blocked"
-                                : "Check"}
-                          </AdminStatus>
-                        </div>
+                    eyebrow="Inbox"
+                    title={unread.length ? `${unread.length} unseen` : "All caught up"}
+                    description="Complaints, appeals, beta feedback and connected administrative events."
+                    action={
+                      <Link to="/admin/inbox" className="text-xs font-semibold text-sky-100">
+                        View Inbox →
                       </Link>
-                    ))}
-                  </div>
-                </AdminCard>
-
-                <AdminCard>
-                  <AdminCardHeader
-                    eyebrow="Next deadline"
-                    title={upcoming?.label ?? "Nothing scheduled"}
-                    description={
-                      upcoming
-                        ? `${humanize(upcoming.kind)} · ${new Date(upcoming.due_at).toLocaleString()}`
-                        : "There are no unfinished deadlines for this edition."
                     }
-                  />
-                  <Link to="/admin/system" className="admin-action-secondary w-full">
-                    <Clock3 className="size-4" /> Manage deadlines
-                  </Link>
-                </AdminCard>
-
-                <AdminCard>
-                  <AdminCardHeader
-                    eyebrow="Notifications"
-                    title={unread.length ? `${unread.length} unread` : "All caught up"}
-                    description="Important organizer notices appear here."
                   />
                   {unread.length ? (
                     <div className="divide-y divide-white/[0.07]">
@@ -284,9 +188,11 @@ function OrganizerOverview() {
                           >
                             <Bell className="size-4 shrink-0 text-sky-100" />
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+                              <span className="block text-sm font-semibold text-foreground">
+                                {item.title}
+                              </span>
                               {item.body ? (
-                                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                                <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                                   {item.body}
                                 </span>
                               ) : null}
@@ -301,78 +207,116 @@ function OrganizerOverview() {
                             className="admin-list-row w-full text-left"
                           >
                             <Bell className="size-4 shrink-0 text-sky-100" />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                              {item.body ? (
-                                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                                  {item.body}
-                                </span>
-                              ) : null}
+                            <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
+                              {item.title}
                             </span>
-                            <AdminStatus tone="info">Mark read</AdminStatus>
                           </button>
                         ),
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No unread notifications.</p>
+                    <p className="text-sm text-muted-foreground">No unseen Inbox items.</p>
                   )}
+                </AdminCard>
+
+                <AdminCard>
+                  <AdminCardHeader
+                    eyebrow="Upcoming"
+                    title={
+                      scheduleError
+                        ? "Schedule unavailable"
+                        : upcoming?.label ?? "Nothing scheduled"
+                    }
+                    description={
+                      scheduleError
+                        ? "Solaris could not verify the operational schedule."
+                        : upcoming
+                          ? `${upcoming.detail} · ${new Date(upcoming.at).toLocaleString()}`
+                          : "There are no upcoming workflow dates for this edition."
+                    }
+                  />
+                  <Link
+                    to={(upcoming?.href ?? "/admin/system") as any}
+                    className="admin-action-secondary w-full"
+                  >
+                    <Clock3 className="size-4" />
+                    {upcoming ? "Open workflow" : "Open schedule"}
+                  </Link>
                 </AdminCard>
               </div>
             </div>
 
-            <section className="mt-4">
-              <p className="admin-section-label mb-2 px-0.5">Organizer workspaces</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <AdminCard className="mt-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="admin-section-label">Current edition</p>
+                  <h2 className="mt-1 text-xl font-bold tracking-[-.03em]">
+                    {editionLabel(activeEdition)}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">{activeEdition.name}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="min-w-28">
+                    <p className="mb-1 text-[10px] font-semibold text-muted-foreground">
+                      Readiness {readinessLoading ? "…" : `${readiness?.progress ?? 0}%`}
+                    </p>
+                    <AdminProgress value={readiness?.progress ?? 0} />
+                  </div>
+                  <AdminStatus
+                    tone={
+                      readiness?.status === "ready"
+                        ? "ready"
+                        : readiness?.status === "blocked"
+                          ? "blocked"
+                          : "attention"
+                    }
+                  >
+                    {readinessLoading
+                      ? "Checking"
+                      : readiness?.status === "ready"
+                        ? "Ready"
+                        : readiness?.status === "blocked"
+                          ? "Blocked"
+                          : "Needs attention"}
+                  </AdminStatus>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 <QuickLink
-                  to="/confirmations/admin"
+                  to="/admin/countries"
                   icon={ClipboardCheck}
                   label="Delegations"
-                  detail="Submissions & access"
+                  detail="Confirmations, countries & access"
                 />
                 <QuickLink
-                  to={`/admin/${activeEdition.slug}`}
+                  to={`/admin/shows/${activeEdition.slug}`}
                   icon={Layers3}
                   label="Contest"
-                  detail="Shows & entries"
+                  detail="Shows, entries & running order"
                 />
                 <QuickLink
                   to="/televoting/admin"
                   icon={Vote}
-                  label="Voting"
-                  detail="Jury & public vote"
+                  label="Voting & results"
+                  detail="Jury, televote & official results"
+                />
+                <QuickLink
+                  to="/admin/control-room"
+                  icon={RadioTower}
+                  label="Live"
+                  detail="Operations, incidents & rundown"
                 />
                 <QuickLink
                   to={`/admin/publication/${activeEdition.slug}`}
                   icon={Eye}
                   label="Publish"
-                  detail="Visibility & results"
-                />
-                <QuickLink
-                  to={`/admin/design/${activeEdition.slug}`}
-                  icon={RadioTower}
-                  label="Broadcast"
-                  detail="Design & show"
-                />
-                <QuickLink
-                  to="/admin/more"
-                  icon={Settings2}
-                  label="Administration"
-                  detail="Accounts & system"
+                  detail="Release, comms & design"
                 />
               </div>
-            </section>
+            </AdminCard>
           </>
         )}
-
-        <AdminCard className="mt-4">
-          <AdminCardHeader title="Archive at a glance" />
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <ArchiveStat icon={Trophy} label="Editions" value={editions.length} />
-            <ArchiveStat icon={Users} label="Countries" value={countries.length} />
-            <ArchiveStat icon={Flag} label="Entries" value={allParticipants.length} />
-          </div>
-        </AdminCard>
       </div>
     </AdminPage>
   );
@@ -428,37 +372,18 @@ function QuickLink({
   return (
     <Link
       to={to as any}
-      className="admin-card flex min-h-28 flex-col justify-between p-3 transition hover:border-white/[0.15] hover:bg-white/[0.045]"
+      className="rounded-xl border border-white/[0.07] bg-white/[0.022] p-3 transition hover:border-white/[0.14] hover:bg-white/[0.04]"
     >
-      <span className="grid size-9 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
-        <Icon className="size-4" />
-      </span>
-      <span>
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="mt-1 block text-[11px] text-muted-foreground">{detail}</span>
-      </span>
+      <Icon className="size-4 text-sky-100" />
+      <span className="mt-3 block text-sm font-semibold">{label}</span>
+      <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{detail}</span>
     </Link>
   );
 }
 
-function ArchiveStat({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Trophy;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div>
-      <Icon className="mx-auto size-4 text-muted-foreground" />
-      <p className="numeric mt-2 text-xl font-bold">{value}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
-    </div>
-  );
-}
-
 function humanize(value: string) {
-  return value.replaceAll("_", " ").replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

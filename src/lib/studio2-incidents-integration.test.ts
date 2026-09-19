@@ -12,7 +12,7 @@ const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/incidents.tsx');
 const model = source('src/lib/studio2-incidents.ts');
 const persistence = source('src/lib/studio2-persistence.ts');
-const controlRoom = source('src/routes/_authenticated/admin/control-room-v2.tsx');
+const controlRoom = source('src/routes/_authenticated/admin/control-room.tsx');
 const migration = source('supabase/migrations/20260911180500_studio2_incident_command_full.sql');
 
 describe('Studio 2 Incident Command integration', () => {

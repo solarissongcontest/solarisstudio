@@ -1,3 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { AdminHealthStrip } from "@/components/admin/AdminHealthStrip";
-export const Route = createFileRoute("/_authenticated/admin/status")({ component: () => <AdminHealthStrip /> });
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/_authenticated/admin/status")({
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/sync-health", replace: true });
+  },
+  head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
+  component: () => null,
+});

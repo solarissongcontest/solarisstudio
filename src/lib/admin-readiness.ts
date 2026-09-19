@@ -102,11 +102,20 @@ export function buildEditionReadiness(input: {
 
   const shows = input.shows.filter((row) => row.edition_id === edition.id);
   const participants = input.participants.filter((row) => row.edition_id === edition.id);
+  // participants contains both the canonical edition entry and show-specific
+  // appearances. Never count the same delegation once per show as separate entries.
+  const canonicalEntries = participants.filter((row) => row.show_id == null);
+  const logicalEntries = canonicalEntries.length
+    ? canonicalEntries
+    : [...new Map(
+        participants.map((row) => [row.contest_entity_id ?? row.country_id, row] as const),
+      ).values()];
   const voters = input.voters.filter((row) => row.edition_id === edition.id);
   const juryVotes = input.juryVotes.filter((row) => row.edition_id === edition.id);
   const juryBallotStatuses = input.juryBallotStatuses.filter((row) => row.edition_id === edition.id);
   const televotes = input.televotes.filter((row) => row.edition_id === edition.id);
   const results = input.results.filter((row) => row.edition_id === edition.id);
+  let meaningfulResultRows = 0;
   const issues: AdminIssue[] = [];
 
   if (!shows.length) {
@@ -120,7 +129,7 @@ export function buildEditionReadiness(input: {
     });
   }
 
-  if (!participants.length) {
+  if (!logicalEntries.length) {
     issues.push({
       id: "no-entries",
       severity: "critical",
@@ -131,8 +140,8 @@ export function buildEditionReadiness(input: {
     });
   }
 
-  const missingSongs = participants.filter((entry) => empty(entry.song));
-  const missingArtists = participants.filter((entry) => empty(entry.artist));
+  const missingSongs = logicalEntries.filter((entry) => empty(entry.song));
+  const missingArtists = logicalEntries.filter((entry) => empty(entry.artist));
 
   if (missingSongs.length) {
     issues.push({
@@ -295,8 +304,18 @@ export function buildEditionReadiness(input: {
     }
 
     const showTele = televotes.filter((vote) => vote.show_id === show.id);
+    const rawShowResults = results.filter((row) => row.show_id === show.id);
+    // Result sync may materialise zero-point/ranked placeholder rows before any
+    // ballot exists. They are storage scaffolding, not evidence that results
+    // have actually been calculated.
+    const hasSubstantiveResults = rawShowResults.some(
+      (row) =>
+        row.jury_points !== 0 ||
+        row.televote_points !== 0 ||
+        row.total_points !== 0,
+    );
     const hasVotingActivity =
-      showJury.length > 0 || results.some((row) => row.show_id === show.id);
+      showJury.length > 0 || showTele.length > 0 || hasSubstantiveResults;
 
     if (!showTele.length && hasVotingActivity) {
       issues.push({
@@ -310,7 +329,8 @@ export function buildEditionReadiness(input: {
       });
     }
 
-    const showResults = results.filter((row) => row.show_id === show.id);
+    const showResults = hasSubstantiveResults ? rawShowResults : [];
+    meaningfulResultRows += showResults.length;
     const brokenTotals = showResults.filter(
       (row) => row.total_points !== row.jury_points + row.televote_points,
     );
@@ -386,10 +406,10 @@ export function buildEditionReadiness(input: {
 
   const areas: ReadinessArea[] = [
     makeArea("setup", "Setup", Math.max(shows.length, 1), issues),
-    makeArea("entries", "Entries", Math.max(participants.length, 1), issues),
+    makeArea("entries", "Entries", Math.max(logicalEntries.length, 1), issues),
     makeArea("jury", "Juries", 1, issues),
     makeArea("televote", "Televote", 1, issues),
-    makeArea("results", "Results", Math.max(results.length, 1), issues),
+    makeArea("results", "Results", Math.max(meaningfulResultRows, 1), issues),
     makeArea("publication", "Publication", 1, issues),
   ];
 

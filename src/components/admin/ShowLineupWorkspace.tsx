@@ -108,6 +108,10 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   const [removeTarget, setRemoveTarget] = useState<Participant | null>(null);
   const [deleteCustomTarget, setDeleteCustomTarget] = useState<ContestEntityRow | null>(null);
   const [busy, setBusy] = useState(false);
+  const [allocationDraft, setAllocationDraft] = useState<Record<string, Allocation | "">>({});
+  const [allocationDirty, setAllocationDirty] = useState(false);
+  const [runningOrderDraft, setRunningOrderDraft] = useState<string[]>([]);
+  const [runningOrderDirty, setRunningOrderDirty] = useState(false);
 
   useEffect(() => {
     if (!orderedShows.length) {
@@ -144,12 +148,46 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   );
 
   const stage: LineupStage = activeShow?.lineup_stage ?? "lineup";
-  const displayedParticipants = stage === "running_order" ? runningParticipants : alphaParticipants;
+  const runningDraftParticipants = useMemo(() => {
+    const byId = new Map(lifecycleParticipants.map((participant) => [participant.id, participant] as const));
+    const ordered = runningOrderDraft
+      .map((id) => byId.get(id))
+      .filter((participant): participant is LifecycleParticipant => Boolean(participant));
+    const missing = lifecycleParticipants.filter((participant) => !runningOrderDraft.includes(participant.id));
+    return [...ordered, ...missing];
+  }, [lifecycleParticipants, runningOrderDraft]);
+  const displayedParticipants = stage === "running_order" ? runningDraftParticipants : alphaParticipants;
   const presentKeys = useMemo(() => new Set(lifecycleParticipants.map(participantKey)), [lifecycleParticipants]);
   const customEntities = useMemo(() => entities.filter((entity) => entity.entity_type === "custom"), [entities]);
   const missingDetailCount = lifecycleParticipants.filter((participant) => !participant.artist || !participant.song).length;
-  const allocatedCount = lifecycleParticipants.filter((participant) => Boolean(participant.running_order_allocation)).length;
+  const allocationValue = (participant: LifecycleParticipant) =>
+    allocationDraft[participant.id] ?? participant.running_order_allocation ?? "";
+  const allocatedCount = lifecycleParticipants.filter((participant) => Boolean(allocationValue(participant))).length;
   const allocationComplete = lifecycleParticipants.length > 0 && allocatedCount === lifecycleParticipants.length;
+
+  useEffect(() => {
+    if (!activeShowId) return;
+    if (stage === "allocation" && !allocationDirty) {
+      setAllocationDraft(
+        Object.fromEntries(
+          lifecycleParticipants.map((participant) => [
+            participant.id,
+            participant.running_order_allocation ?? "",
+          ]),
+        ),
+      );
+    }
+    if (stage === "running_order" && !runningOrderDirty) {
+      setRunningOrderDraft(runningParticipants.map((participant) => participant.id));
+    }
+  }, [
+    activeShowId,
+    allocationDirty,
+    lifecycleParticipants,
+    runningOrderDirty,
+    runningParticipants,
+    stage,
+  ]);
 
   const qualifierCandidates = useMemo(() => {
     if (!activeShow || (activeShow.kind !== "grand-final" && activeShow.kind !== "final")) return [];
@@ -182,7 +220,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     setBusy(true);
     try {
       const { error: clearError } = await (supabase.from("participants") as any)
-        .update({ running_order: null })
+        .update({ running_order: null, running_order_allocation: null })
         .eq("show_id", activeShow.id);
       if (clearError) throw clearError;
       await setStage("allocation");
@@ -195,16 +233,37 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     }
   }
 
-  async function assignAllocation(participantId: string, value: Allocation | null) {
+  function assignAllocation(participantId: string, value: Allocation | null) {
+    setAllocationDraft((current) => ({ ...current, [participantId]: value ?? "" }));
+    setAllocationDirty(true);
+  }
+
+  async function persistAllocationDraft() {
+    if (!activeShow) return;
+    const rows = lifecycleParticipants.map((participant) => ({
+      id: participant.id,
+      allocation: allocationValue(participant),
+    }));
+    if (rows.some((row) => !row.allocation)) {
+      throw new Error("Every entry needs an allocation before the draw can be saved.");
+    }
+    const { error } = await (supabase as any).rpc("admin_set_show_allocations", {
+      _show_id: activeShow.id,
+      _allocations: rows,
+    });
+    if (error) throw error;
+    setAllocationDirty(false);
+  }
+
+  async function saveAllocationDraft() {
+    if (!activeShow || !allocationDirty) return;
     setBusy(true);
     try {
-      const { error } = await (supabase.from("participants") as any)
-        .update({ running_order_allocation: value })
-        .eq("id", participantId);
-      if (error) throw error;
+      await persistAllocationDraft();
+      toast.success("Allocation draw saved");
       await refresh();
     } catch (caught) {
-      toast.error(reportSupabaseError(caught, "Allocation could not be saved."));
+      toast.error(reportSupabaseError(caught, "Allocation draw could not be saved."));
     } finally {
       setBusy(false);
     }
@@ -214,13 +273,16 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     if (!activeShow || !allocationComplete) return;
     setBusy(true);
     try {
-      const updates = alphaParticipants.map((participant, index) =>
-        (supabase.from("participants") as any).update({ running_order: index + 1 }).eq("id", participant.id),
-      );
-      const results = await Promise.all(updates);
-      const failed = results.find((result) => result.error);
-      if (failed?.error) throw failed.error;
+      if (allocationDirty) await persistAllocationDraft();
+      const ids = alphaParticipants.map((participant) => participant.id);
+      const { error } = await (supabase as any).rpc("admin_set_show_running_order", {
+        _show_id: activeShow.id,
+        _participant_ids: ids,
+      });
+      if (error) throw error;
       await setStage("running_order");
+      setRunningOrderDraft(ids);
+      setRunningOrderDirty(false);
       toast.success("Running-order workspace started with an editable A–Z draft.");
       await refresh();
     } catch (caught) {
@@ -372,7 +434,10 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
       id: participant.id,
       artist: participant.artist ?? "",
       song: participant.song ?? "",
-      running_order: participant.running_order ?? null,
+      running_order:
+        stage === "running_order"
+          ? Math.max(1, runningOrderDraft.indexOf(participant.id) + 1)
+          : participant.running_order ?? null,
     });
   }
 
@@ -384,13 +449,23 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         artist: entryDraft.artist.trim() || null,
         song: entryDraft.song.trim() || null,
       };
-      if (stage === "running_order" && entryDraft.running_order != null) {
-        patch.running_order = Math.max(1, entryDraft.running_order);
-      }
+      const requestedPosition =
+        stage === "running_order" && entryDraft.running_order != null
+          ? Math.max(1, Math.min(runningOrderDraft.length, entryDraft.running_order))
+          : null;
       const { error } = await (supabase.from("participants") as any).update(patch).eq("id", entryDraft.id);
       if (error) throw error;
+      if (requestedPosition != null) {
+        setRunningOrderDraft((current) => {
+          const without = current.filter((id) => id !== entryDraft.id);
+          const next = [...without];
+          next.splice(requestedPosition - 1, 0, entryDraft.id);
+          return next;
+        });
+        setRunningOrderDirty(true);
+      }
       setEntryDraft(null);
-      toast.success("Entry updated");
+      toast.success(requestedPosition != null ? "Entry updated · running order has unsaved changes" : "Entry updated");
       await refresh();
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Entry could not be updated."));
@@ -399,27 +474,52 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     }
   }
 
-  async function moveEntry(index: number, direction: -1 | 1) {
+  function moveEntry(index: number, direction: -1 | 1) {
     if (stage !== "running_order") return;
-    const current = runningParticipants[index];
-    const other = runningParticipants[index + direction];
-    if (!current || !other) return;
+    setRunningOrderDraft((current) => {
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || index >= current.length || nextIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+    setRunningOrderDirty(true);
+  }
+
+  async function saveRunningOrder() {
+    if (!activeShow || !runningOrderDirty) return;
     setBusy(true);
     try {
-      const currentOrder = current.running_order ?? index + 1;
-      const otherOrder = other.running_order ?? index + direction + 1;
-      const [first, second] = await Promise.all([
-        (supabase.from("participants") as any).update({ running_order: otherOrder }).eq("id", current.id),
-        (supabase.from("participants") as any).update({ running_order: currentOrder }).eq("id", other.id),
-      ]);
-      if (first.error) throw first.error;
-      if (second.error) throw second.error;
+      const { error } = await (supabase as any).rpc("admin_set_show_running_order", {
+        _show_id: activeShow.id,
+        _participant_ids: runningOrderDraft,
+      });
+      if (error) throw error;
+      setRunningOrderDirty(false);
+      toast.success("Running order saved");
       await refresh();
     } catch (caught) {
-      toast.error(reportSupabaseError(caught, "Running order could not be changed."));
+      toast.error(reportSupabaseError(caught, "Running order could not be saved."));
     } finally {
       setBusy(false);
     }
+  }
+
+  function resetRunningOrderDraft() {
+    setRunningOrderDraft(runningParticipants.map((participant) => participant.id));
+    setRunningOrderDirty(false);
+  }
+
+  function resetAllocationDraft() {
+    setAllocationDraft(
+      Object.fromEntries(
+        lifecycleParticipants.map((participant) => [
+          participant.id,
+          participant.running_order_allocation ?? "",
+        ]),
+      ),
+    );
+    setAllocationDirty(false);
   }
 
   async function removeEntry() {
@@ -578,9 +678,38 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         <AdminCardHeader
           eyebrow={stage === "running_order" ? "Running order" : stage === "allocation" ? "Allocation draw" : "Show line-up"}
           title={activeShow?.name ?? "Show"}
-          description={stage === "running_order" ? "Use the arrows for quick changes or open an entry for an exact position." : stage === "allocation" ? "Countries stay A–Z while you record the draw result." : "Alphabetical membership only. Position numbers are intentionally hidden."}
+          description={stage === "running_order" ? "Reorder freely, then save once. Nothing is written while you are arranging the draft." : stage === "allocation" ? "Record the whole draw locally, then save once instead of waiting after every country." : "Alphabetical membership only. Position numbers are intentionally hidden."}
           action={<AdminStatus tone={missingDetailCount ? "attention" : lifecycleParticipants.length ? "ready" : "neutral"}>{missingDetailCount ? `${missingDetailCount} incomplete` : lifecycleParticipants.length ? "Ready" : "Empty"}</AdminStatus>}
         />
+
+        {stage === "allocation" && lifecycleParticipants.length ? (
+          <div className="mb-4 flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">{allocationDirty ? "Unsaved allocation changes" : "Allocation draw saved"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">All allocation choices are committed in one atomic save.</p>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="admin-action-secondary" disabled={!allocationDirty || busy} onClick={resetAllocationDraft}>Reset</button>
+              <button type="button" className="admin-action-primary" disabled={!allocationDirty || !allocationComplete || busy} onClick={() => void saveAllocationDraft()}>
+                {busy ? "Saving…" : "Save draw"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {stage === "running_order" && lifecycleParticipants.length ? (
+          <div className="mb-4 flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold">{runningOrderDirty ? "Unsaved running-order changes" : "Running order saved"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Move as many entries as needed, then commit the complete order once.</p>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="admin-action-secondary" disabled={!runningOrderDirty || busy} onClick={resetRunningOrderDraft}>Reset</button>
+              <button type="button" className="admin-action-primary" disabled={!runningOrderDirty || busy} onClick={() => void saveRunningOrder()}>
+                {busy ? "Saving…" : "Save order"}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {loadingParticipants ? <p className="py-8 text-center text-sm text-muted-foreground">Loading line-up…</p> : !displayedParticipants.length ? (
           <AdminEmptyState icon={ListOrdered} title="Build the line-up" description="Add a Terra Solaris country, an existing edition-only country, or create a new custom country. Nothing gets a running-order position yet." action={<button type="button" className="admin-action-primary" onClick={() => setAddOpen(true)}><Plus className="size-4" /> Add first entry</button>} />
@@ -607,9 +736,9 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
                   {stage === "allocation" ? (
                     <select
                       aria-label={`Allocation for ${display?.name ?? "entry"}`}
-                      value={participant.running_order_allocation ?? ""}
+                      value={allocationValue(participant)}
                       disabled={busy}
-                      onChange={(event) => void assignAllocation(participant.id, (event.target.value || null) as Allocation | null)}
+                      onChange={(event) => assignAllocation(participant.id, (event.target.value || null) as Allocation | null)}
                       className="min-h-9 max-w-36 rounded-xl border border-white/[0.1] bg-white/[0.035] px-2 text-xs text-foreground outline-none focus:border-sky-200/30"
                     >
                       <option value="">Not drawn</option>
@@ -621,8 +750,8 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
 
                   {stage === "running_order" ? (
                     <div className="flex shrink-0 gap-1">
-                      <button type="button" disabled={busy || index === 0} onClick={() => void moveEntry(index, -1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${display?.name ?? "entry"} up`}><ArrowUp className="size-4" /></button>
-                      <button type="button" disabled={busy || index === runningParticipants.length - 1} onClick={() => void moveEntry(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${display?.name ?? "entry"} down`}><ArrowDown className="size-4" /></button>
+                      <button type="button" disabled={busy || index === 0} onClick={() => moveEntry(index, -1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${display?.name ?? "entry"} up`}><ArrowUp className="size-4" /></button>
+                      <button type="button" disabled={busy || index === runningDraftParticipants.length - 1} onClick={() => moveEntry(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${display?.name ?? "entry"} down`}><ArrowDown className="size-4" /></button>
                     </div>
                   ) : null}
                   <button type="button" onClick={() => setRemoveTarget(participant)} className="admin-action-quiet size-9 !p-0 text-rose-200" aria-label={`Remove ${display?.name ?? "entry"}`}><Trash2 className="size-4" /></button>

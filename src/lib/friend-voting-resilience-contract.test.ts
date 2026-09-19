@@ -64,6 +64,7 @@ describe("Friend-voting resilience", () => {
     const sectionNav = source("components/admin/AdminSectionNav.tsx");
     expect(registry).toContain('"Friend voting"');
     expect(registry).toContain('"/admin/friend-voting"');
-    expect(sectionNav).toContain("overflow-x-auto");
+    expect(sectionNav).toContain("flex flex-wrap");
+    expect(sectionNav).not.toContain("overflow-x-auto");
   });
 });

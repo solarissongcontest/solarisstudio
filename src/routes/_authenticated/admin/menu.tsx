@@ -9,7 +9,7 @@ import {
   type AdminNavigationGroup,
 } from "@/components/admin/admin-navigation";
 import { AdminCard, AdminPageHeader } from "@/components/admin/AdminUI";
-import { useEditions } from "@/lib/data";
+import { editionLabel, useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/admin/menu")({
   head: () => ({ meta: [{ title: "All pages — Solaris Organizer" }] }),
@@ -24,7 +24,7 @@ function OrganizerMenu() {
     editions.find((edition) => edition.id === editionId) ??
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
-  const domains = buildAdminDomainNavigation(activeEdition?.slug);
+  const domains = buildAdminDomainNavigation(activeEdition?.slug, activeEdition ? editionLabel(activeEdition) : "Current edition");
   const groups = useMemo(
     () => filterGroups(buildAdminNavigation(activeEdition?.slug), query),
     [activeEdition?.slug, query],
@@ -96,46 +96,46 @@ function OrganizerMenu() {
 
       {groups.length ? (
         <div className="space-y-4">
-          {groups.map((group) => (
-            <AdminCard key={group.label} className="!p-3 sm:!p-4">
-              <div className="mb-3 flex items-start justify-between gap-3 px-1">
-                <div>
-                  <h2 className="text-sm font-bold text-foreground">{group.label}</h2>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {group.description}
-                  </p>
+          {groups.map((group) =>
+            group.quiet ? (
+              <details
+                key={group.label}
+                open={Boolean(query.trim()) || undefined}
+                className="admin-card group overflow-hidden"
+              >
+                <summary className="flex min-h-14 cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-foreground">{group.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{group.description}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
+                      {group.items.length}
+                    </span>
+                    <span className="text-xs text-muted-foreground transition group-open:rotate-90">›</span>
+                  </span>
+                </summary>
+                <div className="grid gap-1 border-t border-white/[0.07] p-3 sm:grid-cols-2">
+                  {group.items.map((item) => <DirectoryItem key={item.to} item={item} />)}
                 </div>
-                <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
-                  {group.items.length}
-                </span>
-              </div>
-              <div className="grid gap-1 sm:grid-cols-2">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to as any}
-                      className="admin-list-row group !rounded-xl !border-0 !px-2.5"
-                    >
-                      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
-                        <Icon className="size-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-foreground">
-                          {item.label}
-                        </span>
-                        <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-                          {item.description}
-                        </span>
-                      </span>
-                      <span className="text-muted-foreground">›</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </AdminCard>
-          ))}
+              </details>
+            ) : (
+              <AdminCard key={group.label} className="!p-3 sm:!p-4">
+                <div className="mb-3 flex items-start justify-between gap-3 px-1">
+                  <div>
+                    <h2 className="text-sm font-bold text-foreground">{group.label}</h2>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.description}</p>
+                  </div>
+                  <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
+                    {group.items.length}
+                  </span>
+                </div>
+                <div className="grid gap-1 sm:grid-cols-2">
+                  {group.items.map((item) => <DirectoryItem key={item.to} item={item} />)}
+                </div>
+              </AdminCard>
+            ),
+          )}
         </div>
       ) : (
         <AdminCard className="py-10 text-center">
@@ -161,4 +161,26 @@ function filterGroups(groups: AdminNavigationGroup[], query: string) {
       }),
     }))
     .filter((group) => group.items.length > 0);
+}
+
+
+function DirectoryItem({ item }: { item: ReturnType<typeof buildAdminNavigation>[number]["items"][number] }) {
+  const Icon = item.icon;
+  return (
+    <Link
+      to={item.to as any}
+      className="admin-list-row group !rounded-xl !border-0 !px-2.5"
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+        <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+          {item.description}
+        </span>
+      </span>
+      <span className="text-muted-foreground">›</span>
+    </Link>
+  );
 }

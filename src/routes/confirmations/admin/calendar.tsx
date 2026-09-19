@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock3 } from "lucide-react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -51,6 +52,7 @@ function kindLabel(kind: CalendarItem["kind"]) {
 
 function CalendarPage() {
   const navigate = useNavigate();
+  const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [editionId, setEditionId] = useState("");
   const [roundId, setRoundId] = useState("");
@@ -69,7 +71,7 @@ function CalendarPage() {
         }
         const editionRows = await loadConfirmationEditions();
         if (!alive) return;
-        const selected = editionRows.find((item) => item.status === "active")?.id ?? editionRows[0]?.id ?? "";
+        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? editionRows.find((item) => item.status === "active")?.id ?? editionRows[0]?.id ?? "";
         setEditions(editionRows);
         setEditionId(selected);
         setRows(await loadConfirmationCalendar(selected || undefined));
@@ -83,6 +85,18 @@ function CalendarPage() {
   }, [navigate]);
 
   const selectedEdition = editions.find((edition) => edition.id === editionId) ?? null;
+
+  useEffect(() => {
+    if (
+      organizerEditionId &&
+      organizerEditionId !== editionId &&
+      editions.some((item) => item.id === organizerEditionId)
+    ) {
+      setEditionId(organizerEditionId);
+      setRoundId("");
+      void changeScope(organizerEditionId, "");
+    }
+  }, [editionId, editions, organizerEditionId]);
 
   async function changeScope(nextEditionId: string, nextRoundId: string) {
     setLoading(true);
@@ -117,7 +131,7 @@ function CalendarPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="admin-section-label">Edition</span>
-            <select value={editionId} onChange={(event) => { const next = event.target.value; setEditionId(next); setRoundId(""); void changeScope(next, ""); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+            <select value={editionId} onChange={(event) => { const next = event.target.value; setEditionId(next); setOrganizerEditionId(next); setRoundId(""); void changeScope(next, ""); }} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
               {editions.map((edition) => <option key={edition.id} value={edition.id}>{`SSC ${edition.edition_number} · ${edition.name}`}</option>)}
             </select>
           </label>

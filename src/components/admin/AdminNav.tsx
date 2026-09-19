@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { ListTree } from "lucide-react";
 
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,10 @@ export function AdminNav() {
     editions.find((edition) => edition.id === editionId) ??
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
-  const domains = buildAdminDomainNavigation(activeEdition?.slug);
+  const editionNavLabel = activeEdition?.edition_number
+    ? `SSC${activeEdition.edition_number}`
+    : activeEdition?.name ?? "Current edition";
+  const domains = buildAdminDomainNavigation(activeEdition?.slug, editionNavLabel);
 
   return (
     <nav className="p-3" aria-label="Organizer navigation">
@@ -28,8 +32,15 @@ export function AdminNav() {
         ))}
       </div>
       <div className="mt-5 border-t border-white/[0.07] px-2 pt-4">
-        <p className="text-[10px] leading-4 text-muted-foreground">
-          Specialist pages stay available through the contextual navigation and Search.
+        <Link
+          to="/admin/menu"
+          className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-white/[0.035] hover:text-foreground"
+        >
+          <ListTree className="size-4" />
+          All Organizer tools
+        </Link>
+        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+          Core workflows are visible in their workspaces. Search and All Organizer tools are for specialist tasks.
         </p>
       </div>
     </nav>

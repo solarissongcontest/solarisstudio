@@ -1,5 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Eye, LayoutDashboard, Layers3, MoreHorizontal, Vote, type LucideIcon } from "lucide-react";
+import {
+  Inbox,
+  LayoutDashboard,
+  Layers3,
+  MoreHorizontal,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
@@ -28,7 +35,45 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     null;
   const slug = activeEdition?.slug;
   const editionHref = slug ? `/admin/${slug}` : "/admin";
-  const publishHref = slug ? `/admin/publication/${slug}` : "/admin";
+
+  const editionRoute = (path: string) =>
+    (slug ? path === `/admin/${slug}` : false) ||
+    path.startsWith("/admin/countries") ||
+    path.startsWith("/confirmations/admin") ||
+    path.startsWith("/admin/shows/") ||
+    path.startsWith("/admin/entries/") ||
+    path.startsWith("/admin/lineup-sync/") ||
+    path.startsWith("/admin/participant-status/") ||
+    path.startsWith("/admin/hosts") ||
+    path.startsWith("/admin/eligibility") ||
+    path.startsWith("/admin/submission-versions") ||
+    path.startsWith("/televoting/admin") ||
+    path.startsWith("/admin/jury/") ||
+    path.startsWith("/admin/voting-system/") ||
+    path.startsWith("/admin/televote/") ||
+    path.startsWith("/admin/friend-voting") ||
+    path.startsWith("/admin/jury-integrity") ||
+    path.startsWith("/admin/results") ||
+    path.startsWith("/admin/voting-lab") ||
+    path.startsWith("/admin/control-room") ||
+    path.startsWith("/admin/broadcast-rundown") ||
+    path.startsWith("/admin/workflows") ||
+    path.startsWith("/admin/incidents") ||
+    path.startsWith("/admin/edition-simulator") ||
+    path.startsWith("/admin/storytelling") ||
+    path.startsWith("/admin/media-assets") ||
+    path.startsWith("/admin/communications") ||
+    path.startsWith("/admin/publication/") ||
+    path.startsWith("/admin/design/") ||
+    path.startsWith("/admin/edition-theme/");
+
+  const casesRoute = (path: string) =>
+    path === "/admin/integrity" ||
+    path.startsWith("/admin/integrity-") ||
+    path.startsWith("/admin/integrity-case/") ||
+    path.startsWith("/admin/integrity-resolution/") ||
+    path.startsWith("/admin/rules-manager") ||
+    path.startsWith("/admin/rule-interpretations");
 
   const mobileItems: MobileItem[] = [
     {
@@ -38,56 +83,32 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       active: (path) => path.startsWith("/admin/operations"),
     },
     {
-      label: "Contest",
+      label: "Inbox",
+      href: "/admin/inbox",
+      icon: Inbox,
+      active: (path) => path.startsWith("/admin/inbox"),
+    },
+    {
+      label: activeEdition?.edition_number ? `SSC${activeEdition.edition_number}` : "Edition",
       href: editionHref,
       icon: Layers3,
-      active: (path) =>
-        (slug ? path === `/admin/${slug}` : false) ||
-        path.startsWith("/admin/shows/") ||
-        path.startsWith("/admin/entries/") ||
-        path.startsWith("/admin/lineup-sync/") ||
-        path.startsWith("/admin/participant-status/"),
+      active: editionRoute,
     },
     {
-      label: "Voting",
-      href: "/televoting/admin",
-      icon: Vote,
-      active: (path) =>
-        path.startsWith("/televoting/admin") ||
-        path.startsWith("/admin/jury/") ||
-        path.startsWith("/admin/voting-system/") ||
-        path.startsWith("/admin/televote/") ||
-        path.startsWith("/admin/friend-voting") ||
-        path.startsWith("/admin/jury-integrity"),
-    },
-    {
-      label: "Publish",
-      href: publishHref,
-      icon: Eye,
-      active: (path) => path.startsWith("/admin/publication/"),
+      label: "Cases",
+      href: "/admin/integrity-investigations",
+      icon: ShieldCheck,
+      active: casesRoute,
     },
     {
       label: "More",
-      href: "/admin/menu",
+      href: "/admin/more",
       icon: MoreHorizontal,
       active: (path) =>
-        path.startsWith("/admin/menu") ||
-        path.startsWith("/admin/access-permissions") ||
-        path.startsWith("/admin/feature-rollout") ||
-        path.startsWith("/confirmations/admin") ||
-        path.startsWith("/admin/design/") ||
-        path.startsWith("/admin/edition-theme/") ||
-        path.startsWith("/admin/more") ||
-        path.startsWith("/admin/country-accounts") ||
-        path.startsWith("/admin/hod-history") ||
-        path.startsWith("/admin/hosts") ||
-        path.startsWith("/admin/predictions") ||
-        path.startsWith("/admin/beta") ||
-        path.startsWith("/admin/admin-beta") ||
-        path.startsWith("/admin/anniversary") ||
-        path.startsWith("/admin/guide") ||
-        path.startsWith("/admin/system") ||
-        path.startsWith("/admin/sync-health"),
+        !path.startsWith("/admin/operations") &&
+        !path.startsWith("/admin/inbox") &&
+        !editionRoute(path) &&
+        !casesRoute(path),
     },
   ];
 
@@ -95,14 +116,29 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     <div className="admin-frame min-h-[calc(100vh-4rem)]">
       <aside className="admin-sidebar border-r border-white/[0.07]">
         <div className="sticky top-16 max-h-[calc(100vh-4rem)] overflow-y-auto scroll-slim">
-          <AdminFeatureBoundary name="desktop-navigation">
+          <AdminFeatureBoundary
+            name="desktop-navigation"
+            fallback={
+              <div className="p-3">
+                <Link to="/admin/operations" className="admin-action-secondary w-full justify-start">Home</Link>
+                <Link to="/admin/menu" className="admin-action-secondary mt-2 w-full justify-start">All Organizer tools</Link>
+              </div>
+            }
+          >
             <AdminNav />
           </AdminFeatureBoundary>
         </div>
       </aside>
 
       <main className="admin-page admin-main min-w-0">
-        <AdminFeatureBoundary name="section-navigation">
+        <AdminFeatureBoundary
+          name="section-navigation"
+          fallback={
+            <div className="mb-4 rounded-xl border border-amber-200/12 bg-amber-200/[0.04] p-3 text-xs">
+              Section navigation could not load. <Link to="/admin/menu" className="font-semibold text-sky-100 underline">Open all Organizer tools</Link>.
+            </div>
+          }
+        >
           <AdminSectionNav />
         </AdminFeatureBoundary>
         {children}

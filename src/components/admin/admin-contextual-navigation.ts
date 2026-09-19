@@ -20,8 +20,9 @@ export type AdminContextualSection = {
 export function buildAdminContextualSection(
   pathname: string,
   slug?: string,
+  editionLabel = "Current edition",
 ): AdminContextualSection | null {
-  const domain = buildAdminDomainNavigation(slug).find((item) => item.active(pathname));
+  const domain = buildAdminDomainNavigation(slug, editionLabel).find((item) => item.active(pathname));
   if (!domain) return null;
 
   return {
@@ -37,104 +38,66 @@ function domainTabs(
 ): AdminContextualTab[] {
   const contestHref = slug ? `/admin/${slug}` : "/admin/countries";
   const publishHref = slug ? `/admin/publication/${slug}` : "/admin/storytelling";
-  const broadcastHref = slug ? `/admin/design/${slug}` : "/admin/storytelling";
+  const designHref = slug ? `/admin/design/${slug}` : "/admin/storytelling";
+
+  const overviewActive = (path: string) => Boolean(slug && path === `/admin/${slug}`);
+
+  const delegationsActive = (path: string) =>
+    path.startsWith("/admin/countries") ||
+    path.startsWith("/confirmations/admin") ||
+    path.startsWith("/admin/submission-versions");
+
+  const contestActive = (path: string) =>
+    path.startsWith("/admin/shows/") ||
+    path.startsWith("/admin/entries/") ||
+    path.startsWith("/admin/lineup-sync/") ||
+    path.startsWith("/admin/participant-status/") ||
+    path.startsWith("/admin/hosts") ||
+    path.startsWith("/admin/eligibility");
+
+  const votingActive = (path: string) =>
+    path.startsWith("/televoting/admin") ||
+    path.startsWith("/admin/jury/") ||
+    path.startsWith("/admin/voting-system/") ||
+    path.startsWith("/admin/televote/") ||
+    path.startsWith("/admin/friend-voting") ||
+    path.startsWith("/admin/jury-integrity") ||
+    (path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal")) ||
+    path.startsWith("/admin/voting-lab");
+
+  const showActive = (path: string) =>
+    path.startsWith("/admin/control-room") ||
+    path.startsWith("/admin/workflows") ||
+    path.startsWith("/admin/incidents") ||
+    path.startsWith("/admin/broadcast-rundown") ||
+    path.startsWith("/admin/edition-simulator") ||
+    path.startsWith("/admin/results-reveal");
+
+  const publishActive = (path: string) =>
+    path.startsWith("/admin/storytelling") ||
+    path.startsWith("/admin/media-assets") ||
+    path.startsWith("/admin/communications") ||
+    path.startsWith("/admin/publication/") ||
+    path.startsWith("/admin/design/") ||
+    path.startsWith("/admin/edition-theme/");
 
   switch (domainId) {
-    case "overview":
+    case "home":
+    case "inbox":
+      return [];
+    case "edition":
       return [
-        tab("Overview", "/admin/operations", (path) => path.startsWith("/admin/operations")),
-        tab(
-          "Action Center",
-          "/admin/action-center",
-          (path) => path.startsWith("/admin/action-center") || path.startsWith("/admin/action-centre"),
-        ),
+        tab("Overview", slug ? `/admin/${slug}` : "/admin", overviewActive),
+        tab("Delegations", "/admin/countries", delegationsActive),
+        tab("Contest", slug ? `/admin/shows/${slug}` : contestHref, contestActive),
+        tab("Voting & results", "/televoting/admin", votingActive),
+        tab("Live", "/admin/control-room", showActive),
+        tab("Publish", publishHref, publishActive),
       ];
-    case "contest":
+    case "rules-cases":
       return [
         tab(
-          "Delegations",
-          "/admin/countries",
-          (path) => path.startsWith("/admin/countries") || path.startsWith("/confirmations/admin"),
-        ),
-        tab(
-          "Contest",
-          contestHref,
-          (path) =>
-            Boolean(slug && path === `/admin/${slug}`) ||
-            path.startsWith("/admin/shows/") ||
-            path.startsWith("/admin/entries/") ||
-            path.startsWith("/admin/lineup-sync/") ||
-            path.startsWith("/admin/participant-status/"),
-        ),
-        tab("Host", "/admin/hosts", (path) => path.startsWith("/admin/hosts")),
-        tab("Eligibility", "/admin/eligibility", (path) => path.startsWith("/admin/eligibility")),
-        tab(
-          "Submission history",
-          "/admin/submission-versions",
-          (path) => path.startsWith("/admin/submission-versions"),
-        ),
-      ];
-    case "operations":
-      return [
-        tab(
-          "Action Center",
-          "/admin/action-center",
-          (path) => path.startsWith("/admin/action-center") || path.startsWith("/admin/action-centre"),
-        ),
-        tab("Control Room", "/admin/control-room", (path) => path.startsWith("/admin/control-room")),
-        tab("Workflows", "/admin/workflows", (path) => path.startsWith("/admin/workflows")),
-        tab("Incidents", "/admin/incidents", (path) => path.startsWith("/admin/incidents")),
-        tab(
-          "Rundown",
-          "/admin/broadcast-rundown",
-          (path) => path.startsWith("/admin/broadcast-rundown"),
-        ),
-        tab(
-          "Communications",
-          "/admin/communications",
-          (path) => path.startsWith("/admin/communications"),
-        ),
-        tab(
-          "Simulator",
-          "/admin/edition-simulator",
-          (path) => path.startsWith("/admin/edition-simulator"),
-        ),
-      ];
-    case "voting-results":
-      return [
-        tab(
-          "Voting",
-          "/televoting/admin",
-          (path) =>
-            path.startsWith("/televoting/admin") ||
-            path.startsWith("/admin/jury/") ||
-            path.startsWith("/admin/voting-system/") ||
-            path.startsWith("/admin/televote/") ||
-            path.startsWith("/admin/friend-voting") ||
-            path.startsWith("/admin/jury-integrity"),
-        ),
-        tab(
-          "Results operations",
-          "/admin/results",
-          (path) => path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal"),
-        ),
-        tab(
-          "Reveal Director",
-          "/admin/results-reveal",
-          (path) => path.startsWith("/admin/results-reveal"),
-        ),
-        tab("Voting Lab", "/admin/voting-lab", (path) => path.startsWith("/admin/voting-lab")),
-      ];
-    case "rules-integrity":
-      return [
-        tab("Rules", "/admin/rules-manager", (path) => path.startsWith("/admin/rules-manager")),
-        tab(
-          "Interpretations",
-          "/admin/rule-interpretations",
-          (path) => path.startsWith("/admin/rule-interpretations"),
-        ),
-        tab(
-          "Investigations",
+          "Incoming",
           "/admin/integrity-investigations",
           (path) =>
             path === "/admin/integrity" ||
@@ -150,69 +113,68 @@ function domainTabs(
         tab("Appeals", "/admin/integrity-appeals", (path) => path.startsWith("/admin/integrity-appeals")),
         tab("Evidence", "/admin/integrity-evidence", (path) => path.startsWith("/admin/integrity-evidence")),
         tab(
-          "Disclosure",
+          "Rules",
+          "/admin/rules-manager",
+          (path) => path.startsWith("/admin/rules-manager") || path.startsWith("/admin/rule-interpretations"),
+        ),
+        tab(
+          "Privacy",
           "/admin/integrity-disclosure",
-          (path) => path.startsWith("/admin/integrity-disclosure"),
-        ),
-        tab(
-          "Identity access",
-          "/admin/integrity-identity",
-          (path) => path.startsWith("/admin/integrity-identity"),
-        ),
-      ];
-    case "publishing":
-      return [
-        tab("Storytelling", "/admin/storytelling", (path) => path.startsWith("/admin/storytelling")),
-        tab("Media assets", "/admin/media-assets", (path) => path.startsWith("/admin/media-assets")),
-        tab("Publish", publishHref, (path) => path.startsWith("/admin/publication/")),
-        tab(
-          "Broadcast",
-          broadcastHref,
-          (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/"),
+          (path) => path.startsWith("/admin/integrity-disclosure") || path.startsWith("/admin/integrity-identity"),
         ),
       ];
     case "administration":
       return [
         tab("Overview", "/admin/more", (path) => path.startsWith("/admin/more")),
         tab(
-          "Access & permissions",
+          "People & access",
           "/admin/access-permissions",
-          (path) => path.startsWith("/admin/access-permissions"),
+          (path) =>
+            path.startsWith("/admin/access-permissions") ||
+            path.startsWith("/admin/country-accounts") ||
+            path.startsWith("/admin/hod-history"),
         ),
-        tab(
-          "Feature rollout",
-          "/admin/feature-rollout",
-          (path) => path.startsWith("/admin/feature-rollout"),
-        ),
-        tab("All editions", "/admin", (path) => path === "/admin" || path === "/admin/"),
-        tab("Guide", "/admin/guide", (path) => path.startsWith("/admin/guide")),
-        tab(
-          "Accounts",
-          "/admin/country-accounts",
-          (path) => path.startsWith("/admin/country-accounts"),
-        ),
-        tab("HOD history", "/admin/hod-history", (path) => path.startsWith("/admin/hod-history")),
-        tab("Predictions", "/admin/predictions", (path) => path.startsWith("/admin/predictions")),
-        tab("System health", "/admin/sync-health", (path) => path.startsWith("/admin/sync-health")),
+        tab("Editions", "/admin", (path) => path === "/admin" || path === "/admin/"),
         tab(
           "System",
           "/admin/system",
           (path) =>
             path.startsWith("/admin/system") ||
+            path.startsWith("/admin/sync-health") ||
+            path.startsWith("/admin/feature-rollout") ||
+            path.startsWith("/admin/anniversary"),
+        ),
+        tab(
+          "QA",
+          "/admin/admin-beta-feedback",
+          (path) =>
             path.startsWith("/admin/beta") ||
             path.startsWith("/admin/admin-beta") ||
-            path.startsWith("/admin/anniversary"),
+            path.startsWith("/admin/public-ux"),
         ),
       ];
   }
 }
 
 function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow | null {
-  if (pathname.startsWith("/confirmations/admin")) {
+  if (
+    pathname.startsWith("/admin/countries") ||
+    pathname.startsWith("/confirmations/admin") ||
+    pathname.startsWith("/admin/submission-versions")
+  ) {
     return {
       label: "Delegations workflow",
       tabs: [
-        tab("Overview", "/confirmations/admin", (path) => path === "/confirmations/admin" || path === "/confirmations/admin/"),
+        tab(
+          "Countries",
+          "/admin/countries",
+          (path) => path.startsWith("/admin/countries"),
+        ),
+        tab(
+          "Confirmations",
+          "/confirmations/admin",
+          (path) => path === "/confirmations/admin" || path === "/confirmations/admin/",
+        ),
         tab(
           "Responses",
           "/confirmations/admin/responses",
@@ -226,11 +188,16 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
             path.startsWith("/confirmations/admin/editions") ||
             path.startsWith("/confirmations/admin/sync"),
         ),
-        tab("Calendar", "/confirmations/admin/calendar", (path) => path.startsWith("/confirmations/admin/calendar")),
+        tab("Schedule", "/confirmations/admin/calendar", (path) => path.startsWith("/confirmations/admin/calendar")),
         tab(
-          "Access",
+          "More",
           "/confirmations/admin/recovery-codes",
-          (path) => path.startsWith("/confirmations/admin/recovery-codes") || path.startsWith("/confirmations/admin/settings"),
+          (path) =>
+            path.startsWith("/confirmations/admin/recovery-codes") ||
+            path.startsWith("/confirmations/admin/settings") ||
+            path.startsWith("/confirmations/admin/editions") ||
+            path.startsWith("/confirmations/admin/sync") ||
+            path.startsWith("/admin/submission-versions"),
         ),
       ],
     };
@@ -242,7 +209,9 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     pathname.startsWith("/admin/voting-system/") ||
     pathname.startsWith("/admin/televote/") ||
     pathname.startsWith("/admin/friend-voting") ||
-    pathname.startsWith("/admin/jury-integrity")
+    pathname.startsWith("/admin/jury-integrity") ||
+    (pathname.startsWith("/admin/results") && !pathname.startsWith("/admin/results-reveal")) ||
+    pathname.startsWith("/admin/voting-lab")
   ) {
     return {
       label: "Voting workflow",
@@ -251,9 +220,11 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
         tab("Rules", slug ? `/admin/voting-system/${slug}` : "/admin", (path) => path.startsWith("/admin/voting-system/")),
         tab("Jury", slug ? `/admin/jury/${slug}` : "/admin", (path) => path.startsWith("/admin/jury/") || path.startsWith("/admin/jury-integrity")),
         tab(
-          "Public voting",
+          "Public vote",
           "/televoting/admin/rounds",
-          (path) => path.startsWith("/televoting/admin/rounds") || path.startsWith("/televoting/admin/analytics"),
+          (path) =>
+            path.startsWith("/televoting/admin/rounds") ||
+            path.startsWith("/admin/televote/"),
         ),
         tab(
           "Friend voting",
@@ -263,16 +234,19 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
         tab(
           "Integrity",
           "/televoting/admin/integrity",
-          (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse"),
+          (path) =>
+            path.startsWith("/televoting/admin/integrity") ||
+            path.startsWith("/televoting/admin/anti-abuse") ||
+            path.startsWith("/televoting/admin/result-integrity"),
         ),
         tab(
           "Results",
-          "/televoting/admin/results",
+          "/admin/results",
           (path) =>
+            (path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal")) ||
             path.startsWith("/televoting/admin/results") ||
             path.startsWith("/televoting/admin/combined") ||
-            path.startsWith("/televoting/admin/backtest") ||
-            path.startsWith("/admin/televote/"),
+            path.startsWith("/televoting/admin/backtest"),
         ),
       ],
     };
@@ -301,12 +275,43 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     };
   }
 
-  if (pathname.startsWith("/admin/design/") || pathname.startsWith("/admin/edition-theme/")) {
+  if (
+    pathname.startsWith("/admin/control-room") ||
+    pathname.startsWith("/admin/workflows") ||
+    pathname.startsWith("/admin/incidents") ||
+    pathname.startsWith("/admin/broadcast-rundown") ||
+    pathname.startsWith("/admin/edition-simulator") ||
+    pathname.startsWith("/admin/results-reveal")
+  ) {
     return {
-      label: "Broadcast workflow",
+      label: "Live workflow",
       tabs: [
-        tab("Design & broadcast", slug ? `/admin/design/${slug}` : "/admin", (path) => path.startsWith("/admin/design/")),
-        tab("Edition theme", slug ? `/admin/edition-theme/${slug}` : "/admin", (path) => path.startsWith("/admin/edition-theme/")),
+        tab("Control room", "/admin/control-room", (path) => path.startsWith("/admin/control-room")),
+        tab("Workflows", "/admin/workflows", (path) => path.startsWith("/admin/workflows")),
+        tab("Incidents", "/admin/incidents", (path) => path.startsWith("/admin/incidents")),
+        tab("Rundown", "/admin/broadcast-rundown", (path) => path.startsWith("/admin/broadcast-rundown")),
+        tab("Reveal", "/admin/results-reveal", (path) => path.startsWith("/admin/results-reveal")),
+        tab("Rehearsal", "/admin/edition-simulator", (path) => path.startsWith("/admin/edition-simulator")),
+      ],
+    };
+  }
+
+  if (
+    pathname.startsWith("/admin/publication/") ||
+    pathname.startsWith("/admin/communications") ||
+    pathname.startsWith("/admin/media-assets") ||
+    pathname.startsWith("/admin/storytelling") ||
+    pathname.startsWith("/admin/design/") ||
+    pathname.startsWith("/admin/edition-theme/")
+  ) {
+    return {
+      label: "Publish workflow",
+      tabs: [
+        tab("Release", slug ? `/admin/publication/${slug}` : "/admin", (path) => path.startsWith("/admin/publication/")),
+        tab("Communications", "/admin/communications", (path) => path.startsWith("/admin/communications")),
+        tab("Media", "/admin/media-assets", (path) => path.startsWith("/admin/media-assets")),
+        tab("Stories", "/admin/storytelling", (path) => path.startsWith("/admin/storytelling")),
+        tab("Design", slug ? `/admin/design/${slug}` : "/admin", (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/")),
       ],
     };
   }

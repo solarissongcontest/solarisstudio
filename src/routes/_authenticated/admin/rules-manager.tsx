@@ -196,6 +196,9 @@ function RulesManager() {
           description="Prepare rule changes as versioned drafts, compare the official wording, record why a rule changed and publish one current rulebook without silently rewriting history."
           actions={
             <div className="flex flex-wrap gap-2">
+              <Link to="/admin/rule-interpretations" className="admin-action-secondary">
+                <BookOpen className="size-4" /> Interpretations
+              </Link>
               <Link to="/rules/changes" target="_blank" className="admin-action-secondary">
                 <FileClock className="size-4" /> Public history
               </Link>

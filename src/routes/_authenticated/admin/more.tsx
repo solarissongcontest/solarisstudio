@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BarChart3,
+  BookOpen,
   CalendarDays,
   ClipboardCheck,
   ExternalLink,
   Flag,
   History,
+  KeyRound,
+  ListTree,
+  Rocket,
   Settings,
   Sparkles,
   Trophy,
@@ -21,13 +25,20 @@ export const Route = createFileRoute("/_authenticated/admin/more")({
 
 const groups = [
   {
-    title: "Accounts & contest history",
+    title: "People & access",
+    items: [
+      { label: "Access & permissions", description: "Users, roles, capabilities, access simulation and authorization health.", to: "/admin/access-permissions", icon: KeyRound },
+      { label: "Country accounts", description: "Manage who can sign in for each delegation.", to: "/admin/country-accounts", icon: Users },
+      { label: "HOD history", description: "See who managed each delegation in past editions.", to: "/admin/hod-history", icon: History },
+    ],
+  },
+  {
+    title: "Editions & configuration",
     items: [
       { label: "Manage editions", description: "Create editions and change their main settings.", to: "/admin", icon: Trophy },
       { label: "Edition dates", description: "Set the exact Grand Final or main event date for past editions.", to: "/admin/anniversary-dates", icon: CalendarDays },
-      { label: "Country accounts", description: "Manage who can sign in for each delegation.", to: "/admin/country-accounts", icon: Users },
-      { label: "HOD history", description: "See who managed each delegation in past editions.", to: "/admin/hod-history", icon: History },
-      { label: "Hosting", description: "Set host countries, host cities and hosting details.", to: "/admin/hosts", icon: Flag },
+      { label: "Feature rollout", description: "See and control which Solaris Studio capabilities are enabled.", to: "/admin/feature-rollout", icon: Rocket },
+      { label: "Organizer guide", description: "Plain-language instructions for the main Organizer workflows.", to: "/admin/guide", icon: BookOpen },
     ],
   },
   {
@@ -50,6 +61,7 @@ const groups = [
   {
     title: "System",
     items: [
+      { label: "All Organizer tools", description: "Open the complete categorized directory when you need a specialist page.", to: "/admin/menu", icon: ListTree },
       { label: "System health", description: "Check data synchronization, stale bindings and integration failures.", to: "/admin/sync-health", icon: Settings },
       { label: "System settings", description: "Manage deadlines, audit history and maintenance settings.", to: "/admin/system", icon: Settings },
     ],

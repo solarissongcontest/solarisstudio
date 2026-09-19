@@ -54,6 +54,15 @@ function ShowsWorkspace() {
   const [actionsTarget, setActionsTarget] = useState<Show | null>(null);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
+  const canonicalEntries = participants.filter((participant) => participant.show_id == null);
+  const logicalEntries = canonicalEntries.length
+    ? canonicalEntries
+    : [...new Map(
+        participants.map((participant) => [
+          participant.contest_entity_id ?? participant.country_id,
+          participant,
+        ] as const),
+      ).values()];
 
   async function refresh() {
     await Promise.all([
@@ -156,7 +165,7 @@ function ShowsWorkspace() {
 
       <div className="mb-4 grid grid-cols-3 gap-2">
         <Metric label="Shows" value={orderedShows.length} />
-        <Metric label="Entries" value={participants.length} />
+        <Metric label="Entries" value={logicalEntries.length} />
         <Metric label="Public" value={orderedShows.filter((show) => show.published && hasAnyPublicInformation(resolveShowPublication(show))).length} />
       </div>
 

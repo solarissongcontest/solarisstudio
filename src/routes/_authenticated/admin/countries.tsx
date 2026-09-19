@@ -80,11 +80,42 @@ function CountriesCockpitPage() {
           title="Country cockpit"
           description="A single readiness matrix for every participating delegation in the selected edition. Scores use the same country operational-readiness model as the HOD workspace."
           actions={
-            <a href="/confirmations/admin" className="admin-action-secondary">
+            <Link to="/confirmations/admin" className="admin-action-secondary">
               Confirmation operations
-            </a>
+            </Link>
           }
         />
+
+        <AdminCard>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="admin-section-label">Delegation workflows</p>
+              <h2 className="mt-1 text-base font-bold">Country work should be one click away</h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Confirmations are a core delegation workflow, not a hidden specialist page.
+              </p>
+            </div>
+            <Link to="/confirmations/admin" className="admin-action-primary">
+              Open confirmations
+            </Link>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <Link to="/confirmations/admin" className="admin-action-secondary justify-start">Overview</Link>
+            <Link to="/confirmations/admin/responses" className="admin-action-secondary justify-start">Responses</Link>
+            <Link to="/confirmations/admin/rounds" className="admin-action-secondary justify-start">Rounds</Link>
+            <Link to="/confirmations/admin/calendar" className="admin-action-secondary justify-start">Schedule</Link>
+            <Link to="/confirmations/admin/recovery-codes" className="admin-action-secondary justify-start">Access</Link>
+          </div>
+          <details className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.018] p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">More delegation tools</summary>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Link to="/admin/submission-versions" className="admin-action-secondary justify-start">Submission history</Link>
+              <Link to="/confirmations/admin/editions" className="admin-action-secondary justify-start">Edition links</Link>
+              <Link to="/confirmations/admin/sync" className="admin-action-secondary justify-start">Sync health</Link>
+              <Link to="/confirmations/admin/settings" className="admin-action-secondary justify-start">Settings</Link>
+            </div>
+          </details>
+        </AdminCard>
 
         {!selectedEdition && !editionsQuery.isLoading ? (
           <AdminCard>

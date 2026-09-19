@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -95,6 +96,7 @@ function responseCardState(row: ResponseRow): CardState {
 }
 
 function DelegationsAdminOverview() {
+  const { editionId: organizerEditionId } = useAdminContext();
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [responses, setResponses] = useState<ResponseRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,8 +135,12 @@ function DelegationsAdminOverview() {
   }, []);
 
   const activeEdition = useMemo(
-    () => editions.find((edition) => edition.status === "active") ?? editions[0] ?? null,
-    [editions],
+    () =>
+      editions.find((edition) => edition.id === organizerEditionId) ??
+      editions.find((edition) => edition.status === "active") ??
+      editions[0] ??
+      null,
+    [editions, organizerEditionId],
   );
 
   const activeResponses = useMemo(

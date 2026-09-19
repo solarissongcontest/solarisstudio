@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Copy, ExternalLink, LogOut, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminActionItem,
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/confirmations/admin/settings")({
 
 function SettingsPage() {
   const navigate = useNavigate();
+  const { editionId: organizerEditionId } = useAdminContext();
   const [email, setEmail] = useState<string | null>(null);
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,8 +55,12 @@ function SettingsPage() {
   }, [navigate]);
 
   const activeEdition = useMemo(
-    () => editions.find((edition) => edition.status === "active") ?? editions[0] ?? null,
-    [editions],
+    () =>
+      editions.find((edition) => edition.id === organizerEditionId) ??
+      editions.find((edition) => edition.status === "active") ??
+      editions[0] ??
+      null,
+    [editions, organizerEditionId],
   );
 
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/confirmations` : "/confirmations";

@@ -110,6 +110,7 @@ function IntegrityEvidenceDisclosureDesk() {
           actions={
             <div className="flex flex-wrap gap-2">
               <Link to="/admin/integrity-evidence" className="admin-action-secondary"><FileLock2 className="size-4" />Lifecycle</Link>
+              <Link to="/admin/integrity-identity" className="admin-action-secondary"><ShieldCheck className="size-4" />Identity access</Link>
               <button type="button" onClick={() => void refresh()} className="admin-action-secondary"><RefreshCw className="size-4" />Refresh</button>
             </div>
           }

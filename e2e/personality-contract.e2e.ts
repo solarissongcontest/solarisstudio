@@ -217,27 +217,52 @@ test("all personalities retain semantics and visible keyboard focus in forced co
   const cards = page.locator("[data-gallery-personality]");
   await expect(cards).toHaveCount(SOURCE_COUNT);
   for (let index = 0; index < SOURCE_COUNT; index += 1) {
-    const card = cards.nth(index);
-    const personality = await card.getAttribute("data-gallery-personality");
-    await expect(card.getByRole("heading", { level: 1 })).toHaveCount(1);
-    const buttons = card.getByRole("button");
-    await expect(buttons).toHaveCount(3);
+    let personality = `personality-${index + 1}`;
+    let focus:
+      | {
+          active: boolean;
+          focusVisible: boolean;
+          outlineStyle: string;
+          outlineWidth: number;
+        }
+      | null = null;
 
-    const first = buttons.first();
-    await first.focus();
-    const focus = await first.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return {
-        active: document.activeElement === element,
-        focusVisible: element.matches(":focus-visible"),
-        outlineStyle: style.outlineStyle,
-        outlineWidth: parseFloat(style.outlineWidth || "0"),
-      };
-    });
-    expect(focus.active, `${personality} keyboard focus`).toBe(true);
-    expect(focus.focusVisible, `${personality} :focus-visible`).toBe(true);
-    expect(focus.outlineStyle, `${personality} focus outline style`).not.toBe("none");
-    expect(focus.outlineWidth, `${personality} focus outline width`).toBeGreaterThanOrEqual(2);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const card = page.locator("[data-gallery-personality]").nth(index);
+      personality = (await card.getAttribute("data-gallery-personality")) ?? personality;
+      await expect(card.getByRole("heading", { level: 1 })).toHaveCount(1);
+      const buttons = card.getByRole("button");
+      await expect(buttons).toHaveCount(3);
+
+      const first = buttons.first();
+      await expect(first).toBeVisible();
+      await first.focus();
+      focus = await first.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          active: document.activeElement === element,
+          focusVisible: element.matches(":focus-visible"),
+          outlineStyle: style.outlineStyle,
+          outlineWidth: parseFloat(style.outlineWidth || "0"),
+        };
+      });
+
+      if (
+        focus.active &&
+        focus.focusVisible &&
+        focus.outlineStyle !== "none" &&
+        focus.outlineWidth >= 2
+      ) {
+        break;
+      }
+
+      await page.waitForTimeout(100);
+    }
+
+    expect(focus?.active, `${personality} keyboard focus`).toBe(true);
+    expect(focus?.focusVisible, `${personality} :focus-visible`).toBe(true);
+    expect(focus?.outlineStyle, `${personality} focus outline style`).not.toBe("none");
+    expect(focus?.outlineWidth ?? 0, `${personality} focus outline width`).toBeGreaterThanOrEqual(2);
   }
 });
 
@@ -248,16 +273,36 @@ test("all personalities preserve coarse-pointer touch targets", async ({ page },
   expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
 
   const cards = page.locator("[data-gallery-personality]");
+  await expect(cards).toHaveCount(SOURCE_COUNT);
   for (let index = 0; index < SOURCE_COUNT; index += 1) {
-    const card = cards.nth(index);
-    const personality = await card.getAttribute("data-gallery-personality");
-    const buttons = card.getByRole("button").filter({ visible: true });
-    for (let buttonIndex = 0; buttonIndex < await buttons.count(); buttonIndex += 1) {
-      const button = buttons.nth(buttonIndex);
-      await expect(button).toBeVisible();
-      const box = await button.boundingBox();
-      expect(box, `${personality} visible button ${buttonIndex} bounding box`).not.toBeNull();
-      expect(box!.height, `${personality} visible button ${buttonIndex} touch height`).toBeGreaterThanOrEqual(44);
+    const initialCard = page.locator("[data-gallery-personality]").nth(index);
+    const personality =
+      (await initialCard.getAttribute("data-gallery-personality")) ?? `personality-${index + 1}`;
+    const initialButtons = initialCard.getByRole("button").filter({ visible: true });
+    const buttonCount = await initialButtons.count();
+
+    for (let buttonIndex = 0; buttonIndex < buttonCount; buttonIndex += 1) {
+      let height = 0;
+
+      for (let attempt = 0; attempt < 3 && height < 44; attempt += 1) {
+        const button = page
+          .locator("[data-gallery-personality]")
+          .nth(index)
+          .getByRole("button")
+          .filter({ visible: true })
+          .nth(buttonIndex);
+
+        await expect(button).toBeVisible();
+        const box = await button.boundingBox();
+        height = box?.height ?? 0;
+
+        if (height < 44) await page.waitForTimeout(100);
+      }
+
+      expect(
+        height,
+        `${personality} visible button ${buttonIndex} touch height`,
+      ).toBeGreaterThanOrEqual(44);
     }
   }
 });
@@ -283,10 +328,29 @@ test("reference-lock run captures all four canonical gallery views", async ({ pa
     await page.getByRole("button", { name: label }).click();
 
     const cards = page.locator("[data-gallery-personality]");
+    await expect(cards).toHaveCount(SOURCE_COUNT);
+
     for (let index = 0; index < SOURCE_COUNT; index += 1) {
-      const card = cards.nth(index);
-      const personality = await card.getAttribute("data-gallery-personality");
-      const screenshot = await card.locator("[data-personality-qa-preview]").screenshot();
+      let personality = `personality-${index + 1}`;
+      let screenshot: Buffer | null = null;
+      let lastError: unknown = null;
+
+      for (let attempt = 0; attempt < 3 && !screenshot; attempt += 1) {
+        const card = page.locator("[data-gallery-personality]").nth(index);
+        personality = (await card.getAttribute("data-gallery-personality")) ?? personality;
+        const preview = card.locator("[data-personality-qa-preview]");
+        await expect(preview).toBeVisible();
+
+        try {
+          screenshot = await preview.screenshot({ animations: "disabled" });
+        } catch (error) {
+          lastError = error;
+          await page.waitForTimeout(100);
+        }
+      }
+
+      if (!screenshot) throw lastError ?? new Error(`Could not capture ${personality} ${view}`);
+
       await testInfo.attach(`${personality}-${view}`, {
         body: screenshot,
         contentType: "image/png",

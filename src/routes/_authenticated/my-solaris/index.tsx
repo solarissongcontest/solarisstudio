@@ -36,6 +36,7 @@ import {
   useEditions,
 } from "@/lib/data";
 import { buildEditionProgressionPlacements } from "@/lib/edition-progression";
+import { showPublishesResults } from "@/lib/publication";
 import { useOwnedEntryPublication, useSetOwnedEntryPublication } from "@/lib/entry-publication";
 import { listenLinksFrom } from "@/lib/entry-utils";
 import { useContentEvents } from "@/lib/engagement-data";
@@ -140,9 +141,16 @@ function MySolarisPage() {
     ? countryEntries.filter((entry) => entry.edition_id !== currentEdition.id)
     : countryEntries;
 
+  const publishedResults = useMemo(() => {
+    const showById = new Map((shows ?? []).map((show) => [show.id, show]));
+    return (results ?? []).filter((row) =>
+      showPublishesResults(showById.get(row.show_id ?? "")),
+    );
+  }, [results, shows]);
+
   const placementMap = useMemo(
-    () => buildEditionProgressionPlacements(results ?? [], shows ?? []),
-    [results, shows],
+    () => buildEditionProgressionPlacements(publishedResults, shows ?? []),
+    [publishedResults, shows],
   );
   const currentPlacement =
     currentEdition && country

@@ -3,6 +3,7 @@ import { Command, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { editionLabel, useEditions } from "@/lib/data";
+import { useAdminNotifications } from "@/lib/admin-ops";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { useAdminContext } from "./AdminContext";
 import { buildAdminNavigation } from "./admin-navigation";
@@ -12,6 +13,7 @@ export function AdminCommandPalette() {
   const [query, setQuery] = useState("");
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
+  const { data: notifications = [] } = useAdminNotifications();
 
   const activeEdition =
     editions.find((edition) => edition.id === editionId) ??
@@ -96,7 +98,17 @@ export function AdminCommandPalette() {
         ]
       : [];
 
+    const inboxItems = notifications
+      .filter((item) => !item.read_at)
+      .map((item) => ({
+        label: item.title,
+        href: item.href ?? "/admin/inbox",
+        group: "Inbox",
+        keywords: `${item.body ?? ""} ${item.severity} attention work`,
+      }));
+
     return [
+      ...inboxItems,
       ...currentEdition,
       ...navigation,
       {
@@ -118,7 +130,7 @@ export function AdminCommandPalette() {
         keywords: `${edition.host_city ?? ""} ${edition.edition_number ?? ""}`,
       })),
     ];
-  }, [activeEdition, editions]);
+  }, [activeEdition, editions, notifications]);
 
   const needle = query.trim().toLowerCase();
   const filtered = commands.filter(

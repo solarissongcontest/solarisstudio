@@ -40,7 +40,7 @@ export const ADMIN_BETA_COVERAGE: AdminBetaCoverageItem[] = [
   { id: "system", label: "System deadlines & organizer audit", group: "System", answerId: "systemTested", href: "/admin/system" },
   { id: "sync-health", label: "Sync health", group: "System", answerId: "syncHealthTested", href: "/admin/sync-health", critical: true },
   { id: "more", label: "More / low-frequency navigation", group: "System", answerId: "moreTested", href: "/admin/more" },
-  { id: "beta-feedback", label: "Public beta feedback dashboard", group: "System", answerId: "betaFeedbackTested", href: "/admin/beta-feedback" },
+  { id: "beta-feedback", label: "Public beta feedback dashboard", group: "System", answerId: "betaFeedbackTested", href: "/admin/beta1-feedback" },
   { id: "delegations-overview", label: "Delegations overview", group: "Delegations", answerId: "delegationsOverviewTested", href: "/confirmations/admin", critical: true },
   { id: "delegation-responses", label: "Delegation response queue", group: "Delegations", answerId: "delegationResponsesTested", href: "/confirmations/admin/responses", critical: true },
   { id: "delegation-response-review", label: "Individual response review", group: "Delegations", answerId: "delegationReviewTested", href: "/confirmations/admin/responses", critical: true },

@@ -5,7 +5,9 @@ import {
   ArrowRight,
   BarChart3,
   Blend,
+  FlaskConical,
   Globe2,
+  History,
   Network,
   PlayCircle,
   ShieldAlert,
@@ -196,6 +198,13 @@ function VotingAdminOverview() {
                 description="Calculate and review the public vote before it becomes part of the official result."
                 detail={`${data.submissions} ballots`}
               />
+              <WorkspaceRow
+                to="/admin/results"
+                icon={Trophy}
+                title="Official results"
+                description="Review, lock and release the complete official result after all voting sources are ready."
+                detail="Review before release"
+              />
             </div>
           </AdminCard>
 
@@ -218,10 +227,34 @@ function VotingAdminOverview() {
                 description="Inspect how jury and public voting are combined."
               />
               <WorkspaceRow
-                to="/televoting/admin/audit-log"
+                to="/televoting/admin/result-integrity"
                 icon={ShieldAlert}
+                title="Result integrity"
+                description="Review result sensitivity, support concentration and influence evidence before release."
+              />
+              <WorkspaceRow
+                to="/televoting/admin/integrity-declarations"
+                icon={ShieldAlert}
+                title="Integrity declarations"
+                description="Review declaration trails and organizer decisions attached to voting submissions."
+              />
+              <WorkspaceRow
+                to="/televoting/admin/audit-log"
+                icon={History}
                 title="Voting audit log"
                 description="Review important organizer actions and integrity decisions."
+              />
+              <WorkspaceRow
+                to="/televoting/admin/backtest"
+                icon={FlaskConical}
+                title="Result backtest"
+                description="Rehearse historical result and integrity scenarios without changing live state."
+              />
+              <WorkspaceRow
+                to="/televoting/admin/editions"
+                icon={Trophy}
+                title="Voting edition links"
+                description="Inspect the voting service projection of Solaris editions."
               />
             </div>
           </details>

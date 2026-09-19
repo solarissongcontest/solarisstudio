@@ -2,6 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, Search, ShieldAlert, XCircle } from "lucide-react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminCard,
   AdminEmptyState,
@@ -244,6 +245,7 @@ function ConfirmationResponsesPage() {
 }
 
 function ConfirmationResponsesList() {
+  const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [nextRows, setNextRows] = useState<NextInLineRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,7 +253,7 @@ function ConfirmationResponsesList() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ResponseFilter>("all");
   const [mode, setMode] = useState<"confirmations" | "next_in_line">("confirmations");
-  const [editionId, setEditionId] = useState("all");
+  const [editionId, setEditionId] = useState(organizerEditionId || "all");
   const [roundId, setRoundId] = useState("all");
 
   useEffect(() => {
@@ -297,6 +299,17 @@ function ConfirmationResponsesList() {
     });
     return [...map.values()].sort((a, b) => b.edition_number - a.edition_number);
   }, [nextRows, rows]);
+
+  useEffect(() => {
+    if (
+      organizerEditionId &&
+      organizerEditionId !== editionId &&
+      editions.some((edition) => edition.id === organizerEditionId)
+    ) {
+      setEditionId(organizerEditionId);
+      setRoundId("all");
+    }
+  }, [editionId, editions, organizerEditionId]);
 
   const rounds = useMemo(() => {
     const map = new Map<string, { id: string; name: string; edition_id: string }>();
@@ -420,7 +433,7 @@ function ConfirmationResponsesList() {
         <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr]">
           <select
             value={editionId}
-            onChange={(event) => setEditionId(event.target.value)}
+            onChange={(event) => { const nextEditionId = event.target.value; setEditionId(nextEditionId); setRoundId("all"); if (nextEditionId !== "all") setOrganizerEditionId(nextEditionId); }}
             className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark]"
           >
             <option value="all">All editions</option>

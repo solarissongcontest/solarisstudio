@@ -8,6 +8,7 @@ const syncSource = source("src/lib/admin-lineup.functions.ts");
 const workspace = source("src/components/admin/ShowLineupWorkspace.tsx");
 const publicShow = source("src/routes/shows/$showId.tsx");
 const migration = source("supabase/migrations/20260821193132_show_lineup_lifecycle.sql");
+const atomicAllocation = source("supabase/migrations/20260919163323_atomic_show_allocation_draw.sql");
 
 describe("show line-up lifecycle", () => {
   it("never invents a running order when syncing confirmed countries", () => {
@@ -26,7 +27,7 @@ describe("show line-up lifecycle", () => {
   });
 
   it("keeps pre-order stages alphabetical and position-free", () => {
-    expect(workspace).toContain("stage === \"running_order\" ? runningParticipants : alphaParticipants");
+    expect(workspace).toContain("stage === \"running_order\" ? runningDraftParticipants : alphaParticipants");
     expect(workspace).toContain("Position numbers are intentionally hidden.");
     expect(workspace).toContain("No running order exists yet.");
   });
@@ -35,6 +36,16 @@ describe("show line-up lifecycle", () => {
     expect(workspace).toContain("const allocationComplete = lifecycleParticipants.length > 0 && allocatedCount === lifecycleParticipants.length");
     expect(workspace).toContain("if (!activeShow || !allocationComplete) return");
     expect(workspace).toContain('await setStage("running_order")');
+  });
+
+  it("keeps allocation and running-order edits local until one atomic save", () => {
+    expect(workspace).toContain("allocationDraft");
+    expect(workspace).toContain("runningOrderDraft");
+    expect(workspace).toContain('rpc("admin_set_show_allocations"');
+    expect(workspace).toContain('rpc("admin_set_show_running_order"');
+    expect(workspace).toContain("Unsaved running-order changes");
+    expect(atomicAllocation).toContain("studio2_access_allowed('entry.edit'");
+    expect(atomicAllocation).toContain("Allocation draw must contain every show participant exactly once.");
   });
 
   it("keeps the public pre-order line-up alphabetical and unnumbered", () => {
