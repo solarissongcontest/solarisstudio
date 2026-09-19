@@ -188,16 +188,16 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
             path.startsWith("/confirmations/admin/editions") ||
             path.startsWith("/confirmations/admin/sync"),
         ),
-        tab("Calendar", "/confirmations/admin/calendar", (path) => path.startsWith("/confirmations/admin/calendar")),
+        tab("Schedule", "/confirmations/admin/calendar", (path) => path.startsWith("/confirmations/admin/calendar")),
         tab(
-          "Access",
+          "More",
           "/confirmations/admin/recovery-codes",
-          (path) => path.startsWith("/confirmations/admin/recovery-codes") || path.startsWith("/confirmations/admin/settings"),
-        ),
-        tab(
-          "History",
-          "/admin/submission-versions",
-          (path) => path.startsWith("/admin/submission-versions"),
+          (path) =>
+            path.startsWith("/confirmations/admin/recovery-codes") ||
+            path.startsWith("/confirmations/admin/settings") ||
+            path.startsWith("/confirmations/admin/editions") ||
+            path.startsWith("/confirmations/admin/sync") ||
+            path.startsWith("/admin/submission-versions"),
         ),
       ],
     };
@@ -268,8 +268,6 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
           slug ? `/admin/participant-status/${slug}` : "/admin",
           (path) => path.startsWith("/admin/participant-status/"),
         ),
-        tab("Hosting", "/admin/hosts", (path) => path.startsWith("/admin/hosts")),
-        tab("Eligibility", "/admin/eligibility", (path) => path.startsWith("/admin/eligibility")),
       ],
     };
   }
