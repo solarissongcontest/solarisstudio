@@ -27,10 +27,7 @@ import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
-import {
-  readPublicIaV3BetaOverride,
-  resolvePublicIaV3Enabled,
-} from "@/lib/public-ia-rollout";
+import { resolvePublicIaV3Enabled } from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { rememberPublicRecent } from "@/lib/public-recents";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
@@ -151,9 +148,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [publicIaV3Enabled, setPublicIaV3Enabled] = useState(() =>
-    readPublicIaV3BetaOverride(),
-  );
+  const [publicIaV3Enabled, setPublicIaV3Enabled] = useState(false);
 
   useEffect(() => {
     let alive = true;
