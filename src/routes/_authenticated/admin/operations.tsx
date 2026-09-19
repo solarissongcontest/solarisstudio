@@ -87,6 +87,7 @@ function OrganizerHome() {
   const upcoming =
     schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
   const unread = notifications.filter((item) => !item.read_at);
+  const unresolvedInbox = notifications.filter((item) => !item.resolved_at);
   const issues = readiness?.issues ?? [];
   const topIssues = issues.slice(0, 4);
 
@@ -168,17 +169,17 @@ function OrganizerHome() {
                 <AdminCard>
                   <AdminCardHeader
                     eyebrow="Inbox"
-                    title={unread.length ? `${unread.length} unseen` : "All caught up"}
-                    description="Complaints, appeals, beta feedback and connected administrative events."
+                    title={unresolvedInbox.length ? `${unresolvedInbox.length} need attention` : "All caught up"}
+                    description={unread.length ? `${unread.length} unseen · unresolved work stays here after it is read.` : "Complaints, appeals, beta feedback and connected administrative events."}
                     action={
                       <Link to="/admin/inbox" className="text-xs font-semibold text-sky-100">
                         View Inbox →
                       </Link>
                     }
                   />
-                  {unread.length ? (
+                  {unresolvedInbox.length ? (
                     <div className="divide-y divide-white/[0.07]">
-                      {unread.slice(0, 3).map((item) =>
+                      {unresolvedInbox.slice(0, 3).map((item) =>
                         item.href ? (
                           <Link
                             key={item.id}
@@ -215,7 +216,7 @@ function OrganizerHome() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No unseen Inbox items.</p>
+                    <p className="text-sm text-muted-foreground">No unresolved Inbox items.</p>
                   )}
                 </AdminCard>
 
