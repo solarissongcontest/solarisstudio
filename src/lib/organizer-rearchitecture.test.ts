@@ -68,6 +68,26 @@ describe("Organizer rearchitecture foundation", () => {
     expect(migration).not.toContain("e.published = true");
   });
 
+  it("uses one Organizer edition context across the legacy Confirmations surfaces", () => {
+    for (const path of [
+      "src/routes/confirmations/admin/index.tsx",
+      "src/routes/confirmations/admin/rounds.tsx",
+      "src/routes/confirmations/admin/countries.tsx",
+      "src/routes/confirmations/admin/calendar.tsx",
+      "src/routes/confirmations/admin/settings.tsx",
+      "src/routes/confirmations/admin/responses.tsx",
+    ]) {
+      expect(source(path)).toContain("useAdminContext");
+    }
+
+    const rounds = source("src/routes/confirmations/admin/rounds.tsx");
+    const countries = source("src/routes/confirmations/admin/countries.tsx");
+    const calendar = source("src/routes/confirmations/admin/calendar.tsx");
+    expect(rounds).toContain("setOrganizerEditionId(nextEditionId)");
+    expect(countries).toContain("setOrganizerEditionId(nextEditionId)");
+    expect(calendar).toContain("setOrganizerEditionId(next)");
+  });
+
   it("provides an Inbox route and persistent Inbox affordance", () => {
     const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
     const shell = source("src/components/admin/AdminShell.tsx");
