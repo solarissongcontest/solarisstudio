@@ -52,7 +52,7 @@ create policy "Organizers can read Beta 3 feedback"
 on public.beta3_test_submissions
 for select
 to authenticated
-using (public.has_role((select auth.uid()), 'organizer'));
+using (public.has_role((select auth.uid()), 'organizer'::public.app_role));
 
 create index if not exists beta3_test_submissions_created_at_idx
   on public.beta3_test_submissions (created_at desc);
