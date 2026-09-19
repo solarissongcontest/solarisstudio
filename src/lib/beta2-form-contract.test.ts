@@ -19,7 +19,7 @@ describe("public beta archives and Beta 3 contract", () => {
   const more = source("routes/_authenticated/admin/more.tsx");
   const adminNavigation = source("components/admin/admin-navigation.ts");
   const beta2Migration = source("../supabase/migrations/20260820162000_close_beta1_open_beta2.sql");
-  const beta3Migration = source("../supabase/migrations/20260919121500_beta3_navigation_feedback.sql");
+  const beta3Migration = source("../supabase/migrations/20260919112558_beta3_navigation_feedback.sql");
 
   it("uses a dedicated Beta 3 form version and local draft namespace", () => {
     expect(sections).toContain('BETA_DRAFT_KEY = "solaris:public-beta-test:draft:v5"');
