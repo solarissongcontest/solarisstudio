@@ -40,10 +40,13 @@ function domainTabs(
   const publishHref = slug ? `/admin/publication/${slug}` : "/admin/storytelling";
   const designHref = slug ? `/admin/design/${slug}` : "/admin/storytelling";
 
-  const contestActive = (path: string) =>
+  const overviewActive = (path: string) => Boolean(slug && path === `/admin/${slug}`);
+
+  const delegationsActive = (path: string) =>
     path.startsWith("/admin/countries") ||
-    path.startsWith("/confirmations/admin") ||
-    Boolean(slug && path === `/admin/${slug}`) ||
+    path.startsWith("/confirmations/admin");
+
+  const contestActive = (path: string) =>
     path.startsWith("/admin/shows/") ||
     path.startsWith("/admin/entries/") ||
     path.startsWith("/admin/lineup-sync/") ||
@@ -84,9 +87,11 @@ function domainTabs(
       return [];
     case "edition":
       return [
-        tab("Contest", contestHref, contestActive),
-        tab("Voting", "/televoting/admin", votingActive),
-        tab("Show", "/admin/control-room", showActive),
+        tab("Overview", slug ? `/admin/${slug}` : "/admin", overviewActive),
+        tab("Delegations", "/admin/countries", delegationsActive),
+        tab("Contest", slug ? `/admin/shows/${slug}` : contestHref, contestActive),
+        tab("Voting & results", "/televoting/admin", votingActive),
+        tab("Live", "/admin/control-room", showActive),
         tab("Publish", publishHref, publishActive),
       ];
     case "rules-cases":
@@ -151,11 +156,20 @@ function domainTabs(
 }
 
 function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow | null {
-  if (pathname.startsWith("/confirmations/admin")) {
+  if (pathname.startsWith("/admin/countries") || pathname.startsWith("/confirmations/admin")) {
     return {
       label: "Delegations workflow",
       tabs: [
-        tab("Overview", "/confirmations/admin", (path) => path === "/confirmations/admin" || path === "/confirmations/admin/"),
+        tab(
+          "Countries",
+          "/admin/countries",
+          (path) => path.startsWith("/admin/countries"),
+        ),
+        tab(
+          "Confirmations",
+          "/confirmations/admin",
+          (path) => path === "/confirmations/admin" || path === "/confirmations/admin/",
+        ),
         tab(
           "Responses",
           "/confirmations/admin/responses",
@@ -248,8 +262,7 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     return {
       label: "Broadcast workflow",
       tabs: [
-        tab("Design & broadcast", slug ? `/admin/design/${slug}` : "/admin", (path) => path.startsWith("/admin/design/")),
-        tab("Edition theme", slug ? `/admin/edition-theme/${slug}` : "/admin", (path) => path.startsWith("/admin/edition-theme/")),
+        tab("Design & broadcast", slug ? `/admin/design/${slug}` : "/admin", (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/")),
       ],
     };
   }
