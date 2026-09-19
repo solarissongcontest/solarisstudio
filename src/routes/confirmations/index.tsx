@@ -24,6 +24,10 @@ import {
   getCountryConfirmationAccess,
   type CountryConfirmationResponse,
 } from "@/lib/confirmation-country-account";
+import {
+  preferredCountryConfirmationResponse,
+  resolveCountryConfirmationRoundState,
+} from "@/lib/confirmation-country-account-state";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { formatEventDateTime } from "@/lib/public-time";
 import { formatLiveCountdown, millisecondsUntil } from "@/lib/solaris-schedule";
@@ -106,11 +110,12 @@ function ConfirmationsPage() {
 
   const accountAccess = accountAccessQuery.data;
   const accountResponses = accountAccess?.responses ?? [];
-  const editableAccountResponses = accountResponses.filter((response) => response.can_edit);
-  const preferredAccountResponse = editableAccountResponses[0] ?? accountResponses[0] ?? null;
-  const selectedAccountResponse = selected
-    ? accountResponses.find((response) => response.round_id === selected.id) ?? null
+  const preferredAccountResponse = preferredCountryConfirmationResponse(accountResponses);
+  const selectedAccountState = selected
+    ? resolveCountryConfirmationRoundState(accountResponses, selected.id)
     : null;
+  const selectedAccountResponse =
+    selectedAccountState?.kind === "edit" ? selectedAccountState.response : null;
 
   async function editCountryAccountResponse(response: CountryConfirmationResponse) {
     setAccountEditError(null);
