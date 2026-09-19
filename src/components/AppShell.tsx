@@ -154,9 +154,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (pathname.startsWith("/admin")) return <>{children}</>;
 
-  const roleItems: Array<{ to: string; label: string }> = [];
-  if (access.isOrganizer) roleItems.push({ to: "/admin/operations", label: "Organizer workspace" });
-
   const signOut = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
@@ -187,7 +184,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     to: item.id === "me" ? accountHref : item.to,
     label: item.label,
     icon: GLOBAL_ICON_BY_AREA[item.id],
-    active: publicArea === item.id,
+    active: !pathname.startsWith("/site-directory") && publicArea === item.id,
   }));
 
   return (
@@ -227,7 +224,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
               <Link
                 to="/guide"
-                className={desktopNavClass(publicArea === "help")}
+                className={desktopNavClass(
+                  pathname.startsWith("/guide") ||
+                    pathname.startsWith("/rules") ||
+                    pathname.startsWith("/integrity"),
+                )}
               >
                 Help
               </Link>
