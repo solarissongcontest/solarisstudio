@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, EyeOff, Globe2, LockKeyhole, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -27,6 +27,10 @@ import {
   type PublicationKey,
   type PublicationPresetId,
 } from "@/lib/publication";
+import {
+  isStudio2ResultReleaseReady,
+  loadStudio2ResultsOperations,
+} from "@/lib/studio2-results-operations";
 
 const PUBLICATION_KEYS = Object.keys(PUBLICATION_LABELS) as PublicationKey[];
 const RESULT_KEYS: PublicationKey[] = ["results", "jury_results", "televote_results", "detailed_voting"];
@@ -51,11 +55,21 @@ function PublicationWorkspace() {
   const qc = useQueryClient();
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
   const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
+  const resultOperationsQuery = useQuery({
+    queryKey: ["studio2-results-operations", edition?.id ?? "none"],
+    enabled: Boolean(edition?.id),
+    queryFn: () => loadStudio2ResultsOperations(edition!.id),
+    staleTime: 10_000,
+  });
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [pendingRelease, setPendingRelease] = useState<PendingRelease | null>(null);
   const [busy, setBusy] = useState(false);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
+  const resultOperationByShow = useMemo(
+    () => new Map((resultOperationsQuery.data ?? []).map((row) => [row.showId, row] as const)),
+    [resultOperationsQuery.data],
+  );
   const publicCount = orderedShows.filter((show) => show.published && hasAnyPublicInformation(resolveShowPublication(show))).length;
   const resultCount = orderedShows.filter((show) => show.published && resolveShowPublication(show).results).length;
 
@@ -94,10 +108,19 @@ function PublicationWorkspace() {
     return RESULT_KEYS.some((key) => next[key] && !current[key]);
   }
 
+  function canReleaseResults(show: Show) {
+    const current = resolveShowPublication(show);
+    if (show.published && RESULT_KEYS.some((key) => current[key])) return true;
+    return isStudio2ResultReleaseReady(resultOperationByShow.get(show.id));
+  }
+
   async function persist(show: Show, config: PublicationConfig) {
     setBusy(true);
     try {
       const normalized = normalisePublicationDependencies(config);
+      if (RESULT_KEYS.some((key) => normalized[key]) && !canReleaseResults(show)) {
+        throw new Error("Review, lock and mark the current result calculation reveal ready before publishing results.");
+      }
       const shouldBePublic = hasAnyPublicInformation(normalized);
       const { error } = await (supabase.from("shows") as any)
         .update({ publication_config: normalized, published: shouldBePublic })
@@ -116,6 +139,10 @@ function PublicationWorkspace() {
 
   function requestSave() {
     if (!draft) return;
+    if (RESULT_KEYS.some((key) => draft.config[key]) && !canReleaseResults(draft.show)) {
+      toast.error("Results are not release ready. Finish review, lock and reveal readiness first.");
+      return;
+    }
     if (needsResultConfirmation(draft.show, draft.config)) {
       setPendingRelease({ show: draft.show, config: draft.config });
       return;
@@ -152,7 +179,7 @@ function PublicationWorkspace() {
       </div>
 
       <AdminCard strong className="mb-4">
-        <AdminCardHeader eyebrow="Release model" title="Public information is staged" description="A show can reveal countries first, entries later, then qualifiers and results. Publishing a layer never edits the underlying contest data." />
+        <AdminCardHeader eyebrow="Release model" title="Public information is staged" description="Entries and outcomes are separate. Result layers cannot become public until the current calculation has been reviewed, locked and marked reveal ready in Results operations." />
         <div className="grid gap-2 sm:grid-cols-3">
           <GuideStep title="1 · Entries" text="Countries, artists, songs and running order." />
           <GuideStep title="2 · Outcomes" text="Qualifiers and overall results when the show is ready." />
@@ -166,6 +193,8 @@ function PublicationWorkspace() {
         <div className="space-y-3">
           {orderedShows.map((show) => {
             const config = resolveShowPublication(show);
+            const resultOperation = resultOperationByShow.get(show.id);
+            const resultReleaseReady = canReleaseResults(show);
             const isPublic = show.published && hasAnyPublicInformation(config);
             const preset = presetFor(config);
             const visibleLayers = PUBLICATION_KEYS.filter((key) => config[key]).length;
@@ -181,6 +210,20 @@ function PublicationWorkspace() {
                       <AdminStatus tone={isPublic ? (config.results ? "ready" : "info") : "neutral"}>{isPublic ? (config.results ? "Results live" : "Public") : "Private"}</AdminStatus>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{preset ? PUBLICATION_PRESETS.find((item) => item.id === preset)?.name : "Custom release"} · {visibleLayers}/10 layers visible</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <AdminStatus tone={resultOperation?.calculationVersion ? "info" : "neutral"}>
+                        {resultOperation?.calculationVersion ? `Results v${resultOperation.calculationVersion}` : "No calculated results"}
+                      </AdminStatus>
+                      <AdminStatus tone={resultOperation && resultOperation.reviewedVersion === resultOperation.calculationVersion && resultOperation.calculationVersion > 0 ? "ready" : "neutral"}>
+                        Reviewed
+                      </AdminStatus>
+                      <AdminStatus tone={resultOperation && resultOperation.lockedVersion === resultOperation.calculationVersion && resultOperation.calculationVersion > 0 ? "ready" : "neutral"}>
+                        Locked
+                      </AdminStatus>
+                      <AdminStatus tone={resultReleaseReady ? "ready" : "attention"}>
+                        {resultReleaseReady ? "Release ready" : "Not release ready"}
+                      </AdminStatus>
+                    </div>
                   </div>
                 </div>
 
@@ -209,7 +252,13 @@ function PublicationWorkspace() {
                   const active = presetFor(draft.config) === preset.id;
                   const risky = preset.config.results || preset.config.detailed_voting;
                   return (
-                    <button key={preset.id} type="button" onClick={() => setPreset(preset.id)} className={`admin-action-row w-full text-left ${active ? "!border-sky-200/25 !bg-sky-200/[0.07]" : ""}`}>
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setPreset(preset.id)}
+                      disabled={risky && !canReleaseResults(draft.show)}
+                      className={`admin-action-row w-full text-left disabled:cursor-not-allowed disabled:opacity-45 ${active ? "!border-sky-200/25 !bg-sky-200/[0.07]" : ""}`}
+                    >
                       <span className="min-w-0 flex-1"><span className="flex items-center gap-2 text-sm font-semibold text-foreground">{preset.name}{risky ? <AdminStatus tone="attention">Result release</AdminStatus> : null}</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span></span>
                     </button>
                   );
@@ -223,7 +272,13 @@ function PublicationWorkspace() {
                 {PUBLICATION_KEYS.map((key) => (
                   <label key={key} className="flex min-h-14 cursor-pointer items-center gap-3 px-3 py-2.5">
                     <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-foreground">{PUBLICATION_LABELS[key].title}</span><span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{PUBLICATION_LABELS[key].description}</span></span>
-                    <input type="checkbox" checked={draft.config[key]} onChange={() => toggleLayer(key)} className="size-5 shrink-0 accent-sky-200" />
+                    <input
+                      type="checkbox"
+                      checked={draft.config[key]}
+                      disabled={RESULT_KEYS.includes(key) && !draft.config[key] && !canReleaseResults(draft.show)}
+                      onChange={() => toggleLayer(key)}
+                      className="size-5 shrink-0 accent-sky-200 disabled:opacity-40"
+                    />
                   </label>
                 ))}
               </div>
