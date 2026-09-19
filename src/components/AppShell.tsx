@@ -71,7 +71,7 @@ function publicLayoutForPath(pathname: string): PublicLayout {
   if (/^\/(guide|auth|reset|recover)(\/|$)/.test(pathname)) return "reading";
 
   if (
-    /^\/(analysis|relationships|records|scorecharts|pulse|broadcast-intelligence)(\/|$)/.test(
+    /^\/(analysis|relationships|records|scorecharts|pulse|broadcast-intelligence|result-lab)(\/|$)/.test(
       pathname,
     )
   ) {
@@ -79,7 +79,7 @@ function publicLayoutForPath(pathname: string): PublicLayout {
   }
 
   if (
-    /^\/(predictions|compare|result-lab|taste-dna|archive-games|participate|confirmations|jury-voting|televoting|next-in-line|my-solaris|country-hub)(\/|$)/.test(
+    /^\/(predictions|compare|taste-dna|archive-games|participate|confirmations|jury-voting|televoting|next-in-line|my-solaris|country-hub)(\/|$)/.test(
       pathname,
     )
   ) {
@@ -434,7 +434,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
           ) : publicIaV3Enabled && showSectionNavigation ? (
             <div className="public-site-layout">
-              <PublicSectionNav pathname={pathname} />
+              <PublicSectionNav
+                pathname={pathname}
+                collapsible={publicLayout === "data"}
+              />
               <div className="public-site-content min-w-0">
                 {isHomePage && (
                   <Suspense fallback={null}>
