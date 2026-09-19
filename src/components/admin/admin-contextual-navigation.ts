@@ -111,15 +111,16 @@ function domainTabs(
           (path) => path.startsWith("/admin/integrity-preclearance"),
         ),
         tab("Appeals", "/admin/integrity-appeals", (path) => path.startsWith("/admin/integrity-appeals")),
-        tab("Rules", "/admin/rules-manager", (path) => path.startsWith("/admin/rules-manager")),
+        tab("Evidence", "/admin/integrity-evidence", (path) => path.startsWith("/admin/integrity-evidence")),
         tab(
-          "More",
-          "/admin/integrity-evidence",
-          (path) =>
-            path.startsWith("/admin/integrity-evidence") ||
-            path.startsWith("/admin/integrity-disclosure") ||
-            path.startsWith("/admin/integrity-identity") ||
-            path.startsWith("/admin/rule-interpretations"),
+          "Rules",
+          "/admin/rules-manager",
+          (path) => path.startsWith("/admin/rules-manager") || path.startsWith("/admin/rule-interpretations"),
+        ),
+        tab(
+          "Privacy",
+          "/admin/integrity-disclosure",
+          (path) => path.startsWith("/admin/integrity-disclosure") || path.startsWith("/admin/integrity-identity"),
         ),
       ];
     case "administration":
