@@ -41,6 +41,6 @@ describe("Studio 2 product integration", () => {
     expect(operationsPanel).toContain("NAV_TARGETS.mySolarisTasks");
     expect(operationsPanel).toContain("NAV_TARGETS.mySolarisEntry");
     expect(operationsPanel).toContain("NAV_TARGETS.mySolarisNotices");
-    expect(operationsPanel).toContain("Entry readiness");
+    expect(operationsPanel).toContain('label="Entry"');
   });
 });
