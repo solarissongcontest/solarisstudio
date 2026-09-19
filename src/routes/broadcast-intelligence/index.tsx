@@ -299,14 +299,14 @@ function BroadcastIntelligencePage() {
 
   const archiveQueries = [editionsQuery, showsQuery, resultsQuery, countriesQuery, entitiesQuery];
   const selectionPending = Boolean(editions?.some((edition) => edition.published) && !editionId) || Boolean(eligibleShows.length && !showId);
-  if (selectionPending || archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast analytics" title="Broadcast Intelligence" description="Replay and inspect a published result." /><ArchiveDataLoading label="Preparing the results replay…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast analytics" title="Broadcast Intelligence" description="Replay and inspect a published result." /><ArchiveDataError /></AppShell>;
+  if (selectionPending || archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast Intelligence" title="Replay the voting" description="Replay and inspect a published result." /><ArchiveDataLoading label="Preparing the results replay…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Broadcast Intelligence" title="Replay the voting" description="Replay and inspect a published result." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Broadcast analytics"
-        title="Broadcast Intelligence"
+        eyebrow="Broadcast Intelligence"
+        title="Replay the voting"
         description="Replay an official result, inspect the biggest jury-to-televote swings and see the moments that made the scoreboard dramatic. The live show remains on YouTube; Solaris Studio explains how the result changed."
         actions={
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
