@@ -1,5 +1,6 @@
 import type { Edition, ResultRow, Show } from "./data";
 import { normalizeLegacyEditionStatus, type EditionState } from "./edition-state";
+import { resolveShowPublication } from "./publication";
 
 export type PublicContestPhase =
   | "between_editions"
@@ -69,8 +70,8 @@ function finalResultPublished(
       .filter(
         (show) =>
           show.edition_id === edition.id &&
-          show.kind === "grand-final" &&
-          show.published,
+          (show.kind === "grand-final" || show.kind === "final") &&
+          resolveShowPublication(show).results,
       )
       .map((show) => show.id),
   );
@@ -205,6 +206,34 @@ function presentation(
   }
 }
 
+export function resolvePublicEditionState({
+  edition,
+  shows,
+  results,
+}: {
+  edition: Edition;
+  shows: readonly Show[];
+  results: readonly ResultRow[];
+}): PublicContestState {
+  const lifecycle = normalizeLegacyEditionStatus(edition.status);
+  const editionShows = shows.filter((show) => show.edition_id === edition.id);
+
+  const phase = exactLiveShow(editionShows)
+    ? "live"
+    : isTerminalLifecycle(lifecycle)
+      ? "post_edition"
+      : finalResultPublished(edition, editionShows, results)
+        ? "results_published"
+        : phaseFromLifecycle(lifecycle);
+
+  return {
+    edition,
+    phase,
+    lifecycle,
+    ...presentation(edition, phase),
+  };
+}
+
 export function resolvePublicContestState({
   editions,
   shows,
@@ -242,19 +271,9 @@ export function resolvePublicContestState({
     };
   }
 
-  const lifecycle = normalizeLegacyEditionStatus(edition.status);
-  const editionShows = shows.filter((show) => show.edition_id === edition.id);
-
-  const phase = exactLiveShow(editionShows)
-    ? "live"
-    : finalResultPublished(edition, editionShows, results)
-      ? "results_published"
-      : phaseFromLifecycle(lifecycle);
-
-  return {
+  return resolvePublicEditionState({
     edition,
-    phase,
-    lifecycle,
-    ...presentation(edition, phase),
-  };
+    shows,
+    results,
+  });
 }

@@ -107,6 +107,19 @@ export function HistoricalLeaderboard({
     return <p className="text-sm text-muted-foreground">Not enough historical data yet.</p>;
   }
 
+  const mobileSummary = topIds.map((id) => {
+    const country = countryMap.get(id);
+    const rows = rankedResults
+      .filter((result) => result.country_id === id && result.final_rank != null)
+      .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999));
+    return {
+      id,
+      country,
+      bestRank: rows[0]?.final_rank ?? null,
+      appearances: rows.length,
+    };
+  });
+
   const maxRank = Math.max(
     1,
     ...rankedResults
@@ -139,6 +152,88 @@ export function HistoricalLeaderboard({
         Hover or tap a country label below to isolate its line. Archive gaps will disappear automatically as more historical data is added.
       </p>
 
+      <div className="space-y-2 sm:hidden">
+        {mobileSummary.map((row) => {
+          if (!row.country) return null;
+          return (
+            <Link
+              key={row.id}
+              to="/countries/$code"
+              params={{ code: row.country.short_code }}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/45 px-3 py-2.5"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold">{row.country.name}</span>
+                <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                  {row.appearances} archived result{row.appearances === 1 ? "" : "s"}
+                </span>
+              </span>
+              <span className="numeric shrink-0 text-sm font-black">
+                {row.bestRank == null ? "—" : `Best #${row.bestRank}`}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      <details className="mt-3 rounded-xl border border-border/70 bg-surface/35 sm:hidden">
+        <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold [&::-webkit-details-marker]:hidden">
+          Open placement chart
+        </summary>
+        <div className="border-t border-border/60 p-2">
+      <div className="h-[380px] w-full">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <LineChart data={data} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+            <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} />
+            <YAxis
+              reversed
+              domain={[1, maxRank]}
+              stroke="var(--muted-foreground)"
+              fontSize={11}
+              allowDecimals={false}
+              tickFormatter={(value) => `#${value}`}
+            />
+            <Tooltip
+              contentStyle={{
+                background: "var(--popover)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              labelStyle={{ color: "var(--foreground)" }}
+              formatter={(value: unknown, key: unknown) => [
+                value == null ? "No archived result" : `#${String(value)}`,
+                countryMap.get(String(key))?.name ?? String(key),
+              ]}
+            />
+
+            {topIds.map((id) => {
+              const country = countryMap.get(id);
+              const dim = Boolean(hoverId && hoverId !== id);
+              return (
+                <Line
+                  key={id}
+                  type="monotone"
+                  dataKey={id}
+                  name={country?.name ?? id}
+                  stroke={country?.accent_color ?? "var(--jury)"}
+                  strokeWidth={hoverId === id ? 3 : 1.75}
+                  strokeOpacity={dim ? 0.15 : 1}
+                  dot={{ r: 2 }}
+                  connectNulls={false}
+                  isAnimationActive
+                  animationDuration={800}
+                />
+              );
+            })}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+        </div>
+      </details>
+
+      <div className="hidden sm:block">
       <div className="h-[380px] w-full md:h-[460px] xl:h-[520px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <LineChart data={data} margin={{ top: 10, right: 20, bottom: 20, left: 0 }}>
@@ -187,6 +282,7 @@ export function HistoricalLeaderboard({
             })}
           </LineChart>
         </ResponsiveContainer>
+      </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">

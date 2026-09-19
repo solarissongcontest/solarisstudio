@@ -43,7 +43,6 @@ import { useMemo, useState } from "react";
 
 import {
   QUICK_RULES,
-  SSC_RULEBOOK,
   SSC_RULE_CHAPTERS,
   getRuleById,
   searchSscRules,
@@ -269,7 +268,7 @@ const CHECKS = [
   },
 ] as const;
 
-export function RulesExperience() {
+export function RulesExperience({ version }: { version: string }) {
   const [mode, setMode] = useState<Mode>("map");
   const [query, setQuery] = useState("");
   const [selectedChapter, setSelectedChapter] = useState(1);
@@ -283,7 +282,7 @@ export function RulesExperience() {
 
   return (
     <div className="pb-20">
-      <Hero query={query} setQuery={setQuery} />
+      <Hero query={query} setQuery={setQuery} version={version} />
       <ModeRail
         mode={mode}
         setMode={(next) => {
@@ -306,7 +305,15 @@ export function RulesExperience() {
   );
 }
 
-function Hero({ query, setQuery }: { query: string; setQuery: (value: string) => void }) {
+function Hero({
+  query,
+  setQuery,
+  version,
+}: {
+  query: string;
+  setQuery: (value: string) => void;
+  version: string;
+}) {
   return (
     <section className="rounded-[1.6rem] border border-sky-200/12 bg-[#06152d] p-5 sm:p-7">
       <div className="flex flex-wrap items-center gap-2">
@@ -314,7 +321,7 @@ function Hero({ query, setQuery }: { query: string; setQuery: (value: string) =>
           Official rules
         </span>
         <span className="font-mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">
-          v{SSC_RULEBOOK.version}
+          v{version}
         </span>
       </div>
       <h1 className="mt-4 text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">

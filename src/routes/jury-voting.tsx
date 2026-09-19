@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   LockKeyhole,
@@ -174,7 +173,7 @@ function JuryVotingPage() {
             {rounds.length ? (
               <div className="divide-y divide-border/60">
                 {rounds.map((round) => (
-                  <div key={round.show_id} className="flex min-w-0 items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+                  <div key={round.show_id} className="flex min-w-0 flex-col items-start gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <div className="min-w-0"><p className="truncate text-sm font-semibold">SSC {round.edition_number} · {round.show_name}</p><p className="mt-1 text-xs text-muted-foreground">{round.already_submitted ? "Your country's jury ballot is already recorded." : !round.eligible ? "Your country is not in this show's jury roster." : round.status === "open" ? "Jury voting is open." : "Jury voting is closed."}</p></div>
                     <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]", round.already_submitted ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : round.status === "open" ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-surface text-muted-foreground")}>{round.already_submitted ? "Recorded" : round.status}</span>
                   </div>
@@ -335,7 +334,6 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
   return (
     <Panel title={`${round.show_name} jury ballot`} description={`SSC ${round.edition_number} · Assign each jury score exactly once.`}>
       <div className="space-y-4">
-        <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.07] p-4"><div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-200" /><div><p className="text-sm font-semibold text-amber-100">Vote independently</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Friend voting, reciprocal deals and coordinated voting are forbidden. The automatic check runs before the ballot is accepted.</p></div></div></div>
         <div className="space-y-2">
           {round.point_scale.map((points, index) => {
             const selected = selections[index] ?? "";

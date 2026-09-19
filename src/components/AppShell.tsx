@@ -31,6 +31,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { resolvePublicIaV3Enabled } from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import {
+  publicCanvasForArchetype,
+  publicLayoutTokenForArchetype,
+  publicRouteArchetype,
+} from "@/lib/public-route-archetypes";
 import { rememberPublicRecent } from "@/lib/public-recents";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import {
@@ -54,47 +59,6 @@ const LazyEditionHostingExtension = lazy(() =>
     default: module.EditionHostingExtension,
   })),
 );
-
-type PublicLayout = "home" | "reading" | "directory" | "detail" | "data" | "workspace" | "core";
-
-const PUBLIC_CANVAS_CLASS: Record<PublicLayout, string> = {
-  home: "max-w-[1680px]",
-  reading: "max-w-[1180px]",
-  directory: "max-w-[1680px]",
-  detail: "max-w-[1920px]",
-  data: "max-w-[1680px]",
-  workspace: "max-w-[1600px]",
-  core: "max-w-[1440px]",
-};
-
-function publicLayoutForPath(pathname: string): PublicLayout {
-  if (pathname === "/") return "home";
-
-  if (/^\/(guide|auth|reset|recover)(\/|$)/.test(pathname)) return "reading";
-
-  if (
-    /^\/(analysis|relationships|records|scorecharts|pulse|broadcast-intelligence|result-lab)(\/|$)/.test(
-      pathname,
-    )
-  ) {
-    return "data";
-  }
-
-  if (
-    /^\/(predictions|compare|taste-dna|archive-games|participate|confirmations|jury-voting|televoting|next-in-line|my-solaris|country-hub)(\/|$)/.test(
-      pathname,
-    )
-  ) {
-    return "workspace";
-  }
-
-  const directory = pathname.match(/^\/(explore|countries|wiki|editions|shows|results|tools)\/?$/);
-  if (directory) return "directory";
-
-  if (/^\/(countries|wiki|editions|shows|results)\/.+/.test(pathname)) return "detail";
-
-  return "core";
-}
 
 function productEyebrow(eyebrow?: string) {
   return eyebrow?.replace(/^Phase\s+\d+\s*[·:—-]\s*/i, "");
@@ -251,7 +215,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const publicUser = buildPublicUserContext({ userId: access.userId, access });
   const globalAreas = publicGlobalAreasForContext(publicUser);
-  const publicLayout = publicLayoutForPath(pathname);
+  const publicArchetype = publicRouteArchetype(pathname);
+  const publicLayout = publicLayoutTokenForArchetype(publicArchetype);
   const publicArea = publicAreaForPath(pathname);
   const visibleAccountEmail =
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
@@ -432,7 +397,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-public-layout={publicLayout}
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
-            PUBLIC_CANVAS_CLASS[publicLayout],
+            publicCanvasForArchetype(publicArchetype),
           )}
         >
           {isMySolarisWorkspace ? (
@@ -441,7 +406,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="public-site-layout">
               <PublicSectionNav
                 pathname={pathname}
-                collapsible={publicLayout === "data"}
+                collapsible={publicArchetype === "data-explorer"}
               />
               <div className="public-site-content min-w-0">
                 <PublicMobileSectionNav pathname={pathname} />

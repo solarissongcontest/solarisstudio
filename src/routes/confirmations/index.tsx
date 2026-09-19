@@ -25,6 +25,7 @@ import {
   type CountryConfirmationResponse,
 } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
+import { formatEventDateTime } from "@/lib/public-time";
 import { formatLiveCountdown, millisecondsUntil } from "@/lib/solaris-schedule";
 import { availabilityBadge, computeAvailability, type AvailabilityReason } from "@/lib/ssc";
 import { cn } from "@/lib/utils";
@@ -54,10 +55,7 @@ function roundReason(round: PublicRound): AvailabilityReason {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return null;
-  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(value),
-  );
+  return value ? formatEventDateTime(value) : null;
 }
 
 function useNow() {

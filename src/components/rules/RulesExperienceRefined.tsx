@@ -3,9 +3,9 @@ import { BookOpen, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { RulesExperience } from "@/components/rules/RulesExperience";
-import { SSC_RULEBOOK, searchSscRules } from "@/lib/ssc-rules-v4";
+import { searchSscRules } from "@/lib/ssc-rules-v4";
 
-export function RulesExperienceRefined() {
+export function RulesExperienceRefined({ version }: { version: string }) {
   const [query, setQuery] = useState("");
   const results = useMemo(() => (query.trim() ? searchSscRules(query).slice(0, 16) : []), [query]);
   const searching = Boolean(query.trim());
@@ -15,7 +15,7 @@ export function RulesExperienceRefined() {
       <section className="rounded-[1.6rem] border border-sky-200/12 bg-[#06152d] p-5 sm:p-7">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-sky-200/14 bg-sky-200/[0.05] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.16em] text-sky-100">Official rules</span>
-          <span className="font-mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">v{SSC_RULEBOOK.version}</span>
+          <span className="font-mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">v{version}</span>
         </div>
         <h1 className="mt-4 text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">Rulebook</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-200/70">Read or search the official SSC regulations.</p>
@@ -62,7 +62,7 @@ export function RulesExperienceRefined() {
         </section>
       ) : (
         <div className="[&>div>section:first-child]:hidden">
-          <RulesExperience />
+          <RulesExperience version={version} />
         </div>
       )}
     </div>

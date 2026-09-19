@@ -5,6 +5,11 @@ import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { PublicDataState } from "@/components/public/PublicDataState";
+import {
+  PublicInsightCard,
+  PublicInsightRail,
+} from "@/components/public/PublicDataView";
 import { ChordDiagram } from "@/components/viz/ChordDiagram";
 import {
   DEFAULT_ANALYSIS_FILTERS,
@@ -252,23 +257,23 @@ function AnalysisPage() {
 
       <Filters editions={es} value={filters} onChange={setFilters} />
 
-      <div className="mb-5 grid gap-2 sm:grid-cols-3">
-        <ExplainerStat
-          label="Winner radar"
+      <PublicInsightRail>
+        <PublicInsightCard
+          eyebrow="Winner radar"
           value={winnerRadar?.name ?? "—"}
-          explanation="The jury or country whose points most often aligned with eventual winners. It does not mean they caused those wins."
+          description="The jury or country whose points most often aligned with eventual winners. It does not mean they caused those wins."
         />
-        <ExplainerStat
-          label="Most loyal"
+        <PublicInsightCard
+          eyebrow="Most loyal"
           value={mostLoyal?.name ?? "—"}
-          explanation="The voting pattern with the strongest repeated support for the same countries across the available archive."
+          description="The voting pattern with the strongest repeated support for the same countries across the available archive."
         />
-        <ExplainerStat
-          label="Most region-focused"
+        <PublicInsightCard
+          eyebrow="Most region-focused"
           value={regionFocused?.name ?? "—"}
-          explanation={bias[0] ? `${(bias[0].share * 100).toFixed(0)}% of its measured support stayed inside its own region.` : "Not enough regional voting data yet."}
+          description={bias[0] ? `${(bias[0].share * 100).toFixed(0)}% of its measured support stayed inside its own region.` : "Not enough regional voting data yet."}
         />
-      </div>
+      </PublicInsightRail>
 
       <ResponsiveTabs
         value={tab}
@@ -428,16 +433,6 @@ function AnalysisPage() {
   );
 }
 
-function ExplainerStat({ label, value, explanation }: { label: string; value: string; explanation: string }) {
-  return (
-    <div className="glass min-h-32 p-4">
-      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">{label}</p>
-      <p className="mt-2 break-words font-display text-lg font-bold leading-tight">{value}</p>
-      <p className="mt-2 text-[10px] leading-5 text-muted-foreground">{explanation}</p>
-    </div>
-  );
-}
-
 function DiscoveryCard({ story, cMap }: { story: DiscoveryStory; cMap: Map<string, Country> }) {
   const country = story.countryId ? cMap.get(story.countryId) : undefined;
   const second = story.secondCountryId ? cMap.get(story.secondCountryId) : undefined;
@@ -490,7 +485,14 @@ function DifferencePanel({ title, description, rows }: { title: string; descript
 }
 
 function Empty({ compact = false }: { compact?: boolean }) {
-  return <div className={compact ? "py-5 text-center text-sm text-muted-foreground" : "py-12 text-center text-sm text-muted-foreground"}>Not enough data for this view.</div>;
+  return (
+    <PublicDataState
+      kind="empty"
+      title="Not enough published data for this view"
+      description="Try a broader archive filter or return after more result data is published."
+      compact={compact}
+    />
+  );
 }
 
 function buildJuryTeleRows(results: ResultRow[], cMap: Map<string, Country>): JuryTeleRow[] {

@@ -2,16 +2,22 @@ import { Link } from "@tanstack/react-router";
 import { CalendarClock, FileClock, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { usePublishedRulebook } from "@/lib/rules-governance";
-import { SSC_RULEBOOK } from "@/lib/ssc-rules-v4";
+import {
+  BUNDLED_RULEBOOK_META,
+  usePublishedRulebook,
+} from "@/lib/rules-governance";
 
 export function RulebookVersionBanner() {
   const release = usePublishedRulebook();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
-  const version = hydrated ? (release.data?.version ?? SSC_RULEBOOK.version) : SSC_RULEBOOK.version;
-  const title = hydrated ? (release.data?.title ?? SSC_RULEBOOK.status) : SSC_RULEBOOK.status;
+  const version = hydrated
+    ? (release.data?.version ?? BUNDLED_RULEBOOK_META.version)
+    : BUNDLED_RULEBOOK_META.version;
+  const title = hydrated
+    ? (release.data?.title ?? BUNDLED_RULEBOOK_META.status)
+    : BUNDLED_RULEBOOK_META.status;
   const effectiveAt = hydrated
     ? (release.data?.effective_from ?? release.data?.published_at ?? null)
     : null;

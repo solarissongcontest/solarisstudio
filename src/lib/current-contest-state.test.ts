@@ -4,6 +4,7 @@ import type { Edition, ResultRow, Show } from "./data";
 import {
   resolveCurrentPublicEdition,
   resolvePublicContestState,
+  resolvePublicEditionState,
 } from "./current-contest-state";
 
 function edition(patch: Partial<Edition> = {}): Edition {
@@ -71,6 +72,17 @@ describe("public contest state", () => {
     expect(selected?.edition_number).toBe(22);
   });
 
+  it("resolves an individual edition without recursion", () => {
+    const state = resolvePublicEditionState({
+      edition: edition({ status: "active" }),
+      shows: [show({ status: "scheduled" })],
+      results: [],
+    });
+
+    expect(state.edition?.id).toBe("edition-22");
+    expect(state.phase).toBe("submissions");
+  });
+
   it("does not call a legacy active edition live", () => {
     const state = resolvePublicContestState({
       editions: [edition({ status: "active" })],
@@ -94,6 +106,33 @@ describe("public contest state", () => {
     expect(state.statusLabel).toBe("Live");
   });
 
+  it("does not call prepared result rows published when the show result layer is private", () => {
+    const state = resolvePublicContestState({
+      editions: [edition({ status: "active" })],
+      shows: [
+        show({
+          publication_config: {
+            participants: true,
+            artists: true,
+            songs: true,
+            semi_split: true,
+            running_order: false,
+            qualifiers: false,
+            results: false,
+            jury_results: false,
+            televote_results: false,
+            detailed_voting: false,
+          },
+        }),
+      ],
+      results: [result()],
+    });
+
+    expect(state.phase).toBe("submissions");
+    expect(state.statusLabel).toBe("Current edition");
+    expect(state.statusLabel).not.toBe("Results");
+  });
+
   it("lets a published Grand Final result override stale legacy lifecycle state", () => {
     const state = resolvePublicContestState({
       editions: [edition({ status: "active" })],
@@ -103,6 +142,17 @@ describe("public contest state", () => {
 
     expect(state.phase).toBe("results_published");
     expect(state.statusLabel).toBe("Results");
+  });
+
+  it("keeps a completed edition completed even when its final result is published", () => {
+    const state = resolvePublicContestState({
+      editions: [edition({ status: "completed" })],
+      shows: [show()],
+      results: [result()],
+    });
+
+    expect(state.phase).toBe("post_edition");
+    expect(state.statusLabel).toBe("Completed");
   });
 
   it("returns a useful between-editions state when no edition is public", () => {

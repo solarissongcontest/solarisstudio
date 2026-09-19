@@ -87,8 +87,47 @@ export function VotingMatrix({
   if (!order.length) return <p className="text-sm text-muted-foreground">No votes yet.</p>;
 
   return (
-    <div className="scroll-slim overflow-auto">
-      <table className="w-full border-separate border-spacing-0 text-xs">
+    <div className="min-w-0">
+      <div className="space-y-2 sm:hidden">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+          Jury ranking
+        </p>
+        {rows.map((to, index) => {
+          const country = countries.get(to);
+          return (
+            <div
+              key={to}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/45 px-3 py-2.5"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="numeric w-5 shrink-0 text-xs text-muted-foreground">
+                  {index + 1}
+                </span>
+                {country?.flag_image ? (
+                  <img
+                    src={country.flag_image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="h-4 w-6 shrink-0 rounded-[2px] object-cover"
+                  />
+                ) : null}
+                <span className="truncate text-sm font-semibold">{country?.name ?? to}</span>
+              </span>
+              <span className="numeric shrink-0 text-sm font-black">
+                {totals.get(to) ?? 0}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      <details className="mt-3 rounded-xl border border-border/70 bg-surface/35 sm:hidden">
+        <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold [&::-webkit-details-marker]:hidden">
+          Open full voting matrix
+        </summary>
+        <div className="scroll-slim overflow-auto border-t border-border/60">
+          <table className="w-full border-separate border-spacing-0 text-xs">
         <thead>
           <tr>
             <th className="sticky left-0 z-20 bg-background/90 px-2 py-2 text-left font-medium backdrop-blur">
@@ -185,6 +224,108 @@ export function VotingMatrix({
           })}
         </tbody>
       </table>
+        </div>
+      </details>
+
+      <div className="scroll-slim hidden overflow-auto sm:block">
+<table className="w-full border-separate border-spacing-0 text-xs">
+        <thead>
+          <tr>
+            <th className="sticky left-0 z-20 bg-background/90 px-2 py-2 text-left font-medium backdrop-blur">
+              Receiving ↓ / Voting →
+            </th>
+            {columns.map((colKey) => {
+              const c = displayFor(colKey);
+              return (
+                <th
+                  key={colKey}
+                  className={cn(
+                    "px-1 py-2 text-center align-bottom font-medium transition-colors",
+                    hover?.from === colKey && "bg-surface-strong",
+                  )}
+                  title={c?.name}
+                >
+                  <span className="flex flex-col items-center gap-1">
+                    {c?.flag_image ? (
+                      <img
+                        src={c.flag_image}
+                        alt={c.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-4 w-6 rounded-[2px] object-cover"
+                      />
+                    ) : null}
+                    <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
+                      {c?.short_code ?? c?.name}
+                    </span>
+                  </span>
+                </th>
+              );
+            })}
+            <th className="px-2 py-2 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((to) => {
+            const rc = countries.get(to);
+            return (
+              <tr key={to} className={cn(hover?.to === to && "bg-surface/60")}>
+                <th className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur">
+                  <span className="flex items-center gap-2">
+                    {rc?.flag_image ? (
+                      <img
+                        src={rc.flag_image}
+                        alt={rc.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-4 w-6 rounded-[2px] object-cover"
+                      />
+                    ) : null}
+                    <span className="truncate">{rc?.name}</span>
+                  </span>
+                </th>
+                {columns.map((from) => {
+                  const val = cell.get(`${from}>${to}`);
+                  const isTop = val === topPoint;
+                  const fromDisplay = displayFor(from);
+                  const isSelf = fromDisplay?.countryId === to;
+                  return (
+                    <td
+                      key={from}
+                      onMouseEnter={() => setHover({ from, to })}
+                      onMouseLeave={() => setHover(null)}
+                      title={
+                        val
+                          ? `${fromDisplay?.name} → ${rc?.name}: ${val}`
+                          : `${fromDisplay?.name} → ${rc?.name}`
+                      }
+                      className={cn(
+                        "numeric border border-border/40 px-1 py-1 text-center transition-colors",
+                        isSelf && "bg-muted/40",
+                        hover?.from === from && "bg-surface-strong",
+                        isTop && "font-bold text-[var(--gold)]",
+                      )}
+                      style={
+                        val && !isTop
+                          ? {
+                              background: `color-mix(in oklab, var(--jury) ${Math.min(val * 6, 55)}%, transparent)`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {val ?? ""}
+                    </td>
+                  );
+                })}
+                <td className="numeric px-2 py-1 text-right font-semibold">
+                  {totals.get(to) ?? 0}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      </div>
     </div>
   );
 }

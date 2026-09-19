@@ -19,8 +19,11 @@ export function formatEventDateTime(
   if (!date) return typeof value === "string" ? value : "";
 
   return new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
     timeZone,
     timeZoneName: "short",
   }).format(date);

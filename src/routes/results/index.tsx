@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { PublicAdvancedDisclosure } from "@/components/public/PublicAdvancedDisclosure";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
 import { PublicHubHero } from "@/components/public/PublicHubHero";
 import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
@@ -161,11 +162,14 @@ function ResultsOverviewPage() {
           </Panel>
         </section>
       ) : (
-        <Panel className="mb-5">
-          <p className="text-sm text-muted-foreground">
-            No public result is available yet. As soon as a show publishes results, the newest one will appear here automatically.
-          </p>
-        </Panel>
+        <div className="mb-5">
+          <PublicDataState
+            kind="empty"
+            title="No public result yet"
+            description="The newest result will appear here automatically when a show publishes its ranking."
+            compact
+          />
+        </div>
       )}
 
       <section className="public-hub-section" aria-labelledby="results-browse-title">

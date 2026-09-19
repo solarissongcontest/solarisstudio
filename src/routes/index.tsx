@@ -196,7 +196,21 @@ function HomePage() {
     leadStory;
 
   const archiveQueries = [editionsQuery, showsQuery, countriesQuery, resultsQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading Solaris Today…" /></AppShell>;
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        <header className="mb-5 border-b border-border/70 pb-4">
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-primary sm:text-[10px]">
+            TSBC Newsroom
+          </p>
+          <h1 className="mt-1 font-display text-3xl font-black tracking-[-0.045em] sm:text-5xl">
+            Solaris Today
+          </h1>
+        </header>
+        <ArchiveDataLoading label="Loading Solaris Today…" />
+      </AppShell>
+    );
+  }
   if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   return (

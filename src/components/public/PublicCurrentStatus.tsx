@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -8,12 +9,14 @@ export function PublicCurrentStatus({
   title,
   description,
   tone = "neutral",
+  action,
 }: {
   icon: LucideIcon;
   eyebrow?: string;
   title: string;
   description: string;
   tone?: "neutral" | "active" | "complete" | "attention";
+  action?: ReactNode;
 }) {
   return (
     <section className={cn("public-current-status", `is-${tone}`)}>
@@ -24,6 +27,7 @@ export function PublicCurrentStatus({
         {eyebrow ? <p className="public-hub-eyebrow">{eyebrow}</p> : null}
         <h2 className="mt-1 font-display text-xl font-bold">{title}</h2>
         <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{description}</p>
+        {action ? <div className="mt-3">{action}</div> : null}
       </div>
     </section>
   );
