@@ -24,6 +24,9 @@ export type PublicUxMetadata = {
   task_status?: string;
   interaction?: string;
   beta_task?: string;
+  elapsed_ms?: number;
+  start_route?: string;
+  search_used?: string;
 };
 
 type PublicUxEventOptions = {
@@ -40,11 +43,20 @@ type UxRpcClient = {
 
 const client = supabase as unknown as UxRpcClient;
 const SESSION_KEY = "solaris:public-ux-session:v1";
+const BETA_TASK_KEY = "solaris:beta3-navigation-task:v1";
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 type StoredSession = {
   id: string;
   createdAt: number;
+};
+
+type ActiveBetaTask = {
+  id: string;
+  startedAt: number;
+  startRoute: string;
+  lastRoute: string;
+  searchUsed: boolean;
 };
 
 export function publicUxDevice(): PublicUxMetadata["device"] {
@@ -96,10 +108,24 @@ export function trackPublicUxEvent(
   if (typeof window === "undefined") return;
   if (window.location.pathname.startsWith("/admin")) return;
 
+  const betaTask = readActiveBetaTask();
   const metadata = sanitizeMetadata({
     ...options.metadata,
+    ...(betaTask && !options.metadata?.beta_task ? { beta_task: betaTask.id } : {}),
     device: options.metadata?.device ?? publicUxDevice(),
   });
+
+  if (betaTask) {
+    writeActiveBetaTask({
+      ...betaTask,
+      lastRoute: safePathname(window.location.pathname),
+      searchUsed:
+        betaTask.searchUsed ||
+        eventName === "search_opened" ||
+        eventName === "search_submitted" ||
+        eventName === "search_result_clicked",
+    });
+  }
 
   const payload = {
     p_event_name: eventName,
@@ -125,6 +151,8 @@ function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
     "task_status",
     "interaction",
     "beta_task",
+    "start_route",
+    "search_used",
   ] as const) {
     const value = metadata[key];
     if (typeof value === "string" && value.trim()) clean[key] = value.trim().slice(0, 120);
@@ -136,8 +164,88 @@ function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
   if (Number.isFinite(metadata.result_count)) {
     clean.result_count = Math.max(0, Math.min(10_000, Math.round(metadata.result_count!)));
   }
+  if (Number.isFinite(metadata.elapsed_ms)) {
+    clean.elapsed_ms = Math.max(0, Math.min(86_400_000, Math.round(metadata.elapsed_ms!)));
+  }
 
   return clean;
+}
+
+export function beginPublicUxBetaTask(id: string, target?: string | null) {
+  if (typeof window === "undefined") return;
+  const task: ActiveBetaTask = {
+    id: id.slice(0, 120),
+    startedAt: Date.now(),
+    startRoute: safePathname(window.location.pathname),
+    lastRoute: safePathname(window.location.pathname),
+    searchUsed: false,
+  };
+  writeActiveBetaTask(task);
+  trackPublicUxEvent("task_started", {
+    target: target ?? task.startRoute,
+    metadata: {
+      beta_task: task.id,
+      start_route: task.startRoute,
+      task_status: "started",
+    },
+  });
+}
+
+export function completePublicUxBetaTask(status: "success" | "abandoned") {
+  if (typeof window === "undefined") return;
+  const task = readActiveBetaTask();
+  if (!task) return;
+
+  trackPublicUxEvent("task_completed", {
+    target: task.lastRoute,
+    metadata: {
+      beta_task: task.id,
+      start_route: task.startRoute,
+      task_status: status,
+      elapsed_ms: Date.now() - task.startedAt,
+      search_used: task.searchUsed ? "yes" : "no",
+    },
+  });
+
+  try {
+    window.localStorage.removeItem(BETA_TASK_KEY);
+  } catch {
+    // Telemetry state is optional.
+  }
+}
+
+function readActiveBetaTask(): ActiveBetaTask | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(BETA_TASK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<ActiveBetaTask>;
+    if (
+      typeof parsed.id !== "string" ||
+      typeof parsed.startedAt !== "number" ||
+      typeof parsed.startRoute !== "string" ||
+      typeof parsed.lastRoute !== "string"
+    ) {
+      return null;
+    }
+    return {
+      id: parsed.id.slice(0, 120),
+      startedAt: parsed.startedAt,
+      startRoute: safePathname(parsed.startRoute),
+      lastRoute: safePathname(parsed.lastRoute),
+      searchUsed: Boolean(parsed.searchUsed),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveBetaTask(task: ActiveBetaTask) {
+  try {
+    window.localStorage.setItem(BETA_TASK_KEY, JSON.stringify(task));
+  } catch {
+    // Telemetry state is optional.
+  }
 }
 
 function safePathname(value: string) {
