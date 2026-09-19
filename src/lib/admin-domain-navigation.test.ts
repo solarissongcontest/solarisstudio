@@ -33,7 +33,8 @@ describe("Organizer domain navigation", () => {
     expect(adminNav).toContain("buildAdminDomainNavigation");
     expect(adminNav).not.toContain("buildAdminNavigation");
     expect(adminNav).not.toContain("groups.map");
-    expect(adminNav).toContain("Specialist pages stay available");
+    expect(adminNav).toContain("Core workflows are visible in their workspaces");
+    expect(adminNav).toContain('to="/admin/menu"');
   });
 
   it("keeps the Organizer menu small while preserving the searchable specialist directory", () => {
@@ -56,12 +57,29 @@ describe("Organizer domain navigation", () => {
     expect(governance?.tabs.map((tab) => tab.label)).toContain("Appeals");
   });
 
+  it("exposes the six current-edition workspaces without relying on search", () => {
+    const edition = buildAdminContextualSection("/admin/ssc-21", "ssc-21", "SSC21");
+    expect(edition?.tabs.map((tab) => tab.label)).toEqual([
+      "Overview",
+      "Delegations",
+      "Contest",
+      "Voting & results",
+      "Live",
+      "Publish",
+    ]);
+
+    const countries = buildAdminContextualSection("/admin/countries", "ssc-21", "SSC21");
+    expect(countries?.tabs.map((tab) => tab.label)).toContain("Delegations");
+    expect(countries?.workflow?.tabs.map((tab) => tab.label)).toContain("Confirmations");
+  });
+
   it("keeps deep workflow navigation only where the workflow needs it", () => {
     const delegations = buildAdminContextualSection("/confirmations/admin/rounds", "ssc-21");
     expect(delegations?.domain.id).toBe("edition");
     expect(delegations?.workflow?.label).toBe("Delegations workflow");
     expect(delegations?.workflow?.tabs.map((tab) => tab.label)).toEqual([
-      "Overview",
+      "Countries",
+      "Confirmations",
       "Responses",
       "Rounds",
       "Calendar",
