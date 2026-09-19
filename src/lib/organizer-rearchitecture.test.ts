@@ -115,6 +115,16 @@ describe("Organizer rearchitecture foundation", () => {
     expect(operations).toContain("export function isStudio2ResultReleaseReady");
   });
 
+  it("uses one Design workspace instead of a second Edition Theme editor", () => {
+    const identity = source("src/components/studio/EditionArtworkControl.tsx");
+    const legacyTheme = source("src/routes/_authenticated/admin/edition-theme.$slug.tsx");
+
+    expect(identity).toContain("Fine-tune edition colours");
+    expect(identity).toContain("synchroniseScoreboardThemes");
+    expect(legacyTheme).toContain('to: "/admin/design/$slug"');
+    expect(legacyTheme).toContain("replace: true");
+  });
+
   it("provides an Inbox route and persistent Inbox affordance", () => {
     const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
     const shell = source("src/components/admin/AdminShell.tsx");
