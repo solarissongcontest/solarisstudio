@@ -205,6 +205,22 @@ function presentation(
   }
 }
 
+export function resolvePublicEditionState({
+  edition,
+  shows,
+  results,
+}: {
+  edition: Edition;
+  shows: readonly Show[];
+  results: readonly ResultRow[];
+}): PublicContestState {
+  return resolvePublicEditionState({
+    edition,
+    shows,
+    results,
+  });
+}
+
 export function resolvePublicContestState({
   editions,
   shows,
