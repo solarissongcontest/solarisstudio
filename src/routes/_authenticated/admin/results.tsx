@@ -240,7 +240,19 @@ function ShowResultCard({ row, editionSlug, busy, onAction }: {
         <ReadinessCell label="Jury" ready={pre.juryReady} value={readinessLabel(pre.juryEnabled, pre.juryReady)} detail={pre.juryEnabled ? `${pre.juryVoterCount} voters · ${pre.juryIncompleteCount} incomplete · ${pre.juryConflictCount} conflicts · ${pre.juryDnvCount} DNV` : 'Disabled in voting configuration'} />
         <ReadinessCell label="Televote" ready={pre.televoteReady} value={readinessLabel(pre.televoteEnabled, pre.televoteReady)} detail={pre.televoteEnabled ? `${pre.televoteVoteRows} canonical vote rows` : 'Disabled in voting configuration'} />
         <ReadinessCell label="Calculation" ready={pre.calculationReady} value={pre.calculationReady ? 'Ready' : 'Blocked'} detail={`${pre.participantCount} participants · ${pre.resultRowCount} current result rows`} />
-        <ReadinessCell label="Reconciliation" ready={pre.resultReady} value={pre.resultReady ? 'Reconciled' : pre.resultRowCount ? 'Needs attention' : 'Not calculated'} detail={`${pre.reconcileIssueCount} total/weighting issues`} />
+        <ReadinessCell
+          label="Reconciliation"
+          ready={pre.resultReady}
+          value={pre.resultReady ? 'Reconciled' : pre.resultRowCount ? 'Needs attention' : 'Not calculated'}
+          detail={
+            pre.resultRowCount
+              ? [
+                  pre.entityCountMismatch ? `${pre.entityCountMismatch} participant/result-row count mismatch${pre.entityCountMismatch === 1 ? '' : 'es'}` : null,
+                  pre.sourceReconcileIssueCount ? `${pre.sourceReconcileIssueCount} total/weighting issue${pre.sourceReconcileIssueCount === 1 ? '' : 's'}` : null,
+                ].filter(Boolean).join(' · ') || 'Participant and result rows reconcile'
+              : 'No calculated result rows'
+          }
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.07] pt-4">
