@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [publicIaV3Enabled, setPublicIaV3Enabled] = useState<boolean | null>(null);
+  const [publicIaV3Enabled, setPublicIaV3Enabled] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -153,13 +153,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    void resolvePublicIaV3Enabled({ userId: access.userId }).then((enabled) => {
+    void resolvePublicIaV3Enabled().then((enabled) => {
       if (alive) setPublicIaV3Enabled(enabled);
     });
     return () => {
       alive = false;
     };
-  }, [access.userId]);
+  }, []);
 
   useEffect(() => {
     const confirmationComplete = () =>
@@ -246,16 +246,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     !pathname.startsWith("/recover") &&
     !pathname.startsWith("/broadcast/");
   const quickNavigation =
-    publicIaV3Enabled === null
-      ? []
-      : publicIaV3Enabled
-        ? globalAreas.map((item) => ({
+    publicIaV3Enabled
+      ? globalAreas.map((item) => ({
             to: item.to,
             label: item.label,
             icon: GLOBAL_ICON_BY_AREA[item.id],
             active: !pathname.startsWith("/site-directory") && publicArea === item.id,
           }))
-        : [
+      : [
         { to: "/", label: "Home", icon: Home, active: pathname === "/" },
         {
           to: "/explore",
@@ -296,7 +294,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Brand />
 
             <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
-              {publicIaV3Enabled === true ? (
+              {publicIaV3Enabled ? (
                 <NewPublicDesktopNavigation
                   pathname={pathname}
                   publicArea={publicArea}
@@ -306,7 +304,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   visibleAccountEmail={visibleAccountEmail}
                   signOut={signOut}
                 />
-              ) : publicIaV3Enabled === false ? (
+              ) : (
                 <LegacyPublicDesktopNavigation
                   pathname={pathname}
                   access={access}
@@ -314,7 +312,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   visibleAccountEmail={visibleAccountEmail}
                   signOut={signOut}
                 />
-              ) : null}
+              )}
             </nav>
 
             <SheetTrigger asChild>
@@ -353,9 +351,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="scroll-slim flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
-            {publicIaV3Enabled === true ? (
+            {publicIaV3Enabled ? (
               <PublicDrawerNavigation pathname={pathname} user={publicUser} />
-            ) : publicIaV3Enabled === false ? (
+            ) : (
               <LegacyPublicDrawerNavigation
                 pathname={pathname}
                 isOrganizer={access.isOrganizer}
@@ -402,7 +400,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           {isMySolarisWorkspace ? (
             <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
-          ) : publicIaV3Enabled === true && showSectionNavigation ? (
+          ) : publicIaV3Enabled && showSectionNavigation ? (
             <div className="public-site-layout">
               <PublicSectionNav
                 pathname={pathname}
@@ -451,7 +449,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <LazyHomeAnniversaryTakeover />
                 </Suspense>
               )}
-              {publicIaV3Enabled === true ? <PublicBreadcrumbs pathname={pathname} /> : null}
+              {publicIaV3Enabled ? <PublicBreadcrumbs pathname={pathname} /> : null}
               {children}
               {isEditionPage && (
                 <Suspense fallback={null}>
@@ -462,11 +460,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </main>
 
-        {publicIaV3Enabled === true && !isMySolarisWorkspace && !focusedParticipationTask ? (
+        {publicIaV3Enabled && !isMySolarisWorkspace && !focusedParticipationTask ? (
           <PublicFooter />
         ) : null}
 
-        {!isMySolarisWorkspace && publicIaV3Enabled !== null && (
+        {!isMySolarisWorkspace && (
           <nav
             className="mobile-quick-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/70 px-2 pt-1.5 lg:hidden"
             style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
