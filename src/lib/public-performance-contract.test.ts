@@ -43,8 +43,10 @@ describe("public performance contract", () => {
   it("uses route-aware desktop canvases while retaining a reading measure", () => {
     const shell = source("src/components/AppShell.tsx");
     const layouts = source("src/desktop-public-layouts.css");
+    const archetypes = source("src/lib/public-route-archetypes.ts");
     expect(shell).toContain('data-public-layout={publicLayout}');
-    expect(shell).toContain('max-w-[1680px]');
+    expect(shell).toContain("publicCanvasForArchetype(publicArchetype)");
+    expect(archetypes).toContain('return "max-w-[1680px]"');
     expect(layouts).toContain('--public-reading-measure: 72ch');
     expect(layouts).toContain('data-public-layout="reading"');
   });
@@ -53,9 +55,10 @@ describe("public performance contract", () => {
     const shell = source("src/components/AppShell.tsx");
     const nav = source("src/components/public/PublicSectionNav.tsx");
     const styles = source("src/styles/public-navigation.css");
+    const archetypes = source("src/lib/public-route-archetypes.ts");
 
-    expect(shell).toContain('collapsible={publicLayout === "data"}');
-    expect(shell).toContain("broadcast-intelligence|result-lab");
+    expect(shell).toContain('collapsible={publicArchetype === "data-explorer"}');
+    expect(archetypes).toContain("broadcast-intelligence|result-lab");
     expect(nav).toContain("public-section-nav-toggle");
     expect(nav).toContain("aria-expanded={!collapsed}");
     expect(styles).toContain(".public-section-navigation.is-collapsed");
