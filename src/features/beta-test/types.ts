@@ -28,7 +28,7 @@ export type BetaSection = {
   id: string;
   title: string;
   description?: string;
-  task?: { body: string; href?: string; linkLabel?: string };
+  task?: { body: string; href?: string; linkLabel?: string; analyticsId?: string };
   questions: BetaQuestion[];
 };
 
