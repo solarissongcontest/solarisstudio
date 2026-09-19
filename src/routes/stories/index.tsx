@@ -7,10 +7,30 @@ import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
 
 export const Route = createFileRoute('/stories/')({
-  head: () => ({ meta: [
-    { title: 'Stories — Solaris Studio' },
-    { name: 'description', content: 'Edition stories and date-aware moments from the Solaris Song Contest archive.' },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: 'Stories — Solaris Studio' },
+      { name: 'description', content: 'Edition stories and date-aware moments from the Solaris Song Contest archive.' },
+    ],
+    links: [
+      {
+        rel: 'canonical',
+        href: 'https://studio.solaris-song-contest.workers.dev/stories',
+      },
+    ],
+    scripts: [
+      {
+        type: 'application/ld+json',
+        children: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          name: 'Solaris Studio Stories',
+          url: 'https://studio.solaris-song-contest.workers.dev/stories',
+          description: 'Reviewed edition stories and historical moments from the Solaris Song Contest archive.',
+        }),
+      },
+    ],
+  }),
   loader: () => todayInSolaris(),
   component: StoriesArchivePage,
 });
