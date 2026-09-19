@@ -5,6 +5,7 @@ import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import {
   PublicInsightCard,
   PublicInsightRail,
@@ -484,7 +485,14 @@ function DifferencePanel({ title, description, rows }: { title: string; descript
 }
 
 function Empty({ compact = false }: { compact?: boolean }) {
-  return <div className={compact ? "py-5 text-center text-sm text-muted-foreground" : "py-12 text-center text-sm text-muted-foreground"}>Not enough data for this view.</div>;
+  return (
+    <PublicDataState
+      kind="empty"
+      title="Not enough published data for this view"
+      description="Try a broader archive filter or return after more result data is published."
+      compact={compact}
+    />
+  );
 }
 
 function buildJuryTeleRows(results: ResultRow[], cMap: Map<string, Country>): JuryTeleRow[] {
