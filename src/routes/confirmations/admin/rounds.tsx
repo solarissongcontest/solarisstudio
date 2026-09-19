@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminActionItem,
   AdminCard,
@@ -67,6 +68,7 @@ function roundTone(status: ConfirmationRound["status"]) {
 }
 
 function RoundsPage() {
+  const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [editionId, setEditionId] = useState("");
   const [form, setForm] = useState<typeof emptyForm & { id?: string }>(emptyForm);
@@ -82,7 +84,11 @@ function RoundsPage() {
     setEditions(rows);
     setEditionId((current) =>
       preferredEditionId ??
-      (current || rows.find((item) => item.status === "active")?.id || rows[0]?.id || ""),
+      current ||
+      rows.find((item) => item.id === organizerEditionId)?.id ||
+      rows.find((item) => item.status === "active")?.id ||
+      rows[0]?.id ||
+      "",
     );
   }
 
@@ -93,7 +99,12 @@ function RoundsPage() {
         const rows = await loadConfirmationEditions();
         if (!alive) return;
         setEditions(rows);
-        setEditionId(rows.find((item) => item.status === "active")?.id ?? rows[0]?.id ?? "");
+        setEditionId(
+          rows.find((item) => item.id === organizerEditionId)?.id ??
+            rows.find((item) => item.status === "active")?.id ??
+            rows[0]?.id ??
+            "",
+        );
       } catch (caught) {
         if (alive) {
           setError(caught instanceof Error ? caught.message : "Could not load submission rounds.");
@@ -111,6 +122,17 @@ function RoundsPage() {
     () => editions.find((item) => item.id === editionId) ?? null,
     [editions, editionId],
   );
+
+  useEffect(() => {
+    if (
+      organizerEditionId &&
+      organizerEditionId !== editionId &&
+      editions.some((item) => item.id === organizerEditionId)
+    ) {
+      setEditionId(organizerEditionId);
+      setForm(emptyForm);
+    }
+  }, [editionId, editions, organizerEditionId]);
   const rounds = edition?.rounds ?? [];
 
   function startCreate() {
@@ -231,7 +253,9 @@ function RoundsPage() {
           <select
             value={editionId}
             onChange={(event) => {
-              setEditionId(event.target.value);
+              const nextEditionId = event.target.value;
+              setEditionId(nextEditionId);
+              setOrganizerEditionId(nextEditionId);
               setForm(emptyForm);
             }}
             className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm text-foreground outline-none"
