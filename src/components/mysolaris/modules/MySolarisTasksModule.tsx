@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { EventTime } from "@/components/public/EventTime";
 import { useCountries } from "@/lib/data";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { listStudio2EligibilityOverrides } from "@/lib/studio2-eligibility";
@@ -296,9 +297,11 @@ export function MySolarisTasksModule() {
                         >
                           <div className="min-w-0">
                             <p className="text-sm font-semibold">{deadline.label}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Due {formatDateTime(deadline.dueAt)}
-                            </p>
+                            <EventTime
+                              value={deadline.dueAt}
+                              label="Due"
+                              className="mt-1"
+                            />
                           </div>
                           <StatusPill
                             value={completed ? "completed" : overdue ? "overdue" : "upcoming"}
