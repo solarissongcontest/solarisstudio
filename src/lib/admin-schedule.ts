@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AdminScheduleItem = {
   id: string;
-  source: "submission" | "publication" | "communication" | "edition" | "reminder";
+  source: "submission" | "jury" | "televote" | "publication" | "communication" | "edition" | "reminder";
   kind: "opens" | "closes" | "reveal" | "send" | "event" | "reminder";
   label: string;
   at: string;
@@ -29,35 +29,68 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
     queryFn: async () => {
       if (!editionId) return [] as AdminScheduleItem[];
 
-      const [roundsResult, entriesResult, noticesResult, editionResult, remindersResult] =
-        await Promise.all([
-          db
-            .from("submission_rounds")
-            .select("id,name,status,opens_at,closes_at")
-            .eq("edition_id", editionId),
-          db
-            .from("participants")
-            .select("id,artist,song,publication_status,scheduled_publish_at")
-            .eq("edition_id", editionId)
-            .is("show_id", null)
-            .eq("publication_status", "scheduled")
-            .not("scheduled_publish_at", "is", null),
-          db
-            .from("studio2_official_notices")
-            .select("id,title,status,scheduled_at")
-            .eq("edition_id", editionId)
-            .eq("status", "scheduled")
-            .not("scheduled_at", "is", null),
-          db.from("editions").select("id,event_date").eq("id", editionId).maybeSingle(),
-          db
-            .from("admin_deadlines")
-            .select("id,label,due_at,notes,completed_at")
-            .eq("edition_id", editionId)
-            .is("completed_at", null),
-        ]);
+      const [
+        roundsResult,
+        juryWindowsResult,
+        televoteBindingsResult,
+        showsResult,
+        entriesResult,
+        noticesResult,
+        editionResult,
+        remindersResult,
+      ] = await Promise.all([
+        db
+          .from("submission_rounds")
+          .select("id,name,status,opens_at,closes_at")
+          .eq("edition_id", editionId),
+        db
+          .from("jury_voting_windows")
+          .select("show_id,status,opened_at,closed_at")
+          .eq("edition_id", editionId),
+        db
+          .from("televoting_round_bindings")
+          .select("remote_round_id,show_id")
+          .eq("edition_id", editionId),
+        db.from("shows").select("id,name").eq("edition_id", editionId),
+        db
+          .from("participants")
+          .select("id,artist,song,publication_status,scheduled_publish_at")
+          .eq("edition_id", editionId)
+          .is("show_id", null)
+          .eq("publication_status", "scheduled")
+          .not("scheduled_publish_at", "is", null),
+        db
+          .from("studio2_official_notices")
+          .select("id,title,status,scheduled_at")
+          .eq("edition_id", editionId)
+          .eq("status", "scheduled")
+          .not("scheduled_at", "is", null),
+        db.from("editions").select("id,event_date").eq("id", editionId).maybeSingle(),
+        db
+          .from("admin_deadlines")
+          .select("id,label,due_at,notes,completed_at")
+          .eq("edition_id", editionId)
+          .is("completed_at", null),
+      ]);
+
+      const remoteRoundIds = (televoteBindingsResult.data ?? [])
+        .map((binding: { remote_round_id?: string | null }) => binding.remote_round_id)
+        .filter((value: string | null | undefined): value is string => Boolean(value));
+
+      const televoteRoundsResult = remoteRoundIds.length
+        ? await db
+            .schema("televoting")
+            .from("rounds")
+            .select("id,name,status,opened_at,closed_at")
+            .in("id", remoteRoundIds)
+        : { data: [], error: null };
 
       const failures = [
         ["submission rounds", roundsResult.error],
+        ["jury voting", juryWindowsResult.error],
+        ["televote bindings", televoteBindingsResult.error],
+        ["shows", showsResult.error],
+        ["televote rounds", televoteRoundsResult.error],
         ["entry publication", entriesResult.error],
         ["communications", noticesResult.error],
         ["edition", editionResult.error],
@@ -76,6 +109,17 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
       const confirmationHref = "/confirmations/admin/rounds";
       const entriesHref = slug ? `/admin/entries/${slug}` : "/admin";
       const editionHref = slug ? `/admin/shows/${slug}` : "/admin";
+      const showNameById = new Map(
+        (showsResult.data ?? []).map((show: { id: string; name: string }) => [show.id, show.name] as const),
+      );
+      const televoteBindingByRemoteId = new Map(
+        (televoteBindingsResult.data ?? []).map(
+          (binding: { remote_round_id: string; show_id: string | null }) => [
+            binding.remote_round_id,
+            binding,
+          ] as const,
+        ),
+      );
 
       for (const round of roundsResult.data ?? []) {
         if (round.opens_at) {
@@ -98,6 +142,67 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
             at: round.closes_at,
             href: confirmationHref,
             detail: "Confirmation submission round",
+          });
+        }
+      }
+
+      for (const window of juryWindowsResult.data ?? []) {
+        const showName = window.show_id ? showNameById.get(window.show_id) : null;
+        const label = showName ? `Jury voting · ${showName}` : "Jury voting";
+
+        if (window.opened_at) {
+          items.push({
+            id: `jury-open:${window.show_id ?? editionId}`,
+            source: "jury",
+            kind: "opens",
+            label: `${label} opens`,
+            at: window.opened_at,
+            href: slug ? `/admin/jury/${slug}` : "/admin",
+            detail: "Jury voting window",
+          });
+        }
+        if (window.closed_at) {
+          items.push({
+            id: `jury-close:${window.show_id ?? editionId}`,
+            source: "jury",
+            kind: "closes",
+            label: `${label} closes`,
+            at: window.closed_at,
+            href: slug ? `/admin/jury/${slug}` : "/admin",
+            detail: "Jury voting window",
+          });
+        }
+      }
+
+      for (const round of televoteRoundsResult.data ?? []) {
+        const binding = televoteBindingByRemoteId.get(round.id);
+        const showName = binding?.show_id ? showNameById.get(binding.show_id) : null;
+        const label = showName
+          ? `Televote · ${showName}`
+          : round.name
+            ? `Televote · ${round.name}`
+            : "Televote";
+
+        if (round.opened_at) {
+          items.push({
+            id: `televote-open:${round.id}`,
+            source: "televote",
+            kind: "opens",
+            label: `${label} opens`,
+            at: round.opened_at,
+            href: "/televoting/admin/rounds",
+            detail: "Public voting round",
+          });
+        }
+        if (round.closed_at) {
+          items.push({
+            id: `televote-close:${round.id}`,
+            source: "televote",
+            kind: "closes",
+            label: `${label} closes`,
+            at: round.closed_at,
+            href: "/televoting/admin/rounds",
+            detail: "Public voting round",
           });
         }
       }
