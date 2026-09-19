@@ -62,8 +62,7 @@ function domainTabs(
     path.startsWith("/admin/televote/") ||
     path.startsWith("/admin/friend-voting") ||
     path.startsWith("/admin/jury-integrity") ||
-    path.startsWith("/admin/results") ||
-    path.startsWith("/admin/results-reveal") ||
+    (path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal")) ||
     path.startsWith("/admin/voting-lab");
 
   const showActive = (path: string) =>
@@ -71,7 +70,8 @@ function domainTabs(
     path.startsWith("/admin/workflows") ||
     path.startsWith("/admin/incidents") ||
     path.startsWith("/admin/broadcast-rundown") ||
-    path.startsWith("/admin/edition-simulator");
+    path.startsWith("/admin/edition-simulator") ||
+    path.startsWith("/admin/results-reveal");
 
   const publishActive = (path: string) =>
     path.startsWith("/admin/storytelling") ||
@@ -209,7 +209,9 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     pathname.startsWith("/admin/voting-system/") ||
     pathname.startsWith("/admin/televote/") ||
     pathname.startsWith("/admin/friend-voting") ||
-    pathname.startsWith("/admin/jury-integrity")
+    pathname.startsWith("/admin/jury-integrity") ||
+    (pathname.startsWith("/admin/results") && !pathname.startsWith("/admin/results-reveal")) ||
+    pathname.startsWith("/admin/voting-lab")
   ) {
     return {
       label: "Voting workflow",
@@ -238,7 +240,7 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
           (path) => path.startsWith("/televoting/admin/integrity-declarations"),
         ),
         tab(
-          "Results",
+          "Televote results",
           "/televoting/admin/results",
           (path) =>
             path.startsWith("/televoting/admin/results") ||
@@ -246,6 +248,12 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
             path.startsWith("/televoting/admin/backtest") ||
             path.startsWith("/admin/televote/"),
         ),
+        tab(
+          "Official results",
+          "/admin/results",
+          (path) => path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal"),
+        ),
+        tab("Lab", "/admin/voting-lab", (path) => path.startsWith("/admin/voting-lab")),
       ],
     };
   }
@@ -280,7 +288,8 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     pathname.startsWith("/admin/workflows") ||
     pathname.startsWith("/admin/incidents") ||
     pathname.startsWith("/admin/broadcast-rundown") ||
-    pathname.startsWith("/admin/edition-simulator")
+    pathname.startsWith("/admin/edition-simulator") ||
+    pathname.startsWith("/admin/results-reveal")
   ) {
     return {
       label: "Live workflow",
@@ -289,6 +298,7 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
         tab("Workflows", "/admin/workflows", (path) => path.startsWith("/admin/workflows")),
         tab("Incidents", "/admin/incidents", (path) => path.startsWith("/admin/incidents")),
         tab("Rundown", "/admin/broadcast-rundown", (path) => path.startsWith("/admin/broadcast-rundown")),
+        tab("Reveal", "/admin/results-reveal", (path) => path.startsWith("/admin/results-reveal")),
         tab("Rehearsal", "/admin/edition-simulator", (path) => path.startsWith("/admin/edition-simulator")),
       ],
     };
