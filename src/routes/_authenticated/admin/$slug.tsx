@@ -53,7 +53,7 @@ function ContestOverview({ slug }: { slug: string }) {
           icon={Trophy}
           title="Edition not found"
           description="This edition may have been removed or the address is no longer valid."
-          action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>}
+          action={<Link to="/admin/editions" className="admin-action-secondary">Back to editions</Link>}
         />
       </AdminCard>
     );
