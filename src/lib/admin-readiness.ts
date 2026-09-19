@@ -102,6 +102,14 @@ export function buildEditionReadiness(input: {
 
   const shows = input.shows.filter((row) => row.edition_id === edition.id);
   const participants = input.participants.filter((row) => row.edition_id === edition.id);
+  // participants contains both the canonical edition entry and show-specific
+  // appearances. Never count the same delegation once per show as separate entries.
+  const canonicalEntries = participants.filter((row) => row.show_id == null);
+  const logicalEntries = canonicalEntries.length
+    ? canonicalEntries
+    : [...new Map(
+        participants.map((row) => [row.contest_entity_id ?? row.country_id, row] as const),
+      ).values()];
   const voters = input.voters.filter((row) => row.edition_id === edition.id);
   const juryVotes = input.juryVotes.filter((row) => row.edition_id === edition.id);
   const juryBallotStatuses = input.juryBallotStatuses.filter((row) => row.edition_id === edition.id);
@@ -120,7 +128,7 @@ export function buildEditionReadiness(input: {
     });
   }
 
-  if (!participants.length) {
+  if (!logicalEntries.length) {
     issues.push({
       id: "no-entries",
       severity: "critical",
@@ -131,8 +139,8 @@ export function buildEditionReadiness(input: {
     });
   }
 
-  const missingSongs = participants.filter((entry) => empty(entry.song));
-  const missingArtists = participants.filter((entry) => empty(entry.artist));
+  const missingSongs = logicalEntries.filter((entry) => empty(entry.song));
+  const missingArtists = logicalEntries.filter((entry) => empty(entry.artist));
 
   if (missingSongs.length) {
     issues.push({
@@ -386,7 +394,7 @@ export function buildEditionReadiness(input: {
 
   const areas: ReadinessArea[] = [
     makeArea("setup", "Setup", Math.max(shows.length, 1), issues),
-    makeArea("entries", "Entries", Math.max(participants.length, 1), issues),
+    makeArea("entries", "Entries", Math.max(logicalEntries.length, 1), issues),
     makeArea("jury", "Juries", 1, issues),
     makeArea("televote", "Televote", 1, issues),
     makeArea("results", "Results", Math.max(results.length, 1), issues),
