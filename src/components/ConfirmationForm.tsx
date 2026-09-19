@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
@@ -692,7 +693,10 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
               <Switch checked={data.entry_unknown} onCheckedChange={(value) => set("entry_unknown", value)} />
             </label>
             {!data.entry_unknown ? (
-              <SongDetails data={data} errors={errors} set={set} previewEnd={previewEnd} clipEnd={clipEnd} />
+              <>
+                <SongDetails data={data} errors={errors} set={set} previewEnd={previewEnd} clipEnd={clipEnd} />
+                <EntryEligibilityHelp />
+              </>
             ) : null}
           </>
         ) : null}
@@ -801,7 +805,9 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
               </>
             ) : null}
 
-            <Field label="Expected National Final date" error={errors.nf_date_type}>
+            <EntryEligibilityHelp />
+
+                        <Field label="Expected National Final date" error={errors.nf_date_type}>
               <DateChoice
                 value={data.nf_date_type}
                 onChange={(value) => set("nf_date_type", value)}
@@ -927,6 +933,35 @@ function SongDetails({
         </Field>
       ) : null}
     </>
+  );
+}
+
+function EntryEligibilityHelp() {
+  return (
+    <aside className="rounded-xl border border-sky-300/15 bg-sky-300/[0.045] p-4" aria-label="Entry eligibility help">
+      <p className="text-[10px] font-black uppercase tracking-[.14em] text-sky-200">
+        Entry eligibility
+      </p>
+      <h3 className="mt-1 text-sm font-semibold">Unsure whether your song is eligible?</h3>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        Check the official entry-eligibility rules before submitting. If the rules do not answer your specific situation, request a private ruling first.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Link
+          to="/rules/$ruleId"
+          params={{ ruleId: "6.2" }}
+          className="inline-flex min-h-10 items-center rounded-lg border border-sky-300/15 bg-sky-300/[0.04] px-3 text-xs font-semibold text-sky-100"
+        >
+          Check song eligibility →
+        </Link>
+        <Link
+          to="/integrity/preclearance"
+          className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface/55 px-3 text-xs font-semibold"
+        >
+          Still unsure? Ask before submitting →
+        </Link>
+      </div>
+    </aside>
   );
 }
 
