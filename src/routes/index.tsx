@@ -32,6 +32,14 @@ export const Route = createFileRoute("/")({
         content:
           "The Solaris Song Contest newsroom: latest results, countries, editions, records and archive analysis.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://studio.solaris-song-contest.workers.dev/" },
+    ],
+    links: [
+      {
+        rel: "canonical",
+        href: "https://studio.solaris-song-contest.workers.dev/",
+      },
     ],
   }),
   component: HomePage,
