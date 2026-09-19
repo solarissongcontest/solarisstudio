@@ -24,6 +24,7 @@ export type PublicUxMetadata = {
   task_status?: string;
   interaction?: string;
   beta_task?: string;
+  task_run?: string;
   elapsed_ms?: number;
   start_route?: string;
   search_used?: string;
@@ -52,6 +53,7 @@ type StoredSession = {
 
 type ActiveBetaTask = {
   id: string;
+  runId: string;
   startedAt: number;
   startRoute: string;
   lastRoute: string;
@@ -112,6 +114,7 @@ export function trackPublicUxEvent(
   const metadata = sanitizeMetadata({
     ...options.metadata,
     ...(betaTask && !options.metadata?.beta_task ? { beta_task: betaTask.id } : {}),
+    ...(betaTask && !options.metadata?.task_run ? { task_run: betaTask.runId } : {}),
     device: options.metadata?.device ?? publicUxDevice(),
   });
 
@@ -151,6 +154,7 @@ function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
     "task_status",
     "interaction",
     "beta_task",
+    "task_run",
     "start_route",
     "search_used",
   ] as const) {
@@ -175,6 +179,10 @@ export function beginPublicUxBetaTask(id: string, target?: string | null) {
   if (typeof window === "undefined") return;
   const task: ActiveBetaTask = {
     id: id.slice(0, 120),
+    runId:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `beta-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
     startedAt: Date.now(),
     startRoute: safePathname(window.location.pathname),
     lastRoute: safePathname(window.location.pathname),
@@ -185,6 +193,7 @@ export function beginPublicUxBetaTask(id: string, target?: string | null) {
     target: target ?? task.startRoute,
     metadata: {
       beta_task: task.id,
+      task_run: task.runId,
       start_route: task.startRoute,
       task_status: "started",
     },
@@ -200,6 +209,7 @@ export function completePublicUxBetaTask(status: "success" | "abandoned") {
     target: task.lastRoute,
     metadata: {
       beta_task: task.id,
+      task_run: task.runId,
       start_route: task.startRoute,
       task_status: status,
       elapsed_ms: Date.now() - task.startedAt,
@@ -222,6 +232,7 @@ function readActiveBetaTask(): ActiveBetaTask | null {
     const parsed = JSON.parse(raw) as Partial<ActiveBetaTask>;
     if (
       typeof parsed.id !== "string" ||
+      typeof parsed.runId !== "string" ||
       typeof parsed.startedAt !== "number" ||
       typeof parsed.startRoute !== "string" ||
       typeof parsed.lastRoute !== "string"
@@ -230,6 +241,7 @@ function readActiveBetaTask(): ActiveBetaTask | null {
     }
     return {
       id: parsed.id.slice(0, 120),
+      runId: parsed.runId.slice(0, 120),
       startedAt: parsed.startedAt,
       startRoute: safePathname(parsed.startRoute),
       lastRoute: safePathname(parsed.lastRoute),

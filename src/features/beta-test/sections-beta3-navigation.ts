@@ -262,8 +262,33 @@ export const beta3NavigationSections: BetaSection[] = [
 ];
 
 export const BETA3_RELEASE_GATES = {
+  minimumResponses: 10,
   coreTaskSuccessPercent: 90,
   firstClickSuccessPercent: 80,
   oldEditionLookupPercent: 90,
   mobileDesktopGapPercent: 5,
+} as const;
+
+
+/**
+ * Accepted first destinations for each Beta 3 task.
+ *
+ * This intentionally scores the first meaningful destination selection rather
+ * than the button that opens search. Direct search-result clicks are therefore
+ * evaluated by their destination path, while navigation clicks are evaluated
+ * by the area or page they open.
+ */
+export const BETA3_FIRST_CLICK_EXPECTATIONS = {
+  "beta3-old-edition-winner": ["/explore", "/editions", "/results"],
+  "beta3-country-entry": ["/explore", "/countries", "/editions"],
+  "beta3-jury-scores": ["/results", "/scorecharts", "/editions", "/shows"],
+  "beta3-compare-countries": ["/results", "/compare", "/tools"],
+  "beta3-result-scenario": ["/results", "/result-lab", "/tools"],
+  "beta3-confirmation": ["/participate", "/confirmations", "/my-solaris"],
+  "beta3-jury-voting": ["/participate", "/jury-voting", "/my-solaris"],
+  "beta3-entry-rule": ["/guide", "/rules", "/integrity/preclearance", "/site-directory"],
+  "beta3-report-concern": ["/guide", "/integrity", "/site-directory"],
+  "beta3-appeal": ["/guide", "/integrity", "/integrity/appeals", "/site-directory"],
+  "beta3-voting-taste": ["/results", "/taste-dna", "/tools"],
+  "beta3-country-tools": ["/my-solaris", "/country-hub", "/auth"],
 } as const;

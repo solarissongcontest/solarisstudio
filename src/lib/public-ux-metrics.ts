@@ -1,4 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import type {
+  Beta3FirstClickEvidence,
+  Beta3FirstClickRunCount,
+  Beta3FirstClickTargetCount,
+} from "@/lib/beta3-release-evidence";
 
 export type PublicUxCount = {
   count: number;
@@ -70,6 +75,19 @@ export async function loadPublicUxMetrics(days = 30): Promise<PublicUxMetrics> {
   return parseMetrics(data);
 }
 
+
+export async function loadBeta3FirstClickEvidence(
+  days = 90,
+): Promise<Beta3FirstClickEvidence> {
+  const safeDays = Math.max(1, Math.min(180, Math.round(days)));
+  const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await client.rpc("admin_beta3_first_click_evidence", {
+    p_since: since,
+  });
+  if (error) throw new Error(error.message || "Could not load Beta 3 first-click evidence.");
+  return parseBeta3FirstClickEvidence(data);
+}
+
 function parseMetrics(value: unknown): PublicUxMetrics {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Public UX metrics returned an invalid response.");
@@ -123,4 +141,38 @@ function rows(value: unknown) {
 function number(value: unknown) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+
+function parseBeta3FirstClickEvidence(value: unknown): Beta3FirstClickEvidence {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Beta 3 first-click evidence returned an invalid response.");
+  }
+  const raw = value as Record<string, any>;
+  return {
+    since: String(raw.since ?? ""),
+    runs: Array.isArray(raw.runs)
+      ? raw.runs
+          .filter((item: any) => item && typeof item === "object")
+          .map(
+            (item: any): Beta3FirstClickRunCount => ({
+              task: String(item.task ?? ""),
+              started: number(item.started),
+            }),
+          )
+          .filter((item: Beta3FirstClickRunCount) => item.task)
+      : [],
+    firstClicks: Array.isArray(raw.firstClicks)
+      ? raw.firstClicks
+          .filter((item: any) => item && typeof item === "object")
+          .map(
+            (item: any): Beta3FirstClickTargetCount => ({
+              task: String(item.task ?? ""),
+              target: String(item.target ?? ""),
+              count: number(item.count),
+            }),
+          )
+          .filter((item: Beta3FirstClickTargetCount) => item.task && item.target)
+      : [],
+  };
 }
