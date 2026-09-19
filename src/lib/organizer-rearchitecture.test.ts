@@ -88,6 +88,33 @@ describe("Organizer rearchitecture foundation", () => {
     expect(calendar).toContain("setOrganizerEditionId(next)");
   });
 
+  it("makes every country account imply the HOD role", () => {
+    const migration = source(
+      "supabase/migrations/20260919162001_country_accounts_imply_hod_role.sql",
+    );
+    expect(migration).toContain("ensure_country_account_hod_role");
+    expect(migration).toContain("from public.country_accounts ca");
+    expect(migration).toContain("'hod'::text");
+    expect(migration).toContain("studio2_role_assignments_scope_unique");
+  });
+
+  it("blocks result publication until the authoritative result version is release ready", () => {
+    const migration = source(
+      "supabase/migrations/20260919162106_publication_requires_reveal_ready_results.sql",
+    );
+    const publication = source(
+      "src/routes/_authenticated/admin/publication/$slug.tsx",
+    );
+    const operations = source("src/lib/studio2-results-operations.ts");
+
+    expect(migration).toContain("reviewed_version is distinct from v_ops.calculation_version");
+    expect(migration).toContain("locked_version is distinct from v_ops.calculation_version");
+    expect(migration).toContain("reveal_ready_version is distinct from v_ops.calculation_version");
+    expect(publication).toContain("isStudio2ResultReleaseReady");
+    expect(publication).toContain("Not release ready");
+    expect(operations).toContain("export function isStudio2ResultReleaseReady");
+  });
+
   it("provides an Inbox route and persistent Inbox affordance", () => {
     const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
     const shell = source("src/components/admin/AdminShell.tsx");
