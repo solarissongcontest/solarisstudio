@@ -3,6 +3,8 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import { PublicDataState } from "@/components/public/PublicDataState";
+import { PublicDataGuide } from "@/components/public/PublicDataView";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
@@ -62,17 +64,24 @@ function ScorechartsPage() {
         }
       />
 
-      <Panel
-        className="mb-5"
+      <PublicDataGuide
         title="How to read a scorechart"
         description="The matrix keeps the whole vote visible instead of hiding it behind one country's total."
-      >
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Guide number="01" title="Rows receive" text="Find an entry down the left side to follow all points it received." />
-          <Guide number="02" title="Columns give" text="Follow a voter across the top to see how it distributed its points." />
-          <Guide number="03" title="Open a show" text="The scorechart opens inside that show's results page, next to the other result views." />
-        </div>
-      </Panel>
+        items={[
+          {
+            title: "Rows receive",
+            description: "Find an entry down the left side to follow all points it received.",
+          },
+          {
+            title: "Columns give",
+            description: "Follow a voter across the top to see how it distributed its points.",
+          },
+          {
+            title: "Open a show",
+            description: "The scorechart opens inside that show's results page, next to the other result views.",
+          },
+        ]}
+      />
 
       <section>
         <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/60 pb-3">
@@ -110,23 +119,13 @@ function ScorechartsPage() {
             })}
           </div>
         ) : (
-          <Panel>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              No detailed voting scorecharts have been published yet. They will appear here automatically when a show's detailed voting is made public.
-            </p>
-          </Panel>
+          <PublicDataState
+            kind="empty"
+            title="No published scorecharts yet"
+            description="Detailed voting will appear here automatically when a show's voting matrix is made public."
+          />
         )}
       </section>
     </AppShell>
-  );
-}
-
-function Guide({ number, title, text }: { number: string; title: string; text: string }) {
-  return (
-    <div className="rounded-xl bg-surface p-3">
-      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">{number}</p>
-      <p className="mt-1 text-sm font-semibold">{title}</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{text}</p>
-    </div>
   );
 }
