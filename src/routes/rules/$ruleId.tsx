@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { RuleInterpretationsPanel } from "@/components/rules/RuleInterpretationsPanel";
+import { RulePlainSummary } from "@/components/rules/RulePlainSummary";
 import { RuleDetail } from "@/components/rules/RulesExperience";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 import { getRuleById } from "@/lib/ssc-rules-v4";
@@ -66,6 +67,7 @@ function RulePage() {
   return (
     <AppShell>
       <div key={published.version}>
+        <RulePlainSummary rule={rule} />
         <RuleDetail rule={rule} />
         <RuleInterpretationsPanel ruleId={rule.id} />
       </div>
