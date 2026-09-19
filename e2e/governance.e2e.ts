@@ -33,42 +33,35 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 test.describe("Rules and Integrity governance discovery", () => {
-  test("one public sidebar exposes every governance destination", async ({ page }) => {
+  test("governance stays discoverable without a universal public sidebar", async ({ page }) => {
     const problems = failOnGovernanceConsoleProblems(page);
 
     await page.goto("/televoting");
     const desktop = (page.viewportSize()?.width ?? 0) >= 1024;
-    if (!desktop) {
-      // Give the client shell a turn to hydrate before dispatching the stateful
-      // drawer click; otherwise a fast CI navigation can click the SSR button
-      // before React has attached its handler.
-      await page.waitForTimeout(3_000);
-      await page.getByRole("button", { name: "Open navigation" }).click();
-    }
-    const navigation = desktop
-      ? page.getByRole("complementary", { name: "All public pages" })
-      : page.getByRole("navigation", { name: "Mobile navigation" });
-    await expect(navigation).toBeVisible();
-    await expect(navigation.getByRole("heading", { name: "Rules & help" })).toBeVisible();
-    for (const destination of [
-      "/rules",
-      "/rules/interpretations",
-      "/rules/changes",
-      "/integrity",
-      "/integrity/appeals",
-      "/integrity/preclearance",
-    ]) {
-      await expect(navigation.locator(`a[href="${destination}"]`)).toBeVisible();
-    }
-    await expect(navigation.locator('a[href^="/admin"]')).toHaveCount(0);
 
     if (desktop) {
-      const search = navigation.getByRole("searchbox", { name: "Find a public page" });
-      await search.focus();
-      await expect(search).toBeFocused();
-      await search.fill("appeal");
-      await expect(navigation.locator('a[href="/integrity/appeals"]')).toBeVisible();
+      const localNavigation = page.getByRole("complementary", { name: "Participate navigation" });
+      await expect(localNavigation).toBeVisible();
+      await expect(localNavigation.locator('a[href="/confirmations"]')).toBeVisible();
+      await expect(localNavigation.locator('a[href="/integrity/appeals"]')).toHaveCount(0);
+      await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
+    } else {
+      await page.waitForTimeout(3_000);
+      await page.getByRole("button", { name: "Open navigation" }).click();
+      const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+      await expect(navigation).toBeVisible();
+      await expect(navigation.locator('a[href="/participate"]')).toBeVisible();
+      await expect(navigation.locator('a[href="/rules"]')).toBeVisible();
     }
+
+    await page.goto("/site-directory");
+    const search = page.getByRole("searchbox");
+    await search.fill("appeal");
+    await expect(page.locator('a[href="/integrity/appeals"]')).toBeVisible();
+    await search.fill("preclearance");
+    await expect(page.locator('a[href="/integrity/preclearance"]')).toBeVisible();
+    await search.fill("interpretations");
+    await expect(page.locator('a[href="/rules/interpretations"]')).toBeVisible();
 
     await page.goto("/library");
     await expect(page).toHaveURL(/\/rules\/?$/);
@@ -97,8 +90,9 @@ test.describe("Rules and Integrity governance discovery", () => {
         page.getByRole("navigation", { name: "Mobile navigation" }).locator('a[href="/rules"]'),
       ).toBeVisible();
     } else {
+      await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
       await expect(
-        page.getByRole("complementary", { name: "All public pages" }).locator('a[href="/rules"]'),
+        page.getByRole("complementary", { name: "Participate navigation" }),
       ).toBeVisible();
     }
     await expectNoHorizontalOverflow(page);
