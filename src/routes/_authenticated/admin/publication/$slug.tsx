@@ -33,7 +33,7 @@ import {
 } from "@/lib/studio2-results-operations";
 
 const PUBLICATION_KEYS = Object.keys(PUBLICATION_LABELS) as PublicationKey[];
-const RESULT_KEYS: PublicationKey[] = ["results", "jury_results", "televote_results", "detailed_voting"];
+const OUTCOME_KEYS: PublicationKey[] = ["qualifiers", "results", "jury_results", "televote_results", "detailed_voting"];
 
 type DraftState = {
   show: Show;
@@ -105,12 +105,12 @@ function PublicationWorkspace() {
 
   function needsResultConfirmation(show: Show, next: PublicationConfig) {
     const current = resolveShowPublication(show);
-    return RESULT_KEYS.some((key) => next[key] && !current[key]);
+    return OUTCOME_KEYS.some((key) => next[key] && !current[key]);
   }
 
   function canReleaseResults(show: Show) {
     const current = resolveShowPublication(show);
-    if (show.published && RESULT_KEYS.some((key) => current[key])) return true;
+    if (show.published && OUTCOME_KEYS.some((key) => current[key])) return true;
     return isStudio2ResultReleaseReady(resultOperationByShow.get(show.id));
   }
 
@@ -118,8 +118,8 @@ function PublicationWorkspace() {
     setBusy(true);
     try {
       const normalized = normalisePublicationDependencies(config);
-      if (RESULT_KEYS.some((key) => normalized[key]) && !canReleaseResults(show)) {
-        throw new Error("Review, lock and mark the current result calculation reveal ready before publishing results.");
+      if (OUTCOME_KEYS.some((key) => normalized[key]) && !canReleaseResults(show)) {
+        throw new Error("Review, lock and mark the current result calculation reveal ready before publishing qualification or result outcomes.");
       }
       const shouldBePublic = hasAnyPublicInformation(normalized);
       const { error } = await (supabase.from("shows") as any)
@@ -139,8 +139,8 @@ function PublicationWorkspace() {
 
   function requestSave() {
     if (!draft) return;
-    if (RESULT_KEYS.some((key) => draft.config[key]) && !canReleaseResults(draft.show)) {
-      toast.error("Results are not release ready. Finish review, lock and reveal readiness first.");
+    if (OUTCOME_KEYS.some((key) => draft.config[key]) && !canReleaseResults(draft.show)) {
+      toast.error("Outcome publication is blocked. Finish result review, lock and reveal readiness first.");
       return;
     }
     if (needsResultConfirmation(draft.show, draft.config)) {
@@ -250,7 +250,7 @@ function PublicationWorkspace() {
               <div className="space-y-2">
                 {PUBLICATION_PRESETS.map((preset) => {
                   const active = presetFor(draft.config) === preset.id;
-                  const risky = preset.config.results || preset.config.detailed_voting;
+                  const risky = OUTCOME_KEYS.some((key) => preset.config[key]);
                   return (
                     <button
                       key={preset.id}
@@ -259,7 +259,7 @@ function PublicationWorkspace() {
                       disabled={risky && !canReleaseResults(draft.show)}
                       className={`admin-action-row w-full text-left disabled:cursor-not-allowed disabled:opacity-45 ${active ? "!border-sky-200/25 !bg-sky-200/[0.07]" : ""}`}
                     >
-                      <span className="min-w-0 flex-1"><span className="flex items-center gap-2 text-sm font-semibold text-foreground">{preset.name}{risky ? <AdminStatus tone="attention">Result release</AdminStatus> : null}</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span></span>
+                      <span className="min-w-0 flex-1"><span className="flex items-center gap-2 text-sm font-semibold text-foreground">{preset.name}{risky ? <AdminStatus tone="attention">Outcome release</AdminStatus> : null}</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span></span>
                     </button>
                   );
                 })}
@@ -275,7 +275,7 @@ function PublicationWorkspace() {
                     <input
                       type="checkbox"
                       checked={draft.config[key]}
-                      disabled={RESULT_KEYS.includes(key) && !draft.config[key] && !canReleaseResults(draft.show)}
+                      disabled={OUTCOME_KEYS.includes(key) && !draft.config[key] && !canReleaseResults(draft.show)}
                       onChange={() => toggleLayer(key)}
                       className="size-5 shrink-0 accent-sky-200 disabled:opacity-40"
                     />
