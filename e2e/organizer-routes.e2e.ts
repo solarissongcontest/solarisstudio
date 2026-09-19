@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext } from "@playwright/test";
 
 import { buildAdminNavigation } from "../src/components/admin/admin-navigation";
+import { buildAdminDomainNavigation } from "../src/components/admin/admin-domains";
 import { auditPage } from "./audit-helpers";
 
 async function addOrganizerSession(context: BrowserContext) {
@@ -30,8 +31,10 @@ async function addOrganizerSession(context: BrowserContext) {
 }
 
 const organizerDestinations = [
-  ...new Set(
-    buildAdminNavigation("ssc22")
+  ...new Set([
+    ...buildAdminDomainNavigation("ssc22", "SSC22").map((item) => item.to),
+    "/admin/menu",
+    ...buildAdminNavigation("ssc22")
       .flatMap((group) => group.items)
       .map((item) => item.to)
       .filter(
@@ -40,7 +43,7 @@ const organizerDestinations = [
           path.startsWith("/confirmations/admin") ||
           path.startsWith("/televoting/admin"),
       ),
-  ),
+  ]),
 ];
 
 const criticalMobileDestinations = [
@@ -69,6 +72,7 @@ test.describe("Solaris Organizer route reliability", () => {
     for (const path of organizerDestinations) {
       await test.step(path, async () => {
         await auditPage(page, path, testInfo);
+        await expect(page).not.toHaveURL(/\/auth(?:\?|$)/);
         await expect(page.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
       });
     }
