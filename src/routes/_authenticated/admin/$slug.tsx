@@ -56,6 +56,15 @@ function ContestOverview({ slug }: { slug: string }) {
   }
 
   const orderedShows = [...shows].sort((a, b) => a.sort_order - b.sort_order);
+  const canonicalEntries = participants.filter((participant) => participant.show_id == null);
+  const logicalEntries = canonicalEntries.length
+    ? canonicalEntries
+    : [...new Map(
+        participants.map((participant) => [
+          participant.contest_entity_id ?? participant.country_id,
+          participant,
+        ] as const),
+      ).values()];
   const showsWithEntries = shows.filter((show) => participants.some((participant) => participant.show_id === show.id));
   const hasGrandFinal = shows.some((show) => show.kind === "grand-final" || show.kind === "final");
   const completeLineups = shows.length > 0 && showsWithEntries.length === shows.length;
@@ -123,7 +132,7 @@ function ContestOverview({ slug }: { slug: string }) {
           <p className="admin-section-label">Edition structure</p>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Metric label="Shows" value={shows.length} />
-            <Metric label="Entries" value={participants.length} />
+            <Metric label="Entries" value={logicalEntries.length} />
             <Metric label="Filled" value={showsWithEntries.length} />
           </div>
         </AdminCard>
