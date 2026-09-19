@@ -55,6 +55,7 @@ type MySolarisTab = "home" | "entry" | "country" | "history" | "activity" | "acc
 type MySolarisSearch = {
   tab?: MySolarisTab;
   country?: string;
+  notice?: "organizer-access-required";
 };
 
 const TAB_IDS: MySolarisTab[] = ["home", "entry", "country", "history", "activity", "account"];
@@ -65,6 +66,10 @@ export const Route = createFileRoute("/_authenticated/my-solaris/")({
   validateSearch: (search: Record<string, unknown>): MySolarisSearch => ({
     tab: TAB_IDS.includes(search.tab as MySolarisTab) ? (search.tab as MySolarisTab) : undefined,
     country: typeof search.country === "string" ? search.country : undefined,
+    notice:
+      search.notice === "organizer-access-required"
+        ? "organizer-access-required"
+        : undefined,
   }),
   component: MySolarisPage,
 });
@@ -87,7 +92,7 @@ function payloadCountryId(payload: unknown) {
 
 function MySolarisPage() {
   const now = useNow();
-  const { tab: requestedTab } = Route.useSearch();
+  const { tab: requestedTab, notice } = Route.useSearch();
   const tab = requestedTab ?? "home";
   const navigate = Route.useNavigate();
   const { data: accountData, isLoading } = useMyCountryAccount();
@@ -289,6 +294,15 @@ function MySolarisPage() {
           </Link>
         }
       />
+
+      {notice === "organizer-access-required" ? (
+        <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4 text-sm">
+          <p className="font-semibold text-amber-100">Organizer access required</p>
+          <p className="mt-1 leading-6 text-muted-foreground">
+            This account is signed in to MySolaris but does not have Organizer access. You were returned here without exposing Organizer data.
+          </p>
+        </div>
+      ) : null}
 
       <div className="mt-5 space-y-5">
         {tab === "home" && (
