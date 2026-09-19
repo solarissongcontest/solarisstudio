@@ -4,6 +4,7 @@ import type { Edition, ResultRow, Show } from "./data";
 import {
   resolveCurrentPublicEdition,
   resolvePublicContestState,
+  resolvePublicEditionState,
 } from "./current-contest-state";
 
 function edition(patch: Partial<Edition> = {}): Edition {
@@ -69,6 +70,17 @@ describe("public contest state", () => {
     ]);
 
     expect(selected?.edition_number).toBe(22);
+  });
+
+  it("resolves an individual edition without recursion", () => {
+    const state = resolvePublicEditionState({
+      edition: edition({ status: "active" }),
+      shows: [show({ status: "scheduled" })],
+      results: [],
+    });
+
+    expect(state.edition?.id).toBe("edition-22");
+    expect(state.phase).toBe("submissions");
   });
 
   it("does not call a legacy active edition live", () => {
