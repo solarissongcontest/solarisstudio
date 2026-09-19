@@ -43,7 +43,6 @@ import { useMemo, useState } from "react";
 
 import {
   QUICK_RULES,
-  SSC_RULEBOOK,
   SSC_RULE_CHAPTERS,
   getRuleById,
   searchSscRules,
@@ -269,7 +268,7 @@ const CHECKS = [
   },
 ] as const;
 
-export function RulesExperience() {
+export function RulesExperience({ version }: { version: string }) {
   const [mode, setMode] = useState<Mode>("map");
   const [query, setQuery] = useState("");
   const [selectedChapter, setSelectedChapter] = useState(1);
@@ -314,7 +313,7 @@ function Hero({ query, setQuery }: { query: string; setQuery: (value: string) =>
           Official rules
         </span>
         <span className="font-mono text-[10px] uppercase tracking-[.13em] text-muted-foreground">
-          v{SSC_RULEBOOK.version}
+          v{version}
         </span>
       </div>
       <h1 className="mt-4 text-3xl font-black tracking-[-.04em] text-white sm:text-4xl">
