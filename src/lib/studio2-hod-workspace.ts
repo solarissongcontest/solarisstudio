@@ -373,7 +373,7 @@ export function deriveHodEligibility(context: Studio2HodContext): EligibilityRes
       videoUrl: entry?.songUrl,
       artworkUrl: null,
       broadcasterApproved: entry?.status === 'confirmed',
-      duplicateEntryDetected: false,
+      duplicateEntryDetected: undefined,
       // Operational deadlines are evaluated once by the shared country readiness
       // model below; eligibility must not invent a second deadline algorithm.
       deadlinePassed: false,
