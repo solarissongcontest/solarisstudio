@@ -26,9 +26,42 @@ import { usePublicEditionParticipants } from "@/lib/public-participants";
 import { buildShowStories } from "@/lib/stories";
 
 export const Route = createFileRoute("/editions/$slug")({
-  head: ({ params }) => ({
-    meta: [{ title: `${params.slug} — Solaris Song Contest` }],
-  }),
+  head: ({ params }) => {
+    const url = `https://studio.solaris-song-contest.workers.dev/editions/${encodeURIComponent(params.slug)}`;
+    return {
+      meta: [
+        { title: `${params.slug} — Solaris Song Contest` },
+        {
+          name: "description",
+          content: "Edition overview, participants, entries, shows and published Solaris Song Contest results.",
+        },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Editions",
+                item: "https://studio.solaris-song-contest.workers.dev/editions",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: params.slug,
+                item: url,
+              },
+            ],
+          }),
+        },
+      ],
+    };
+  },
   component: EditionPage,
 });
 
