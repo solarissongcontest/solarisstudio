@@ -56,6 +56,7 @@ export function buildAdminDomainNavigation(
     path.startsWith("/admin/edition-simulator") ||
     path.startsWith("/admin/storytelling") ||
     path.startsWith("/admin/media-assets") ||
+    path.startsWith("/admin/communications") ||
     path.startsWith("/admin/publication/") ||
     path.startsWith("/admin/design/") ||
     path.startsWith("/admin/edition-theme/");
