@@ -6,7 +6,7 @@ function source(path: string) {
 }
 
 describe("edition date discoverability", () => {
-  const editions = source("routes/_authenticated/admin/index.tsx");
+  const editions = source("routes/_authenticated/admin/editions.tsx");
   const administration = source("routes/_authenticated/admin/more.tsx");
   const dateEditor = source("routes/_authenticated/admin/anniversary-dates.tsx");
 
