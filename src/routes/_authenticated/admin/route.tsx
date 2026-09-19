@@ -93,7 +93,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
     } catch {
       isOrganizer = false;
     }
-    if (!isOrganizer) throw redirect({ to: "/my-solaris" });
+    if (!isOrganizer) throw redirect({ to: "/my-solaris", replace: true });
     return { organizer: true };
   },
   component: () => (
