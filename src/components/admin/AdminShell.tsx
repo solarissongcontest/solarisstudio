@@ -3,10 +3,11 @@ import "@/admin-desktop.css";
 import "@/admin-storytelling.css";
 
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Inbox } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminNotifications } from "@/lib/admin-ops";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminContextProvider } from "./AdminContext";
 import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
@@ -19,6 +20,8 @@ import { AdminSelectors } from "./AdminSelectors";
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [email, setEmail] = useState<string | null>(null);
+  const { data: organizerNotifications = [] } = useAdminNotifications();
+  const unreadInboxCount = organizerNotifications.filter((item) => !item.read_at).length;
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
@@ -51,6 +54,19 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <AdminFeatureBoundary name="command-palette">
               <AdminCommandPalette />
             </AdminFeatureBoundary>
+
+            <Link
+              to="/admin/inbox"
+              aria-label={unreadInboxCount ? `Organizer Inbox, ${unreadInboxCount} unread` : "Organizer Inbox"}
+              className="relative grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+            >
+              <Inbox className="size-4" />
+              {unreadInboxCount ? (
+                <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full border border-[#06101f] bg-rose-500 px-1 text-center text-[9px] font-bold leading-5 text-white">
+                  {unreadInboxCount > 99 ? "99+" : unreadInboxCount}
+                </span>
+              ) : null}
+            </Link>
 
             <Link
               to="/"
