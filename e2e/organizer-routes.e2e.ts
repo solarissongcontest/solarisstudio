@@ -63,6 +63,29 @@ test.describe("Solaris Organizer route reliability", () => {
     await addOrganizerSession(context);
   });
 
+  test("core edition work is discoverable without search", async ({ page }, testInfo) => {
+    await auditPage(page, "/admin/ssc22", testInfo);
+
+    for (const name of [
+      "Delegations & confirmations",
+      "Contest",
+      "Voting & results",
+      "Live operations",
+      "Publish & design",
+    ]) {
+      await expect(page.getByRole("link", { name: new RegExp(name, "i") }).first()).toBeVisible();
+    }
+
+    await page.getByRole("link", { name: /Delegations & confirmations/i }).first().click();
+    await expect(page).toHaveURL(/\/admin\/countries(?:\?|$)/);
+    await expect(page.getByRole("link", { name: /Open confirmations/i })).toBeVisible();
+
+    await page.getByRole("link", { name: /Open confirmations/i }).click();
+    await expect(page).toHaveURL(/\/confirmations\/admin(?:\/|\?|$)/);
+    await expect(page).not.toHaveURL(/\/auth(?:\?|$)/);
+    await expect(page.locator("h1").first()).toBeVisible();
+  });
+
   test("every registered Organizer destination loads on desktop", async ({ page }, testInfo) => {
     test.skip(
       testInfo.project.name !== "organizer-admin-desktop",
