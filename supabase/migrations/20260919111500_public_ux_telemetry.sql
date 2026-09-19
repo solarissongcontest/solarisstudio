@@ -125,7 +125,7 @@ on public.public_ux_events
 for select
 to authenticated
 using (
-  public.has_role((select auth.uid()), 'organizer')
+  public.has_role((select auth.uid()), 'organizer'::public.app_role)
 );
 
 create index if not exists public_ux_events_created_at_idx
@@ -154,7 +154,7 @@ declare
   );
   v_result jsonb;
 begin
-  if not public.has_role(v_actor, 'organizer') then
+  if not public.has_role(v_actor, 'organizer'::public.app_role) then
     raise exception 'Organizer role required' using errcode = '42501';
   end if;
 
