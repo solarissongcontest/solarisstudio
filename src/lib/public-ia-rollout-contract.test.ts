@@ -13,7 +13,7 @@ describe("public IA v3 rollout contract", () => {
   const legacy = source("src/components/public/LegacyPublicNavigation.tsx");
   const beta = source("src/routes/beta-test/index.tsx");
   const migration = source(
-    "supabase/migrations/20260919123500_public_ia_v3_rollout_flag.sql",
+    "supabase/migrations/20260919113422_public_ia_v3_rollout_flag.sql",
   );
 
   it("registers the rollout flag as a real public product surface", () => {
