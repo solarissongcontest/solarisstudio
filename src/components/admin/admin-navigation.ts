@@ -371,6 +371,22 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/voting-system/"),
         ),
         item(
+          "Jury integrity",
+          "Review jury-independence and corroborating risk evidence.",
+          "/admin/jury-integrity",
+          ShieldCheck,
+          "jury integrity independence risk evidence",
+          (path) => path.startsWith("/admin/jury-integrity"),
+        ),
+        item(
+          "Televote totals",
+          "Review or enter aggregate televote points for a show.",
+          slug ? `/admin/televote/${slug}` : "/admin",
+          Vote,
+          "aggregate televote totals points",
+          (path) => path.startsWith("/admin/televote/"),
+        ),
+        item(
           "Voting integrity review",
           "Review flagged public ballots and organizer moderation decisions.",
           "/televoting/admin/integrity",
