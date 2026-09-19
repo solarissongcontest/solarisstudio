@@ -1,0 +1,1 @@
+drop index if exists public.admin_notifications_recipient_source_uidx;
