@@ -56,6 +56,12 @@ export type HodWorkspaceModel = {
   };
 };
 
+const PARTICIPANT_ENTRY_TASK_IDS = new Set([
+  "entry.song-info",
+  "entry.artist-info",
+  "entry.media",
+]);
+
 export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceModel {
   const actions: HodWorkspaceAction[] = [];
 
@@ -77,11 +83,14 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
       priority: "critical",
       href: "/my-solaris/entry",
     });
-  } else if (!input.entryWorkflow.complete) {
+  } else if (
+    !input.entryWorkflow.complete &&
+    input.entryWorkflow.nextTaskIds.some((id) => PARTICIPANT_ENTRY_TASK_IDS.has(id))
+  ) {
     actions.push({
       id: "entry-workflow",
       label: "Finish entry submission",
-      description: `${input.entryWorkflow.progress}% of the entry workflow is complete.`,
+      description: "Complete the entry information that is currently waiting for you.",
       priority: "high",
       href: "/my-solaris/entry",
     });
