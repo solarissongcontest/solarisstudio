@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { Command, Search } from "lucide-react";
+import { Command as CommandIcon, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -279,7 +279,7 @@ function PublicPaletteDialog({
                 )
                 .map((item) => (
                   <CommandItem key={item.id} onSelect={() => openResult(item)}>
-                    <Command className="size-4 text-muted-foreground" aria-hidden="true" />
+                    <CommandIcon className="size-4 text-muted-foreground" aria-hidden="true" />
                     <span>{item.label}</span>
                   </CommandItem>
                 ))}
