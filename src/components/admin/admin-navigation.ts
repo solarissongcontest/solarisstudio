@@ -582,10 +582,10 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
         item(
           "All editions",
           "Create, archive and switch between SSC editions.",
-          "/admin",
+          "/admin/editions",
           Trophy,
           "edition library create archive",
-          (path) => path === "/admin" || path === "/admin/",
+          (path) => path.startsWith("/admin/editions"),
         ),
         item(
           "Organizer guide",
