@@ -7,6 +7,7 @@ import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
+import { PublicDataState } from "@/components/public/PublicDataState";
 import { RadialPointsView } from "@/components/RadialPointsView";
 import { ResponsiveTabs, type ResponsiveTabOption } from "@/components/ResponsiveTabs";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
@@ -379,11 +380,14 @@ function ShowPage() {
       </Panel>
 
       {publication.results && !standings.length && (
-        <Panel className="mb-5">
-          <p className="text-sm text-muted-foreground">
-            Results for this show are not available in the public archive yet.
-          </p>
-        </Panel>
+        <div className="mb-5">
+          <PublicDataState
+            kind="empty"
+            title="Published results are not available yet"
+            description="The results layer is public, but the archive does not currently contain a published ranking for this show."
+            compact
+          />
+        </div>
       )}
 
       {!!tabOptions.length && (
@@ -410,9 +414,12 @@ function ShowPage() {
           {stories.length ? (
             <StoryCards stories={stories} selectedStory={search.story} />
           ) : (
-            <p className="text-sm text-muted-foreground">
-              There is not enough published result data to build stories for this show yet.
-            </p>
+            <PublicDataState
+              kind="empty"
+              title="No result stories yet"
+              description="There is not enough published result data to build a reliable story for this show."
+              compact
+            />
           )}
         </Panel>
       )}
@@ -435,7 +442,12 @@ function ShowPage() {
               qualifiers={publication.qualifiers ? show.qualifier_count : null}
             />
           ) : (
-            <Panel><p className="text-sm text-muted-foreground">Results are not available yet.</p></Panel>
+            <PublicDataState
+              kind="empty"
+              title="No published ranking yet"
+              description="The overall result will appear here when a published ranking is available."
+              compact
+            />
           )}
         </>
       )}
@@ -578,7 +590,12 @@ function ShowPage() {
             })}
 
             {!publicLineupParticipants.length && (
-              <p className="py-4 text-sm text-muted-foreground">No entries have been published.</p>
+              <PublicDataState
+                kind="empty"
+                title="No entries are public yet"
+                description="Published entries will appear here when this show's participant layer is available."
+                compact
+              />
             )}
           </div>
         </Panel>
