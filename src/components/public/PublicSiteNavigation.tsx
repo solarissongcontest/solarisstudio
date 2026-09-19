@@ -11,6 +11,7 @@ import {
   publicGlobalAreasForContext,
   type PublicUserContext,
 } from "@/lib/public-user-context";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicDrawerNavigation({
@@ -46,6 +47,12 @@ export function PublicDrawerNavigation({
                 key={item.id}
                 to={item.to as any}
                 aria-current={active ? "page" : undefined}
+                onClick={() =>
+                  trackPublicUxEvent("public_nav_clicked", {
+                    target: item.to,
+                    metadata: { area: item.id, source: "mobile_drawer" },
+                  })
+                }
                 className={cn("public-drawer-page-link", active && "is-active")}
               >
                 <span>{item.label}</span>
@@ -133,6 +140,12 @@ function DrawerSection({
             key={item.id}
             to={item.to as any}
             aria-current={item.to === activeTo ? "page" : undefined}
+            onClick={() =>
+              trackPublicUxEvent("section_nav_clicked", {
+                target: item.to,
+                metadata: { area: item.area, visibility: item.visibility, source: "mobile_drawer" },
+              })
+            }
             className={cn("public-drawer-page-link", item.to === activeTo && "is-active")}
           >
             <span>{item.label}</span>
