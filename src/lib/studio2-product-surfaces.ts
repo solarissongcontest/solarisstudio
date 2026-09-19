@@ -157,7 +157,6 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       label: "Public IA v3",
       state: "product_surface",
       audience: "public",
-      route: "/",
       description:
         "Reversible public navigation and information-architecture rollout for the five-area Solaris shell.",
     },
