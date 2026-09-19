@@ -39,6 +39,8 @@ export type Studio2ResultPreconditions = {
   televoteReady: boolean;
   calculationReady: boolean;
   resultRowCount: number;
+  entityCountMismatch: number;
+  sourceReconcileIssueCount: number;
   reconcileIssueCount: number;
   resultReady: boolean;
   publishedResults: boolean;
@@ -121,9 +123,10 @@ export function parseStudio2ResultPreconditions(value: unknown): Studio2ResultPr
   const row = object(value, 'result preconditions');
   const participantCount = numberValue(row.participantCount, 'participantCount');
   const resultRowCount = numberValue(row.resultRowCount, 'resultRowCount');
-  const reconciliationIssues =
-    numberValue(row.reconcileIssueCount, 'reconcileIssueCount') +
-    Math.abs(resultRowCount - participantCount);
+  const sourceReconcileIssueCount = numberValue(row.reconcileIssueCount, 'reconcileIssueCount');
+  const entityCountMismatch = Math.abs(resultRowCount - participantCount);
+  const reconciliationIssues = sourceReconcileIssueCount + entityCountMismatch;
+  const sourceResultReady = boolValue(row.resultReady, 'resultReady');
   return {
     participantCount,
     juryEnabled: boolValue(row.juryEnabled, 'juryEnabled'),
@@ -139,8 +142,10 @@ export function parseStudio2ResultPreconditions(value: unknown): Studio2ResultPr
     televoteReady: boolValue(row.televoteReady, 'televoteReady'),
     calculationReady: boolValue(row.calculationReady, 'calculationReady'),
     resultRowCount,
+    entityCountMismatch,
+    sourceReconcileIssueCount,
     reconcileIssueCount: reconciliationIssues,
-    resultReady: boolValue(row.resultReady, 'resultReady'),
+    resultReady: sourceResultReady && reconciliationIssues === 0,
     publishedResults: boolValue(row.publishedResults, 'publishedResults'),
   };
 }
