@@ -47,7 +47,6 @@ function BetaTestPage() {
   const [sectionStartedAt, setSectionStartedAt] = useState(() => Date.now());
 
   useEffect(() => {
-
     try {
       const saved = window.localStorage.getItem(BETA_DRAFT_KEY);
       if (saved) {
