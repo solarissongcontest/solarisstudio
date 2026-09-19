@@ -17,7 +17,10 @@ export function AdminNav() {
     editions.find((edition) => edition.id === editionId) ??
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
-  const domains = buildAdminDomainNavigation(activeEdition?.slug);
+  const editionNavLabel = activeEdition?.edition_number
+    ? `SSC${activeEdition.edition_number}`
+    : activeEdition?.name ?? "Current edition";
+  const domains = buildAdminDomainNavigation(activeEdition?.slug, editionNavLabel);
 
   return (
     <nav className="p-3" aria-label="Organizer navigation">
