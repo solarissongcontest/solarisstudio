@@ -104,14 +104,18 @@ function PublicationWorkspace() {
     });
   }
 
-  function needsResultConfirmation(show: Show, next: PublicationConfig) {
+  function newlyExposesOutcome(show: Show, next: PublicationConfig) {
     const current = resolveShowPublication(show);
-    return OUTCOME_KEYS.some((key) => next[key] && !current[key]);
+    return OUTCOME_KEYS.some(
+      (key) => next[key] && (!show.published || !current[key]),
+    );
+  }
+
+  function needsResultConfirmation(show: Show, next: PublicationConfig) {
+    return newlyExposesOutcome(show, next);
   }
 
   function canReleaseResults(show: Show) {
-    const current = resolveShowPublication(show);
-    if (show.published && OUTCOME_KEYS.some((key) => current[key])) return true;
     return isStudio2ResultReleaseReady(resultOperationByShow.get(show.id));
   }
 
@@ -119,8 +123,8 @@ function PublicationWorkspace() {
     setBusy(true);
     try {
       const normalized = normalisePublicationDependencies(config);
-      if (OUTCOME_KEYS.some((key) => normalized[key]) && !canReleaseResults(show)) {
-        throw new Error("Review, lock and mark the current result calculation reveal ready before publishing qualification or result outcomes.");
+      if (newlyExposesOutcome(show, normalized) && !canReleaseResults(show)) {
+        throw new Error("Review, lock and mark the current result calculation reveal ready before exposing any new qualification or result outcome.");
       }
       const shouldBePublic = hasAnyPublicInformation(normalized);
       const { error } = await (supabase.from("shows") as any)
@@ -155,8 +159,8 @@ function PublicationWorkspace() {
 
   function requestSave() {
     if (!draft) return;
-    if (OUTCOME_KEYS.some((key) => draft.config[key]) && !canReleaseResults(draft.show)) {
-      toast.error("Outcome publication is blocked. Finish result review, lock and reveal readiness first.");
+    if (newlyExposesOutcome(draft.show, draft.config) && !canReleaseResults(draft.show)) {
+      toast.error("New outcome publication is blocked. Finish result review, lock and reveal readiness first.");
       return;
     }
     if (needsResultConfirmation(draft.show, draft.config)) {
@@ -267,12 +271,15 @@ function PublicationWorkspace() {
                 {PUBLICATION_PRESETS.map((preset) => {
                   const active = presetFor(draft.config) === preset.id;
                   const risky = OUTCOME_KEYS.some((key) => preset.config[key]);
+                  const blocked =
+                    newlyExposesOutcome(draft.show, preset.config) &&
+                    !canReleaseResults(draft.show);
                   return (
                     <button
                       key={preset.id}
                       type="button"
                       onClick={() => setPreset(preset.id)}
-                      disabled={risky && !canReleaseResults(draft.show)}
+                      disabled={blocked}
                       className={`admin-action-row w-full text-left disabled:cursor-not-allowed disabled:opacity-45 ${active ? "!border-sky-200/25 !bg-sky-200/[0.07]" : ""}`}
                     >
                       <span className="min-w-0 flex-1"><span className="flex items-center gap-2 text-sm font-semibold text-foreground">{preset.name}{risky ? <AdminStatus tone="attention">Outcome release</AdminStatus> : null}</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span></span>
