@@ -5,13 +5,20 @@ import { useEffect, useState } from "react";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 import { SSC_RULEBOOK } from "@/lib/ssc-rules-v4";
 
+const BUNDLED_RULEBOOK_VERSION = SSC_RULEBOOK.version;
+const BUNDLED_RULEBOOK_STATUS = SSC_RULEBOOK.status;
+
 export function RulebookVersionBanner() {
   const release = usePublishedRulebook();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
-  const version = hydrated ? (release.data?.version ?? SSC_RULEBOOK.version) : SSC_RULEBOOK.version;
-  const title = hydrated ? (release.data?.title ?? SSC_RULEBOOK.status) : SSC_RULEBOOK.status;
+  const version = hydrated
+    ? (release.data?.version ?? BUNDLED_RULEBOOK_VERSION)
+    : BUNDLED_RULEBOOK_VERSION;
+  const title = hydrated
+    ? (release.data?.title ?? BUNDLED_RULEBOOK_STATUS)
+    : BUNDLED_RULEBOOK_STATUS;
   const effectiveAt = hydrated
     ? (release.data?.effective_from ?? release.data?.published_at ?? null)
     : null;
