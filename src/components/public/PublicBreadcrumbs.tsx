@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 
 import {
@@ -17,14 +17,18 @@ export function PublicBreadcrumbs({ pathname }: { pathname: string }) {
   const { data: countries = [] } = useCountries();
   const { data: editions = [] } = useEditions();
   const { data: shows = [] } = useAllShows();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => setHydrated(true), []);
+
   const crumbs = useMemo(
     () =>
       publicBreadcrumbsForPath(pathname, {
-        countries,
-        editions,
-        shows,
+        countries: hydrated ? countries : [],
+        editions: hydrated ? editions : [],
+        shows: hydrated ? shows : [],
       }),
-    [countries, editions, pathname, shows],
+    [countries, editions, hydrated, pathname, shows],
   );
   if (!crumbs.length) return null;
 
