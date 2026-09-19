@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
-import { betaSections, formatBetaAnswer } from "@/features/beta-test/sections";
+import { formatBetaAnswer } from "@/features/beta-test/sections";
+import { betaSectionsRound2 as betaSections } from "@/features/beta-test/sections-round-2";
 import type { BetaAnswer, BetaAnswers } from "@/features/beta-test/types";
 import { supabase } from "@/integrations/supabase/client";
 
