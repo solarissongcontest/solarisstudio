@@ -6,10 +6,39 @@ import { AppShell } from '@/components/AppShell';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 
 export const Route = createFileRoute('/stories/$editionSlug')({
-  head: () => ({ meta: [
-    { title: 'Edition Story — Solaris Studio' },
-    { name: 'description', content: 'A reviewed edition timeline from the Solaris Song Contest archive.' },
-  ] }),
+  head: ({ params }) => {
+    const url = `https://studio.solaris-song-contest.workers.dev/stories/${encodeURIComponent(params.editionSlug)}`;
+    return {
+      meta: [
+        { title: 'Edition Story — Solaris Studio' },
+        { name: 'description', content: 'A reviewed edition timeline from the Solaris Song Contest archive.' },
+      ],
+      links: [{ rel: 'canonical', href: url }],
+      scripts: [
+        {
+          type: 'application/ld+json',
+          children: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              {
+                '@type': 'ListItem',
+                position: 1,
+                name: 'Stories',
+                item: 'https://studio.solaris-song-contest.workers.dev/stories',
+              },
+              {
+                '@type': 'ListItem',
+                position: 2,
+                name: params.editionSlug,
+                item: url,
+              },
+            ],
+          }),
+        },
+      ],
+    };
+  },
   component: EditionStoryPage,
 });
 
@@ -24,7 +53,7 @@ function EditionStoryPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
         <a href="/stories" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Story archive
         </a>
@@ -73,7 +102,7 @@ function EditionStoryPage() {
             </section>
           </>
         )}
-      </main>
+      </div>
     </AppShell>
   );
 }
