@@ -53,16 +53,14 @@ describe('Studio 2 HOD workspace adapter', () => {
     expect(snapshot.model.actions).toEqual([]);
   });
 
-  it('surfaces entry, missing-HOD and notice blockers without inventing missing artwork requirements', () => {
+  it('treats a pending confirmation entry as waiting for review instead of a blocked entry', () => {
     const snapshot = buildStudio2HodWorkspaceSnapshot({
       ...completeContext,
-      confirmationComplete: false,
-      participantStatus: 'pending',
       publicationStatus: 'draft',
       entry: {
         id: 'entry-1',
-        artist: 'Artist',
-        songTitle: 'Song',
+        artist: null,
+        songTitle: null,
         songUrl: null,
         status: 'pending',
         source: 'confirmations',
@@ -70,9 +68,6 @@ describe('Studio 2 HOD workspace adapter', () => {
         createdAt: '2026-09-11T10:00:00.000Z',
         updatedAt: '2026-09-11T11:00:00.000Z',
       },
-      juryMembersAssigned: 0,
-      juryMembers: [],
-      juryBallotSubmitted: false,
       notices: [
         {
           id: 'notice-1',
@@ -84,14 +79,30 @@ describe('Studio 2 HOD workspace adapter', () => {
       ],
     });
 
-    expect(snapshot.eligibility.blockers.map((check) => check.id)).toEqual(
-      expect.arrayContaining(['country-confirmed', 'video', 'broadcaster-approval']),
-    );
-    expect(snapshot.eligibility.checks.map((check) => check.id)).not.toContain('artwork');
-    expect(snapshot.model.actions.map((action) => action.id)).toEqual(
-      expect.arrayContaining(['confirmation', 'entry-blocked', 'jury-hod', 'official-notices']),
-    );
+    expect(snapshot.eligibility.status).toBe('warning');
+    expect(snapshot.eligibility.blockers).toEqual([]);
+    expect(snapshot.eligibility.checks.map((check) => check.id)).toContain('organizer-review');
+    expect(snapshot.workflow.nextTaskIds).toContain('entry.broadcaster-approval');
+    expect(snapshot.model.actions.map((action) => action.id)).not.toContain('entry-blocked');
+    expect(snapshot.model.actions.map((action) => action.id)).not.toContain('entry-workflow');
+    expect(snapshot.model.actions.map((action) => action.id)).toContain('official-notices');
     expect(snapshot.model.outstandingAcknowledgements).toBe(1);
+  });
+
+  it('treats missing performance media as readiness attention, not entry invalidity', () => {
+    const snapshot = buildStudio2HodWorkspaceSnapshot({
+      ...completeContext,
+      entry: {
+        ...completeContext.entry!,
+        songUrl: null,
+      },
+    });
+
+    expect(snapshot.eligibility.status).toBe('ready');
+    expect(snapshot.eligibility.blockers).toEqual([]);
+    expect(snapshot.operationalReadiness.signals.find((signal) => signal.id === 'media')?.state)
+      .toBe('attention');
+    expect(snapshot.model.actions.map((action) => action.id)).toContain('entry-workflow');
   });
 
   it('honours an explicit entry lock marker before publication', () => {
