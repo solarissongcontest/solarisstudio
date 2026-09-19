@@ -56,6 +56,7 @@ type PortalView =
   | "safety"
   | "my-cases"
   | "how"
+  | "privacy"
   | "transparency";
 
 type Draft = {
@@ -138,6 +139,7 @@ export function TrustIntegrityHub() {
 
   if (view === "my-cases") return <MyProtectedCases back={() => setView("home")} />;
   if (view === "how") return <HowIntegrityWorks back={() => setView("home")} />;
+  if (view === "privacy") return <IntegrityPrivacy back={() => setView("home")} />;
   if (view === "transparency") return <IntegrityTransparency back={() => setView("home")} />;
 
   return <PortalHome setView={setView} />;
@@ -221,10 +223,10 @@ function PortalHome({ setView }: { setView: (view: PortalView) => void }) {
       </section>
 
       <section className="mt-7" aria-labelledby="integrity-follow-title">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SecondaryCard
             icon={Users}
-            title="Follow your case"
+            title="Follow a case"
             text="Open sealed and confidential cases tied to your Solaris account."
             onClick={() => setView("my-cases")}
           />
@@ -233,6 +235,12 @@ function PortalHome({ setView }: { setView: (view: PortalView) => void }) {
             title="How reporting works"
             text="Understand reports, evidence, findings, action and appeals."
             onClick={() => setView("how")}
+          />
+          <SecondaryCard
+            icon={LockKeyhole}
+            title="Privacy"
+            text="See what identity and evidence information each reporting mode keeps."
+            onClick={() => setView("privacy")}
           />
           <SecondaryCard
             icon={BadgeCheck}
@@ -817,6 +825,75 @@ function ProtectedCaseThread({ caseId }: { caseId: string }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function IntegrityPrivacy({ back }: { back: () => void }) {
+  const rows = [
+    {
+      title: "Fully anonymous",
+      detail:
+        "Uses a recovery key. Solaris does not attach a reporter account ID to the anonymous case.",
+    },
+    {
+      title: "Sealed",
+      detail:
+        "Your account can recover the case, while your identity is kept out of the ordinary case view and disclosed only where the protected process requires it.",
+    },
+    {
+      title: "Confidential",
+      detail:
+        "Your account identity is available to authorised Integrity reviewers but is not published with the case or public decision.",
+    },
+    {
+      title: "Evidence",
+      detail:
+        "Uploaded images are re-encoded to remove ordinary image metadata. Documents can still contain identifying information inside their contents, so review files before submitting them.",
+    },
+  ];
+
+  return (
+    <div className="pb-20">
+      <BackButton onClick={back} />
+      <div className="mx-auto mt-5 max-w-4xl">
+        <p className="text-[10px] font-black uppercase tracking-[.17em] text-emerald-200">
+          PRIVACY
+        </p>
+        <h1 className="mt-2 text-4xl font-black tracking-[-.05em]">
+          What each reporting mode keeps
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Choose the reporting mode that matches the privacy you need. Privacy controls reduce unnecessary identity exposure; they do not make submitted evidence magically anonymous if the evidence itself identifies you.
+        </p>
+        <div className="mt-6 grid gap-3 md:grid-cols-2">
+          {rows.map((row) => (
+            <section
+              key={row.title}
+              className="rounded-[1.35rem] border border-white/[0.08] bg-white/[0.025] p-5"
+            >
+              <h2 className="font-bold">{row.title}</h2>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">{row.detail}</p>
+            </section>
+          ))}
+        </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link
+            to="/rules/$ruleId"
+            params={{ ruleId: "16.3" }}
+            className="rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-xs font-bold text-sky-200"
+          >
+            Reporting privacy rule
+          </Link>
+          <button
+            type="button"
+            onClick={back}
+            className="rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 py-2 text-xs font-bold"
+          >
+            Back to Trust & Integrity
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
