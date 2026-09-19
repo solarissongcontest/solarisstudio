@@ -46,11 +46,15 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     path.startsWith("/admin/participant-status/") ||
     path.startsWith("/admin/hosts") ||
     path.startsWith("/admin/eligibility") ||
+    path.startsWith("/admin/submission-versions") ||
     path.startsWith("/televoting/admin") ||
     path.startsWith("/admin/jury/") ||
     path.startsWith("/admin/voting-system/") ||
     path.startsWith("/admin/televote/") ||
+    path.startsWith("/admin/friend-voting") ||
+    path.startsWith("/admin/jury-integrity") ||
     path.startsWith("/admin/results") ||
+    path.startsWith("/admin/voting-lab") ||
     path.startsWith("/admin/control-room") ||
     path.startsWith("/admin/broadcast-rundown") ||
     path.startsWith("/admin/workflows") ||
