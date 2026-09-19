@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import {
   AlertTriangle,
   ArrowRight,
@@ -146,9 +146,9 @@ function ActionCenterPage() {
           title="Action Center"
           description="One operational queue for the selected edition: urgent incidents, delegation readiness, approvals, contest data, broadcast preparation, lifecycle options and recent Studio 2 activity."
           actions={
-            <a href="/admin/control-room" className="admin-action-secondary">
+            <Link to="/admin/control-room" className="admin-action-secondary">
               Open Control Room
-            </a>
+            </Link>
           }
         />
 
@@ -258,9 +258,9 @@ function ActionLaneCard({ lane, title, description, items }: {
       {items.length ? (
         <div className="space-y-2">
           {items.map((item) => (
-            <a
+            <Link
               key={item.id}
-              href={item.href}
+              to={item.href as any}
               className="group flex min-h-16 items-start gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3 transition-colors hover:bg-white/[0.04]"
             >
               <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-muted-foreground">
@@ -272,7 +272,7 @@ function ActionLaneCard({ lane, title, description, items }: {
                 {item.occurredAt ? <span className="mt-1 block text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{formatWhen(item.occurredAt)}</span> : null}
               </span>
               <ArrowRight className="mt-2 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-            </a>
+            </Link>
           ))}
         </div>
       ) : (
