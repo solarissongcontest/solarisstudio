@@ -103,9 +103,18 @@ function CountriesCockpitPage() {
             <Link to="/confirmations/admin" className="admin-action-secondary justify-start">Overview</Link>
             <Link to="/confirmations/admin/responses" className="admin-action-secondary justify-start">Responses</Link>
             <Link to="/confirmations/admin/rounds" className="admin-action-secondary justify-start">Rounds</Link>
-            <Link to="/confirmations/admin/calendar" className="admin-action-secondary justify-start">Calendar</Link>
+            <Link to="/confirmations/admin/calendar" className="admin-action-secondary justify-start">Schedule</Link>
             <Link to="/confirmations/admin/recovery-codes" className="admin-action-secondary justify-start">Access</Link>
           </div>
+          <details className="mt-3 rounded-xl border border-white/[0.06] bg-white/[0.018] p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">More delegation tools</summary>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Link to="/admin/submission-versions" className="admin-action-secondary justify-start">Submission history</Link>
+              <Link to="/confirmations/admin/editions" className="admin-action-secondary justify-start">Edition links</Link>
+              <Link to="/confirmations/admin/sync" className="admin-action-secondary justify-start">Sync health</Link>
+              <Link to="/confirmations/admin/settings" className="admin-action-secondary justify-start">Settings</Link>
+            </div>
+          </details>
         </AdminCard>
 
         {!selectedEdition && !editionsQuery.isLoading ? (
