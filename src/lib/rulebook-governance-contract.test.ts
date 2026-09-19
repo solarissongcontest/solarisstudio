@@ -64,7 +64,7 @@ const publicLibrary = readFileSync(
   "utf8",
 );
 const publicNavigation = readFileSync(
-  resolve(process.cwd(), "src/components/public/PublicSiteNavigation.tsx"),
+  resolve(process.cwd(), "src/lib/public-navigation.ts"),
   "utf8",
 );
 const rulesRoute = readFileSync(resolve(process.cwd(), "src/routes/rules/index.tsx"), "utf8");
@@ -219,8 +219,9 @@ describe("rulebook governance contract", () => {
     expect(root).toContain("<RulesGovernanceContext />");
     expect(root).not.toContain("GlobalRulesNavigationAddon");
     expect(contextualGuide).not.toContain('className="fixed');
-    expect(publicNavigation).toContain('"/rules/changes",');
-    expect(publicNavigation).toContain('"Rulebook changes",');
+    expect(publicNavigation).toContain('"/rules/changes"');
+    expect(publicNavigation).toContain('"Rule changes"');
+    expect(publicNavigation).toContain('"Rulebook changes"');
     expect(publicLibrary).toContain('to: "/rules/changes"');
     expect(publicLibrary).toContain('kind: "release"');
   });
