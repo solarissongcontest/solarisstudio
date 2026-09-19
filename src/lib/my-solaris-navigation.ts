@@ -131,7 +131,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       },
     ],
   },
-
+] as const;
 
 export const MY_SOLARIS_MOBILE_PRIMARY_IDS = ["home", "tasks", "entry", "voting"] as const;
 
