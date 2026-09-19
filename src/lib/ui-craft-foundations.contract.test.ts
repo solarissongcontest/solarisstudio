@@ -144,11 +144,11 @@ describe("Solaris UI craft foundations", () => {
 
   it("routes the mobile Explore destination to a real Explore hub", () => {
     const appShell = source("src/components/AppShell.tsx");
-    const publicNavigation = source("src/components/public/PublicSiteNavigation.tsx");
+    const publicNavigation = source("src/lib/public-navigation.ts");
     const explore = source("src/routes/explore/index.tsx");
 
-    expect(appShell).toContain('to: "/explore"');
-    expect(publicNavigation).toContain('nav(\n        "/explore"');
+    expect(appShell).toContain("PUBLIC_GLOBAL_AREAS.map");
+    expect(publicNavigation).toContain('to: "/explore"');
     expect(explore).toContain('createFileRoute("/explore/")');
   });
 
