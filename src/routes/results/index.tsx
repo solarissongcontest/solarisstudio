@@ -163,38 +163,102 @@ function ResultsOverviewPage() {
         </Panel>
       )}
 
-      <section className="mb-5">
+      <section className="mb-6" aria-labelledby="results-browse-title">
         <div className="mb-3 border-b border-border/60 pb-3">
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">Choose your route</p>
-          <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl">What do you want to know?</h2>
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">Start here</p>
+          <h2 id="results-browse-title" className="mt-1 font-display text-xl font-bold sm:text-2xl">
+            Browse results
+          </h2>
           <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            You do not need to understand every Solaris tool before using Results. Start with one question and go deeper only if it becomes interesting.
+            Open the result itself or inspect the detailed scorechart. The specialist tools come after the basic answer, as nature intended.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           <ResultPath
             to={latestShow ? `/shows/${latestShow.id}` : "/editions"}
             icon={Trophy}
-            title="Who won?"
-            description="Open the final ranking and switch between the available result views."
+            title="Latest result"
+            description="Open the newest published ranking and the result views available for that show."
           />
           <ResultPath
             to="/scorecharts"
             icon={Table2}
-            title="Who gave points to whom?"
-            description="Browse Full Scorecharts for shows with detailed jury voting."
+            title="Full scorecharts"
+            description="See detailed published jury voting and point-by-point breakdowns."
+          />
+        </div>
+      </section>
+
+      <section className="mb-6" aria-labelledby="results-understand-title">
+        <div className="mb-3 border-b border-border/60 pb-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+            Understand the result
+          </p>
+          <h2 id="results-understand-title" className="mt-1 font-display text-xl font-bold">
+            Why did it happen?
+          </h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <ResultPath
+            to="/analysis"
+            icon={BarChart3}
+            title="Analysis"
+            description="Read voting splits, result patterns and contest statistics."
           />
           <ResultPath
-            to="/result-lab"
-            icon={Beaker}
-            title="What if the result changed?"
-            description="Reweight jury and televote or remove juries without touching the official result."
+            to="/records"
+            icon={Trophy}
+            title="Records"
+            description="Explore all-time records, milestones and historical extremes."
           />
+          <ResultPath
+            to="/relationships"
+            icon={GitCompareArrows}
+            title="Voting relationships"
+            description="See countries that repeatedly support or resemble one another."
+          />
+        </div>
+      </section>
+
+      <section className="mb-6" aria-labelledby="results-experiment-title">
+        <div className="mb-3 border-b border-border/60 pb-3">
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+            Explore further
+          </p>
+          <h2 id="results-experiment-title" className="mt-1 font-display text-xl font-bold">
+            Experiment, compare and replay
+          </h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <ResultPath
             to="/compare"
             icon={GitCompareArrows}
             title="Compare countries"
-            description="Put two countries side by side across their SSC history and voting relationship."
+            description="Put two delegations side by side across their SSC history."
+          />
+          <ResultPath
+            to="/result-lab"
+            icon={Beaker}
+            title="Result Lab"
+            description="Test different jury and televote scenarios without changing the official result."
+          />
+          <ResultPath
+            to="/predictions"
+            icon={Trophy}
+            title="Predictions"
+            description="Build and revisit predictions for available contest rounds."
+          />
+          <ResultPath
+            to="/taste-dna"
+            icon={BarChart3}
+            title="Explore your voting taste"
+            description="Taste DNA compares your ranking with published voting groups and results."
+          />
+          <ResultPath
+            to="/broadcast-intelligence"
+            icon={Table2}
+            title="Replay the voting"
+            description="Broadcast Intelligence replays the biggest lead changes and result turning points."
           />
         </div>
       </section>
@@ -238,14 +302,6 @@ function ResultsOverviewPage() {
         </Panel>
       )}
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link to="/analysis" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold">
-          <BarChart3 className="size-3.5 text-primary" /> Why is the result interesting? Open Analysis
-        </Link>
-        <Link to="/editions" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold">
-          Browse all editions
-        </Link>
-      </div>
     </AppShell>
   );
 }
