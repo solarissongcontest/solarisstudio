@@ -195,8 +195,9 @@ describe("Studio 2 stabilization contract", () => {
     expect(studio2SurfaceRolloutEligible(rules)).toBe(false);
   });
 
-  it("keeps every authenticated Organizer route behind the organizer role boundary", () => {
-    expect(adminRoute).toContain('.eq("role", "organizer")');
+  it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
+    expect(adminRoute).toContain("hasSolarisOrganizerAccess");
+    expect(adminRoute).not.toContain('.from("user_roles")');
     expect(adminRoute).toContain('throw redirect({ to: "/my-solaris" })');
   });
 });
