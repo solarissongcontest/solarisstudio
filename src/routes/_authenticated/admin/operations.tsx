@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Bell,
   CheckCircle2,
+  ClipboardCheck,
   Clock3,
   Eye,
   Layers3,
@@ -125,6 +126,11 @@ function OrganizerHome() {
                         : "Nothing is blocking the edition"
                   }
                   description="Only actionable edition problems appear here. Each item opens the place where it can be fixed."
+                  action={
+                    <Link to="/admin/action-center" className="text-xs font-semibold text-sky-100">
+                      Action Center →
+                    </Link>
+                  }
                 />
 
                 {readinessLoading ? (
@@ -276,30 +282,36 @@ function OrganizerHome() {
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 <QuickLink
-                  to={`/admin/${activeEdition.slug}`}
+                  to="/admin/countries"
+                  icon={ClipboardCheck}
+                  label="Delegations"
+                  detail="Confirmations, countries & access"
+                />
+                <QuickLink
+                  to={`/admin/shows/${activeEdition.slug}`}
                   icon={Layers3}
                   label="Contest"
-                  detail="Delegations, shows & entries"
+                  detail="Shows, entries & running order"
                 />
                 <QuickLink
                   to="/televoting/admin"
                   icon={Vote}
-                  label="Voting"
-                  detail="Jury, televote & results"
+                  label="Voting & results"
+                  detail="Jury, televote & official results"
                 />
                 <QuickLink
                   to="/admin/control-room"
                   icon={RadioTower}
-                  label="Show"
-                  detail="Live operation & incidents"
+                  label="Live"
+                  detail="Operations, incidents & rundown"
                 />
                 <QuickLink
                   to={`/admin/publication/${activeEdition.slug}`}
                   icon={Eye}
                   label="Publish"
-                  detail="Visibility & public release"
+                  detail="Release, comms & design"
                 />
               </div>
             </AdminCard>
