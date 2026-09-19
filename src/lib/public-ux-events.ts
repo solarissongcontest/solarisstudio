@@ -34,14 +34,13 @@ type PublicUxEventOptions = {
   metadata?: PublicUxMetadata;
 };
 
-type UxRpcClient = {
-  rpc(
-    name: string,
-    args: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: unknown }>;
+type UxInsertClient = {
+  from(name: string): {
+    insert(payload: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
+  };
 };
 
-const client = supabase as unknown as UxRpcClient;
+const client = supabase as unknown as UxInsertClient;
 const SESSION_KEY = "solaris:public-ux-session:v1";
 const BETA_TASK_KEY = "solaris:beta3-navigation-task:v1";
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -128,15 +127,15 @@ export function trackPublicUxEvent(
   }
 
   const payload = {
-    p_event_name: eventName,
-    p_session_id: getPublicUxSessionId(),
-    p_pathname: safePathname(window.location.pathname),
-    p_target: safeTarget(options.target),
-    p_metadata: metadata,
+    event_name: eventName,
+    session_id: getPublicUxSessionId(),
+    pathname: safePathname(window.location.pathname),
+    target: safeTarget(options.target),
+    metadata,
   };
 
   // UX measurement must never delay a user's click or submission.
-  void Promise.resolve(client.rpc("record_public_ux_event", payload)).catch(() => undefined);
+  void Promise.resolve(client.from("public_ux_events").insert(payload)).catch(() => undefined);
 }
 
 function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
