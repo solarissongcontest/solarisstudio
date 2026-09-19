@@ -22,6 +22,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { rememberPublicRecent } from "@/lib/public-recents";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
+import {
+  CONFIRMATION_SUBMITTED_EVENT,
+  TELEVOTE_SUBMITTED_EVENT,
+} from "@/lib/submission-receipts";
 import {
   buildPublicUserContext,
   publicGlobalAreasForContext,
@@ -144,6 +149,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => setMenuOpen(false), [pathname]);
 
   useEffect(() => {
+    const confirmationComplete = () =>
+      trackPublicUxEvent("task_completed", {
+        target: "/confirmations",
+        metadata: { area: "participate", task_status: "submitted" },
+      });
+    const televoteComplete = () =>
+      trackPublicUxEvent("task_completed", {
+        target: "/televoting",
+        metadata: { area: "participate", task_status: "submitted" },
+      });
+
+    window.addEventListener(CONFIRMATION_SUBMITTED_EVENT, confirmationComplete);
+    window.addEventListener(TELEVOTE_SUBMITTED_EVENT, televoteComplete);
+    return () => {
+      window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, confirmationComplete);
+      window.removeEventListener(TELEVOTE_SUBMITTED_EVENT, televoteComplete);
+    };
+  }, []);
+
+  useEffect(() => {
     if (
       pathname !== "/" &&
       !pathname.startsWith("/pulse") &&
@@ -223,6 +248,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     key={item.id}
                     to={item.to as any}
                     aria-current={publicArea === item.id ? "page" : undefined}
+                    onClick={() =>
+                      trackPublicUxEvent("public_nav_clicked", {
+                        target: item.to,
+                        metadata: { area: item.id, source: "desktop" },
+                      })
+                    }
                     className={desktopNavClass(publicArea === item.id)}
                   >
                     {item.label}
@@ -416,6 +447,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                     key={item.label}
                     to={item.to as any}
                     aria-current={item.active ? "page" : undefined}
+                    onClick={() =>
+                      trackPublicUxEvent("public_nav_clicked", {
+                        target: item.to,
+                        metadata: {
+                          area:
+                            globalAreas.find((area) => area.to === item.to)?.id ??
+                            (item.to === "/auth" ? "me" : "unknown"),
+                          source: "mobile_bottom",
+                        },
+                      })
+                    }
                     className={cn(
                       "flex min-h-13 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
                       item.active ? "bg-surface-strong text-foreground" : "text-muted-foreground",
