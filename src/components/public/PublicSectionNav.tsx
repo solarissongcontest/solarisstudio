@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   publicAreaForPath,
@@ -20,8 +20,14 @@ export function PublicSectionNav({
   collapsible?: boolean;
 }) {
   const area = publicAreaForPath(pathname);
+  const [hydrated, setHydrated] = useState(false);
   const [collapsed, setCollapsed] = useState(collapsible);
+
+  useEffect(() => setHydrated(true), []);
+
   if (!hasLocalNavigation(area)) return null;
+
+  const interactiveCollapsed = hydrated && collapsible && collapsed;
 
   const items = publicDestinationsForArea(area, { includeContextual: false });
   const primary = items.filter((item) => item.visibility === "primary");
@@ -37,25 +43,25 @@ export function PublicSectionNav({
       className={cn(
         "public-site-sidebar public-section-navigation",
         collapsible && "is-collapsible",
-        collapsible && collapsed && "is-collapsed",
+        interactiveCollapsed && "is-collapsed",
       )}
       aria-label={`${sectionLabel(area)} navigation`}
     >
-      {collapsible ? (
+      {collapsible && hydrated ? (
         <button
           type="button"
           className="public-section-nav-toggle"
           onClick={() => setCollapsed((value) => !value)}
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? `Expand ${sectionLabel(area)} navigation` : `Collapse ${sectionLabel(area)} navigation`}
-          title={collapsed ? "Expand navigation" : "Collapse navigation"}
+          aria-expanded={!interactiveCollapsed}
+          aria-label={interactiveCollapsed ? `Expand ${sectionLabel(area)} navigation` : `Collapse ${sectionLabel(area)} navigation`}
+          title={interactiveCollapsed ? "Expand navigation" : "Collapse navigation"}
         >
-          {collapsed ? (
+          {interactiveCollapsed ? (
             <PanelLeftOpen className="size-4" aria-hidden="true" />
           ) : (
             <PanelLeftClose className="size-4" aria-hidden="true" />
           )}
-          <span>{collapsed ? sectionLabel(area) : "Collapse"}</span>
+          <span>{interactiveCollapsed ? sectionLabel(area) : "Collapse"}</span>
         </button>
       ) : null}
 
