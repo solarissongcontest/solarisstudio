@@ -22,7 +22,9 @@ import {
 } from "@/components/public/LegacyPublicNavigation";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
+import { PublicFooter } from "@/components/public/PublicFooter";
 import { PublicDrawerNavigation } from "@/components/public/PublicSiteNavigation";
+import { PublicMobileSectionNav } from "@/components/public/PublicMobileSectionNav";
 import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
@@ -442,6 +444,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 collapsible={publicLayout === "data"}
               />
               <div className="public-site-content min-w-0">
+                <PublicMobileSectionNav pathname={pathname} />
                 {isHomePage && (
                   <Suspense fallback={null}>
                     <LazyHomeAnniversaryTakeover />
@@ -493,6 +496,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </>
           )}
         </main>
+
+        {publicIaV3Enabled === true && !isMySolarisWorkspace && !focusedParticipationTask ? (
+          <PublicFooter />
+        ) : null}
 
         {!isMySolarisWorkspace && publicIaV3Enabled !== null && (
           <nav

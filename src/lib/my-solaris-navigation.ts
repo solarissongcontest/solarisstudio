@@ -34,7 +34,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "home",
         label: "Home",
-        description: "Current priorities and edition status",
+        description: "Needs attention, upcoming deadlines and current status",
         to: NAV_TARGETS.mySolaris,
       },
     ],
@@ -51,7 +51,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "entry",
         label: "Entry",
-        description: "Details, media, eligibility and readiness",
+        description: "Current entry details, media, eligibility and readiness",
         to: NAV_TARGETS.mySolarisEntry,
       },
       {
@@ -63,7 +63,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "notices",
         label: "Notices",
-        description: "Official organizer communications",
+        description: "Official notices, acknowledgements and decisions",
         to: NAV_TARGETS.mySolarisNotices,
       },
     ],
@@ -74,7 +74,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "country",
         label: "Country",
-        description: "Identity and delegation settings",
+        description: "Country identity and delegation settings",
         to: NAV_TARGETS.mySolarisCountry,
       },
       {
@@ -87,7 +87,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "history",
         label: "History",
-        description: "Delegation and account history",
+        description: "Previous participation, entries and delegation history",
         to: NAV_TARGETS.mySolarisHistory,
       },
     ],
@@ -98,7 +98,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "activity",
         label: "Activity",
-        description: "Recent updates connected to you",
+        description: "Recent Solaris updates connected to you",
         to: NAV_TARGETS.mySolarisActivity,
       },
       {
@@ -116,7 +116,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "account",
         label: "Account",
-        description: "Profile, sign-in and security",
+        description: "Profile, sign-in, preferences and security",
         to: NAV_TARGETS.mySolarisAccount,
       },
     ],

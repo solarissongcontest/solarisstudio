@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { BookOpen, CircleHelp, Flag, ShieldCheck, User, Vote } from "lucide-react";
+import { BookOpen, CircleHelp, Flag, ListTree, ShieldCheck, User, Vote } from "lucide-react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { GuideFAQ } from "@/components/GuideFAQ";
@@ -328,6 +328,7 @@ function PublicGuidePage() {
         <HelpRoute to="/televoting/how-to-vote" icon={Vote} title="Voting help" description="Read jury and public voting guidance." />
         <HelpRoute to="/my-solaris" icon={User} title="Account & MySolaris" description="Open your tasks, country tools and account settings." />
         <HelpRoute to="/integrity" icon={ShieldCheck} title="Report a concern" description="Use Trust & Integrity for reports, protected cases and decisions." />
+        <HelpRoute to="/site-directory" icon={ListTree} title="All Solaris pages" description="Browse the complete searchable directory when you know a page exists but not where it lives." />
       </section>
 
       <GuideFAQ sections={SECTIONS} />

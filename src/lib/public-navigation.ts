@@ -295,6 +295,18 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
   destination("guide", "/guide", "help", "Help", "Plain-language help for using Solaris Studio.", "primary", {
     aliases: ["Guide", "how to use"],
   }),
+  destination(
+    "site-directory",
+    "/site-directory",
+    "help",
+    "All Solaris pages",
+    "Browse every public Solaris Studio destination in one searchable directory.",
+    "secondary",
+    {
+      aliases: ["site directory", "all pages", "sitemap"],
+      keywords: ["find page", "every page", "navigation directory"],
+    },
+  ),
   destination("rules", "/rules", "help", "Rules", "Official SSC rules and regulations.", "primary", {
     aliases: ["Rulebook"], keywords: ["regulations"],
   }),

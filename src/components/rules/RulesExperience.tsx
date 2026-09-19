@@ -323,27 +323,49 @@ function Hero({ query, setQuery }: { query: string; setQuery: (value: string) =>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-200/70">
         Read or search the official SSC regulations.
       </p>
-      <PublicSearchField
-        value={query}
-        onChange={setQuery}
-        placeholder="Search rules"
-        ariaLabel="Search SSC rules"
-        className="mt-5 max-w-2xl"
-      />
+      <div id="rules-search" className="mt-5 max-w-2xl">
+        <PublicSearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Search rules"
+          ariaLabel="Search SSC rules"
+        />
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2" aria-label="Rulebook shortcuts">
+        <a
+          href="#rules-browse"
+          className="inline-flex min-h-10 items-center rounded-xl border border-sky-200/12 bg-sky-200/[0.05] px-3 text-xs font-bold text-sky-100"
+        >
+          Browse chapters
+        </a>
+        <Link
+          to="/rules/interpretations"
+          className="inline-flex min-h-10 items-center rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 text-xs font-bold"
+        >
+          Rule clarifications
+        </Link>
+        <Link
+          to="/rules/changes"
+          className="inline-flex min-h-10 items-center rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 text-xs font-bold"
+        >
+          Rule changes
+        </Link>
+      </div>
     </section>
   );
 }
 
 function ModeRail({ mode, setMode }: { mode: Mode; setMode: (mode: Mode) => void }) {
   const items: Array<[Mode, string, string, LucideIcon]> = [
-    ["map", "Rule map", "EXPLORE", Map],
+    ["map", "Browse chapters", "EXPLORE", Map],
     ["journey", "Contest journey", "FOLLOW", Flag],
     ["check", "Can I…?", "DECIDE", CheckCircle2],
     ["rulebook", "Official rulebook", "READ", BookOpen],
   ];
   return (
     <nav
-      className="sticky top-2 z-30 mt-5 overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#07182f]/94 p-1.5 backdrop-blur-xl"
+      id="rules-browse"
+      className="sticky top-2 z-30 mt-5 scroll-mt-24 overflow-x-auto rounded-2xl border border-white/[0.08] bg-[#07182f]/94 p-1.5 backdrop-blur-xl"
       aria-label="Rules views"
     >
       <div className="grid min-w-[42rem] grid-cols-4 gap-1">

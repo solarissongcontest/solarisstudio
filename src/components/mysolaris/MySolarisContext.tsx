@@ -8,6 +8,11 @@ import { useOwnedEntryPublication } from "@/lib/entry-publication";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import { NAV_TARGETS } from "@/lib/navigation-targets";
+import {
+  sortMySolarisPriorities,
+  type MySolarisPriorityItem,
+} from "@/lib/my-solaris-priorities";
 
 const PARTICIPANT_CAPABILITIES = [
   "official_communications",
@@ -43,6 +48,7 @@ export type MySolarisContextValue = {
   };
   unreadNoticeCount: number;
   deadlines: MySolarisDeadline[];
+  priorities: MySolarisPriorityItem[];
   isLoading: boolean;
 };
 
@@ -152,6 +158,108 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   const publicationReady =
     publicationQuery.data?.publication_status === "published" ||
     publicationQuery.data?.publication_status === "scheduled";
+
+  const priorities = useMemo(() => {
+    const items: MySolarisPriorityItem[] = [];
+
+    if (currentEdition && !currentEntry) {
+      items.push({
+        id: "entry-missing",
+        title: "Current entry is missing",
+        description: "Add the current-edition entry and start readiness checks.",
+        to: NAV_TARGETS.mySolarisEntry,
+        search: { view: "readiness" },
+        priority: 100,
+        deadline: null,
+        severity: "critical",
+        actionRequired: true,
+        kind: "entry",
+      });
+    } else if (currentEntry && !entryComplete) {
+      items.push({
+        id: "entry-incomplete",
+        title: "Entry readiness needs details",
+        description: "Artist or song information is incomplete.",
+        to: NAV_TARGETS.mySolarisEntry,
+        search: { view: "readiness" },
+        priority: 90,
+        deadline: null,
+        severity: "high",
+        actionRequired: true,
+        kind: "entry",
+      });
+    }
+
+    if (currentEntry && publicationQuery.data && !publicationReady) {
+      items.push({
+        id: "entry-publication",
+        title: "Entry publication is not ready",
+        description: "Complete the publication checks for the current entry.",
+        to: NAV_TARGETS.mySolarisEntry,
+        search: { view: "readiness" },
+        priority: 80,
+        deadline: null,
+        severity: "high",
+        actionRequired: true,
+        kind: "entry",
+      });
+    }
+
+    if (acknowledgementTasks > 0) {
+      items.push({
+        id: "required-notices",
+        title: `${acknowledgementTasks} required acknowledgement${acknowledgementTasks === 1 ? "" : "s"}`,
+        description: "Read the official notice and acknowledge it.",
+        to: NAV_TARGETS.mySolarisNotices,
+        priority: 110,
+        deadline: null,
+        severity: "critical",
+        actionRequired: true,
+        kind: "notice",
+      });
+    }
+
+    const otherUnreadNotices = Math.max(0, unreadNoticeCount - acknowledgementTasks);
+    if (otherUnreadNotices > 0) {
+      items.push({
+        id: "unread-notices",
+        title: `${otherUnreadNotices} unread important notice${otherUnreadNotices === 1 ? "" : "s"}`,
+        description: "Review new official communications.",
+        to: NAV_TARGETS.mySolarisNotices,
+        priority: 60,
+        deadline: null,
+        severity: "high",
+        actionRequired: false,
+        kind: "notice",
+      });
+    }
+
+    for (const deadline of deadlines) {
+      items.push({
+        id: `deadline:${deadline.id}`,
+        title: deadline.label,
+        description: deadline.closesAt ? "Current-edition deadline" : "Upcoming current-edition window",
+        to: NAV_TARGETS.mySolarisTasks,
+        priority: 50,
+        deadline: deadline.closesAt ?? deadline.opensAt,
+        severity: "medium",
+        actionRequired: false,
+        kind: "deadline",
+      });
+    }
+
+    return sortMySolarisPriorities(items);
+  }, [
+    acknowledgementTasks,
+    currentEdition,
+    currentEntry,
+    deadlines,
+    entryComplete,
+    publicationQuery.data,
+    publicationReady,
+    unreadNoticeCount,
+  ]);
+
   const needsAction =
     (currentEdition && !currentEntry ? 1 : 0) +
     (currentEntry && !entryComplete ? 1 : 0) +
@@ -178,6 +286,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     },
     unreadNoticeCount,
     deadlines,
+    priorities,
     isLoading:
       userQuery.isLoading ||
       countryAccountQuery.isLoading ||

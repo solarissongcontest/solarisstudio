@@ -14,6 +14,10 @@ import { OfficialAnnouncementFeed } from "@/components/OfficialAnnouncementFeed"
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { editionLabel } from "@/lib/data";
 import { NAV_TARGETS } from "@/lib/navigation-targets";
+import {
+  isUpcomingPriority,
+  type MySolarisPriorityItem,
+} from "@/lib/my-solaris-priorities";
 
 /**
  * Task-first MySolaris home summary.
@@ -24,18 +28,23 @@ import { NAV_TARGETS } from "@/lib/navigation-targets";
 export function MySolarisOperationsPanel() {
   const {
     currentEdition,
-    currentEntry,
     taskCounts,
-    unreadNoticeCount,
-    deadlines,
+    priorities,
     isLoading,
   } = useMySolaris();
 
-  const entryComplete = Boolean(currentEntry?.artist?.trim() && currentEntry?.song?.trim());
-  const upcomingDeadlines = [...deadlines]
-    .sort((a, b) => deadlineTime(a) - deadlineTime(b))
+  const attentionItems = priorities
+    .filter(
+      (item) =>
+        item.actionRequired ||
+        item.severity === "critical" ||
+        item.severity === "high",
+    )
+    .slice(0, 5);
+  const upcomingDeadlines = priorities
+    .filter((item) => isUpcomingPriority(item))
     .slice(0, 3);
-  const hasAttention = taskCounts.needsAction > 0 || unreadNoticeCount > 0;
+  const hasAttention = attentionItems.length > 0;
 
   return (
     <div className="space-y-4">
@@ -56,39 +65,9 @@ export function MySolarisOperationsPanel() {
             <p className="text-sm text-muted-foreground">Loading delegation priorities…</p>
           ) : hasAttention ? (
             <div className="space-y-2">
-              {taskCounts.needsAction > 0 ? (
-                <AttentionLink
-                  to={NAV_TARGETS.mySolarisTasks}
-                  icon={ListChecks}
-                  title={`${taskCounts.needsAction} delegation action${taskCounts.needsAction === 1 ? "" : "s"}`}
-                  description="Open Tasks for deadlines, blockers and required operational work."
-                />
-              ) : null}
-
-              {!currentEntry ? (
-                <AttentionLink
-                  to={NAV_TARGETS.mySolarisEntry}
-                  icon={ClipboardCheck}
-                  title="Current entry is missing"
-                  description="Open Entry to add the current edition entry and start readiness checks."
-                />
-              ) : !entryComplete ? (
-                <AttentionLink
-                  to={NAV_TARGETS.mySolarisEntry}
-                  icon={ClipboardCheck}
-                  title="Entry readiness needs details"
-                  description="Artist or song information is incomplete. Open Entry readiness to fix it."
-                />
-              ) : null}
-
-              {unreadNoticeCount > 0 ? (
-                <AttentionLink
-                  to={NAV_TARGETS.mySolarisNotices}
-                  icon={MailOpen}
-                  title={`${unreadNoticeCount} unread or required notice${unreadNoticeCount === 1 ? "" : "s"}`}
-                  description="Read official communications and acknowledge any notice that requires it."
-                />
-              ) : null}
+              {attentionItems.map((item) => (
+                <PriorityLink key={item.id} item={item} />
+              ))}
             </div>
           ) : (
             <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4">
@@ -121,18 +100,23 @@ export function MySolarisOperationsPanel() {
         >
           {upcomingDeadlines.length ? (
             <div className="divide-y divide-border/60">
-              {upcomingDeadlines.map((deadline) => (
-                <div key={deadline.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+              {upcomingDeadlines.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.to as any}
+                  search={item.search as any}
+                  className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
+                >
                   <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                     <CalendarClock className="size-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{deadline.label}</p>
+                    <p className="truncate text-sm font-semibold">{item.title}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {deadlineLabel(deadline)}
+                      {priorityDeadlineLabel(item)}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           ) : (
@@ -163,28 +147,37 @@ export function MySolarisOperationsPanel() {
   );
 }
 
-function AttentionLink({
-  to,
-  icon: Icon,
-  title,
-  description,
-}: {
-  to: string;
-  icon: typeof ListChecks;
-  title: string;
-  description: string;
-}) {
+function PriorityLink({ item }: { item: MySolarisPriorityItem }) {
+  const Icon =
+    item.kind === "notice"
+      ? MailOpen
+      : item.kind === "entry"
+        ? ClipboardCheck
+        : item.kind === "deadline"
+          ? CalendarClock
+          : ListChecks;
+
   return (
     <Link
-      to={to as any}
+      to={item.to as any}
+      search={item.search as any}
       className="flex min-h-16 items-start gap-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.045] p-3 transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]"
     >
       <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-300/10 text-amber-200">
         <Icon className="size-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold">{title}</span>
-        <span className="mt-1 block text-xs leading-5 text-muted-foreground">{description}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold">{item.title}</span>
+          {item.actionRequired ? (
+            <span className="rounded-full border border-amber-300/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-[.08em] text-amber-200">
+              Action required
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          {item.description}
+        </span>
       </span>
     </Link>
   );
@@ -213,25 +206,14 @@ function ToolLink({
   );
 }
 
-function deadlineTime(deadline: { opensAt: string | null; closesAt: string | null }) {
-  const raw = deadline.closesAt ?? deadline.opensAt;
-  if (!raw) return Number.POSITIVE_INFINITY;
-  const value = new Date(raw).getTime();
-  return Number.isNaN(value) ? Number.POSITIVE_INFINITY : value;
-}
+function priorityDeadlineLabel(item: MySolarisPriorityItem) {
+  if (!item.deadline) return item.description;
+  const parsed = new Date(item.deadline);
+  if (Number.isNaN(parsed.getTime())) return item.description;
 
-function deadlineLabel(deadline: {
-  status: string;
-  opensAt: string | null;
-  closesAt: string | null;
-}) {
-  const raw = deadline.closesAt ?? deadline.opensAt;
-  if (!raw) return deadline.status.replace(/_/g, " ");
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return deadline.status.replace(/_/g, " ");
   const label = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsed);
-  return `${deadline.closesAt ? "Closes" : "Opens"} ${label}`;
+  return `${item.description} · ${label}`;
 }
