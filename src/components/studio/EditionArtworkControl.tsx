@@ -50,7 +50,8 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
   }, [edition]);
 
   if (!edition) return null;
-  const artworkUrl = edition.artwork_url ?? null;
+  const activeEdition = edition;
+  const artworkUrl = activeEdition.artwork_url ?? null;
   const paletteDirty = JSON.stringify(themeDraft) !== JSON.stringify(savedTheme);
 
   const upload = async (file: File) => {
@@ -58,9 +59,9 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
     setMessage("Uploading artwork and reading its colours…");
     try {
       const extracted = await extractThemeFromImage(file);
-      const asset = await uploadEditionArtwork(edition.id, file);
+      const asset = await uploadEditionArtwork(activeEdition.id, file);
       await saveEditionVisualTheme({
-        editionId: edition.id,
+        editionId: activeEdition.id,
         artworkUrl: asset.publicUrl,
         artworkStoragePath: asset.storagePath,
         theme: extracted.theme,
@@ -72,7 +73,7 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
       setSavedTheme(extracted.theme);
       setPalette(extracted.palette);
 
-      const { error: compatibilityError } = await supabase.from("editions").update({ logo: asset.publicUrl }).eq("id", edition.id);
+      const { error: compatibilityError } = await supabase.from("editions").update({ logo: asset.publicUrl }).eq("id", activeEdition.id);
       if (compatibilityError) throw compatibilityError;
 
       await Promise.all([
@@ -103,11 +104,11 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
     const { data: showRows, error: showError } = await supabase
       .from("shows")
       .select("theme_id")
-      .eq("edition_id", edition.id);
+      .eq("edition_id", activeEdition.id);
     if (showError) throw showError;
 
     const themeIds = new Set<string>();
-    const editionWithTheme = edition as EditionArtworkRow & { theme_id?: string | null };
+    const editionWithTheme = activeEdition as EditionArtworkRow & { theme_id?: string | null };
     if (editionWithTheme.theme_id) themeIds.add(editionWithTheme.theme_id);
     for (const show of showRows ?? []) {
       if (typeof show.theme_id === "string" && show.theme_id) themeIds.add(show.theme_id);
@@ -135,9 +136,9 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
     setMessage(null);
     try {
       await saveEditionVisualTheme({
-        editionId: edition.id,
-        artworkUrl: edition.artwork_url ?? null,
-        artworkStoragePath: edition.artwork_storage_path ?? null,
+        editionId: activeEdition.id,
+        artworkUrl: activeEdition.artwork_url ?? null,
+        artworkStoragePath: activeEdition.artwork_storage_path ?? null,
         theme: themeDraft,
         palette,
         generatedFromArtwork: false,
