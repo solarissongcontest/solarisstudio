@@ -35,7 +35,7 @@ const groups = [
   {
     title: "Editions & configuration",
     items: [
-      { label: "Manage editions", description: "Create editions and change their main settings.", to: "/admin", icon: Trophy },
+      { label: "Manage editions", description: "Create editions and change their main settings.", to: "/admin/editions", icon: Trophy },
       { label: "Edition dates", description: "Set the exact Grand Final or main event date for past editions.", to: "/admin/anniversary-dates", icon: CalendarDays },
       { label: "Feature rollout", description: "See and control which Solaris Studio capabilities are enabled.", to: "/admin/feature-rollout", icon: Rocket },
       { label: "Organizer guide", description: "Plain-language instructions for the main Organizer workflows.", to: "/admin/guide", icon: BookOpen },
