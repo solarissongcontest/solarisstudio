@@ -193,6 +193,40 @@ function EditionPage() {
           </section>
         )}
 
+        <nav
+          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+          aria-label={"Explore " + editionLabel(edition)}
+        >
+          <a href="#edition-shows" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+            <span>
+              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
+              <span className="mt-1 block text-sm font-semibold">Shows</span>
+            </span>
+            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
+          </a>
+          <a href="#edition-entries" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+            <span>
+              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
+              <span className="mt-1 block text-sm font-semibold">Entries</span>
+            </span>
+            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
+          </a>
+          <a href="#edition-results" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+            <span>
+              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
+              <span className="mt-1 block text-sm font-semibold">Results</span>
+            </span>
+            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
+          </a>
+          <a href="#edition-stories" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+            <span>
+              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
+              <span className="mt-1 block text-sm font-semibold">Stories</span>
+            </span>
+            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
+          </a>
+        </nav>
+
         <Panel>
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
             <StatTile label="Edition" value={edition.edition_number != null ? `SSC ${edition.edition_number}` : "—"} />
@@ -203,7 +237,7 @@ function EditionPage() {
         </Panel>
 
         {!!publicEntries.length && (
-          <section>
+          <section id="edition-entries" className="scroll-mt-28">
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Listen to the edition</p>
@@ -248,7 +282,7 @@ function EditionPage() {
         )}
 
         {grandFinalPublication?.results && finalResults.length > 0 && (
-          <section className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
+          <section id="edition-results" className="scroll-mt-28 grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
             <div className="glass relative overflow-hidden p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{editionLabel(edition)} winner</p>
               {winner && (
@@ -290,6 +324,7 @@ function EditionPage() {
         )}
 
         {grandFinalPublication?.results && editionStories.length > 0 && (
+          <section id="edition-stories" className="scroll-mt-28">
           <Panel
             title="Story of the result"
             description="The most important patterns found in the archived Grand Final result."
@@ -297,6 +332,7 @@ function EditionPage() {
           >
             <StoryCards stories={editionStories} limit={3} />
           </Panel>
+          </section>
         )}
 
         {(juryWinner || teleWinner) && (
@@ -310,7 +346,7 @@ function EditionPage() {
         )}
 
         {!!publicShows.length && (
-          <section>
+          <section id="edition-shows" className="scroll-mt-28">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{editionLabel(edition)}</p>
             <h2 className="mt-1 font-display text-2xl font-bold">Shows</h2>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
