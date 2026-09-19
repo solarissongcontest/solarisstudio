@@ -117,7 +117,7 @@ function BetaTestPage() {
       return;
     }
 
-    if (current.id === "bugs" && answers.bugsFound !== "No") {
+    if (current.id === "final" && answers.bugsFound === "Yes") {
       if (!bugs.length) {
         setSectionError("Add at least one bug report, or change the answer to “No”.");
         return;
@@ -130,25 +130,6 @@ function BetaTestPage() {
           "For each bug, fill in PAGE, I DID, I EXPECTED and INSTEAD so the problem can actually be reproduced.",
         );
         return;
-      }
-    }
-
-    if (current.id === "psychology-priorities") {
-      const priorities = Array.isArray(answers.priorityAreas) ? answers.priorityAreas : [];
-      if (priorities.length !== 3) {
-        setSectionError("Choose exactly THREE areas Solaris should improve most before release.");
-        return;
-      }
-    }
-
-    if (current.id === "final") {
-      const raw = String(answers.releaseReadinessPercent ?? "").trim().replace("%", "");
-      if (raw) {
-        const readiness = Number(raw);
-        if (!Number.isFinite(readiness) || readiness < 0 || readiness > 100) {
-          setSectionError("Release readiness must be a number from 0 to 100%.");
-          return;
-        }
       }
     }
 
@@ -372,7 +353,7 @@ function BetaTestPage() {
                   onChange={(value) => updateAnswer(question.id, value)}
                 />
               ))}
-              {current.id === "bugs" && answers.bugsFound !== "No" && answers.bugsFound ? (
+              {current.id === "final" && answers.bugsFound === "Yes" ? (
                 <BetaBugReports bugs={bugs} onChange={setBugs} />
               ) : null}
             </div>
