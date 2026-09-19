@@ -32,6 +32,33 @@ describe("Organizer rearchitecture foundation", () => {
     expect(mySolaris).toContain("buildEditionProgressionPlacements(publishedResults");
   });
 
+  it("uses workflow-owned schedule dates instead of pretending custom reminders control Solaris", () => {
+    const schedule = source("src/lib/admin-schedule.ts");
+    const system = source("src/routes/_authenticated/admin/system.tsx");
+    const home = source("src/routes/_authenticated/admin/operations.tsx");
+
+    expect(schedule).toContain('from("submission_rounds")');
+    expect(schedule).toContain('"scheduled_publish_at"');
+    expect(schedule).toContain('from("studio2_official_notices")');
+    expect(system).toContain("Operational schedule");
+    expect(system).toContain("Custom reminders");
+    expect(system).toContain("never controls a submission round");
+    expect(home).toContain("useAdminOperationalSchedule");
+  });
+
+  it("ignores zero-point materialized result placeholders in readiness", () => {
+    const readiness = source("src/lib/admin-readiness.ts");
+    expect(readiness).toContain("const hasSubstantiveResults = rawShowResults.some");
+    expect(readiness).toContain("const showResults = hasSubstantiveResults ? rawShowResults : []");
+    expect(readiness).toContain("meaningfulResultRows += showResults.length");
+  });
+
+  it("keeps show-level entry metrics on canonical logical entries", () => {
+    const shows = source("src/routes/_authenticated/admin/shows/$slug.tsx");
+    expect(shows).toContain("const canonicalEntries = participants.filter");
+    expect(shows).toContain('<Metric label="Entries" value={logicalEntries.length} />');
+  });
+
   it("provides an Inbox route and persistent Inbox affordance", () => {
     const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
     const shell = source("src/components/admin/AdminShell.tsx");
