@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import {
   availableStudio2ResultActions,
@@ -55,9 +56,7 @@ function ResultsOperationsPage() {
   const editions = editionsQuery.data ?? [];
   // Results is edition-scoped. Never silently substitute another edition just
   // because that edition happens to have result rows.
-  const edition = editionId
-    ? editions.find((item) => item.id === editionId) ?? null
-    : null;
+  const edition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = editionId && edition ? edition.id : '';
 
   const operationsQuery = useQuery({
