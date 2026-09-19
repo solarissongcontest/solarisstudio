@@ -1,6 +1,7 @@
 import { Check, ExternalLink, Plus, Trash2, Upload } from "lucide-react";
 import { useEffect } from "react";
 
+import { beginPublicUxBetaTask } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 import {
@@ -12,7 +13,12 @@ import {
 } from "./sections";
 import type { BetaAnswer, BetaAnswers, BetaBugReport, BetaQuestion, BetaSection } from "./types";
 
-export function BetaTaskCard({ body, href, linkLabel }: NonNullable<BetaSection["task"]>) {
+export function BetaTaskCard({
+  body,
+  href,
+  linkLabel,
+  analyticsId,
+}: NonNullable<BetaSection["task"]>) {
   return (
     <div className="mb-5 overflow-hidden rounded-2xl border border-primary/30 bg-primary/8 p-4 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -23,6 +29,9 @@ export function BetaTaskCard({ body, href, linkLabel }: NonNullable<BetaSection[
         {href ? (
           <a
             href={href}
+            onClick={() => {
+              if (analyticsId) beginPublicUxBetaTask(analyticsId, href);
+            }}
             target="_blank"
             rel="noreferrer"
             className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-primary/25 bg-surface px-4 text-sm font-semibold text-foreground"
