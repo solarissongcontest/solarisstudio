@@ -34,6 +34,7 @@ export type AdminNotification = {
   title: string;
   body: string | null;
   href: string | null;
+  source_key: string | null;
   read_at: string | null;
   created_at: string;
 };
@@ -154,6 +155,27 @@ export function useMarkNotificationRead() {
         .from("admin_notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
+  });
+}
+
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+
+      const { error } = await adminDb
+        .from("admin_notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("recipient_id", auth.user.id)
+        .is("read_at", null);
 
       if (error) throw error;
     },
