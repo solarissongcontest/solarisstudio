@@ -1,74 +1,37 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  PUBLIC_IA_V3_BETA_KEY,
-  clearPublicIaV3BetaOverride,
-  enablePublicIaV3BetaOverride,
-  readPublicIaV3BetaOverride,
-  resolvePublicIaV3Enabled,
-} from "./public-ia-rollout";
+import { resolvePublicIaV3Enabled } from "./public-ia-rollout";
 
-function memoryStorage() {
-  const values = new Map<string, string>();
+function clientReturning(data: unknown) {
   return {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => void values.set(key, value),
-    removeItem: (key: string) => void values.delete(key),
+    rpc: vi.fn().mockResolvedValue({ data, error: null }),
   };
 }
 
 describe("public IA v3 rollout", () => {
-  it("lets Beta 3 opt in locally without a user id", async () => {
-    const storage = memoryStorage();
-    enablePublicIaV3BetaOverride(storage as Storage);
-    expect(storage.getItem(PUBLIC_IA_V3_BETA_KEY)).toBe("1");
-    expect(readPublicIaV3BetaOverride(storage as Storage)).toBe(true);
+  it("uses the new public IA for anonymous and signed-in visitors when globally enabled", async () => {
+    const client = clientReturning(true);
 
-    const featureEnabled = vi.fn();
-    await expect(
-      resolvePublicIaV3Enabled({
-        userId: null,
-        betaOverride: true,
-        featureEnabled: featureEnabled as never,
-      }),
-    ).resolves.toBe(true);
-    expect(featureEnabled).not.toHaveBeenCalled();
+    await expect(resolvePublicIaV3Enabled({ client })).resolves.toBe(true);
+    expect(client.rpc).toHaveBeenCalledWith("public_ia_v3_enabled");
   });
 
-  it("keeps ordinary signed-out visitors on legacy navigation", async () => {
-    await expect(
-      resolvePublicIaV3Enabled({
-        userId: null,
-        betaOverride: false,
-        featureEnabled: vi.fn() as never,
-      }),
-    ).resolves.toBe(false);
+  it("uses legacy navigation only when the global emergency rollback is explicitly disabled", async () => {
+    const client = clientReturning(false);
+
+    await expect(resolvePublicIaV3Enabled({ client })).resolves.toBe(false);
   });
 
-  it("uses the persisted flag for signed-in users and fails closed", async () => {
-    const enabled = vi.fn().mockResolvedValue(true);
-    await expect(
-      resolvePublicIaV3Enabled({
-        userId: "user-1",
-        betaOverride: false,
-        featureEnabled: enabled as never,
-      }),
-    ).resolves.toBe(true);
+  it("fails open to the new public IA when the rollout endpoint is unavailable", async () => {
+    const client = {
+      rpc: vi.fn().mockRejectedValue(new Error("network")),
+    };
 
-    const broken = vi.fn().mockRejectedValue(new Error("network"));
-    await expect(
-      resolvePublicIaV3Enabled({
-        userId: "user-1",
-        betaOverride: false,
-        featureEnabled: broken as never,
-      }),
-    ).resolves.toBe(false);
+    await expect(resolvePublicIaV3Enabled({ client })).resolves.toBe(true);
   });
 
-  it("can clear the Beta 3 override", () => {
-    const storage = memoryStorage();
-    enablePublicIaV3BetaOverride(storage as Storage);
-    clearPublicIaV3BetaOverride(storage as Storage);
-    expect(readPublicIaV3BetaOverride(storage as Storage)).toBe(false);
+  it("treats malformed or missing rollout data as enabled rather than reviving legacy chrome", async () => {
+    await expect(resolvePublicIaV3Enabled({ client: clientReturning(null) })).resolves.toBe(true);
+    await expect(resolvePublicIaV3Enabled({ client: clientReturning(undefined) })).resolves.toBe(true);
   });
 });

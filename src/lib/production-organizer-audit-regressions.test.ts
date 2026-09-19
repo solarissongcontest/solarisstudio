@@ -12,8 +12,7 @@ describe("production Organizer audit regressions", () => {
   it("never substitutes another edition inside Results operations", () => {
     const results = source("src/routes/_authenticated/admin/results.tsx");
 
-    expect(results).toContain("const edition = editionId");
-    expect(results).toContain("editions.find((item) => item.id === editionId)");
+    expect(results).toContain("selectOrganizerEdition");
     expect(results).not.toContain("sort((a, b) => (b.edition_number");
   });
 
@@ -107,6 +106,7 @@ describe("production Organizer audit regressions", () => {
   it("supports both create and edit states for country-account confirmations", () => {
     const confirmations = source("src/routes/confirmations/index.tsx");
 
+    expect(confirmations).toContain("resolveCountryConfirmationRoundState");
     expect(confirmations).toContain("selectedAccountResponse");
     expect(confirmations).toContain("ConfirmationFormWithReceipt");
     expect(confirmations).toContain("createCountryAccountConfirmationEditToken");

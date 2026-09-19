@@ -60,7 +60,8 @@ describe("public performance contract", () => {
     expect(shell).toContain('collapsible={publicArchetype === "data-explorer"}');
     expect(archetypes).toContain("broadcast-intelligence|result-lab");
     expect(nav).toContain("public-section-nav-toggle");
-    expect(nav).toContain("aria-expanded={!collapsed}");
+    expect(nav).toContain("collapsible && hydrated");
+    expect(nav).toContain("aria-expanded={!interactiveCollapsed}");
     expect(styles).toContain(".public-section-navigation.is-collapsed");
     expect(styles).toContain("width: 3.65rem");
   });
