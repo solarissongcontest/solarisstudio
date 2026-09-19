@@ -161,6 +161,7 @@ function Beta3FeedbackDashboard() {
           successfulFind(submission.answers.beta3CountryEntryOutcome),
         ).length;
   const releaseGates = [
+    submissions.length >= BETA3_RELEASE_GATES.minimumResponses,
     summary.successRate != null &&
       summary.successRate >= BETA3_RELEASE_GATES.coreTaskSuccessPercent,
     firstClickEvaluation?.successRate != null &&
@@ -247,6 +248,13 @@ function Beta3FeedbackDashboard() {
             </span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <GateCountCard
+              label="Comparable sample"
+              value={submissions.length}
+              target={BETA3_RELEASE_GATES.minimumResponses}
+              detail="Overall rollout readiness stays blocked until the Beta 3 sample is large enough to compare with the previous test."
+              lowerIsBetter={false}
+            />
             <GateCard
               label="Core task success"
               value={summary.successRate}
@@ -466,19 +474,22 @@ function GateCountCard({
   value,
   target,
   detail,
+  lowerIsBetter = true,
 }: {
   label: string;
   value: number | null;
   target: number;
   detail: string;
+  lowerIsBetter?: boolean;
 }) {
-  const passed = value != null && value <= target;
+  const passed =
+    value != null && (lowerIsBetter ? value <= target : value >= target);
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold">{label}</p>
         <AdminStatus tone={value == null ? "neutral" : passed ? "ready" : "attention"}>
-          ≤ {target}
+          {lowerIsBetter ? "≤ " : "≥ "}{target}
         </AdminStatus>
       </div>
       <p className="numeric mt-3 text-2xl font-bold">{value == null ? "—" : value}</p>
