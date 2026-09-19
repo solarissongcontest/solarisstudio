@@ -48,7 +48,6 @@ function OrganizerInbox() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const resolveItem = useResolveAdminNotification();
-  const resolveItem = useResolveAdminNotification();
   const [filter, setFilter] = useState<InboxFilter>("needs-attention");
 
   const unread = useMemo(
@@ -99,7 +98,7 @@ function OrganizerInbox() {
             </FilterButton>
             <FilterButton active={filter === "unread"} onClick={() => setFilter("unread")}>
               Unread
-              {unresolved.length ? <span className="numeric">{unresolved.length}</span> : null}
+              {unread.length ? <span className="numeric">{unread.length}</span> : null}
             </FilterButton>
             <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
               All
