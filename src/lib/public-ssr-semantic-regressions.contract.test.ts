@@ -12,6 +12,9 @@ describe("public SSR and semantic route regressions", () => {
   const overlay = source("src/lib/ssc-rules/runtime-overlay.ts");
   const router = source("src/router.tsx");
   const country = source("src/routes/countries/$code.tsx");
+  const home = source("src/routes/index.tsx");
+  const rules = source("src/components/rules/RulesExperience.tsx");
+  const rulesRoute = source("src/routes/rules/index.tsx");
 
   it("does not combine Intl style shortcuts with timeZoneName during SSR", () => {
     expect(publicTime).toContain('timeZoneName: "short"');
@@ -29,6 +32,18 @@ describe("public SSR and semantic route regressions", () => {
     expect(router).toContain("defaultPendingComponent: RoutePending");
     expect(router).toContain('<main');
     expect(router).toContain('<h1');
+  });
+
+  it("keeps Home's h1 present while archive data is loading", () => {
+    expect(home).toContain("Loading Solaris Today…");
+    expect(home).toContain("<h1");
+    expect(home).toContain("Solaris Today");
+  });
+
+  it("does not read mutable rulebook metadata directly inside the Rules experience", () => {
+    expect(rules).toContain("RulesExperience({ version }");
+    expect(rules).not.toContain("SSC_RULEBOOK.version");
+    expect(rulesRoute).toContain("version={published.version}");
   });
 
   it("keeps a visible country page heading while archive data loads", () => {
