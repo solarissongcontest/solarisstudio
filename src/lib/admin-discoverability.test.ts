@@ -19,6 +19,16 @@ describe("Organizer discoverability", () => {
     expect(edition).toContain("More edition tools");
   });
 
+  it("keeps Home aligned with the five current-edition workspaces", () => {
+    const home = source("src/routes/_authenticated/admin/operations.tsx");
+
+    expect(home).toContain('to="/admin/countries"');
+    expect(home).toContain('label="Delegations"');
+    expect(home).toContain('label="Voting & results"');
+    expect(home).toContain('label="Live"');
+    expect(home).toContain('to="/admin/action-center"');
+  });
+
   it("makes confirmations reachable from the Delegations hub without search", () => {
     const countries = source("src/routes/_authenticated/admin/countries.tsx");
 
@@ -63,5 +73,8 @@ describe("Organizer discoverability", () => {
     expect(evidence).toContain('to="/admin/integrity-disclosure"');
     expect(evidence).toContain('to="/admin/integrity-identity"');
     expect(disclosure).toContain('to="/admin/integrity-identity"');
+
+    const rules = source("src/routes/_authenticated/admin/rules-manager.tsx");
+    expect(rules).toContain('to="/admin/rule-interpretations"');
   });
 });
