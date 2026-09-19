@@ -347,7 +347,7 @@ export async function viewAccessAs(
   };
 }
 
-export async function recordPermissionShadow(input: {
+export async function recordPermissionEvaluation(input: {
   capability: SolarisCapability;
   editionId?: string | null;
   action: string;
