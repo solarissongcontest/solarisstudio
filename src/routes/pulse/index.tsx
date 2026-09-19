@@ -23,7 +23,13 @@ import {
   useSaveNotificationPreferences,
   useSetFanFollow,
 } from "@/lib/engagement-data";
+import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import { entityDisplayMap } from "@/lib/entities";
+import {
+  formatEventDateTime,
+  formatEventShortDate,
+} from "@/lib/public-time";
+import { isShowPublic } from "@/lib/publication";
 import {
   useFanSession,
   useMyPrediction,
@@ -123,17 +129,39 @@ function eventBelongsToEdition(event: ContentEventRow, editionId?: string) {
 }
 
 function dateLabel(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  return formatEventDateTime(value);
 }
 
 function shortDateLabel(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
+  return formatEventShortDate(value);
+}
+
+function useHydratedNow(intervalMs = 60_000) {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    update();
+    const timer = window.setInterval(update, intervalMs);
+    return () => window.clearInterval(timer);
+  }, [intervalMs]);
+
+  return now;
+}
+
+function eventProvenance(event: ContentEventRow) {
+  if (
+    event.event_type === "entry_published" ||
+    event.event_type === "running_order_published" ||
+    event.event_type === "results_published"
+  ) {
+    return "Official update";
+  }
+  if (event.event_type.startsWith("prediction_")) return "Prediction insight";
+  if (event.event_type === "record_broken" || event.event_type === "record_threat") {
+    return "Archive insight";
+  }
+  return "Contest update";
 }
 
 function actionLabel(event: ContentEventRow) {
@@ -151,6 +179,8 @@ function EventMeta({ event, unread }: { event: ContentEventRow; unread?: boolean
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
       {unread && <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />}
+      <span>{eventProvenance(event)}</span>
+      <span aria-hidden="true">·</span>
       <span>{eventTypeLabel(event.event_type)}</span>
       {event.importance === "important" && (
         <>
@@ -278,18 +308,19 @@ function SolarisPulsePage() {
       .slice(0, 3);
   }, [allEvents, previousVisit]);
 
-  const latestEdition = [...(editions ?? [])]
-    .filter((edition) => edition.published)
-    .sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0];
+  const latestEdition = resolveCurrentPublicEdition(editions ?? []);
 
   const latestShows = latestEdition
-    ? (shows ?? []).filter((show) => show.edition_id === latestEdition.id && show.published)
+    ? (shows ?? []).filter((show) => show.edition_id === latestEdition.id && isShowPublic(show))
     : [];
 
-  const now = Date.now();
+  const now = useHydratedNow();
   const rounds = roundData?.rounds ?? [];
   const openRound = rounds.find(
-    (round) => round.status === "open" && new Date(round.locks_at).getTime() > now,
+    (round) =>
+      now != null &&
+      round.status === "open" &&
+      new Date(round.locks_at).getTime() > now,
   );
   const recentClosedRound = [...rounds]
     .filter((round) => ["open", "locked", "scoring", "scored"].includes(round.status))
@@ -299,6 +330,7 @@ function SolarisPulsePage() {
   const movementAllowed = Boolean(
     user &&
       pulseRound &&
+      now != null &&
       (myPrediction || new Date(pulseRound.locks_at).getTime() <= now),
   );
   const { data: movementData } = usePredictionMovement(pulseRound?.id, movementAllowed);
@@ -354,7 +386,9 @@ function SolarisPulsePage() {
         .slice(0, 6);
     }
 
-    const threshold = new Date();
+    if (now == null) return [];
+
+    const threshold = new Date(now);
     if (catchUpWindow === "today") {
       threshold.setHours(0, 0, 0, 0);
     } else {
@@ -488,7 +522,7 @@ function SolarisPulsePage() {
               className="overflow-hidden rounded-3xl border border-border/70 bg-surface"
               aria-labelledby="pulse-lead-story"
             >
-              <div className="grid min-h-[22rem] lg:grid-cols-[1.15fr_.85fr]">
+              <div className="grid min-h-[15rem] sm:min-h-[18rem] lg:min-h-[22rem] lg:grid-cols-[1.15fr_.85fr]">
                 <Link
                   to={leadEvent.route}
                   onClick={() => user && markRead.mutate(leadEvent.id)}
