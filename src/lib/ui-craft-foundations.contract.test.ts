@@ -147,7 +147,8 @@ describe("Solaris UI craft foundations", () => {
     const publicNavigation = source("src/lib/public-navigation.ts");
     const explore = source("src/routes/explore/index.tsx");
 
-    expect(appShell).toContain("PUBLIC_GLOBAL_AREAS.map");
+    expect(appShell).toContain("publicGlobalAreasForContext");
+    expect(appShell).toContain("globalAreas.map");
     expect(publicNavigation).toContain('to: "/explore"');
     expect(explore).toContain('createFileRoute("/explore/")');
   });
