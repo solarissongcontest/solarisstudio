@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type ReactNode } from "react";
 import { DatabaseZap, ShieldCheck } from "lucide-react";
 
+import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase } from "@/integrations/supabase/client";
 import { getMergedTelevotingServerStatus } from "@/integrations/televoting/status.functions";
 import { AdminShell, AdminPage } from "./AdminShell";
@@ -34,14 +35,14 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { data: role, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userData.user.id)
-        .eq("role", "organizer")
-        .maybeSingle();
+      let isOrganizer = false;
+      try {
+        isOrganizer = await hasSolarisOrganizerAccess(userData.user.id);
+      } catch {
+        isOrganizer = false;
+      }
 
-      if (roleError || !role) {
+      if (!isOrganizer) {
         if (alive) setState("redirecting");
         await navigate({ to: "/my-solaris", replace: true });
         return;
@@ -107,8 +108,8 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
                         The deployment cannot complete the privileged Televoting database check.
                       </p>
                       <p>
-                        Verify the server-side Televoting service credentials and that the
-                        configured Televoting Supabase project is reachable from the deployment.
+                        Verify the signed-in Organizer session and that the Solaris Supabase
+                        Televoting schema is reachable from the deployment.
                       </p>
                     </div>
                   </details>
