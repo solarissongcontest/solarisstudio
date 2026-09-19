@@ -74,7 +74,10 @@ function TabRow({
   return (
     <nav
       aria-label={label}
-      className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 scroll-slim"
+      className={cn(
+        "-mx-1 flex flex-wrap gap-1 px-1 pb-0.5",
+        compact ? "items-center" : "items-stretch",
+      )}
     >
       {tabs.map((tab) => {
         const active = tab.active(pathname);
@@ -84,8 +87,10 @@ function TabRow({
             to={tab.to as any}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "shrink-0 rounded-xl border font-semibold transition-colors",
-              compact ? "px-2.5 py-1.5 text-[11px]" : "px-3 py-2 text-xs",
+              "rounded-xl border font-semibold transition-colors",
+              compact
+                ? "px-2.5 py-1.5 text-[11px]"
+                : "min-h-10 flex-1 basis-[30%] px-3 py-2 text-center text-xs sm:flex-none sm:basis-auto",
               active
                 ? "border-sky-200/15 bg-sky-200/[0.09] text-sky-50"
                 : "border-transparent text-muted-foreground hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-foreground",
