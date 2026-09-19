@@ -94,6 +94,33 @@ describe("public contest state", () => {
     expect(state.statusLabel).toBe("Live");
   });
 
+  it("does not call prepared result rows published when the show result layer is private", () => {
+    const state = resolvePublicContestState({
+      editions: [edition({ status: "active" })],
+      shows: [
+        show({
+          publication_config: {
+            participants: true,
+            artists: true,
+            songs: true,
+            semi_split: true,
+            running_order: false,
+            qualifiers: false,
+            results: false,
+            jury_results: false,
+            televote_results: false,
+            detailed_voting: false,
+          },
+        }),
+      ],
+      results: [result()],
+    });
+
+    expect(state.phase).toBe("submissions");
+    expect(state.statusLabel).toBe("Current edition");
+    expect(state.statusLabel).not.toBe("Results");
+  });
+
   it("lets a published Grand Final result override stale legacy lifecycle state", () => {
     const state = resolvePublicContestState({
       editions: [edition({ status: "active" })],
