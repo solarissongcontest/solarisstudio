@@ -53,6 +53,12 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     path.startsWith("/admin/results") ||
     path.startsWith("/admin/control-room") ||
     path.startsWith("/admin/broadcast-rundown") ||
+    path.startsWith("/admin/workflows") ||
+    path.startsWith("/admin/incidents") ||
+    path.startsWith("/admin/edition-simulator") ||
+    path.startsWith("/admin/storytelling") ||
+    path.startsWith("/admin/media-assets") ||
+    path.startsWith("/admin/communications") ||
     path.startsWith("/admin/publication/") ||
     path.startsWith("/admin/design/") ||
     path.startsWith("/admin/edition-theme/");
