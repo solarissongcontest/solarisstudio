@@ -20,8 +20,9 @@ export type AdminContextualSection = {
 export function buildAdminContextualSection(
   pathname: string,
   slug?: string,
+  editionLabel = "Current edition",
 ): AdminContextualSection | null {
-  const domain = buildAdminDomainNavigation(slug).find((item) => item.active(pathname));
+  const domain = buildAdminDomainNavigation(slug, editionLabel).find((item) => item.active(pathname));
   if (!domain) return null;
 
   return {
