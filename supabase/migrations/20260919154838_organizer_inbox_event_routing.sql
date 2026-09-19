@@ -1,3 +1,47 @@
+-- Organizer Inbox is now a canonical Solaris capability. Production historically
+-- carried this table as legacy state, but clean installs must create it too.
+create table if not exists public.admin_notifications (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid not null references auth.users(id) on delete cascade,
+  severity text not null default 'info'
+    check (severity in ('info', 'warning', 'action', 'critical', 'success')),
+  title text not null,
+  body text,
+  href text,
+  source_key text,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.admin_notifications enable row level security;
+
+create index if not exists admin_notifications_recipient_idx
+  on public.admin_notifications (recipient_id, read_at, created_at desc);
+
+drop policy if exists "Organizers read own notifications" on public.admin_notifications;
+create policy "Organizers read own notifications"
+on public.admin_notifications
+for select
+to authenticated
+using (
+  recipient_id = (select auth.uid())
+  and public.studio2_access_allowed('edition.manage', null, false)
+);
+
+drop policy if exists "Organizers update own notifications" on public.admin_notifications;
+create policy "Organizers update own notifications"
+on public.admin_notifications
+for update
+to authenticated
+using (
+  recipient_id = (select auth.uid())
+  and public.studio2_access_allowed('edition.manage', null, false)
+)
+with check (
+  recipient_id = (select auth.uid())
+  and public.studio2_access_allowed('edition.manage', null, false)
+);
+
 create unique index if not exists admin_notifications_recipient_source_uidx
   on public.admin_notifications (recipient_id, source_key)
   where source_key is not null;
