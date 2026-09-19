@@ -13,6 +13,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import type { AccountAccess } from "@/lib/country-account";
 import { editionLabel, useAllShows, useCountries, useEditions } from "@/lib/data";
 import {
   dedupePublicSearchResults,
@@ -28,8 +29,10 @@ import { cn } from "@/lib/utils";
 
 export function PublicCommandPalette({
   compact = false,
+  access,
 }: {
   compact?: boolean;
+  access?: AccountAccess;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -81,7 +84,7 @@ export function PublicCommandPalette({
         ) : null}
       </button>
 
-      {open ? <PublicPaletteDialog open={open} setOpen={setOpen} /> : null}
+      {open ? <PublicPaletteDialog open={open} setOpen={setOpen} access={access} /> : null}
     </>
   );
 }
@@ -89,9 +92,11 @@ export function PublicCommandPalette({
 function PublicPaletteDialog({
   open,
   setOpen,
+  access,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
+  access?: AccountAccess;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -110,10 +115,84 @@ function PublicPaletteDialog({
   );
   const normalized = query.trim();
 
+  const actionResults = useMemo<PublicSearchResult[]>(() => {
+    const currentEdition =
+      editions.find(
+        (edition) =>
+          !["complete", "completed", "finished"].includes(
+            String(edition.status ?? "").toLowerCase(),
+          ),
+      ) ??
+      editions[0] ??
+      null;
+    const myCountry = access?.countryId
+      ? countries.find((country) => country.id === access.countryId) ?? null
+      : null;
+
+    return [
+      ...(currentEdition
+        ? [
+            {
+              id: "action:current-edition",
+              label: "Open current edition",
+              description: `${editionLabel(currentEdition)} · ${currentEdition.name}`,
+              href: `/editions/${currentEdition.slug}`,
+              group: "Actions",
+              keywords: "current edition contest now",
+            },
+          ]
+        : []),
+      {
+        id: "action:confirmation",
+        label: "Continue confirmation",
+        description: "Open the current country confirmation workflow.",
+        href: "/confirmations",
+        group: "Actions",
+        keywords: "confirmation participate country entry",
+      },
+      ...(myCountry
+        ? [
+            {
+              id: "action:my-country",
+              label: "Open my country",
+              description: `${myCountry.name} · public country page`,
+              href: `/countries/${myCountry.short_code}`,
+              group: "Actions",
+              keywords: "my country delegation profile",
+            },
+          ]
+        : []),
+      {
+        id: "action:latest-results",
+        label: "Go to latest results",
+        description: "Open the latest published result and result tools.",
+        href: "/results",
+        group: "Actions",
+        keywords: "latest result scoreboard ranking",
+      },
+      {
+        id: "action:compare",
+        label: "Compare countries",
+        description: "Open the side-by-side country comparison tool.",
+        href: "/compare",
+        group: "Actions",
+        keywords: "compare versus countries",
+      },
+    ];
+  }, [access?.countryId, countries, editions]);
+
   const searchResults = useMemo(() => {
     if (!normalized) return [] as PublicSearchResult[];
 
     const results: PublicSearchResult[] = [
+      ...actionResults.filter((item) =>
+        matchesPublicSearch(
+          normalized,
+          item.label,
+          item.description,
+          item.keywords,
+        ),
+      ),
       ...navigationSearchResults(normalized),
       ...countries
         .filter((country) =>
@@ -207,7 +286,7 @@ function PublicPaletteDialog({
     ];
 
     return dedupePublicSearchResults(results).slice(0, 50);
-  }, [countries, editionById, editions, normalized, shows, storiesQuery.data]);
+  }, [actionResults, countries, editionById, editions, normalized, shows, storiesQuery.data]);
 
   const recentResults = useMemo(
     () =>
@@ -222,7 +301,7 @@ function PublicPaletteDialog({
   );
 
   const grouped = useMemo(() => {
-    const source = normalized ? searchResults : recentResults;
+    const source = normalized ? searchResults : [...recentResults, ...actionResults];
     const map = new Map<string, PublicSearchResult[]>();
     for (const item of source) {
       const values = map.get(item.group) ?? [];
@@ -230,7 +309,7 @@ function PublicPaletteDialog({
       map.set(item.group, values);
     }
     return [...map.entries()];
-  }, [normalized, recentResults, searchResults]);
+  }, [actionResults, normalized, recentResults, searchResults]);
 
   useEffect(() => {
     if (normalized.length < 2) return;
@@ -260,7 +339,7 @@ function PublicPaletteDialog({
     trackPublicUxEvent("search_result_clicked", {
       target: result.href,
       metadata: {
-        source: normalized ? "search" : "recent",
+        source: result.group === "Actions" ? "action" : normalized ? "search" : "recent",
         group: result.group,
         query_length: normalized.length,
         result_count: normalized ? searchResults.length : recentResults.length,
