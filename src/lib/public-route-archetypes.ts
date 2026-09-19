@@ -71,3 +71,36 @@ export function publicCanvasForArchetype(archetype: PublicRouteArchetype) {
       return "max-w-[1440px]";
   }
 }
+
+
+export type PublicLayoutToken =
+  | "home"
+  | "reading"
+  | "directory"
+  | "detail"
+  | "data"
+  | "workspace"
+  | "core";
+
+export function publicLayoutTokenForArchetype(
+  archetype: PublicRouteArchetype,
+): PublicLayoutToken {
+  switch (archetype) {
+    case "home":
+      return "home";
+    case "reading":
+    case "focused-task":
+      return "reading";
+    case "hub":
+    case "directory":
+      return "directory";
+    case "detail":
+      return "detail";
+    case "data-explorer":
+      return "data";
+    case "workspace":
+      return "workspace";
+    case "core":
+      return "core";
+  }
+}
