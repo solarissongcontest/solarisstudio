@@ -331,81 +331,25 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Brand />
 
             <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
-              {globalAreas.map((item) => {
-                return (
-                  <Link
-                    key={item.id}
-                    to={item.to as any}
-                    aria-current={publicArea === item.id ? "page" : undefined}
-                    onClick={() =>
-                      trackPublicUxEvent("public_nav_clicked", {
-                        target: item.to,
-                        metadata: { area: item.id, source: "desktop" },
-                      })
-                    }
-                    className={desktopNavClass(publicArea === item.id)}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-
-              <span aria-hidden="true" className="mx-1 h-6 w-px bg-border/70" />
-
-              <PublicCommandPalette />
-
-              <Link
-                to="/guide"
-                className={desktopNavClass(
-                  pathname.startsWith("/guide") ||
-                    pathname.startsWith("/rules") ||
-                    pathname.startsWith("/integrity"),
-                )}
-              >
-                Help
-              </Link>
-
-              {access.isOrganizer ? (
-                <Link
-                  to="/admin/operations"
-                  className="ml-1 rounded-xl border border-border/75 bg-surface/55 px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-strong"
-                >
-                  Organizer
-                </Link>
-              ) : null}
-
-              {email ? (
-                <details key={`account-${pathname}`} className="group relative ml-1">
-                  <summary
-                    className="flex cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground [&::-webkit-details-marker]:hidden"
-                  >
-                    Account
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                  </summary>
-                  <div className="nav-menu-panel absolute right-0 top-[calc(100%+.6rem)] w-64 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
-                    <div className="border-b border-border/55 px-3 py-2.5">
-                      <p className="truncate text-xs font-semibold text-foreground">MySolaris</p>
-                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                        {visibleAccountEmail ?? "Country account"}
-                      </p>
-                    </div>
-                    <Link to="/my-solaris" className="nav-menu-item mt-1">
-                      <span className="font-semibold">Open MySolaris</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        Dashboard, participation
-                        {access.countryId ? " & country tools" : " & country setup"}
-                      </span>
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={signOut}
-                      className="mt-1 flex min-h-11 w-full items-center rounded-xl px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                </details>
-              ) : null}
+              {publicIaV3Enabled ? (
+                <NewPublicDesktopNavigation
+                  pathname={pathname}
+                  publicArea={publicArea}
+                  globalAreas={globalAreas}
+                  access={access}
+                  email={email}
+                  visibleAccountEmail={visibleAccountEmail}
+                  signOut={signOut}
+                />
+              ) : (
+                <LegacyPublicDesktopNavigation
+                  pathname={pathname}
+                  access={access}
+                  email={email}
+                  visibleAccountEmail={visibleAccountEmail}
+                  signOut={signOut}
+                />
+              )}
             </nav>
 
             <SheetTrigger asChild>
@@ -444,7 +388,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="scroll-slim flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
-            <PublicDrawerNavigation pathname={pathname} user={publicUser} />
+            {publicIaV3Enabled ? (
+              <PublicDrawerNavigation pathname={pathname} user={publicUser} />
+            ) : (
+              <LegacyPublicDrawerNavigation
+                pathname={pathname}
+                isOrganizer={access.isOrganizer}
+              />
+            )}
           </nav>
 
           <div
@@ -484,7 +435,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             PUBLIC_CANVAS_CLASS[publicLayout],
           )}
         >
-          {showSectionNavigation ? (
+          {isMySolarisWorkspace ? (
+            <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
+          ) : publicIaV3Enabled && showSectionNavigation ? (
             <div className="public-site-layout">
               <PublicSectionNav pathname={pathname} />
               <div className="public-site-content min-w-0">
@@ -502,8 +455,26 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               </div>
             </div>
-          ) : isMySolarisWorkspace ? (
-            <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
+          ) : !publicIaV3Enabled && showLegacySidebar ? (
+            <div className="public-site-layout">
+              <LegacyPublicSiteSidebar
+                pathname={pathname}
+                isOrganizer={access.isOrganizer}
+              />
+              <div className="public-site-content min-w-0">
+                {isHomePage && (
+                  <Suspense fallback={null}>
+                    <LazyHomeAnniversaryTakeover />
+                  </Suspense>
+                )}
+                {children}
+                {isEditionPage && (
+                  <Suspense fallback={null}>
+                    <LazyEditionHostingExtension pathname={pathname} />
+                  </Suspense>
+                )}
+              </div>
+            </div>
           ) : (
             <>
               {isHomePage && (
@@ -511,7 +482,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <LazyHomeAnniversaryTakeover />
                 </Suspense>
               )}
-              <PublicBreadcrumbs pathname={pathname} />
+              {publicIaV3Enabled ? <PublicBreadcrumbs pathname={pathname} /> : null}
               {children}
               {isEditionPage && (
                 <Suspense fallback={null}>
