@@ -545,6 +545,319 @@ function desktopNavClass(active: boolean) {
   );
 }
 
+function NewPublicDesktopNavigation({
+  pathname,
+  publicArea,
+  globalAreas,
+  access,
+  email,
+  visibleAccountEmail,
+  signOut,
+}: {
+  pathname: string;
+  publicArea: ReturnType<typeof publicAreaForPath>;
+  globalAreas: ReturnType<typeof publicGlobalAreasForContext>;
+  access: AccountAccess;
+  email: string | null;
+  visibleAccountEmail: string | null;
+  signOut: () => Promise<void>;
+}) {
+  return (
+    <>
+      {globalAreas.map((item) => (
+        <Link
+          key={item.id}
+          to={item.to as any}
+          aria-current={publicArea === item.id ? "page" : undefined}
+          onClick={() =>
+            trackPublicUxEvent("public_nav_clicked", {
+              target: item.to,
+              metadata: { area: item.id, source: "desktop" },
+            })
+          }
+          className={desktopNavClass(publicArea === item.id)}
+        >
+          {item.label}
+        </Link>
+      ))}
+
+      <span aria-hidden="true" className="mx-1 h-6 w-px bg-border/70" />
+
+      <PublicCommandPalette />
+
+      <Link
+        to="/guide"
+        className={desktopNavClass(
+          pathname.startsWith("/guide") ||
+            pathname.startsWith("/rules") ||
+            pathname.startsWith("/integrity"),
+        )}
+      >
+        Help
+      </Link>
+
+      {access.isOrganizer ? (
+        <Link
+          to="/admin/operations"
+          className="ml-1 rounded-xl border border-border/75 bg-surface/55 px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-strong"
+        >
+          Organizer
+        </Link>
+      ) : null}
+
+      {email ? (
+        <details key={"account-" + pathname} className="group relative ml-1">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground [&::-webkit-details-marker]:hidden">
+            Account
+            <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="nav-menu-panel absolute right-0 top-[calc(100%+.6rem)] w-64 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
+            <div className="border-b border-border/55 px-3 py-2.5">
+              <p className="truncate text-xs font-semibold text-foreground">MySolaris</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {visibleAccountEmail ?? "Country account"}
+              </p>
+            </div>
+            <Link to="/my-solaris" className="nav-menu-item mt-1">
+              <span className="font-semibold">Open MySolaris</span>
+              <span className="text-[11px] text-muted-foreground">
+                Dashboard, participation
+                {access.countryId ? " & country tools" : " & country setup"}
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="mt-1 flex min-h-11 w-full items-center rounded-xl px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            >
+              Sign out
+            </button>
+          </div>
+        </details>
+      ) : null}
+    </>
+  );
+}
+
+function LegacyPublicDesktopNavigation({
+  pathname,
+  access,
+  email,
+  visibleAccountEmail,
+  signOut,
+}: {
+  pathname: string;
+  access: AccountAccess;
+  email: string | null;
+  visibleAccountEmail: string | null;
+  signOut: () => Promise<void>;
+}) {
+  const resultsActive = legacyPublicPathMatches(pathname, "/results");
+  const exploreActive = legacyAnyPathMatches(pathname, LEGACY_EXPLORE_ROUTES);
+  const insightsActive = legacyAnyPathMatches(pathname, LEGACY_INSIGHT_ROUTES);
+  const participateActive = legacyAnyPathMatches(pathname, LEGACY_PARTICIPATE_ROUTES);
+  const referenceActive = legacyAnyPathMatches(pathname, LEGACY_REFERENCE_ROUTES);
+  const accountActive =
+    pathname.startsWith("/me") ||
+    pathname.startsWith("/my-solaris") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/admin");
+
+  return (
+    <>
+      <LegacyDesktopLink to="/" label="Home" active={pathname === "/"} area="home" />
+      <LegacyDesktopLink
+        to="/results"
+        label="Results"
+        active={resultsActive}
+        area="results"
+      />
+      <LegacyDesktopNavMenu
+        label="Explore"
+        active={exploreActive}
+        items={LEGACY_EXPLORE_NAV}
+        area="explore"
+      />
+      <LegacyDesktopNavMenu
+        label="Insights"
+        active={insightsActive}
+        items={LEGACY_INSIGHTS_NAV}
+        area="insights"
+        footer={{
+          to: "/tools",
+          label: "Open tools",
+          description: "Try Result Lab, Taste DNA, comparisons and archive games.",
+        }}
+      />
+      <LegacyDesktopLink
+        to="/participate"
+        label="Participate"
+        active={participateActive}
+        area="participate"
+        emphasized
+      />
+      <LegacyDesktopNavMenu
+        label="Rules & help"
+        active={referenceActive}
+        items={LEGACY_REFERENCE_NAV}
+        area="reference"
+      />
+
+      {email ? (
+        <details key={"legacy-account-" + pathname} className="group relative ml-1">
+          <summary
+            className={cn(
+              desktopNavClass(accountActive),
+              "flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden",
+            )}
+          >
+            Me
+            <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="nav-menu-panel absolute right-0 top-[calc(100%+.6rem)] w-64 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
+            <div className="border-b border-border/55 px-3 py-2.5">
+              <p className="truncate text-xs font-semibold text-foreground">MySolaris</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {visibleAccountEmail ?? "Country account"}
+              </p>
+            </div>
+            <Link to="/my-solaris" className="nav-menu-item mt-1">
+              <span className="font-semibold">Open MySolaris</span>
+              <span className="text-[11px] text-muted-foreground">
+                Dashboard, participation
+                {access.countryId ? " & country tools" : " & country setup"}
+              </span>
+            </Link>
+            {access.isOrganizer ? (
+              <Link to="/admin/operations" className="nav-menu-item">
+                <span className="font-semibold">Organizer workspace</span>
+              </Link>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="mt-1 flex min-h-11 w-full items-center rounded-xl px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
+            >
+              Sign out
+            </button>
+          </div>
+        </details>
+      ) : (
+        <LegacyDesktopLink
+          to="/auth"
+          label="Sign in"
+          active={pathname.startsWith("/auth")}
+          area="me"
+        />
+      )}
+    </>
+  );
+}
+
+function LegacyDesktopLink({
+  to,
+  label,
+  active,
+  area,
+  emphasized = false,
+}: {
+  to: string;
+  label: string;
+  active: boolean;
+  area: string;
+  emphasized?: boolean;
+}) {
+  return (
+    <Link
+      to={to as any}
+      aria-current={active ? "page" : undefined}
+      onClick={() =>
+        trackPublicUxEvent("public_nav_clicked", {
+          target: to,
+          metadata: { area, source: "legacy_desktop" },
+        })
+      }
+      className={
+        emphasized
+          ? cn(
+              "ml-1 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors",
+              active
+                ? "border-primary/35 bg-primary/12 text-foreground"
+                : "border-border/75 bg-surface/55 text-foreground hover:border-primary/30 hover:bg-surface-strong",
+            )
+          : desktopNavClass(active)
+      }
+    >
+      {label}
+    </Link>
+  );
+}
+
+function LegacyDesktopNavMenu({
+  label,
+  active,
+  items,
+  area,
+  footer,
+}: {
+  label: string;
+  active: boolean;
+  items: LegacyPublicNavigationItem[];
+  area: string;
+  footer?: LegacyPublicNavigationItem;
+}) {
+  return (
+    <details className="group relative">
+      <summary
+        className={cn(
+          desktopNavClass(active),
+          "flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden",
+        )}
+      >
+        {label}
+        <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="nav-menu-panel absolute left-0 top-[calc(100%+.6rem)] w-80 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
+        {items.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to as any}
+            onClick={() =>
+              trackPublicUxEvent("public_nav_clicked", {
+                target: item.to,
+                metadata: { area, source: "legacy_desktop_menu" },
+              })
+            }
+            className="nav-menu-item"
+          >
+            <span className="font-semibold text-foreground">{item.label}</span>
+            <span className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              {item.description}
+            </span>
+          </Link>
+        ))}
+        {footer ? (
+          <Link
+            to={footer.to as any}
+            onClick={() =>
+              trackPublicUxEvent("public_nav_clicked", {
+                target: footer.to,
+                metadata: { area, source: "legacy_desktop_menu" },
+              })
+            }
+            className="mt-1 flex min-h-12 flex-col justify-center rounded-xl border border-primary/12 bg-primary/[0.055] px-3 py-2 text-xs transition-colors hover:bg-primary/[0.09]"
+          >
+            <span className="font-semibold text-foreground">{footer.label}</span>
+            <span className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              {footer.description}
+            </span>
+          </Link>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link to="/" className="flex min-w-0 items-center gap-3" aria-label="Solaris Studio home">
