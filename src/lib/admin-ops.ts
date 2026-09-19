@@ -184,6 +184,22 @@ export function useResolveAdminNotification() {
   });
 }
 
+export function useResolveAdminNotification() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await adminDb
+        .from("admin_notifications")
+        .update({ resolved_at: new Date().toISOString() })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
+  });
+}
+
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
 
