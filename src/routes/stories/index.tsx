@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { BookOpen, CalendarDays, Clock3, Sparkles } from 'lucide-react';
 
 import { AppShell } from '@/components/AppShell';
+import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
 
 export const Route = createFileRoute('/stories/')({
@@ -10,12 +11,13 @@ export const Route = createFileRoute('/stories/')({
     { title: 'Stories — Solaris Studio' },
     { name: 'description', content: 'Edition stories and date-aware moments from the Solaris Song Contest archive.' },
   ] }),
+  loader: () => todayInSolaris(),
   component: StoriesArchivePage,
 });
 
-function todayInParis() {
+function todayInSolaris() {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Paris',
+    timeZone: SOLARIS_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -23,7 +25,7 @@ function todayInParis() {
 }
 
 function StoriesArchivePage() {
-  const referenceDate = todayInParis();
+  const referenceDate = Route.useLoaderData();
   const storiesQuery = useQuery({
     queryKey: ['public-storylines'],
     queryFn: () => loadPublicStorylines(30),
@@ -40,7 +42,7 @@ function StoriesArchivePage() {
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
         <header className="max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary">Solaris archive</p>
           <h1 className="mt-3 text-4xl font-black tracking-[-0.045em] text-foreground sm:text-6xl">Stories that survived the scoreboard.</h1>
@@ -115,7 +117,7 @@ function StoriesArchivePage() {
             <ArchiveEmpty icon={Sparkles} title="No edition stories published yet" copy="Story drafts remain private until organizers explicitly publish them." />
           )}
         </section>
-      </main>
+      </div>
     </AppShell>
   );
 }
