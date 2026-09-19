@@ -22,6 +22,7 @@ import {
 import { readPublicRecents } from "@/lib/public-recents";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { loadPublicStorylines } from "@/lib/studio2-storytelling";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicCommandPalette({
@@ -46,6 +47,12 @@ export function PublicCommandPalette({
   }, []);
 
   useEffect(() => {
+    if (!wasOpen.current && open) {
+      trackPublicUxEvent("search_opened", {
+        target: "public-command-palette",
+        metadata: { source: "global_search" },
+      });
+    }
     if (wasOpen.current && !open) {
       window.setTimeout(() => triggerRef.current?.focus(), 0);
     }
@@ -224,7 +231,40 @@ function PublicPaletteDialog({
     return [...map.entries()];
   }, [normalized, recentResults, searchResults]);
 
+  useEffect(() => {
+    if (normalized.length < 2) return;
+
+    const timer = window.setTimeout(() => {
+      const metadata = {
+        source: "global_search",
+        query_length: normalized.length,
+        result_count: searchResults.length,
+      } as const;
+      trackPublicUxEvent("search_submitted", {
+        target: "public-command-palette",
+        metadata,
+      });
+      if (!searchResults.length) {
+        trackPublicUxEvent("search_no_results", {
+          target: "public-command-palette",
+          metadata,
+        });
+      }
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [normalized, searchResults.length]);
+
   const openResult = (result: PublicSearchResult) => {
+    trackPublicUxEvent("search_result_clicked", {
+      target: result.href,
+      metadata: {
+        source: normalized ? "search" : "recent",
+        group: result.group,
+        query_length: normalized.length,
+        result_count: normalized ? searchResults.length : recentResults.length,
+      },
+    });
     setOpen(false);
     void router.navigate({ to: result.href as any });
   };
