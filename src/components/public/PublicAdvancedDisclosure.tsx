@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicAdvancedDisclosure({
@@ -26,7 +27,13 @@ export function PublicAdvancedDisclosure({
         onClick={() => {
           const next = !open;
           setOpen(next);
-          if (next) onOpen?.();
+          if (next) {
+            trackPublicUxEvent("advanced_section_opened", {
+              target: label,
+              metadata: { interaction: "disclosure" },
+            });
+            onOpen?.();
+          }
         }}
         className="public-advanced-trigger"
       >
