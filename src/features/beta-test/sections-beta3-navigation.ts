@@ -262,6 +262,7 @@ export const beta3NavigationSections: BetaSection[] = [
 ];
 
 export const BETA3_RELEASE_GATES = {
+  minimumResponses: 10,
   coreTaskSuccessPercent: 90,
   firstClickSuccessPercent: 80,
   oldEditionLookupPercent: 90,
