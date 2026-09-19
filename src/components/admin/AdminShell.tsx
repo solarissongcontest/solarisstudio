@@ -21,7 +21,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [email, setEmail] = useState<string | null>(null);
   const { data: organizerNotifications = [] } = useAdminNotifications();
-  const unreadInboxCount = organizerNotifications.filter((item) => !item.read_at).length;
+  const unreadInboxCount = organizerNotifications.filter(
+    (item) => !item.read_at && item.requires_action && !item.resolved_at,
+  ).length;
 
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
