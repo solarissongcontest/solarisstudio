@@ -25,6 +25,7 @@ import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { startPublicWebVitals } from "../lib/public-web-vitals";
 
 const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
@@ -225,6 +226,8 @@ function RootComponent() {
   const publicParticipation =
     !serviceAdmin &&
     (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
+
+  useEffect(() => startPublicWebVitals(), []);
 
   useEffect(() => {
     const route = pathname.startsWith("/pulse") ? "pulse" : "";
