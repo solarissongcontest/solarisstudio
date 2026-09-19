@@ -63,6 +63,7 @@ function PublicationWorkspace() {
   });
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [pendingRelease, setPendingRelease] = useState<PendingRelease | null>(null);
+  const [discardDraftOpen, setDiscardDraftOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
@@ -135,6 +136,21 @@ function PublicationWorkspace() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function draftHasUnsavedChanges() {
+    if (!draft) return false;
+    const current = resolveShowPublication(draft.show);
+    return PUBLICATION_KEYS.some((key) => current[key] !== draft.config[key]);
+  }
+
+  function requestCloseDraft() {
+    if (busy || !draft) return;
+    if (draftHasUnsavedChanges()) {
+      setDiscardDraftOpen(true);
+      return;
+    }
+    setDraft(null);
   }
 
   function requestSave() {
@@ -239,7 +255,7 @@ function PublicationWorkspace() {
 
       <AdminSheet
         open={!!draft}
-        onClose={() => !busy && setDraft(null)}
+        onClose={requestCloseDraft}
         title={draft ? `${draft.show.name} publication` : "Publication"}
         description="Choose a safe release stage or fine-tune individual public layers. Dependencies are added automatically."
       >
@@ -288,7 +304,7 @@ function PublicationWorkspace() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => setDraft(null)}
+                onClick={requestCloseDraft}
                 className="admin-action-secondary"
               >
                 Close
@@ -298,6 +314,19 @@ function PublicationWorkspace() {
           </div>
         ) : null}
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={discardDraftOpen}
+        onClose={() => !busy && setDiscardDraftOpen(false)}
+        onConfirm={() => {
+          setDiscardDraftOpen(false);
+          setDraft(null);
+        }}
+        title="Discard unsaved publication changes?"
+        description={<>Your unsaved release choices will be discarded. The currently published state will not change.</>}
+        confirmLabel="Discard changes"
+        busy={busy}
+      />
 
       <AdminConfirmSheet
         open={!!pendingRelease}
