@@ -5,9 +5,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { formatBetaAnswer } from "@/features/beta-test/sections";
-import { BETA3_RELEASE_GATES, beta3NavigationSections } from "@/features/beta-test/sections-beta3-navigation";
+import {
+  BETA3_FIRST_CLICK_EXPECTATIONS,
+  BETA3_RELEASE_GATES,
+  beta3NavigationSections,
+} from "@/features/beta-test/sections-beta3-navigation";
 import type { BetaAnswer, BetaAnswers } from "@/features/beta-test/types";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  evaluateBeta3FirstClickEvidence,
+  type Beta3FirstClickEvidence,
+} from "@/lib/beta3-release-evidence";
+import { loadBeta3FirstClickEvidence } from "@/lib/public-ux-metrics";
 
 export const Route = createFileRoute("/_authenticated/admin/beta3-feedback")({
   head: () => ({
@@ -46,17 +55,23 @@ function Beta3FeedbackDashboard() {
   const [submissions, setSubmissions] = useState<Beta3Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [firstClickEvidence, setFirstClickEvidence] =
+    useState<Beta3FirstClickEvidence | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await supabase
-        .from("beta3_test_submissions" as never)
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [result, firstClicks] = await Promise.all([
+        supabase
+          .from("beta3_test_submissions" as never)
+          .select("*")
+          .order("created_at", { ascending: false }),
+        loadBeta3FirstClickEvidence(90),
+      ]);
       if (result.error) throw result.error;
       setSubmissions((result.data ?? []) as unknown as Beta3Submission[]);
+      setFirstClickEvidence(firstClicks);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load Beta 3 feedback.");
     } finally {
@@ -124,6 +139,45 @@ function Beta3FeedbackDashboard() {
       ? Math.abs(mobileSuccess - desktopSuccess)
       : null;
 
+  const firstClickEvaluation = useMemo(
+    () =>
+      firstClickEvidence
+        ? evaluateBeta3FirstClickEvidence(
+            firstClickEvidence,
+            BETA3_FIRST_CLICK_EXPECTATIONS,
+          )
+        : null,
+    [firstClickEvidence],
+  );
+  const countryEntrySuccess = percent(
+    submissions,
+    (submission) => successfulFind(submission.answers.beta3CountryEntryOutcome),
+  );
+  const countryEntryFailures =
+    countryEntrySuccess == null
+      ? null
+      : submissions.length -
+        submissions.filter((submission) =>
+          successfulFind(submission.answers.beta3CountryEntryOutcome),
+        ).length;
+  const releaseGates = [
+    summary.successRate != null &&
+      summary.successRate >= BETA3_RELEASE_GATES.coreTaskSuccessPercent,
+    firstClickEvaluation?.successRate != null &&
+      firstClickEvaluation.successRate >= BETA3_RELEASE_GATES.firstClickSuccessPercent,
+    percent(
+      submissions,
+      (submission) => successfulFind(submission.answers.beta3OldWinnerOutcome),
+    ) != null &&
+      (percent(
+        submissions,
+        (submission) => successfulFind(submission.answers.beta3OldWinnerOutcome),
+      ) ?? 0) >= BETA3_RELEASE_GATES.oldEditionLookupPercent,
+    countryEntryFailures != null && countryEntryFailures <= 1,
+    deviceGap != null && deviceGap <= BETA3_RELEASE_GATES.mobileDesktopGapPercent,
+  ];
+  const passedReleaseGates = releaseGates.filter(Boolean).length;
+
   return (
     <AdminPage>
       <div className="mx-auto max-w-6xl space-y-5">
@@ -171,29 +225,66 @@ function Beta3FeedbackDashboard() {
           <AdminCardHeader
             eyebrow="Release gates"
             title="Beta 3 thresholds"
-            description="Use these task outcomes together with observed Public UX telemetry, especially first-click paths and task journey length."
+            description="The release gate now combines tester outcomes with observed first-destination telemetry. Missing first-click telemetry counts against the measured rate instead of quietly disappearing."
           />
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+            <AdminStatus
+              tone={
+                submissions.length > 0 &&
+                passedReleaseGates === releaseGates.length
+                  ? "ready"
+                  : "attention"
+              }
+            >
+              {submissions.length > 0 && passedReleaseGates === releaseGates.length
+                ? "Release gates passed"
+                : `${passedReleaseGates}/${releaseGates.length} gates passed`}
+            </AdminStatus>
+            <span className="text-xs text-muted-foreground">
+              {submissions.length} completed Beta 3 response{submissions.length === 1 ? "" : "s"} ·{" "}
+              {firstClickEvaluation?.started ?? 0} observed task run
+              {(firstClickEvaluation?.started ?? 0) === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <GateCard
               label="Core task success"
               value={summary.successRate}
               target={BETA3_RELEASE_GATES.coreTaskSuccessPercent}
             />
             <GateCard
-              label="Immediate find proxy"
-              value={summary.immediateRate}
+              label="Observed first-click success"
+              value={firstClickEvaluation?.successRate ?? null}
               target={BETA3_RELEASE_GATES.firstClickSuccessPercent}
+              detail={
+                firstClickEvaluation?.coveragePercent == null
+                  ? "No Beta 3 first-destination telemetry yet."
+                  : `${Math.round(firstClickEvaluation.coveragePercent)}% of started tasks have an observed first destination.`
+              }
             />
             <GateCard
               label="Old edition lookup"
               value={percent(submissions, (submission) => successfulFind(submission.answers.beta3OldWinnerOutcome))}
               target={BETA3_RELEASE_GATES.oldEditionLookupPercent}
             />
+            <GateCountCard
+              label="Country entry lookup failures"
+              value={countryEntryFailures}
+              target={1}
+              detail="Original plan target: 0–1 failures at a comparable test size."
+            />
             <GateCard
               label="Mobile / desktop gap"
               value={deviceGap}
               target={BETA3_RELEASE_GATES.mobileDesktopGapPercent}
               lowerIsBetter
+            />
+            <GateCard
+              label="Self-reported immediate finds"
+              value={summary.immediateRate}
+              target={BETA3_RELEASE_GATES.firstClickSuccessPercent}
+              supporting
+              detail="Supporting signal only. The release gate uses observed first-destination telemetry above."
             />
           </div>
         </AdminCard>
@@ -333,24 +424,65 @@ function GateCard({
   value,
   target,
   lowerIsBetter = false,
+  detail,
+  supporting = false,
 }: {
   label: string;
   value: number | null;
   target: number;
   lowerIsBetter?: boolean;
+  detail?: string;
+  supporting?: boolean;
 }) {
   const passed = value != null && (lowerIsBetter ? value <= target : value >= target);
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-semibold">{label}</p>
-        <AdminStatus tone={value == null ? "neutral" : passed ? "ready" : "attention"}>
-          {lowerIsBetter ? "≤ " : "≥ "}{target}%
+        <AdminStatus
+          tone={
+            supporting
+              ? "info"
+              : value == null
+                ? "neutral"
+                : passed
+                  ? "ready"
+                  : "attention"
+          }
+        >
+          {supporting ? "Supporting" : `${lowerIsBetter ? "≤ " : "≥ "}${target}%`}
         </AdminStatus>
       </div>
       <p className="numeric mt-3 text-2xl font-bold">
         {value == null ? "—" : Math.round(value) + "%"}
       </p>
+      {detail ? <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{detail}</p> : null}
+    </div>
+  );
+}
+
+function GateCountCard({
+  label,
+  value,
+  target,
+  detail,
+}: {
+  label: string;
+  value: number | null;
+  target: number;
+  detail: string;
+}) {
+  const passed = value != null && value <= target;
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-xs font-semibold">{label}</p>
+        <AdminStatus tone={value == null ? "neutral" : passed ? "ready" : "attention"}>
+          ≤ {target}
+        </AdminStatus>
+      </div>
+      <p className="numeric mt-3 text-2xl font-bold">{value == null ? "—" : value}</p>
+      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{detail}</p>
     </div>
   );
 }
