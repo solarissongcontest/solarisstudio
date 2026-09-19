@@ -215,11 +215,23 @@ export function resolvePublicEditionState({
   shows: readonly Show[];
   results: readonly ResultRow[];
 }): PublicContestState {
-  return resolvePublicEditionState({
+  const lifecycle = normalizeLegacyEditionStatus(edition.status);
+  const editionShows = shows.filter((show) => show.edition_id === edition.id);
+
+  const phase = exactLiveShow(editionShows)
+    ? "live"
+    : isTerminalLifecycle(lifecycle)
+      ? "post_edition"
+      : finalResultPublished(edition, editionShows, results)
+        ? "results_published"
+        : phaseFromLifecycle(lifecycle);
+
+  return {
     edition,
-    shows,
-    results,
-  });
+    phase,
+    lifecycle,
+    ...presentation(edition, phase),
+  };
 }
 
 export function resolvePublicContestState({
@@ -259,21 +271,9 @@ export function resolvePublicContestState({
     };
   }
 
-  const lifecycle = normalizeLegacyEditionStatus(edition.status);
-  const editionShows = shows.filter((show) => show.edition_id === edition.id);
-
-  const phase = exactLiveShow(editionShows)
-    ? "live"
-    : isTerminalLifecycle(lifecycle)
-      ? "post_edition"
-      : finalResultPublished(edition, editionShows, results)
-        ? "results_published"
-        : phaseFromLifecycle(lifecycle);
-
-  return {
+  return resolvePublicEditionState({
     edition,
-    phase,
-    lifecycle,
-    ...presentation(edition, phase),
-  };
+    shows,
+    results,
+  });
 }
