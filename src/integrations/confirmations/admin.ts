@@ -1,4 +1,5 @@
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as solarisSupabase } from "@/integrations/supabase/client";
 
 export type ConfirmationRound = {
@@ -68,15 +69,7 @@ export async function requireConfirmationsAdmin() {
   const user = userData.user;
   if (!user) return null;
 
-  const { data: role, error: roleError } = await solarisSupabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .eq("role", "organizer")
-    .maybeSingle();
-
-  if (roleError) throw roleError;
-  return role ? user : null;
+  return (await hasSolarisOrganizerAccess(user.id)) ? user : null;
 }
 
 export async function loadConfirmationEditions(): Promise<ConfirmationEdition[]> {
