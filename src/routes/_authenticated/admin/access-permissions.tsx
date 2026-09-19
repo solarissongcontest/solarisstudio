@@ -29,7 +29,7 @@ import {
   loadPermissionCatalog,
   loadPermissionEvents,
   loadPermissionSummary,
-  recordPermissionShadow,
+  recordPermissionEvaluation,
   revokeAccessRole,
   revokeDirectCapability,
   viewAccessAs,
@@ -80,7 +80,7 @@ const TABS: Array<{ id: AccessTab; label: string }> = [
   { id: "roles", label: "Roles" },
   { id: "capabilities", label: "Capabilities" },
   { id: "log", label: "Access log" },
-  { id: "readiness", label: "Readiness" },
+  { id: "readiness", label: "Health" },
 ];
 
 function AccessPermissionsPage() {
@@ -112,9 +112,9 @@ function AccessPermissionsPage() {
     queryFn: () => loadPermissionEvents(mismatchesOnly),
   });
   useQuery({
-    queryKey: ["permission-engine-shadow", "permissions.read", editionId],
+    queryKey: ["permission-engine-evaluation", "permissions.read", editionId],
     queryFn: async () => {
-      await recordPermissionShadow({
+      await recordPermissionEvaluation({
         capability: "permissions.read",
         editionId: editionId || null,
         action: "permissions.workspace.view",
@@ -214,7 +214,7 @@ function AccessPermissionsPage() {
           <Metric
             label="30-day evaluations"
             value={summary?.evaluations ?? 0}
-            hint={summary ? `${summary.mismatched} historical mismatches` : "Loading telemetry"}
+            hint={summary ? `${summary.mismatched} pre-cutover mismatch${summary.mismatched === 1 ? "" : "es"} in window` : "Loading telemetry"}
             attention={Boolean(summary?.mismatched)}
           />
         </section>
@@ -686,9 +686,9 @@ function AccessLogTab({
   return (
     <AdminCard strong>
       <AdminCardHeader
-        eyebrow="Shadow telemetry"
+        eyebrow="Access telemetry"
         title="Access log"
-        description="Compare the current organizer decision with the capability result. A mismatch is evidence to investigate, not an automatic access change."
+        description="Review authoritative capability decisions. Pre-cutover comparison events remain visible as historical audit evidence."
         action={
           <label className="flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 text-xs font-semibold">
             <input
@@ -696,7 +696,7 @@ function AccessLogTab({
               checked={mismatchesOnly}
               onChange={(event) => onMismatchesOnly(event.target.checked)}
             />
-            Mismatches only
+            Historical mismatches only
           </label>
         }
       />
@@ -704,12 +704,12 @@ function AccessLogTab({
         <div className="mb-4 grid gap-2 sm:grid-cols-3">
           <SmallMetric label="Matched" value={summary.matched} />
           <SmallMetric
-            label="Legacy allow / new deny"
+            label="Historical allow / capability deny"
             value={summary.legacyAllowedCapabilityDenied}
             attention
           />
           <SmallMetric
-            label="Legacy deny / new allow"
+            label="Historical deny / capability allow"
             value={summary.legacyDeniedCapabilityAllowed}
             attention
           />
@@ -758,7 +758,7 @@ function AccessLogTab({
         <AdminEmptyState
           icon={ShieldCheck}
           title={mismatchesOnly ? "No mismatches recorded" : "No evaluations recorded"}
-          description="Shadow events appear as protected Organizer routes adopt the comparison check."
+          description="Authoritative access evaluations appear as protected Organizer routes are used."
         />
       )}
     </AdminCard>

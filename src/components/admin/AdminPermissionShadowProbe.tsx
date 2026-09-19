@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 
-import { recordPermissionShadow } from "@/lib/permission-engine-admin";
+import { recordPermissionEvaluation } from "@/lib/permission-engine-admin";
 import { capabilityForOrganizerPath } from "@/lib/permission-route-map";
 import { useAdminContext } from "./AdminContext";
 
@@ -11,10 +11,10 @@ export function AdminPermissionShadowProbe() {
   const capability = capabilityForOrganizerPath(pathname);
 
   useQuery({
-    queryKey: ["permission-engine-shadow", capability, editionId, pathname],
+    queryKey: ["permission-engine-evaluation", capability, editionId, pathname],
     queryFn: async () => {
       if (!capability) return false;
-      await recordPermissionShadow({
+      await recordPermissionEvaluation({
         capability,
         editionId: editionId || null,
         action: "organizer.route.view",

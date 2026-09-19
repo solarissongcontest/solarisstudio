@@ -15,10 +15,10 @@ describe("Permission Engine cutover readiness", () => {
 
     expect(readiness.ready).toBe(false);
     expect(readiness.gates.find((gate) => gate.id === "evidence")?.state).toBe("waiting");
-    expect(readiness.gates.find((gate) => gate.id === "mismatches")?.state).toBe("waiting");
+    expect(readiness.gates.find((gate) => gate.id === "mismatches")?.state).toBe("ready");
   });
 
-  it("blocks cutover when real observations disagree", () => {
+  it("keeps pre-cutover mismatches as historical evidence instead of blocking current access", () => {
     const readiness = buildPermissionCutoverReadiness({
       windowDays: 30,
       evaluations: 8,
@@ -29,7 +29,10 @@ describe("Permission Engine cutover readiness", () => {
     });
 
     expect(readiness.gates.find((gate) => gate.id === "evidence")?.state).toBe("ready");
-    expect(readiness.gates.find((gate) => gate.id === "mismatches")?.state).toBe("blocked");
-    expect(readiness.ready).toBe(false);
+    expect(readiness.gates.find((gate) => gate.id === "mismatches")?.state).toBe("ready");
+    expect(readiness.gates.find((gate) => gate.id === "mismatches")?.detail).toContain(
+      "historical evidence",
+    );
+    expect(readiness.ready).toBe(true);
   });
 });

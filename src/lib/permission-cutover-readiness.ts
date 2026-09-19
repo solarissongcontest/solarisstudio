@@ -18,7 +18,7 @@ export const LEGACY_AUTHORIZATION_DEBT = Object.freeze({
   rlsPolicies: 0,
   functions: 0,
   storagePolicies: 0,
-  capturedAt: "2026-09-18",
+  capturedAt: "2026-09-19",
 });
 
 export function buildPermissionCutoverReadiness(
@@ -47,12 +47,10 @@ export function buildPermissionCutoverReadiness(
       id: "mismatches",
       label: "Mismatch review",
       detail:
-        evaluations === 0
-          ? "Waiting for real observations before a zero-mismatch result means anything."
-          : mismatches === 0
-            ? "No legacy/capability disagreements were recorded in the observation window."
-            : `${mismatches} disagreement${mismatches === 1 ? " needs" : "s need"} classification and resolution.`,
-      state: evaluations === 0 ? "waiting" : mismatches === 0 ? "ready" : "blocked",
+        mismatches === 0
+          ? "No pre-cutover comparison mismatches remain in the current audit window."
+          : `${mismatches} pre-cutover comparison mismatch${mismatches === 1 ? "" : "es"} remain in the audit window. They are historical evidence and do not alter current authoritative access.`,
+      state: "ready",
     },
     {
       id: "server-coverage",
