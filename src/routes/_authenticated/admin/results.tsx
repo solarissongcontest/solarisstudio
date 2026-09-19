@@ -53,10 +53,12 @@ function ResultsOperationsPage() {
   const [reason, setReason] = useState('');
 
   const editions = editionsQuery.data ?? [];
-  const edition = editions.find((item) => item.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
-  const resolvedEditionId = edition?.id ?? '';
+  // Results is edition-scoped. Never silently substitute another edition just
+  // because that edition happens to have result rows.
+  const edition = editionId
+    ? editions.find((item) => item.id === editionId) ?? null
+    : null;
+  const resolvedEditionId = editionId && edition ? edition.id : '';
 
   const operationsQuery = useQuery({
     queryKey: ['studio2-results-operations', resolvedEditionId || 'none'],
