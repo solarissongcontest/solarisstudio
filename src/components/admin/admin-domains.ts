@@ -141,6 +141,7 @@ export function buildAdminDomainNavigation(slug?: string): AdminDomainNavigation
         path.startsWith("/admin/hod-history") ||
         path.startsWith("/admin/predictions") ||
         path.startsWith("/admin/anniversary") ||
+        path.startsWith("/admin/public-ux") ||
         path.startsWith("/admin/beta") ||
         path.startsWith("/admin/admin-beta") ||
         path.startsWith("/admin/sync-health") ||
