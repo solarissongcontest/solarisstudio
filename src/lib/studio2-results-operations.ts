@@ -119,8 +119,13 @@ function boolValue(value: unknown, label: string): boolean {
 
 export function parseStudio2ResultPreconditions(value: unknown): Studio2ResultPreconditions {
   const row = object(value, 'result preconditions');
+  const participantCount = numberValue(row.participantCount, 'participantCount');
+  const resultRowCount = numberValue(row.resultRowCount, 'resultRowCount');
+  const reconciliationIssues =
+    numberValue(row.reconcileIssueCount, 'reconcileIssueCount') +
+    Math.abs(resultRowCount - participantCount);
   return {
-    participantCount: numberValue(row.participantCount, 'participantCount'),
+    participantCount,
     juryEnabled: boolValue(row.juryEnabled, 'juryEnabled'),
     juryRequiredPoints: numberValue(row.juryRequiredPoints, 'juryRequiredPoints'),
     juryVoterCount: numberValue(row.juryVoterCount, 'juryVoterCount'),
@@ -133,8 +138,8 @@ export function parseStudio2ResultPreconditions(value: unknown): Studio2ResultPr
     televoteVoteRows: numberValue(row.televoteVoteRows, 'televoteVoteRows'),
     televoteReady: boolValue(row.televoteReady, 'televoteReady'),
     calculationReady: boolValue(row.calculationReady, 'calculationReady'),
-    resultRowCount: numberValue(row.resultRowCount, 'resultRowCount'),
-    reconcileIssueCount: numberValue(row.reconcileIssueCount, 'reconcileIssueCount'),
+    resultRowCount,
+    reconcileIssueCount: reconciliationIssues,
     resultReady: boolValue(row.resultReady, 'resultReady'),
     publishedResults: boolValue(row.publishedResults, 'publishedResults'),
   };
