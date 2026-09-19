@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
 
@@ -117,13 +118,10 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
     };
   }
 
-  const [roleResult, countryResult] = await Promise.all([
-    typedSupabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", resolvedUserId)
-      .eq("role", "organizer")
-      .maybeSingle(),
+  const [organizerResult, countryResult] = await Promise.all([
+    hasSolarisOrganizerAccess(resolvedUserId)
+      .then((value) => ({ value, error: null as unknown }))
+      .catch((error) => ({ value: false, error })),
     supabase
       .from("country_accounts")
       .select("country_id,status,suspension_reason")
@@ -131,8 +129,8 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
       .maybeSingle(),
   ]);
 
-  if (roleResult.error && !missingCountrySchema(roleResult.error)) {
-    console.warn("Could not resolve organizer role", roleResult.error);
+  if (organizerResult.error && !missingCountrySchema(organizerResult.error)) {
+    console.warn("Could not resolve organizer access", organizerResult.error);
   }
 
   if (countryResult.error && !missingCountrySchema(countryResult.error)) {
@@ -141,7 +139,7 @@ export async function getCurrentAccountAccess(userId?: string | null): Promise<A
 
   return {
     userId: resolvedUserId,
-    isOrganizer: Boolean(roleResult.data),
+    isOrganizer: organizerResult.value,
     countryId: countryResult.data?.country_id ?? null,
     countryStatus: countryResult.data?.status ?? null,
     suspensionReason: countryResult.data?.suspension_reason ?? null,

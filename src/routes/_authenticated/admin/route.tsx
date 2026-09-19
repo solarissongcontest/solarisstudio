@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
+import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase } from "@/integrations/supabase/client";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
@@ -86,13 +87,13 @@ export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) throw redirect({ to: "/auth" });
-    const { data: role, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .eq("role", "organizer")
-      .maybeSingle();
-    if (error || !role) throw redirect({ to: "/my-solaris" });
+    let isOrganizer = false;
+    try {
+      isOrganizer = await hasSolarisOrganizerAccess(userData.user.id);
+    } catch {
+      isOrganizer = false;
+    }
+    if (!isOrganizer) throw redirect({ to: "/my-solaris" });
     return { organizer: true };
   },
   component: () => (

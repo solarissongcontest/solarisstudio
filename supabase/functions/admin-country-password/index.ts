@@ -90,14 +90,18 @@ Deno.serve(async (req) => {
     return json({ error: "Your organizer session has expired." }, 401);
   }
 
-  const { data: organizerRole, error: organizerError } = await service
-    .from("user_roles")
-    .select("user_id")
+  const now = new Date().toISOString();
+  const { data: organizerAssignment, error: organizerError } = await service
+    .from("studio2_role_assignments")
+    .select("id")
     .eq("user_id", callerData.user.id)
-    .eq("role", "organizer")
+    .in("role_key", ["organizer", "superadmin"])
+    .is("edition_id", null)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .limit(1)
     .maybeSingle();
   if (organizerError) return json({ error: "Organizer access could not be verified." }, 500);
-  if (!organizerRole) return json({ error: "Organizer access is required." }, 403);
+  if (!organizerAssignment) return json({ error: "Organizer access is required." }, 403);
 
   let body: Record<string, unknown>;
   try {

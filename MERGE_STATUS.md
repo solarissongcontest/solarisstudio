@@ -39,14 +39,15 @@ Production migration drift affecting public engagement tools was repaired and re
 
 ## Televoting Cloudflare runtime
 
-Privileged Televoting access is Cloudflare-native. Solaris Studio connects directly to the Televoting Supabase backend from server-only code instead of proxying admin requests through a Lovable/Vote Hub runtime.
+Privileged Televoting access is Cloudflare-native, but it no longer relies on a Televoting service-role secret. Solaris Studio connects to the Televoting schema from server functions using the signed-in user's Solaris bearer token plus the browser-safe Solaris publishable key.
 
-- The privileged credential is read only from the Cloudflare Worker secret `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY`.
-- `wrangler.jsonc` declares that secret as required.
-- Public Televoting remains on its browser-safe publishable client.
-- The service-role credential must never be committed to GitHub, placed in Wrangler `vars`, exposed through a `VITE_` variable or returned to browser code.
+- Organizer identity is resolved from active global Permission Engine v2 role assignments.
+- Televoting server requests run under the authenticated user's JWT, so database RLS and capability checks remain authoritative.
+- Public Televoting continues to use the browser-safe publishable client.
+- `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY` is not a current Solaris Studio runtime dependency and must not be added to client-visible configuration.
+- `wrangler.jsonc` therefore does not declare a service-role credential.
 
-The GitHub and Supabase sides are ready. The Cloudflare account is not exposed through the connected project tools, so the presence of the live Worker secret and the resulting deployed runtime health cannot be verified from this repository alone. If the secret is present in the `solarisstudio` Worker, the current `main` tree is the intended deployment target.
+Runtime readiness is checked by making an authenticated Televoting query through the same user-token path used by Organizer tools. The current `main` tree is the intended Cloudflare deployment target.
 
 ## Legacy standalone Vote Hub
 

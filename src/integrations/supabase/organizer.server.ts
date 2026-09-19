@@ -54,14 +54,19 @@ export async function requireSolarisOrganizerServer(): Promise<SolarisOrganizer>
   const { data: userData, error: userError } = await client.auth.getUser(token);
   if (userError || !userData.user) throw new Error("Not authenticated");
 
-  const { data: role, error: roleError } = await client
-    .from("user_roles")
-    .select("role")
+  const now = new Date().toISOString();
+  const { data: assignment, error: assignmentError } = await (client as any)
+    .from("studio2_role_assignments")
+    .select("role_key")
     .eq("user_id", userData.user.id)
-    .eq("role", "organizer")
+    .in("role_key", ["organizer", "superadmin"])
+    .is("edition_id", null)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .limit(1)
     .maybeSingle();
 
-  if (roleError || !role) throw new Error("Organizer access required");
+  if (assignmentError) throw assignmentError;
+  if (!assignment) throw new Error("Organizer access required");
 
   return {
     id: userData.user.id,
