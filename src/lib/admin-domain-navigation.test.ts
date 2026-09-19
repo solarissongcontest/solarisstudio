@@ -17,16 +17,14 @@ const palette = source("src/components/admin/AdminCommandPalette.tsx");
 const organizerMenu = source("src/routes/_authenticated/admin/menu.tsx");
 
 describe("Organizer domain navigation", () => {
-  it("keeps the permanent sidebar at seven stable domains", () => {
-    const domains = buildAdminDomainNavigation("ssc-21");
-    expect(domains).toHaveLength(7);
+  it("keeps the permanent shell at five stable destinations", () => {
+    const domains = buildAdminDomainNavigation("ssc-21", "SSC21");
+    expect(domains).toHaveLength(5);
     expect(domains.map((domain) => domain.label)).toEqual([
-      "Overview",
-      "Contest",
-      "Operations",
-      "Voting & Results",
-      "Rules & Integrity",
-      "Publishing",
+      "Home",
+      "Inbox",
+      "SSC21",
+      "Rules & Cases",
       "Administration",
     ]);
   });
@@ -38,29 +36,29 @@ describe("Organizer domain navigation", () => {
     expect(adminNav).toContain("Specialist pages stay available");
   });
 
-  it("keeps the mobile menu domain-first without deleting the specialist directory", () => {
+  it("keeps the Organizer menu small while preserving the searchable specialist directory", () => {
     expect(organizerMenu).toContain("buildAdminDomainNavigation");
     expect(organizerMenu).toContain("Work domains");
     expect(organizerMenu).toContain("All specialist pages");
     expect(organizerMenu).toContain("buildAdminNavigation(activeEdition?.slug)");
   });
 
-  it("uses the seven-domain model for contextual navigation too", () => {
+  it("uses the five-destination model for contextual navigation too", () => {
     expect(sectionNav).toContain("buildAdminContextualSection");
     expect(sectionNav).not.toContain("buildAdminNavigation");
 
-    const operations = buildAdminContextualSection("/admin/communications", "ssc-21");
-    expect(operations?.domain.label).toBe("Operations");
-    expect(operations?.tabs.map((tab) => tab.label)).toContain("Communications");
+    const administration = buildAdminContextualSection("/admin/communications", "ssc-21");
+    expect(administration?.domain.label).toBe("Administration");
+    expect(administration?.tabs.map((tab) => tab.label)).toContain("Communications");
 
     const governance = buildAdminContextualSection("/admin/integrity-appeals", "ssc-21");
-    expect(governance?.domain.label).toBe("Rules & Integrity");
+    expect(governance?.domain.label).toBe("Rules & Cases");
     expect(governance?.tabs.map((tab) => tab.label)).toContain("Appeals");
   });
 
   it("keeps deep workflow navigation only where the workflow needs it", () => {
     const delegations = buildAdminContextualSection("/confirmations/admin/rounds", "ssc-21");
-    expect(delegations?.domain.label).toBe("Contest");
+    expect(delegations?.domain.id).toBe("edition");
     expect(delegations?.workflow?.label).toBe("Delegations workflow");
     expect(delegations?.workflow?.tabs.map((tab) => tab.label)).toEqual([
       "Overview",
@@ -71,7 +69,7 @@ describe("Organizer domain navigation", () => {
     ]);
 
     const voting = buildAdminContextualSection("/televoting/admin/intelligence", "ssc-21");
-    expect(voting?.domain.label).toBe("Voting & Results");
+    expect(voting?.domain.id).toBe("edition");
     expect(voting?.workflow?.label).toBe("Voting workflow");
     expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Friend voting");
 
@@ -92,20 +90,21 @@ describe("Organizer domain navigation", () => {
     }
   });
 
-  it("assigns specialist route families to a stable primary domain", () => {
-    const domains = buildAdminDomainNavigation("ssc-21");
+  it("assigns specialist route families to one stable primary destination", () => {
+    const domains = buildAdminDomainNavigation("ssc-21", "SSC21");
     const domainFor = (path: string) => domains.find((domain) => domain.active(path))?.id;
 
-    expect(domainFor("/admin/ssc-21")).toBe("contest");
-    expect(domainFor("/admin/incidents")).toBe("operations");
-    expect(domainFor("/admin/results-reveal")).toBe("voting-results");
-    expect(domainFor("/admin/integrity-appeals")).toBe("rules-integrity");
-    expect(domainFor("/admin/storytelling")).toBe("publishing");
+    expect(domainFor("/admin/operations")).toBe("home");
+    expect(domainFor("/admin/inbox")).toBe("inbox");
+    expect(domainFor("/admin/ssc-21")).toBe("edition");
+    expect(domainFor("/admin/incidents")).toBe("edition");
+    expect(domainFor("/admin/results-reveal")).toBe("edition");
+    expect(domainFor("/admin/integrity-appeals")).toBe("rules-cases");
     expect(domainFor("/admin/feature-rollout")).toBe("administration");
   });
 
-  it("gives every internal destination in the detailed registry exactly one domain owner", () => {
-    const domains = buildAdminDomainNavigation("ssc-21");
+  it("gives every internal destination in the detailed registry exactly one primary owner", () => {
+    const domains = buildAdminDomainNavigation("ssc-21", "SSC21");
     const destinations = buildAdminNavigation("ssc-21")
       .flatMap((group) => group.items)
       .filter(
@@ -119,7 +118,7 @@ describe("Organizer domain navigation", () => {
       const owners = domains.filter((domain) => domain.active(destination.to));
       expect(
         owners.map((owner) => owner.label),
-        `${destination.label} (${destination.to}) should belong to exactly one Organizer domain`,
+        `${destination.label} (${destination.to}) should belong to exactly one Organizer destination`,
       ).toHaveLength(1);
     }
   });
