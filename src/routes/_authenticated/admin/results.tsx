@@ -175,7 +175,16 @@ function ResultsOperationsPage() {
                 <p><strong className="text-foreground">Participants / result rows:</strong> {pending.row.preconditions.participantCount} / {pending.row.preconditions.resultRowCount}</p>
                 <p><strong className="text-foreground">Jury:</strong> {readinessLabel(pending.row.preconditions.juryEnabled, pending.row.preconditions.juryReady)}</p>
                 <p><strong className="text-foreground">Televote:</strong> {readinessLabel(pending.row.preconditions.televoteEnabled, pending.row.preconditions.televoteReady)}</p>
-                <p><strong className="text-foreground">Reconciliation issues:</strong> {pending.row.preconditions.reconcileIssueCount}</p>
+                <p>
+                  <strong className="text-foreground">Reconciliation issues:</strong>{" "}
+                  {pending.row.preconditions.reconcileIssueCount}
+                  {pending.row.preconditions.entityCountMismatch
+                    ? ` · ${pending.row.preconditions.entityCountMismatch} participant/result-row count mismatch${pending.row.preconditions.entityCountMismatch === 1 ? "" : "es"}`
+                    : ""}
+                  {pending.row.preconditions.sourceReconcileIssueCount
+                    ? ` · ${pending.row.preconditions.sourceReconcileIssueCount} total/weighting issue${pending.row.preconditions.sourceReconcileIssueCount === 1 ? "" : "s"}`
+                    : ""}
+                </p>
               </div>
               <label className="block">
                 <span className="admin-section-label">Audit reason</span>
