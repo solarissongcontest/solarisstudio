@@ -263,9 +263,11 @@ export function resolvePublicContestState({
 
   const phase = exactLiveShow(editionShows)
     ? "live"
-    : finalResultPublished(edition, editionShows, results)
-      ? "results_published"
-      : phaseFromLifecycle(lifecycle);
+    : isTerminalLifecycle(lifecycle)
+      ? "post_edition"
+      : finalResultPublished(edition, editionShows, results)
+        ? "results_published"
+        : phaseFromLifecycle(lifecycle);
 
   return {
     edition,
