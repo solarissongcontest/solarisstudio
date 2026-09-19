@@ -23,7 +23,7 @@ export type MySolarisNavigationItem = {
 };
 
 export type MySolarisNavigationGroup = {
-  label: "My participation" | "My country" | "Messages" | "Personal" | "Account" | null;
+  label: "My edition" | "My country" | "My Solaris" | null;
   items: readonly MySolarisNavigationItem[];
 };
 
@@ -40,7 +40,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
     ],
   },
   {
-    label: "My participation",
+    label: "My edition",
     items: [
       {
         id: "tasks",
@@ -61,10 +61,10 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
         to: NAV_TARGETS.mySolarisVoting,
       },
       {
-        id: "history",
-        label: "Past editions",
-        description: "Previous participation, entries and delegation history",
-        to: NAV_TARGETS.mySolarisHistory,
+        id: "notices",
+        label: "Notices",
+        description: "Official notices, acknowledgements and decisions",
+        to: NAV_TARGETS.mySolarisNotices,
       },
     ],
   },
@@ -73,39 +73,34 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
     items: [
       {
         id: "country",
-        label: "Profile & entries",
-        description: "Country identity, delegation settings and entries",
+        label: "Country",
+        description: "Country identity and delegation settings",
         to: NAV_TARGETS.mySolarisCountry,
       },
       {
         id: "page-media",
-        label: "Country page",
+        label: "Page & media",
         description: "Public page, media and appearance",
         to: NAV_TARGETS.mySolarisPageBuilder,
         activePaths: [NAV_TARGETS.mySolarisPageBuilder, NAV_TARGETS.mySolarisTheme],
       },
+      {
+        id: "history",
+        label: "History",
+        description: "Previous participation, entries and delegation history",
+        to: NAV_TARGETS.mySolarisHistory,
+      },
     ],
   },
   {
-    label: "Messages",
+    label: "My Solaris",
     items: [
       {
-        id: "notices",
-        label: "Notices & decisions",
-        description: "Official notices, acknowledgements and decisions",
-        to: NAV_TARGETS.mySolarisNotices,
-      },
-      {
         id: "activity",
-        label: "Updates",
+        label: "Activity",
         description: "Recent Solaris updates connected to you",
         to: NAV_TARGETS.mySolarisActivity,
       },
-    ],
-  },
-  {
-    label: "Personal",
-    items: [
       {
         id: "predictions",
         label: "Predictions",
@@ -118,14 +113,9 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
         description: "Countries and editions you follow",
         to: NAV_TARGETS.mySolarisSaved,
       },
-    ],
-  },
-  {
-    label: "Account",
-    items: [
       {
         id: "account",
-        label: "Settings & security",
+        label: "Account",
         description: "Profile, sign-in, preferences and security",
         to: NAV_TARGETS.mySolarisAccount,
       },
