@@ -17,10 +17,13 @@ export function PublicDrawerNavigation({
   isOrganizer: boolean;
 }) {
   const area = publicAreaForPath(pathname);
+  const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
   const localItems =
     area === "home" || area === "me"
       ? []
-      : publicDestinationsForArea(area, { includeContextual: false });
+      : publicDestinationsForArea(area, { includeContextual: false }).filter(
+          (item) => item.to !== areaRoot,
+        );
 
   return (
     <div className="space-y-5">
