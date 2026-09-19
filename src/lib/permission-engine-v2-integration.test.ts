@@ -22,7 +22,7 @@ describe("Permission Engine v2 administration", () => {
     expect(navigation).toContain("/admin/access-permissions");
     expect(contextualNavigation).toContain("Access & permissions");
     expect(route).toContain("type AccessTab =");
-    for (const label of ["Users", "Roles", "Capabilities", "Access log", "Readiness"]) {
+    for (const label of ["Users", "Roles", "Capabilities", "Access log", "Health"]) {
       expect(route).toContain(`label: "${label}"`);
     }
   });
@@ -50,6 +50,7 @@ describe("Permission Engine v2 administration", () => {
   it("records authoritative capability decisions for audit", () => {
     expect(route).toContain("Capability enforcement is authoritative.");
     expect(route).toContain("Authoritative");
+    expect(client).toContain("recordPermissionEvaluation");
     expect(client).toContain("studio2_check_capability_shadow");
     expect(route).toContain('action: "permissions.workspace.view"');
   });
