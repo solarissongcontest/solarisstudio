@@ -227,14 +227,17 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
             path.startsWith("/admin/televote/"),
         ),
         tab(
+          "Friend voting",
+          "/admin/friend-voting",
+          (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence"),
+        ),
+        tab(
           "Integrity",
           "/televoting/admin/integrity",
           (path) =>
             path.startsWith("/televoting/admin/integrity") ||
             path.startsWith("/televoting/admin/anti-abuse") ||
-            path.startsWith("/televoting/admin/result-integrity") ||
-            path.startsWith("/admin/friend-voting") ||
-            path.startsWith("/televoting/admin/intelligence"),
+            path.startsWith("/televoting/admin/result-integrity"),
         ),
         tab(
           "Results",
