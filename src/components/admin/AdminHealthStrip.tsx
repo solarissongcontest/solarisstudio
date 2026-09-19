@@ -14,7 +14,9 @@ export function AdminHealthStrip() {
     const ordered = [...editions].sort(
       (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
     );
-    return ordered.find((item) => item.id === editionId) ?? ordered[0] ?? null;
+    return editionId
+      ? ordered.find((item) => item.id === editionId) ?? null
+      : ordered[0] ?? null;
   }, [editions, editionId]);
 
   const { data: shows = [], isLoading: showsLoading } = useShows(edition?.id);
