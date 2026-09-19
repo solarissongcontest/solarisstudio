@@ -23,6 +23,25 @@ describe("final RLS and schema hygiene", () => {
     expect(migration).toContain("primary key (id)");
   });
 
+  it("indexes only the currently material unindexed foreign keys", () => {
+    for (const indexName of [
+      "contest_entities_country_id_idx",
+      "country_hod_edition_claims_country_id_idx",
+      "country_hod_edition_claims_edition_id_idx",
+      "jury_votes_receiving_country_id_idx",
+      "jury_votes_voter_country_id_idx",
+      "jury_votes_voter_entity_id_idx",
+      "participants_country_id_idx",
+      "results_country_id_idx",
+      "televote_votes_country_id_idx",
+      "voters_contest_entity_id_idx",
+      "voters_country_id_idx",
+    ]) {
+      expect(migration).toContain(indexName);
+    }
+    expect(migration).toContain("Expected high-volume FK indexes are missing");
+  });
+
   it("preserves exact select unions while splitting FOR ALL write policies", () => {
     expect(migration).toContain("Capture the exact current SELECT union");
     expect(migration).toContain("p.cmd in ('SELECT','ALL')");
