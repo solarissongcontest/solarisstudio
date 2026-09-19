@@ -45,6 +45,10 @@ export function ChordDiagram({
     });
   }, [links, nodeIds]);
 
+  const strongestConnections = [...ribbons]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+
   if (!nodeIds.length) {
     return <p className="text-sm text-muted-foreground">Not enough voting data yet.</p>;
   }
@@ -67,6 +71,28 @@ export function ChordDiagram({
 
   return (
     <div className="rounded-xl border border-border/60 bg-background/20 p-2 sm:p-4">
+      <div className="space-y-2 sm:hidden">
+        <p className="px-1 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+          Strongest two-way connections
+        </p>
+        {strongestConnections.map((connection) => (
+          <div
+            key={`${connection.a}-${connection.b}`}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/45 px-3 py-2.5"
+          >
+            <span className="min-w-0 text-sm font-semibold">
+              {cMap.get(connection.a)?.name ?? "Unknown"} ↔ {cMap.get(connection.b)?.name ?? "Unknown"}
+            </span>
+            <span className="numeric shrink-0 text-xs font-bold">{connection.value} pts</span>
+          </div>
+        ))}
+      </div>
+
+      <details className="mt-3 sm:hidden">
+        <summary className="cursor-pointer list-none rounded-xl border border-border/70 px-3 py-2.5 text-xs font-semibold [&::-webkit-details-marker]:hidden">
+          Open chord diagram
+        </summary>
+        <div className="pt-3">
       <svg
         viewBox={`0 0 ${size} ${size}`}
         preserveAspectRatio="xMidYMid meet"
@@ -119,6 +145,63 @@ export function ChordDiagram({
           );
         })}
       </svg>
+        </div>
+      </details>
+
+      <div className="hidden sm:block">
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        preserveAspectRatio="xMidYMid meet"
+        className="mx-auto block aspect-square w-full max-w-[720px]"
+        role="img"
+        aria-label="Relationship chord diagram showing the strongest two-way voting connections"
+      >
+        {ribbons.map((ribbon, index) => {
+          const p1 = pos.get(ribbon.a)!;
+          const p2 = pos.get(ribbon.b)!;
+          const dim = active && active !== ribbon.a && active !== ribbon.b;
+          const country = cMap.get(ribbon.a);
+          return (
+            <path
+              key={`${ribbon.a}-${ribbon.b}-${index}`}
+              d={`M ${p1.x} ${p1.y} Q ${cx} ${cy} ${p2.x} ${p2.y}`}
+              fill="none"
+              stroke={country?.accent_color ?? "var(--jury)"}
+              strokeWidth={Math.max(1, (ribbon.value / maxVal) * 10)}
+              opacity={dim ? 0.06 : active ? 0.68 : 0.45}
+              className="transition-opacity"
+            >
+              <title>{cMap.get(ribbon.a)?.name} ↔ {cMap.get(ribbon.b)?.name}: {ribbon.value} pts</title>
+            </path>
+          );
+        })}
+
+        {nodeIds.map((id) => {
+          const country = cMap.get(id);
+          const point = pos.get(id)!;
+          const angle = Math.atan2(point.y - cy, point.x - cx);
+          const labelX = cx + (radius + 22) * Math.cos(angle);
+          const labelY = cy + (radius + 22) * Math.sin(angle);
+          return (
+            <g key={id} onMouseEnter={() => setActive(id)} onMouseLeave={() => setActive(null)} className="cursor-pointer">
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={active === id ? 10 : 8}
+                fill={country?.accent_color ?? "var(--jury)"}
+                stroke="var(--background)"
+                strokeWidth={2}
+              />
+              <Link to="/countries/$code" params={{ code: country?.short_code ?? "" }}>
+                <text x={labelX} y={labelY} fontSize={active === id ? 12 : 10} fontWeight={active === id ? 700 : 500} textAnchor="middle" className="fill-foreground">
+                  {country?.short_code ?? "?"}
+                </text>
+              </Link>
+            </g>
+          );
+        })}
+      </svg>
+      </div>
     </div>
   );
 }
