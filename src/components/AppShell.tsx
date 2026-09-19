@@ -22,6 +22,7 @@ import {
 } from "@/components/public/LegacyPublicNavigation";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
+import { PublicFooter } from "@/components/public/PublicFooter";
 import { PublicDrawerNavigation } from "@/components/public/PublicSiteNavigation";
 import { PublicMobileSectionNav } from "@/components/public/PublicMobileSectionNav";
 import { PublicSectionNav } from "@/components/public/PublicSectionNav";
@@ -495,6 +496,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </>
           )}
         </main>
+
+        {publicIaV3Enabled === true && !isMySolarisWorkspace && !focusedParticipationTask ? (
+          <PublicFooter />
+        ) : null}
 
         {!isMySolarisWorkspace && publicIaV3Enabled !== null && (
           <nav
