@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
+import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useAllParticipants, useEditions, type Edition, type Participant } from "@/lib/data";
@@ -12,6 +13,7 @@ import {
   sortMySolarisPriorities,
   type MySolarisPriorityItem,
 } from "@/lib/my-solaris-priorities";
+import { buildPersonalAttentionItems } from "@/lib/personal-attention";
 
 const PARTICIPANT_CAPABILITIES = [
   "official_communications",
@@ -133,6 +135,14 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: true,
   });
 
+  const confirmationQuery = useQuery({
+    enabled: Boolean(userQuery.data && countryAccountQuery.data?.country),
+    queryKey: ["country-confirmation-access", "mysolaris-context"],
+    queryFn: getCountryConfirmationAccess,
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+  });
+
   const noticeSummary = noticesQuery.data ?? {
     unreadNoticeCount: 0,
     acknowledgementTasks: 0,
@@ -151,72 +161,21 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     [currentEdition, roundsQuery.data],
   );
 
-  const entryComplete = Boolean(currentEntry?.artist?.trim() && currentEntry?.song?.trim());
   const priorities = useMemo(() => {
-    const items: MySolarisPriorityItem[] = [];
-
-    if (currentEdition && !currentEntry) {
-      items.push({
-        id: "entry-missing",
-        title: "Current entry is missing",
-        description: "Add the current-edition entry and start readiness checks.",
-        to: NAV_TARGETS.mySolarisEntry,
-        search: { view: "readiness" },
-        priority: 100,
-        deadline: null,
-        severity: "critical",
-        actionRequired: true,
-        kind: "entry",
-      });
-    } else if (currentEntry && !entryComplete) {
-      items.push({
-        id: "entry-incomplete",
-        title: "Entry readiness needs details",
-        description: "Artist or song information is incomplete.",
-        to: NAV_TARGETS.mySolarisEntry,
-        search: { view: "readiness" },
-        priority: 90,
-        deadline: null,
-        severity: "high",
-        actionRequired: true,
-        kind: "entry",
-      });
-    }
-
-    if (acknowledgementTasks > 0) {
-      items.push({
-        id: "required-notices",
-        title: `${acknowledgementTasks} required acknowledgement${acknowledgementTasks === 1 ? "" : "s"}`,
-        description: "Read the official notice and acknowledge it.",
-        to: NAV_TARGETS.mySolarisNotices,
-        priority: 110,
-        deadline: null,
-        severity: "critical",
-        actionRequired: true,
-        kind: "notice",
-      });
-    }
-
-    const otherUnreadNotices = Math.max(0, unreadNoticeCount - acknowledgementTasks);
-    if (otherUnreadNotices > 0) {
-      items.push({
-        id: "unread-notices",
-        title: `${otherUnreadNotices} unread important notice${otherUnreadNotices === 1 ? "" : "s"}`,
-        description: "Review new official communications.",
-        to: NAV_TARGETS.mySolarisNotices,
-        priority: 60,
-        deadline: null,
-        severity: "high",
-        actionRequired: false,
-        kind: "notice",
-      });
-    }
+    const items: MySolarisPriorityItem[] = buildPersonalAttentionItems({
+      editionId: currentEdition?.id ?? null,
+      responses: confirmationQuery.data?.responses ?? [],
+      rounds: roundsQuery.data ?? [],
+      acknowledgementTasks,
+    });
 
     for (const deadline of deadlines) {
       items.push({
         id: `deadline:${deadline.id}`,
         title: deadline.label,
-        description: deadline.closesAt ? "Current-edition deadline" : "Upcoming current-edition window",
+        description: deadline.closesAt
+          ? "Current-edition deadline"
+          : "Upcoming current-edition window",
         to: NAV_TARGETS.mySolarisTasks,
         priority: 50,
         deadline: deadline.closesAt ?? deadline.opensAt,
@@ -229,17 +188,13 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     return sortMySolarisPriorities(items);
   }, [
     acknowledgementTasks,
-    currentEdition,
-    currentEntry,
+    confirmationQuery.data?.responses,
+    currentEdition?.id,
     deadlines,
-    entryComplete,
-    unreadNoticeCount,
+    roundsQuery.data,
   ]);
 
-  const needsAction =
-    (currentEdition && !currentEntry ? 1 : 0) +
-    (currentEntry && !entryComplete ? 1 : 0) +
-    acknowledgementTasks;
+  const needsAction = priorities.filter((item) => item.actionRequired).length;
 
   const value: MySolarisContextValue = {
     user: userQuery.data,
@@ -257,7 +212,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     taskCounts: {
       needsAction,
       upcoming: deadlines.length,
-      completed: (entryComplete ? 1 : 0) + acknowledgedNotices,
+      completed: acknowledgedNotices,
     },
     unreadNoticeCount,
     deadlines,
@@ -267,7 +222,8 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       countryAccountQuery.isLoading ||
       editionsQuery.isLoading ||
       participantsQuery.isLoading ||
-      capabilitiesQuery.isLoading,
+      capabilitiesQuery.isLoading ||
+      confirmationQuery.isLoading,
   };
 
   return <MySolarisContext.Provider value={value}>{children}</MySolarisContext.Provider>;
