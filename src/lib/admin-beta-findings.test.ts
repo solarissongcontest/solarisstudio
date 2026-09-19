@@ -52,11 +52,13 @@ describe("first admin beta findings", () => {
   });
 
   it("keeps artwork controls explicit without fake contest scores", () => {
-    const theme = source("src/routes/_authenticated/admin/edition-theme.$slug.tsx");
+    const theme = source("src/components/studio/EditionArtworkControl.tsx");
+    const legacyTheme = source("src/routes/_authenticated/admin/edition-theme.$slug.tsx");
 
-    expect(theme).toContain("Unsaved changes");
-    expect(theme).toContain("What this page changes");
-    expect(theme).toContain("Votes, points and results are never changed here");
+    expect(theme).toContain("Fine-tune edition colours");
+    expect(theme).toContain("Save colours");
+    expect(theme).toContain("linked scoreboard themes");
+    expect(legacyTheme).toContain('to: "/admin/design/$slug"');
     expect(theme).not.toContain("611");
     expect(theme).not.toContain("444");
     expect(theme).not.toContain("401");
