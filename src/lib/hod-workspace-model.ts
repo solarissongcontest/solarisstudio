@@ -106,15 +106,6 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
       priority: "high",
       href: "/my-solaris/tasks",
     });
-  } else if (!input.juryBallotSubmitted) {
-    actions.push({
-      id: "jury-ballot",
-      label: "Submit jury ballot",
-      description:
-        "The HOD is assigned as the country’s jury, but the jury ballot has not been submitted.",
-      priority: "high",
-      href: "/jury",
-    });
   }
 
   const unacknowledged = input.notices.filter(
