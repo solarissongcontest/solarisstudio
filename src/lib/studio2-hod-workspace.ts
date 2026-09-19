@@ -7,6 +7,7 @@ import {
 } from './country-operational-readiness';
 import {
   evaluateEntryEligibility,
+  type EligibilityCheck,
   type EligibilityConfig,
   type EligibilityResult,
 } from './eligibility-engine';
@@ -20,11 +21,16 @@ import { evaluateWorkflow, type WorkflowSummary, type WorkflowTaskStatus } from 
 import { entrySubmissionWorkflow, type WorkflowTemplateStatusMap } from './workflow-templates';
 
 const HOD_ELIGIBILITY_CONFIG: EligibilityConfig = {
-  requireVideo: true,
+  // Media completeness is operational readiness, not entry-rule validity.
+  // A missing performance link may require participant action, but it must not
+  // label an otherwise valid entry as "blocked".
+  requireVideo: false,
   // Legacy canonical entries do not yet carry a dedicated artwork field.
   // Do not manufacture a blocker for data the source system cannot represent.
   requireArtwork: false,
-  requireBroadcasterApproval: true,
+  // Organizer acceptance is a workflow/review state. Pending review must not
+  // masquerade as a participant eligibility failure.
+  requireBroadcasterApproval: false,
   maxDurationSeconds: null,
   blockDuplicates: true,
 };
@@ -317,6 +323,41 @@ function metadataBoolean(metadata: Record<string, unknown>, ...keys: string[]): 
 
 export function deriveHodEligibility(context: Studio2HodContext): EligibilityResult {
   const entry = context.entry;
+
+  // Confirmation-sourced pending rows are review placeholders. Production data
+  // intentionally leaves artist/song/media null until the organizer accepts the
+  // submission, so treating those nulls as participant failures makes every
+  // pending submission look blocked. Represent the real state instead: the
+  // delegation is confirmed and the submission is waiting on Solaris.
+  if (entry?.source === 'confirmations' && entry.status === 'pending') {
+    const checks: EligibilityCheck[] = [
+      {
+        id: 'country-confirmed',
+        label: 'Country eligibility',
+        level: context.confirmationComplete ? 'pass' : 'blocked',
+        message: context.confirmationComplete
+          ? 'Country is confirmed for the edition.'
+          : 'Country is not confirmed for the edition.',
+      },
+      {
+        id: 'organizer-review',
+        label: 'Organizer review',
+        level: 'warning',
+        message:
+          'The submitted entry is waiting for organizer review. No participant eligibility failure is recorded.',
+      },
+    ];
+    const blockers = checks.filter((check) => check.level === 'blocked');
+    const warnings = checks.filter((check) => check.level === 'warning');
+    return {
+      status: blockers.length ? 'blocked' : 'warning',
+      score: blockers.length ? 0 : 100,
+      checks,
+      blockers,
+      warnings,
+    };
+  }
+
   return evaluateEntryEligibility(
     {
       countryConfirmed: context.confirmationComplete,
@@ -342,15 +383,26 @@ export function deriveHodEntryWorkflow(
   const entry = context.entry;
   const metadata = entry?.metadata ?? {};
   const confirmedEntry = entry?.status === 'confirmed';
+  const pendingConfirmationEntry =
+    entry?.source === 'confirmations' && entry?.status === 'pending';
   const acceptedConfirmationEntry = entry?.source === 'confirmations' && confirmedEntry;
   const reviewed =
     acceptedConfirmationEntry || metadataBoolean(metadata, 'tsbc_reviewed', 'tsbcReviewed');
   const explicitlyLocked = metadataBoolean(metadata, 'entry_locked', 'entryLocked', 'locked');
 
   const statuses: WorkflowTemplateStatusMap = {
-    'entry.song-info': completed(Boolean(entry?.songTitle?.trim())),
-    'entry.artist-info': completed(Boolean(entry?.artist?.trim())),
-    'entry.media': completed(Boolean(entry?.songUrl?.trim())),
+    // Pending confirmation rows are review placeholders: participant-submitted
+    // details live in the confirmation until acceptance. Do not ask the user to
+    // re-enter fields merely because the canonical entry projection is still null.
+    'entry.song-info': completed(
+      pendingConfirmationEntry || Boolean(entry?.songTitle?.trim()),
+    ),
+    'entry.artist-info': completed(
+      pendingConfirmationEntry || Boolean(entry?.artist?.trim()),
+    ),
+    'entry.media': completed(
+      pendingConfirmationEntry || Boolean(entry?.songUrl?.trim()),
+    ),
     'entry.eligibility': completed(eligibility.status !== 'blocked'),
     'entry.broadcaster-approval': completed(confirmedEntry),
     'entry.tsbc-review': completed(reviewed),
