@@ -43,6 +43,8 @@ function row(overrides: Partial<Studio2ResultOperationRow> = {}): Studio2ResultO
       televoteReady: true,
       calculationReady: true,
       resultRowCount: 0,
+      entityCountMismatch: 0,
+      sourceReconcileIssueCount: 0,
       reconcileIssueCount: 0,
       resultReady: false,
       publishedResults: false,
