@@ -45,10 +45,11 @@ test.describe("Rules and Integrity governance discovery", () => {
     const desktop = (page.viewportSize()?.width ?? 0) >= 1024;
 
     if (desktop) {
-      const localNavigation = page.getByRole("complementary", { name: "Participate navigation" });
-      await expect(localNavigation).toBeVisible();
-      await expect(localNavigation.locator('a[href="/confirmations"]')).toBeVisible();
-      await expect(localNavigation.locator('a[href="/integrity/appeals"]')).toHaveCount(0);
+      const taskNavigation = page.getByRole("navigation", { name: "Participation task navigation" });
+      await expect(taskNavigation).toBeVisible();
+      await expect(taskNavigation.locator('a[href="/participate"]')).toBeVisible();
+      await expect(page.getByRole("complementary", { name: "Participate navigation" })).toHaveCount(0);
+      await expect(page.locator('a[href="/integrity/appeals"]')).toHaveCount(0);
       await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
     } else {
       await page.waitForTimeout(3_000);
@@ -125,8 +126,11 @@ test.describe("Rules and Integrity governance discovery", () => {
     } else {
       await expect(page.getByRole("link", { name: "Help", exact: true })).toBeVisible();
       await expect(
-        page.getByRole("complementary", { name: "Participate navigation" }),
+        page.getByRole("navigation", { name: "Participation task navigation" }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("complementary", { name: "Participate navigation" }),
+      ).toHaveCount(0);
     }
     await expectNoHorizontalOverflow(page);
     expect(problems, "Rules and participant governance surfaces must stay hydration-clean").toEqual(
