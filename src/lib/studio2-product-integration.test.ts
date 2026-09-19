@@ -12,7 +12,8 @@ function source(path: string) {
 }
 
 const adminNav = source("src/components/admin/admin-navigation.ts");
-const controlRoomAlias = source("src/routes/_authenticated/admin/control-room.tsx");
+const controlRoom = source("src/routes/_authenticated/admin/control-room.tsx");
+const controlRoomAlias = source("src/routes/_authenticated/admin/control-room-v2.tsx");
 const rollout = source("src/routes/_authenticated/admin/feature-rollout.tsx");
 const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
 
@@ -20,7 +21,8 @@ describe("Studio 2 product integration", () => {
   it("keeps the Live Control Room discoverable from Organizer navigation", () => {
     expect(adminNav).toContain('"Control Room",');
     expect(adminNav).toContain('"/admin/control-room"');
-    expect(controlRoomAlias).toContain('to: "/admin/control-room-v2"');
+    expect(controlRoom).toContain("Control Room — Solaris Organizer");
+    expect(controlRoomAlias).toContain('to: "/admin/control-room"');
     expect(controlRoomAlias).not.toContain('to: "/admin/operations"');
   });
 
