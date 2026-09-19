@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { PublicDataState } from "@/components/public/PublicDataState";
 import { PublicDataGuide } from "@/components/public/PublicDataView";
