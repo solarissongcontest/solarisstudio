@@ -7,7 +7,7 @@ import {
   ShieldAlert,
   TriangleAlert,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -157,7 +157,7 @@ function OrganizerInbox() {
 
 function InboxRow({ item, onSeen }: { item: AdminNotification; onSeen: () => void }) {
   const urgent = item.severity === "critical" || item.severity === "urgent";
-  const attention = urgent || item.severity === "warning" || item.severity === "attention";
+  const attention = urgent || item.severity === "warning" || item.severity === "action";
   const Icon = urgent ? ShieldAlert : attention ? TriangleAlert : Inbox;
 
   const content = (
@@ -215,7 +215,7 @@ function FilterButton({
 }: {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
