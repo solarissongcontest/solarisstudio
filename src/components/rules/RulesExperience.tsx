@@ -282,7 +282,7 @@ export function RulesExperience({ version }: { version: string }) {
 
   return (
     <div className="pb-20">
-      <Hero query={query} setQuery={setQuery} />
+      <Hero query={query} setQuery={setQuery} version={version} />
       <ModeRail
         mode={mode}
         setMode={(next) => {
@@ -305,7 +305,15 @@ export function RulesExperience({ version }: { version: string }) {
   );
 }
 
-function Hero({ query, setQuery }: { query: string; setQuery: (value: string) => void }) {
+function Hero({
+  query,
+  setQuery,
+  version,
+}: {
+  query: string;
+  setQuery: (value: string) => void;
+  version: string;
+}) {
   return (
     <section className="rounded-[1.6rem] border border-sky-200/12 bg-[#06152d] p-5 sm:p-7">
       <div className="flex flex-wrap items-center gap-2">
