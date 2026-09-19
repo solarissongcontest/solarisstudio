@@ -67,6 +67,13 @@ describe("production Organizer audit regressions", () => {
     expect(parsed.resultReady).toBe(false);
   });
 
+  it("explains entity-count mismatches in result reconciliation", () => {
+    const results = source("src/routes/_authenticated/admin/results.tsx");
+
+    expect(results).toContain("participant/result-row count mismatch");
+    expect(results).toContain("sourceReconcileIssueCount");
+  });
+
   it("renders a branded Organizer not-found page instead of a blank route", () => {
     const notFound = source("src/routes/_authenticated/admin/$.tsx");
 
@@ -104,10 +111,26 @@ describe("production Organizer audit regressions", () => {
     expect(confirmations).toContain("This confirmation could not be opened for editing.");
   });
 
-  it("replaces unauthorized Organizer URLs with MySolaris", () => {
+  it("replaces unauthorized Organizer URLs with MySolaris and explains why", () => {
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
+    const mySolaris = source("src/routes/_authenticated/my-solaris/index.tsx");
 
-    expect(adminRoute).toContain('throw redirect({ to: "/my-solaris", replace: true })');
+    expect(adminRoute).toContain('to: "/my-solaris"');
+    expect(adminRoute).toContain('notice: "organizer-access-required"');
+    expect(adminRoute).toContain("replace: true");
+    expect(mySolaris).toContain("Organizer access required");
+    expect(mySolaris).toContain("does not have Organizer access");
+  });
+
+  it("keeps informational Inbox events separate from actionable work", () => {
+    const migration = source(
+      "supabase/migrations/20260919212632_organizer_inbox_actionable_severity.sql",
+    );
+    const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
+
+    expect(migration).toContain("p_severity not in ('info', 'success')");
+    expect(migration).toContain("set requires_action = false");
+    expect(inbox).toContain("item.requires_action && !item.resolved_at");
   });
 
   it("uses the unified MySolaris priority list for the Next action card", () => {
