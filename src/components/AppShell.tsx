@@ -358,7 +358,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 pathname={pathname}
                 isOrganizer={access.isOrganizer}
               />
-            ) : null}
+            )}
           </nav>
 
           <div
