@@ -139,7 +139,19 @@ function CountryProfilePage() {
   );
 
   const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading country profile…" /></AppShell>;
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        <div className="mb-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+            Country profile
+          </p>
+          <h1 className="mt-1 font-display text-2xl font-bold">Loading {code.toUpperCase()}</h1>
+        </div>
+        <ArchiveDataLoading label="Loading country profile…" />
+      </AppShell>
+    );
+  }
   if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
 
   if (!country) {
