@@ -329,7 +329,14 @@ export function deriveHodEligibility(context: Studio2HodContext): EligibilityRes
   // submission, so treating those nulls as participant failures makes every
   // pending submission look blocked. Represent the real state instead: the
   // delegation is confirmed and the submission is waiting on Solaris.
-  if (entry?.source === 'confirmations' && entry.status === 'pending') {
+  const isPendingConfirmationPlaceholder =
+    entry?.source === 'confirmations' &&
+    entry.status === 'pending' &&
+    !entry.artist?.trim() &&
+    !entry.songTitle?.trim() &&
+    !entry.songUrl?.trim();
+
+  if (isPendingConfirmationPlaceholder) {
     const checks: EligibilityCheck[] = [
       {
         id: 'country-confirmed',
