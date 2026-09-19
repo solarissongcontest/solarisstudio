@@ -22,7 +22,6 @@ import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useResolveAdminNotification,
-  useResolveAdminNotification,
   type AdminNotification,
 } from "@/lib/admin-ops";
 import { cn } from "@/lib/utils";
