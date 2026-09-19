@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
 
-import { useEditions } from "@/lib/data";
+import { editionLabel, useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
 import {
@@ -19,9 +19,10 @@ export function AdminSectionNav() {
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
 
+  const activeEditionLabel = activeEdition ? editionLabel(activeEdition) : "Current edition";
   const section = useMemo(
-    () => buildAdminContextualSection(pathname, activeEdition?.slug),
-    [activeEdition?.slug, pathname],
+    () => buildAdminContextualSection(pathname, activeEdition?.slug, activeEditionLabel),
+    [activeEdition?.slug, activeEditionLabel, pathname],
   );
 
   if (!section) return null;
