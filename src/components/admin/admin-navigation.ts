@@ -351,7 +351,7 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
       items: [
         item(
           "Access & permissions",
-          "Users, role presets, capabilities and shadow access telemetry.",
+          "Users, role presets, capabilities and authoritative access telemetry.",
           "/admin/access-permissions",
           KeyRound,
           "access users roles capabilities permissions audit",
