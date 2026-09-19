@@ -18,13 +18,16 @@ describe("MySolaris home priorities", () => {
     expect(context).not.toContain('"country_voting_dna"');
   });
 
-  it("renders real attention and deadline summaries before generic workspace shortcuts", () => {
+  it("renders unified attention and deadline priorities before generic workspace shortcuts", () => {
     expect(operations).toContain('title="Needs attention"');
     expect(operations).toContain('title="Upcoming"');
-    expect(operations).toContain("taskCounts.needsAction");
-    expect(operations).toContain("unreadNoticeCount");
+    expect(operations).toContain("priorities");
+    expect(operations).toContain("item.actionRequired");
+    expect(operations).toContain('item.severity === "critical"');
+    expect(operations).toContain('item.severity === "high"');
     expect(operations).toContain("upcomingDeadlines");
     expect(operations).toContain('title="Edition tools"');
+    expect(operations).not.toContain("unreadNoticeCount");
   });
 
   it("keeps every current-edition workflow directly reachable", () => {
