@@ -189,6 +189,8 @@ export function MySolarisEntryModule() {
 
   const snapshot = workspaceQuery.data;
   const entry = snapshot?.context.entry ?? null;
+  const waitingForOrganizerReview =
+    entry?.source === "confirmations" && entry.status === "pending";
 
   return (
     <AppShell>
@@ -264,51 +266,70 @@ export function MySolarisEntryModule() {
 
             {activeSection === "overview" ? (
               <div className="space-y-4">
-                <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <ReadinessMetric
-                    label="Overall"
-                    value={`${readiness.score}%`}
-                    status={readiness.status}
-                  />
-                  <ReadinessMetric
-                    label="Eligibility"
-                    value={`${readiness.eligibilityScore}%`}
-                    status={eligibilityStatus(snapshot.eligibility.status)}
-                  />
-                  <ReadinessMetric
-                    label="Progress"
-                    value={`${readiness.workflowProgress}%`}
-                    status={snapshot.workflow.complete ? "ready" : "attention"}
-                  />
-                  <ReadinessMetric
-                    label="Blockers"
-                    value={`${readiness.blockerCount}`}
-                    status={readiness.blockerCount ? "blocked" : "ready"}
-                  />
+                <section
+                  className={`rounded-2xl border p-4 sm:p-5 ${
+                    readiness.blockerCount
+                      ? "border-destructive/25 bg-destructive/[0.06]"
+                      : waitingForOrganizerReview
+                        ? "border-sky-300/20 bg-sky-300/[0.055]"
+                        : readiness.actions.length
+                          ? "border-amber-300/20 bg-amber-300/[0.055]"
+                          : "border-emerald-300/20 bg-emerald-300/[0.055]"
+                  }`}
+                >
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                    Entry status
+                  </p>
+                  <h2 className="mt-1 text-xl font-bold">
+                    {readiness.blockerCount
+                      ? "Changes required"
+                      : waitingForOrganizerReview
+                        ? "Under review"
+                        : readiness.actions.length
+                          ? "Needs attention"
+                          : "Ready"}
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    {readiness.blockerCount
+                      ? `${readiness.blockerCount} verified requirement${readiness.blockerCount === 1 ? "" : "s"} currently block this entry.`
+                      : waitingForOrganizerReview
+                        ? "TSBC is reviewing the submitted entry. No participant action is required unless organizers request changes."
+                        : readiness.actions.length
+                          ? `${readiness.actions.length} item${readiness.actions.length === 1 ? "" : "s"} can be completed now.`
+                          : "No participant action is required for this entry right now."}
+                  </p>
+                  {readiness.actions.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection("readiness")}
+                      className="mt-3 min-h-10 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                    >
+                      Review actions
+                    </button>
+                  ) : null}
                 </section>
+
                 <Panel
                   title="Current entry"
                   description={snapshot.context.editionName}
                 >
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <EntryField label="Artist" value={entry?.artist} />
-                    <EntryField label="Song" value={entry?.songTitle} />
-                    <EntryField label="Approval" value={entry?.status} />
-                  </div>
+                  {waitingForOrganizerReview && !entry?.artist && !entry?.songTitle ? (
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Your submitted entry details remain in Confirmations while TSBC reviews the submission.
+                    </p>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <EntryField label="Artist" value={entry?.artist} />
+                      <EntryField label="Song" value={entry?.songTitle} />
+                      <EntryField label="Approval" value={entry?.status} />
+                    </div>
+                  )}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveSection("readiness")}
-                      className="min-h-10 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground"
-                    >
-                      Review {readiness.actions.length} action
-                      {readiness.actions.length === 1 ? "" : "s"}
-                    </button>
                     <Link
                       to="/confirmations"
                       className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
                     >
-                      Edit submission{" "}
+                      {waitingForOrganizerReview ? "View submission" : "Edit submission"}{" "}
                       <ExternalLink className="size-3.5" aria-hidden="true" />
                     </Link>
                   </div>
@@ -640,25 +661,44 @@ function EntrySectionNav({
   onChange: (section: EntrySection) => void;
 }) {
   return (
-    <nav
-      aria-label="Entry sections"
-      className="grid gap-2 rounded-2xl border border-border/70 bg-surface/55 p-2 sm:grid-cols-2 xl:grid-cols-3"
-    >
-      {ENTRY_SECTIONS.map((section) => (
-        <button
-          key={section.id}
-          type="button"
-          onClick={() => onChange(section.id)}
-          aria-current={active === section.id ? "page" : undefined}
-          className={`rounded-xl px-3 py-2.5 text-left transition-colors ${active === section.id ? "bg-primary/10 text-primary" : "hover:bg-surface-strong"}`}
+    <>
+      <label className="block sm:hidden">
+        <span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+          Entry section
+        </span>
+        <select
+          value={active}
+          onChange={(event) => onChange(event.target.value as EntrySection)}
+          className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold"
         >
-          <span className="block text-xs font-semibold">{section.label}</span>
-          <span className="mt-0.5 block text-[10px] text-muted-foreground">
-            {section.description}
-          </span>
-        </button>
-      ))}
-    </nav>
+          {ENTRY_SECTIONS.map((section) => (
+            <option key={section.id} value={section.id}>
+              {section.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <nav
+        aria-label="Entry sections"
+        className="hidden gap-2 rounded-2xl border border-border/70 bg-surface/55 p-2 sm:grid sm:grid-cols-2 xl:grid-cols-3"
+      >
+        {ENTRY_SECTIONS.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            onClick={() => onChange(section.id)}
+            aria-current={active === section.id ? "page" : undefined}
+            className={`rounded-xl px-3 py-2.5 text-left transition-colors ${active === section.id ? "bg-primary/10 text-primary" : "hover:bg-surface-strong"}`}
+          >
+            <span className="block text-xs font-semibold">{section.label}</span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">
+              {section.description}
+            </span>
+          </button>
+        ))}
+      </nav>
+    </>
   );
 }
 
