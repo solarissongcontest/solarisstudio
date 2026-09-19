@@ -4,7 +4,6 @@ import {
   Compass,
   Home,
   Menu,
-  Search,
   Trophy,
   User,
   Vote,
@@ -15,12 +14,14 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { MySolarisWorkspaceShell } from "@/components/mysolaris/MySolarisWorkspaceShell";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
+import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { PublicDrawerNavigation } from "@/components/public/PublicSiteNavigation";
 import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { rememberPublicRecent } from "@/lib/public-recents";
 import { cn } from "@/lib/utils";
 
 const LazyHomeAnniversaryTakeover = lazy(() =>
@@ -150,6 +151,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     ) {
       window.localStorage.setItem("solaris:last-meaningful-route", pathname);
     }
+
+    const timer = window.setTimeout(() => {
+      const title =
+        document.title
+          .split("—")[0]
+          ?.trim()
+          .replace(/\s+—\s+Solaris Studio$/i, "") || pathname;
+      rememberPublicRecent(pathname, title);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   if (pathname.startsWith("/admin")) return <>{children}</>;
@@ -216,14 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
               <span aria-hidden="true" className="mx-1 h-6 w-px bg-border/70" />
 
-              <Link
-                to="/site-directory"
-                className={cn(desktopNavClass(pathname.startsWith("/site-directory")), "flex items-center gap-1.5")}
-                aria-label="Search and browse Solaris Studio"
-              >
-                <Search className="size-3.5" aria-hidden="true" />
-                Search
-              </Link>
+              <PublicCommandPalette />
 
               <Link
                 to="/guide"
