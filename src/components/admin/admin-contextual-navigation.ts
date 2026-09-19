@@ -220,40 +220,31 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
         tab("Rules", slug ? `/admin/voting-system/${slug}` : "/admin", (path) => path.startsWith("/admin/voting-system/")),
         tab("Jury", slug ? `/admin/jury/${slug}` : "/admin", (path) => path.startsWith("/admin/jury/") || path.startsWith("/admin/jury-integrity")),
         tab(
-          "Public voting",
+          "Public vote",
           "/televoting/admin/rounds",
-          (path) => path.startsWith("/televoting/admin/rounds") || path.startsWith("/televoting/admin/analytics"),
-        ),
-        tab(
-          "Friend voting",
-          "/admin/friend-voting",
-          (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence"),
+          (path) =>
+            path.startsWith("/televoting/admin/rounds") ||
+            path.startsWith("/admin/televote/"),
         ),
         tab(
           "Integrity",
           "/televoting/admin/integrity",
-          (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse"),
-        ),
-        tab(
-          "Declarations",
-          "/televoting/admin/integrity-declarations",
-          (path) => path.startsWith("/televoting/admin/integrity-declarations"),
-        ),
-        tab(
-          "Televote results",
-          "/televoting/admin/results",
           (path) =>
+            path.startsWith("/televoting/admin/integrity") ||
+            path.startsWith("/televoting/admin/anti-abuse") ||
+            path.startsWith("/televoting/admin/result-integrity") ||
+            path.startsWith("/admin/friend-voting") ||
+            path.startsWith("/televoting/admin/intelligence"),
+        ),
+        tab(
+          "Results",
+          "/admin/results",
+          (path) =>
+            (path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal")) ||
             path.startsWith("/televoting/admin/results") ||
             path.startsWith("/televoting/admin/combined") ||
-            path.startsWith("/televoting/admin/backtest") ||
-            path.startsWith("/admin/televote/"),
+            path.startsWith("/televoting/admin/backtest"),
         ),
-        tab(
-          "Official results",
-          "/admin/results",
-          (path) => path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal"),
-        ),
-        tab("Lab", "/admin/voting-lab", (path) => path.startsWith("/admin/voting-lab")),
       ],
     };
   }
