@@ -1,18 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Radio, Sparkles, Trophy, Vote } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
+import { PublicStatus } from "@/components/public/PublicStatus";
 import type { PublicContestState } from "@/lib/current-contest-state";
-
-function StateIcon({ phase }: { phase: PublicContestState["phase"] }) {
-  if (phase === "live") return <Radio className="size-4" aria-hidden="true" />;
-  if (phase === "voting" || phase === "jury_voting") {
-    return <Vote className="size-4" aria-hidden="true" />;
-  }
-  if (phase === "results_published" || phase === "post_edition") {
-    return <Trophy className="size-4" aria-hidden="true" />;
-  }
-  return <Sparkles className="size-4" aria-hidden="true" />;
-}
 
 export function CurrentContestHero({
   state,
@@ -28,10 +18,11 @@ export function CurrentContestHero({
 
       <div className="relative z-10 flex min-h-[230px] flex-col justify-between gap-8 sm:min-h-[280px]">
         <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-primary">
-            <StateIcon phase={state.phase} />
-            {state.statusLabel}
-          </span>
+          <PublicStatus
+            status={state.statusKey}
+            label={state.statusLabel}
+            className="min-h-8 px-3"
+          />
 
           <h2 className="mt-4 max-w-4xl font-display text-3xl font-black leading-[1.02] tracking-[-0.045em] sm:text-5xl">
             {state.headline}
