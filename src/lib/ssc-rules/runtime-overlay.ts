@@ -77,10 +77,12 @@ const BASE_CHAPTER_RULES_BY_ID = new Map(
     chapter.rules.map((rule) => [rule.id, cloneRecord(rule as unknown as Record<string, unknown>)] as const),
   ),
 );
-const BASE_RULEBOOK_META = {
+export const BUNDLED_RULEBOOK_META = Object.freeze({
   version: SSC_RULEBOOK.version,
   status: SSC_RULEBOOK.status,
-};
+});
+
+const BASE_RULEBOOK_META = BUNDLED_RULEBOOK_META;
 
 let appliedReleaseVersion: string | null = null;
 
