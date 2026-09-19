@@ -57,10 +57,12 @@ function formatDate(value: string | null) {
 }
 
 function useNow() {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    const update = () => setNow(Date.now());
+    update();
+    const timer = window.setInterval(update, 1_000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -281,8 +283,10 @@ function ConfirmationsPage() {
                 const canOpen = reason === "OPEN";
                 const opens = formatDate(round.opens_at);
                 const closes = formatDate(round.closes_at);
-                const untilOpen = round.opens_at ? millisecondsUntil(round.opens_at, now) : null;
-                const untilClose = round.closes_at ? millisecondsUntil(round.closes_at, now) : null;
+                const untilOpen =
+                  round.opens_at && now != null ? millisecondsUntil(round.opens_at, now) : null;
+                const untilClose =
+                  round.closes_at && now != null ? millisecondsUntil(round.closes_at, now) : null;
                 const remaining =
                   round.response_limit === null
                     ? null
