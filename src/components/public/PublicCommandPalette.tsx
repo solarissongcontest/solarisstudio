@@ -228,6 +228,14 @@ function PublicPaletteDialog({
         group: "Actions",
         keywords: "compare versus countries",
       },
+      {
+        id: "action:site-directory",
+        label: "All Solaris pages",
+        description: "Browse the complete public site directory.",
+        href: "/site-directory",
+        group: "Actions",
+        keywords: "all pages site directory sitemap browse",
+      },
     ];
   }, [access?.countryId, countries, editions]);
 
