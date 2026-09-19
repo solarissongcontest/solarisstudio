@@ -87,7 +87,7 @@ function OrganizerHome() {
   const upcoming =
     schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
   const unread = notifications.filter((item) => !item.read_at);
-  const unresolvedInbox = notifications.filter((item) => !item.resolved_at);
+  const unresolvedInbox = notifications.filter((item) => item.requires_action && !item.resolved_at);
   const issues = readiness?.issues ?? [];
   const topIssues = issues.slice(0, 4);
 
