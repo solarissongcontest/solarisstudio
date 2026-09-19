@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Clock3, Radio, Trophy, Vote } from "lucide-react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
+import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
 import { StoryCards } from "@/components/StoryCards";
 import {
   editionLabel,
@@ -15,6 +17,7 @@ import {
   useEdition,
   useShows,
 } from "@/lib/data";
+import { resolvePublicEditionState } from "@/lib/current-contest-state";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { entityDisplayMap, type EntityDisplay } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
@@ -79,6 +82,29 @@ function EditionPage() {
   const participantList = participants ?? [];
   const displayMap = entityDisplayMap(entities, countries);
   const resultList = (allResults ?? []).filter((result) => result.edition_id === edition.id);
+  const editionState = resolvePublicEditionState({
+    edition,
+    shows: showList,
+    results: resultList,
+  });
+  const editionStatusIcon =
+    editionState.phase === "live"
+      ? Radio
+      : editionState.phase === "voting" || editionState.phase === "jury_voting"
+        ? Vote
+        : editionState.phase === "results_published" || editionState.phase === "post_edition"
+          ? Trophy
+          : Clock3;
+  const editionStatusTone =
+    editionState.phase === "live" ||
+    editionState.phase === "voting" ||
+    editionState.phase === "jury_voting"
+      ? "active"
+      : editionState.phase === "results_pending"
+        ? "attention"
+        : editionState.phase === "results_published" || editionState.phase === "post_edition"
+          ? "complete"
+          : "neutral";
   const publicShows = showList
     .filter((show) => isShowPublic(show))
     .sort((a, b) => a.sort_order - b.sort_order);
@@ -157,7 +183,7 @@ function EditionPage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgb(var(--solaris-bg-primary)/0.18),transparent_42%),linear-gradient(145deg,rgb(var(--solaris-bg-deep-2)/0.94),rgb(var(--solaris-bg-deep)/0.88))]" />
           <div className="relative z-20 flex flex-col gap-10 p-5 sm:p-8 lg:p-10">
             <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
-              {edition.status === "completed" ? "Completed edition" : "Current edition"}
+              {editionState.statusLabel}
             </span>
             <div className="max-w-3xl">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{edition.host_city ?? "Solaris Song Contest"}</p>
@@ -178,6 +204,25 @@ function EditionPage() {
           </div>
         </section>
 
+        <PublicCurrentStatus
+          icon={editionStatusIcon}
+          eyebrow="Edition status"
+          title={editionState.headline}
+          description={editionState.description}
+          tone={editionStatusTone}
+          action={
+            editionState.primaryAction &&
+            editionState.primaryAction.to !== `/editions/${edition.slug}` ? (
+              <Link
+                to={editionState.primaryAction.to as any}
+                className="inline-flex min-h-10 items-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-primary"
+              >
+                {editionState.primaryAction.label} →
+              </Link>
+            ) : null
+          }
+        />
+
         {edition.logo && (
           <section className="overflow-hidden rounded-[1.75rem] border border-primary/20 bg-surface/72 shadow-xl">
             <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
@@ -194,31 +239,31 @@ function EditionPage() {
         )}
 
         <nav
-          className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+          className="-mx-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4"
           aria-label={"Explore " + editionLabel(edition)}
         >
-          <a href="#edition-shows" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+          <a href="#edition-shows" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
             <span>
               <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
               <span className="mt-1 block text-sm font-semibold">Shows</span>
             </span>
             <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
           </a>
-          <a href="#edition-entries" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+          <a href="#edition-entries" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
             <span>
               <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
               <span className="mt-1 block text-sm font-semibold">Entries</span>
             </span>
             <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
           </a>
-          <a href="#edition-results" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+          <a href="#edition-results" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
             <span>
               <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
               <span className="mt-1 block text-sm font-semibold">Results</span>
             </span>
             <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
           </a>
-          <a href="#edition-stories" className="glass group flex min-h-20 items-center justify-between gap-3 p-4">
+          <a href="#edition-stories" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
             <span>
               <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
               <span className="mt-1 block text-sm font-semibold">Stories</span>
