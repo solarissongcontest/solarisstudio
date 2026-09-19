@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, type LucideIcon } from "lucide-react";
 
+import { trackPublicUxEvent, type PublicUxEventName } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicPrimaryAction({
@@ -11,6 +12,8 @@ export function PublicPrimaryAction({
   description,
   dominant = false,
   status,
+  analyticsEvent = "hub_primary_clicked",
+  analyticsArea,
 }: {
   to: string;
   icon: LucideIcon;
@@ -19,10 +22,21 @@ export function PublicPrimaryAction({
   description: string;
   dominant?: boolean;
   status?: string;
+  analyticsEvent?: PublicUxEventName;
+  analyticsArea?: string;
 }) {
   return (
     <Link
       to={to as any}
+      onClick={() =>
+        trackPublicUxEvent(analyticsEvent, {
+          target: to,
+          metadata: {
+            ...(analyticsArea ? { area: analyticsArea } : {}),
+            ...(status ? { task_status: status } : {}),
+          },
+        })
+      }
       className={cn("public-primary-action group", dominant && "is-dominant")}
     >
       <div className="flex items-start justify-between gap-4">
