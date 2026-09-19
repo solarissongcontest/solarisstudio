@@ -38,6 +38,9 @@ describe("Organizer rearchitecture foundation", () => {
     const home = source("src/routes/_authenticated/admin/operations.tsx");
 
     expect(schedule).toContain('from("submission_rounds")');
+    expect(schedule).toContain('from("jury_voting_windows")');
+    expect(schedule).toContain('from("televoting_round_bindings")');
+    expect(schedule).toContain('.schema("televoting")');
     expect(schedule).toContain('"scheduled_publish_at"');
     expect(schedule).toContain('from("studio2_official_notices")');
     expect(system).toContain("Operational schedule");
