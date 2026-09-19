@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export type LegacyPublicNavigationItem = {
@@ -194,6 +195,16 @@ function NavigationGroups({
                   to={item.to as any}
                   aria-current={active ? "page" : undefined}
                   title={item.description}
+                  onClick={() =>
+                    trackPublicUxEvent("section_nav_clicked", {
+                      target: item.to,
+                      metadata: {
+                        area: group.id,
+                        visibility: "legacy",
+                        source: compact ? "legacy_sidebar" : "legacy_drawer",
+                      },
+                    })
+                  }
                   className={cn(
                     compact ? "public-site-sidebar-link" : "public-drawer-page-link",
                     active && "is-active",
