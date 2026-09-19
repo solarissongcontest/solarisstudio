@@ -76,6 +76,34 @@ test.describe("Rules and Integrity governance discovery", () => {
     expect(problems, "Governance pages must not suppress hydration or browser errors").toEqual([]);
   });
 
+  test("data-heavy result pages can reclaim the local navigation rail", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "governance-desktop-1440",
+      "Desktop data-rail behavior is verified once at the wide baseline",
+    );
+
+    const problems = failOnGovernanceConsoleProblems(page);
+    await page.goto("/analysis");
+
+    const localNavigation = page.getByRole("complementary", { name: "Results navigation" });
+    await expect(localNavigation).toBeVisible();
+
+    const expand = page.getByRole("button", { name: "Expand Results navigation" });
+    await expect(expand).toBeVisible();
+    await expect(localNavigation.locator('a[href="/scorecharts"]')).not.toBeVisible();
+
+    await expand.click();
+    await expect(
+      page.getByRole("button", { name: "Collapse Results navigation" }),
+    ).toBeVisible();
+    await expect(localNavigation.locator('a[href="/scorecharts"]')).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+    expect(problems, "Collapsing the results rail must stay hydration-clean").toEqual([]);
+  });
+
   test("permanent rule pages work and the retired floating Rules launcher stays gone", async ({
     page,
   }) => {
