@@ -73,6 +73,7 @@ function domainTabs(
   const publishActive = (path: string) =>
     path.startsWith("/admin/storytelling") ||
     path.startsWith("/admin/media-assets") ||
+    path.startsWith("/admin/communications") ||
     path.startsWith("/admin/publication/") ||
     path.startsWith("/admin/design/") ||
     path.startsWith("/admin/edition-theme/");
@@ -128,11 +129,6 @@ function domainTabs(
             path.startsWith("/admin/hod-history"),
         ),
         tab("Editions", "/admin", (path) => path === "/admin" || path === "/admin/"),
-        tab(
-          "Communications",
-          "/admin/communications",
-          (path) => path.startsWith("/admin/communications"),
-        ),
         tab(
           "System",
           "/admin/system",
