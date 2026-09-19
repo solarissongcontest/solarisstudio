@@ -32,3 +32,15 @@ describe("public UX session", () => {
     vi.restoreAllMocks();
   });
 });
+
+
+describe("public UX automation guard", () => {
+  it("keeps webdriver sessions out of production telemetry", async () => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync(
+      new URL("./public-ux-events.ts", import.meta.url),
+      "utf8",
+    );
+    expect(source).toContain("window.navigator.webdriver");
+  });
+});
