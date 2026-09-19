@@ -14,6 +14,7 @@ import {
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { MySolarisWorkspaceShell } from "@/components/mysolaris/MySolarisWorkspaceShell";
+import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicDrawerNavigation } from "@/components/public/PublicSiteNavigation";
 import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -359,6 +360,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <LazyHomeAnniversaryTakeover />
                   </Suspense>
                 )}
+                <PublicBreadcrumbs pathname={pathname} />
                 {children}
                 {isEditionPage && (
                   <Suspense fallback={null}>
@@ -376,6 +378,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <LazyHomeAnniversaryTakeover />
                 </Suspense>
               )}
+              <PublicBreadcrumbs pathname={pathname} />
               {children}
               {isEditionPage && (
                 <Suspense fallback={null}>
