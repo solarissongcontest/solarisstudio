@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Loader2, Palette, RotateCcw, Save } from "lucide-react";
@@ -224,6 +223,21 @@ function ColourControl({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const [hex, setHex] = useState(value);
+
+  useEffect(() => {
+    setHex(value);
+  }, [value]);
+
+  const commit = () => {
+    const next = hex.trim().toLowerCase();
+    if (/^#[0-9a-f]{6}$/.test(next)) {
+      onChange(next);
+    } else {
+      setHex(value);
+    }
+  };
+
   return (
     <label className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
       <span className="admin-section-label">{label}</span>
@@ -231,18 +245,29 @@ function ColourControl({
         <input
           type="color"
           value={value}
-          onChange={(event) => onChange(event.target.value.toLowerCase())}
+          onChange={(event) => {
+            const next = event.target.value.toLowerCase();
+            setHex(next);
+            onChange(next);
+          }}
           className="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-white/[0.1] bg-transparent p-1"
+          aria-label={`${label} colour picker`}
         />
         <input
           type="text"
-          value={value}
-          onChange={(event) => {
-            const next = event.target.value.toLowerCase();
-            if (/^#[0-9a-f]{6}$/.test(next)) onChange(next);
+          value={hex}
+          onChange={(event) => setHex(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit();
+              event.currentTarget.blur();
+            }
           }}
           className="numeric min-w-0 flex-1 rounded-lg border border-white/[0.1] bg-black/10 px-3 py-2.5 text-sm text-foreground"
           aria-label={`${label} hex colour`}
+          maxLength={7}
         />
       </span>
     </label>
