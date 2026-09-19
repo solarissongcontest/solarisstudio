@@ -33,6 +33,7 @@ export const STATIC_PUBLIC_ROUTES = [
   "/rules/17.2",
   "/scorecharts",
   "/shows",
+  "/stories",
   "/taste-dna",
   "/televoting",
   "/tools",
