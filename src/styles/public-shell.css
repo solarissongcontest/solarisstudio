@@ -1,0 +1,29 @@
+.app-main[data-public-layout] {
+  min-width: 0;
+}
+
+.app-main[data-public-layout="data"] {
+  max-width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .app-main[data-public-layout="data"] .public-site-content {
+    min-width: 0;
+  }
+
+  .app-main[data-public-layout="data"] :is(canvas, svg[role="img"], table) {
+    max-width: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-main[data-public-layout] {
+    --public-gutter: clamp(2rem, 3vw, 3.5rem);
+  }
+
+  .app-main[data-public-layout="detail"] .page-header p,
+  .app-main[data-public-layout="home"] header p,
+  .app-main[data-public-layout="directory"] .page-header p {
+    max-width: var(--public-reading-measure, 72ch);
+  }
+}
