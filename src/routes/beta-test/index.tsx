@@ -232,7 +232,7 @@ function BetaTestPage() {
       };
 
       const { error: insertError } = await supabase
-        .from("beta_test_submissions" as never)
+        .from("beta3_test_submissions" as never)
         .insert(payload as never);
 
       if (insertError) throw insertError;
