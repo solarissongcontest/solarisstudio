@@ -84,10 +84,10 @@ function RoundsPage() {
     setEditions(rows);
     setEditionId((current) =>
       preferredEditionId ??
-      current ||
-      rows.find((item) => item.id === organizerEditionId)?.id ||
-      rows.find((item) => item.status === "active")?.id ||
-      rows[0]?.id ||
+      current ??
+      rows.find((item) => item.id === organizerEditionId)?.id ??
+      rows.find((item) => item.status === "active")?.id ??
+      rows[0]?.id ??
       "",
     );
   }
