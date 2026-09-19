@@ -35,7 +35,7 @@ describe("MySolaris product consolidation", () => {
     expect(workspaceNav).toContain("MY_SOLARIS_MOBILE_PRIMARY_IDS");
     expect(workspaceNav).toContain("<MoreHorizontal");
     expect(workspaceNav).toContain("More");
-    expect(shell).toContain("!isMySolarisWorkspace && (");
+    expect(shell).toContain("!isMySolarisWorkspace && publicIaV3Enabled !== null && (");
   });
 
   it("loads shared participant context once at the workspace shell", () => {
