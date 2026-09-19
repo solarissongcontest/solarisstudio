@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronRight, Copy, ExternalLink, Flag, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminActionItem,
   AdminCard,
@@ -135,6 +136,7 @@ function responseLabel(submission: ResponseRow) {
 }
 
 function CountriesPage() {
+  const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [editionId, setEditionId] = useState("");
   const [rows, setRows] = useState<ResponseRow[]>([]);
@@ -153,7 +155,7 @@ function CountriesPage() {
     void (async () => {
       try {
         const editionRows = await loadConfirmationEditions();
-        const selected = editionRows.find((item) => item.status === "active")?.id ?? editionRows[0]?.id ?? "";
+        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? editionRows.find((item) => item.status === "active")?.id ?? editionRows[0]?.id ?? "";
         const { data, error: loadError } = await confirmationsSupabase.rpc("admin_confirmation_responses");
         if (loadError) throw loadError;
         if (!alive) return;
@@ -175,6 +177,16 @@ function CountriesPage() {
     () => rows.filter((row) => !editionId || row.editions?.id === editionId),
     [rows, editionId],
   );
+
+  useEffect(() => {
+    if (
+      organizerEditionId &&
+      organizerEditionId !== editionId &&
+      editions.some((item) => item.id === organizerEditionId)
+    ) {
+      setEditionId(organizerEditionId);
+    }
+  }, [editionId, editions, organizerEditionId]);
 
   const countries = useMemo(() => {
     const map = new Map<string, ResponseRow[]>();
@@ -316,7 +328,7 @@ function CountriesPage() {
           <span className="admin-section-label">Edition</span>
           <select
             value={editionId}
-            onChange={(event) => setEditionId(event.target.value)}
+            onChange={(event) => { const nextEditionId = event.target.value; setEditionId(nextEditionId); setOrganizerEditionId(nextEditionId); }}
             className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm text-foreground outline-none"
           >
             {editions.map((edition) => (
