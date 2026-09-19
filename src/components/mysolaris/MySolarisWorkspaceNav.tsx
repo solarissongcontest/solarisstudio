@@ -94,40 +94,26 @@ export function MySolarisWorkspaceNav() {
       </aside>
 
       <section
-        className="mb-5 rounded-2xl border border-border/70 bg-surface/75 p-2 lg:hidden"
+        className="mb-4 rounded-2xl border border-border/70 bg-surface/75 p-1.5 lg:hidden"
         data-mysolaris-mobile-nav
       >
-        <div className="flex items-center justify-between gap-3 px-2 pb-2 pt-1">
-          <WorkspaceIdentity
-            compact
-            countryName={country?.name}
-            countryCode={country?.short_code}
-            flagUrl={country?.flag_image}
-            editionNumber={workspace.currentEdition?.edition_number}
-          />
-          <div className="flex gap-1.5 text-[10px] font-bold">
-            {workspace.taskCounts.needsAction ? (
-              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                {workspace.taskCounts.needsAction} task
-                {workspace.taskCounts.needsAction === 1 ? "" : "s"}
-              </span>
-            ) : null}
-            {workspace.unreadNoticeCount ? (
-              <span className="rounded-full border border-border px-2 py-1">
-                {workspace.unreadNoticeCount} new
-              </span>
-            ) : null}
-          </div>
-        </div>
-
         <nav className="grid grid-cols-5 gap-1" aria-label="MySolaris mobile sections">
           {primaryItems.map((item) => (
-            <MobileLink key={item.id} item={item} pathname={pathname} />
+            <MobileLink
+              key={item.id}
+              item={item}
+              pathname={pathname}
+              badge={badgeFor(
+                item.id,
+                workspace.taskCounts.needsAction,
+                workspace.unreadNoticeCount,
+              )}
+            />
           ))}
           <details className="group relative">
             <summary
               className={cn(
-                "flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold [&::-webkit-details-marker]:hidden",
+                "flex min-h-12 cursor-pointer list-none flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold [&::-webkit-details-marker]:hidden",
                 moreActive ? "bg-primary/10 text-primary" : "text-muted-foreground",
               )}
             >
@@ -232,7 +218,15 @@ function WorkspaceLink({
   );
 }
 
-function MobileLink({ item, pathname }: { item: MySolarisNavigationItem; pathname: string }) {
+function MobileLink({
+  item,
+  pathname,
+  badge,
+}: {
+  item: MySolarisNavigationItem;
+  pathname: string;
+  badge?: number;
+}) {
   const Icon = ICONS[item.id];
   const active = mySolarisItemIsActive(item, pathname);
   return (
@@ -240,11 +234,21 @@ function MobileLink({ item, pathname }: { item: MySolarisNavigationItem; pathnam
       to={item.to as any}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold",
+        "relative flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold",
         active ? "bg-primary/10 text-primary" : "text-muted-foreground",
       )}
     >
-      <Icon className="size-4" aria-hidden="true" />
+      <span className="relative">
+        <Icon className="size-4" aria-hidden="true" />
+        {badge ? (
+          <span
+            className="absolute -right-2.5 -top-2 grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[8px] font-black leading-4 text-primary-foreground"
+            aria-label={`${badge} new`}
+          >
+            {badge > 9 ? "9+" : badge}
+          </span>
+        ) : null}
+      </span>
       {item.label}
     </Link>
   );

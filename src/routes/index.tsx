@@ -3,8 +3,9 @@ import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
-import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
+import { CurrentContestHero } from "@/components/home/CurrentContestHero";
+import { HomePersonalAttention } from "@/components/home/HomePersonalAttention";
 import { PulseStrip } from "@/components/PulseStrip";
 import {
   editionLabel,
@@ -13,6 +14,7 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
+import { resolvePublicContestState } from "@/lib/current-contest-state";
 import {
   buildHomeNewsroomStories,
   namedResults,
@@ -97,15 +99,17 @@ function HomePage() {
     [countryList],
   );
 
-  const sortedEditions = useMemo(
+  const contestState = useMemo(
     () =>
-      [...editionList].sort(
-        (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-      ),
-    [editionList],
+      resolvePublicContestState({
+        editions: editionList,
+        shows: showList,
+        results: resultList,
+      }),
+    [editionList, showList, resultList],
   );
 
-  const latestEdition = sortedEditions[0] ?? null;
+  const latestEdition = contestState.edition;
 
   const latestEditionShows = useMemo(
     () =>
@@ -168,7 +172,6 @@ function HomePage() {
     namedLatestResults.find((entry) => entry.finalRank === 1) ??
     namedLatestResults[0] ??
     null;
-  const winnerCountry = winner ? countryMap.get(winner.countryId) ?? null : null;
   const leadStory = latestCompletedShow
     ? winnerLeadStory(namedLatestResults, latestCompletedShow.name)
     : null;
@@ -187,10 +190,6 @@ function HomePage() {
       grandFinalIds.has(result.show_id),
   ).length;
   const publicShowCount = showList.filter(isShowPublic).length;
-  const latestEditionIsActive = Boolean(
-    latestEdition && !["complete", "completed"].includes(latestEdition.status.toLowerCase()),
-  );
-
   const breakingStory =
     newsroomStories.find((story) => story.intensity === "breaking") ??
     newsroomStories[0] ??
@@ -227,11 +226,13 @@ function HomePage() {
 
           <div className="mt-4 flex min-w-0 items-center gap-3 border-y border-border/60 py-2.5">
             <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-primary-foreground">
-              {latestEditionIsActive
+              {contestState.phase === "live"
                 ? "Live"
-                : breakingStory?.intensity === "breaking"
-                  ? "Breaking"
-                  : "Latest"}
+                : contestState.edition
+                  ? contestState.statusLabel
+                  : breakingStory?.intensity === "breaking"
+                    ? "Breaking"
+                    : "Latest"}
             </span>
             <p className="min-w-0 flex-1 truncate text-xs font-semibold sm:text-sm">
               {breakingStory?.headline ??
@@ -250,86 +251,29 @@ function HomePage() {
 
         <PulseStrip />
 
+        <HomePersonalAttention editionId={latestEdition?.id ?? null} />
+
         <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.65fr)]">
-          {latestCompletedEdition && latestCompletedShow && leadStory ? (
-            <Link
-              to="/shows/$showId"
-              params={{ showId: latestCompletedShow.id }}
-              className="solaris-family-card group relative min-h-[350px] min-w-0 overflow-hidden rounded-[1.7rem] border sm:min-h-[470px]"
-            >
-              <BackgroundFlag
-                image={winnerCountry?.flag_image}
-                className="-right-[18%] top-[45%] w-[105%] -translate-y-1/2 sm:w-[66%]"
-                opacity={0.24}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-[#041329]/82 to-[#061d39]/24" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/78 via-transparent to-transparent" />
-
-              <div className="relative z-10 flex min-h-[350px] flex-col justify-between p-5 sm:min-h-[470px] sm:p-8">
-                <div className="flex flex-wrap gap-2">
-                  <span className="rounded-full bg-primary px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-primary-foreground">
-                    {leadStory.label}
-                  </span>
-                  <span className="rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/70 backdrop-blur">
-                    {editionLabel(latestCompletedEdition)} · {latestCompletedShow.name}
-                  </span>
-                </div>
-
-                <div className="min-w-0 max-w-4xl">
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
-                    Lead story
-                  </p>
-                  <h2 className="mt-3 break-words font-display text-[2rem] font-black leading-[0.98] tracking-[-0.05em] text-white sm:text-5xl">
-                    {leadStory.headline}
-                  </h2>
-                  <p className="mt-4 max-w-2xl break-words text-sm leading-relaxed text-white/65 sm:text-base">
-                    {leadStory.detail}
-                  </p>
-                  <span className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-black text-[#061225] transition-transform group-hover:translate-x-1">
-                    Open result →
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ) : latestEdition ? (
-            <Link
-              to="/editions/$slug"
-              params={{ slug: latestEdition.slug }}
-              className="glass flex min-h-[300px] min-w-0 items-end p-5 sm:min-h-[400px] sm:p-8"
-            >
-              <div className="min-w-0">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
-                  Current edition
-                </p>
-                <h2 className="mt-2 break-words font-display text-3xl font-black sm:text-5xl">
-                  {editionLabel(latestEdition)} is now in focus
-                </h2>
-                <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                  Open the edition for its published shows and entry information.
-                </p>
-              </div>
-            </Link>
-          ) : (
-            <div className="glass flex min-h-[280px] items-end p-5 sm:min-h-[360px] sm:p-8">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Newsroom</p>
-                <h2 className="mt-2 font-display text-3xl font-black">No public edition yet</h2>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  The homepage will build itself around the first published edition.
-                </p>
-              </div>
-            </div>
-          )}
+          <CurrentContestHero state={contestState} />
 
           <aside className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            {newsroomStories.slice(0, 2).map((story) => (
+            {leadStory && latestCompletedShow ? (
               <HeadlineCard
-                key={story.id}
-                story={story}
-                to={storyRoute(story, latestCompletedShow?.id)}
+                story={leadStory}
+                to={`/shows/${latestCompletedShow.id}`}
               />
-            ))}
-            {!newsroomStories.length && (
+            ) : null}
+            {newsroomStories
+              .filter((story) => story.id !== leadStory?.id)
+              .slice(0, leadStory ? 1 : 2)
+              .map((story) => (
+                <HeadlineCard
+                  key={story.id}
+                  story={story}
+                  to={storyRoute(story, latestCompletedShow?.id)}
+                />
+              ))}
+            {!leadStory && !newsroomStories.length ? (
               <HeadlineCard
                 story={{
                   id: "analysis-fallback",
@@ -340,7 +284,7 @@ function HomePage() {
                 }}
                 to="/analysis"
               />
-            )}
+            ) : null}
           </aside>
         </section>
 
