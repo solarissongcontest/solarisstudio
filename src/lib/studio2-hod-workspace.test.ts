@@ -105,6 +105,17 @@ describe('Studio 2 HOD workspace adapter', () => {
     expect(snapshot.model.actions.map((action) => action.id)).toContain('entry-workflow');
   });
 
+  it('does not create a jury task merely because no ballot exists outside an open voting window', () => {
+    const snapshot = buildStudio2HodWorkspaceSnapshot({
+      ...completeContext,
+      juryBallotSubmitted: false,
+    });
+
+    expect(snapshot.model.jury.complete).toBe(true);
+    expect(snapshot.model.jury.ballotSubmitted).toBe(false);
+    expect(snapshot.model.actions.map((action) => action.id)).not.toContain('jury-ballot');
+  });
+
   it('honours an explicit entry lock marker before publication', () => {
     const snapshot = buildStudio2HodWorkspaceSnapshot({
       ...completeContext,
