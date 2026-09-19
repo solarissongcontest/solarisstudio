@@ -51,9 +51,42 @@ type ShowSearch = {
 };
 
 export const Route = createFileRoute("/shows/$showId")({
-  head: () => ({
-    meta: [{ title: "Show — Solaris Song Contest" }],
-  }),
+  head: ({ params }) => {
+    const url = `https://studio.solaris-song-contest.workers.dev/shows/${encodeURIComponent(params.showId)}`;
+    return {
+      meta: [
+        { title: "Show — Solaris Song Contest" },
+        {
+          name: "description",
+          content: "Published Solaris Song Contest show lineup, scoreboard and available voting detail.",
+        },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Shows",
+                item: "https://studio.solaris-song-contest.workers.dev/shows",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "Show",
+                item: url,
+              },
+            ],
+          }),
+        },
+      ],
+    };
+  },
   validateSearch: (search: Record<string, unknown>): ShowSearch => {
     const validated: ShowSearch = {};
 
