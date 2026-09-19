@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import { useAdminHealthSummary } from "@/lib/admin-health-summary";
 import { buildEditionReadiness } from "@/lib/admin-readiness";
 import { useAdminReadinessData } from "@/lib/admin-readiness-data";
 import { useEditions, useShows } from "@/lib/data";
@@ -18,26 +17,11 @@ export function AdminHealthStrip() {
     return ordered.find((item) => item.id === editionId) ?? ordered[0] ?? null;
   }, [editions, editionId]);
 
-  const {
-    data: serverSummary,
-    isLoading: serverLoading,
-    isFetched: serverFetched,
-  } = useAdminHealthSummary(edition?.id);
+  const { data: shows = [], isLoading: showsLoading } = useShows(edition?.id);
+  const { data: readinessData, isLoading: readinessLoading } = useAdminReadinessData(edition?.id);
 
-  // Older Lovable databases do not have the compact summary RPC yet. Only in
-  // that case do we fall back to fetching the selected edition's raw readiness
-  // rows. Once the migration exists, ordinary admin pages never download those
-  // large datasets just to draw this strip.
-  const needsFallback = serverFetched && serverSummary == null;
-  const { data: shows = [] } = useShows(needsFallback ? edition?.id : undefined);
-  const { data: readinessData, isLoading: fallbackLoading } = useAdminReadinessData(
-    needsFallback ? edition?.id : undefined,
-  );
-
-  if (!edition || serverLoading) return null;
-
-  const fallbackReadiness =
-    needsFallback && readinessData
+  const readiness =
+    edition && readinessData
       ? buildEditionReadiness({
           edition,
           shows,
@@ -50,12 +34,12 @@ export function AdminHealthStrip() {
         })
       : null;
 
-  if (needsFallback && (fallbackLoading || !fallbackReadiness)) return null;
+  if (!edition || showsLoading || readinessLoading || !readiness) return null;
 
-  const status = serverSummary?.status ?? fallbackReadiness?.status ?? "ready";
-  const progress = serverSummary?.progress ?? fallbackReadiness?.progress ?? 100;
-  const issueCount = serverSummary?.issues_count ?? fallbackReadiness?.issues.length ?? 0;
-  const firstIssue = serverSummary?.first_issue ?? fallbackReadiness?.issues[0]?.title ?? null;
+  const status = readiness.status;
+  const progress = readiness.progress;
+  const issueCount = readiness.issues.length;
+  const firstIssue = readiness.issues[0]?.title ?? null;
 
   return (
     <div className="border-t border-border/45 bg-surface/35 px-3 py-2 text-xs sm:px-5">
