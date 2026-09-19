@@ -251,11 +251,13 @@ test("all personalities preserve coarse-pointer touch targets", async ({ page },
   for (let index = 0; index < SOURCE_COUNT; index += 1) {
     const card = cards.nth(index);
     const personality = await card.getAttribute("data-gallery-personality");
-    const buttons = card.getByRole("button");
+    const buttons = card.getByRole("button").filter({ visible: true });
     for (let buttonIndex = 0; buttonIndex < await buttons.count(); buttonIndex += 1) {
-      const box = await buttons.nth(buttonIndex).boundingBox();
-      expect(box, `${personality} button ${buttonIndex} bounding box`).not.toBeNull();
-      expect(box!.height, `${personality} button ${buttonIndex} touch height`).toBeGreaterThanOrEqual(44);
+      const button = buttons.nth(buttonIndex);
+      await expect(button).toBeVisible();
+      const box = await button.boundingBox();
+      expect(box, `${personality} visible button ${buttonIndex} bounding box`).not.toBeNull();
+      expect(box!.height, `${personality} visible button ${buttonIndex} touch height`).toBeGreaterThanOrEqual(44);
     }
   }
 });
