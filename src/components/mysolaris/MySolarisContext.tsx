@@ -4,7 +4,6 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useAllParticipants, useEditions, type Edition, type Participant } from "@/lib/data";
-import { useOwnedEntryPublication } from "@/lib/entry-publication";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -85,8 +84,6 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     return owned.find((entry) => entry.edition_id === currentEdition.id) ?? null;
   }, [countryAccountQuery.data?.country?.id, currentEdition, participantsQuery.data]);
 
-  const publicationQuery = useOwnedEntryPublication(currentEdition?.id);
-
   const capabilitiesQuery = useQuery({
     enabled: Boolean(userQuery.data),
     queryKey: ["mysolaris-capabilities", currentEdition?.id],
@@ -155,10 +152,6 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   );
 
   const entryComplete = Boolean(currentEntry?.artist?.trim() && currentEntry?.song?.trim());
-  const publicationReady =
-    publicationQuery.data?.publication_status === "published" ||
-    publicationQuery.data?.publication_status === "scheduled";
-
   const priorities = useMemo(() => {
     const items: MySolarisPriorityItem[] = [];
 
@@ -183,21 +176,6 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
         to: NAV_TARGETS.mySolarisEntry,
         search: { view: "readiness" },
         priority: 90,
-        deadline: null,
-        severity: "high",
-        actionRequired: true,
-        kind: "entry",
-      });
-    }
-
-    if (currentEntry && publicationQuery.data && !publicationReady) {
-      items.push({
-        id: "entry-publication",
-        title: "Entry publication is not ready",
-        description: "Complete the publication checks for the current entry.",
-        to: NAV_TARGETS.mySolarisEntry,
-        search: { view: "readiness" },
-        priority: 80,
         deadline: null,
         severity: "high",
         actionRequired: true,
@@ -255,15 +233,12 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     currentEntry,
     deadlines,
     entryComplete,
-    publicationQuery.data,
-    publicationReady,
     unreadNoticeCount,
   ]);
 
   const needsAction =
     (currentEdition && !currentEntry ? 1 : 0) +
     (currentEntry && !entryComplete ? 1 : 0) +
-    (currentEntry && publicationQuery.data && !publicationReady ? 1 : 0) +
     acknowledgementTasks;
 
   const value: MySolarisContextValue = {
@@ -282,7 +257,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     taskCounts: {
       needsAction,
       upcoming: deadlines.length,
-      completed: (entryComplete ? 1 : 0) + (publicationReady ? 1 : 0) + acknowledgedNotices,
+      completed: (entryComplete ? 1 : 0) + acknowledgedNotices,
     },
     unreadNoticeCount,
     deadlines,
