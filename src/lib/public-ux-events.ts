@@ -105,6 +105,7 @@ export function trackPublicUxEvent(
   options: PublicUxEventOptions = {},
 ) {
   if (typeof window === "undefined") return;
+  if (window.navigator.webdriver) return;
   if (window.location.pathname.startsWith("/admin")) return;
 
   const betaTask = readActiveBetaTask();
