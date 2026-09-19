@@ -59,6 +59,15 @@ describe("Organizer rearchitecture foundation", () => {
     expect(shows).toContain('<Metric label="Entries" value={logicalEntries.length} />');
   });
 
+  it("requires explicit show publication before result rows can become public", () => {
+    const migration = source(
+      "supabase/migrations/20260919160642_results_require_show_publication.sql",
+    );
+    expect(migration).toContain("show_id is not null");
+    expect(migration).toContain("show_publication_enabled(show_id, 'results')");
+    expect(migration).not.toContain("e.published = true");
+  });
+
   it("provides an Inbox route and persistent Inbox affordance", () => {
     const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
     const shell = source("src/components/admin/AdminShell.tsx");
