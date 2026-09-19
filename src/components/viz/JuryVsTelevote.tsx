@@ -50,6 +50,10 @@ export function JuryVsTelevote({ countries, results }: { countries: Country[]; r
       );
   }, [results, cMap]);
 
+  const strongestSplits = [...data]
+    .sort((a, b) => Math.abs(b.jury - b.televote) - Math.abs(a.jury - a.televote))
+    .slice(0, 6);
+
   if (!data.length) {
     return (
       <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-border/70 bg-surface/30 px-4 text-center">
@@ -63,6 +67,108 @@ export function JuryVsTelevote({ countries, results }: { countries: Country[]; r
 
   return (
     <div className="w-full">
+      <div className="space-y-2 sm:hidden">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+          Biggest jury–televote gaps
+        </p>
+        {strongestSplits.map((point) => (
+          <Link
+            key={point.id}
+            to="/countries/$code"
+            params={{ code: point.code }}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/45 px-3 py-2.5"
+          >
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{point.name}</span>
+              <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                Jury {point.jury.toFixed(1)} · Televote {point.televote.toFixed(1)}
+              </span>
+            </span>
+            <span className="numeric shrink-0 text-xs font-bold">
+              Δ {Math.abs(point.jury - point.televote).toFixed(1)}
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      <details className="mt-3 rounded-xl border border-border/70 bg-surface/35 sm:hidden">
+        <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold [&::-webkit-details-marker]:hidden">
+          Open scatter plot
+        </summary>
+        <div className="border-t border-border/60 p-2">
+      <div className="h-[360px] w-full">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <ScatterChart margin={{ top: 12, right: 22, bottom: 20, left: 4 }}>
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
+            <XAxis
+              type="number"
+              dataKey="jury"
+              name="Avg jury points"
+              stroke="var(--muted-foreground)"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              label={{ value: "Average jury points", position: "insideBottom", offset: -12 }}
+            />
+            <YAxis
+              type="number"
+              dataKey="televote"
+              name="Avg televote points"
+              stroke="var(--muted-foreground)"
+              fontSize={11}
+              tickLine={false}
+              axisLine={false}
+              width={42}
+              label={{ value: "Average televote points", angle: -90, position: "insideLeft" }}
+            />
+            <ZAxis type="number" dataKey="n" range={[70, 280]} />
+            <Tooltip
+              cursor={{ strokeDasharray: "3 3" }}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const point = payload[0].payload as (typeof data)[number];
+                return (
+                  <div className="glass min-w-40 p-3 text-xs shadow-xl">
+                    <p className="font-semibold">{point.name}</p>
+                    <p className="mt-1">Avg jury: {point.jury.toFixed(1)}</p>
+                    <p>Avg televote: {point.televote.toFixed(1)}</p>
+                    <p className="mt-1 text-muted-foreground">{point.n} appearances</p>
+                  </div>
+                );
+              }}
+            />
+            <Scatter
+              data={data}
+              onMouseEnter={(point: any) => setHoverId(point.id)}
+              onMouseLeave={() => setHoverId(null)}
+              shape={(props: any) => {
+                const point = props.payload as (typeof data)[number];
+                const isHover = hoverId === point.id;
+                const size = Number(props.size);
+                const baseRadius = Number.isFinite(size) && size > 0 ? Math.sqrt(size / Math.PI) : 7;
+                const radius = isHover ? baseRadius + 3 : baseRadius;
+
+                return (
+                  <circle
+                    cx={Number(props.cx) || 0}
+                    cy={Number(props.cy) || 0}
+                    r={radius}
+                    fill={point.color}
+                    fillOpacity={isHover ? 0.95 : 0.78}
+                    stroke={isHover ? "var(--gold)" : "rgba(255,255,255,.22)"}
+                    strokeWidth={isHover ? 2.5 : 1}
+                    className="cursor-pointer transition-opacity"
+                  />
+                );
+              }}
+            />
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
+        </div>
+      </details>
+
+      <div className="hidden sm:block">
       <div className="h-[360px] w-full sm:h-[440px] lg:h-[520px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
           <ScatterChart margin={{ top: 12, right: 22, bottom: 20, left: 4 }}>
@@ -131,6 +237,7 @@ export function JuryVsTelevote({ countries, results }: { countries: Country[]; r
             />
           </ScatterChart>
         </ResponsiveContainer>
+      </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
