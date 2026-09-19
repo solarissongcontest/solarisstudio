@@ -25,7 +25,7 @@ function RulesPage() {
   return (
     <AppShell>
       <RulebookVersionBanner />
-      <RulesExperience key={published.version} />
+      <RulesExperience key={published.version} version={published.version} />
       <AdvancedRulesTools />
     </AppShell>
   );
