@@ -14,6 +14,7 @@ import {
   useSubmitPrediction,
 } from "@/lib/prediction-data";
 import type { PredictionItem, PredictionType } from "@/lib/predictions";
+import { formatEventDateTime } from "@/lib/public-time";
 
 export const Route = createFileRoute("/predictions/$showId")({
   head: () => ({
@@ -43,10 +44,12 @@ function PredictionBuilderPage() {
   const [qualifiers, setQualifiers] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState<number | null>(null);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    const update = () => setNow(Date.now());
+    update();
+    const timer = window.setInterval(update, 30_000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -98,10 +101,13 @@ function PredictionBuilderPage() {
   const locked =
     !round ||
     round.status !== "open" ||
+    now == null ||
     now < new Date(round.opens_at).getTime() ||
     now >= new Date(round.locks_at).getTime();
   const canSeeConsensus = Boolean(
-    user && (savedPrediction || (round && now >= new Date(round.locks_at).getTime())),
+    user &&
+      (savedPrediction ||
+        (round && now != null && now >= new Date(round.locks_at).getTime())),
   );
   const { data: consensus } = usePredictionConsensus(round?.id, canSeeConsensus);
 
@@ -259,10 +265,7 @@ function PredictionBuilderPage() {
             description={
               locked
                 ? "This round is locked. Your saved version can no longer be changed."
-                : `Locks ${new Intl.DateTimeFormat(undefined, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(new Date(round.locks_at))}. The displayed deadline is authoritative.`
+                : `Locks ${formatEventDateTime(round.locks_at)}. The displayed deadline is authoritative.`
             }
           >
             <form onSubmit={submit} className="space-y-5">

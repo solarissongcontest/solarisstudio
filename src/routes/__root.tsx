@@ -25,6 +25,7 @@ import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { startPublicWebVitals } from "../lib/public-web-vitals";
 
 const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
@@ -170,6 +171,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: SITE_DESCRIPTION },
       { name: "twitter:image", content: SOCIAL_PREVIEW_URL },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Solaris Studio",
+          url: SITE_URL,
+          description: SITE_DESCRIPTION,
+          publisher: {
+            "@type": "Organization",
+            name: "Terra Solaris Broadcasting Coalition",
+          },
+        }),
+      },
+    ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: unifiedCss },
@@ -209,6 +226,8 @@ function RootComponent() {
   const publicParticipation =
     !serviceAdmin &&
     (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
+
+  useEffect(() => startPublicWebVitals(), []);
 
   useEffect(() => {
     const route = pathname.startsWith("/pulse") ? "pulse" : "";

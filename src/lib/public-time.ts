@@ -49,6 +49,26 @@ export function formatEventWallTime(
   }).format(date);
 }
 
+export function formatEventShortDate(
+  value: string | Date,
+  {
+    timeZone = SOLARIS_TIME_ZONE,
+    locale,
+  }: {
+    timeZone?: string;
+    locale?: string;
+  } = {},
+) {
+  const date = parseDate(value);
+  if (!date) return typeof value === "string" ? value : "";
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    timeZone,
+  }).format(date);
+}
+
 export function shouldShowLocalEventTime(
   value: string | Date,
   canonicalTimeZone: string,

@@ -56,6 +56,24 @@ export type PublicUxMetrics = {
   devices: PublicUxGroupCount[];
 };
 
+export type PublicWebVitalRouteMetric = {
+  pathname: string;
+  metric: "LCP" | "INP" | "CLS";
+  device: "mobile" | "tablet" | "desktop";
+  samples: number;
+  p75: number;
+  good: number;
+  needsImprovement: number;
+  poor: number;
+};
+
+export type PublicWebVitalsMetrics = {
+  since: string;
+  generatedAt: string;
+  samples: number;
+  routes: PublicWebVitalRouteMetric[];
+};
+
 type MetricsRpcClient = {
   rpc(
     name: string,
@@ -76,6 +94,18 @@ export async function loadPublicUxMetrics(days = 30): Promise<PublicUxMetrics> {
 }
 
 
+export async function loadPublicWebVitalsMetrics(
+  days = 30,
+): Promise<PublicWebVitalsMetrics> {
+  const safeDays = Math.max(1, Math.min(180, Math.round(days)));
+  const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await client.rpc("admin_public_web_vitals", {
+    p_since: since,
+  });
+  if (error) throw new Error(error.message || "Could not load public Web Vitals.");
+  return parseWebVitals(data);
+}
+
 export async function loadBeta3FirstClickEvidence(
   days = 90,
 ): Promise<Beta3FirstClickEvidence> {
@@ -86,6 +116,42 @@ export async function loadBeta3FirstClickEvidence(
   });
   if (error) throw new Error(error.message || "Could not load Beta 3 first-click evidence.");
   return parseBeta3FirstClickEvidence(data);
+}
+
+function parseWebVitals(value: unknown): PublicWebVitalsMetrics {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Public Web Vitals returned an invalid response.");
+  }
+  const raw = value as Record<string, any>;
+  const routes = Array.isArray(raw.routes)
+    ? raw.routes
+        .filter((item: any) => item && typeof item === "object")
+        .map(
+          (item: any): PublicWebVitalRouteMetric => ({
+            pathname: String(item.pathname ?? "/"),
+            metric:
+              item.metric === "INP" || item.metric === "CLS"
+                ? item.metric
+                : "LCP",
+            device:
+              item.device === "mobile" || item.device === "tablet"
+                ? item.device
+                : "desktop",
+            samples: number(item.samples),
+            p75: number(item.p75),
+            good: number(item.good),
+            needsImprovement: number(item.needsImprovement),
+            poor: number(item.poor),
+          }),
+        )
+    : [];
+
+  return {
+    since: String(raw.since ?? ""),
+    generatedAt: String(raw.generatedAt ?? ""),
+    samples: number(raw.samples),
+    routes,
+  };
 }
 
 function parseMetrics(value: unknown): PublicUxMetrics {

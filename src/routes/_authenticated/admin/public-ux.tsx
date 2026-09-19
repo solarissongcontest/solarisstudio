@@ -15,7 +15,12 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { loadPublicUxMetrics, type PublicUxGroupCount } from "@/lib/public-ux-metrics";
+import {
+  loadPublicUxMetrics,
+  loadPublicWebVitalsMetrics,
+  type PublicUxGroupCount,
+  type PublicWebVitalRouteMetric,
+} from "@/lib/public-ux-metrics";
 
 export const Route = createFileRoute("/_authenticated/admin/public-ux")({
   head: () => ({
@@ -34,7 +39,13 @@ function PublicUxDashboard() {
     queryFn: () => loadPublicUxMetrics(days),
     staleTime: 60_000,
   });
+  const vitalsQuery = useQuery({
+    queryKey: ["admin-public-web-vitals", days],
+    queryFn: () => loadPublicWebVitalsMetrics(days),
+    staleTime: 60_000,
+  });
   const metrics = query.data;
+  const vitals = vitalsQuery.data;
 
   return (
     <div>
@@ -87,6 +98,59 @@ function PublicUxDashboard() {
               }
             />
           </section>
+
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Field performance"
+              title="Core Web Vitals"
+              description="Real-user LCP, INP and CLS measured on public routes. Values are p75 for the selected window and device class."
+            />
+            <div className="mb-4 grid gap-2 sm:grid-cols-3">
+              <VitalTarget label="LCP" target="≤ 2.5 s" />
+              <VitalTarget label="INP" target="≤ 200 ms" />
+              <VitalTarget label="CLS" target="≤ 0.10" />
+            </div>
+            {vitalsQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Loading field performance telemetry…
+              </p>
+            ) : vitalsQuery.error ? (
+              <AdminStatus tone="blocked">
+                {vitalsQuery.error instanceof Error
+                  ? vitalsQuery.error.message
+                  : "Could not load Web Vitals"}
+              </AdminStatus>
+            ) : vitals?.routes.length ? (
+              <div className="space-y-2">
+                {sortVitalRows(vitals.routes)
+                  .slice(0, 18)
+                  .map((row) => (
+                    <div
+                      key={`${row.pathname}-${row.metric}-${row.device}`}
+                      className="grid gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold">{row.pathname}</p>
+                        <p className="mt-0.5 text-[10px] capitalize text-muted-foreground">
+                          {row.device} · {row.samples} sample{row.samples === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <span className="text-xs font-black">{row.metric}</span>
+                      <span className="numeric text-xs text-muted-foreground">
+                        p75 {formatVital(row)}
+                      </span>
+                      <AdminStatus tone={vitalTone(row)}>
+                        {vitalLabel(row)}
+                      </AdminStatus>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No field-performance samples yet. Data appears after public visitors leave or hide a measured page.
+              </p>
+            )}
+          </AdminCard>
 
           <section className="grid gap-4 xl:grid-cols-2">
             <AdminCard>
@@ -227,6 +291,52 @@ function PublicUxDashboard() {
       ) : null}
     </div>
   );
+}
+
+function VitalTarget({ label, target }: { label: string; target: string }) {
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+      <p className="text-[10px] font-black uppercase tracking-[.12em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="numeric mt-1 text-sm font-bold">{target}</p>
+    </div>
+  );
+}
+
+function sortVitalRows(rows: PublicWebVitalRouteMetric[]) {
+  return [...rows].sort((a, b) => {
+    const severity = (row: PublicWebVitalRouteMetric) =>
+      vitalLabel(row) === "Poor" ? 2 : vitalLabel(row) === "Needs improvement" ? 1 : 0;
+    return severity(b) - severity(a) || b.samples - a.samples || a.pathname.localeCompare(b.pathname);
+  });
+}
+
+function vitalLabel(row: PublicWebVitalRouteMetric) {
+  if (row.metric === "LCP") {
+    if (row.p75 <= 2500) return "Good";
+    if (row.p75 <= 4000) return "Needs improvement";
+    return "Poor";
+  }
+  if (row.metric === "INP") {
+    if (row.p75 <= 200) return "Good";
+    if (row.p75 <= 500) return "Needs improvement";
+    return "Poor";
+  }
+  if (row.p75 <= 0.1) return "Good";
+  if (row.p75 <= 0.25) return "Needs improvement";
+  return "Poor";
+}
+
+function vitalTone(row: PublicWebVitalRouteMetric): "ready" | "attention" | "blocked" {
+  const label = vitalLabel(row);
+  return label === "Good" ? "ready" : label === "Poor" ? "blocked" : "attention";
+}
+
+function formatVital(row: PublicWebVitalRouteMetric) {
+  if (row.metric === "LCP") return `${(row.p75 / 1000).toFixed(2)} s`;
+  if (row.metric === "INP") return `${Math.round(row.p75)} ms`;
+  return row.p75.toFixed(3);
 }
 
 function MetricCard({
