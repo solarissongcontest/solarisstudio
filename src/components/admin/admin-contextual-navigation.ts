@@ -44,7 +44,8 @@ function domainTabs(
 
   const delegationsActive = (path: string) =>
     path.startsWith("/admin/countries") ||
-    path.startsWith("/confirmations/admin");
+    path.startsWith("/confirmations/admin") ||
+    path.startsWith("/admin/submission-versions");
 
   const contestActive = (path: string) =>
     path.startsWith("/admin/shows/") ||
@@ -52,8 +53,7 @@ function domainTabs(
     path.startsWith("/admin/lineup-sync/") ||
     path.startsWith("/admin/participant-status/") ||
     path.startsWith("/admin/hosts") ||
-    path.startsWith("/admin/eligibility") ||
-    path.startsWith("/admin/submission-versions");
+    path.startsWith("/admin/eligibility");
 
   const votingActive = (path: string) =>
     path.startsWith("/televoting/admin") ||
@@ -157,7 +157,11 @@ function domainTabs(
 }
 
 function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow | null {
-  if (pathname.startsWith("/admin/countries") || pathname.startsWith("/confirmations/admin")) {
+  if (
+    pathname.startsWith("/admin/countries") ||
+    pathname.startsWith("/confirmations/admin") ||
+    pathname.startsWith("/admin/submission-versions")
+  ) {
     return {
       label: "Delegations workflow",
       tabs: [
@@ -189,6 +193,11 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
           "Access",
           "/confirmations/admin/recovery-codes",
           (path) => path.startsWith("/confirmations/admin/recovery-codes") || path.startsWith("/confirmations/admin/settings"),
+        ),
+        tab(
+          "History",
+          "/admin/submission-versions",
+          (path) => path.startsWith("/admin/submission-versions"),
         ),
       ],
     };
@@ -224,6 +233,11 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
           (path) => path.startsWith("/televoting/admin/integrity") || path.startsWith("/televoting/admin/anti-abuse"),
         ),
         tab(
+          "Declarations",
+          "/televoting/admin/integrity-declarations",
+          (path) => path.startsWith("/televoting/admin/integrity-declarations"),
+        ),
+        tab(
           "Results",
           "/televoting/admin/results",
           (path) =>
@@ -255,15 +269,47 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
           slug ? `/admin/participant-status/${slug}` : "/admin",
           (path) => path.startsWith("/admin/participant-status/"),
         ),
+        tab("Hosting", "/admin/hosts", (path) => path.startsWith("/admin/hosts")),
+        tab("Eligibility", "/admin/eligibility", (path) => path.startsWith("/admin/eligibility")),
       ],
     };
   }
 
-  if (pathname.startsWith("/admin/design/") || pathname.startsWith("/admin/edition-theme/")) {
+  if (
+    pathname.startsWith("/admin/control-room") ||
+    pathname.startsWith("/admin/workflows") ||
+    pathname.startsWith("/admin/incidents") ||
+    pathname.startsWith("/admin/broadcast-rundown") ||
+    pathname.startsWith("/admin/edition-simulator")
+  ) {
     return {
-      label: "Broadcast workflow",
+      label: "Live workflow",
       tabs: [
-        tab("Design & broadcast", slug ? `/admin/design/${slug}` : "/admin", (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/")),
+        tab("Control room", "/admin/control-room", (path) => path.startsWith("/admin/control-room")),
+        tab("Workflows", "/admin/workflows", (path) => path.startsWith("/admin/workflows")),
+        tab("Incidents", "/admin/incidents", (path) => path.startsWith("/admin/incidents")),
+        tab("Rundown", "/admin/broadcast-rundown", (path) => path.startsWith("/admin/broadcast-rundown")),
+        tab("Rehearsal", "/admin/edition-simulator", (path) => path.startsWith("/admin/edition-simulator")),
+      ],
+    };
+  }
+
+  if (
+    pathname.startsWith("/admin/publication/") ||
+    pathname.startsWith("/admin/communications") ||
+    pathname.startsWith("/admin/media-assets") ||
+    pathname.startsWith("/admin/storytelling") ||
+    pathname.startsWith("/admin/design/") ||
+    pathname.startsWith("/admin/edition-theme/")
+  ) {
+    return {
+      label: "Publish workflow",
+      tabs: [
+        tab("Release", slug ? `/admin/publication/${slug}` : "/admin", (path) => path.startsWith("/admin/publication/")),
+        tab("Communications", "/admin/communications", (path) => path.startsWith("/admin/communications")),
+        tab("Media", "/admin/media-assets", (path) => path.startsWith("/admin/media-assets")),
+        tab("Stories", "/admin/storytelling", (path) => path.startsWith("/admin/storytelling")),
+        tab("Design", slug ? `/admin/design/${slug}` : "/admin", (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/")),
       ],
     };
   }
