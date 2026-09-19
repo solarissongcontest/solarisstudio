@@ -49,9 +49,10 @@ describe('Studio 2 Phase 6 country operations integration', () => {
   });
 
   it('shows the Phase 6 HOD operational data without creating a duplicate source of truth', () => {
-    expect(hodRoute).toContain('title="Readiness"');
-    expect(hodRoute).toContain('Deadlines & alerts');
+    expect(hodRoute).toContain('Readiness signals');
+    expect(hodRoute).toContain('Upcoming & deadlines');
     expect(hodRoute).toContain('Submission review history');
+    expect(hodRoute).toContain('Status details');
     expect(hodWorkspace).toContain('deadlines: Studio2HodDeadline[]');
     expect(hodWorkspace).toContain('reviewHistory: Studio2HodReviewHistoryItem[]');
     expect(hodWorkspace).toContain('unresolvedOrganizerIssues: number');
