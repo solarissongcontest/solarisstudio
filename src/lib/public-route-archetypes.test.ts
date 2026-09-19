@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   publicCanvasForArchetype,
+  publicLayoutTokenForArchetype,
   publicRouteArchetype,
 } from "./public-route-archetypes";
 
@@ -19,6 +20,12 @@ describe("public route archetypes", () => {
     expect(publicRouteArchetype("/compare")).toBe("workspace");
     expect(publicRouteArchetype("/rules/6-2")).toBe("reading");
     expect(publicRouteArchetype("/confirmations")).toBe("focused-task");
+  });
+
+  it("keeps stable CSS layout tokens separate from product archetypes", () => {
+    expect(publicLayoutTokenForArchetype("data-explorer")).toBe("data");
+    expect(publicLayoutTokenForArchetype("focused-task")).toBe("reading");
+    expect(publicLayoutTokenForArchetype("hub")).toBe("directory");
   });
 
   it("uses wide canvases for public data without forcing reading pages wide", () => {
