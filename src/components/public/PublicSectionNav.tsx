@@ -8,6 +8,7 @@ import {
   type PublicArea,
   type PublicDestination,
 } from "@/lib/public-navigation";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 export function PublicSectionNav({ pathname }: { pathname: string }) {
@@ -35,7 +36,7 @@ export function PublicSectionNav({ pathname }: { pathname: string }) {
 
         <div className="mt-3 space-y-0.5">
           {primary.map((item) => (
-            <SectionLink key={item.id} item={item} active={item.to === activeTo} />
+            <SectionLink key={item.id} item={item} active={item.to === activeTo} area={area} />
           ))}
         </div>
 
@@ -46,7 +47,7 @@ export function PublicSectionNav({ pathname }: { pathname: string }) {
             </p>
             <div className="mt-1 space-y-0.5">
               {secondary.map((item) => (
-                <SectionLink key={item.id} item={item} active={item.to === activeTo} />
+                <SectionLink key={item.id} item={item} active={item.to === activeTo} area={area} />
               ))}
             </div>
           </div>
@@ -60,14 +61,23 @@ export function PublicSectionNav({ pathname }: { pathname: string }) {
             </summary>
             <div className="mt-1 space-y-0.5">
               {advanced.map((item) => (
-                <SectionLink key={item.id} item={item} active={item.to === activeTo} />
+                <SectionLink key={item.id} item={item} active={item.to === activeTo} area={area} />
               ))}
             </div>
           </details>
         ) : null}
 
         <div className="mt-4 border-t border-border/55 pt-3">
-          <Link to="/site-directory" className="public-site-sidebar-link">
+          <Link
+            to="/site-directory"
+            onClick={() =>
+              trackPublicUxEvent("section_nav_clicked", {
+                target: "/site-directory",
+                metadata: { area, visibility: "directory" },
+              })
+            }
+            className="public-site-sidebar-link"
+          >
             All Solaris pages
           </Link>
         </div>
@@ -76,12 +86,26 @@ export function PublicSectionNav({ pathname }: { pathname: string }) {
   );
 }
 
-function SectionLink({ item, active }: { item: PublicDestination; active: boolean }) {
+function SectionLink({
+  item,
+  active,
+  area,
+}: {
+  item: PublicDestination;
+  active: boolean;
+  area: PublicArea;
+}) {
   return (
     <Link
       to={item.to as any}
       aria-current={active ? "page" : undefined}
       title={item.description}
+      onClick={() =>
+        trackPublicUxEvent("section_nav_clicked", {
+          target: item.to,
+          metadata: { area, visibility: item.visibility },
+        })
+      }
       className={cn("public-site-sidebar-link", active && "is-active")}
     >
       {item.label}
