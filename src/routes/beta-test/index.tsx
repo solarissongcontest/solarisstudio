@@ -19,7 +19,6 @@ import {
 } from "@/features/beta-test/sections";
 import type { BetaAnswer, BetaAnswers, BetaBugReport } from "@/features/beta-test/types";
 import { supabase } from "@/integrations/supabase/client";
-import { enablePublicIaV3BetaOverride } from "@/lib/public-ia-rollout";
 import { completePublicUxBetaTask } from "@/lib/public-ux-events";
 
 export const Route = createFileRoute("/beta-test/")({
@@ -48,7 +47,6 @@ function BetaTestPage() {
   const [sectionStartedAt, setSectionStartedAt] = useState(() => Date.now());
 
   useEffect(() => {
-    enablePublicIaV3BetaOverride();
 
     try {
       const saved = window.localStorage.getItem(BETA_DRAFT_KEY);
