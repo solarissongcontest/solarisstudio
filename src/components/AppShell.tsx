@@ -22,6 +22,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { rememberPublicRecent } from "@/lib/public-recents";
+import {
+  buildPublicUserContext,
+  publicGlobalAreasForContext,
+} from "@/lib/public-user-context";
 import { cn } from "@/lib/utils";
 
 const LazyHomeAnniversaryTakeover = lazy(() =>
@@ -171,7 +175,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     window.location.href = "/";
   };
 
-  const accountHref = email ? "/my-solaris" : "/auth";
+  const publicUser = buildPublicUserContext({ userId: access.userId, access });
+  const globalAreas = publicGlobalAreasForContext(publicUser);
   const publicLayout = publicLayoutForPath(pathname);
   const publicArea = publicAreaForPath(pathname);
   const visibleAccountEmail =
@@ -195,8 +200,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       publicArea === "participate" ||
       publicArea === "results" ||
       publicArea === "help");
-  const quickNavigation = PUBLIC_GLOBAL_AREAS.map((item) => ({
-    to: item.id === "me" ? accountHref : item.to,
+  const quickNavigation = globalAreas.map((item) => ({
+    to: item.to,
     label: item.label,
     icon: GLOBAL_ICON_BY_AREA[item.id],
     active: !pathname.startsWith("/site-directory") && publicArea === item.id,
@@ -212,12 +217,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Brand />
 
             <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
-              {PUBLIC_GLOBAL_AREAS.map((item) => {
-                const to = item.id === "me" ? accountHref : item.to;
+              {globalAreas.map((item) => {
                 return (
                   <Link
                     key={item.id}
-                    to={to as any}
+                    to={item.to as any}
                     aria-current={publicArea === item.id ? "page" : undefined}
                     className={desktopNavClass(publicArea === item.id)}
                   >
@@ -320,7 +324,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="scroll-slim flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
-            <PublicDrawerNavigation pathname={pathname} isOrganizer={access.isOrganizer} />
+            <PublicDrawerNavigation pathname={pathname} user={publicUser} />
           </nav>
 
           <div
