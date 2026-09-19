@@ -26,11 +26,8 @@ import {
 } from "@/components/admin/AdminUI";
 import { buildEditionReadiness, type AdminIssue } from "@/lib/admin-readiness";
 import { useAdminReadinessData } from "@/lib/admin-readiness-data";
-import {
-  useAdminDeadlines,
-  useAdminNotifications,
-  useMarkNotificationRead,
-} from "@/lib/admin-ops";
+import { useAdminNotifications, useMarkNotificationRead } from "@/lib/admin-ops";
+import { useAdminOperationalSchedule } from "@/lib/admin-schedule";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
@@ -62,7 +59,10 @@ function OrganizerHome() {
   const { data: readinessData, isLoading: readinessLoading } = useAdminReadinessData(
     activeEdition?.id,
   );
-  const { data: deadlines = [] } = useAdminDeadlines(activeEdition?.id ?? null);
+  const {
+    data: schedule = [],
+    isError: scheduleError,
+  } = useAdminOperationalSchedule(activeEdition?.id ?? null, activeEdition?.slug ?? null);
   const { data: notifications = [] } = useAdminNotifications();
   const markRead = useMarkNotificationRead();
 
@@ -83,10 +83,8 @@ function OrganizerHome() {
     [activeEdition, shows, readinessData],
   );
 
-  const openDeadlines = [...deadlines]
-    .filter((item) => !item.completed_at)
-    .sort((a, b) => new Date(a.due_at).getTime() - new Date(b.due_at).getTime());
-  const upcoming = openDeadlines[0] ?? null;
+  const upcoming =
+    schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
   const unread = notifications.filter((item) => !item.read_at);
   const issues = readiness?.issues ?? [];
   const topIssues = issues.slice(0, 4);
@@ -218,15 +216,25 @@ function OrganizerHome() {
                 <AdminCard>
                   <AdminCardHeader
                     eyebrow="Upcoming"
-                    title={upcoming?.label ?? "Nothing scheduled"}
+                    title={
+                      scheduleError
+                        ? "Schedule unavailable"
+                        : upcoming?.label ?? "Nothing scheduled"
+                    }
                     description={
-                      upcoming
-                        ? `${humanize(upcoming.kind)} · ${new Date(upcoming.due_at).toLocaleString()}`
-                        : "There are no unfinished organizer deadlines for this edition."
+                      scheduleError
+                        ? "Solaris could not verify the operational schedule."
+                        : upcoming
+                          ? `${upcoming.detail} · ${new Date(upcoming.at).toLocaleString()}`
+                          : "There are no upcoming workflow dates for this edition."
                     }
                   />
-                  <Link to="/admin/system" className="admin-action-secondary w-full">
-                    <Clock3 className="size-4" /> Manage deadlines
+                  <Link
+                    to={(upcoming?.href ?? "/admin/system") as any}
+                    className="admin-action-secondary w-full"
+                  >
+                    <Clock3 className="size-4" />
+                    {upcoming ? "Open workflow" : "Open schedule"}
                   </Link>
                 </AdminCard>
               </div>
