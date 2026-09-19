@@ -16,20 +16,6 @@ declare
   v_table record;
   v_rows bigint;
 begin
-  if to_regclass('public.contest_entities_country_id_idx') is null
-     or to_regclass('public.country_hod_edition_claims_country_id_idx') is null
-     or to_regclass('public.country_hod_edition_claims_edition_id_idx') is null
-     or to_regclass('public.jury_votes_receiving_country_id_idx') is null
-     or to_regclass('public.jury_votes_voter_country_id_idx') is null
-     or to_regclass('public.jury_votes_voter_entity_id_idx') is null
-     or to_regclass('public.participants_country_id_idx') is null
-     or to_regclass('public.results_country_id_idx') is null
-     or to_regclass('public.televote_votes_country_id_idx') is null
-     or to_regclass('public.voters_contest_entity_id_idx') is null
-     or to_regclass('public.voters_country_id_idx') is null then
-    raise exception 'Expected high-volume FK indexes are missing';
-  end if;
-
   if exists (select 1 from pg_namespace where nspname = 'migration_staging') then
     if exists (
       select 1
@@ -285,6 +271,20 @@ declare
   v_target record;
   v_count integer;
 begin
+  if to_regclass('public.contest_entities_country_id_idx') is null
+     or to_regclass('public.country_hod_edition_claims_country_id_idx') is null
+     or to_regclass('public.country_hod_edition_claims_edition_id_idx') is null
+     or to_regclass('public.jury_votes_receiving_country_id_idx') is null
+     or to_regclass('public.jury_votes_voter_country_id_idx') is null
+     or to_regclass('public.jury_votes_voter_entity_id_idx') is null
+     or to_regclass('public.participants_country_id_idx') is null
+     or to_regclass('public.results_country_id_idx') is null
+     or to_regclass('public.televote_votes_country_id_idx') is null
+     or to_regclass('public.voters_contest_entity_id_idx') is null
+     or to_regclass('public.voters_country_id_idx') is null then
+    raise exception 'Expected high-volume FK indexes are missing';
+  end if;
+
   if exists (select 1 from pg_namespace where nspname = 'migration_staging') then
     raise exception 'migration_staging still exists';
   end if;
