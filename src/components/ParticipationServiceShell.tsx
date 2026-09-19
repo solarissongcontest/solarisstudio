@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ClipboardCheck, Gavel, Music2, Vote } from "lucide-react";
-import { createContext, useContext, type ReactNode } from "react";
+import { ArrowLeft, CircleHelp } from "lucide-react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 type ParticipationService = "confirmations" | "jury" | "televoting" | "next-in-line";
@@ -49,44 +50,43 @@ export function ParticipationServiceShell({
     "next-in-line": "Next in Line",
   }[service];
 
-  // Legacy confirmation screens used to advertise Next in Line as a
-  // confirmation sub-flow. It is now a separate song competition at
-  // /next-in-line, so never render that stale service-level action even when
-  // an older caller still passes it while old links remain compatible.
   const visibleActions = actions.filter(
     (action) => action.to !== "/confirmations/next-in-line" && action.to !== "/next-in-line",
   );
 
+  useEffect(() => {
+    trackPublicUxEvent("task_started", {
+      target: servicePath(service),
+      metadata: { area: "participate", source: "task_page", task_status: "opened" },
+    });
+  }, [service]);
+
   return (
     <div className={cn("mx-auto min-w-0", maxWidth)}>
       <nav
-        aria-label="Participation services"
-        className="participation-service-nav mb-4 grid min-w-0 grid-cols-2 gap-1.5 rounded-2xl border border-border/60 bg-surface/95 p-1.5 sm:mb-5 sm:flex"
+        aria-label="Participation task navigation"
+        className="participation-service-nav mb-4 flex min-w-0 items-center gap-2 rounded-2xl border border-border/60 bg-surface/95 p-1.5 sm:mb-5"
       >
-        <ServiceTab
-          to="/confirmations"
-          label="Confirmations"
-          icon={ClipboardCheck}
-          active={pathname.startsWith("/confirmations")}
-        />
-        <ServiceTab
-          to="/jury-voting"
-          label="Jury voting"
-          icon={Gavel}
-          active={pathname.startsWith("/jury-voting")}
-        />
-        <ServiceTab
-          to="/televoting"
-          label="Televoting"
-          icon={Vote}
-          active={pathname.startsWith("/televoting")}
-        />
-        <ServiceTab
-          to="/next-in-line"
-          label="Next in Line"
-          icon={Music2}
-          active={pathname.startsWith("/next-in-line")}
-        />
+        <Link
+          to="/participate"
+          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-strong hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Back to Participate</span>
+          <span className="sm:hidden">Participate</span>
+        </Link>
+
+        <span className="min-w-0 flex-1 truncate border-l border-border/60 px-3 text-xs font-semibold text-foreground">
+          {serviceLabel}
+        </span>
+
+        <Link
+          to="/guide"
+          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface-strong hover:text-foreground"
+        >
+          <CircleHelp className="size-3.5" aria-hidden="true" />
+          Help
+        </Link>
       </nav>
 
       <PageHeader
@@ -119,32 +119,17 @@ export function ParticipationServiceShell({
   );
 }
 
-function ServiceTab({
-  to,
-  label,
-  icon: Icon,
-  active,
-}: {
-  to: string;
-  label: string;
-  icon: typeof ClipboardCheck;
-  active: boolean;
-}) {
-  return (
-    <Link
-      to={to as any}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        "inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2.5 text-[11px] font-semibold transition sm:min-h-10 sm:flex-1 sm:text-xs",
-        active
-          ? "bg-primary/[0.09] text-primary"
-          : "text-muted-foreground hover:bg-surface hover:text-foreground",
-      )}
-    >
-      <Icon className="size-3.5 shrink-0" />
-      <span className="truncate">{label}</span>
-    </Link>
-  );
+function servicePath(service: ParticipationService) {
+  switch (service) {
+    case "confirmations":
+      return "/confirmations";
+    case "jury":
+      return "/jury-voting";
+    case "televoting":
+      return "/televoting";
+    case "next-in-line":
+      return "/next-in-line";
+  }
 }
 
 function pathMatches(pathname: string, route: string) {

@@ -35,7 +35,7 @@ describe("MySolaris product consolidation", () => {
     expect(workspaceNav).toContain("MY_SOLARIS_MOBILE_PRIMARY_IDS");
     expect(workspaceNav).toContain("<MoreHorizontal");
     expect(workspaceNav).toContain("More");
-    expect(shell).toContain("!isMySolarisWorkspace && (");
+    expect(shell).toContain("!isMySolarisWorkspace && publicIaV3Enabled !== null && (");
   });
 
   it("loads shared participant context once at the workspace shell", () => {
@@ -56,9 +56,12 @@ describe("MySolaris product consolidation", () => {
     expect(workspaceContext).toContain("loadStudio2RecipientNoticeInbox");
   });
 
-  it("does not bury MySolaris inside the public page directory", () => {
-    expect(shell).toContain('!pathname.startsWith("/my-solaris")');
-    expect(shell).toContain("showPublicSidebar");
+  it("keeps MySolaris as a global journey and outside section navigation", () => {
+    const navigation = source("src/lib/public-navigation.ts");
+    expect(navigation).toContain('id: "me"');
+    expect(navigation).toContain('to: "/my-solaris"');
+    expect(shell).toContain("!isMySolarisWorkspace");
+    expect(shell).toContain("showSectionNavigation");
   });
 
   it("keeps participant tools on the canonical MySolaris route family", () => {

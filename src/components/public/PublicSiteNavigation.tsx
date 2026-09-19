@@ -1,401 +1,175 @@
 import { Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
 
+import {
+  PUBLIC_GLOBAL_AREAS,
+  publicAreaForPath,
+  publicDestinationsForArea,
+  publicPathMatches,
+  type PublicDestination,
+} from "@/lib/public-navigation";
+import {
+  publicGlobalAreasForContext,
+  type PublicUserContext,
+} from "@/lib/public-user-context";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
-
-export type PublicNavigationItem = {
-  to: string;
-  label: string;
-  description: string;
-  keywords?: string;
-};
-
-export type PublicNavigationGroup = {
-  id: "explore" | "reference" | "insights" | "participate" | "tools" | "account";
-  label: string;
-  description: string;
-  items: PublicNavigationItem[];
-};
-
-export const PUBLIC_NAVIGATION_GROUPS: PublicNavigationGroup[] = [
-  {
-    id: "explore",
-    label: "Explore",
-    description: "Editions, countries, shows and the public archive.",
-    items: [
-      nav("/", "Home", "The Solaris Studio public home page.", "start welcome"),
-      nav(
-        "/explore",
-        "Start exploring",
-        "Browse editions, countries, shows, stories and Solaris history from one place.",
-        "explore browse discover archive",
-      ),
-      nav("/editions", "Editions", "Every Solaris Song Contest edition.", "contest archive ssc"),
-      nav(
-        "/countries",
-        "Countries",
-        "Delegations, entries and country records.",
-        "country delegation",
-      ),
-      nav(
-        "/shows",
-        "Shows",
-        "Semi-finals, finals, line-ups and broadcasts.",
-        "show semi final lineup",
-      ),
-      nav(
-        "/results",
-        "Results",
-        "Published rankings and official results.",
-        "score ranking scoreboard",
-      ),
-      nav("/wiki", "Wiki", "Detailed country and contest articles.", "articles history"),
-      nav(
-        "/stories",
-        "Stories",
-        "Published edition stories and archive moments.",
-        "story storytelling moments",
-      ),
-      nav(
-        "/anniversary",
-        "Anniversary",
-        "Champions, milestones and Solaris history.",
-        "celebration history champions",
-      ),
-    ],
-  },
-  {
-    id: "reference",
-    label: "Rules & help",
-    description: "The rulebook, official guidance and Trust & Integrity.",
-    items: [
-      nav(
-        "/rules",
-        "Rules",
-        "Official SSC rules, chapters and individual regulations.",
-        "rulebook regulations",
-      ),
-      nav(
-        "/rules/interpretations",
-        "Interpretations",
-        "Published official rule clarifications.",
-        "rulings clarification precedent",
-      ),
-      nav(
-        "/rules/changes",
-        "Rulebook changes",
-        "Published versions and change history.",
-        "release versions history governance",
-      ),
-      nav(
-        "/integrity",
-        "Trust & Integrity",
-        "Report concerns and follow protected cases.",
-        "report anonymous case safety",
-      ),
-      nav(
-        "/integrity/appeals",
-        "Appeals",
-        "Appeal a decision or continue an existing appeal.",
-        "sanction review decision",
-      ),
-      nav(
-        "/integrity/preclearance",
-        "Ask before acting",
-        "Request a private rule pre-clearance ruling.",
-        "preclearance advice ruling",
-      ),
-      nav(
-        "/guide",
-        "Guide",
-        "Plain-language help for using Solaris Studio.",
-        "help instructions how to",
-      ),
-    ],
-  },
-  {
-    id: "insights",
-    label: "Insights",
-    description: "Understand published results and voting patterns.",
-    items: [
-      nav(
-        "/analysis",
-        "Analysis",
-        "Result patterns and contest statistics.",
-        "stats voting patterns",
-      ),
-      nav("/pulse", "Pulse", "Recent public changes and updates.", "activity recent updates"),
-      nav(
-        "/relationships",
-        "Relationships",
-        "Repeated voting and competitive patterns.",
-        "similarity support countries",
-      ),
-      nav("/records", "Records", "All-time records and milestones.", "record milestone all time"),
-      nav(
-        "/scorecharts",
-        "Scorecharts",
-        "Detailed published vote breakdowns.",
-        "votes jury televote points",
-      ),
-      nav("/predictions", "Predictions", "Build and track show predictions.", "forecast predict"),
-    ],
-  },
-  {
-    id: "participate",
-    label: "Participate",
-    description: "Submissions, jury voting and public voting.",
-    items: [
-      nav(
-        "/participate",
-        "Start here",
-        "Choose the right participation service.",
-        "participation enter",
-      ),
-      nav(
-        "/confirmations",
-        "Confirmations",
-        "Submit or edit a country confirmation.",
-        "entry response submit",
-      ),
-      nav("/jury-voting", "Jury voting", "Submit the HOD jury ballot.", "jury points ballot hod"),
-      nav("/televoting", "Televoting", "Vote as a public audience member.", "public vote"),
-      nav(
-        "/televoting/how-to-vote",
-        "How to vote",
-        "Read the public voting instructions.",
-        "televote guide rules",
-      ),
-      nav("/next-in-line", "Next in Line", "Enter or follow the side competition.", "competition"),
-    ],
-  },
-  {
-    id: "tools",
-    label: "Tools",
-    description: "Compare, test and replay published Solaris data.",
-    items: [
-      nav("/tools", "All tools", "Choose an interactive Solaris tool.", "interactive"),
-      nav(
-        "/compare",
-        "Compare countries",
-        "Place two delegations side by side.",
-        "versus comparison",
-      ),
-      nav(
-        "/result-lab",
-        "Result Lab",
-        "Test result scenarios without changing data.",
-        "simulate calculator",
-      ),
-      nav("/taste-dna", "Taste DNA", "Explore patterns in voting taste.", "voting profile"),
-      nav(
-        "/broadcast-intelligence",
-        "Broadcast replay",
-        "Replay published result turning points.",
-        "scoreboard reveal",
-      ),
-      nav(
-        "/archive-games",
-        "Archive Games",
-        "Play with Solaris history and results.",
-        "quiz game history",
-      ),
-    ],
-  },
-  {
-    id: "account",
-    label: "MySolaris",
-    description: "Your account, participation and country tools.",
-    items: [
-      nav(
-        "/my-solaris",
-        "MySolaris",
-        "Personal activity and participation.",
-        "me account dashboard",
-      ),
-    ],
-  },
-];
-
-export function publicPathMatches(pathname: string, route: string) {
-  return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`);
-}
-
-export function publicGroup(id: PublicNavigationGroup["id"]) {
-  return PUBLIC_NAVIGATION_GROUPS.find((group) => group.id === id)!;
-}
-
-export function PublicSiteSidebar({
-  pathname,
-  isOrganizer,
-}: {
-  pathname: string;
-  isOrganizer: boolean;
-}) {
-  const [query, setQuery] = useState("");
-  const groups = useMemo(
-    () => filterNavigation(withRoleItems(PUBLIC_NAVIGATION_GROUPS, isOrganizer), query),
-    [isOrganizer, query],
-  );
-
-  return (
-    <aside className="public-site-sidebar" aria-label="All public pages">
-      <nav>
-        <label className="public-site-sidebar-search">
-          <Search className="size-3.5" aria-hidden="true" />
-          <span className="sr-only">Find a public page</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find a page…"
-            aria-label="Find a public page"
-          />
-        </label>
-
-        <NavigationGroups groups={groups} pathname={pathname} compact idPrefix="sidebar" />
-
-        {!groups.length ? (
-          <p className="px-2 py-4 text-xs text-muted-foreground">No page matches that search.</p>
-        ) : null}
-      </nav>
-    </aside>
-  );
-}
 
 export function PublicDrawerNavigation({
   pathname,
-  isOrganizer,
+  user,
 }: {
   pathname: string;
-  isOrganizer: boolean;
+  user: PublicUserContext;
 }) {
-  return (
-    <NavigationGroups
-      groups={withRoleItems(PUBLIC_NAVIGATION_GROUPS, isOrganizer)}
-      pathname={pathname}
-      idPrefix="drawer"
-    />
-  );
-}
+  const area = publicAreaForPath(pathname);
+  const globalAreas = publicGlobalAreasForContext(user);
+  const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
+  const localItems =
+    area === "home" || area === "me"
+      ? []
+      : publicDestinationsForArea(area, { includeContextual: false }).filter(
+          (item) => item.to !== areaRoot,
+        );
 
-function NavigationGroups({
-  groups,
-  pathname,
-  compact = false,
-  idPrefix,
-}: {
-  groups: PublicNavigationGroup[];
-  pathname: string;
-  compact?: boolean;
-  idPrefix: string;
-}) {
   return (
-    <div className={compact ? "space-y-4" : "space-y-5"}>
-      {groups.map((group) => (
-        <NavigationGroup
-          key={group.id}
-          group={group}
+    <div className="space-y-5">
+      <section aria-labelledby="drawer-global-navigation">
+        <div className="px-2">
+          <h2 id="drawer-global-navigation" className="public-site-sidebar-label">
+            Solaris Studio
+          </h2>
+        </div>
+        <div className="mt-1.5 space-y-0.5">
+          {globalAreas.map((item) => {
+            const active = area === item.id;
+            return (
+              <Link
+                key={item.id}
+                to={item.to as any}
+                aria-current={active ? "page" : undefined}
+                onClick={() =>
+                  trackPublicUxEvent("public_nav_clicked", {
+                    target: item.to,
+                    metadata: { area: item.id, source: "mobile_drawer" },
+                  })
+                }
+                className={cn("public-drawer-page-link", active && "is-active")}
+              >
+                <span>{item.label}</span>
+                <small>{item.description}</small>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {localItems.length ? (
+        <DrawerSection
+          title={area === "help" ? "Rules & help" : `In ${areaLabel(area)}`}
+          items={localItems}
           pathname={pathname}
-          compact={compact}
-          idPrefix={idPrefix}
         />
-      ))}
+      ) : null}
+
+      <section aria-labelledby="drawer-utilities">
+        <div className="px-2">
+          <h2 id="drawer-utilities" className="public-site-sidebar-label">
+            Find & help
+          </h2>
+        </div>
+        <div className="mt-1.5 space-y-0.5">
+          <Link to="/site-directory" className="public-drawer-page-link">
+            <span>All Solaris pages</span>
+            <small>Browse every public destination without cluttering the main navigation.</small>
+          </Link>
+          <Link
+            to="/guide"
+            aria-current={publicPathMatches(pathname, "/guide") ? "page" : undefined}
+            className={cn(
+              "public-drawer-page-link",
+              publicPathMatches(pathname, "/guide") && "is-active",
+            )}
+          >
+            <span>Help</span>
+            <small>Plain-language help for using Solaris Studio.</small>
+          </Link>
+          <Link
+            to="/rules"
+            aria-current={publicPathMatches(pathname, "/rules") ? "page" : undefined}
+            className={cn(
+              "public-drawer-page-link",
+              publicPathMatches(pathname, "/rules") && "is-active",
+            )}
+          >
+            <span>Rules</span>
+            <small>Official SSC rules and rulebook guidance.</small>
+          </Link>
+          {user.organizer ? (
+            <Link to="/admin/operations" className="public-drawer-page-link">
+              <span>Open Organizer</span>
+              <small>Enter the operational workspace.</small>
+            </Link>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }
 
-function NavigationGroup({
-  group,
+function DrawerSection({
+  title,
+  items,
   pathname,
-  compact,
-  idPrefix,
 }: {
-  group: PublicNavigationGroup;
+  title: string;
+  items: PublicDestination[];
   pathname: string;
-  compact: boolean;
-  idPrefix: string;
 }) {
-  const activeTo = group.items
+  const activeTo = items
     .filter((item) => publicPathMatches(pathname, item.to))
     .sort((a, b) => b.to.length - a.to.length)[0]?.to;
 
   return (
-    <section aria-labelledby={`${idPrefix}-public-nav-${group.id}`}>
+    <section aria-label={title}>
       <div className="px-2">
-        <h2 id={`${idPrefix}-public-nav-${group.id}`} className="public-site-sidebar-label">
-          {group.label}
-        </h2>
-        {!compact ? (
-          <p className="mt-1 text-[11px] leading-4 text-muted-foreground/70">{group.description}</p>
-        ) : null}
+        <h2 className="public-site-sidebar-label">{title}</h2>
       </div>
       <div className="mt-1.5 space-y-0.5">
-        {group.items.map((item) => {
-          const active = item.to === activeTo;
-          return (
-            <Link
-              key={item.to}
-              to={item.to as any}
-              aria-current={active ? "page" : undefined}
-              title={item.description}
-              className={cn(
-                compact ? "public-site-sidebar-link" : "public-drawer-page-link",
-                active && "is-active",
-              )}
-            >
-              <span>{item.label}</span>
-              {!compact ? <small>{item.description}</small> : null}
-            </Link>
-          );
-        })}
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            to={item.to as any}
+            aria-current={item.to === activeTo ? "page" : undefined}
+            onClick={() =>
+              trackPublicUxEvent("section_nav_clicked", {
+                target: item.to,
+                metadata: { area: item.area, visibility: item.visibility, source: "mobile_drawer" },
+              })
+            }
+            className={cn("public-drawer-page-link", item.to === activeTo && "is-active")}
+          >
+            <span>{item.label}</span>
+            <small>{item.description}</small>
+          </Link>
+        ))}
       </div>
     </section>
   );
 }
 
-function filterNavigation(groups: PublicNavigationGroup[], query: string) {
-  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (!terms.length) return groups;
-
-  return groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => {
-        const value =
-          `${group.label} ${item.label} ${item.description} ${item.keywords ?? ""}`.toLowerCase();
-        return terms.every((term) => value.includes(term));
-      }),
-    }))
-    .filter((group) => group.items.length > 0);
-}
-
-function withRoleItems(groups: PublicNavigationGroup[], isOrganizer: boolean) {
-  if (!isOrganizer) return groups;
-  return groups.map((group) =>
-    group.id === "account"
-      ? {
-          ...group,
-          items: [
-            ...group.items,
-            nav(
-              "/admin/operations",
-              "Organizer workspace",
-              "Open Solaris Organizer.",
-              "admin control operations",
-            ),
-          ],
-        }
-      : group,
-  );
-}
-
-function nav(
-  to: string,
-  label: string,
-  description: string,
-  keywords?: string,
-): PublicNavigationItem {
-  return { to, label, description, keywords };
+function areaLabel(area: ReturnType<typeof publicAreaForPath>) {
+  switch (area) {
+    case "explore":
+      return "Explore";
+    case "participate":
+      return "Participate";
+    case "results":
+      return "Results";
+    case "help":
+      return "Rules & help";
+    case "me":
+      return "Me";
+    default:
+      return "Home";
+  }
 }

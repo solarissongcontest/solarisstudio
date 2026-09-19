@@ -102,7 +102,8 @@ describe("beta-informed fan discovery", () => {
 
   it("unifies signed-in navigation under MySolaris", () => {
     const shell = source("src/components/AppShell.tsx");
-    expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
+    expect(shell).toContain("buildPublicUserContext");
+    expect(shell).toContain("publicGlobalAreasForContext");
     expect(shell).toContain("Open MySolaris");
     expect(shell).not.toContain("Open My Solaris");
     expect(shell).not.toContain("Profile & activity");

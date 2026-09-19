@@ -46,13 +46,18 @@ describe("archive readiness", () => {
     expect(checkingBranch).not.toContain("<AdminShell>");
   });
 
-  it("keeps the four participation services in one responsive navigator", () => {
+  it("keeps focused participation tasks anchored to one responsive Participate hub", () => {
     const shell = source("components/ParticipationServiceShell.tsx");
+    const hub = source("routes/participate/index.tsx");
+
+    expect(shell).toContain('to="/participate"');
+    expect(shell).toContain("Back to Participate");
+    expect(shell).toContain('aria-label="Participation task navigation"');
+
     for (const route of ["/confirmations", "/jury-voting", "/televoting", "/next-in-line"]) {
-      expect(shell).toContain(`to="${route}"`);
+      expect(hub).toContain(`to: "${route}"`);
     }
-    expect(shell).toContain('aria-label="Participation services"');
-    expect(source("routes/participate/index.tsx")).not.toContain("Revolutionary, apparently");
+    expect(hub).not.toContain("Revolutionary, apparently");
   });
 
   it("uses compact wiki article navigation instead of an always-open page marathon", () => {

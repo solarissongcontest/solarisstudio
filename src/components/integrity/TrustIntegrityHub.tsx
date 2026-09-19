@@ -144,108 +144,130 @@ export function TrustIntegrityHub() {
 }
 
 function PortalHome({ setView }: { setView: (view: PortalView) => void }) {
-  const cards = [
+  const reportOptions = [
     {
       id: "anonymous" as const,
       icon: EyeOff,
       title: "Fully anonymous",
-      eyebrow: "NO ACCOUNT LINK",
-      text: "Use a recovery key. The case row contains no Solaris reporter account ID.",
-      className: "border-emerald-300/16 bg-emerald-300/[0.045]",
-      iconClass: "text-emerald-200",
+      text: "Use a recovery key. No Solaris reporter account ID is stored on the case.",
     },
     {
       id: "protected-report" as const,
       icon: LockKeyhole,
-      title: "Sealed or confidential",
-      eyebrow: "PROTECTED IDENTITY",
-      text: "Recover through your account while controlling whether reviewers can ever identify you.",
-      className: "border-sky-300/16 bg-sky-300/[0.045]",
-      iconClass: "text-sky-200",
+      title: "Protected report",
+      text: "Use your account for recovery while keeping your identity sealed or confidential.",
     },
+  ];
+
+  const specialistOptions = [
     {
       id: "question" as const,
       icon: MessageCircleQuestion,
       title: "Ask TSBC privately",
-      eyebrow: "BEFORE YOU ACT",
-      text: "Ask how a rule applies before you act.",
-      className: "border-violet-300/16 bg-violet-300/[0.045]",
-      iconClass: "text-violet-200",
+      text: "Get a private rule ruling before doing something that may be unclear.",
     },
     {
       id: "self-report" as const,
       icon: UserRoundCheck,
-      title: "Self-report",
-      eyebrow: "DISCLOSE A MISTAKE",
-      text: "Tell TSBC about your own error or concern and keep the correction in the formal case record.",
-      className: "border-amber-300/16 bg-amber-300/[0.045]",
-      iconClass: "text-amber-200",
+      title: "Report your own mistake",
+      text: "Disclose an error early and keep the correction in the formal case record.",
     },
     {
       id: "vulnerability" as const,
       icon: Bug,
       title: "Technical vulnerability",
-      eyebrow: "SECURITY",
       text: "Report an exploit or platform weakness through a protected channel.",
-      className: "border-cyan-300/16 bg-cyan-300/[0.045]",
-      iconClass: "text-cyan-200",
     },
     {
       id: "safety" as const,
       icon: Siren,
-      title: "Safety concern",
-      eyebrow: "PRIORITISED",
-      text: "Use this for threats, doxxing, privacy exposure or another serious participant-safety concern.",
-      className: "border-rose-300/16 bg-rose-300/[0.045]",
-      iconClass: "text-rose-200",
+      title: "Urgent safety concern",
+      text: "Threats, doxxing, privacy exposure and serious participant-safety concerns.",
     },
   ];
 
   return (
     <div className="pb-20">
-      <section className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {cards.map(({ id, icon: Icon, title, eyebrow, text, className, iconClass }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setView(id)}
-            className={cn(
-              "group min-h-52 rounded-[1.6rem] border p-5 text-left transition-[background-color,border-color] duration-150 ease-out hover:border-white/20",
-              className,
-            )}
-          >
-            <Icon className={cn("size-7", iconClass)} />
-            <p className="mt-6 text-[9px] font-black uppercase tracking-[.17em] text-muted-foreground">
-              {eyebrow}
-            </p>
-            <h2 className="mt-1 text-xl font-black tracking-[-.03em]">{title}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
-            <span className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-slate-200">
-              Open <ArrowRight className="size-3.5 transition group-hover:translate-x-1" />
-            </span>
-          </button>
-        ))}
+      <section className="mt-5" aria-labelledby="integrity-report-title">
+        <div className="mb-3 border-b border-border/60 pb-3">
+          <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-200">
+            Start here
+          </p>
+          <h2 id="integrity-report-title" className="mt-1 font-display text-2xl font-bold">
+            Report a concern
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Choose whether the report should be fully anonymous or recoverable through your Solaris account.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          {reportOptions.map(({ id, icon: Icon, title, text }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              className="group min-h-44 rounded-[1.45rem] border border-emerald-300/14 bg-emerald-300/[0.04] p-5 text-left transition-colors hover:border-emerald-200/25 hover:bg-emerald-300/[0.065]"
+            >
+              <Icon className="size-6 text-emerald-200" aria-hidden="true" />
+              <h3 className="mt-5 text-xl font-black tracking-[-.025em]">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
+              <span className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-emerald-100">
+                Start report <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
-      <section className="mt-8 grid gap-3 lg:grid-cols-3">
-        <SecondaryCard
-          icon={Users}
-          title="My protected cases"
-          text="Open sealed and confidential cases tied to your Solaris account."
-          onClick={() => setView("my-cases")}
-        />
-        <SecondaryCard
-          icon={Scale}
-          title="How investigations work"
-          text="See the difference between a report, evidence, a finding, action and appeal."
-          onClick={() => setView("how")}
-        />
-        <SecondaryCard
-          icon={BadgeCheck}
-          title="Transparency & decisions"
-          text="See anonymised published precedents and aggregate Integrity Centre statistics."
-          onClick={() => setView("transparency")}
-        />
+      <section className="mt-7" aria-labelledby="integrity-follow-title">
+        <div className="grid gap-3 md:grid-cols-3">
+          <SecondaryCard
+            icon={Users}
+            title="Follow your case"
+            text="Open sealed and confidential cases tied to your Solaris account."
+            onClick={() => setView("my-cases")}
+          />
+          <SecondaryCard
+            icon={Scale}
+            title="How reporting works"
+            text="Understand reports, evidence, findings, action and appeals."
+            onClick={() => setView("how")}
+          />
+          <SecondaryCard
+            icon={BadgeCheck}
+            title="Transparency & decisions"
+            text="See anonymised published precedents and aggregate Integrity statistics."
+            onClick={() => setView("transparency")}
+          />
+        </div>
+      </section>
+
+      <section className="mt-8" aria-labelledby="integrity-more-title">
+        <div className="mb-3 border-b border-border/60 pb-3">
+          <p className="text-[10px] font-black uppercase tracking-[.16em] text-muted-foreground">
+            More help
+          </p>
+          <h2 id="integrity-more-title" className="mt-1 font-display text-xl font-bold">
+            Specialist routes
+          </h2>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {specialistOptions.map(({ id, icon: Icon, title, text }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              className="flex min-h-28 items-start gap-3 rounded-[1.2rem] border border-white/[0.08] bg-white/[0.02] p-4 text-left transition-colors hover:border-sky-200/18 hover:bg-white/[0.04]"
+            >
+              <Icon className="mt-0.5 size-5 shrink-0 text-sky-200" aria-hidden="true" />
+              <span>
+                <span className="block text-sm font-bold">{title}</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">{text}</span>
+              </span>
+            </button>
+          ))}
+        </div>
       </section>
 
       <div className="mt-8 flex flex-wrap gap-2">

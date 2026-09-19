@@ -1,11 +1,11 @@
-import { betaSectionsRound2 } from "./sections-round-2";
+import { beta3NavigationSections } from "./sections-beta3-navigation";
 import type { BetaAnswer, BetaAnswers, BetaQuestion } from "./types";
 
-export const BETA_DRAFT_KEY = "solaris:public-beta-test:draft:v4";
-export const BETA_SUBMITTED_KEY = "solaris:public-beta-test:submitted:v4";
-export const BETA_FORM_VERSION = 4;
+export const BETA_DRAFT_KEY = "solaris:public-beta-test:draft:v5";
+export const BETA_SUBMITTED_KEY = "solaris:public-beta-test:submitted:v5";
+export const BETA_FORM_VERSION = 5;
 
-export const betaSections = betaSectionsRound2;
+export const betaSections = beta3NavigationSections;
 
 export function isBetaQuestionVisible(question: BetaQuestion, answers: BetaAnswers) {
   if (!question.showWhen) return true;

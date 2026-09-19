@@ -430,6 +430,22 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/anniversary-dates"),
         ),
         item(
+          "Public UX",
+          "Review public navigation, search and task-completion telemetry.",
+          "/admin/public-ux",
+          BarChart3,
+          "public ux navigation search findability telemetry usability",
+          (path) => path.startsWith("/admin/public-ux"),
+        ),
+        item(
+          "Beta 3 feedback",
+          "Review the navigation and findability study.",
+          "/admin/beta3-feedback",
+          BarChart3,
+          "beta 3 navigation findability usability",
+          (path) => path.startsWith("/admin/beta3-feedback"),
+        ),
+        item(
           "Beta 2 feedback",
           "Review current public-site usability feedback and comparisons.",
           "/admin/beta2-feedback",

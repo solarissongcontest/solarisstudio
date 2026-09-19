@@ -1,15 +1,31 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import {
-  ArrowRight,
   CheckCircle2,
   ClipboardCheck,
+  Clock3,
   Music2,
   Scale,
-  ShieldCheck,
   Vote,
 } from "lucide-react";
+import { useMemo } from "react";
 
-import { AppShell, PageHeader } from "@/components/AppShell";
+import { AppShell } from "@/components/AppShell";
+import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
+import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
+import { PublicHubHero } from "@/components/public/PublicHubHero";
+import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
+import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
+import { supabase as typedSupabase } from "@/integrations/supabase/client";
+import { televotingSupabase } from "@/integrations/televoting/client";
+import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
+import {
+  primaryParticipationAction,
+  sortParticipationActions,
+  upcomingParticipationActions,
+  type ParticipationAction,
+} from "@/lib/participation-state";
+import { computeAvailability } from "@/lib/ssc";
 
 export const Route = createFileRoute("/participate/")({
   head: () => ({
@@ -17,127 +33,326 @@ export const Route = createFileRoute("/participate/")({
       { title: "Participate — Solaris Studio" },
       {
         name: "description",
-        content: "Confirm participation, cast an official jury ballot, vote in televoting or enter Next in Line.",
+        content:
+          "See what needs your attention now, what opens next, and every Solaris participation service.",
       },
     ],
   }),
   component: ParticipatePage,
 });
 
+type JurySummary = {
+  signedIn: boolean;
+  openRound: { name: string } | null;
+  completedOpenRound: { name: string } | null;
+};
+
+type TelevoteSummary = {
+  openRound: { name: string; editionName: string | null } | null;
+};
+
+function confirmationReason(round: PublicRound) {
+  return computeAvailability({
+    status: round.status,
+    count: round.response_count,
+    limit: round.response_limit,
+    opens_at: round.opens_at,
+    closes_at: round.closes_at,
+  });
+}
+
+async function loadJurySummary(): Promise<JurySummary> {
+  const { data: sessionData } = await typedSupabase.auth.getSession();
+  if (!sessionData.session) {
+    return { signedIn: false, openRound: null, completedOpenRound: null };
+  }
+
+  const { data, error } = await (typedSupabase as any).rpc("country_jury_voting_context");
+  if (error || !data?.ok) {
+    return { signedIn: true, openRound: null, completedOpenRound: null };
+  }
+
+  const rounds = Array.isArray(data.rounds) ? data.rounds : [];
+  const openRound = rounds.find(
+    (round: any) => round.status === "open" && round.eligible && !round.already_submitted,
+  );
+  const completedOpenRound = rounds.find(
+    (round: any) => round.status === "open" && round.eligible && round.already_submitted,
+  );
+
+  return {
+    signedIn: true,
+    openRound: openRound ? { name: String(openRound.show_name ?? "Jury voting") } : null,
+    completedOpenRound: completedOpenRound
+      ? { name: String(completedOpenRound.show_name ?? "Jury voting") }
+      : null,
+  };
+}
+
+async function loadTelevoteSummary(): Promise<TelevoteSummary> {
+  const { data, error } = await televotingSupabase
+    .from("rounds")
+    .select("id,name,editions(name)")
+    .eq("status", "open")
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return { openRound: null };
+  const edition = Array.isArray((data as any).editions)
+    ? (data as any).editions[0]
+    : (data as any).editions;
+
+  return {
+    openRound: {
+      name: String((data as any).name ?? "Televoting"),
+      editionName: edition?.name ? String(edition.name) : null,
+    },
+  };
+}
+
 function ParticipatePage() {
+  const confirmationsQuery = useQuery({
+    queryKey: ["participate-confirmation-rounds"],
+    queryFn: () => getPublicRounds(),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const juryQuery = useQuery({
+    queryKey: ["participate-jury-summary"],
+    queryFn: loadJurySummary,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+  const televoteQuery = useQuery({
+    queryKey: ["participate-televote-summary"],
+    queryFn: loadTelevoteSummary,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const actions = useMemo(() => {
+    const rounds = confirmationsQuery.data ?? [];
+    const openConfirmation = rounds.find((round) => confirmationReason(round) === "OPEN") ?? null;
+    const upcomingConfirmation = [...rounds]
+      .filter((round) => confirmationReason(round) === "NOT_OPEN_YET")
+      .sort(
+        (a, b) =>
+          new Date(a.opens_at ?? 0).getTime() - new Date(b.opens_at ?? 0).getTime(),
+      )[0] ?? null;
+
+    const confirmationAction: ParticipationAction = openConfirmation
+      ? {
+          id: "confirmations",
+          status: "available",
+          title: openConfirmation.name,
+          description: openConfirmation.closes_at
+            ? `Confirmations are open now · closes ${formatDate(openConfirmation.closes_at)}.`
+            : "Confirmations are open now.",
+          to: "/confirmations",
+          priority: 10,
+          closesAt: openConfirmation.closes_at,
+        }
+      : upcomingConfirmation
+        ? {
+            id: "confirmations",
+            status: "upcoming",
+            title: upcomingConfirmation.name,
+            description: upcomingConfirmation.opens_at
+              ? `Confirmations open ${formatDate(upcomingConfirmation.opens_at)}.`
+              : "A confirmation round is scheduled.",
+            to: "/confirmations",
+            priority: 10,
+            opensAt: upcomingConfirmation.opens_at,
+          }
+        : {
+            id: "confirmations",
+            status: "unavailable",
+            title: "Confirmations",
+            description: "No confirmation round is open right now.",
+            to: "/confirmations",
+            priority: 10,
+          };
+
+    const jury = juryQuery.data;
+    const juryAction: ParticipationAction = jury?.openRound
+      ? {
+          id: "jury",
+          status: "available",
+          title: "Jury voting is open",
+          description: `Submit your official ballot for ${jury.openRound.name}. Friend-voting integrity checks apply before submission.`,
+          to: "/jury-voting",
+          priority: 20,
+        }
+      : jury?.completedOpenRound
+        ? {
+            id: "jury",
+            status: "complete",
+            title: "Jury ballot submitted",
+            description: `Your ballot for ${jury.completedOpenRound.name} is already submitted.`,
+            to: "/jury-voting",
+            priority: 20,
+          }
+        : {
+            id: "jury",
+            status: "unavailable",
+            title: "Jury voting",
+            description: jury?.signedIn
+              ? "No jury ballot currently needs your delegation. Friend-voting integrity checks apply when voting opens."
+              : "Country account required. Sign in to check official jury voting; friend-voting integrity checks apply before submission.",
+            to: "/jury-voting",
+            priority: 20,
+          };
+
+    const televote = televoteQuery.data?.openRound;
+    const televoteAction: ParticipationAction = televote
+      ? {
+          id: "televoting",
+          status: "available",
+          title: "Public voting is open",
+          description: televote.editionName
+            ? `${televote.editionName} · ${televote.name}`
+            : televote.name,
+          to: "/televoting",
+          priority: 15,
+        }
+      : {
+          id: "televoting",
+          status: "unavailable",
+          title: "Televoting",
+          description: "There is no open public voting round right now.",
+          to: "/televoting",
+          priority: 30,
+        };
+
+    return sortParticipationActions([confirmationAction, televoteAction, juryAction]);
+  }, [confirmationsQuery.data, juryQuery.data, televoteQuery.data]);
+
+  const primary = primaryParticipationAction(actions);
+  const otherAvailable = actions.filter(
+    (action) => action.status === "available" && action.id !== primary?.id,
+  );
+  const upcoming = upcomingParticipationActions(actions);
+  const inactive = actions.filter(
+    (action) => action.status === "complete" || action.status === "unavailable",
+  );
+  const loading =
+    confirmationsQuery.isLoading || juryQuery.isLoading || televoteQuery.isLoading;
+
   return (
     <AppShell>
-      <PageHeader
+      <PublicHubHero
         eyebrow="Participate"
         title="Take part in Solaris"
-        description="Confirm your delegation, vote in the contest and follow each participation service from one place."
+        description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
       />
 
-      <section className="grid gap-3 md:grid-cols-2">
-        <ParticipationCard
-          to="/confirmations"
-          eyebrow="Delegations"
-          title="Confirmations"
-          description="Confirm your country's participation, update entry details or recover an existing response."
-          icon={ClipboardCheck}
-          details={[
-            "Submit or update participation",
-            "Recover an existing response",
-            "Manage entry and reveal information",
-          ]}
-        />
+      <section aria-labelledby="participate-attention-title">
+        <div className="public-hub-section-heading">
+          <p className="public-hub-eyebrow">Now</p>
+          <h2 id="participate-attention-title">Needs your attention</h2>
+        </div>
 
-        <ParticipationCard
-          to="/jury-voting"
-          eyebrow="Official delegation vote"
-          title="Jury voting"
-          description="Cast your country's official jury ballot when the organizer has opened jury voting for a show."
-          icon={Scale}
-          details={[
-            "Country account required",
-            "Uses the show's jury point scale",
-            "Friend-voting integrity checks",
-          ]}
-        />
-
-        <ParticipationCard
-          to="/televoting"
-          eyebrow="Audience voting"
-          title="Televoting"
-          description="Open the current public voting round, check the rules and cast your ballot."
-          icon={Vote}
-          details={[
-            "20-point ballot",
-            "Live round status",
-            "Built-in integrity checks",
-          ]}
-        />
-
-        <ParticipationCard
-          to="/next-in-line"
-          eyebrow="Separate competition"
-          title="Next in Line"
-          description="Enter an unused song from a country already competing in SSC. This is not a backup confirmation round."
-          icon={Music2}
-          details={[
-            "Only already-competing countries",
-            "Non-winning NF or unused internal song",
-            "Official SSC entry is excluded",
-          ]}
-        />
+        {loading ? (
+          <PublicCurrentStatus
+            icon={Clock3}
+            eyebrow="Checking status"
+            title="Loading participation windows"
+            description="Solaris is checking confirmations, jury voting and public voting."
+          />
+        ) : primary ? (
+          <div className="space-y-3">
+            <PublicPrimaryAction
+              to={primary.to}
+              icon={iconForAction(primary)}
+              status="Open now"
+              title={primary.title}
+              description={primary.description}
+              dominant
+            />
+            {otherAvailable.length ? (
+              <PublicDestinationGrid columns={2}>
+                {otherAvailable.map((action) => (
+                  <PublicPrimaryAction
+                    key={action.id}
+                    to={action.to}
+                    icon={iconForAction(action)}
+                    status="Open now"
+                    title={action.title}
+                    description={action.description}
+                  />
+                ))}
+              </PublicDestinationGrid>
+            ) : null}
+          </div>
+        ) : (
+          <PublicCurrentStatus
+            icon={CheckCircle2}
+            eyebrow="Up to date"
+            title="Nothing needs your attention right now"
+            description="Solaris will surface confirmations and voting here when they become actionable."
+            tone="complete"
+          />
+        )}
       </section>
+
+      {upcoming.length ? (
+        <section className="public-hub-section" aria-labelledby="participate-upcoming-title">
+          <div className="public-hub-section-heading">
+            <p className="public-hub-eyebrow is-muted">Next</p>
+            <h2 id="participate-upcoming-title">Upcoming</h2>
+          </div>
+          <PublicDestinationGrid columns={2}>
+            {upcoming.map((action) => (
+              <PublicPrimaryAction
+                key={action.id}
+                to={action.to}
+                icon={iconForAction(action)}
+                status="Upcoming"
+                title={action.title}
+                description={action.description}
+              />
+            ))}
+          </PublicDestinationGrid>
+        </section>
+      ) : null}
+
+      <PublicSecondaryLinks
+        eyebrow="Other participation"
+        title="Services and instructions"
+        items={[
+          ...inactive.map((action) => ({
+            to: action.to,
+            icon: iconForAction(action),
+            title: action.title,
+            description: action.description,
+          })),
+          {
+            to: "/next-in-line",
+            icon: Music2,
+            title: "Next in Line",
+            description: "Open the separate side competition for eligible unused songs.",
+          },
+          {
+            to: "/televoting/how-to-vote",
+            icon: Vote,
+            title: "How to vote",
+            description: "Read the public voting instructions before a televote opens.",
+          },
+        ]}
+      />
     </AppShell>
   );
 }
 
-function ParticipationCard({
-  to,
-  eyebrow,
-  title,
-  description,
-  icon: Icon,
-  details,
-}: {
-  to: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  icon: typeof ClipboardCheck;
-  details: string[];
-}) {
-  return (
-    <Link
-      to={to as any}
-      className="solaris-family-card group relative block min-w-0 overflow-hidden rounded-[1.6rem] border p-5 sm:p-6"
-    >
-      <div className="solaris-family-card-overlay pointer-events-none absolute inset-0" />
-      <div className="relative z-10 min-w-0">
-        <div className="flex items-start justify-between gap-4">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/[0.08] text-primary">
-            <Icon className="size-4.5" />
-          </span>
-          <span className="grid size-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-primary transition-transform group-hover:translate-x-0.5">
-            <ArrowRight className="size-4" />
-          </span>
-        </div>
+function iconForAction(action: ParticipationAction) {
+  if (action.id === "confirmations") return ClipboardCheck;
+  if (action.id === "jury") return Scale;
+  return Vote;
+}
 
-        <p className="mt-5 text-[9px] font-black uppercase tracking-[0.2em] text-primary">{eyebrow}</p>
-        <h2 className="display-headline mt-1 text-3xl leading-[0.95] text-white sm:text-4xl">{title}</h2>
-        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">{description}</p>
-
-        <div className="participation-card-details mt-5 space-y-2 border-t border-border/55 pt-4">
-          {details.map((detail) => (
-            <div key={detail} className="flex items-center gap-2 text-xs text-muted-foreground">
-              {detail.toLowerCase().includes("integrity") ? (
-                <ShieldCheck className="size-3.5 shrink-0 text-primary" />
-              ) : (
-                <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
-              )}
-              <span>{detail}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Link>
-  );
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }

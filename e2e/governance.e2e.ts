@@ -33,42 +33,47 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 test.describe("Rules and Integrity governance discovery", () => {
-  test("one public sidebar exposes every governance destination", async ({ page }) => {
+  test.beforeEach(async ({ context }) => {
+    await context.addInitScript(() => {
+      window.localStorage.setItem("solaris:public-ia-v3-beta", "1");
+    });
+  });
+  test("governance stays discoverable without a universal public sidebar", async ({ page }) => {
     const problems = failOnGovernanceConsoleProblems(page);
 
     await page.goto("/televoting");
     const desktop = (page.viewportSize()?.width ?? 0) >= 1024;
-    if (!desktop) {
-      // Give the client shell a turn to hydrate before dispatching the stateful
-      // drawer click; otherwise a fast CI navigation can click the SSR button
-      // before React has attached its handler.
-      await page.waitForTimeout(3_000);
-      await page.getByRole("button", { name: "Open navigation" }).click();
-    }
-    const navigation = desktop
-      ? page.getByRole("complementary", { name: "All public pages" })
-      : page.getByRole("navigation", { name: "Mobile navigation" });
-    await expect(navigation).toBeVisible();
-    await expect(navigation.getByRole("heading", { name: "Rules & help" })).toBeVisible();
-    for (const destination of [
-      "/rules",
-      "/rules/interpretations",
-      "/rules/changes",
-      "/integrity",
-      "/integrity/appeals",
-      "/integrity/preclearance",
-    ]) {
-      await expect(navigation.locator(`a[href="${destination}"]`)).toBeVisible();
-    }
-    await expect(navigation.locator('a[href^="/admin"]')).toHaveCount(0);
 
     if (desktop) {
-      const search = navigation.getByRole("searchbox", { name: "Find a public page" });
-      await search.focus();
-      await expect(search).toBeFocused();
-      await search.fill("appeal");
-      await expect(navigation.locator('a[href="/integrity/appeals"]')).toBeVisible();
+      const taskNavigation = page.getByRole("navigation", { name: "Participation task navigation" });
+      await expect(taskNavigation).toBeVisible();
+      await expect(taskNavigation.locator('a[href="/participate"]')).toBeVisible();
+      await expect(page.getByRole("complementary", { name: "Participate navigation" })).toHaveCount(0);
+      await expect(page.locator('a[href="/integrity/appeals"]')).toHaveCount(0);
+      await expect(
+        page
+          .getByRole("navigation", { name: "Main navigation" })
+          .getByRole("link", { name: "Help", exact: true }),
+      ).toBeVisible();
+    } else {
+      await page.waitForTimeout(3_000);
+      await page.getByRole("button", { name: "Open navigation" }).click();
+      const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+      await expect(navigation).toBeVisible();
+      await expect(navigation.locator('a[href="/participate"]')).toBeVisible();
+      await expect(navigation.locator('a[href="/rules"]')).toBeVisible();
     }
+
+    await page.goto("/site-directory");
+    const search = page.getByRole("searchbox", { name: "Search Solaris Studio pages" });
+    const helpResults = page.locator('section[aria-labelledby="directory-help"]');
+
+    await search.fill("appeal");
+    await expect(helpResults.locator('a[href="/integrity/appeals"]')).toBeVisible();
+    await search.fill("preclearance");
+    await expect(helpResults.locator('a[href="/integrity/preclearance"]')).toBeVisible();
+    await search.fill("interpretations");
+    await expect(helpResults.locator('a[href="/rules/interpretations"]')).toBeVisible();
 
     await page.goto("/library");
     await expect(page).toHaveURL(/\/rules\/?$/);
@@ -76,6 +81,34 @@ test.describe("Rules and Integrity governance discovery", () => {
 
     await expectNoHorizontalOverflow(page);
     expect(problems, "Governance pages must not suppress hydration or browser errors").toEqual([]);
+  });
+
+  test("data-heavy result pages can reclaim the local navigation rail", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "governance-desktop-1440",
+      "Desktop data-rail behavior is verified once at the wide baseline",
+    );
+
+    const problems = failOnGovernanceConsoleProblems(page);
+    await page.goto("/analysis");
+
+    const localNavigation = page.getByRole("complementary", { name: "Results navigation" });
+    await expect(localNavigation).toBeVisible();
+
+    const expand = page.getByRole("button", { name: "Expand Results navigation" });
+    await expect(expand).toBeVisible();
+    await expect(localNavigation.locator('a[href="/scorecharts"]')).not.toBeVisible();
+
+    await expand.click();
+    await expect(
+      page.getByRole("button", { name: "Collapse Results navigation" }),
+    ).toBeVisible();
+    await expect(localNavigation.locator('a[href="/scorecharts"]')).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+    expect(problems, "Collapsing the results rail must stay hydration-clean").toEqual([]);
   });
 
   test("permanent rule pages work and the retired floating Rules launcher stays gone", async ({
@@ -98,12 +131,37 @@ test.describe("Rules and Integrity governance discovery", () => {
       ).toBeVisible();
     } else {
       await expect(
-        page.getByRole("complementary", { name: "All public pages" }).locator('a[href="/rules"]'),
+        page
+          .getByRole("navigation", { name: "Main navigation" })
+          .getByRole("link", { name: "Help", exact: true }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("navigation", { name: "Participation task navigation" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("complementary", { name: "Participate navigation" }),
+      ).toHaveCount(0);
     }
     await expectNoHorizontalOverflow(page);
     expect(problems, "Rules and participant governance surfaces must stay hydration-clean").toEqual(
       [],
     );
+  });
+});
+
+
+test.describe("Public IA rollback", () => {
+  test("legacy navigation remains available when v3 is not enabled", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "governance-desktop-1440", "Rollback chrome is verified once at desktop baseline");
+
+    const problems = failOnGovernanceConsoleProblems(page);
+    await page.goto("/televoting");
+
+    await expect(page.getByRole("complementary", { name: "All public pages" })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Participate navigation" })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByText("Rules & help", { exact: true })).toBeVisible();
+
+    await expectNoHorizontalOverflow(page);
+    expect(problems, "Legacy rollback navigation must remain hydration-clean").toEqual([]);
   });
 });

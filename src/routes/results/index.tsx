@@ -3,6 +3,11 @@ import { ArrowRight, BarChart3, Beaker, GitCompareArrows, Table2, Trophy } from 
 import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { PublicAdvancedDisclosure } from "@/components/public/PublicAdvancedDisclosure";
+import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
+import { PublicHubHero } from "@/components/public/PublicHubHero";
+import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
+import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -98,10 +103,10 @@ function ResultsOverviewPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Results overview"
+      <PublicHubHero
+        eyebrow="Results"
         title="Results"
-        description="Start with the result itself, then choose how deep you want to go. Overall is the final ranking, Jury vs Televote compares the two voting halves, and Full Scorecharts show individual voting where published."
+        description="Start with the official result, then move into scorecharts, analysis or specialist tools only when you need them."
       />
 
       {latestShow && latestEdition && winner && winnerRow ? (
@@ -163,41 +168,93 @@ function ResultsOverviewPage() {
         </Panel>
       )}
 
-      <section className="mb-5">
-        <div className="mb-3 border-b border-border/60 pb-3">
-          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">Choose your route</p>
-          <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl">What do you want to know?</h2>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            You do not need to understand every Solaris tool before using Results. Start with one question and go deeper only if it becomes interesting.
-          </p>
+      <section className="public-hub-section" aria-labelledby="results-browse-title">
+        <div className="public-hub-section-heading">
+          <p className="public-hub-eyebrow">Browse results</p>
+          <h2 id="results-browse-title">Start with the answer</h2>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <ResultPath
+        <PublicDestinationGrid columns={2}>
+          <PublicPrimaryAction
             to={latestShow ? `/shows/${latestShow.id}` : "/editions"}
             icon={Trophy}
-            title="Who won?"
-            description="Open the final ranking and switch between the available result views."
+            eyebrow="Official result"
+            title="Latest result"
+            description="Open the newest published ranking and the result views available for that show."
           />
-          <ResultPath
+          <PublicPrimaryAction
             to="/scorecharts"
             icon={Table2}
-            title="Who gave points to whom?"
-            description="Browse Full Scorecharts for shows with detailed jury voting."
+            eyebrow="Detailed voting"
+            title="Full scorecharts"
+            description="See published jury ballots, points and voting breakdowns."
           />
-          <ResultPath
-            to="/result-lab"
-            icon={Beaker}
-            title="What if the result changed?"
-            description="Reweight jury and televote or remove juries without touching the official result."
-          />
-          <ResultPath
+        </PublicDestinationGrid>
+      </section>
+
+      <PublicSecondaryLinks
+        eyebrow="Understand the result"
+        title="Why did it happen?"
+        items={[
+          {
+            to: "/analysis",
+            icon: BarChart3,
+            title: "Analysis",
+            description: "Read voting splits, result patterns and contest statistics.",
+          },
+          {
+            to: "/records",
+            icon: Trophy,
+            title: "Records",
+            description: "Explore all-time records, milestones and historical extremes.",
+          },
+          {
+            to: "/relationships",
+            icon: GitCompareArrows,
+            title: "Voting relationships",
+            description: "See countries that repeatedly support or resemble one another.",
+          },
+        ]}
+      />
+
+      <PublicAdvancedDisclosure
+        label="More result tools"
+        description="Compare, simulate, predict, replay or explore your personal voting taste."
+      >
+        <PublicDestinationGrid columns={3}>
+          <PublicPrimaryAction
             to="/compare"
             icon={GitCompareArrows}
             title="Compare countries"
-            description="Put two countries side by side across their SSC history and voting relationship."
+            description="Put two delegations side by side across their SSC history."
           />
-        </div>
-      </section>
+          <PublicPrimaryAction
+            to="/result-lab"
+            icon={Beaker}
+            title="Result Lab"
+            description="Test different jury and televote scenarios without changing the official result."
+          />
+          <PublicPrimaryAction
+            to="/predictions"
+            icon={Trophy}
+            title="Predictions"
+            description="Build and revisit predictions for available contest rounds."
+          />
+          <PublicPrimaryAction
+            to="/taste-dna"
+            icon={BarChart3}
+            eyebrow="Taste DNA"
+            title="Explore your voting taste"
+            description="Compare your ranking with published voting groups and results."
+          />
+          <PublicPrimaryAction
+            to="/broadcast-intelligence"
+            icon={Table2}
+            eyebrow="Broadcast Intelligence"
+            title="Replay the voting"
+            description="Replay the biggest lead changes and result turning points."
+          />
+        </PublicDestinationGrid>
+      </PublicAdvancedDisclosure>
 
       {latestShow && latestRows.length > 0 && (
         <Panel
@@ -238,42 +295,6 @@ function ResultsOverviewPage() {
         </Panel>
       )}
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        <Link to="/analysis" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold">
-          <BarChart3 className="size-3.5 text-primary" /> Why is the result interesting? Open Analysis
-        </Link>
-        <Link to="/editions" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold">
-          Browse all editions
-        </Link>
-      </div>
     </AppShell>
-  );
-}
-
-function ResultPath({
-  to,
-  icon: Icon,
-  title,
-  description,
-}: {
-  to: string;
-  icon: typeof Trophy;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link
-      to={to as any}
-      className="group rounded-2xl border border-border/70 bg-surface/70 p-4 transition hover:border-primary/30 hover:bg-surface-strong"
-    >
-      <span className="grid size-9 place-items-center rounded-xl border border-primary/15 bg-primary/[0.08] text-primary">
-        <Icon className="size-4" />
-      </span>
-      <h3 className="mt-3 text-sm font-semibold">{title}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-      <span className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
-        Open <ArrowRight className="size-3" />
-      </span>
-    </Link>
   );
 }

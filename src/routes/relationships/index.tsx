@@ -145,14 +145,14 @@ function RelationshipsPage() {
   }, [pairs, query, tab, oneSidedMap]);
 
   const archiveQueries = [countriesQuery, participantsQuery, juryQuery, resultsQuery, showsQuery, editionsQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataLoading label="Calculating country relationships…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataError /></AppShell>;
+  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Voting relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataLoading label="Calculating country relationships…" /></AppShell>;
+  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Voting relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataError /></AppShell>;
 
   return (
     <AppShell>
       <PageHeader
         eyebrow="Voting patterns"
-        title="Relationships"
+        title="Voting relationships"
         description="Compare repeated support and competitive history between countries that have appeared together. These scores describe patterns in the archive, not motives or coordinated voting."
       />
 

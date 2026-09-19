@@ -32,6 +32,7 @@ import {
   type VoteIntegrityReport,
   type VoteIntegritySeverity,
 } from "@/integrations/televoting/integrity";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 const supabase = typedSupabase as any;
@@ -216,7 +217,15 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
       if (error) throw error;
       return data as string;
     },
-    onSuccess: () => { setStage("done"); onSubmitted(); toast.success("Your jury ballot has been recorded"); },
+    onSuccess: () => {
+      setStage("done");
+      onSubmitted();
+      trackPublicUxEvent("task_completed", {
+        target: "/jury-voting",
+        metadata: { area: "participate", task_status: "submitted" },
+      });
+      toast.success("Your jury ballot has been recorded");
+    },
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Your jury ballot could not be submitted"),
   });
 

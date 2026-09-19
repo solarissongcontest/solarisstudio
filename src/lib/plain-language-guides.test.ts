@@ -7,7 +7,7 @@ function source(path: string) {
 
 describe("Solaris Studio guides and country confirmation access", () => {
   const appShell = source("components/AppShell.tsx");
-  const publicNavigation = source("components/public/PublicSiteNavigation.tsx");
+  const publicNavigation = source("lib/public-navigation.ts");
   const adminNav = source("components/admin/AdminNav.tsx");
   const adminDomains = source("components/admin/admin-domains.ts");
   const adminFrame = source("components/admin/AdminFrame.tsx");
@@ -19,8 +19,8 @@ describe("Solaris Studio guides and country confirmation access", () => {
   const confirmationSql = source("../scripts/confirmations-country-account-editing.sql");
 
   it("keeps both guide pages easy to find", () => {
-    expect(publicNavigation).toContain('"/guide",');
-    expect(publicNavigation).toContain('"Guide",');
+    expect(publicNavigation).toContain('"/guide"');
+    expect(publicNavigation).toContain('"Help"');
     expect(adminNav).toContain("buildAdminDomainNavigation");
     expect(adminDomains).toContain('label: "Administration"');
     expect(adminFrame).toContain('path.startsWith("/admin/guide")');
@@ -34,8 +34,16 @@ describe("Solaris Studio guides and country confirmation access", () => {
     expect(adminGuide).toContain("How to use the organizer tools");
   });
 
-  it("keeps the current public sections and compact organizer workflow", () => {
-    for (const text of ['label: "Insights"', '"Pulse"', '"Relationships"', 'label: "Participate"'])
+  it("keeps the five public journeys and compact organizer workflow", () => {
+    for (const text of [
+      'id: "home"',
+      'id: "explore"',
+      'id: "participate"',
+      'id: "results"',
+      'id: "me"',
+      '"Solaris Pulse"',
+      '"Voting relationships"',
+    ])
       expect(publicNavigation).toContain(text);
 
     expect(adminNav).toContain("buildAdminDomainNavigation");

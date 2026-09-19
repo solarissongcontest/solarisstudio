@@ -27,9 +27,9 @@ describe("Next in Line competition contract", () => {
 
   it("presents Next in Line separately from Confirmations on Participate", () => {
     const participate = source("src/routes/participate/index.tsx");
-    expect(participate).toContain('to="/confirmations"');
-    expect(participate).toContain('to="/next-in-line"');
-    expect(participate).toContain('title="Next in Line"');
+    expect(participate).toContain('to: "/confirmations"');
+    expect(participate).toContain('to: "/next-in-line"');
+    expect(participate).toContain('title: "Next in Line"');
     expect(participate).not.toContain("Join Next in Line when available");
   });
 });
@@ -89,8 +89,8 @@ describe("country account jury voting contract", () => {
 
   it("shows Jury voting as a separate country-account service on Participate", () => {
     const participate = source("src/routes/participate/index.tsx");
-    expect(participate).toContain('to="/jury-voting"');
-    expect(participate).toContain('title="Jury voting"');
+    expect(participate).toContain('to: "/jury-voting"');
+    expect(participate).toContain('title: "Jury voting"');
     expect(participate).toContain("Country account required");
     expect(participate).toContain("Friend-voting integrity checks");
   });
