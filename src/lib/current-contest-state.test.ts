@@ -105,6 +105,17 @@ describe("public contest state", () => {
     expect(state.statusLabel).toBe("Results");
   });
 
+  it("keeps a completed edition completed even when its final result is published", () => {
+    const state = resolvePublicContestState({
+      editions: [edition({ status: "completed" })],
+      shows: [show()],
+      results: [result()],
+    });
+
+    expect(state.phase).toBe("post_edition");
+    expect(state.statusLabel).toBe("Completed");
+  });
+
   it("returns a useful between-editions state when no edition is public", () => {
     const state = resolvePublicContestState({
       editions: [],
