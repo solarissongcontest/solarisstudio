@@ -12,6 +12,8 @@ describe("public Core Web Vitals telemetry contract", () => {
   const migration = source(
     "supabase/migrations/20260919201129_public_web_vitals_telemetry.sql",
   );
+  const metrics = source("src/lib/public-ux-metrics.ts");
+  const dashboard = source("src/routes/_authenticated/admin/public-ux.tsx");
 
   it("collects LCP, INP and CLS without query strings or user-agent fingerprinting", () => {
     expect(telemetry).toContain('"largest-contentful-paint"');
@@ -39,6 +41,15 @@ describe("public Core Web Vitals telemetry contract", () => {
       "public.studio2_access_allowed('rollout.manage', null, false)",
     );
     expect(migration).toContain("security invoker");
+  });
+
+  it("surfaces p75 field performance in the existing organizer Public UX dashboard", () => {
+    expect(metrics).toContain("loadPublicWebVitalsMetrics");
+    expect(metrics).toContain('"admin_public_web_vitals"');
+    expect(dashboard).toContain("Core Web Vitals");
+    expect(dashboard).toContain("LCP");
+    expect(dashboard).toContain("INP");
+    expect(dashboard).toContain("CLS");
   });
 
   it("provides a p75 organizer aggregation rather than exposing raw telemetry publicly", () => {
