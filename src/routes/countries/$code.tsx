@@ -54,9 +54,43 @@ import { computeRelationship } from "@/lib/stats";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
 
 export const Route = createFileRoute("/countries/$code")({
-  head: ({ params }) => ({
-    meta: [{ title: `${params.code} — Country profile — Solaris Studio` }],
-  }),
+  head: ({ params }) => {
+    const code = params.code.toUpperCase();
+    const url = `https://studio.solaris-song-contest.workers.dev/countries/${encodeURIComponent(params.code)}`;
+    return {
+      meta: [
+        { title: `${code} — Country profile — Solaris Studio` },
+        {
+          name: "description",
+          content: `Published Solaris Song Contest profile, entries, results and voting history for ${code}.`,
+        },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Countries",
+                item: "https://studio.solaris-song-contest.workers.dev/countries",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: code,
+                item: url,
+              },
+            ],
+          }),
+        },
+      ],
+    };
+  },
   component: CountryProfileRoute,
 });
 
