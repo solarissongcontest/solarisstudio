@@ -24,7 +24,7 @@ function EditionStoryPage() {
 
   return (
     <AppShell>
-      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
         <a href="/stories" className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Story archive
         </a>
@@ -73,7 +73,7 @@ function EditionStoryPage() {
             </section>
           </>
         )}
-      </main>
+      </div>
     </AppShell>
   );
 }
