@@ -16,6 +16,20 @@ declare
   v_table record;
   v_rows bigint;
 begin
+  if to_regclass('public.contest_entities_country_id_idx') is null
+     or to_regclass('public.country_hod_edition_claims_country_id_idx') is null
+     or to_regclass('public.country_hod_edition_claims_edition_id_idx') is null
+     or to_regclass('public.jury_votes_receiving_country_id_idx') is null
+     or to_regclass('public.jury_votes_voter_country_id_idx') is null
+     or to_regclass('public.jury_votes_voter_entity_id_idx') is null
+     or to_regclass('public.participants_country_id_idx') is null
+     or to_regclass('public.results_country_id_idx') is null
+     or to_regclass('public.televote_votes_country_id_idx') is null
+     or to_regclass('public.voters_contest_entity_id_idx') is null
+     or to_regclass('public.voters_country_id_idx') is null then
+    raise exception 'Expected high-volume FK indexes are missing';
+  end if;
+
   if exists (select 1 from pg_namespace where nspname = 'migration_staging') then
     if exists (
       select 1
@@ -72,6 +86,32 @@ begin
   end if;
 end
 $notice_audit_pk$;
+
+-- Add covering indexes only for currently material FK relationships on tables
+-- with meaningful live production volume. Smaller/empty-table advisor findings
+-- remain informational until workload growth justifies their write/storage cost.
+create index if not exists contest_entities_country_id_idx
+  on public.contest_entities(country_id);
+create index if not exists country_hod_edition_claims_country_id_idx
+  on public.country_hod_edition_claims(country_id);
+create index if not exists country_hod_edition_claims_edition_id_idx
+  on public.country_hod_edition_claims(edition_id);
+create index if not exists jury_votes_receiving_country_id_idx
+  on public.jury_votes(receiving_country_id);
+create index if not exists jury_votes_voter_country_id_idx
+  on public.jury_votes(voter_country_id);
+create index if not exists jury_votes_voter_entity_id_idx
+  on public.jury_votes(voter_entity_id);
+create index if not exists participants_country_id_idx
+  on public.participants(country_id);
+create index if not exists results_country_id_idx
+  on public.results(country_id);
+create index if not exists televote_votes_country_id_idx
+  on public.televote_votes(country_id);
+create index if not exists voters_contest_entity_id_idx
+  on public.voters(contest_entity_id);
+create index if not exists voters_country_id_idx
+  on public.voters(country_id);
 
 do $policy_consolidation$
 declare
