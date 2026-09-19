@@ -233,108 +233,14 @@ export function MySolarisTasksModule() {
           </Panel>
         ) : snapshot ? (
           <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Readiness"
-                value={`${snapshot.model.readiness}% · ${readinessLabel(snapshot.model.readinessState)}`}
-              />
-              <MetricCard
-                label="Confirmation"
-                value={snapshot.context.confirmationComplete ? "Complete" : "Required"}
-              />
-              <MetricCard
-                label="Entry"
-                value={
-                  snapshot.eligibility.status === "ready" ? "Ready" : snapshot.eligibility.status
-                }
-              />
-              <MetricCard
-                label="Jury"
-                value={
-                  snapshot.context.juryBallotSubmitted
-                    ? "Ballot submitted"
-                    : snapshot.model.jury.complete
-                      ? "HOD assigned"
-                      : "HOD missing"
-                }
-              />
-            </section>
-
             <Panel
-              title="Readiness"
-              description="See what’s ready and what still needs attention."
-            >
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {snapshot.operationalReadiness.signals.map((signal) => (
-                  <div
-                    key={signal.id}
-                    className="rounded-xl border border-border bg-background/40 p-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold">{signal.label}</p>
-                      <StatusPill value={signal.state} />
-                    </div>
-                    <p className="mt-2 text-xs leading-5 text-muted-foreground">{signal.message}</p>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel
-              title="Organizer decisions"
-              description="Any organizer decision affecting entry eligibility appears here."
-            >
-              {eligibilityOverridesQuery.isLoading ? (
-                <p className="text-sm text-muted-foreground">
-                  Loading organizer decisions…
-                </p>
-              ) : eligibilityOverridesQuery.error ? (
-                <ErrorText error={eligibilityOverridesQuery.error} />
-              ) : (eligibilityOverridesQuery.data ?? []).length ? (
-                <div className="space-y-2">
-                  {(eligibilityOverridesQuery.data ?? []).map((override) => (
-                    <div
-                      key={override.id}
-                      className="rounded-xl border border-sky-300/20 bg-sky-300/[0.06] p-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold">Eligibility decision</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Rule: {override.affectedRule}
-                          </p>
-                        </div>
-                        <StatusPill value="overridden" />
-                      </div>
-                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                        {override.reason}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Recorded {formatDateTime(override.createdAt)}
-                      </p>
-                      {override.expiresAt ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Expires {formatDateTime(override.expiresAt)}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No organizer exceptions are active for this delegation.
-                </p>
-              )}
-            </Panel>
-
-            <Panel
-              title="Priority actions"
+              title={snapshot.model.actions.length ? "Needs attention" : "Current status"}
               description={
                 snapshot.model.actions.length
                   ? organizerInspection
                     ? "These are the delegation’s current actions. Changes are disabled here."
-                    : "Start with the urgent items."
-                  : "No outstanding actions for this edition."
+                    : "Only work that can actually be acted on now appears here."
+                  : "No participant action is required for this edition right now."
               }
             >
               {snapshot.model.actions.length ? (
@@ -342,231 +248,350 @@ export function MySolarisTasksModule() {
                   {snapshot.model.actions.map((action) => (
                     <div
                       key={action.id}
-                      className="flex flex-col gap-2 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 rounded-xl border border-amber-300/15 bg-amber-300/[0.045] p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div>
-                        <p className="text-sm font-semibold">{action.label}</p>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold">{action.label}</p>
+                          <StatusPill value={action.priority} />
+                        </div>
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">
                           {action.description}
                         </p>
                       </div>
-                      <StatusPill value={action.priority} />
+                      {!organizerInspection ? (
+                        <Link
+                          to={action.href as any}
+                          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                        >
+                          Open
+                        </Link>
+                      ) : null}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Nothing needs attention right now.</p>
+                <p className="text-sm text-muted-foreground">
+                  Upcoming windows and detailed status remain available below.
+                </p>
               )}
             </Panel>
 
-            <Panel
-              title="Deadlines & alerts"
-              description={`${snapshot.operationalReadiness.overdueDeadlines.length} overdue · ${snapshot.operationalReadiness.upcomingDeadlines.length} upcoming · ${snapshot.context.unresolvedOrganizerIssues} issue${snapshot.context.unresolvedOrganizerIssues === 1 ? "" : "s"} being reviewed`}
-            >
-              {snapshot.context.deadlines.length ? (
-                <div className="space-y-2">
-                  {snapshot.context.deadlines.map((deadline) => {
-                    const overdue = snapshot.operationalReadiness.overdueDeadlines.some(
-                      (item) => item.id === deadline.id,
-                    );
-                    const completed = Boolean(deadline.completedAt);
-                    return (
-                      <div
-                        key={deadline.id}
-                        className="rounded-xl border border-border bg-background/40 p-3"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
+            {snapshot.context.deadlines.length || snapshot.context.unresolvedOrganizerIssues ? (
+              <Panel
+                title="Upcoming & deadlines"
+                description={`${snapshot.operationalReadiness.overdueDeadlines.length} overdue · ${snapshot.operationalReadiness.upcomingDeadlines.length} upcoming`}
+              >
+                {snapshot.context.deadlines.length ? (
+                  <div className="space-y-2">
+                    {snapshot.context.deadlines.map((deadline) => {
+                      const overdue = snapshot.operationalReadiness.overdueDeadlines.some(
+                        (item) => item.id === deadline.id,
+                      );
+                      const completed = Boolean(deadline.completedAt);
+                      return (
+                        <div
+                          key={deadline.id}
+                          className="flex flex-col gap-2 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
                             <p className="text-sm font-semibold">{deadline.label}</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Due {formatDateTime(deadline.dueAt)} ·{" "}
-                              {deadline.kind.replace(/_/g, " ")}
+                              Due {formatDateTime(deadline.dueAt)}
                             </p>
                           </div>
                           <StatusPill
                             value={completed ? "completed" : overdue ? "overdue" : "upcoming"}
                           />
                         </div>
-                        {deadline.notes ? (
+                      );
+                    })}
+                  </div>
+                ) : null}
+                {snapshot.context.unresolvedOrganizerIssues ? (
+                  <p className="mt-3 rounded-xl border border-sky-300/20 bg-sky-300/[0.06] px-3 py-2 text-xs leading-5 text-muted-foreground">
+                    TSBC is reviewing {snapshot.context.unresolvedOrganizerIssues} issue
+                    {snapshot.context.unresolvedOrganizerIssues === 1 ? "" : "s"}. No action is required unless organizers contact you.
+                  </p>
+                ) : null}
+              </Panel>
+            ) : null}
+
+            {snapshot.model.outstandingAcknowledgements ? (
+              <Panel
+                title="Required notices"
+                description={`${snapshot.model.outstandingAcknowledgements} official notice${snapshot.model.outstandingAcknowledgements === 1 ? "" : "s"} require acknowledgement.`}
+              >
+                <div className="space-y-2">
+                  {snapshot.context.notices
+                    .filter(
+                      (notice) =>
+                        notice.acknowledgementRequired && !notice.acknowledged,
+                    )
+                    .map((notice) => (
+                      <div
+                        key={notice.id}
+                        className="flex flex-col gap-2 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold">{notice.title}</p>
+                            <StatusPill value={notice.severity} />
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Acknowledgement required
+                          </p>
+                        </div>
+                        {!organizerInspection ? (
+                          <button
+                            type="button"
+                            disabled={acknowledgeNotice.isPending}
+                            onClick={() => acknowledgeNotice.mutate(notice.id)}
+                            className="min-h-10 rounded-xl border border-border px-3 text-xs font-semibold disabled:opacity-50"
+                          >
+                            Acknowledge
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                </div>
+              </Panel>
+            ) : null}
+
+            <details className="group rounded-2xl border border-border/70 bg-surface/45">
+              <summary className="cursor-pointer list-none px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="block text-sm font-semibold">Status details</span>
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  Eligibility, workflow, organizer decisions, jury and review history.
+                </span>
+              </summary>
+
+              <div className="space-y-4 border-t border-border/60 p-3 sm:p-4">
+                <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    label="Delegation"
+                    value={readinessLabel(snapshot.model.readinessState)}
+                  />
+                  <MetricCard
+                    label="Confirmation"
+                    value={snapshot.context.confirmationComplete ? "Complete" : "Required"}
+                  />
+                  <MetricCard
+                    label="Entry"
+                    value={
+                      snapshot.eligibility.status === "ready"
+                        ? "Eligible"
+                        : snapshot.eligibility.status === "warning"
+                          ? "Reviewing"
+                          : "Blocked"
+                    }
+                  />
+                  <MetricCard
+                    label="Jury"
+                    value={
+                      snapshot.context.juryBallotSubmitted
+                        ? "Ballot submitted"
+                        : snapshot.model.jury.complete
+                          ? "HOD assigned"
+                          : "HOD missing"
+                    }
+                  />
+                </section>
+
+                <Panel
+                  title="Readiness signals"
+                  description="Detailed operational status. These signals are not automatically participant tasks."
+                >
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {snapshot.operationalReadiness.signals.map((signal) => (
+                      <div
+                        key={signal.id}
+                        className="rounded-xl border border-border bg-background/40 p-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold">{signal.label}</p>
+                          <StatusPill value={signal.state} />
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                          {signal.message}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel
+                  title="Organizer decisions"
+                  description="Recorded organizer decisions affecting this delegation."
+                >
+                  {eligibilityOverridesQuery.isLoading ? (
+                    <p className="text-sm text-muted-foreground">
+                      Loading organizer decisions…
+                    </p>
+                  ) : eligibilityOverridesQuery.error ? (
+                    <ErrorText error={eligibilityOverridesQuery.error} />
+                  ) : (eligibilityOverridesQuery.data ?? []).length ? (
+                    <div className="space-y-2">
+                      {(eligibilityOverridesQuery.data ?? []).map((override) => (
+                        <div
+                          key={override.id}
+                          className="rounded-xl border border-sky-300/20 bg-sky-300/[0.06] p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold">Eligibility decision</p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Rule: {override.affectedRule}
+                              </p>
+                            </div>
+                            <StatusPill value="overridden" />
+                          </div>
                           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                            {deadline.notes}
+                            {override.reason}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No organizer exceptions are active for this delegation.
+                    </p>
+                  )}
+                </Panel>
+
+                <Panel
+                  title="Entry workflow"
+                  description="Internal process detail. Waiting dependencies are not participant failures."
+                >
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {snapshot.workflow.tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="rounded-xl border border-border bg-background/40 p-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold">{task.label}</p>
+                          <StatusPill value={task.effectiveStatus} />
+                        </div>
+                        {task.blockers.length ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Waiting for {task.blockers.length} prerequisite
+                            {task.blockers.length === 1 ? "" : "s"}.
                           </p>
                         ) : null}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No deadlines have been published for this edition yet.
-                </p>
-              )}
-              {snapshot.context.unresolvedOrganizerIssues ? (
-                <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                  Organizers are reviewing {snapshot.context.unresolvedOrganizerIssues} issue
-                  {snapshot.context.unresolvedOrganizerIssues === 1 ? "" : "s"}. You only need to act if TSBC contacts you.
-                </p>
-              ) : null}
-            </Panel>
-
-            <Panel
-              title="Entry progress"
-              description={`${snapshot.workflow.progress}% complete · ${snapshot.workflow.blockedCount} blocked`}
-            >
-              <div className="grid gap-2 md:grid-cols-2">
-                {snapshot.workflow.tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="rounded-xl border border-border bg-background/40 p-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold">{task.label}</p>
-                      <StatusPill value={task.effectiveStatus} />
-                    </div>
-                    {task.blockers.length ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Waiting for {task.blockers.length} prerequisite
-                        {task.blockers.length === 1 ? "" : "s"}.
-                      </p>
-                    ) : null}
+                    ))}
                   </div>
-                ))}
-              </div>
-            </Panel>
+                </Panel>
 
-            <Panel
-              title="Submission review history"
-              description="Review decisions for this country and edition."
-            >
-              {snapshot.context.reviewHistory.length ? (
-                <div className="space-y-2">
-                  {snapshot.context.reviewHistory.map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-xl border border-border bg-background/40 p-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold">
-                            {[item.artist, item.songTitle].filter(Boolean).join(" · ") ||
-                              "Submission review"}
-                          </p>
+                <Panel
+                  title="Submission review history"
+                  description="Review decisions for this country and edition."
+                >
+                  {snapshot.context.reviewHistory.length ? (
+                    <div className="space-y-2">
+                      {snapshot.context.reviewHistory.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-border bg-background/40 p-3"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold">
+                                {[item.artist, item.songTitle].filter(Boolean).join(" · ") ||
+                                  "Submission review"}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {formatDateTime(item.createdAt)}
+                              </p>
+                            </div>
+                            <StatusPill value={item.action} />
+                          </div>
+                          {item.reason ? (
+                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                              {item.reason}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No review decisions have been recorded for this edition.
+                    </p>
+                  )}
+                </Panel>
+
+                <Panel
+                  title="Country jury"
+                  description={
+                    snapshot.context.juryBallotSubmitted
+                      ? "The HOD has submitted the country jury ballot."
+                      : snapshot.model.jury.complete
+                        ? "The Head of Delegation is recorded as the country’s sole jury."
+                        : "No Head of Delegation jury is recorded."
+                  }
+                >
+                  {snapshot.context.juryMembers.length ? (
+                    <div className="space-y-2">
+                      {snapshot.context.juryMembers.map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex flex-col gap-1 rounded-xl border border-border bg-background/40 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <span className="text-sm font-medium">{member.displayName}</span>
+                          <StatusPill value="Head of Delegation · sole jury" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No HOD jury assignment is recorded for this edition.
+                    </p>
+                  )}
+                </Panel>
+
+                <Panel
+                  title="Official notices"
+                  description="All official notices attached to this edition."
+                >
+                  {snapshot.context.notices.length ? (
+                    <div className="space-y-2">
+                      {snapshot.context.notices.map((notice) => (
+                        <div
+                          key={notice.id}
+                          className="rounded-xl border border-border bg-background/40 p-3"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold">{notice.title}</p>
+                            <StatusPill value={notice.severity} />
+                          </div>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {formatDateTime(item.createdAt)} · {item.targetType.replace(/_/g, " ")}
+                            {notice.acknowledgementRequired
+                              ? notice.acknowledged
+                                ? "Acknowledged"
+                                : "Acknowledgement required"
+                              : "Information only"}
                           </p>
                         </div>
-                        <StatusPill value={item.action} />
-                      </div>
-                      {item.reason ? (
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                          {item.reason}
-                        </p>
-                      ) : null}
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No review decisions have been recorded for this country in the selected edition.
-                </p>
-              )}
-            </Panel>
-
-            <Panel
-              title="Country jury"
-              description={
-                snapshot.context.juryBallotSubmitted
-                  ? "The HOD has submitted the country jury ballot."
-                  : snapshot.model.jury.complete
-                    ? organizerInspection
-                      ? "The Head of Delegation is the country’s sole jury. This view is read-only."
-                      : "The Head of Delegation is the country’s sole jury for this edition."
-                    : "Assign a Head of Delegation before jury voting."
-              }
-            >
-              {snapshot.context.juryMembers.length ? (
-                <div className="space-y-2">
-                  {snapshot.context.juryMembers.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex flex-col gap-1 rounded-xl border border-border bg-background/40 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <span className="text-sm font-medium">{member.displayName}</span>
-                      <StatusPill value="Head of Delegation · sole jury" />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 p-3">
-                  <p className="text-sm font-semibold">HOD assignment missing</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Add the correct Head of Delegation for this country and edition before jury voting.
-                  </p>
-                  {organizerInspection ? (
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No official notices for this edition.
+                    </p>
+                  )}
+                  {!organizerInspection ? (
                     <Link
-                      to="/admin/hod-history"
+                      to={NAV_TARGETS.mySolarisNotices}
                       className="mt-3 inline-flex rounded-lg border border-border px-3 py-2 text-xs font-semibold"
                     >
-                      Open HOD history
+                      Open notice inbox
                     </Link>
                   ) : null}
-                </div>
-              )}
-            </Panel>
-
-            <Panel
-              title="Official notices"
-              description={`${snapshot.model.outstandingAcknowledgements} acknowledgement${snapshot.model.outstandingAcknowledgements === 1 ? "" : "s"} outstanding.`}
-            >
-              {snapshot.context.notices.length ? (
-                <div className="space-y-2">
-                  {snapshot.context.notices.map((notice) => (
-                    <div
-                      key={notice.id}
-                      className="flex flex-col gap-2 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold">{notice.title}</p>
-                          <StatusPill value={notice.severity} />
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {notice.acknowledgementRequired
-                            ? notice.acknowledged
-                              ? "Acknowledged"
-                              : "Acknowledgement required"
-                            : "Information only"}
-                        </p>
-                      </div>
-                      {!organizerInspection &&
-                      notice.acknowledgementRequired &&
-                      !notice.acknowledged ? (
-                        <button
-                          type="button"
-                          disabled={acknowledgeNotice.isPending}
-                          onClick={() => acknowledgeNotice.mutate(notice.id)}
-                          className="rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:opacity-50"
-                        >
-                          Acknowledge
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No official notices for this edition.
-                </p>
-              )}
-              {!organizerInspection ? (
-                <Link
-                  to={NAV_TARGETS.mySolarisNotices}
-                  className="mt-3 inline-flex rounded-lg border border-border px-3 py-2 text-xs font-semibold"
-                >
-                  Open notice inbox
-                </Link>
-              ) : null}
-            </Panel>
+                </Panel>
+              </div>
+            </details>
           </>
         ) : null}
       </div>
