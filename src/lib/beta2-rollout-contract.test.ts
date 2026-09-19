@@ -8,13 +8,14 @@ const exists = (path: string) => existsSync(resolve(process.cwd(), path));
 describe("Beta 2 hardened rollout contract", () => {
   it("keeps Results direct and gives mobile users the five primary journeys", () => {
     const shell = source("src/components/AppShell.tsx");
-    expect(shell).toContain('to="/results"');
+    const navigation = source("src/lib/public-navigation.ts");
     expect(shell).toContain("<PublicDrawerNavigation");
-    expect(shell).toContain("<PublicSiteSidebar");
-    expect(shell).toContain('to: "/results",\n      label: "Results"');
-    expect(shell).toContain('to: "/participate",\n      label: "Participate"');
-    expect(shell).toContain('label: "Explore"');
-    expect(shell).toContain('label: "Me"');
+    expect(shell).toContain("<PublicSectionNav");
+    expect(shell).toContain("PUBLIC_GLOBAL_AREAS.map");
+    for (const route of ["/", "/explore", "/participate", "/results", "/my-solaris"])
+      expect(navigation).toContain(`to: "${route}"`);
+    for (const label of ["Home", "Explore", "Participate", "Results", "Me"])
+      expect(navigation).toContain(`label: "${label}"`);
     expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
   });
 
