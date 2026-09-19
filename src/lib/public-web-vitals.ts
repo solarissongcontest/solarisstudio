@@ -69,7 +69,7 @@ export function startPublicWebVitals() {
   if (supported.has("largest-contentful-paint")) {
     const observer = new PerformanceObserver((list) => {
       const entries = list.getEntries();
-      const latest = entries.at(-1);
+      const latest = entries[entries.length - 1];
       if (latest) lcp = latest.startTime;
     });
     observer.observe({ type: "largest-contentful-paint", buffered: true });
