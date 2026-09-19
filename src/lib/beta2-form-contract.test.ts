@@ -55,8 +55,8 @@ describe("public beta archives and Beta 3 contract", () => {
   it("keeps Beta 2 questionnaire and dashboard frozen for comparison", () => {
     expect(beta2Round).toContain("...beta2DiscoverySections");
     expect(beta2Round).toContain("...beta2EvaluationSections");
-    expect((beta2Discovery.match(/title: "\\d+\\./g) ?? []).length).toBe(10);
-    expect((beta2Evaluation.match(/title: "\\d+\\./g) ?? []).length).toBe(10);
+    expect((beta2Discovery.match(/title: "\d+\./g) ?? []).length).toBe(10);
+    expect((beta2Evaluation.match(/title: "\d+\./g) ?? []).length).toBe(10);
     expect(beta2Dashboard).toContain("betaSectionsRound2 as betaSections");
     expect(beta2Dashboard).toContain('title="Beta 2.0 feedback"');
     expect(beta2Migration).toContain("create table if not exists public.beta2_test_submissions");
@@ -78,7 +78,9 @@ describe("public beta archives and Beta 3 contract", () => {
     expect(beta3Migration).toContain("enable row level security");
     expect(beta3Migration).toContain('form_version = 5');
     expect(beta3Migration).toContain('to anon, authenticated');
-    expect(beta3Migration).toContain("public.has_role((select auth.uid()), 'organizer')");
+    expect(beta3Migration).toContain(
+      "public.studio2_access_allowed('rollout.manage', null, false)",
+    );
     expect(beta3Migration).not.toContain("security definer");
   });
 
