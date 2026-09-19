@@ -4,6 +4,7 @@ import {
   Compass,
   Home,
   Menu,
+  Search,
   Trophy,
   User,
   Vote,
@@ -13,15 +14,12 @@ import {
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { MySolarisWorkspaceShell } from "@/components/mysolaris/MySolarisWorkspaceShell";
-import {
-  PublicDrawerNavigation,
-  PublicSiteSidebar,
-  publicGroup,
-  type PublicNavigationItem,
-} from "@/components/public/PublicSiteNavigation";
+import { PublicDrawerNavigation } from "@/components/public/PublicSiteNavigation";
+import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
+import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { cn } from "@/lib/utils";
 
 const LazyHomeAnniversaryTakeover = lazy(() =>
@@ -35,30 +33,6 @@ const LazyEditionHostingExtension = lazy(() =>
     default: module.EditionHostingExtension,
   })),
 );
-
-const EXPLORE_NAV = publicGroup("explore").items;
-const REFERENCE_NAV = publicGroup("reference").items;
-const INSIGHTS_NAV = publicGroup("insights").items;
-const PARTICIPATE_NAV = publicGroup("participate").items;
-const TOOL_NAV = publicGroup("tools").items;
-const ACCOUNT_NAV = publicGroup("account").items;
-
-const INSIGHT_ROUTES = [...INSIGHTS_NAV, ...TOOL_NAV].map((item) => item.to);
-const EXPLORE_ROUTES = EXPLORE_NAV.map((item) => item.to);
-const RESULT_ROUTES = [
-  "/results",
-  "/scorecharts",
-  "/analysis",
-  "/records",
-  "/relationships",
-  "/compare",
-  "/result-lab",
-  "/taste-dna",
-  "/broadcast-intelligence",
-] as const;
-const PARTICIPATE_ROUTES = PARTICIPATE_NAV.map((item) => item.to);
-const REFERENCE_ROUTES = REFERENCE_NAV.map((item) => item.to);
-const ACCOUNT_ROUTES = ["/me", "/auth", ...ACCOUNT_NAV.map((item) => item.to)];
 
 type PublicLayout = "home" | "reading" | "directory" | "detail" | "data" | "workspace" | "core";
 
@@ -101,14 +75,6 @@ function publicLayoutForPath(pathname: string): PublicLayout {
   return "core";
 }
 
-function pathMatches(pathname: string, route: string) {
-  return route === "/" ? pathname === "/" : pathname === route || pathname.startsWith(`${route}/`);
-}
-
-function anyPathMatches(pathname: string, routes: readonly string[]) {
-  return routes.some((route) => pathMatches(pathname, route));
-}
-
 function productEyebrow(eyebrow?: string) {
   return eyebrow?.replace(/^Phase\s+\d+\s*[·:—-]\s*/i, "");
 }
@@ -120,6 +86,14 @@ const EMPTY_ACCESS: AccountAccess = {
   countryStatus: null,
   suspensionReason: null,
   schemaReady: true,
+};
+
+const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
+  home: Home,
+  explore: Compass,
+  participate: Vote,
+  results: Trophy,
+  me: User,
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -189,59 +163,31 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const accountHref = email ? "/my-solaris" : "/auth";
   const publicLayout = publicLayoutForPath(pathname);
-  const showPublicSidebar =
-    !pathname.startsWith("/my-solaris") &&
-    !pathname.startsWith("/auth") &&
-    !pathname.startsWith("/reset") &&
-    !pathname.startsWith("/recover") &&
-    !pathname.startsWith("/broadcast/");
+  const publicArea = publicAreaForPath(pathname);
   const visibleAccountEmail =
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
-  const resultsActive = pathMatches(pathname, "/results");
-  const quickNavigation: Array<{
-    to: string;
-    label: string;
-    icon: LucideIcon;
-    active: boolean;
-  }> = [
-    { to: "/", label: "Home", icon: Home, active: pathname === "/" },
-    {
-      to: "/explore",
-      label: "Explore",
-      icon: Compass,
-      active: anyPathMatches(pathname, EXPLORE_ROUTES),
-    },
-    {
-      to: "/participate",
-      label: "Participate",
-      icon: Vote,
-      active: anyPathMatches(pathname, PARTICIPATE_ROUTES),
-    },
-    {
-      to: "/results",
-      label: "Results",
-      icon: Trophy,
-      active: anyPathMatches(pathname, RESULT_ROUTES),
-    },
-    {
-      to: accountHref,
-      label: "Me",
-      icon: User,
-      active: anyPathMatches(pathname, ACCOUNT_ROUTES),
-    },
-  ];
-
   const isEditionPage = /^\/editions\/[^/]+\/?$/i.test(pathname);
   const isHomePage = pathname === "/";
-  const exploreActive = anyPathMatches(pathname, EXPLORE_ROUTES);
-  const insightsActive = anyPathMatches(pathname, INSIGHT_ROUTES);
-  const participateActive = anyPathMatches(pathname, PARTICIPATE_ROUTES);
-  const referenceActive = anyPathMatches(pathname, REFERENCE_ROUTES);
-  const accountActive = anyPathMatches(pathname, ACCOUNT_ROUTES) || pathname.startsWith("/admin");
   const isMySolarisWorkspace =
     pathname === "/my-solaris" ||
     pathname === "/my-solaris/" ||
     pathname.startsWith("/my-solaris/");
+  const showSectionNavigation =
+    !isMySolarisWorkspace &&
+    !pathname.startsWith("/auth") &&
+    !pathname.startsWith("/reset") &&
+    !pathname.startsWith("/recover") &&
+    !pathname.startsWith("/broadcast/") &&
+    (publicArea === "explore" ||
+      publicArea === "participate" ||
+      publicArea === "results" ||
+      publicArea === "help");
+  const quickNavigation = PUBLIC_GLOBAL_AREAS.map((item) => ({
+    to: item.id === "me" ? accountHref : item.to,
+    label: item.label,
+    icon: GLOBAL_ICON_BY_AREA[item.id],
+    active: publicArea === item.id,
+  }));
 
   return (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -253,70 +199,53 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Brand />
 
             <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
+              {PUBLIC_GLOBAL_AREAS.map((item) => {
+                const to = item.id === "me" ? accountHref : item.to;
+                return (
+                  <Link
+                    key={item.id}
+                    to={to as any}
+                    aria-current={publicArea === item.id ? "page" : undefined}
+                    className={desktopNavClass(publicArea === item.id)}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+
+              <span aria-hidden="true" className="mx-1 h-6 w-px bg-border/70" />
+
               <Link
-                to="/"
-                aria-current={pathname === "/" ? "page" : undefined}
-                className={desktopNavClass(pathname === "/")}
+                to="/site-directory"
+                className={cn(desktopNavClass(pathname.startsWith("/site-directory")), "flex items-center gap-1.5")}
+                aria-label="Search and browse Solaris Studio"
               >
-                Home
+                <Search className="size-3.5" aria-hidden="true" />
+                Search
               </Link>
 
               <Link
-                to="/results"
-                aria-current={resultsActive ? "page" : undefined}
-                className={desktopNavClass(resultsActive)}
+                to="/guide"
+                className={desktopNavClass(publicArea === "help")}
               >
-                Results
+                Help
               </Link>
 
-              <DesktopNavMenu
-                key={`explore-${pathname}`}
-                label="Explore"
-                active={exploreActive}
-                items={EXPLORE_NAV}
-              />
-
-              <DesktopNavMenu
-                key={`insights-${pathname}`}
-                label="Insights"
-                active={insightsActive}
-                items={INSIGHTS_NAV}
-                footer={{
-                  to: "/tools",
-                  label: "Open tools",
-                  description: "Try Result Lab, Taste DNA, comparisons and archive games",
-                }}
-              />
-
-              <Link
-                to="/participate"
-                aria-current={participateActive ? "page" : undefined}
-                className={cn(
-                  "ml-1 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors",
-                  participateActive
-                    ? "border-primary/35 bg-primary/12 text-foreground"
-                    : "border-border/75 bg-surface/55 text-foreground hover:border-primary/30 hover:bg-surface-strong",
-                )}
-              >
-                Participate
-              </Link>
-
-              <DesktopNavMenu
-                key={`reference-${pathname}`}
-                label="Rules & help"
-                active={referenceActive}
-                items={REFERENCE_NAV}
-              />
+              {access.isOrganizer ? (
+                <Link
+                  to="/admin/operations"
+                  className="ml-1 rounded-xl border border-border/75 bg-surface/55 px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-surface-strong"
+                >
+                  Organizer
+                </Link>
+              ) : null}
 
               {email ? (
                 <details key={`account-${pathname}`} className="group relative ml-1">
                   <summary
-                    className={cn(
-                      desktopNavClass(accountActive),
-                      "flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden",
-                    )}
+                    className="flex cursor-pointer list-none items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground [&::-webkit-details-marker]:hidden"
                   >
-                    Me
+                    Account
                     <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
                   </summary>
                   <div className="nav-menu-panel absolute right-0 top-[calc(100%+.6rem)] w-64 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
@@ -333,11 +262,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                         {access.countryId ? " & country tools" : " & country setup"}
                       </span>
                     </Link>
-                    {roleItems.map((item) => (
-                      <Link key={item.to} to={item.to as any} className="nav-menu-item">
-                        <span className="font-semibold">{item.label}</span>
-                      </Link>
-                    ))}
                     <button
                       type="button"
                       onClick={signOut}
@@ -347,11 +271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </button>
                   </div>
                 </details>
-              ) : (
-                <Link to="/auth" className={cn(desktopNavClass(accountActive), "ml-1")}>
-                  Me
-                </Link>
-              )}
+              ) : null}
             </nav>
 
             <SheetTrigger asChild>
@@ -430,9 +350,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             PUBLIC_CANVAS_CLASS[publicLayout],
           )}
         >
-          {showPublicSidebar ? (
+          {showSectionNavigation ? (
             <div className="public-site-layout">
-              <PublicSiteSidebar pathname={pathname} isOrganizer={access.isOrganizer} />
+              <PublicSectionNav pathname={pathname} />
               <div className="public-site-content min-w-0">
                 {isHomePage && (
                   <Suspense fallback={null}>
@@ -504,57 +424,6 @@ function desktopNavClass(active: boolean) {
     active
       ? "bg-surface-strong text-foreground"
       : "text-muted-foreground hover:bg-surface hover:text-foreground",
-  );
-}
-
-function DesktopNavMenu({
-  label,
-  active,
-  items,
-  footer,
-}: {
-  label: string;
-  active: boolean;
-  items: PublicNavigationItem[];
-  footer?: PublicNavigationItem;
-}) {
-  return (
-    <details className="group relative">
-      <summary
-        className={cn(
-          desktopNavClass(active),
-          "flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden",
-        )}
-      >
-        {label}
-        <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="nav-menu-panel absolute left-0 top-[calc(100%+.6rem)] w-80 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
-        {items.map((item) => (
-          <Link key={item.to} to={item.to as any} className="nav-menu-item">
-            <span className="font-semibold text-foreground">{item.label}</span>
-            {item.description && (
-              <span className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                {item.description}
-              </span>
-            )}
-          </Link>
-        ))}
-        {footer && (
-          <Link
-            to={footer.to as any}
-            className="mt-1 flex min-h-12 flex-col justify-center rounded-xl border border-primary/12 bg-primary/[0.055] px-3 py-2 text-xs transition-colors hover:bg-primary/[0.09]"
-          >
-            <span className="font-semibold text-foreground">{footer.label}</span>
-            {footer.description && (
-              <span className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-                {footer.description}
-              </span>
-            )}
-          </Link>
-        )}
-      </div>
-    </details>
   );
 }
 
