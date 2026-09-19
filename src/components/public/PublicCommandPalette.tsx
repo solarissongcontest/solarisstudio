@@ -14,7 +14,16 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import type { AccountAccess } from "@/lib/country-account";
-import { editionLabel, useAllShows, useCountries, useEditions } from "@/lib/data";
+import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
+import {
+  editionLabel,
+  useAllJuryVotes,
+  useAllParticipants,
+  useAllResults,
+  useAllShows,
+  useCountries,
+  useEditions,
+} from "@/lib/data";
 import {
   dedupePublicSearchResults,
   matchesPublicSearch,
@@ -23,6 +32,7 @@ import {
 } from "@/lib/public-search";
 import { readPublicRecents } from "@/lib/public-recents";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
+import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { loadPublicStorylines } from "@/lib/studio2-storytelling";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -103,6 +113,9 @@ function PublicPaletteDialog({
   const { data: countries = [] } = useCountries();
   const { data: editions = [] } = useEditions();
   const { data: shows = [] } = useAllShows();
+  const { data: participants = [] } = useAllParticipants();
+  const { data: results = [] } = useAllResults();
+  const { data: jury = [] } = useAllJuryVotes();
   const storiesQuery = useQuery({
     queryKey: ["public-command-palette-stories"],
     queryFn: () => loadPublicStorylines(40),
@@ -112,6 +125,43 @@ function PublicPaletteDialog({
   const editionById = useMemo(
     () => new Map(editions.map((edition) => [edition.id, edition])),
     [editions],
+  );
+  const countryById = useMemo(
+    () => new Map(countries.map((country) => [country.id, country])),
+    [countries],
+  );
+  const searchableEntries = useMemo(() => {
+    const byEditionCountry = new Map<string, (typeof participants)[number]>();
+    for (const participant of participants) {
+      if (!participant.artist && !participant.song) continue;
+      const key = `${participant.edition_id}:${participant.country_id}`;
+      const existing = byEditionCountry.get(key);
+      if (!existing || (existing.show_id && !participant.show_id)) {
+        byEditionCountry.set(key, participant);
+      }
+    }
+    return [...byEditionCountry.values()];
+  }, [participants]);
+  const scorechartShows = useMemo(
+    () =>
+      shows.filter(
+        (show) =>
+          isShowPublic(show) &&
+          Boolean(resolveShowPublication(show).detailed_voting),
+      ),
+    [shows],
+  );
+  const records = useMemo(
+    () =>
+      buildCanonicalFanRecords({
+        countries,
+        editions,
+        shows,
+        participants,
+        results,
+        jury,
+      }),
+    [countries, editions, jury, participants, results, shows],
   );
   const normalized = query.trim();
 
@@ -275,7 +325,90 @@ function PublicPaletteDialog({
           description: `${story.editionName} · published story`,
           href: `/stories/${story.editionSlug}`,
           group: "Stories",
+        })),      ...searchableEntries
+        .filter((entry) => {
+          const country = countryById.get(entry.country_id);
+          const edition = editionById.get(entry.edition_id);
+          return matchesPublicSearch(
+            normalized,
+            entry.artist,
+            entry.song,
+            country?.name,
+            country?.short_code,
+            edition?.name,
+            edition?.edition_number,
+          );
+        })
+        .map((entry) => {
+          const country = countryById.get(entry.country_id);
+          const edition = editionById.get(entry.edition_id);
+          return {
+            id: `entry:${entry.edition_id}:${entry.country_id}`,
+            label: [entry.artist, entry.song].filter(Boolean).join(" — ") || "SSC entry",
+            description: [
+              country?.name,
+              edition ? editionLabel(edition) : null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            href: country ? `/countries/${country.short_code}` : "/editions",
+            group: "Entries",
+            keywords: "entry song artist participant",
+          };
+        }),
+      ...scorechartShows
+        .filter((show) => {
+          const edition = editionById.get(show.edition_id);
+          return matchesPublicSearch(
+            normalized,
+            show.name,
+            show.kind,
+            edition?.name,
+            edition?.edition_number,
+            "scorechart",
+            "detailed voting",
+            "jury matrix",
+          );
+        })
+        .map((show) => {
+          const edition = editionById.get(show.edition_id);
+          return {
+            id: `scorechart:${show.id}`,
+            label: `${show.name} scorechart`,
+            description: edition
+              ? `${editionLabel(edition)} · detailed voting matrix`
+              : "Detailed voting matrix",
+            href: `/shows/${show.id}`,
+            group: "Scorecharts",
+            keywords: "scorechart detailed jury voting matrix",
+          };
+        }),
+      ...records
+        .filter((record) =>
+          matchesPublicSearch(
+            normalized,
+            record.label,
+            record.value,
+            record.explanation,
+            ...record.holders.flatMap((holder) => [
+              holder.countryName,
+              holder.shortCode,
+              holder.artist,
+              holder.song,
+              holder.editionLabel,
+            ]),
+          ),
+        )
+        .slice(0, 12)
+        .map((record) => ({
+          id: `record:${record.id}`,
+          label: record.label,
+          description: `${record.value} · ${record.explanation}`,
+          href: "/records",
+          group: "Records",
+          keywords: "record all-time archive statistic",
         })),
+
       ...searchGovernanceLibrary(normalized).slice(0, 16).map((item) => ({
         id: `governance:${item.to}:${item.title}`,
         label: item.title,
@@ -286,7 +419,19 @@ function PublicPaletteDialog({
     ];
 
     return dedupePublicSearchResults(results).slice(0, 50);
-  }, [actionResults, countries, editionById, editions, normalized, shows, storiesQuery.data]);
+  }, [
+    actionResults,
+    countries,
+    countryById,
+    editionById,
+    editions,
+    normalized,
+    records,
+    scorechartShows,
+    searchableEntries,
+    shows,
+    storiesQuery.data,
+  ]);
 
   const recentResults = useMemo(
     () =>
