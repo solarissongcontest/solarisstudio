@@ -3,7 +3,7 @@ import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
-  SSC_RULEBOOK,
+  BUNDLED_RULEBOOK_META,
   applyPublishedRulebookRelease,
   getRuleById,
   type RulebookRelease,
@@ -18,6 +18,7 @@ export type {
 export {
   applyPublishedRulebookRelease,
   buildRuleSnapshot,
+  BUNDLED_RULEBOOK_META,
 } from "@/lib/ssc-rules/runtime-overlay";
 
 export async function fetchCurrentRulebookRelease(): Promise<RulebookRelease | null> {
@@ -77,7 +78,7 @@ export function usePublishedRulebook() {
   return {
     ...query,
     data,
-    version: data?.version ?? SSC_RULEBOOK.version,
+    version: data?.version ?? BUNDLED_RULEBOOK_META.version,
   };
 }
 
