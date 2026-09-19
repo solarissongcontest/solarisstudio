@@ -283,10 +283,29 @@ test("reference-lock run captures all four canonical gallery views", async ({ pa
     await page.getByRole("button", { name: label }).click();
 
     const cards = page.locator("[data-gallery-personality]");
+    await expect(cards).toHaveCount(SOURCE_COUNT);
+
     for (let index = 0; index < SOURCE_COUNT; index += 1) {
-      const card = cards.nth(index);
-      const personality = await card.getAttribute("data-gallery-personality");
-      const screenshot = await card.locator("[data-personality-qa-preview]").screenshot();
+      let personality = `personality-${index + 1}`;
+      let screenshot: Buffer | null = null;
+      let lastError: unknown = null;
+
+      for (let attempt = 0; attempt < 3 && !screenshot; attempt += 1) {
+        const card = page.locator("[data-gallery-personality]").nth(index);
+        personality = (await card.getAttribute("data-gallery-personality")) ?? personality;
+        const preview = card.locator("[data-personality-qa-preview]");
+        await expect(preview).toBeVisible();
+
+        try {
+          screenshot = await preview.screenshot({ animations: "disabled" });
+        } catch (error) {
+          lastError = error;
+          await page.waitForTimeout(100);
+        }
+      }
+
+      if (!screenshot) throw lastError ?? new Error(`Could not capture ${personality} ${view}`);
+
       await testInfo.attach(`${personality}-${view}`, {
         body: screenshot,
         contentType: "image/png",
