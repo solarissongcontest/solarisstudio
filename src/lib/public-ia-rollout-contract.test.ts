@@ -12,8 +12,11 @@ describe("public IA v3 rollout contract", () => {
   const shell = source("src/components/AppShell.tsx");
   const legacy = source("src/components/public/LegacyPublicNavigation.tsx");
   const beta = source("src/routes/beta-test/index.tsx");
-  const migration = source(
+  const initialMigration = source(
     "supabase/migrations/20260919113422_public_ia_v3_rollout_flag.sql",
+  );
+  const globalMigration = source(
+    "supabase/migrations/20260919220333_public_ia_v3_global_default.sql",
   );
 
   it("registers the rollout flag as a real public product surface", () => {
@@ -22,30 +25,43 @@ describe("public IA v3 rollout contract", () => {
     expect(surfaces).toContain('label: "Public IA v3"');
     expect(surfaces).toContain('state: "product_surface"');
     expect(surfaces).toContain('audience: "public"');
+    expect(initialMigration).toContain("'public_ia_v3'");
   });
 
-  it("keeps one page tree and switches only the public chrome", () => {
-    expect(shell).toContain("resolvePublicIaV3Enabled");
-    expect(shell).toContain("publicIaV3Enabled");
+  it("uses the new IA as the default public chrome while retaining legacy only for rollback", () => {
+    expect(shell).toContain("useState(true)");
+    expect(shell).toContain("resolvePublicIaV3Enabled()");
+    expect(shell).toContain("<NewPublicDesktopNavigation");
     expect(shell).toContain("<PublicDrawerNavigation");
-    expect(shell).toContain("<LegacyPublicDrawerNavigation");
     expect(shell).toContain("<PublicSectionNav");
+    expect(shell).toContain("<PublicBreadcrumbs");
+    expect(shell).toContain("<PublicFooter");
+
+    expect(shell).toContain("<LegacyPublicDesktopNavigation");
+    expect(shell).toContain("<LegacyPublicDrawerNavigation");
     expect(shell).toContain("<LegacyPublicSiteSidebar");
     expect(legacy).toContain("LEGACY_PUBLIC_NAVIGATION_GROUPS");
     expect(shell).not.toContain("LegacyPublicRoute");
   });
 
-  it("opts Beta 3 into the new IA without broadening the public server flag", () => {
-    expect(beta).toContain("enablePublicIaV3BetaOverride");
-    expect(migration).toContain("'public_ia_v3'");
-    expect(migration).toContain("true,");
-    expect(migration).toContain("admins_only");
-    expect(migration).toContain("'{}'::uuid[]");
+  it("promotes public IA v3 from organizer-only rollout to a global default", () => {
+    expect(globalMigration).toContain("'public_ia_v3'");
+    expect(globalMigration).toContain("true,");
+    expect(globalMigration).toContain("false,");
+    expect(globalMigration).toContain("admins_only = false");
+    expect(globalMigration).toContain("public.public_ia_v3_enabled()");
+    expect(globalMigration).toContain("to anon, authenticated");
   });
 
-  it("starts rollout at Organizer scope and remains reversible", () => {
-    expect(migration).toContain("'public_ia_v3',\n  true,\n  true");
+  it("does not require a Beta 3 localStorage override anymore", () => {
+    expect(beta).not.toContain("enablePublicIaV3BetaOverride");
+    expect(shell).not.toContain("solaris:public-ia-v3-beta");
+  });
+
+  it("keeps legacy navigation available only behind the explicit rollout boolean", () => {
+    expect(shell).toContain("publicIaV3Enabled ? (");
     expect(shell).toContain("LegacyPublicDesktopNavigation");
-    expect(shell).toContain("NewPublicDesktopNavigation");
+    expect(shell).toContain("LegacyPublicDrawerNavigation");
+    expect(shell).toContain("LegacyPublicSiteSidebar");
   });
 });
