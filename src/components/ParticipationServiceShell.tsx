@@ -1,8 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft, CircleHelp } from "lucide-react";
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 type ParticipationService = "confirmations" | "jury" | "televoting" | "next-in-line";
@@ -52,6 +53,13 @@ export function ParticipationServiceShell({
   const visibleActions = actions.filter(
     (action) => action.to !== "/confirmations/next-in-line" && action.to !== "/next-in-line",
   );
+
+  useEffect(() => {
+    trackPublicUxEvent("task_started", {
+      target: servicePath(service),
+      metadata: { area: "participate", source: "task_page", task_status: "opened" },
+    });
+  }, [service]);
 
   return (
     <div className={cn("mx-auto min-w-0", maxWidth)}>
@@ -109,6 +117,19 @@ export function ParticipationServiceShell({
       {children}
     </div>
   );
+}
+
+function servicePath(service: ParticipationService) {
+  switch (service) {
+    case "confirmations":
+      return "/confirmations";
+    case "jury":
+      return "/jury-voting";
+    case "televoting":
+      return "/televoting";
+    case "next-in-line":
+      return "/next-in-line";
+  }
 }
 
 function pathMatches(pathname: string, route: string) {
