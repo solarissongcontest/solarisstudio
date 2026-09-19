@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Link } from "@tanstack/react-router";
 
 import {
@@ -20,7 +21,7 @@ export function PublicBreadcrumbs({ pathname }: { pathname: string }) {
         {crumbs.map((crumb, index) => {
           const last = index === crumbs.length - 1;
           return (
-            <span key={`${crumb.label}-${index}`} className="contents">
+            <Fragment key={`${crumb.label}-${index}`}>
               <BreadcrumbItem>
                 {last || !crumb.to ? (
                   <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
@@ -31,7 +32,7 @@ export function PublicBreadcrumbs({ pathname }: { pathname: string }) {
                 )}
               </BreadcrumbItem>
               {!last ? <BreadcrumbSeparator /> : null}
-            </span>
+            </Fragment>
           );
         })}
       </BreadcrumbList>
