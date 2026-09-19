@@ -36,6 +36,8 @@ export type AdminNotification = {
   href: string | null;
   source_key: string | null;
   read_at: string | null;
+  resolved_at: string | null;
+  requires_action: boolean;
   created_at: string;
 };
 
@@ -165,6 +167,22 @@ export function useMarkNotificationRead() {
   });
 }
 
+
+export function useResolveAdminNotification() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, resolved }: { id: string; resolved: boolean }) => {
+      const { error } = await adminDb
+        .from("admin_notifications")
+        .update({ resolved_at: resolved ? new Date().toISOString() : null })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
+  });
+}
 
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();

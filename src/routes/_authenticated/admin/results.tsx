@@ -53,10 +53,12 @@ function ResultsOperationsPage() {
   const [reason, setReason] = useState('');
 
   const editions = editionsQuery.data ?? [];
-  const edition = editions.find((item) => item.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
-  const resolvedEditionId = edition?.id ?? '';
+  // Results is edition-scoped. Never silently substitute another edition just
+  // because that edition happens to have result rows.
+  const edition = editionId
+    ? editions.find((item) => item.id === editionId) ?? null
+    : null;
+  const resolvedEditionId = editionId && edition ? edition.id : '';
 
   const operationsQuery = useQuery({
     queryKey: ['studio2-results-operations', resolvedEditionId || 'none'],
@@ -173,7 +175,16 @@ function ResultsOperationsPage() {
                 <p><strong className="text-foreground">Participants / result rows:</strong> {pending.row.preconditions.participantCount} / {pending.row.preconditions.resultRowCount}</p>
                 <p><strong className="text-foreground">Jury:</strong> {readinessLabel(pending.row.preconditions.juryEnabled, pending.row.preconditions.juryReady)}</p>
                 <p><strong className="text-foreground">Televote:</strong> {readinessLabel(pending.row.preconditions.televoteEnabled, pending.row.preconditions.televoteReady)}</p>
-                <p><strong className="text-foreground">Reconciliation issues:</strong> {pending.row.preconditions.reconcileIssueCount}</p>
+                <p>
+                  <strong className="text-foreground">Reconciliation issues:</strong>{" "}
+                  {pending.row.preconditions.reconcileIssueCount}
+                  {pending.row.preconditions.entityCountMismatch
+                    ? ` · ${pending.row.preconditions.entityCountMismatch} participant/result-row count mismatch${pending.row.preconditions.entityCountMismatch === 1 ? "" : "es"}`
+                    : ""}
+                  {pending.row.preconditions.sourceReconcileIssueCount
+                    ? ` · ${pending.row.preconditions.sourceReconcileIssueCount} total/weighting issue${pending.row.preconditions.sourceReconcileIssueCount === 1 ? "" : "s"}`
+                    : ""}
+                </p>
               </div>
               <label className="block">
                 <span className="admin-section-label">Audit reason</span>
@@ -238,7 +249,19 @@ function ShowResultCard({ row, editionSlug, busy, onAction }: {
         <ReadinessCell label="Jury" ready={pre.juryReady} value={readinessLabel(pre.juryEnabled, pre.juryReady)} detail={pre.juryEnabled ? `${pre.juryVoterCount} voters · ${pre.juryIncompleteCount} incomplete · ${pre.juryConflictCount} conflicts · ${pre.juryDnvCount} DNV` : 'Disabled in voting configuration'} />
         <ReadinessCell label="Televote" ready={pre.televoteReady} value={readinessLabel(pre.televoteEnabled, pre.televoteReady)} detail={pre.televoteEnabled ? `${pre.televoteVoteRows} canonical vote rows` : 'Disabled in voting configuration'} />
         <ReadinessCell label="Calculation" ready={pre.calculationReady} value={pre.calculationReady ? 'Ready' : 'Blocked'} detail={`${pre.participantCount} participants · ${pre.resultRowCount} current result rows`} />
-        <ReadinessCell label="Reconciliation" ready={pre.resultReady} value={pre.resultReady ? 'Reconciled' : pre.resultRowCount ? 'Needs attention' : 'Not calculated'} detail={`${pre.reconcileIssueCount} total/weighting issues`} />
+        <ReadinessCell
+          label="Reconciliation"
+          ready={pre.resultReady}
+          value={pre.resultReady ? 'Reconciled' : pre.resultRowCount ? 'Needs attention' : 'Not calculated'}
+          detail={
+            pre.resultRowCount
+              ? [
+                  pre.entityCountMismatch ? `${pre.entityCountMismatch} participant/result-row count mismatch${pre.entityCountMismatch === 1 ? '' : 'es'}` : null,
+                  pre.sourceReconcileIssueCount ? `${pre.sourceReconcileIssueCount} total/weighting issue${pre.sourceReconcileIssueCount === 1 ? '' : 's'}` : null,
+                ].filter(Boolean).join(' · ') || 'Participant and result rows reconcile'
+              : 'No calculated result rows'
+          }
+        />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[0.07] pt-4">

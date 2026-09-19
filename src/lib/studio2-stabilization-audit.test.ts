@@ -198,6 +198,8 @@ describe("Studio 2 stabilization contract", () => {
   it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
     expect(adminRoute).toContain("hasSolarisOrganizerAccess");
     expect(adminRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain('throw redirect({ to: "/my-solaris" })');
+    expect(adminRoute).toContain('to: "/my-solaris"');
+    expect(adminRoute).toContain('notice: "organizer-access-required"');
+    expect(adminRoute).toContain("replace: true");
   });
 });

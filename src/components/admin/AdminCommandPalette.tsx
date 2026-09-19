@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Command, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { editionLabel, useEditions } from "@/lib/data";
+import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import { useAdminNotifications } from "@/lib/admin-ops";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { useAdminContext } from "./AdminContext";
@@ -13,6 +13,7 @@ export function AdminCommandPalette() {
   const [query, setQuery] = useState("");
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
+  const { data: countries = [] } = useCountries();
   const { data: notifications = [] } = useAdminNotifications();
 
   const activeEdition =
@@ -107,7 +108,15 @@ export function AdminCommandPalette() {
         keywords: `${item.body ?? ""} ${item.severity} attention work`,
       }));
 
+    const countryItems = countries.map((country) => ({
+      label: country.name,
+      href: `/admin/countries/${country.id}`,
+      group: "Countries",
+      keywords: `${country.short_code ?? ""} delegation country participant HOD`,
+    }));
+
     return [
+      ...countryItems,
       ...inboxItems,
       ...currentEdition,
       ...navigation,
@@ -130,7 +139,7 @@ export function AdminCommandPalette() {
         keywords: `${edition.host_city ?? ""} ${edition.edition_number ?? ""}`,
       })),
     ];
-  }, [activeEdition, editions, notifications]);
+  }, [activeEdition, countries, editions, notifications]);
 
   const needle = query.trim().toLowerCase();
   const filtered = commands.filter(
@@ -160,7 +169,7 @@ export function AdminCommandPalette() {
     }));
 
     const seen = new Set<string>();
-    return [...publicResults, ...organizerResults].filter((item) => {
+    return [...organizerResults, ...publicResults].filter((item) => {
       const key = `${item.href}|${item.label}`;
       if (seen.has(key)) return false;
       seen.add(key);

@@ -39,6 +39,8 @@ export type Studio2ResultPreconditions = {
   televoteReady: boolean;
   calculationReady: boolean;
   resultRowCount: number;
+  entityCountMismatch: number;
+  sourceReconcileIssueCount: number;
   reconcileIssueCount: number;
   resultReady: boolean;
   publishedResults: boolean;
@@ -119,8 +121,14 @@ function boolValue(value: unknown, label: string): boolean {
 
 export function parseStudio2ResultPreconditions(value: unknown): Studio2ResultPreconditions {
   const row = object(value, 'result preconditions');
+  const participantCount = numberValue(row.participantCount, 'participantCount');
+  const resultRowCount = numberValue(row.resultRowCount, 'resultRowCount');
+  const sourceReconcileIssueCount = numberValue(row.reconcileIssueCount, 'reconcileIssueCount');
+  const entityCountMismatch = Math.abs(resultRowCount - participantCount);
+  const reconciliationIssues = sourceReconcileIssueCount + entityCountMismatch;
+  const sourceResultReady = boolValue(row.resultReady, 'resultReady');
   return {
-    participantCount: numberValue(row.participantCount, 'participantCount'),
+    participantCount,
     juryEnabled: boolValue(row.juryEnabled, 'juryEnabled'),
     juryRequiredPoints: numberValue(row.juryRequiredPoints, 'juryRequiredPoints'),
     juryVoterCount: numberValue(row.juryVoterCount, 'juryVoterCount'),
@@ -133,9 +141,11 @@ export function parseStudio2ResultPreconditions(value: unknown): Studio2ResultPr
     televoteVoteRows: numberValue(row.televoteVoteRows, 'televoteVoteRows'),
     televoteReady: boolValue(row.televoteReady, 'televoteReady'),
     calculationReady: boolValue(row.calculationReady, 'calculationReady'),
-    resultRowCount: numberValue(row.resultRowCount, 'resultRowCount'),
-    reconcileIssueCount: numberValue(row.reconcileIssueCount, 'reconcileIssueCount'),
-    resultReady: boolValue(row.resultReady, 'resultReady'),
+    resultRowCount,
+    entityCountMismatch,
+    sourceReconcileIssueCount,
+    reconcileIssueCount: reconciliationIssues,
+    resultReady: sourceResultReady && reconciliationIssues === 0,
     publishedResults: boolValue(row.publishedResults, 'publishedResults'),
   };
 }

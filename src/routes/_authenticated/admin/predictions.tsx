@@ -198,7 +198,7 @@ function PredictionRoundAdmin() {
       ) : roundData?.schemaReady === false ? (
         <AdminCard><AdminEmptyState icon={Sparkles} title="Prediction storage unavailable" description="Prediction rounds are temporarily unavailable. Existing contest data is unaffected." /></AdminCard>
       ) : !activeEdition ? (
-        <AdminCard><AdminEmptyState icon={Trophy} title="No edition selected" description="Choose an edition before configuring prediction rounds." action={<Link to="/admin" className="admin-action-primary">Manage editions</Link>} /></AdminCard>
+        <AdminCard><AdminEmptyState icon={Trophy} title="No edition selected" description="Choose an edition before configuring prediction rounds." action={<Link to="/admin/editions" className="admin-action-primary">Manage editions</Link>} /></AdminCard>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">

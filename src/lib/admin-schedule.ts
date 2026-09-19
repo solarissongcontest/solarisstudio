@@ -254,10 +254,12 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
           id: `reminder:${reminder.id}`,
           source: "reminder",
           kind: "reminder",
-          label: reminder.label,
+          label: `Reminder · ${reminder.label}`,
           at: reminder.due_at,
           href: "/admin/system",
-          detail: reminder.notes || "Custom organizer reminder",
+          detail: reminder.notes
+            ? `Organizer reminder · ${reminder.notes}`
+            : "Organizer reminder · does not control a Solaris workflow",
         });
       }
 

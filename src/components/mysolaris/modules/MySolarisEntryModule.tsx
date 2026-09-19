@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -10,6 +10,11 @@ import {
 } from "lucide-react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import {
+  createCountryAccountConfirmationEditToken,
+  getCountryConfirmationAccess,
+  type CountryConfirmationResponse,
+} from "@/lib/confirmation-country-account";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { useCountries } from "@/lib/data";
 import {
@@ -80,6 +85,7 @@ export function MySolarisEntryModule() {
   const countrySearch = buildCountrySearch(targetCountryId);
   const [editionId, setEditionId] = useState("");
   const [activeSection, setActiveSection] = useState<EntrySection>("overview");
+  const [confirmationEditError, setConfirmationEditError] = useState<string | null>(null);
 
   const featureQuery = useQuery({
     queryKey: ["studio2-entry-readiness-flags"],
@@ -118,6 +124,36 @@ export function MySolarisEntryModule() {
     ],
     enabled: featureQuery.data === true && Boolean(country?.id && editionId),
     queryFn: () => loadStudio2HodWorkspace(editionId, country!.id),
+  });
+
+  const confirmationAccessQuery = useQuery({
+    queryKey: ["country-confirmation-access", "mysolaris-entry"],
+    enabled: Boolean(ownCountry && !organizerCountry),
+    queryFn: getCountryConfirmationAccess,
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const editConfirmation = useMutation({
+    mutationFn: async (response: CountryConfirmationResponse) => {
+      const result = await createCountryAccountConfirmationEditToken(response.round_id);
+      if (!result.ok || !result.token) {
+        if (result.reason === "editing_closed") throw new Error("Editing is closed for this submission.");
+        if (result.reason === "locked") throw new Error("This submission is locked.");
+        if (result.reason === "not_authenticated") throw new Error("Sign in to the country account again, then retry.");
+        throw new Error("This submission could not be opened for editing.");
+      }
+      return result.token;
+    },
+    onMutate: () => setConfirmationEditError(null),
+    onSuccess: (token) => {
+      window.location.assign(`/confirmations/edit/${encodeURIComponent(token)}`);
+    },
+    onError: (error) => {
+      setConfirmationEditError(
+        error instanceof Error ? error.message : "This submission could not be opened for editing.",
+      );
+    },
   });
 
   const readiness = useMemo(() => {
@@ -191,6 +227,10 @@ export function MySolarisEntryModule() {
   const entry = snapshot?.context.entry ?? null;
   const waitingForOrganizerReview =
     entry?.source === "confirmations" && entry.status === "pending";
+  const currentConfirmation =
+    (confirmationAccessQuery.data?.responses ?? []).find(
+      (response) => response.edition_id === editionId,
+    ) ?? null;
 
   return (
     <AppShell>
@@ -325,14 +365,31 @@ export function MySolarisEntryModule() {
                     </div>
                   )}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Link
-                      to="/confirmations"
-                      className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
-                    >
-                      {waitingForOrganizerReview ? "View submission" : "Edit submission"}{" "}
-                      <ExternalLink className="size-3.5" aria-hidden="true" />
-                    </Link>
+                    {currentConfirmation?.can_edit && !organizerCountry ? (
+                      <button
+                        type="button"
+                        disabled={editConfirmation.isPending}
+                        onClick={() => editConfirmation.mutate(currentConfirmation)}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold disabled:opacity-50"
+                      >
+                        {editConfirmation.isPending ? "Opening…" : "Edit submission"}
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <Link
+                        to="/confirmations"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+                      >
+                        {currentConfirmation ? "View submission" : "Open confirmations"}{" "}
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
+                      </Link>
+                    )}
                   </div>
+                  {confirmationEditError ? (
+                    <p className="mt-3 rounded-xl border border-destructive/20 bg-destructive/[0.06] p-3 text-xs text-destructive">
+                      {confirmationEditError}
+                    </p>
+                  ) : null}
                 </Panel>
               </div>
             ) : null}

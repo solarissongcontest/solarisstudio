@@ -21,6 +21,7 @@ import {
   useAdminNotifications,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
+  useResolveAdminNotification,
   type AdminNotification,
 } from "@/lib/admin-ops";
 import { cn } from "@/lib/utils";
@@ -39,23 +40,29 @@ export const Route = createFileRoute("/_authenticated/admin/inbox")({
   component: OrganizerInbox,
 });
 
-type InboxFilter = "needs-attention" | "all" | "resolved";
+type InboxFilter = "needs-attention" | "unread" | "all" | "resolved";
 
 function OrganizerInbox() {
   const { data: notifications = [], isLoading, isError, refetch } = useAdminNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const resolveItem = useResolveAdminNotification();
   const [filter, setFilter] = useState<InboxFilter>("needs-attention");
 
   const unread = useMemo(
     () => notifications.filter((item) => !item.read_at),
     [notifications],
   );
+  const needsAttention = useMemo(
+    () => notifications.filter((item) => item.requires_action && !item.resolved_at),
+    [notifications],
+  );
   const shown = useMemo(() => {
-    if (filter === "needs-attention") return unread;
-    if (filter === "resolved") return notifications.filter((item) => item.read_at);
+    if (filter === "needs-attention") return needsAttention;
+    if (filter === "unread") return unread;
+    if (filter === "resolved") return notifications.filter((item) => Boolean(item.resolved_at));
     return notifications;
-  }, [filter, notifications, unread]);
+  }, [filter, needsAttention, notifications, unread]);
 
   return (
     <AdminPage>
@@ -86,13 +93,17 @@ function OrganizerInbox() {
               onClick={() => setFilter("needs-attention")}
             >
               Needs attention
+              {needsAttention.length ? <span className="numeric">{needsAttention.length}</span> : null}
+            </FilterButton>
+            <FilterButton active={filter === "unread"} onClick={() => setFilter("unread")}>
+              Unread
               {unread.length ? <span className="numeric">{unread.length}</span> : null}
             </FilterButton>
             <FilterButton active={filter === "all"} onClick={() => setFilter("all")}>
               All
             </FilterButton>
             <FilterButton active={filter === "resolved"} onClick={() => setFilter("resolved")}>
-              Seen
+              Resolved
             </FilterButton>
           </div>
         </AdminCard>
@@ -101,12 +112,16 @@ function OrganizerInbox() {
           <AdminCardHeader
             title={
               filter === "needs-attention"
-                ? unread.length
-                  ? `${unread.length} ${unread.length === 1 ? "item" : "items"} need attention`
+                ? needsAttention.length
+                  ? `${needsAttention.length} ${needsAttention.length === 1 ? "item" : "items"} need attention`
                   : "Inbox clear"
-                : filter === "resolved"
-                  ? "Seen items"
-                  : "All Inbox items"
+                : filter === "unread"
+                  ? unread.length
+                    ? `${unread.length} unread`
+                    : "No unread items"
+                  : filter === "resolved"
+                    ? "Resolved work"
+                    : "All Inbox items"
             }
             description="Opening an item takes you directly to the workflow where it can be handled."
           />
@@ -135,6 +150,8 @@ function OrganizerInbox() {
                   onSeen={() => {
                     if (!item.read_at) markRead.mutate(item.id);
                   }}
+                  onResolve={() => resolveItem.mutate({ id: item.id, resolved: !item.resolved_at })}
+                  resolving={resolveItem.isPending}
                 />
               ))}
             </div>
@@ -155,13 +172,24 @@ function OrganizerInbox() {
   );
 }
 
-function InboxRow({ item, onSeen }: { item: AdminNotification; onSeen: () => void }) {
+function InboxRow({
+  item,
+  onSeen,
+  onResolve,
+  resolving,
+}: {
+  item: AdminNotification;
+  onSeen: () => void;
+  onResolve: () => void;
+  resolving: boolean;
+}) {
   const urgent = item.severity === "critical" || item.severity === "urgent";
   const attention = urgent || item.severity === "warning" || item.severity === "action";
   const Icon = urgent ? ShieldAlert : attention ? TriangleAlert : Inbox;
+  const resolved = Boolean(item.resolved_at);
 
-  const content = (
-    <>
+  return (
+    <div className="admin-list-row">
       <span
         className={cn(
           "grid size-10 shrink-0 place-items-center rounded-xl border",
@@ -178,6 +206,7 @@ function InboxRow({ item, onSeen }: { item: AdminNotification; onSeen: () => voi
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-foreground">{item.title}</span>
           {!item.read_at ? <AdminStatus tone={urgent ? "blocked" : "attention"}>New</AdminStatus> : null}
+          {resolved ? <AdminStatus tone="ready">Resolved</AdminStatus> : <AdminStatus tone="attention">Open</AdminStatus>}
         </span>
         {item.body ? (
           <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.body}</span>
@@ -188,23 +217,24 @@ function InboxRow({ item, onSeen }: { item: AdminNotification; onSeen: () => voi
             timeStyle: "short",
           }).format(new Date(item.created_at))}
         </span>
+        <span className="mt-2 flex flex-wrap gap-2">
+          {item.href ? (
+            <Link to={item.href as any} onClick={onSeen} className="admin-action-quiet">
+              Open <ArrowRight className="size-4" />
+            </Link>
+          ) : !item.read_at ? (
+            <button type="button" onClick={onSeen} className="admin-action-quiet">
+              Mark seen
+            </button>
+          ) : null}
+          {!resolved ? (
+            <button type="button" disabled={resolving} onClick={onResolve} className="admin-action-quiet">
+              <CheckCircle2 className="size-4" /> Mark resolved
+            </button>
+          ) : null}
+        </span>
       </span>
-      {item.href ? <ArrowRight className="size-4 shrink-0 text-muted-foreground" /> : null}
-    </>
-  );
-
-  if (item.href) {
-    return (
-      <Link to={item.href as any} onClick={onSeen} className="admin-list-row group">
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <button type="button" onClick={onSeen} className="admin-list-row w-full text-left">
-      {content}
-    </button>
+    </div>
   );
 }
 

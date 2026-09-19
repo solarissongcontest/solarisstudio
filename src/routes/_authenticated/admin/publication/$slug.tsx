@@ -33,7 +33,7 @@ import {
 } from "@/lib/studio2-results-operations";
 
 const PUBLICATION_KEYS = Object.keys(PUBLICATION_LABELS) as PublicationKey[];
-const RESULT_KEYS: PublicationKey[] = ["results", "jury_results", "televote_results", "detailed_voting"];
+const OUTCOME_KEYS: PublicationKey[] = ["qualifiers", "results", "jury_results", "televote_results", "detailed_voting"];
 
 type DraftState = {
   show: Show;
@@ -63,6 +63,7 @@ function PublicationWorkspace() {
   });
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [pendingRelease, setPendingRelease] = useState<PendingRelease | null>(null);
+  const [discardDraftOpen, setDiscardDraftOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
@@ -103,14 +104,18 @@ function PublicationWorkspace() {
     });
   }
 
-  function needsResultConfirmation(show: Show, next: PublicationConfig) {
+  function newlyExposesOutcome(show: Show, next: PublicationConfig) {
     const current = resolveShowPublication(show);
-    return RESULT_KEYS.some((key) => next[key] && !current[key]);
+    return OUTCOME_KEYS.some(
+      (key) => next[key] && (!show.published || !current[key]),
+    );
+  }
+
+  function needsResultConfirmation(show: Show, next: PublicationConfig) {
+    return newlyExposesOutcome(show, next);
   }
 
   function canReleaseResults(show: Show) {
-    const current = resolveShowPublication(show);
-    if (show.published && RESULT_KEYS.some((key) => current[key])) return true;
     return isStudio2ResultReleaseReady(resultOperationByShow.get(show.id));
   }
 
@@ -118,8 +123,8 @@ function PublicationWorkspace() {
     setBusy(true);
     try {
       const normalized = normalisePublicationDependencies(config);
-      if (RESULT_KEYS.some((key) => normalized[key]) && !canReleaseResults(show)) {
-        throw new Error("Review, lock and mark the current result calculation reveal ready before publishing results.");
+      if (newlyExposesOutcome(show, normalized) && !canReleaseResults(show)) {
+        throw new Error("Review, lock and mark the current result calculation reveal ready before exposing any new qualification or result outcome.");
       }
       const shouldBePublic = hasAnyPublicInformation(normalized);
       const { error } = await (supabase.from("shows") as any)
@@ -137,10 +142,25 @@ function PublicationWorkspace() {
     }
   }
 
+  function draftHasUnsavedChanges() {
+    if (!draft) return false;
+    const current = resolveShowPublication(draft.show);
+    return PUBLICATION_KEYS.some((key) => current[key] !== draft.config[key]);
+  }
+
+  function requestCloseDraft() {
+    if (busy || !draft) return;
+    if (draftHasUnsavedChanges()) {
+      setDiscardDraftOpen(true);
+      return;
+    }
+    setDraft(null);
+  }
+
   function requestSave() {
     if (!draft) return;
-    if (RESULT_KEYS.some((key) => draft.config[key]) && !canReleaseResults(draft.show)) {
-      toast.error("Results are not release ready. Finish review, lock and reveal readiness first.");
+    if (newlyExposesOutcome(draft.show, draft.config) && !canReleaseResults(draft.show)) {
+      toast.error("New outcome publication is blocked. Finish result review, lock and reveal readiness first.");
       return;
     }
     if (needsResultConfirmation(draft.show, draft.config)) {
@@ -239,7 +259,7 @@ function PublicationWorkspace() {
 
       <AdminSheet
         open={!!draft}
-        onClose={() => !busy && setDraft(null)}
+        onClose={requestCloseDraft}
         title={draft ? `${draft.show.name} publication` : "Publication"}
         description="Choose a safe release stage or fine-tune individual public layers. Dependencies are added automatically."
       >
@@ -250,16 +270,19 @@ function PublicationWorkspace() {
               <div className="space-y-2">
                 {PUBLICATION_PRESETS.map((preset) => {
                   const active = presetFor(draft.config) === preset.id;
-                  const risky = preset.config.results || preset.config.detailed_voting;
+                  const risky = OUTCOME_KEYS.some((key) => preset.config[key]);
+                  const blocked =
+                    newlyExposesOutcome(draft.show, preset.config) &&
+                    !canReleaseResults(draft.show);
                   return (
                     <button
                       key={preset.id}
                       type="button"
                       onClick={() => setPreset(preset.id)}
-                      disabled={risky && !canReleaseResults(draft.show)}
+                      disabled={blocked}
                       className={`admin-action-row w-full text-left disabled:cursor-not-allowed disabled:opacity-45 ${active ? "!border-sky-200/25 !bg-sky-200/[0.07]" : ""}`}
                     >
-                      <span className="min-w-0 flex-1"><span className="flex items-center gap-2 text-sm font-semibold text-foreground">{preset.name}{risky ? <AdminStatus tone="attention">Result release</AdminStatus> : null}</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span></span>
+                      <span className="min-w-0 flex-1"><span className="flex items-center gap-2 text-sm font-semibold text-foreground">{preset.name}{risky ? <AdminStatus tone="attention">Outcome release</AdminStatus> : null}</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{preset.description}</span></span>
                     </button>
                   );
                 })}
@@ -275,7 +298,7 @@ function PublicationWorkspace() {
                     <input
                       type="checkbox"
                       checked={draft.config[key]}
-                      disabled={RESULT_KEYS.includes(key) && !draft.config[key] && !canReleaseResults(draft.show)}
+                      disabled={OUTCOME_KEYS.includes(key) && !draft.config[key] && !canReleaseResults(draft.show)}
                       onChange={() => toggleLayer(key)}
                       className="size-5 shrink-0 accent-sky-200 disabled:opacity-40"
                     />
@@ -284,10 +307,33 @@ function PublicationWorkspace() {
               </div>
             </section>
 
-            <button type="button" disabled={busy} onClick={requestSave} className="admin-action-primary w-full">{busy ? "Saving…" : hasAnyPublicInformation(draft.config) ? "Save publication" : "Make show private"}</button>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={requestCloseDraft}
+                className="admin-action-secondary"
+              >
+                Close
+              </button>
+              <button type="button" disabled={busy} onClick={requestSave} className="admin-action-primary w-full">{busy ? "Saving…" : hasAnyPublicInformation(draft.config) ? "Save publication" : "Make show private"}</button>
+            </div>
           </div>
         ) : null}
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={discardDraftOpen}
+        onClose={() => !busy && setDiscardDraftOpen(false)}
+        onConfirm={() => {
+          setDiscardDraftOpen(false);
+          setDraft(null);
+        }}
+        title="Discard unsaved publication changes?"
+        description={<>Your unsaved release choices will be discarded. The currently published state will not change.</>}
+        confirmLabel="Discard changes"
+        busy={busy}
+      />
 
       <AdminConfirmSheet
         open={!!pendingRelease}

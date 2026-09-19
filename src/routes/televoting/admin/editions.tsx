@@ -56,7 +56,7 @@ function TelevotingEditionsPage() {
       />
 
       <AdminCard>
-        <AdminCardHeader eyebrow="Editions" title="Managed in Solaris" description="Create, rename and archive editions in Solaris. Televoting updates automatically." action={<Link to="/admin" className="admin-action-secondary !min-h-10">Manage editions</Link>} />
+        <AdminCardHeader eyebrow="Editions" title="Managed in Solaris" description="Create, rename and archive editions in Solaris. Televoting updates automatically." action={<Link to="/admin/editions" className="admin-action-secondary !min-h-10">Manage editions</Link>} />
       </AdminCard>
 
       {adminLoading || isLoading ? (
@@ -85,7 +85,7 @@ function TelevotingEditionsPage() {
           ))}
         </div>
       ) : (
-        <AdminCard><AdminEmptyState icon={Trophy} title="No linked editions" description="No numbered Solaris editions are currently available to the voting service." action={<Link to="/admin" className="admin-action-primary">Manage editions</Link>} /></AdminCard>
+        <AdminCard><AdminEmptyState icon={Trophy} title="No linked editions" description="No numbered Solaris editions are currently available to the voting service." action={<Link to="/admin/editions" className="admin-action-primary">Manage editions</Link>} /></AdminCard>
       )}
     </div>
   );

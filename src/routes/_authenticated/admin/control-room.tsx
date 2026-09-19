@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
@@ -12,6 +12,9 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from '@/components/admin/AdminUI';
+import { buildEditionReadiness, type EditionReadiness } from '@/lib/admin-readiness';
+import { useAdminReadinessData } from '@/lib/admin-readiness-data';
+import { useAllShows, useEditions } from '@/lib/data';
 import { EDITION_STATES, getEditionTransition, type EditionState } from '@/lib/edition-state';
 import {
   INCIDENT_SEVERITIES,
@@ -35,6 +38,29 @@ export const Route = createFileRoute('/_authenticated/admin/control-room')({
 function ControlRoomV2() {
   const { editionId } = useAdminContext();
   const queryClient = useQueryClient();
+  const { data: editions = [] } = useEditions();
+  const { data: shows = [] } = useAllShows();
+  const selectedEdition = useMemo(
+    () => editions.find((edition) => edition.id === editionId) ?? null,
+    [editionId, editions],
+  );
+  const readinessDataQuery = useAdminReadinessData(editionId || undefined);
+  const readiness = useMemo(
+    () =>
+      selectedEdition && readinessDataQuery.data
+        ? buildEditionReadiness({
+            edition: selectedEdition,
+            shows,
+            participants: readinessDataQuery.data.participants,
+            voters: readinessDataQuery.data.voters,
+            juryVotes: readinessDataQuery.data.juryVotes,
+            juryBallotStatuses: readinessDataQuery.data.juryBallotStatuses,
+            televotes: readinessDataQuery.data.televotes,
+            results: readinessDataQuery.data.results,
+          })
+        : null,
+    [readinessDataQuery.data, selectedEdition, shows],
+  );
   const [reason, setReason] = useState('');
   const [incidentTitle, setIncidentTitle] = useState('');
   const [incidentSeverity, setIncidentSeverity] = useState<IncidentSeverity>('sev3');
@@ -140,8 +166,8 @@ function ControlRoomV2() {
       <div className="mx-auto max-w-7xl">
         <AdminPageHeader
           eyebrow="Solaris Studio 2"
-          title="Live Control Room v2"
-          description="Persisted contest lifecycle, incident command and event history. State-changing commands are server-validated, permission-checked and written to the operational event stream."
+          title="Live Control Room"
+          description="Run the current contest phase, incidents and live operations. Solaris checks the edition setup before forward lifecycle changes."
         />
 
         {!editionId ? (
@@ -154,7 +180,7 @@ function ControlRoomV2() {
           </AdminCard>
         ) : snapshotQuery.isLoading ? (
           <AdminCard>
-            <p className="py-10 text-center text-sm text-muted-foreground">Loading persisted operational state…</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">Loading current contest state…</p>
           </AdminCard>
         ) : snapshotQuery.error || !snapshot ? (
           <AdminCard>
@@ -297,6 +323,13 @@ function ControlRoomV2() {
                           (approval) => !approval.approvedBy && !approval.canApprove,
                         );
                         const busy = transitionEdition.isPending || requestApproval.isPending;
+                        const forward = isForwardTransition(transition.from, transition.to);
+                        const blockers = transitionReadinessBlockers(transition.from, transition.to, readiness);
+                        const readinessUnavailable =
+                          forward &&
+                          EDITION_STATES.indexOf(transition.to) >= EDITION_STATES.indexOf('pre_show') &&
+                          (readinessDataQuery.isLoading || !readiness);
+                        const blockedByReadiness = blockers.length > 0 || readinessUnavailable;
 
                         return (
                           <div
@@ -317,6 +350,24 @@ function ControlRoomV2() {
                                     ? 'Rollback or exceptional transition. A reason is mandatory.'
                                     : 'Critical rollback. The requester and second approver must be different authenticated operators.'}
                               </p>
+                              {readinessUnavailable ? (
+                                <p className="mt-2 text-xs font-semibold text-amber-100">
+                                  Readiness is still loading. Solaris will not advance the edition until it can verify the required setup.
+                                </p>
+                              ) : blockers.length ? (
+                                <div className="mt-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.05] p-2.5">
+                                  <p className="text-xs font-semibold text-rose-100">
+                                    Complete {blockers.length} prerequisite{blockers.length === 1 ? '' : 's'} before this phase.
+                                  </p>
+                                  <ul className="mt-1 space-y-1 text-[11px] leading-4 text-rose-100/75">
+                                    {blockers.slice(0, 4).map((issue) => <li key={issue.id}>• {issue.title}</li>)}
+                                  </ul>
+                                </div>
+                              ) : forward && EDITION_STATES.indexOf(transition.to) >= EDITION_STATES.indexOf('pre_show') ? (
+                                <p className="mt-2 text-xs font-semibold text-emerald-100">
+                                  Required setup checks pass for this transition.
+                                </p>
+                              ) : null}
                             </div>
 
                             {transition.risk === 'critical' ? (
@@ -337,7 +388,7 @@ function ControlRoomV2() {
                               ) : (
                                 <button
                                   type="button"
-                                  disabled={busy || missingReason || requesterWaiting}
+                                  disabled={busy || missingReason || requesterWaiting || blockedByReadiness}
                                   onClick={() => requestApproval.mutate(transition.to)}
                                   className="min-h-10 shrink-0 rounded-xl border border-amber-200/25 bg-amber-200/10 px-3 text-xs font-semibold text-amber-50 disabled:opacity-45"
                                 >
@@ -351,7 +402,7 @@ function ControlRoomV2() {
                             ) : (
                               <button
                                 type="button"
-                                disabled={busy || missingReason}
+                                disabled={busy || missingReason || blockedByReadiness}
                                 onClick={() => transitionEdition.mutate({ to: transition.to })}
                                 className="min-h-10 shrink-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-foreground disabled:opacity-45"
                               >
@@ -506,6 +557,32 @@ function formatTimestamp(value: string) {
   if (!Number.isFinite(date.getTime())) return value;
   return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
+
+function isForwardTransition(from: EditionState, to: EditionState) {
+  return EDITION_STATES.indexOf(to) > EDITION_STATES.indexOf(from);
+}
+
+function transitionReadinessBlockers(
+  from: EditionState,
+  to: EditionState,
+  readiness: EditionReadiness | null,
+) {
+  if (!readiness || !isForwardTransition(from, to)) return [];
+  const targetIndex = EDITION_STATES.indexOf(to);
+  if (targetIndex < EDITION_STATES.indexOf('pre_show')) return [];
+
+  const blockedAreas = new Set<string>(['setup', 'entries']);
+  if (targetIndex >= EDITION_STATES.indexOf('jury_voting')) blockedAreas.add('jury');
+  if (targetIndex >= EDITION_STATES.indexOf('vote_verification')) blockedAreas.add('televote');
+  if (targetIndex >= EDITION_STATES.indexOf('results')) blockedAreas.add('results');
+
+  return readiness.issues.filter(
+    (issue) =>
+      blockedAreas.has(issue.area) &&
+      (issue.severity === 'critical' || issue.severity === 'action'),
+  );
+}
+
 
 function riskTone(risk: 'normal' | 'elevated' | 'critical') {
   return risk === 'critical'
