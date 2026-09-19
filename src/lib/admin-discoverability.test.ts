@@ -57,6 +57,14 @@ describe("Organizer discoverability", () => {
     }
   });
 
+  it("keeps contextual workflows visible on narrow screens without horizontal-scroll discovery", () => {
+    const sectionNav = source("src/components/admin/AdminSectionNav.tsx");
+
+    expect(sectionNav).toContain("flex flex-wrap");
+    expect(sectionNav).not.toContain("overflow-x-auto");
+    expect(sectionNav).toContain("basis-[30%]");
+  });
+
   it("keeps a visible complete tool directory without bloating permanent navigation", () => {
     const nav = source("src/components/admin/AdminNav.tsx");
     const menu = source("src/routes/_authenticated/admin/menu.tsx");
