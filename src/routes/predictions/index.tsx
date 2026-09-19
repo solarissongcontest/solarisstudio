@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { usePredictionRounds } from "@/lib/prediction-data";
+import { formatEventDateTime } from "@/lib/public-time";
 
 export const Route = createFileRoute("/predictions/")({
   head: () => ({
@@ -10,6 +12,19 @@ export const Route = createFileRoute("/predictions/")({
   }),
   component: PredictionArenaPage,
 });
+
+function useHydratedNow() {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    update();
+    const timer = window.setInterval(update, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return now;
+}
 
 function PredictionArenaPage() {
   const { data: roundData, isLoading } = usePredictionRounds();
@@ -19,6 +34,7 @@ function PredictionArenaPage() {
   const showMap = new Map((shows ?? []).map((show) => [show.id, show]));
   const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
   const rounds = roundData?.rounds ?? [];
+  const now = useHydratedNow();
 
   return (
     <AppShell>
@@ -48,7 +64,7 @@ function PredictionArenaPage() {
           {rounds.map((round) => {
             const show = showMap.get(round.show_id);
             const edition = show ? editionMap.get(show.edition_id) : null;
-            const locked = new Date(round.locks_at).getTime() <= Date.now();
+            const locked = now != null && new Date(round.locks_at).getTime() <= now;
 
             return (
               <Link
@@ -76,10 +92,7 @@ function PredictionArenaPage() {
                   <p className="text-xs text-muted-foreground">
                     {locked ? "Locked" : "Locks"}{" "}
                     <span className="font-semibold text-foreground">
-                      {new Intl.DateTimeFormat(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }).format(new Date(round.locks_at))}
+                      {formatEventDateTime(round.locks_at)}
                     </span>
                   </p>
                   <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
