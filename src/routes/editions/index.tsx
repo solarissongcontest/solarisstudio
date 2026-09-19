@@ -15,7 +15,21 @@ import {
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
 export const Route = createFileRoute("/editions/")({
-  head: () => ({ meta: [{ title: "Editions — Solaris Song Contest" }] }),
+  head: () => ({
+    meta: [
+      { title: "Editions — Solaris Song Contest" },
+      {
+        name: "description",
+        content: "Browse every published Solaris Song Contest edition, host, show and public result.",
+      },
+    ],
+    links: [
+      {
+        rel: "canonical",
+        href: "https://studio.solaris-song-contest.workers.dev/editions",
+      },
+    ],
+  }),
   component: EditionsPage,
 });
 
