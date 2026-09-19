@@ -179,7 +179,7 @@ function ParticipatePage() {
           id: "jury",
           status: "available",
           title: "Jury voting is open",
-          description: `Submit your official ballot for ${jury.openRound.name}.`,
+          description: `Submit your official ballot for ${jury.openRound.name}. Friend-voting integrity checks apply before submission.`,
           to: "/jury-voting",
           priority: 20,
         }
@@ -197,8 +197,8 @@ function ParticipatePage() {
             status: "unavailable",
             title: "Jury voting",
             description: jury?.signedIn
-              ? "No jury ballot currently needs your delegation."
-              : "Sign in with a country account to check official jury voting.",
+              ? "No jury ballot currently needs your delegation. Friend-voting integrity checks apply when voting opens."
+              : "Country account required. Sign in to check official jury voting; friend-voting integrity checks apply before submission.",
             to: "/jury-voting",
             priority: 20,
           };
