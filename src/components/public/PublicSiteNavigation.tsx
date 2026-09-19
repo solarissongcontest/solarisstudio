@@ -7,16 +7,21 @@ import {
   publicPathMatches,
   type PublicDestination,
 } from "@/lib/public-navigation";
+import {
+  publicGlobalAreasForContext,
+  type PublicUserContext,
+} from "@/lib/public-user-context";
 import { cn } from "@/lib/utils";
 
 export function PublicDrawerNavigation({
   pathname,
-  isOrganizer,
+  user,
 }: {
   pathname: string;
-  isOrganizer: boolean;
+  user: PublicUserContext;
 }) {
   const area = publicAreaForPath(pathname);
+  const globalAreas = publicGlobalAreasForContext(user);
   const areaRoot = PUBLIC_GLOBAL_AREAS.find((item) => item.id === area)?.to ?? null;
   const localItems =
     area === "home" || area === "me"
@@ -34,7 +39,7 @@ export function PublicDrawerNavigation({
           </h2>
         </div>
         <div className="mt-1.5 space-y-0.5">
-          {PUBLIC_GLOBAL_AREAS.map((item) => {
+          {globalAreas.map((item) => {
             const active = area === item.id;
             return (
               <Link
@@ -92,7 +97,7 @@ export function PublicDrawerNavigation({
             <span>Rules</span>
             <small>Official SSC rules and rulebook guidance.</small>
           </Link>
-          {isOrganizer ? (
+          {user.organizer ? (
             <Link to="/admin/operations" className="public-drawer-page-link">
               <span>Open Organizer</span>
               <small>Enter the operational workspace.</small>
