@@ -33,6 +33,7 @@ import { resolvePublicIaV3Enabled } from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import {
   publicCanvasForArchetype,
+  publicLayoutTokenForArchetype,
   publicRouteArchetype,
 } from "@/lib/public-route-archetypes";
 import { rememberPublicRecent } from "@/lib/public-recents";
@@ -215,6 +216,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const publicUser = buildPublicUserContext({ userId: access.userId, access });
   const globalAreas = publicGlobalAreasForContext(publicUser);
   const publicArchetype = publicRouteArchetype(pathname);
+  const publicLayout = publicLayoutTokenForArchetype(publicArchetype);
   const publicArea = publicAreaForPath(pathname);
   const visibleAccountEmail =
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
@@ -392,7 +394,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </SheetContent>
 
         <main
-          data-public-layout={publicArchetype}
+          data-public-layout={publicLayout}
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
             publicCanvasForArchetype(publicArchetype),
