@@ -1,6 +1,7 @@
 import type { Edition, ResultRow, Show } from "./data";
 import { normalizeLegacyEditionStatus, type EditionState } from "./edition-state";
 import { resolveShowPublication } from "./publication";
+import type { PublicStatusKey } from "./public-status";
 
 export type PublicContestPhase =
   | "between_editions"
@@ -24,6 +25,7 @@ export type PublicContestState = {
   edition: Edition | null;
   phase: PublicContestPhase;
   lifecycle: EditionState | null;
+  statusKey: PublicStatusKey;
   statusLabel: string;
   headline: string;
   description: string;
@@ -128,6 +130,7 @@ function presentation(
   switch (phase) {
     case "announced":
       return {
+        statusKey: "upcoming",
         statusLabel: "Upcoming",
         headline: `${label} is taking shape`,
         description: "Explore the published edition information and follow what comes next.",
@@ -135,6 +138,7 @@ function presentation(
       };
     case "confirmations":
       return {
+        statusKey: "open",
         statusLabel: "Confirmations",
         headline: `${label} confirmations are underway`,
         description: "Delegations are confirming participation and preparing their submissions.",
@@ -142,6 +146,7 @@ function presentation(
       };
     case "submissions":
       return {
+        statusKey: "current",
         statusLabel: "Current edition",
         headline: `${label} is the current Solaris edition`,
         description: "Explore the edition, participating countries and published entry information.",
@@ -149,6 +154,7 @@ function presentation(
       };
     case "pre_show":
       return {
+        statusKey: "upcoming",
         statusLabel: "Coming up",
         headline: `${label} is approaching show time`,
         description: "The edition is moving from submissions into the show period.",
@@ -156,6 +162,7 @@ function presentation(
       };
     case "jury_voting":
       return {
+        statusKey: "open",
         statusLabel: "Jury voting",
         headline: `${label} jury voting is in progress`,
         description: "Eligible delegation juries can complete their official ballots.",
@@ -163,6 +170,7 @@ function presentation(
       };
     case "live":
       return {
+        statusKey: "live",
         statusLabel: "Live",
         headline: `${label} is live`,
         description: "Follow the current show and live contest information.",
@@ -170,6 +178,7 @@ function presentation(
       };
     case "voting":
       return {
+        statusKey: "open",
         statusLabel: "Voting open",
         headline: `${label} voting is open`,
         description: "Open the participation area for the voting options currently available to you.",
@@ -177,6 +186,7 @@ function presentation(
       };
     case "results_pending":
       return {
+        statusKey: "pending",
         statusLabel: "Results pending",
         headline: `${label} voting has closed`,
         description: "Results are being verified and will appear once they are published.",
@@ -184,6 +194,7 @@ function presentation(
       };
     case "results_published":
       return {
+        statusKey: "published",
         statusLabel: "Results",
         headline: `${label} results are published`,
         description: "See the final ranking and detailed result information.",
@@ -191,6 +202,7 @@ function presentation(
       };
     case "post_edition":
       return {
+        statusKey: "completed",
         statusLabel: "Completed",
         headline: `${label} is complete`,
         description: "Explore the final results, entries and archive from the completed edition.",
@@ -198,6 +210,7 @@ function presentation(
       };
     case "between_editions":
       return {
+        statusKey: "current",
         statusLabel: "Solaris",
         headline: "Explore the Solaris Song Contest",
         description: "Browse countries, editions, results and stories from the archive.",
