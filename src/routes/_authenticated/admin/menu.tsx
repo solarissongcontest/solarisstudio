@@ -9,7 +9,7 @@ import {
   type AdminNavigationGroup,
 } from "@/components/admin/admin-navigation";
 import { AdminCard, AdminPageHeader } from "@/components/admin/AdminUI";
-import { useEditions } from "@/lib/data";
+import { editionLabel, useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/admin/menu")({
   head: () => ({ meta: [{ title: "All pages — Solaris Organizer" }] }),
@@ -24,7 +24,7 @@ function OrganizerMenu() {
     editions.find((edition) => edition.id === editionId) ??
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
-  const domains = buildAdminDomainNavigation(activeEdition?.slug);
+  const domains = buildAdminDomainNavigation(activeEdition?.slug, activeEdition ? editionLabel(activeEdition) : "Current edition");
   const groups = useMemo(
     () => filterGroups(buildAdminNavigation(activeEdition?.slug), query),
     [activeEdition?.slug, query],
