@@ -84,14 +84,38 @@ describe("Organizer domain navigation", () => {
       "Rounds",
       "Calendar",
       "Access",
+      "History",
+    ]);
+
+    const live = buildAdminContextualSection("/admin/incidents", "ssc-21");
+    expect(live?.workflow?.label).toBe("Live workflow");
+    expect(live?.workflow?.tabs.map((tab) => tab.label)).toEqual([
+      "Control room",
+      "Workflows",
+      "Incidents",
+      "Rundown",
+      "Reveal",
+      "Rehearsal",
+    ]);
+
+    const publishWorkflow = buildAdminContextualSection("/admin/communications", "ssc-21");
+    expect(publishWorkflow?.workflow?.label).toBe("Publish workflow");
+    expect(publishWorkflow?.workflow?.tabs.map((tab) => tab.label)).toEqual([
+      "Release",
+      "Communications",
+      "Media",
+      "Stories",
+      "Design",
     ]);
 
     const voting = buildAdminContextualSection("/televoting/admin/intelligence", "ssc-21");
     expect(voting?.domain.id).toBe("edition");
     expect(voting?.workflow?.label).toBe("Voting workflow");
     expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Friend voting");
+    expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Declarations");
+    expect(voting?.workflow?.tabs.map((tab) => tab.label)).toContain("Official results");
 
-    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow).toBeNull();
+    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe("Publish workflow");
   });
 
   it("keeps every specialist route searchable even when it is not a contextual tab", () => {
