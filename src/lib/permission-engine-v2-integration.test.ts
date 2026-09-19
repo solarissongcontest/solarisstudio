@@ -20,7 +20,7 @@ describe("Permission Engine v2 administration", () => {
   it("is discoverable inside Administration without creating another product surface", () => {
     expect(navigation).toContain("Access & permissions");
     expect(navigation).toContain("/admin/access-permissions");
-    expect(contextualNavigation).toContain("Access & permissions");
+    expect(contextualNavigation).toContain("People & access");
     expect(route).toContain("type AccessTab =");
     for (const label of ["Users", "Roles", "Capabilities", "Access log", "Health"]) {
       expect(route).toContain(`label: "${label}"`);
