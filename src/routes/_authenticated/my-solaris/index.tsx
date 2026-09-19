@@ -24,6 +24,7 @@ import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { MySolarisAccountPanel } from "@/components/MySolarisAccountPanel";
 import { MySolarisActivityPanels } from "@/components/MySolarisPortalExtension";
 import { MySolarisOperationsPanel } from "@/components/MySolarisOperationsPanel";
+import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds } from "@/lib/confirmation-rounds.functions";
@@ -549,6 +550,8 @@ function HomeTab({
   listeningLinkCount: number;
   onTabChange: (tab: MySolarisTab) => void;
 }) {
+  const { priorities } = useMySolaris();
+  const primaryRequiredAction = priorities.find((item) => item.actionRequired) ?? null;
   const hasCurrentEntry = Boolean(currentEntry);
   const confirmationDone = Boolean(currentConfirmation);
   const revealReady =
@@ -559,7 +562,29 @@ function HomeTab({
     <>
       <section className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
         <Panel title="Next action" description="What deserves your attention first">
-          {nextRound && !confirmationDone ? (
+          {primaryRequiredAction ? (
+            <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-200">
+                  <ListChecks className="size-4.5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-black uppercase tracking-[0.17em] text-amber-200">
+                    Action required
+                  </p>
+                  <h2 className="mt-1 font-display text-xl font-semibold">{primaryRequiredAction.title}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{primaryRequiredAction.description}</p>
+                  <Link
+                    to={primaryRequiredAction.to as any}
+                    search={primaryRequiredAction.search as any}
+                    className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-aurora px-4 text-xs font-semibold text-primary-foreground"
+                  >
+                    Open task
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : nextRound && !confirmationDone ? (
             <div className="rounded-2xl border border-primary/20 bg-primary/[0.055] p-4 sm:p-5">
               <div className="flex items-start gap-3">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
