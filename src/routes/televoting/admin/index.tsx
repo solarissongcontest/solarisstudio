@@ -198,6 +198,13 @@ function VotingAdminOverview() {
                 description="Calculate and review the public vote before it becomes part of the official result."
                 detail={`${data.submissions} ballots`}
               />
+              <WorkspaceRow
+                to="/admin/results"
+                icon={Trophy}
+                title="Official results"
+                description="Review, lock and release the complete official result after all voting sources are ready."
+                detail="Review before release"
+              />
             </div>
           </AdminCard>
 
