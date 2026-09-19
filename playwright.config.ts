@@ -109,5 +109,15 @@ export default defineConfig({
       testMatch: /account-states\.e2e\.ts/,
       use: { viewport: { width: 1440, height: 1000 } },
     },
+    {
+      name: "organizer-admin-desktop",
+      testMatch: /organizer-routes\.e2e\.ts/,
+      use: { viewport: { width: 1440, height: 1000 } },
+    },
+    {
+      name: "organizer-admin-mobile",
+      testMatch: /organizer-routes\.e2e\.ts/,
+      use: { viewport: { width: 390, height: 844 } },
+    },
   ],
 });
