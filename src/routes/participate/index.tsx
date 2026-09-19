@@ -1,18 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
-  ArrowRight,
   CheckCircle2,
   ClipboardCheck,
   Clock3,
   Music2,
   Scale,
   Vote,
-  type LucideIcon,
 } from "lucide-react";
 import { useMemo } from "react";
 
-import { AppShell, PageHeader } from "@/components/AppShell";
+import { AppShell } from "@/components/AppShell";
+import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
+import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
+import { PublicHubHero } from "@/components/public/PublicHubHero";
+import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
+import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
@@ -23,7 +26,6 @@ import {
   type ParticipationAction,
 } from "@/lib/participation-state";
 import { computeAvailability } from "@/lib/ssc";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/participate/")({
   head: () => ({
@@ -238,182 +240,114 @@ function ParticipatePage() {
 
   return (
     <AppShell>
-      <PageHeader
+      <PublicHubHero
         eyebrow="Participate"
         title="Take part in Solaris"
-        description="Current actions come first. Upcoming and inactive services stay available without pretending they are equally urgent."
+        description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
       />
 
-      <section className="mb-7" aria-labelledby="participate-attention-title">
-        <div className="mb-3 border-b border-border/60 pb-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-            Now
-          </p>
-          <h2 id="participate-attention-title" className="mt-1 font-display text-2xl font-bold">
-            Needs your attention
-          </h2>
+      <section aria-labelledby="participate-attention-title">
+        <div className="public-hub-section-heading">
+          <p className="public-hub-eyebrow">Now</p>
+          <h2 id="participate-attention-title">Needs your attention</h2>
         </div>
 
         {loading ? (
-          <div className="rounded-2xl border border-border/70 bg-surface/45 p-5 text-sm text-muted-foreground">
-            Checking the current participation windows…
-          </div>
+          <PublicCurrentStatus
+            icon={Clock3}
+            eyebrow="Checking status"
+            title="Loading participation windows"
+            description="Solaris is checking confirmations, jury voting and public voting."
+          />
         ) : primary ? (
           <div className="space-y-3">
-            <ParticipationActionCard action={primary} dominant />
+            <PublicPrimaryAction
+              to={primary.to}
+              icon={iconForAction(primary)}
+              status="Open now"
+              title={primary.title}
+              description={primary.description}
+              dominant
+            />
             {otherAvailable.length ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <PublicDestinationGrid columns={2}>
                 {otherAvailable.map((action) => (
-                  <ParticipationActionCard key={action.id} action={action} />
+                  <PublicPrimaryAction
+                    key={action.id}
+                    to={action.to}
+                    icon={iconForAction(action)}
+                    status="Open now"
+                    title={action.title}
+                    description={action.description}
+                  />
                 ))}
-              </div>
+              </PublicDestinationGrid>
             ) : null}
           </div>
         ) : (
-          <div className="rounded-2xl border border-border/70 bg-surface/45 p-5 sm:p-6">
-            <CheckCircle2 className="size-6 text-primary" aria-hidden="true" />
-            <h3 className="mt-3 font-display text-xl font-bold">
-              Nothing needs your attention right now
-            </h3>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-              Solaris will surface confirmations and voting here when they become actionable.
-            </p>
-          </div>
+          <PublicCurrentStatus
+            icon={CheckCircle2}
+            eyebrow="Up to date"
+            title="Nothing needs your attention right now"
+            description="Solaris will surface confirmations and voting here when they become actionable."
+            tone="complete"
+          />
         )}
       </section>
 
       {upcoming.length ? (
-        <section className="mb-7" aria-labelledby="participate-upcoming-title">
-          <div className="mb-3 border-b border-border/60 pb-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-              Next
-            </p>
-            <h2 id="participate-upcoming-title" className="mt-1 font-display text-xl font-bold">
-              Upcoming
-            </h2>
+        <section className="public-hub-section" aria-labelledby="participate-upcoming-title">
+          <div className="public-hub-section-heading">
+            <p className="public-hub-eyebrow is-muted">Next</p>
+            <h2 id="participate-upcoming-title">Upcoming</h2>
           </div>
-          <div className="space-y-2">
+          <PublicDestinationGrid columns={2}>
             {upcoming.map((action) => (
-              <ParticipationActionCard key={action.id} action={action} compact />
+              <PublicPrimaryAction
+                key={action.id}
+                to={action.to}
+                icon={iconForAction(action)}
+                status="Upcoming"
+                title={action.title}
+                description={action.description}
+              />
             ))}
-          </div>
+          </PublicDestinationGrid>
         </section>
       ) : null}
 
-      <section aria-labelledby="participate-other-title">
-        <div className="mb-3 border-b border-border/60 pb-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
-            Other participation
-          </p>
-          <h2 id="participate-other-title" className="mt-1 font-display text-xl font-bold">
-            Services and instructions
-          </h2>
-        </div>
-
-        <div className="grid gap-2 md:grid-cols-2">
-          {inactive.map((action) => (
-            <ParticipationActionCard key={action.id} action={action} compact />
-          ))}
-          <StaticParticipationLink
-            to="/next-in-line"
-            icon={Music2}
-            title="Next in Line"
-            description="Open the separate side competition for eligible unused songs."
-          />
-          <StaticParticipationLink
-            to="/televoting/how-to-vote"
-            icon={Vote}
-            title="How to vote"
-            description="Read the public voting instructions before a televote opens."
-          />
-        </div>
-      </section>
+      <PublicSecondaryLinks
+        eyebrow="Other participation"
+        title="Services and instructions"
+        items={[
+          ...inactive.map((action) => ({
+            to: action.to,
+            icon: iconForAction(action),
+            title: action.title,
+            description: action.description,
+          })),
+          {
+            to: "/next-in-line",
+            icon: Music2,
+            title: "Next in Line",
+            description: "Open the separate side competition for eligible unused songs.",
+          },
+          {
+            to: "/televoting/how-to-vote",
+            icon: Vote,
+            title: "How to vote",
+            description: "Read the public voting instructions before a televote opens.",
+          },
+        ]}
+      />
     </AppShell>
   );
 }
 
-function ParticipationActionCard({
-  action,
-  dominant = false,
-  compact = false,
-}: {
-  action: ParticipationAction;
-  dominant?: boolean;
-  compact?: boolean;
-}) {
-  const icon = action.id === "confirmations" ? ClipboardCheck : action.id === "jury" ? Scale : Vote;
-  const Icon = icon;
-  const stateLabel =
-    action.status === "available"
-      ? "Open now"
-      : action.status === "upcoming"
-        ? "Upcoming"
-        : action.status === "complete"
-          ? "Complete"
-          : "Not open";
-
-  return (
-    <Link
-      to={action.to as any}
-      className={cn(
-        "group block min-w-0 rounded-2xl border transition-colors",
-        dominant
-          ? "border-primary/25 bg-primary/[0.07] p-5 sm:p-7"
-          : "border-border/70 bg-surface/45 p-4 hover:border-primary/30 hover:bg-surface/75",
-        compact && "sm:flex sm:items-center sm:gap-4",
-      )}
-    >
-      <div className={cn("flex items-start gap-3", compact && "sm:flex-1")}>
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.08] text-primary">
-          <Icon className="size-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
-              {stateLabel}
-            </span>
-          </div>
-          <h3 className={cn("mt-1 font-display font-bold", dominant ? "text-2xl sm:text-3xl" : "text-lg")}>
-            {action.title}
-          </h3>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {action.description}
-          </p>
-        </div>
-      </div>
-      <span className={cn("mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary", compact && "sm:mt-0")}>
-        {action.status === "available" ? "Continue" : "Open"} <ArrowRight className="size-3.5" />
-      </span>
-    </Link>
-  );
-}
-
-function StaticParticipationLink({
-  to,
-  icon: Icon,
-  title,
-  description,
-}: {
-  to: string;
-  icon: LucideIcon;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link
-      to={to as any}
-      className="group flex min-h-28 items-start gap-3 rounded-2xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface/75"
-    >
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.08] text-primary">
-        <Icon className="size-4" aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold">{title}</span>
-        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
-      </span>
-      <ArrowRight className="mt-1 size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-    </Link>
-  );
+function iconForAction(action: ParticipationAction) {
+  if (action.id === "confirmations") return ClipboardCheck;
+  if (action.id === "jury") return Scale;
+  return Vote;
 }
 
 function formatDate(value: string) {
