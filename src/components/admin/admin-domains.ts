@@ -19,9 +19,9 @@ export type AdminDomainNavigationItem = {
 /**
  * Permanent Organizer navigation stays deliberately small.
  *
- * This is not the full sitemap. Specialist tools remain available through
- * contextual navigation and Search so everyday work is not buried under the
- * implementation history of Solaris Studio.
+ * This is not the full sitemap. Core work is exposed by its parent workspace;
+ * low-frequency tools remain available through the complete Organizer menu
+ * and Search so everyday work is not buried under implementation history.
  */
 export function buildAdminDomainNavigation(
   slug?: string,
