@@ -9,7 +9,7 @@ function source(path: string) {
 const account = source("src/lib/country-account.ts");
 const hub = source("src/components/mysolaris/modules/MySolarisCountryModule.tsx");
 const shell = source("src/components/AppShell.tsx");
-const publicNavigation = source("src/components/public/PublicSiteNavigation.tsx");
+const publicNavigation = source("src/lib/public-navigation.ts");
 const appearance = source("src/components/mysolaris/modules/MySolarisDesignV2Module.tsx");
 const builder = source("src/components/mysolaris/modules/MySolarisPageMediaModule.tsx");
 const entryMigration = source("supabase/migrations/20260819212500_edition_level_country_entries.sql");
@@ -50,8 +50,8 @@ describe("country claims and unified account workspace", () => {
 
   it("has one MySolaris destination instead of duplicate profile/country destinations", () => {
     expect(shell).toContain("Open MySolaris");
-    expect(publicNavigation).toContain('"/my-solaris",');
-    expect(publicNavigation).toContain('"MySolaris",');
+    expect(publicNavigation).toContain('"/my-solaris"');
+    expect(publicNavigation).toContain('"MySolaris"');
     expect(publicNavigation).not.toContain('"My country"');
     expect(publicNavigation).not.toContain('"Country setup"');
     expect(shell).not.toContain('>Profile & activity<');
