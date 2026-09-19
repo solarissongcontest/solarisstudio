@@ -36,6 +36,20 @@ describe('entry eligibility engine', () => {
     );
   });
 
+  it('keeps an unperformed duplicate check out of the evidence', () => {
+    const result = evaluateEntryEligibility({
+      countryConfirmed: true,
+      artistName: 'Artist',
+      songTitle: 'Song',
+      videoUrl: 'https://example.com/video',
+      artworkUrl: 'https://example.com/artwork.jpg',
+      broadcasterApproved: true,
+      deadlinePassed: false,
+    });
+
+    expect(result.checks.map((check) => check.id)).not.toContain('duplicate');
+  });
+
   it('supports rule changes without rewriting the validator', () => {
     const result = evaluateEntryEligibility(
       {

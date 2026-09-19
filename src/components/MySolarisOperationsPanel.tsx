@@ -1,6 +1,5 @@
 import {
   CalendarClock,
-  CheckCircle2,
   ClipboardCheck,
   ListChecks,
   MailOpen,
@@ -50,40 +49,27 @@ export function MySolarisOperationsPanel() {
     <div className="space-y-4">
       <OfficialAnnouncementFeed surface="mysolaris_home" />
 
-      <section className="grid gap-4 xl:grid-cols-[1.12fr_.88fr]">
-        <Panel
-          title="Needs attention"
-          description={
-            isLoading
-              ? "Checking your current edition…"
-              : hasAttention
-                ? `${taskCounts.needsAction} action${taskCounts.needsAction === 1 ? "" : "s"} currently need your delegation.`
-                : "Nothing currently needs action from your delegation."
-          }
-        >
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading delegation priorities…</p>
-          ) : hasAttention ? (
-            <div className="space-y-2">
-              {attentionItems.map((item) => (
-                <PriorityLink key={item.id} item={item} />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.055] p-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-300" />
-                <div>
-                  <p className="text-sm font-semibold">You are caught up</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    MySolaris will surface entry, voting, deadline and acknowledgement work here as
-                    soon as something requires you.
-                  </p>
-                </div>
+      <section className={hasAttention || isLoading ? "grid gap-4 xl:grid-cols-[1.12fr_.88fr]" : ""}>
+        {hasAttention || isLoading ? (
+          <Panel
+            title="Needs attention"
+            description={
+              isLoading
+                ? "Checking your current edition…"
+                : `${attentionItems.length} item${attentionItems.length === 1 ? "" : "s"} currently need attention.`
+            }
+          >
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading delegation priorities…</p>
+            ) : (
+              <div className="space-y-2">
+                {attentionItems.map((item) => (
+                  <PriorityLink key={item.id} item={item} />
+                ))}
               </div>
-            </div>
-          )}
-        </Panel>
+            )}
+          </Panel>
+        ) : null}
 
         <Panel
           title="Upcoming"
@@ -136,8 +122,8 @@ export function MySolarisOperationsPanel() {
           <ToolLink
             to={NAV_TARGETS.mySolarisEntry}
             icon={ClipboardCheck}
-            label="Entry readiness"
-            search={{ view: "readiness" }}
+            label="Entry"
+            search={{ view: "overview" }}
           />
           <ToolLink to={NAV_TARGETS.mySolarisVoting} icon={Vote} label="Voting" />
           <ToolLink to={NAV_TARGETS.mySolarisNotices} icon={MailOpen} label="Notices" />

@@ -133,14 +133,14 @@ export function evaluateEntryEligibility(
     );
   }
 
-  if (context.duplicateEntryDetected) {
+  if (context.duplicateEntryDetected === true) {
     add(
       'duplicate',
       'Duplicate check',
       config.blockDuplicates ? 'blocked' : 'warning',
       'A possible duplicate entry was detected and needs review.',
     );
-  } else {
+  } else if (context.duplicateEntryDetected === false) {
     add('duplicate', 'Duplicate check', 'pass', 'No duplicate entry was detected.');
   }
 

@@ -13,7 +13,7 @@ const model = source("src/lib/entry-readiness-model.ts");
 describe("Studio 2 Entry Readiness integration", () => {
   it("is discoverable from My Solaris delegation operations", () => {
     expect(operationsPanel).toContain("NAV_TARGETS.mySolarisEntry");
-    expect(operationsPanel).toContain("Entry readiness");
+    expect(operationsPanel).toContain('label="Entry"');
   });
 
   it("uses existing delegation context and workflow engines", () => {

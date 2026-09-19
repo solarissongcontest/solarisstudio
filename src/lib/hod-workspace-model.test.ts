@@ -66,7 +66,7 @@ describe("HOD workspace model", () => {
     expect(model.readinessState).toBe("blocked");
   });
 
-  it("moves directly from HOD assignment to the one country jury ballot", () => {
+  it("keeps ballot submission as status until a real jury voting window makes it actionable", () => {
     const eligibility = evaluateEntryEligibility({
       countryConfirmed: true,
       artistName: "Artist",
@@ -109,14 +109,13 @@ describe("HOD workspace model", () => {
       operationalReadiness,
     });
 
-    expect(pendingBallot.jury).toMatchObject({ assigned: 1, required: 1, complete: true });
-    expect(pendingBallot.actions).toEqual([
-      expect.objectContaining({
-        id: "jury-ballot",
-        description:
-          "The HOD is assigned as the country’s jury, but the jury ballot has not been submitted.",
-      }),
-    ]);
+    expect(pendingBallot.jury).toMatchObject({
+      assigned: 1,
+      required: 1,
+      complete: true,
+      ballotSubmitted: false,
+    });
+    expect(pendingBallot.actions).toEqual([]);
 
     const complete = buildHodWorkspaceModel({
       editionId: "ssc21",
