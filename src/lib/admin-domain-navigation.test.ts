@@ -47,9 +47,9 @@ describe("Organizer domain navigation", () => {
     expect(sectionNav).toContain("buildAdminContextualSection");
     expect(sectionNav).not.toContain("buildAdminNavigation");
 
-    const administration = buildAdminContextualSection("/admin/communications", "ssc-21");
-    expect(administration?.domain.label).toBe("Administration");
-    expect(administration?.tabs.map((tab) => tab.label)).toContain("Communications");
+    const publish = buildAdminContextualSection("/admin/communications", "ssc-21", "SSC21");
+    expect(publish?.domain.label).toBe("SSC21");
+    expect(publish?.tabs.map((tab) => tab.label)).toContain("Publish");
 
     const governance = buildAdminContextualSection("/admin/integrity-appeals", "ssc-21");
     expect(governance?.domain.label).toBe("Rules & Cases");
