@@ -170,8 +170,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/my-solaris" ||
     pathname === "/my-solaris/" ||
     pathname.startsWith("/my-solaris/");
+  const focusedParticipationTask =
+    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname);
   const showSectionNavigation =
     !isMySolarisWorkspace &&
+    !focusedParticipationTask &&
     !pathname.startsWith("/auth") &&
     !pathname.startsWith("/reset") &&
     !pathname.startsWith("/recover") &&
