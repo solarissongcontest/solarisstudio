@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { BookOpen, CircleHelp, Flag, ShieldCheck, User, Vote } from "lucide-react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { GuideFAQ } from "@/components/GuideFAQ";
@@ -316,10 +317,48 @@ function PublicGuidePage() {
     <AppShell>
       <PageHeader
         eyebrow="Help"
-        title="How to use Solaris Studio"
-        description="Choose a question below. The answers use simple words and tell you what to open."
+        title="How can we help?"
+        description="Choose the task you are trying to complete. Detailed answers stay below for unusual cases."
       />
+
+      <section className="mb-8 grid gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Help topics">
+        <HelpRoute to="/explore" icon={CircleHelp} title="Using Solaris Studio" description="Find countries, editions, shows and public pages." />
+        <HelpRoute to="/rules" icon={BookOpen} title="Rules" description="Read and search the official SSC rulebook." />
+        <HelpRoute to="/participate" icon={Flag} title="Participation help" description="Confirm a country or understand the current participation step." />
+        <HelpRoute to="/televoting/how-to-vote" icon={Vote} title="Voting help" description="Read jury and public voting guidance." />
+        <HelpRoute to="/my-solaris" icon={User} title="Account & MySolaris" description="Open your tasks, country tools and account settings." />
+        <HelpRoute to="/integrity" icon={ShieldCheck} title="Report a concern" description="Use Trust & Integrity for reports, protected cases and decisions." />
+      </section>
+
       <GuideFAQ sections={SECTIONS} />
     </AppShell>
+  );
+}
+
+
+function HelpRoute({
+  to,
+  icon: Icon,
+  title,
+  description,
+}: {
+  to: string;
+  icon: typeof CircleHelp;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      to={to as any}
+      className="group flex min-h-28 items-start gap-3 rounded-2xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface/75"
+    >
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/15 bg-primary/[0.08] text-primary">
+        <Icon className="size-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
+      </span>
+    </Link>
   );
 }
