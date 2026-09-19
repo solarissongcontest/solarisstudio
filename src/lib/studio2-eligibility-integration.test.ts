@@ -65,7 +65,7 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
   it('shows active organizer decisions to HODs without exposing edit controls', () => {
     expect(hodRoute).toContain('listStudio2EligibilityOverrides(editionId, { countryId: country!.id })');
     expect(hodRoute).toContain('Organizer decisions');
-    expect(hodRoute).toContain('Any organizer decision affecting entry eligibility appears here.');
+    expect(hodRoute).toContain('Recorded organizer decisions affecting this delegation.');
     expect(hodRoute).toContain('No organizer exceptions are active for this delegation.');
     expect(hodRoute).not.toContain('createStudio2EligibilityOverride');
     expect(hodRoute).not.toContain('revokeStudio2EligibilityOverride');
