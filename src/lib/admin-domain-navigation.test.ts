@@ -82,9 +82,8 @@ describe("Organizer domain navigation", () => {
       "Confirmations",
       "Responses",
       "Rounds",
-      "Calendar",
-      "Access",
-      "History",
+      "Schedule",
+      "More",
     ]);
 
     const live = buildAdminContextualSection("/admin/incidents", "ssc-21");
