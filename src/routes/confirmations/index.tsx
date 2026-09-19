@@ -6,8 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
-  Clock3,
   LockKeyhole,
   PencilLine,
   UserRoundCheck,
@@ -29,7 +27,6 @@ import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.fun
 import { formatEventDateTime } from "@/lib/public-time";
 import { formatLiveCountdown, millisecondsUntil } from "@/lib/solaris-schedule";
 import { availabilityBadge, computeAvailability, type AvailabilityReason } from "@/lib/ssc";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/confirmations/")({
   head: () => ({
