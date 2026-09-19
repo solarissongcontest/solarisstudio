@@ -240,7 +240,11 @@ function OrganizerHome() {
                     className="admin-action-secondary w-full"
                   >
                     <Clock3 className="size-4" />
-                    {upcoming ? "Open workflow" : "Open schedule"}
+                    {upcoming
+                      ? upcoming.source === "reminder"
+                        ? "Open reminder"
+                        : "Open workflow"
+                      : "Open schedule"}
                   </Link>
                 </AdminCard>
               </div>
