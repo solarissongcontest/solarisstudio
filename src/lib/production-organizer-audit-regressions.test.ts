@@ -31,12 +31,14 @@ describe("production Organizer audit regressions", () => {
   it("treats qualifiers as protected result outcomes in both UI and database", () => {
     const publication = source("src/routes/_authenticated/admin/publication/$slug.tsx");
     const migration = source(
-      "supabase/migrations/20260919205232_qualifier_publication_requires_reveal_ready.sql",
+      "supabase/migrations/20260919212825_guard_outcome_layers_insert_update.sql",
     );
 
     expect(publication).toContain('"qualifiers", "results"');
-    expect(publication).toContain("Outcome publication is blocked");
+    expect(publication).toContain("newlyExposesOutcome");
+    expect(publication).toContain("New outcome publication is blocked");
     expect(migration).toContain("publication_config ->> 'qualifiers'");
+    expect(migration).toContain("tg_op = 'INSERT'");
     expect(migration).toContain("reveal_ready_version is distinct from v_ops.calculation_version");
   });
 
