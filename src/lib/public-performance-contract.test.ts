@@ -48,4 +48,17 @@ describe("public performance contract", () => {
     expect(layouts).toContain('--public-reading-measure: 72ch');
     expect(layouts).toContain('data-public-layout="reading"');
   });
+
+  it("lets data-heavy result pages reclaim local-navigation width", () => {
+    const shell = source("src/components/AppShell.tsx");
+    const nav = source("src/components/public/PublicSectionNav.tsx");
+    const styles = source("src/styles/public-navigation.css");
+
+    expect(shell).toContain('collapsible={publicLayout === "data"}');
+    expect(shell).toContain("broadcast-intelligence|result-lab");
+    expect(nav).toContain("public-section-nav-toggle");
+    expect(nav).toContain("aria-expanded={!collapsed}");
+    expect(styles).toContain(".public-section-navigation.is-collapsed");
+    expect(styles).toContain("width: 3.65rem");
+  });
 });
