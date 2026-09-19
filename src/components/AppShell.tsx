@@ -13,6 +13,13 @@ import {
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { MySolarisWorkspaceShell } from "@/components/mysolaris/MySolarisWorkspaceShell";
+import {
+  LegacyPublicDrawerNavigation,
+  LegacyPublicSiteSidebar,
+  legacyPublicGroup,
+  legacyPublicPathMatches,
+  type LegacyPublicNavigationItem,
+} from "@/components/public/LegacyPublicNavigation";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { PublicDrawerNavigation } from "@/components/public/PublicSiteNavigation";
@@ -20,6 +27,10 @@ import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
+import {
+  readPublicIaV3BetaOverride,
+  resolvePublicIaV3Enabled,
+} from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { rememberPublicRecent } from "@/lib/public-recents";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
@@ -107,11 +118,42 @@ const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], Lu
   me: User,
 };
 
+const LEGACY_EXPLORE_NAV = legacyPublicGroup("explore").items;
+const LEGACY_REFERENCE_NAV = legacyPublicGroup("reference").items;
+const LEGACY_INSIGHTS_NAV = legacyPublicGroup("insights").items;
+const LEGACY_PARTICIPATE_NAV = legacyPublicGroup("participate").items;
+const LEGACY_TOOL_NAV = legacyPublicGroup("tools").items;
+
+const LEGACY_EXPLORE_ROUTES = LEGACY_EXPLORE_NAV.map((item) => item.to);
+const LEGACY_RESULT_ROUTES = [
+  "/results",
+  "/scorecharts",
+  "/analysis",
+  "/records",
+  "/relationships",
+  "/compare",
+  "/result-lab",
+  "/taste-dna",
+  "/broadcast-intelligence",
+] as const;
+const LEGACY_PARTICIPATE_ROUTES = LEGACY_PARTICIPATE_NAV.map((item) => item.to);
+const LEGACY_INSIGHT_ROUTES = [...LEGACY_INSIGHTS_NAV, ...LEGACY_TOOL_NAV].map(
+  (item) => item.to,
+);
+const LEGACY_REFERENCE_ROUTES = LEGACY_REFERENCE_NAV.map((item) => item.to);
+
+function legacyAnyPathMatches(pathname: string, routes: readonly string[]) {
+  return routes.some((route) => legacyPublicPathMatches(pathname, route));
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [publicIaV3Enabled, setPublicIaV3Enabled] = useState(() =>
+    readPublicIaV3BetaOverride(),
+  );
 
   useEffect(() => {
     let alive = true;
@@ -147,6 +189,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => setMenuOpen(false), [pathname]);
+
+  useEffect(() => {
+    let alive = true;
+    void resolvePublicIaV3Enabled({ userId: access.userId }).then((enabled) => {
+      if (alive) setPublicIaV3Enabled(enabled);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [access.userId]);
 
   useEffect(() => {
     const confirmationComplete = () =>
@@ -225,12 +277,49 @@ export function AppShell({ children }: { children: ReactNode }) {
       publicArea === "participate" ||
       publicArea === "results" ||
       publicArea === "help");
-  const quickNavigation = globalAreas.map((item) => ({
-    to: item.to,
-    label: item.label,
-    icon: GLOBAL_ICON_BY_AREA[item.id],
-    active: !pathname.startsWith("/site-directory") && publicArea === item.id,
-  }));
+  const showLegacySidebar =
+    !isMySolarisWorkspace &&
+    !pathname.startsWith("/auth") &&
+    !pathname.startsWith("/reset") &&
+    !pathname.startsWith("/recover") &&
+    !pathname.startsWith("/broadcast/");
+  const quickNavigation = publicIaV3Enabled
+    ? globalAreas.map((item) => ({
+        to: item.to,
+        label: item.label,
+        icon: GLOBAL_ICON_BY_AREA[item.id],
+        active: !pathname.startsWith("/site-directory") && publicArea === item.id,
+      }))
+    : [
+        { to: "/", label: "Home", icon: Home, active: pathname === "/" },
+        {
+          to: "/explore",
+          label: "Explore",
+          icon: Compass,
+          active: legacyAnyPathMatches(pathname, LEGACY_EXPLORE_ROUTES),
+        },
+        {
+          to: "/participate",
+          label: "Participate",
+          icon: Vote,
+          active: legacyAnyPathMatches(pathname, LEGACY_PARTICIPATE_ROUTES),
+        },
+        {
+          to: "/results",
+          label: "Results",
+          icon: Trophy,
+          active: legacyAnyPathMatches(pathname, LEGACY_RESULT_ROUTES),
+        },
+        {
+          to: email ? "/my-solaris" : "/auth",
+          label: "Me",
+          icon: User,
+          active:
+            pathname.startsWith("/me") ||
+            pathname.startsWith("/my-solaris") ||
+            pathname.startsWith("/auth"),
+        },
+      ];
 
   return (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
