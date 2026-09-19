@@ -16,7 +16,8 @@ describe("Beta 2 hardened rollout contract", () => {
       expect(navigation).toContain(`to: "${route}"`);
     for (const label of ["Home", "Explore", "Participate", "Results", "Me"])
       expect(navigation).toContain(`label: "${label}"`);
-    expect(shell).toContain('const accountHref = email ? "/my-solaris" : "/auth"');
+    expect(shell).toContain("buildPublicUserContext");
+    expect(shell).toContain("publicGlobalAreasForContext");
   });
 
   it("opens public hubs directly instead of inserting generic overview gates", () => {
