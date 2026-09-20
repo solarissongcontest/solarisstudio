@@ -245,6 +245,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/edition-simulator"),
         ),
         item(
+          "Time Machine",
+          "Inspect recorded historical edition state without mutating production.",
+          "/admin/time-machine",
+          History,
+          "history snapshot time machine replay audit",
+          (path) => path.startsWith("/admin/time-machine"),
+        ),
+        item(
           "Voting Lab",
           "Test voting scenarios and integrity signals safely.",
           "/admin/voting-lab",
@@ -618,6 +626,22 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           Sparkles,
           "prediction rounds engagement",
           (path) => path.startsWith("/admin/predictions"),
+        ),
+        item(
+          "Fantasy SSC",
+          "Configure roster costs, budget, lock window and result scoring.",
+          "/admin/fantasy",
+          Trophy,
+          "fantasy roster game costs leaderboard",
+          (path) => path.startsWith("/admin/fantasy"),
+        ),
+        item(
+          "Command Assistant",
+          "Use the bounded read-only Organizer command registry.",
+          "/admin/command-assistant",
+          Sparkles,
+          "assistant commands natural language organizer",
+          (path) => path.startsWith("/admin/command-assistant"),
         ),
         item(
           "Anniversary settings",
