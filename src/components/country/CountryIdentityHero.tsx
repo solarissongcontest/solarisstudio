@@ -176,6 +176,7 @@ export function CountryIdentityHero({
         <Suspense fallback={composition}>
           <LazyGlassMaterial
             className="country-hero-glass-material"
+            style={{ display: "block", width: "100%", maxWidth: "100%" }}
             optics={{
               strength: 0.064,
               depth: 0.62,
