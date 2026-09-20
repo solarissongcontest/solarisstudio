@@ -50,12 +50,12 @@ function IntegrityIdentityDesk() {
   const casesQuery = useQuery({
     queryKey: ["admin-sealed-integrity-cases"],
     queryFn: listSealedIntegrityCases,
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
   const requestsQuery = useQuery({
     queryKey: ["admin-identity-disclosure-requests"],
     queryFn: listIdentityDisclosureRequests,
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
   const userQuery = useQuery({
     queryKey: ["current-integrity-organizer-id"],
