@@ -63,6 +63,14 @@ function clamp(input: unknown, min: number, max: number, fallback: number) {
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
 }
 
+export function resolveEditionPublicStyle(raw: unknown): EditionPublicStyle {
+  const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const requested = String(value.publicStyle ?? "cinematic");
+  return EDITION_PUBLIC_STYLE_IDS.includes(requested as EditionPublicStyle)
+    ? (requested as EditionPublicStyle)
+    : "cinematic";
+}
+
 function gradientFromRaw(input: unknown, first: string, second: string) {
   if (!input || typeof input !== "object") return null;
   const value = input as Record<string, unknown>;
@@ -80,10 +88,7 @@ export function resolveEditionPublicSettings(
   theme: EditionDesignTheme,
 ): EditionPublicSettings {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const requested = String(value.publicStyle ?? "cinematic");
-  const style = EDITION_PUBLIC_STYLE_IDS.includes(requested as EditionPublicStyle)
-    ? (requested as EditionPublicStyle)
-    : "cinematic";
+  const style = resolveEditionPublicStyle(raw);
 
   return {
     style,
