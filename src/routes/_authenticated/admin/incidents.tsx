@@ -108,14 +108,14 @@ function IncidentCommandPage() {
     queryKey: ['studio2-incidents-full', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId) && featureQuery.data === true,
     queryFn: () => studio2Persistence.listIncidents(resolvedEditionId),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const eventsQuery = useQuery({
     queryKey: ['studio2-incident-events', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId) && featureQuery.data === true,
     queryFn: () => studio2Persistence.listEditionEvents(resolvedEditionId, 200),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const invalidate = async () => {
