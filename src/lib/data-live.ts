@@ -1,5 +1,4 @@
-import { useEffect, useId } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import type {
@@ -9,12 +8,14 @@ import type {
   Televote,
 } from "./data";
 
-// Re-export the normal data API. The archive hooks below deliberately override
-// the same names from ./data so every public analytics surface gets the complete,
-// current archive rather than Supabase's first 1,000 rows.
+// Re-export the normal data API. Archive screens still load the complete archive,
+// but deliberately do not keep permanent Realtime subscriptions open. On the
+// Free plan, repeatedly streaming/invalidation-refetching thousands of historic
+// vote rows is expensive egress for data that is almost always immutable.
 export * from "./data";
 
 const PAGE_SIZE = 1000;
+const ARCHIVE_STALE_TIME = 10 * 60 * 1000;
 
 type ArchiveTable =
   | "jury_votes"
@@ -23,6 +24,10 @@ type ArchiveTable =
   | "participants";
 
 type CompleteArchiveOptions = {
+  /**
+   * Kept for API compatibility. Archive Realtime is intentionally disabled.
+   * Live show/result surfaces have their own narrowly scoped refresh logic.
+   */
   realtime?: boolean;
 };
 
@@ -44,9 +49,6 @@ function canonicaliseArchiveRow(table: ArchiveTable, row: any) {
 async function fetchCompleteArchive<T>(table: ArchiveTable): Promise<T[]> {
   const rows: T[] = [];
 
-  // Stable ordering is essential when paging. Without it, rows can move between
-  // pages while votes are being saved and the archive can silently miss or
-  // duplicate data.
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await (supabase.from(table) as any)
       .select("*")
@@ -66,51 +68,21 @@ async function fetchCompleteArchive<T>(table: ArchiveTable): Promise<T[]> {
   return rows;
 }
 
-function useArchiveRealtime(
-  table: ArchiveTable,
-  queryKey: string,
-  enabled = true,
-) {
-  const queryClient = useQueryClient();
-  const instanceId = useId().replace(/:/g, "");
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    // Supabase channels are stateful. Giving each mounted archive observer its
-    // own topic prevents one consumer from replacing or removing another
-    // consumer's subscription when both need the same archive table.
-    const channel = supabase
-      .channel(`solaris-${table}-archive-live-${instanceId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table },
-        () => {
-          void queryClient.invalidateQueries({ queryKey: [queryKey] });
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [enabled, instanceId, queryClient, queryKey, table]);
-}
-
 function useCompleteArchive<T>(
   table: ArchiveTable,
   queryKey: string,
-  options?: CompleteArchiveOptions,
+  _options?: CompleteArchiveOptions,
 ) {
-  useArchiveRealtime(table, queryKey, options?.realtime ?? true);
-
   return useQuery({
     queryKey: [queryKey, "all"],
     queryFn: () => fetchCompleteArchive<T>(table),
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
-    refetchOnReconnect: "always",
+    // Historical archives are large (jury_votes alone is thousands of rows).
+    // Cache them across navigation/focus/reconnect instead of redownloading.
+    staleTime: ARCHIVE_STALE_TIME,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 
