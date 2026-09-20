@@ -48,7 +48,7 @@ describe("Country Design V2 integration contract", () => {
   it("keeps the V2 root as a canvas and restores the real liquid-glass engine", () => {
     const css = source("src/country-design-v2.css");
     const hero = source("src/components/country/CountryDesignV2Hero.tsx");
-    expect(css).toContain("V2 is a page canvas, not another card");
+    expect(css).toContain("The root is layout-only");
     expect(css).toContain("padding: 0;");
     expect(css).toContain("border-radius: 0;");
     expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
@@ -56,11 +56,23 @@ describe("Country Design V2 integration contract", () => {
     expect(hero).toContain("data-liquid-glass");
   });
 
-  it("keeps the V2 atmosphere full-bleed instead of a ghost card", () => {
+  it("keeps country artwork in the hero instead of a ghost card beneath content", () => {
     const css = source("src/country-design-v2.css");
-    expect(css).toContain("width: 100vw;");
-    expect(css).toContain("transform: translateX(-50%) translateZ(0);");
-    expect(css).not.toContain("inset: 0;\n  z-index: -2;\n  pointer-events: none;\n  border-radius: 0;\n  background: var(--country-v2-page-background)");
+    expect(css).toContain(".country-design-v2::before");
+    expect(css).toContain("content: none;");
+    expect(css).not.toContain("width: 100vw;");
+    expect(css).toContain('.country-v2-hero[data-country-v2-hero="cinematic"]');
+    expect(css).toContain("var(--country-v2-page-background)");
+  });
+
+  it("keeps the Wiki article flat while preserving intentional factual cards", () => {
+    const designCss = source("src/country-design-v2.css");
+    const wikiCss = source("src/country-wiki-v8.css");
+    const surfaceRule = designCss.match(/\.country-design-v2 :is\(\s*\.data-panel,[\s\S]*?\) \{/)?.[0] ?? "";
+    expect(surfaceRule).not.toContain(".wiki-article-section");
+    expect(surfaceRule).toContain(".wiki-infobox");
+    expect(wikiCss).toContain(".wiki-canvas.country-design-v2 .wiki-article-surface");
+    expect(wikiCss).toContain("background: transparent !important;");
   });
 
   it("makes Centered a real flag-first centered composition", () => {

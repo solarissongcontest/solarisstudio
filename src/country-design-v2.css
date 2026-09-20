@@ -14,21 +14,10 @@
   border-radius: 0;
 }
 
-/* V2 is a page canvas, not another card underneath the actual cards. */
+/* The root is layout-only. Country artwork belongs to the intentional hero,
+   never to a viewport-wide pseudo-card underneath the actual content cards. */
 .country-design-v2::before {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  left: 50%;
-  width: 100vw;
-  z-index: -2;
-  pointer-events: none;
-  border-radius: 0;
-  background: var(--country-v2-page-background);
-  background-position: var(--country-v2-bg-position);
-  background-size: cover;
-  filter: blur(var(--country-v2-bg-blur));
-  transform: translateX(-50%) translateZ(0);
+  content: none;
 }
 
 .country-design-v2,
@@ -114,7 +103,6 @@
   .data-panel,
   .country-personality-card,
   .wiki-infobox,
-  .wiki-article-section,
   .wiki-mobile-toolbar,
   .wiki-compact-contents,
   [data-country-v2-surface]
@@ -129,7 +117,6 @@
   .data-panel,
   .country-personality-card,
   .wiki-infobox,
-  .wiki-article-section,
   .wiki-mobile-toolbar,
   .wiki-compact-contents,
   [data-country-v2-surface]
@@ -144,7 +131,6 @@
   .data-panel,
   .country-personality-card,
   .wiki-infobox,
-  .wiki-article-section,
   .wiki-mobile-toolbar,
   .wiki-compact-contents,
   [data-country-v2-surface]
@@ -165,8 +151,7 @@
 
 .country-design-v2[data-country-surface="editorial"] :is(
   .data-panel,
-  .country-personality-card,
-  .wiki-article-section
+  .country-personality-card
 ) {
   border-inline: 0 !important;
   border-radius: 0 !important;
@@ -406,7 +391,7 @@
 .country-v2-hero[data-country-v2-hero="split"] .country-v2-hero-actions { grid-area: actions; }
 
 .country-v2-hero[data-country-v2-hero="cinematic"] {
-  min-height: clamp(22rem, 52vw, 38rem);
+  min-height: clamp(20rem, 42vw, 31rem);
   align-content: end;
   background:
     linear-gradient(to top, color-mix(in srgb, var(--country-v2-bg-primary) 92%, transparent), transparent 70%),

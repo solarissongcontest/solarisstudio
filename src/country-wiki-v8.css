@@ -6,9 +6,9 @@
 */
 
 .wiki-canvas {
-  --wiki-measure: 66ch;
-  --wiki-sidebar: 13rem;
-  --wiki-infobox: 18rem;
+  --wiki-measure: 72ch;
+  --wiki-sidebar: 10rem;
+  --wiki-infobox: 16rem;
   min-inline-size: 0;
   inline-size: min(100%, 92rem);
   margin-inline: auto;
@@ -154,7 +154,7 @@
   display: grid;
   min-inline-size: 0;
   grid-template-columns: var(--wiki-sidebar) minmax(0, 1fr) var(--wiki-infobox);
-  gap: clamp(1.5rem, 3vw, 2.5rem);
+  gap: clamp(1.25rem, 2vw, 2rem);
   align-items: start;
 }
 
@@ -177,6 +177,21 @@
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
+}
+
+/* Published V2 palettes may style factual cards, but the article itself stays
+   one clean reading surface. This prevents a tinted wrapper/card stack from
+   appearing beneath the real Wiki content. */
+.wiki-canvas.country-design-v2 .wiki-article-surface,
+.wiki-canvas.country-design-v2 :is(.wiki-introduction, .wiki-article-section, .wiki-prose-section) {
+  border-inline: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.wiki-canvas.country-design-v2 .wiki-article-section {
+  border-block-start: 1px solid color-mix(in srgb, var(--country-v2-text) 16%, transparent) !important;
 }
 
 .wiki-introduction,
