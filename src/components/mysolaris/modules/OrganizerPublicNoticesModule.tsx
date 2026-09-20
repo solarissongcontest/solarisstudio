@@ -14,8 +14,8 @@ export function OrganizerPublicNoticesModule() {
     queryKey: ["official-announcements", "public_home", "organizer-notices"],
     queryFn: () => loadPublicHomeAnnouncements(10),
     staleTime: 30_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: false,
   });
 
   const notices = noticesQuery.data ?? [];
