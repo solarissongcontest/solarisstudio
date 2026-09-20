@@ -114,7 +114,7 @@ function WorkflowsPage() {
     queryKey: ['studio2-workflow-runtime', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId) && featureQuery.data?.controlRoom === true,
     queryFn: () => studio2ControlRoom.loadSnapshot(resolvedEditionId, 100),
-    refetchInterval: 20_000,
+    refetchInterval: 60_000,
   });
 
   const runtime = useMemo(() => {
