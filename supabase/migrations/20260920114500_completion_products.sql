@@ -324,7 +324,8 @@ create policy "public reads published fantasy games"
 on public.fantasy_games for select
 to anon, authenticated
 using (
-  status in ('open', 'locked', 'scoring', 'scored')
+  status <> 'cancelled'
+  and now() >= opens_at
   and exists (
     select 1
     from public.editions edition
@@ -343,7 +344,8 @@ using (
     select 1
     from public.fantasy_games game
     where game.id = fantasy_game_entries.game_id
-      and game.status in ('open', 'locked', 'scoring', 'scored')
+      and game.status <> 'cancelled'
+      and now() >= game.opens_at
       and public.show_publication_enabled(game.show_id, 'participants')
       and exists (
         select 1 from public.editions edition
@@ -418,6 +420,27 @@ begin
 
   if not public.studio2_access_allowed('edition.manage', _edition_id, false) then
     raise exception 'Missing Solaris capability: edition.manage' using errcode = '42501';
+  end if;
+
+  if _game_id is not null and exists (
+    select 1
+    from public.fantasy_games game
+    where game.id = _game_id
+      and game.edition_id <> _edition_id
+  ) then
+    raise exception 'Fantasy game belongs to a different edition';
+  end if;
+
+  if _game_id is not null and exists (
+    select 1
+    from public.fantasy_games game
+    where game.id = _game_id
+      and (
+        game.status in ('locked', 'scoring', 'scored', 'cancelled')
+        or now() >= game.locks_at
+      )
+  ) then
+    raise exception 'Fantasy rules are immutable after the roster lock';
   end if;
 
   if not exists (
@@ -542,8 +565,18 @@ begin
 
   if v_game.id is null then raise exception 'Fantasy game not found'; end if;
 
-  if v_game.status <> 'open' or now() < v_game.opens_at or now() >= v_game.locks_at then
+  if v_game.status in ('cancelled', 'scoring', 'scored')
+     or now() < v_game.opens_at
+     or now() >= v_game.locks_at
+  then
     raise exception 'Fantasy roster is locked';
+  end if;
+
+  if v_game.status = 'draft' then
+    update public.fantasy_games
+    set status = 'open', updated_at = now()
+    where id = _game_id;
+    v_game.status := 'open';
   end if;
 
   if not public.show_publication_enabled(v_game.show_id, 'participants') then

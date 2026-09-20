@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
@@ -61,16 +61,24 @@ function FantasyPage() {
   const [gameId, setGameId] = useState<string>("");
   const [selected, setSelected] = useState<string[]>([]);
   const [captain, setCaptain] = useState<string>("");
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const games = useQuery({
     enabled: feature.data === true,
     queryKey: ["fantasy-games"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("fantasy_games").select("*").neq("status", "draft").order("locks_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("fantasy_games").select("*").neq("status", "cancelled").order("locks_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as FantasyGame[];
     },
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
   const activeGame = games.data?.find((game) => game.id === gameId) ?? games.data?.[0] ?? null;
 
@@ -121,8 +129,26 @@ function FantasyPage() {
     },
   });
 
-  const cost = selected.reduce((sum, id) => sum + (choices.data?.find((choice) => choice.country_id === id)?.cost ?? 0), 0);
-  const locked = activeGame ? Date.now() >= Date.parse(activeGame.locks_at) || !["open"].includes(activeGame.status) : true;
+  const cost = selected.reduce(
+    (sum, id) =>
+      sum + (choices.data?.find((choice) => choice.country_id === id)?.cost ?? 0),
+    0,
+  );
+  const opensAtMs = activeGame ? Date.parse(activeGame.opens_at) : Number.NaN;
+  const locksAtMs = activeGame ? Date.parse(activeGame.locks_at) : Number.NaN;
+  const notStarted = activeGame ? nowMs < opensAtMs : false;
+  const locked = activeGame
+    ? notStarted ||
+      nowMs >= locksAtMs ||
+      ["locked", "scoring", "scored", "cancelled"].includes(activeGame.status)
+    : true;
+  const windowDescription = !activeGame
+    ? ""
+    : notStarted
+      ? `Opens ${new Date(activeGame.opens_at).toLocaleString()}`
+      : locked
+        ? "Roster locked"
+        : `Locks ${new Date(activeGame.locks_at).toLocaleString()}`;
 
   const toggle = (id: string) => {
     if (locked) return;
@@ -163,7 +189,7 @@ function FantasyPage() {
             </label>
           ) : null}
 
-          <Panel title={activeGame.name} description={locked ? "Roster locked" : `Locks ${new Date(activeGame.locks_at).toLocaleString()}`}>
+          <Panel title={activeGame.name} description={windowDescription}>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <StatTile label="Roster" value={`${selected.length}/${activeGame.roster_size}`} />
               <StatTile label="Budget used" value={`${cost}/${activeGame.budget}`} />
