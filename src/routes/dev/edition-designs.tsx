@@ -50,9 +50,11 @@ function EditionDesignLab() {
   const title = fixture.id === "c"
     ? "The Grand Solaris Song Celebration of the Northern Constellations"
     : fixture.id === "d" ? "SSC 0" : "SSC 42";
-  const entries = Array.from({ length: Math.min(fixture.entries, 12) }, (_, index) => ({
+  const entries = Array.from({ length: fixture.entries }, (_, index) => ({
     country: ["Asteria", "Borealis", "Crastao", "Demeria", "Elarion", "Fjordland"][index % 6],
-    song: `Archive song ${index + 1}`,
+    song: fixture.id === "c"
+      ? `The Extremely Long Archive Song Title From the Northern Constellations No. ${index + 1}`
+      : `Archive song ${index + 1}`,
   }));
 
   return <>
@@ -69,14 +71,20 @@ function EditionDesignLab() {
         <Control label="Viewport" value={String(viewport)} onChange={(value) => setViewport(Number(value))} options={VIEWPORTS.map((item) => ({ id: String(item), label: `${item}px` }))} />
         <label className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-xs font-semibold">Reduce transparency<input type="checkbox" checked={reducedTransparency} onChange={(event) => setReducedTransparency(event.target.checked)} /></label>
       </section>
-      <div className={`mt-4 overflow-x-auto border border-border bg-background/40 p-2 ${reducedTransparency ? "[&_.edition-navigation]:!backdrop-blur-none" : ""}`}>
-        <div data-edition-lab-frame style={{ width: `${viewport}px`, maxWidth: "100%", containerType: "inline-size" }} className="mx-auto">
+      <div className="mt-4 overflow-x-auto border border-border bg-background/40 p-2">
+        <div
+          data-edition-lab-frame
+          data-reduced-transparency={reducedTransparency ? "true" : undefined}
+          data-fixture={fixture.id}
+          style={{ width: `${viewport}px`, maxWidth: "100%", containerType: "inline-size" }}
+          className="mx-auto"
+        >
           <main className="edition-public-page" data-edition-design-lab>
             <EditionHero
               eyebrow={fixture.id === "c" ? "The Free Metropolitan District of Saint Solaris-upon-Aurora" : "Port Aurora"}
               title={title}
               subtitle="Light Across The Water"
-              description={fixture.id === "d" ? null : "A deterministic archive fixture for artwork, typography, result and participant stress testing."}
+              description={fixture.id === "d" ? null : fixture.id === "c" ? "A deliberately long edition description used to verify that expressive typography, artwork and public metadata remain readable when real-world content refuses to be conveniently short." : "A deterministic archive fixture for artwork, typography, result and participant stress testing."}
               artwork={fixture.artwork ? "/solaris-studio-social.jpg" : null}
               artworkAlt="Abstract edition artwork fixture"
               status={<span className="rounded-full border border-current px-3 py-1 text-[10px] font-bold uppercase tracking-wider">Archive</span>}
