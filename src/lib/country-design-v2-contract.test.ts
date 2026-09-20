@@ -59,6 +59,14 @@ describe("Country Design V2 integration contract", () => {
     expect(css).toContain("prefers-reduced-transparency: reduce");
   });
 
+  it("keeps Design V2 flags in a canonical 3:2 frame without cropping", () => {
+    const css = source("src/country-design-v2.css");
+    expect(css).toContain(".country-v2-hero-flag {");
+    expect(css).toContain("aspect-ratio: 3 / 2;");
+    expect(css).toContain("object-fit: contain;");
+    expect(css).toContain("border-radius: clamp(0px, calc(var(--country-v2-radius) * .45), .9rem);");
+  });
+
   it("keeps country artwork in the hero instead of a ghost card beneath content", () => {
     const css = source("src/country-design-v2.css");
     expect(css).toContain(".country-design-v2::before");
