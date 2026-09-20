@@ -44,6 +44,7 @@ describe("source-driven Country personality foundation", () => {
     const shared = source("src/country-personality-shared-foundation.css");
     const sourceFoundation = source("src/country-personality-source-foundation.css");
     const scoreboard = source("src/components/broadcast/CountryCard.tsx");
+    const scoreboardStage = source("src/components/ScoreboardStage.tsx");
     expect(flag).toContain('data-flag-role="official"');
     expect(flag).toContain('aspect-[3/2]');
     expect(flag).toContain('objectFit: "contain"');
@@ -55,6 +56,9 @@ describe("source-driven Country personality foundation", () => {
     expect(sourceFoundation).toContain("object-fit: contain !important");
     expect(scoreboard).toContain('objectFit: "contain"');
     expect(scoreboard).not.toContain('objectFit: zone.fit ?? "cover"');
+    expect(scoreboardStage).toContain("const flagWidth = flagHeight * 1.5");
+    expect(scoreboardStage).toContain('fit: "contain" as const');
+    expect(scoreboardStage).toContain("flagRadius = card.radius > 0");
     expect(shared).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
   });
 
