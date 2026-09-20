@@ -8,9 +8,9 @@ describe("anniversary preview parsing", () => {
     expect(parseAnniversaryPreviewValue("active")).toBe("active");
   });
 
-  it("supports countdown and afterglow previews", () => {
+  it("supports countdown previews but rejects removed afterglow state", () => {
     expect(parseAnniversaryPreviewValue("countdown")).toBe("countdown");
-    expect(parseAnniversaryPreviewValue("after")).toBe("after");
+    expect(parseAnniversaryPreviewValue("after")).toBeNull();
   });
 
   it("supports explicitly turning a sticky preview off", () => {
