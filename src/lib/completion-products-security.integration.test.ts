@@ -5,7 +5,14 @@ import { describe, expect, it } from "vitest";
 const migration = readFileSync(
   resolve(
     process.cwd(),
-    "supabase/migrations/20260920114500_completion_products.sql",
+    "supabase/migrations/20260920104806_completion_products.sql",
+  ),
+  "utf8",
+);
+const identityFix = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql",
   ),
   "utf8",
 );
@@ -27,6 +34,12 @@ describe("completion product security and reliability boundaries", () => {
     expect(migration).toContain("Captain must be selected from the roster");
     expect(migration).toContain("Fantasy rules are immutable after the roster lock");
     expect(migration).toContain("v_game.status = 'draft'");
+  });
+
+  it("maps historical contest entities back to canonical country identities", () => {
+    expect(identityFix).toContain("coalesce(participant.country_id, entity.country_id)");
+    expect(identityFix).toContain("coalesce(result.country_id, entity.country_id)");
+    expect(identityFix).toContain("left join lateral");
   });
 
   it("refuses Fantasy scoring until published results are actually public", () => {

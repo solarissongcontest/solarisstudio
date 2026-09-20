@@ -11,7 +11,7 @@ describe("completion product public egress contract", () => {
   const votingDna = source("src/routes/voting-dna/$code.tsx");
   const archive = source("src/lib/data-live.ts");
   const migration = source(
-    "supabase/migrations/20260920114500_completion_products.sql",
+    "supabase/migrations/20260920104806_completion_products.sql",
   );
 
   it("does not make Encyclopedia download vote or result archives it never renders", () => {
