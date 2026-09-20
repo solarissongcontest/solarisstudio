@@ -152,7 +152,10 @@ export function summarizeNoticeReceipts(notice: OfficialNotice, receipts: readon
 export function noticeInboxState(notice: OfficialNotice, receipt?: NoticeReceipt | null): NoticeInboxState {
   if (receipt?.archivedAt) return 'archived';
   if (receipt?.acknowledgedAt) return 'acknowledged';
-  if (notice.acknowledgementRequired && receipt?.openedAt) return 'acknowledgement_required';
+  // An acknowledgement is actionable as soon as it is delivered. Requiring an
+  // opened receipt first made Home report a task while the inbox called the
+  // same notice merely unread and showed zero acknowledgement work.
+  if (notice.acknowledgementRequired) return 'acknowledgement_required';
   if (receipt?.openedAt) return 'read';
   return 'unread';
 }

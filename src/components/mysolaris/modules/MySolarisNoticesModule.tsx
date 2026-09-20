@@ -170,7 +170,9 @@ export function MySolarisNoticesModule() {
 
   const unreadCount = items.filter((item) => item.inboxState === "unread").length;
   const acknowledgementCount = items.filter(
-    (item) => item.inboxState === "acknowledgement_required",
+    (item) =>
+      item.inboxState === "acknowledgement_required" ||
+      (item.notice.acknowledgementRequired && item.inboxState === "unread"),
   ).length;
 
   return (

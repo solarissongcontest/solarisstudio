@@ -84,9 +84,14 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }] }),
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) throw redirect({ to: "/auth" });
+    if (userError || !userData.user) {
+      throw redirect({
+        to: "/auth",
+        search: { redirect: `${location.pathname}${location.searchStr}` },
+      });
+    }
     let isOrganizer = false;
     try {
       isOrganizer = await hasSolarisOrganizerAccess(userData.user.id);

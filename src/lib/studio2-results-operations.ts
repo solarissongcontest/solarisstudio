@@ -155,13 +155,20 @@ export function parseStudio2ResultOperationRow(value: unknown): Studio2ResultOpe
   if (!STUDIO2_RESULT_LIFECYCLE.includes(row.lifecycle as Studio2ResultLifecycle)) {
     throw new Error('Invalid result lifecycle');
   }
+  const calculationVersion = numberValue(row.calculationVersion, 'calculationVersion');
+  // Legacy result rows can exist without a governed calculation receipt. They
+  // are reconciliation evidence, not proof that Results operations calculated
+  // a version. Never contradict Publication's "No calculated results" state.
+  const lifecycle = row.lifecycle === 'calculated' && calculationVersion === 0
+    ? 'validation'
+    : row.lifecycle as Studio2ResultLifecycle;
   return {
     showId: stringValue(row.showId, 'showId'),
     showName: stringValue(row.showName, 'showName'),
     showKind: stringValue(row.showKind, 'showKind'),
     sortOrder: numberValue(row.sortOrder, 'sortOrder'),
-    lifecycle: row.lifecycle as Studio2ResultLifecycle,
-    calculationVersion: numberValue(row.calculationVersion, 'calculationVersion'),
+    lifecycle,
+    calculationVersion,
     lastCalculatedAt: nullableString(row.lastCalculatedAt),
     lastCalculatedBy: nullableString(row.lastCalculatedBy),
     reviewedVersion: nullableNumber(row.reviewedVersion),

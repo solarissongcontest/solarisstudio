@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { EventTime } from "@/components/public/EventTime";
-import { useCountries } from "@/lib/data";
+import { useCountries, useEditions } from "@/lib/data";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { listStudio2EligibilityOverrides } from "@/lib/studio2-eligibility";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -13,6 +13,7 @@ import {
   acknowledgeStudio2Notice,
   listStudio2HodEditions,
   loadStudio2HodWorkspace,
+  mergeStudio2HodEditions,
 } from "@/lib/studio2-hod-workspace";
 
 export function MySolarisTasksModule() {
@@ -27,6 +28,7 @@ export function MySolarisTasksModule() {
   const queryClient = useQueryClient();
   const account = useMyCountryAccount();
   const countries = useCountries();
+  const allEditions = useEditions();
   const access = account.data?.access;
   const ownCountry = account.data?.country;
   const organizerInspection = Boolean(access?.isOrganizer && targetCountryId);
@@ -49,8 +51,15 @@ export function MySolarisTasksModule() {
     queryFn: () => listStudio2HodEditions(country!.id),
   });
 
+  const availableEditions = useMemo(() => {
+    const currentEdition = [...(allEditions.data ?? [])].sort(
+      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
+    )[0] ?? null;
+    return mergeStudio2HodEditions(currentEdition, editionsQuery.data ?? []);
+  }, [allEditions.data, editionsQuery.data]);
+
   useEffect(() => {
-    const editions = editionsQuery.data ?? [];
+    const editions = availableEditions;
     if (!editions.length) {
       if (editionId) setEditionId("");
       return;
@@ -58,7 +67,7 @@ export function MySolarisTasksModule() {
     if (!editionId || !editions.some((edition) => edition.id === editionId)) {
       setEditionId(editions[0]!.id);
     }
-  }, [editionId, editionsQuery.data]);
+  }, [availableEditions, editionId]);
 
   const workspaceQuery = useQuery({
     queryKey: ["studio2-hod-workspace", country?.id ?? "none", editionId || "none"],
@@ -201,7 +210,7 @@ export function MySolarisTasksModule() {
             <p className="text-sm text-muted-foreground">Loading editions…</p>
           ) : editionsQuery.error ? (
             <ErrorText error={editionsQuery.error} />
-          ) : (editionsQuery.data ?? []).length === 0 ? (
+          ) : availableEditions.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No Solaris edition is linked to this delegation yet.
             </p>
@@ -211,7 +220,7 @@ export function MySolarisTasksModule() {
               onChange={(event) => setEditionId(event.target.value)}
               className="min-h-11 w-full max-w-xl rounded-xl border border-border bg-background px-3 text-sm"
             >
-              {(editionsQuery.data ?? []).map((edition) => (
+              {availableEditions.map((edition) => (
                 <option key={edition.id} value={edition.id}>
                   {edition.editionNumber == null
                     ? edition.name

@@ -4,6 +4,7 @@ import {
   buildStudio2HodWorkspaceSnapshot,
   createStudio2HodWorkspaceSource,
   mapStudio2HodContext,
+  mergeStudio2HodEditions,
   type Studio2HodContext,
 } from './studio2-hod-workspace';
 
@@ -44,6 +45,15 @@ const completeContext: Studio2HodContext = {
 };
 
 describe('Studio 2 HOD workspace adapter', () => {
+  it('puts the current edition before country history even without an entry', () => {
+    const editions = mergeStudio2HodEditions(
+      { id: 'ssc22', name: 'SSC 22', edition_number: 22, status: 'active' },
+      [{ id: 'ssc4', name: 'SSC 4', editionNumber: 4, status: 'completed' }],
+    );
+
+    expect(editions.map((edition) => edition.id)).toEqual(['ssc22', 'ssc4']);
+  });
+
   it('builds a clear workspace from complete legacy and Studio 2 data', () => {
     const snapshot = buildStudio2HodWorkspaceSnapshot(completeContext);
 

@@ -16,7 +16,7 @@ import {
   type CountryConfirmationResponse,
 } from "@/lib/confirmation-country-account";
 import { useMyCountryAccount } from "@/lib/country-account";
-import { useCountries } from "@/lib/data";
+import { useCountries, useEditions } from "@/lib/data";
 import {
   buildEntryReadinessModel,
   type EntryReadinessStatus,
@@ -29,6 +29,7 @@ import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import {
   listStudio2HodEditions,
   loadStudio2HodWorkspace,
+  mergeStudio2HodEditions,
 } from "@/lib/studio2-hod-workspace";
 
 type EntrySection =
@@ -73,6 +74,7 @@ export function MySolarisEntryModule() {
       : undefined;
   const account = useMyCountryAccount();
   const countries = useCountries();
+  const allEditions = useEditions();
   const access = account.data?.access;
   const ownCountry = account.data?.country;
   const organizerCountry =
@@ -105,8 +107,15 @@ export function MySolarisEntryModule() {
     queryFn: () => listStudio2HodEditions(country!.id),
   });
 
+  const availableEditions = useMemo(() => {
+    const currentEdition = [...(allEditions.data ?? [])].sort(
+      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
+    )[0] ?? null;
+    return mergeStudio2HodEditions(currentEdition, editionsQuery.data ?? []);
+  }, [allEditions.data, editionsQuery.data]);
+
   useEffect(() => {
-    const editions = editionsQuery.data ?? [];
+    const editions = availableEditions;
     if (!editions.length) {
       if (editionId) setEditionId("");
       return;
@@ -114,7 +123,7 @@ export function MySolarisEntryModule() {
     if (!editionId || !editions.some((edition) => edition.id === editionId)) {
       setEditionId(editions[0]!.id);
     }
-  }, [editionId, editionsQuery.data]);
+  }, [availableEditions, editionId]);
 
   const workspaceQuery = useQuery({
     queryKey: [
@@ -263,7 +272,7 @@ export function MySolarisEntryModule() {
             </p>
           ) : editionsQuery.error ? (
             <ErrorText error={editionsQuery.error} />
-          ) : (editionsQuery.data ?? []).length === 0 ? (
+          ) : availableEditions.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No Solaris edition is linked to this delegation yet.
             </p>
@@ -276,7 +285,7 @@ export function MySolarisEntryModule() {
               }}
               className="min-h-11 w-full max-w-xl rounded-xl border border-border bg-background px-3 text-sm"
             >
-              {(editionsQuery.data ?? []).map((edition) => (
+              {availableEditions.map((edition) => (
                 <option key={edition.id} value={edition.id}>
                   {edition.editionNumber == null
                     ? edition.name

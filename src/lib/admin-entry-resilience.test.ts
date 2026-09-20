@@ -10,8 +10,8 @@ describe("Organizer entry resilience", () => {
     const context = source("components/admin/AdminContext.tsx");
 
     expect(context).toContain("try {");
-    expect(context).toContain("window.localStorage.getItem");
-    expect(context).toContain("window.localStorage.setItem");
+    expect(context).toContain("window.sessionStorage.getItem");
+    expect(context).toContain("window.sessionStorage.setItem");
     expect(context).toContain("Browser privacy/storage restrictions must never prevent Organizer access");
     expect(context).toContain("useCallback");
   });

@@ -16,6 +16,31 @@ describe("production Organizer audit regressions", () => {
     expect(results).not.toContain("sort((a, b) => (b.edition_number");
   });
 
+  it("keeps Organizer edition selection isolated to one browser tab", () => {
+    const context = source("src/components/admin/AdminContext.tsx");
+
+    expect(context).toContain("window.sessionStorage");
+    expect(context).not.toContain("window.localStorage");
+  });
+
+  it("keeps custom reminders out of HOD workflow deadlines", () => {
+    const migration = source(
+      "supabase/migrations/20260920084500_separate_hod_reminders_and_result_lifecycle.sql",
+    );
+
+    expect(migration).toContain("'deadlines', '[]'::jsonb");
+    expect(migration).toContain("Organizer reminders");
+  });
+
+  it("requires a governed version before calling results calculated", () => {
+    const migration = source(
+      "supabase/migrations/20260920084500_separate_hod_reminders_and_result_lifecycle.sql",
+    );
+
+    expect(migration).toContain("r.calculation_version > 0");
+    expect(migration).toContain("then 'calculated'");
+  });
+
   it("uses one canonical readiness projection for Home and the health strip", () => {
     const home = source("src/routes/_authenticated/admin/operations.tsx");
     const strip = source("src/components/admin/AdminHealthStrip.tsx");

@@ -11,7 +11,7 @@ const AdminContext = createContext<AdminContextValue | null>(null);
 function readStoredEditionId() {
   if (typeof window === "undefined") return "";
   try {
-    return window.localStorage.getItem(EDITION_KEY) ?? "";
+    return window.sessionStorage.getItem(EDITION_KEY) ?? "";
   } catch (error) {
     console.warn("[admin] Could not read saved edition preference", error);
     return "";
@@ -21,8 +21,8 @@ function readStoredEditionId() {
 function persistEditionId(id: string) {
   if (typeof window === "undefined") return;
   try {
-    if (id) window.localStorage.setItem(EDITION_KEY, id);
-    else window.localStorage.removeItem(EDITION_KEY);
+    if (id) window.sessionStorage.setItem(EDITION_KEY, id);
+    else window.sessionStorage.removeItem(EDITION_KEY);
   } catch (error) {
     // Browser privacy/storage restrictions must never prevent Organizer access.
     console.warn("[admin] Could not save edition preference", error);

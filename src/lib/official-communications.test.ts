@@ -99,7 +99,7 @@ describe('official communications', () => {
   });
 
   it('derives stable HOD inbox states from receipt history', () => {
-    expect(noticeInboxState(notice, null)).toBe('unread');
+    expect(noticeInboxState(notice, null)).toBe('acknowledgement_required');
     expect(
       noticeInboxState(notice, {
         noticeId: notice.id,

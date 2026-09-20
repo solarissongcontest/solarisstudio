@@ -44,6 +44,36 @@ export type Studio2HodEditionSummary = {
   status: string;
 };
 
+type CurrentEditionSummary = {
+  id: string;
+  name: string;
+  edition_number: number | null;
+  status: string;
+};
+
+/**
+ * The HOD history RPC intentionally returns editions with an existing country
+ * record. The active edition must still be available before a delegation has
+ * submitted anything, so merge it into the archive list and keep it first.
+ */
+export function mergeStudio2HodEditions(
+  current: CurrentEditionSummary | null,
+  history: readonly Studio2HodEditionSummary[],
+): Studio2HodEditionSummary[] {
+  const currentSummary = current
+    ? {
+        id: current.id,
+        name: current.name,
+        editionNumber: current.edition_number,
+        status: current.status,
+      }
+    : null;
+  const byId = new Map<string, Studio2HodEditionSummary>();
+  if (currentSummary) byId.set(currentSummary.id, currentSummary);
+  for (const edition of history) if (!byId.has(edition.id)) byId.set(edition.id, edition);
+  return [...byId.values()];
+}
+
 export type Studio2HodJuryMember = {
   id: string;
   displayName: string;

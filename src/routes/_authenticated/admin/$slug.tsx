@@ -36,7 +36,26 @@ export const Route = createFileRoute("/_authenticated/admin/$slug")({
 
 function AdminEditionWorkspace() {
   const { slug } = Route.useParams();
+  if (!/^ssc-?\d+$/i.test(slug)) return <OrganizerNotFound />;
   return <ContestOverview slug={slug} />;
+}
+
+function OrganizerNotFound() {
+  return (
+    <AdminCard>
+      <AdminEmptyState
+        icon={Ban}
+        title="This Organizer page does not exist"
+        description="The link may be outdated or the address may be incomplete. Nothing in the contest was changed."
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link to="/admin/operations" className="admin-action-primary">Organizer Home</Link>
+            <Link to="/admin/menu" className="admin-action-secondary">All Organizer tools</Link>
+          </div>
+        }
+      />
+    </AdminCard>
+  );
 }
 
 function ContestOverview({ slug }: { slug: string }) {

@@ -62,6 +62,21 @@ describe('Studio 2 results operations model', () => {
     expect(() => parseStudio2ResultOperationRow({ ...row(), lifecycle: 'magic' })).toThrow('Invalid result lifecycle');
   });
 
+  it('does not call unversioned legacy result rows calculated', () => {
+    const parsed = parseStudio2ResultOperationRow({
+      ...row(),
+      lifecycle: 'calculated',
+      calculationVersion: 0,
+      preconditions: {
+        ...row().preconditions,
+        resultRowCount: 10,
+        resultReady: true,
+      },
+    });
+    expect(parsed.lifecycle).toBe('validation');
+    expect(parsed.calculationVersion).toBe(0);
+  });
+
   it('offers calculation only when canonical vote readiness is satisfied', () => {
     expect(availableStudio2ResultActions(row())).toContain('calculate');
     expect(availableStudio2ResultActions(row({

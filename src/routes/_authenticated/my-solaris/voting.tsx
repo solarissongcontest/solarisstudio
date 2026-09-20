@@ -51,6 +51,14 @@ async function loadOpenTelevote(): Promise<OpenTelevote | null> {
 }
 
 function MySolarisVotingPage() {
+  return (
+    <AppShell>
+      <MySolarisVotingContent />
+    </AppShell>
+  );
+}
+
+function MySolarisVotingContent() {
   const workspace = useMySolaris();
   const country = workspace.countryAccount?.country;
   const edition = workspace.currentEdition;
@@ -86,7 +94,7 @@ function MySolarisVotingPage() {
   const openTelevote = televoteQuery.data ?? null;
 
   return (
-    <AppShell>
+    <>
       <PageHeader
         eyebrow="MySolaris · Voting"
         title="Voting"
@@ -267,7 +275,7 @@ function MySolarisVotingPage() {
           </p>
         </Panel>
       </div>
-    </AppShell>
+    </>
   );
 }
 
