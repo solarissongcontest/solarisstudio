@@ -59,7 +59,7 @@ as $$
     eligible.scored_rounds as rounds,
     dense_rank() over (
       order by eligible.total_score desc, eligible.scored_rounds desc
-    )::bigint as position,
+    )::bigint as "position",
     eligible.last_scored_at as "lastScoredAt"
   from eligible
   order by "position", eligible.display_name;
@@ -85,7 +85,7 @@ language sql
 stable
 security invoker
 set search_path = ''
-as $
+as $$
   with detailed_votes as (
     select
       vote.edition_id,
@@ -236,7 +236,7 @@ as $
     ), '[]'::jsonb)
   )
   from sample;
-$;
+$$;
 
 revoke all on function public.public_country_voting_dna(uuid) from public;
 grant execute on function public.public_country_voting_dna(uuid) to anon, authenticated, service_role;
@@ -761,7 +761,7 @@ as $$
     rows.profile_id as "profileId",
     rows.display_name as "displayName",
     rows.score,
-    dense_rank() over (order by rows.score desc)::bigint as position
+    dense_rank() over (order by rows.score desc)::bigint as "position"
   from rows
   order by "position", rows.display_name;
 $$;
