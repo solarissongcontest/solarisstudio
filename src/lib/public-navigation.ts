@@ -108,7 +108,7 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
     "explore",
     "Anniversary",
     "Champions, milestones and Solaris history.",
-    "secondary",
+    "contextual",
     { keywords: ["celebration", "champions"] },
   ),
   destination(
