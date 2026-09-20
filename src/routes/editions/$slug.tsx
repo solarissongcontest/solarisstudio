@@ -225,8 +225,10 @@ function EditionPage() {
           title={editionLabel(edition)}
           subtitle={edition.name !== editionLabel(edition) ? edition.name : null}
           description={edition.description}
-          artwork={edition.logo}
+          artwork={edition.artwork_url ?? null}
           artworkAlt={`${editionLabel(edition)} official artwork`}
+          logo={edition.logo ?? null}
+          logoAlt={`${editionLabel(edition)} logo`}
           status={<PublicStatus
               status={editionState.statusKey}
               label={editionState.statusLabel}
