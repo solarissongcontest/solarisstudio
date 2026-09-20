@@ -26,8 +26,8 @@ export function OrganizerRecipientNoticesModule() {
       access?.isOrganizer === true &&
       access?.countryStatus === "active",
     queryFn: () => loadStudio2RecipientNoticeInbox(),
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 120_000,
+    refetchOnWindowFocus: false,
   });
 
   const refresh = async () => {
