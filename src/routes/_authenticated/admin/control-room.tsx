@@ -69,14 +69,14 @@ function ControlRoomV2() {
     queryKey: ['studio2-control-room', editionId ?? 'none'],
     enabled: Boolean(editionId),
     queryFn: () => studio2ControlRoom.loadSnapshot(editionId!),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const approvalsQuery = useQuery({
     queryKey: ['studio2-transition-approvals', editionId ?? 'none'],
     enabled: Boolean(editionId),
     queryFn: () => studio2ControlRoom.listTransitionApprovals(editionId!),
-    refetchInterval: 10_000,
+    refetchInterval: 60_000,
   });
 
   const refresh = async () => {
