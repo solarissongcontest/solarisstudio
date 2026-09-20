@@ -295,6 +295,8 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
     0 1.5rem 4.5rem rgb(0 0 0 / .24),
     inset 0 1px rgb(255 255 255 / .13),
     inset 0 -1px rgb(255 255 255 / .04);
+  contain: paint;
+  will-change: backdrop-filter;
 }
 
 .country-v2-hero-copy { min-width: 0; z-index: 3; }
