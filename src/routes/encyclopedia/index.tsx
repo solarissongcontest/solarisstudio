@@ -22,6 +22,9 @@ import {
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 
 export const Route = createFileRoute("/encyclopedia/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    artist: typeof search.artist === "string" ? search.artist : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Encyclopedia — Solaris Studio" },
@@ -49,6 +52,7 @@ type EncyclopediaItem = {
 };
 
 function EncyclopediaPage() {
+  const search = Route.useSearch();
   const feature = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
     queryFn: () => isStudio2FeatureEnabled("public_encyclopedia"),
@@ -61,7 +65,7 @@ function EncyclopediaPage() {
   const resultsQuery = useAllResults();
   const juryQuery = useAllJuryVotes();
   const televoteQuery = useAllTelevotes();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(search.artist ?? "");
   const [kind, setKind] = useState<Kind>("all");
 
   const publicArchive = useMemo(
