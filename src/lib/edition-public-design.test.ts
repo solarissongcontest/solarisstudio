@@ -29,5 +29,6 @@ describe("edition public design system", () => {
 
   it("ships the five required hostile fixtures", () => {
     expect(EDITION_DESIGN_FIXTURES.map((item) => item.id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(EDITION_DESIGN_FIXTURES.find((item) => item.id === "e")?.entries).toBe(66);
   });
 });
