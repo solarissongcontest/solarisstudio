@@ -11,6 +11,12 @@ const migration = readFileSync(
 );
 
 describe("completion product security and reliability boundaries", () => {
+  it("lets signed-out visitors evaluate only the boolean public rollout decision", () => {
+    expect(migration).toContain(
+      "grant execute on function public.studio2_feature_enabled(text, uuid) to anon",
+    );
+    expect(migration).not.toContain("grant select on public.studio2_feature_flags to anon");
+  });
   it("keeps Fantasy roster writes behind server-enforced eligibility, budget and server time", () => {
     expect(migration).toContain("now() < v_game.opens_at");
     expect(migration).toContain("now() >= v_game.locks_at");

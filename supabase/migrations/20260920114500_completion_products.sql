@@ -7,6 +7,12 @@ begin;
 -- does not enable their feature flags.
 -- ============================================================
 
+-- Public product routes need a privacy-safe boolean rollout decision before
+-- authentication. The existing function returns only a boolean and already
+-- applies admins_only/user/edition restrictions against auth.uid(); granting
+-- anon execution therefore exposes no rollout metadata or user identifiers.
+grant execute on function public.studio2_feature_enabled(text, uuid) to anon;
+
 -- Prediction League is the scored/public layer over the existing
 -- Prediction Arena tables. It exposes only opted-in public identities.
 create or replace function public.prediction_league_leaderboard(
