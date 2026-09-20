@@ -57,7 +57,7 @@ export function MySolarisNoticesModule() {
       access?.isOrganizer !== true &&
       access?.countryStatus === "active",
     queryFn: () => loadStudio2NoticeInbox(),
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
 
   const refresh = async () => {
