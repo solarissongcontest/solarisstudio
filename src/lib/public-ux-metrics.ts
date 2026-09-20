@@ -86,6 +86,10 @@ const client = supabase as unknown as MetricsRpcClient;
 export async function loadPublicUxMetrics(days = 30): Promise<PublicUxMetrics> {
   const safeDays = Math.max(1, Math.min(180, Math.round(days)));
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  return loadPublicUxMetricsSince(since);
+}
+
+export async function loadPublicUxMetricsSince(since: string): Promise<PublicUxMetrics> {
   const { data, error } = await client.rpc("admin_public_ux_metrics", {
     p_since: since,
   });
@@ -93,12 +97,15 @@ export async function loadPublicUxMetrics(days = 30): Promise<PublicUxMetrics> {
   return parseMetrics(data);
 }
 
-
-export async function loadPublicWebVitalsMetrics(
-  days = 30,
-): Promise<PublicWebVitalsMetrics> {
+export async function loadPublicWebVitalsMetrics(days = 30): Promise<PublicWebVitalsMetrics> {
   const safeDays = Math.max(1, Math.min(180, Math.round(days)));
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
+  return loadPublicWebVitalsMetricsSince(since);
+}
+
+export async function loadPublicWebVitalsMetricsSince(
+  since: string,
+): Promise<PublicWebVitalsMetrics> {
   const { data, error } = await client.rpc("admin_public_web_vitals", {
     p_since: since,
   });
@@ -106,9 +113,7 @@ export async function loadPublicWebVitalsMetrics(
   return parseWebVitals(data);
 }
 
-export async function loadBeta3FirstClickEvidence(
-  days = 90,
-): Promise<Beta3FirstClickEvidence> {
+export async function loadBeta3FirstClickEvidence(days = 90): Promise<Beta3FirstClickEvidence> {
   const safeDays = Math.max(1, Math.min(180, Math.round(days)));
   const since = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await client.rpc("admin_beta3_first_click_evidence", {
@@ -126,24 +131,16 @@ function parseWebVitals(value: unknown): PublicWebVitalsMetrics {
   const routes = Array.isArray(raw.routes)
     ? raw.routes
         .filter((item: any) => item && typeof item === "object")
-        .map(
-          (item: any): PublicWebVitalRouteMetric => ({
-            pathname: String(item.pathname ?? "/"),
-            metric:
-              item.metric === "INP" || item.metric === "CLS"
-                ? item.metric
-                : "LCP",
-            device:
-              item.device === "mobile" || item.device === "tablet"
-                ? item.device
-                : "desktop",
-            samples: number(item.samples),
-            p75: number(item.p75),
-            good: number(item.good),
-            needsImprovement: number(item.needsImprovement),
-            poor: number(item.poor),
-          }),
-        )
+        .map((item: any): PublicWebVitalRouteMetric => ({
+          pathname: String(item.pathname ?? "/"),
+          metric: item.metric === "INP" || item.metric === "CLS" ? item.metric : "LCP",
+          device: item.device === "mobile" || item.device === "tablet" ? item.device : "desktop",
+          samples: number(item.samples),
+          p75: number(item.p75),
+          good: number(item.good),
+          needsImprovement: number(item.needsImprovement),
+          poor: number(item.poor),
+        }))
     : [];
 
   return {
@@ -200,7 +197,10 @@ function rows(value: unknown) {
   return Array.isArray(value)
     ? value
         .filter((item) => item && typeof item === "object")
-        .map((item) => ({ ...(item as Record<string, unknown>), count: number((item as any).count) }))
+        .map((item) => ({
+          ...(item as Record<string, unknown>),
+          count: number((item as any).count),
+        }))
     : [];
 }
 
@@ -208,7 +208,6 @@ function number(value: unknown) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 }
-
 
 function parseBeta3FirstClickEvidence(value: unknown): Beta3FirstClickEvidence {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -220,24 +219,20 @@ function parseBeta3FirstClickEvidence(value: unknown): Beta3FirstClickEvidence {
     runs: Array.isArray(raw.runs)
       ? raw.runs
           .filter((item: any) => item && typeof item === "object")
-          .map(
-            (item: any): Beta3FirstClickRunCount => ({
-              task: String(item.task ?? ""),
-              started: number(item.started),
-            }),
-          )
+          .map((item: any): Beta3FirstClickRunCount => ({
+            task: String(item.task ?? ""),
+            started: number(item.started),
+          }))
           .filter((item: Beta3FirstClickRunCount) => item.task)
       : [],
     firstClicks: Array.isArray(raw.firstClicks)
       ? raw.firstClicks
           .filter((item: any) => item && typeof item === "object")
-          .map(
-            (item: any): Beta3FirstClickTargetCount => ({
-              task: String(item.task ?? ""),
-              target: String(item.target ?? ""),
-              count: number(item.count),
-            }),
-          )
+          .map((item: any): Beta3FirstClickTargetCount => ({
+            task: String(item.task ?? ""),
+            target: String(item.target ?? ""),
+            count: number(item.count),
+          }))
           .filter((item: Beta3FirstClickTargetCount) => item.task && item.target)
       : [],
   };

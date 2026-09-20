@@ -1,12 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Activity,
-  Gauge,
-  MousePointer2,
-  Search,
-  Smartphone,
-} from "lucide-react";
+import { Activity, Gauge, MousePointer2, Search, ShieldAlert, Smartphone } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -21,13 +15,15 @@ import {
   type PublicUxGroupCount,
   type PublicWebVitalRouteMetric,
 } from "@/lib/public-ux-metrics";
+import {
+  loadPublicIaStabilityEvidence,
+  type PublicIaStabilityEvidence,
+  type PublicIaRetirementGate,
+} from "@/lib/public-ia-stability";
 
 export const Route = createFileRoute("/_authenticated/admin/public-ux")({
   head: () => ({
-    meta: [
-      { title: "Public UX — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Public UX — Solaris Organizer" }, { name: "robots", content: "noindex" }],
   }),
   component: PublicUxDashboard,
 });
@@ -42,6 +38,11 @@ function PublicUxDashboard() {
   const vitalsQuery = useQuery({
     queryKey: ["admin-public-web-vitals", days],
     queryFn: () => loadPublicWebVitalsMetrics(days),
+    staleTime: 60_000,
+  });
+  const stabilityQuery = useQuery({
+    queryKey: ["admin-public-ia-stability"],
+    queryFn: loadPublicIaStabilityEvidence,
     staleTime: 60_000,
   });
   const metrics = query.data;
@@ -83,6 +84,12 @@ function PublicUxDashboard() {
         </AdminCard>
       ) : metrics ? (
         <div className="space-y-5">
+          <PublicIaStabilityCard
+            evidence={stabilityQuery.data}
+            loading={stabilityQuery.isLoading}
+            error={stabilityQuery.error}
+          />
+
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard icon={Activity} label="Sessions" value={metrics.totals.sessions} />
             <MetricCard icon={MousePointer2} label="UX events" value={metrics.totals.events} />
@@ -111,9 +118,7 @@ function PublicUxDashboard() {
               <VitalTarget label="CLS" target="≤ 0.10" />
             </div>
             {vitalsQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">
-                Loading field performance telemetry…
-              </p>
+              <p className="text-sm text-muted-foreground">Loading field performance telemetry…</p>
             ) : vitalsQuery.error ? (
               <AdminStatus tone="blocked">
                 {vitalsQuery.error instanceof Error
@@ -139,15 +144,14 @@ function PublicUxDashboard() {
                       <span className="numeric text-xs text-muted-foreground">
                         p75 {formatVital(row)}
                       </span>
-                      <AdminStatus tone={vitalTone(row)}>
-                        {vitalLabel(row)}
-                      </AdminStatus>
+                      <AdminStatus tone={vitalTone(row)}>{vitalLabel(row)}</AdminStatus>
                     </div>
                   ))}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No field-performance samples yet. Data appears after public visitors leave or hide a measured page.
+                No field-performance samples yet. Data appears after public visitors leave or hide a
+                measured page.
               </p>
             )}
           </AdminCard>
@@ -253,9 +257,7 @@ function PublicUxDashboard() {
                       className="grid gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] sm:items-center"
                     >
                       <span className="truncate text-sm font-semibold">{task.target}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {task.started} started
-                      </span>
+                      <span className="text-xs text-muted-foreground">{task.started} started</span>
                       <span className="text-xs text-muted-foreground">
                         {task.completed} completed
                       </span>
@@ -293,6 +295,161 @@ function PublicUxDashboard() {
   );
 }
 
+function PublicIaStabilityCard({
+  evidence,
+  loading,
+  error,
+}: {
+  evidence?: PublicIaStabilityEvidence;
+  loading: boolean;
+  error: unknown;
+}) {
+  if (loading) {
+    return (
+      <AdminCard strong>
+        <p className="py-5 text-center text-sm text-muted-foreground">
+          Evaluating the Public IA retirement gate…
+        </p>
+      </AdminCard>
+    );
+  }
+
+  if (error || !evidence) {
+    return (
+      <AdminCard strong>
+        <AdminStatus tone="blocked">
+          {error instanceof Error ? error.message : "Could not evaluate Public IA stability"}
+        </AdminStatus>
+      </AdminCard>
+    );
+  }
+
+  const taskCompletionRate = evidence.metrics.totals.events
+    ? completionRate(evidence.metrics)
+    : null;
+  const poorVitalSamples = evidence.vitals.routes.reduce((sum, row) => sum + row.poor, 0);
+  const warnings = [
+    taskCompletionRate != null && taskCompletionRate < 70
+      ? `${Math.round(taskCompletionRate)}% observed task completion after promotion.`
+      : null,
+    poorVitalSamples > 0
+      ? `${poorVitalSamples} poor Core Web Vitals sample${poorVitalSamples === 1 ? "" : "s"} need route-level review.`
+      : null,
+    evidence.firstClickStarted === 0 ? "No Beta 3 first-click task runs have been observed." : null,
+  ].filter(Boolean) as string[];
+
+  return (
+    <AdminCard strong>
+      <AdminCardHeader
+        eyebrow="Legacy retirement gate"
+        title="Public IA v3 stability"
+        description="Post-promotion production evidence using the existing Beta 3 release criteria. A passing evidence gate still requires green CI and manual role, route and mobile smoke certification before legacy code can be removed."
+        action={
+          <AdminStatus tone={evidence.evidenceSufficient ? "attention" : "blocked"}>
+            {evidence.evidenceSufficient ? "Manual certification required" : "Retirement blocked"}
+          </AdminStatus>
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MiniMetric label="Promoted" value={formatTimestamp(evidence.promotedAt)} />
+        <MiniMetric label="Post-rollout sessions" value={evidence.metrics.totals.sessions} />
+        <MiniMetric label="Post-rollout events" value={evidence.metrics.totals.events} />
+        <MiniMetric label="Field-vitals samples" value={evidence.vitals.samples} />
+      </div>
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        <EvidenceFlag
+          label="Runtime rollout"
+          passed={evidence.flagEnabled && evidence.globallyEnabled}
+          detail={evidence.globallyEnabled ? "Enabled globally" : "Not globally enabled"}
+        />
+        {evidence.gates.map((gate) => (
+          <RetirementGate key={gate.key} gate={gate} />
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+          <p className="text-xs font-semibold">Evidence volume</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {evidence.beta3Responses} completed Beta 3 response
+            {evidence.beta3Responses === 1 ? "" : "s"}; {evidence.firstClickStarted} observed
+            first-click run
+            {evidence.firstClickStarted === 1 ? "" : "s"}
+            {evidence.firstClickCoveragePercent == null
+              ? "."
+              : `; ${Math.round(evidence.firstClickCoveragePercent)}% first-click coverage.`}
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
+          <p className="flex items-center gap-2 text-xs font-semibold">
+            <ShieldAlert className="size-4 text-amber-200" aria-hidden="true" />
+            Regression signals
+          </p>
+          {warnings.length ? (
+            <ul className="mt-1 space-y-1 text-xs leading-5 text-muted-foreground">
+              {warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              No automatic warning triggered. Manual smoke coverage remains required.
+            </p>
+          )}
+        </div>
+      </div>
+    </AdminCard>
+  );
+}
+
+function RetirementGate({ gate }: { gate: PublicIaRetirementGate }) {
+  const value =
+    gate.value == null
+      ? "No evidence"
+      : gate.key === "sample" || gate.key === "country-entry"
+        ? String(Math.round(gate.value))
+        : `${Math.round(gate.value)}%`;
+  const target = `${gate.lowerIsBetter ? "≤" : "≥"} ${gate.target}${gate.key === "sample" || gate.key === "country-entry" ? "" : "%"}`;
+  return (
+    <EvidenceFlag label={gate.label} passed={gate.passed} detail={`${value} · target ${target}`} />
+  );
+}
+
+function EvidenceFlag({
+  label,
+  passed,
+  detail,
+}: {
+  label: string;
+  passed: boolean;
+  detail: string;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+      <div>
+        <p className="text-xs font-semibold">{label}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">{detail}</p>
+      </div>
+      <AdminStatus tone={passed ? "ready" : "blocked"}>{passed ? "Pass" : "Blocked"}</AdminStatus>
+    </div>
+  );
+}
+
+function completionRate(metrics: PublicIaStabilityEvidence["metrics"]) {
+  const started = metrics.tasks.reduce((sum, task) => sum + task.started, 0);
+  const completed = metrics.tasks.reduce((sum, task) => sum + task.completed, 0);
+  return started ? (completed / started) * 100 : null;
+}
+
+function formatTimestamp(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Unavailable"
+    : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
 function VitalTarget({ label, target }: { label: string; target: string }) {
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
@@ -308,7 +465,9 @@ function sortVitalRows(rows: PublicWebVitalRouteMetric[]) {
   return [...rows].sort((a, b) => {
     const severity = (row: PublicWebVitalRouteMetric) =>
       vitalLabel(row) === "Poor" ? 2 : vitalLabel(row) === "Needs improvement" ? 1 : 0;
-    return severity(b) - severity(a) || b.samples - a.samples || a.pathname.localeCompare(b.pathname);
+    return (
+      severity(b) - severity(a) || b.samples - a.samples || a.pathname.localeCompare(b.pathname)
+    );
   });
 }
 
@@ -358,16 +517,20 @@ function MetricCard({
       </p>
       <div className="mt-1 flex items-baseline gap-2">
         <p className="numeric text-3xl font-bold">{value}</p>
-        {suffix ? <span className="text-xs font-semibold text-muted-foreground">{suffix}</span> : null}
+        {suffix ? (
+          <span className="text-xs font-semibold text-muted-foreground">{suffix}</span>
+        ) : null}
       </div>
     </AdminCard>
   );
 }
 
-function MiniMetric({ label, value }: { label: string; value: number }) {
+function MiniMetric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
-      <p className="text-[10px] font-bold uppercase tracking-[.11em] text-muted-foreground">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[.11em] text-muted-foreground">
+        {label}
+      </p>
       <p className="numeric mt-1 text-xl font-bold">{value}</p>
     </div>
   );
@@ -388,7 +551,10 @@ function RankedRows({
       {rows.length ? (
         <div className="divide-y divide-white/[0.06]">
           {rows.slice(0, 12).map((row, index) => (
-            <div key={`${row.label}-${index}`} className="flex items-center gap-3 py-2.5 first:pt-0">
+            <div
+              key={`${row.label}-${index}`}
+              className="flex items-center gap-3 py-2.5 first:pt-0"
+            >
               <span className="numeric w-5 shrink-0 text-[10px] text-muted-foreground">
                 {index + 1}
               </span>
@@ -404,15 +570,7 @@ function RankedRows({
   );
 }
 
-function SignalRow({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: number;
-  detail: string;
-}) {
+function SignalRow({ label, value, detail }: { label: string; value: number; detail: string }) {
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
       <div className="flex items-center justify-between gap-3">
