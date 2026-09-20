@@ -54,7 +54,7 @@ function IntegrityAppeals() {
   const appealsQuery = useQuery({
     queryKey: ["admin-integrity-appeals"],
     queryFn: loadAppeals,
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
   const appeals = appealsQuery.data ?? [];
 
