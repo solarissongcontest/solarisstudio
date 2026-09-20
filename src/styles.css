@@ -235,7 +235,8 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 }
 
 input:focus-visible, textarea:focus-visible, select:focus-visible, [role="combobox"]:focus-visible {
-  outline: none !important;
+  outline: 3px solid color-mix(in oklab, var(--primary) 78%, white 22%) !important;
+  outline-offset: 3px !important;
   border-color: rgba(170, 220, 240, 0.56) !important;
   box-shadow: 0 0 0 3px rgba(110, 185, 215, 0.13) !important;
 }
