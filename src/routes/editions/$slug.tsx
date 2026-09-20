@@ -26,6 +26,7 @@ import {
   useShows,
 } from "@/lib/data";
 import { resolvePublicEditionState } from "@/lib/current-contest-state";
+import { resolveEditionPublicStyle } from "@/lib/edition-public-design";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { entityDisplayMap, type EntityDisplay } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
@@ -89,6 +90,7 @@ function EditionPage() {
   const { data: allResults } = resultsQuery;
   const { data: allShows } = allShowsQuery;
   const archiveQueries = [editionQuery, showsQuery, participantsQuery, countriesQuery, entitiesQuery, resultsQuery, allShowsQuery];
+  const liquidGlass = resolveEditionPublicStyle(edition?.theme_colors) === "glass";
 
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading edition…" /></AppShell>;
   if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
@@ -234,6 +236,7 @@ function EditionPage() {
               label={editionState.statusLabel}
               className="edition-status-chip"
             />}
+          liquidGlass={liquidGlass}
           winner={winner && winnerResult && grandFinalPublication?.results ? (
                 <div className="edition-winner-identity">
                   <FlagChip code={winner.short_code} color={winner.accent_color} image={winner.flag_image} size="xl" />
@@ -266,6 +269,7 @@ function EditionPage() {
         />
 
         <EditionNavigation
+          liquidGlass={liquidGlass}
           label={`Explore ${editionLabel(edition)}`}
           items={[
             { href: "#edition-overview", label: "Overview" },
