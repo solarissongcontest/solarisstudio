@@ -76,12 +76,22 @@ export function LiquidGlassBackdrop({
   className?: string;
   style?: CSSProperties;
 }) {
+  const materialStyle: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    display: "block",
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+    ...style,
+  };
+
   const fallback = (
     <span
       aria-hidden="true"
       data-liquid-glass-fallback=""
       className={cn("solaris-liquid-glass-backdrop", className)}
-      style={style}
+      style={materialStyle}
     />
   );
 
@@ -92,15 +102,7 @@ export function LiquidGlassBackdrop({
         data-solaris-liquid-glass={variant}
         className={cn("solaris-liquid-glass-backdrop", className)}
         optics={OPTICS[variant]}
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "block",
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-          ...style,
-        }}
+        style={materialStyle}
       />
     </Suspense>
   );
