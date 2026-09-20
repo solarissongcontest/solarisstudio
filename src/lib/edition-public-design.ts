@@ -108,5 +108,5 @@ export const EDITION_DESIGN_FIXTURES = [
   { id: "b", label: "No artwork", artwork: false, entries: 22, results: true },
   { id: "c", label: "Long title and host city", artwork: true, entries: 18, results: false },
   { id: "d", label: "Sparse archive", artwork: false, entries: 0, results: false },
-  { id: "e", label: "Large participant field", artwork: true, entries: 64, results: true },
+  { id: "e", label: "Large participant field", artwork: true, entries: 66, results: true },
 ] as const;
