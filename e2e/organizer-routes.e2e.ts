@@ -56,6 +56,19 @@ const criticalMobileDestinations = [
   "/admin/shows/ssc22",
   "/admin/design/ssc22",
   "/televoting/admin",
+  "/admin/fantasy",
+  "/admin/time-machine",
+  "/admin/command-assistant",
+] as const;
+
+const completionProductDestinations = [
+  "/encyclopedia",
+  "/voting-dna",
+  "/prediction-league",
+  "/fantasy",
+  "/admin/fantasy",
+  "/admin/time-machine",
+  "/admin/command-assistant",
 ] as const;
 
 test.describe("Solaris Organizer route reliability", () => {
@@ -97,6 +110,22 @@ test.describe("Solaris Organizer route reliability", () => {
         await auditPage(page, path, testInfo);
         await expect(page).not.toHaveURL(/\/auth(?:\?|$)/);
         await expect(page.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
+      });
+    }
+  });
+
+  test("completion programme surfaces load during Organizer-only rollout", async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "organizer-admin-desktop",
+      "Completion-product internal rollout runs once at the desktop baseline",
+    );
+
+    for (const path of completionProductDestinations) {
+      await test.step(path, async () => {
+        await auditPage(page, path, testInfo);
+        await expect(page.locator("body")).not.toContainText(
+          /not enabled yet|Command Assistant is disabled|Time Machine is disabled/i,
+        );
       });
     }
   });
