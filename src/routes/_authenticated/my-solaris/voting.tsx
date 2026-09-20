@@ -74,14 +74,14 @@ function MySolarisVotingContent() {
     ),
     queryFn: () => loadStudio2HodWorkspace(edition!.id, country!.id),
     staleTime: 30_000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
   });
   const televoteQuery = useQuery({
     queryKey: ["mysolaris-open-televote"],
     queryFn: loadOpenTelevote,
     staleTime: 15_000,
-    refetchInterval: 15_000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const context = delegationQuery.data?.context;
