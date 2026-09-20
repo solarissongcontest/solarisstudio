@@ -90,11 +90,17 @@ as $
     select
       vote.edition_id,
       vote.show_id,
-      coalesce(vote.voter_country_id, vote.voter_entity_id) as voter_country_id,
-      coalesce(vote.receiving_country_id, vote.receiving_entity_id) as receiving_country_id,
+      coalesce(vote.voter_country_id, voter_entity.country_id) as voter_country_id,
+      coalesce(vote.receiving_country_id, receiving_entity.country_id) as receiving_country_id,
       vote.points
     from public.jury_votes vote
     join public.editions edition on edition.id = vote.edition_id
+    left join public.contest_entities voter_entity
+      on voter_entity.id = vote.voter_entity_id
+     and voter_entity.edition_id = vote.edition_id
+    left join public.contest_entities receiving_entity
+      on receiving_entity.id = vote.receiving_entity_id
+     and receiving_entity.edition_id = vote.edition_id
     where edition.published = true
       and vote.show_id is not null
       and public.show_publication_enabled(vote.show_id, 'detailed_voting')
@@ -149,9 +155,15 @@ as $
     from public.results result
     join public.shows show on show.id = result.show_id
     join public.editions edition on edition.id = result.edition_id
+    left join public.contest_entities result_entity
+      on result_entity.id = result.contest_entity_id
+     and result_entity.edition_id = result.edition_id
     where edition.published = true
       and result.show_id is not null
-      and (result.country_id = _country_id or result.contest_entity_id = _country_id)
+      and (
+        result.country_id = _country_id
+        or result_entity.country_id = _country_id
+      )
       and public.show_publication_enabled(result.show_id, 'results')
   ),
   selected_results as (
