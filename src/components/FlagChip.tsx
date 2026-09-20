@@ -53,7 +53,7 @@ export function FlagChip({
         data-flag-has-image="true"
         data-flag-role="official"
         className={cn(
-          "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-transparent",
+          "inline-flex aspect-[3/2] shrink-0 items-center justify-center overflow-hidden rounded-md bg-transparent",
           dims,
           className,
         )}
@@ -78,6 +78,8 @@ export function FlagChip({
             width: "100%",
             height: "100%",
             minWidth: "100%",
+            aspectRatio: "3 / 2",
+            borderRadius: "inherit",
             objectFit: "contain",
             objectPosition: "center",
             opacity: 1,
@@ -97,7 +99,7 @@ export function FlagChip({
       data-flag-fallback="true"
       data-flag-role="official"
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-md font-semibold tracking-widest text-background",
+        "inline-flex aspect-[3/2] shrink-0 items-center justify-center overflow-hidden rounded-md font-semibold tracking-widest text-background",
         dims,
         className,
       )}
