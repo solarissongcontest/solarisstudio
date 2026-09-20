@@ -23,7 +23,7 @@ returns table (
   "displayName" text,
   score numeric,
   rounds bigint,
-  position bigint,
+  "position" bigint,
   "lastScoredAt" timestamptz
 )
 language sql
@@ -62,7 +62,7 @@ as $$
     )::bigint as position,
     eligible.last_scored_at as "lastScoredAt"
   from eligible
-  order by position, eligible.display_name;
+  order by "position", eligible.display_name;
 $$;
 
 revoke all on function public.prediction_league_leaderboard(uuid) from public;
@@ -562,7 +562,7 @@ returns table (
   "profileId" uuid,
   "displayName" text,
   score numeric,
-  position bigint
+  "position" bigint
 )
 language sql
 stable
@@ -590,7 +590,7 @@ as $$
     rows.score,
     dense_rank() over (order by rows.score desc)::bigint as position
   from rows
-  order by position, rows.display_name;
+  order by "position", rows.display_name;
 $$;
 
 revoke all on function public.fantasy_leaderboard(uuid) from public;
