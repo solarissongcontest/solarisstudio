@@ -60,28 +60,28 @@ function ActionCenterPage() {
     queryKey: ['studio2-action-center-snapshot', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId) && featureQuery.data?.controlRoom === true,
     queryFn: () => studio2ControlRoom.loadSnapshot(resolvedEditionId, 20),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const approvalsQuery = useQuery({
     queryKey: ['studio2-action-center-approvals', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId) && featureQuery.data?.controlRoom === true,
     queryFn: () => studio2ControlRoom.listTransitionApprovals(resolvedEditionId),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const countryCockpitQuery = useQuery({
     queryKey: ['studio2-action-center-country-readiness', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
     queryFn: () => loadStudio2CountryCockpit(resolvedEditionId),
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
 
   const eligibilityOverridesQuery = useQuery({
     queryKey: ['studio2-eligibility-overrides', resolvedEditionId || 'none', 'active'],
     enabled: Boolean(resolvedEditionId),
     queryFn: () => listStudio2EligibilityOverrides(resolvedEditionId),
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
 
   const model = useMemo(() => {
