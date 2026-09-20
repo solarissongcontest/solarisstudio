@@ -38,7 +38,7 @@ function AuditLogPage() {
     queryKey: ["merged-televoting-audit", action, targetType],
     queryFn: () => getAudit({ data: { action: action || null, targetType: targetType || null, limit: 750 } }),
     enabled: Boolean(admin),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const actions = useMemo<string[]>(() => [...new Set(rows.map((row) => row.action))].sort(), [rows]);
