@@ -52,6 +52,9 @@ export type Edition = {
   host_city: string | null;
   logo: string | null;
   theme_id: string | null;
+  theme_colors?: Record<string, unknown> | null;
+  artwork_url?: string | null;
+  artwork_storage_path?: string | null;
   status: string;
   published: boolean;
 };

@@ -93,10 +93,10 @@ describe("Pre-Beta public UX completion contract", () => {
 
   it("keeps edition continuation links for shows, entries, results and stories", () => {
     for (const target of ["#edition-shows", "#edition-entries", "#edition-results", "#edition-stories"]) {
-      expect(edition).toContain(`href="${target}"`);
+      expect(edition).toContain(`href: "${target}"`);
     }
     for (const label of ["Shows", "Entries", "Results", "Stories"]) {
-      expect(edition).toContain(`>${label}</span>`);
+      expect(edition).toContain(`label: "${label}"`);
     }
   });
 });

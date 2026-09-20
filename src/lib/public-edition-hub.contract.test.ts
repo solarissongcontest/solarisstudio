@@ -10,6 +10,8 @@ describe("state-aware public Edition Hub", () => {
   const route = source("src/routes/editions/$slug.tsx");
   const state = source("src/lib/current-contest-state.ts");
   const status = source("src/components/public/PublicCurrentStatus.tsx");
+  const navigation = source("src/components/edition/EditionPublicPrimitives.tsx");
+  const designCss = source("src/edition-public-v5.css");
 
   it("uses the same canonical lifecycle resolver as Home", () => {
     expect(route).toContain("resolvePublicEditionState");
@@ -24,8 +26,9 @@ describe("state-aware public Edition Hub", () => {
   });
 
   it("turns edition section navigation into a mobile swipe row", () => {
-    expect(route).toContain("snap-x snap-mandatory");
-    expect(route).toContain("overflow-x-auto");
-    expect(route).toContain("sm:grid");
+    expect(route).toContain("<EditionNavigation");
+    expect(navigation).toContain('className="edition-navigation"');
+    expect(designCss).toContain("overflow-x: auto");
+    expect(designCss).toContain("flex: 0 0 auto");
   });
 });
