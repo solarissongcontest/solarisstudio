@@ -22,6 +22,8 @@
   --cp-radius-sm: .5rem;
   --cp-radius-md: .75rem;
   --cp-radius-lg: 1.25rem;
+  --cp-flag-aspect: 3 / 2;
+  --cp-flag-radius: clamp(.45rem, 1.6cqi, .8rem);
   --cp-rule: color-mix(in srgb, var(--border) 72%, transparent);
   --cp-solid-surface: color-mix(in srgb, var(--surface) 96%, var(--background));
   --cp-soft-surface: color-mix(in srgb, var(--surface) 90%, transparent);
@@ -156,11 +158,12 @@
 .country-official-flag {
   display: grid;
   inline-size: min(100%, 15rem);
-  min-block-size: 6.5rem;
+  aspect-ratio: var(--cp-flag-aspect);
+  min-block-size: 0;
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--cp-rule);
-  border-radius: var(--cp-radius-md);
+  border-radius: var(--cp-flag-radius);
   background: color-mix(in srgb, var(--surface) 94%, var(--background));
 }
 
@@ -175,7 +178,8 @@
   inline-size: 100%;
   block-size: 100%;
   max-inline-size: 100%;
-  max-block-size: 12rem;
+  max-block-size: 100%;
+  border-radius: inherit;
   object-fit: contain !important;
   object-position: center !important;
 }
@@ -183,8 +187,10 @@
 .country-official-flag-fallback {
   display: grid;
   inline-size: 100%;
-  min-block-size: 6.5rem;
+  block-size: 100%;
+  min-block-size: 0;
   place-items: center;
+  border-radius: inherit;
   border: 1px dashed currentColor;
   color: var(--muted-foreground);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
