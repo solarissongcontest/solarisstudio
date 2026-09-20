@@ -58,7 +58,7 @@ function PredictionLeaguePage() {
 
       {feature.isLoading ? (
         <Panel><p className="text-sm text-muted-foreground">Checking league rollout…</p></Panel>
-      ) : feature.data === false ? (
+      ) : feature.isError || feature.data !== true ? (
         <Panel title="Prediction League is not enabled yet"><p className="text-sm text-muted-foreground">The scoring and leaderboard product is installed but remains behind its rollout flag during verification.</p></Panel>
       ) : (
         <>

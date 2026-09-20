@@ -54,7 +54,7 @@ function VotingDnaIndexPage() {
 
       {feature.isLoading || isLoading ? (
         <Panel><p className="text-sm text-muted-foreground">Loading country index…</p></Panel>
-      ) : feature.data === false ? (
+      ) : feature.isError || feature.data !== true ? (
         <Panel title="Voting DNA is not enabled yet">
           <p className="text-sm text-muted-foreground">
             The product is installed but remains behind its rollout flag during verification.

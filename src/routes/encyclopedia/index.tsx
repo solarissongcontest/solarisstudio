@@ -236,7 +236,7 @@ function EncyclopediaPage() {
     );
   }
 
-  if (feature.data === false) {
+  if (feature.isError || feature.data !== true) {
     return (
       <AppShell>
         <PageHeader

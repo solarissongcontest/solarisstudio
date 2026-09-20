@@ -172,7 +172,7 @@ function FantasyPage() {
 
       {feature.isLoading ? (
         <Panel><p className="text-sm text-muted-foreground">Checking Fantasy rollout…</p></Panel>
-      ) : feature.data === false ? (
+      ) : feature.isError || feature.data !== true ? (
         <Panel title="Fantasy SSC is not enabled yet"><p className="text-sm text-muted-foreground">The product is installed but remains behind its rollout flag until production verification is complete.</p></Panel>
       ) : games.isLoading ? (
         <Panel><p className="text-sm text-muted-foreground">Loading Fantasy games…</p></Panel>
