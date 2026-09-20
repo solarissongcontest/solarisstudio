@@ -36,8 +36,8 @@ export const EDITION_PUBLIC_STYLES: readonly EditionPublicStyleDefinition[] = [
     id: "glass",
     label: "Liquid Glass",
     archetype: "compact",
-    description: "A clear event canvas with glass reserved for functional navigation.",
-    signature: "Functional glass layer",
+    description: "A refractive event canvas with a generated lens-map hero and floating navigation.",
+    signature: "Measured Liquid Glass refraction",
   },
 ] as const;
 
