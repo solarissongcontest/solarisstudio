@@ -60,7 +60,7 @@ body[data-entity-theme="edition"] .edition-public-page * {
 .edition-hero-artwork::after { background: linear-gradient(90deg, color-mix(in oklab, var(--background) 92%, transparent) 8%, transparent 72%), linear-gradient(0deg, color-mix(in oklab, var(--background) 72%, transparent), transparent 50%); content: ""; inset: 0; position: absolute; }
 .edition-hero-artwork img { height: 100%; object-fit: cover; object-position: var(--edition-focal-x, 50%) var(--edition-focal-y, 50%); transform: scale(1.04); width: 100%; }
 .edition-artwork-plate { align-self: center; display: grid; margin: clamp(1.5rem, 4vw, 4rem); max-height: calc(100% - 3rem); min-width: 0; place-items: center; position: relative; z-index: 2; }
-.edition-artwork-plate img { filter: drop-shadow(0 1.75rem 3rem rgb(0 0 0 / .36)); max-height: 34rem; object-fit: contain; object-position: var(--edition-focal-x, 50%) var(--edition-focal-y, 50%); width: 100%; }
+.edition-artwork-plate img { border-radius: calc(var(--ed-radius) * .52); filter: drop-shadow(0 1.75rem 3rem rgb(0 0 0 / .36)); max-height: 34rem; object-fit: contain; object-position: var(--edition-focal-x, 50%) var(--edition-focal-y, 50%); width: 100%; }
 .edition-winner-identity { align-items: center; display: flex; gap: 1rem; margin-top: 2rem; }
 .edition-winner-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-top: .25rem; }
 .edition-winner-points { color: var(--muted-foreground); font-size: .75rem; margin-top: .25rem; }

@@ -1421,7 +1421,7 @@ function CurrentVoterPanel({
           alt={
             voter.name
           }
-          className="mb-4 max-h-40 w-full rounded-xl object-cover"
+          className="mb-4 aspect-[3/2] max-h-40 w-full rounded-xl bg-black/15 object-contain"
         />
       ) : (
         <div

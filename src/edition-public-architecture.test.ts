@@ -41,6 +41,10 @@ describe("edition public page architecture", () => {
     expect(panel).toContain("edition.artwork_url ?? edition.logo");
   });
 
+  it("keeps inset artwork aligned with rounded hero geometry", () => {
+    expect(css).toContain("border-radius: calc(var(--ed-radius) * .52)");
+  });
+
   it("keeps artwork and logo as distinct hero roles and glass out of content panels", () => {
     expect(route).toContain("artwork={edition.artwork_url ?? null}");
     expect(route).toContain("logo={edition.logo ?? null}");

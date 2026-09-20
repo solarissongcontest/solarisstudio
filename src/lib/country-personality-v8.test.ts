@@ -43,10 +43,22 @@ describe("source-driven Country personality foundation", () => {
     const flag = source("src/components/FlagChip.tsx");
     const shared = source("src/country-personality-shared-foundation.css");
     const sourceFoundation = source("src/country-personality-source-foundation.css");
+    const scoreboard = source("src/components/broadcast/CountryCard.tsx");
+    const scoreboardStage = source("src/components/ScoreboardStage.tsx");
     expect(flag).toContain('data-flag-role="official"');
+    expect(flag).toContain('aspect-[3/2]');
     expect(flag).toContain('objectFit: "contain"');
+    expect(shared).toContain("--cp-flag-aspect: 3 / 2");
+    expect(shared).toContain("aspect-ratio: var(--cp-flag-aspect)");
     expect(shared).toContain('[data-flag-role="official"] img');
+    expect(sourceFoundation).toContain("inline-size: auto !important");
+    expect(sourceFoundation).toContain("block-size: auto !important");
     expect(sourceFoundation).toContain("object-fit: contain !important");
+    expect(scoreboard).toContain('objectFit: "contain"');
+    expect(scoreboard).not.toContain('objectFit: zone.fit ?? "cover"');
+    expect(scoreboardStage).toContain("const flagWidth = flagHeight * 1.5");
+    expect(scoreboardStage).toContain('fit: "contain" as const');
+    expect(scoreboardStage).toContain("flagRadius = card.radius > 0");
     expect(shared).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
   });
 
@@ -79,12 +91,17 @@ describe("source-driven Country personality foundation", () => {
   it("implements Glass from the vendored liquid-glass source adapter", () => {
     const hero = source("src/components/country/CountryIdentityHero.tsx");
     const css = source("src/styles/personalities/glass-source.adapter.css");
+    const composition = source("src/styles/personality-compositions.css");
     const wiki = source("src/country-wiki-v8.css");
     expect(hero).toContain("country-hero-scene");
     expect(hero).toContain("--glass-pointer-x");
     expect(hero).toContain("<LazyGlassMaterial");
     expect(css).toContain("samasante/liquid-glass");
     expect(css).toContain("country-hero-glass-material");
+    expect(composition).toContain("inline-size: 100%");
+    expect(composition).toContain("margin: 0 !important");
+    expect(composition).toContain("border-radius: inherit !important");
+    expect(composition).not.toContain("margin: .65rem auto !important");
     expect(wiki).toContain("exactly one real refractive plate");
     expect(wiki).toContain(".country-hero-glass-material");
     expect(wiki).toContain("backdrop-filter: none;");

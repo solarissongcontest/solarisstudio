@@ -176,19 +176,20 @@ export function CountryIdentityHero({
         <Suspense fallback={composition}>
           <LazyGlassMaterial
             className="country-hero-glass-material"
+            style={{ display: "block", width: "100%", maxWidth: "100%" }}
             optics={{
-              strength: 0.064,
-              depth: 0.62,
-              curvature: 0.38,
-              bend: 0.6,
-              bendWidth: 0.14,
-              dispersion: 0.3,
-              frost: 3,
-              saturate: 1.22,
-              sheen: 0.46,
+              strength: 0.045,
+              depth: 0.5,
+              curvature: 0.28,
+              bend: 0.42,
+              bendWidth: 0.11,
+              dispersion: 0.18,
+              frost: 2.25,
+              saturate: 1.2,
+              sheen: 0.44,
               sheenWidth: 2.5,
               sheenFalloff: 1.7,
-              glow: 0.12,
+              glow: 0.1,
               glowSpread: 1,
               glowFalloff: 0.5,
               specular: 1.05,

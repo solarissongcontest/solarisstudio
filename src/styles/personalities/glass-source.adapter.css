@@ -21,10 +21,12 @@
 }
 
 .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material {
-  margin: clamp(.8rem, 2cqi, 1.4rem);
+  display: block !important;
+  inline-size: 100%;
+  margin: 0;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / .18);
-  border-radius: 1.45rem;
+  border: 0;
+  border-radius: inherit;
   background:
     radial-gradient(
       circle at var(--glass-pointer-x, 74%) var(--glass-pointer-y, 16%),
@@ -74,8 +76,8 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .wiki-c
   }
 
   .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material {
-    margin: .55rem;
-    border-radius: .95rem;
+    margin: 0;
+    border-radius: inherit;
   }
 
   .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material > .country-hero-layout {

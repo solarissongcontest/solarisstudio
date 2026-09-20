@@ -226,11 +226,12 @@ function SSC21CountryCard({
             src={row.flagImage}
             alt={`Flag of ${row.name}`}
             loading="lazy"
+            data-flag-role="official"
             style={{
               display: "block",
               width: "100%",
               height: "100%",
-              objectFit: "cover",
+              objectFit: "contain",
               objectPosition: "center",
             }}
           />
@@ -532,6 +533,15 @@ function Zone({
   decorations: DecorationConfig[];
 }) {
   const ctx = { theme, accent: row.accent };
+  const isFlag = zone.type === "flag";
+  const configuredFlagHeight = zone.height ?? (
+    zone.width != null ? zone.width / 1.5 : Math.min(32, card.height)
+  );
+  const flagHeight = Math.max(16, configuredFlagHeight) * scale;
+  const flagWidth = flagHeight * 1.5;
+  const flagRadius = card.radius > 0
+    ? Math.min(10 * scale, Math.max(3 * scale, card.radius * scale * 0.45))
+    : 0;
 
   const style: CSSProperties = {
     position:
@@ -559,22 +569,26 @@ function Zone({
         : zone.align === "right"
           ? "flex-end"
           : "center",
-    width: zone.width ? zone.width * scale : undefined,
-    minWidth: zone.minWidth
+    width: isFlag ? flagWidth : zone.width ? zone.width * scale : undefined,
+    minWidth: isFlag ? flagWidth : zone.minWidth
       ? zone.minWidth * scale
       : undefined,
-    maxWidth: zone.maxWidth
+    maxWidth: isFlag ? flagWidth : zone.maxWidth
       ? zone.maxWidth * scale
       : undefined,
-    height: zone.height ? zone.height * scale : "100%",
-    flexGrow: zone.grow,
-    flexShrink: zone.grow ? 1 : 0,
-    flexBasis:
-      zone.grow && !zone.width ? 0 : undefined,
-    paddingLeft: zone.paddingX * scale,
-    paddingRight: zone.paddingX * scale,
-    paddingTop: zone.paddingY * scale,
-    paddingBottom: zone.paddingY * scale,
+    height: isFlag ? flagHeight : zone.height ? zone.height * scale : "100%",
+    aspectRatio: isFlag ? "3 / 2" : undefined,
+    flexGrow: isFlag ? 0 : zone.grow,
+    flexShrink: isFlag ? 0 : zone.grow ? 1 : 0,
+    flexBasis: isFlag
+      ? flagWidth
+      : zone.grow && !zone.width
+        ? 0
+        : undefined,
+    paddingLeft: isFlag ? 0 : zone.paddingX * scale,
+    paddingRight: isFlag ? 0 : zone.paddingX * scale,
+    paddingTop: isFlag ? 0 : zone.paddingY * scale,
+    paddingBottom: isFlag ? 0 : zone.paddingY * scale,
     marginLeft:
       (zone.marginX + zone.overlapLeft) * scale,
     marginRight:
@@ -582,8 +596,8 @@ function Zone({
     zIndex: zone.z,
     background: surfaceBackground(zone.surface, ctx),
     border: borderCss(zone.border, ctx),
-    borderRadius: borderRadiusFor(zone.shape, 0),
-    clipPath: clipPathFor(zone.shape),
+    borderRadius: isFlag ? flagRadius : borderRadiusFor(zone.shape, 0),
+    clipPath: isFlag ? undefined : clipPathFor(zone.shape),
     overflow: "hidden",
   };
 
@@ -710,10 +724,11 @@ function ZoneContent({
           src={row.flagImage}
           alt={`Flag of ${row.name}`}
           loading="lazy"
+          data-flag-role="official"
           style={{
             width: "100%",
             height: "100%",
-            objectFit: zone.fit ?? "cover",
+            objectFit: "contain",
             objectPosition:
               zone.objectPosition ?? "center",
           }}

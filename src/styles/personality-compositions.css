@@ -34,16 +34,16 @@
 
 .country-identity-hero[data-country-personality="glass-card"] {
   overflow: hidden !important;
-  border: 0 !important;
-  border-radius: 0 !important;
+  border: 1px solid rgb(255 255 255 / .20) !important;
+  border-radius: clamp(1.25rem, 3cqi, 1.75rem) !important;
   background: transparent !important;
-  box-shadow: none !important;
-  padding: clamp(.75rem, 2.5cqi, 1.5rem);
+  box-shadow: 0 1.5rem 4.5rem rgb(0 0 0 / .20) !important;
+  padding: 0;
 }
 
 .country-identity-hero[data-country-personality="glass-card"] .country-hero-scene {
   display: block;
-  border-radius: clamp(1.15rem, 3cqi, 2rem);
+  border-radius: inherit;
   background:
     radial-gradient(circle at 78% 18%, rgb(var(--solaris-accent) / .30), transparent 28%),
     linear-gradient(145deg, rgb(var(--solaris-bg-primary) / .88), rgb(var(--solaris-bg-secondary) / .66));
@@ -68,11 +68,12 @@
 .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material {
   position: relative;
   z-index: 1;
-  inline-size: min(100%, 64rem);
-  margin: clamp(1rem, 4cqi, 3rem) auto !important;
+  display: block !important;
+  inline-size: 100%;
+  margin: 0 !important;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / .24) !important;
-  border-radius: clamp(1rem, 2.5cqi, 1.6rem) !important;
+  border: 0 !important;
+  border-radius: inherit !important;
   background:
     radial-gradient(circle at var(--glass-pointer-x, 74%) var(--glass-pointer-y, 16%), rgb(255 255 255 / .15), transparent 26%),
     linear-gradient(145deg, rgb(255 255 255 / .11), rgb(255 255 255 / .035)) !important;
@@ -142,12 +143,12 @@
 
 @container country-identity (width < 40rem) {
   .country-identity-hero[data-country-personality="glass-card"] {
-    padding: .55rem;
+    padding: 0;
   }
 
   .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material {
-    margin: .65rem auto !important;
-    inline-size: calc(100% - 1.3rem);
+    margin: 0 !important;
+    inline-size: 100%;
   }
 
   .country-identity-hero[data-country-personality="glass-card"] .country-composition-glass {
