@@ -214,7 +214,7 @@ function EditionPage() {
 
   return (
     <AppShell>
-      <main className="edition-public-page">
+      <div className="edition-public-page">
         <div className="edition-page-toolbar">
           <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
           <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
@@ -448,7 +448,7 @@ function EditionPage() {
         {!publicShows.length && (
           <EditionEmptyState>No individual show information is available publicly for this edition yet.</EditionEmptyState>
         )}
-      </main>
+      </div>
     </AppShell>
   );
 }
