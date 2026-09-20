@@ -39,7 +39,7 @@ async function loadCases(): Promise<CaseItem[]> {
 export function IntegrityInvestigations() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"open" | "urgent" | "waiting" | "all">("open");
-  const casesQuery = useQuery({ queryKey: ["admin-integrity-cases"], queryFn: loadCases, refetchInterval: 30_000 });
+  const casesQuery = useQuery({ queryKey: ["admin-integrity-cases"], queryFn: loadCases, refetchInterval: 120_000 });
   const cases = casesQuery.data ?? [];
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
