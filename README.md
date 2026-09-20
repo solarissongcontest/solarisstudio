@@ -4,7 +4,7 @@ Solaris Studio is the operating system behind Solaris Song Contest: editions, co
 
 ## Current documentation
 
-Start here instead of treating every old planning file as sacred scripture, an occupational hazard of software repositories.
+Start here for the current production architecture and release documentation.
 
 - **Production status:** [MERGE_STATUS.md](./MERGE_STATUS.md)
 - **Architecture:** [docs/architecture.md](./docs/architecture.md)

@@ -98,7 +98,7 @@ function CommandAssistantPage() {
             </div>
           </label>
           <p className="mt-2 text-xs text-muted-foreground">
-            Requests are matched locally against registered operations. Human beings have, against all odds, been denied a natural-language DELETE FROM production button.
+            Requests are matched locally against registered read-only operations. Arbitrary database commands are never generated or executed.
           </p>
         </AdminCard>
 

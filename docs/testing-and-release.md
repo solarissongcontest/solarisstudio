@@ -46,4 +46,4 @@ Prediction League additionally verifies:
 
 ## Public IA legacy retirement
 
-Legacy navigation deletion is not controlled by opinion. Existing Beta 3 gates, production telemetry, green CI and manual role/device smoke must all pass. Insufficient sample size is a blocker, not permission to round the number upward until it becomes emotionally convenient.
+Legacy navigation deletion is not controlled by opinion. Existing Beta 3 gates, production telemetry, green CI and manual role/device smoke must all pass. Insufficient sample size remains a blocker until the documented evidence threshold is met.

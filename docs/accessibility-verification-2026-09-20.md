@@ -34,4 +34,4 @@ Charts are not the sole carrier of Voting DNA information; the product presents 
 
 Time Machine and Command Assistant use ordinary labelled form controls and text status surfaces.
 
-Any manual failure blocks rollout of the affected flag until fixed. The checklist is not a ceremonial PDF-shaped absolution ritual.
+Any manual failure blocks rollout of the affected flag until fixed. Any manual failure blocks rollout of the affected feature until it is fixed and retested.
