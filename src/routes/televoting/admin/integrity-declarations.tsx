@@ -62,7 +62,7 @@ function IntegrityDeclarationsPage() {
     queryKey: ["merged-integrity-declarations"],
     queryFn: () => getDeclarations({ data: { limit: 500, signedOnly: false } }),
     enabled: Boolean(admin),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const now = Date.now();
