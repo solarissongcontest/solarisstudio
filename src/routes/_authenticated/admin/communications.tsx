@@ -110,7 +110,7 @@ function CommunicationsCentre() {
   const noticesQuery = useQuery({
     queryKey: ['studio2-official-notices', editionId ?? 'all'],
     queryFn: () => loadStudio2Notices(editionId),
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
 
   const notices = noticesQuery.data ?? [];
