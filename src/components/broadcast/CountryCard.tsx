@@ -230,7 +230,7 @@ function SSC21CountryCard({
               display: "block",
               width: "100%",
               height: "100%",
-              objectFit: "cover",
+              objectFit: "contain",
               objectPosition: "center",
             }}
           />
@@ -713,7 +713,7 @@ function ZoneContent({
           style={{
             width: "100%",
             height: "100%",
-            objectFit: zone.fit ?? "cover",
+            objectFit: "contain",
             objectPosition:
               zone.objectPosition ?? "center",
           }}
