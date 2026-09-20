@@ -400,7 +400,8 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
 }
 .country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-flag img {
   width: 100%;
-  max-height: 9rem;
+  height: 100%;
+  max-height: 100%;
 }
 .country-v2-hero[data-country-v2-hero="centered"] .country-v2-hero-actions {
   grid-area: actions;
@@ -441,7 +442,7 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
   inset: 1.4rem 1.4rem auto auto;
   width: min(20vw, 10rem);
 }
-.country-v2-hero[data-country-v2-hero="cinematic"] .country-v2-hero-flag img { max-height: 7rem; }
+.country-v2-hero[data-country-v2-hero="cinematic"] .country-v2-hero-flag img { max-height: 100%; }
 
 .country-v2-hero[data-country-v2-hero="poster"] {
   min-height: clamp(24rem, 56vw, 42rem);
@@ -465,7 +466,7 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
 }
 .country-v2-hero[data-country-v2-hero="compact"] .country-v2-hero-copy { grid-area: copy; }
 .country-v2-hero[data-country-v2-hero="compact"] .country-v2-hero-flag { grid-area: flag; width: 5.5rem; }
-.country-v2-hero[data-country-v2-hero="compact"] .country-v2-hero-flag img { max-height: 4rem; box-shadow: none; }
+.country-v2-hero[data-country-v2-hero="compact"] .country-v2-hero-flag img { max-height: 100%; box-shadow: none; }
 .country-v2-hero[data-country-v2-hero="compact"] .country-v2-hero-actions { grid-area: actions; }
 .country-v2-hero[data-country-v2-hero="compact"] .country-v2-hero-title { font-size: clamp(1.8rem,5vw,3rem); }
 .country-v2-hero[data-country-v2-hero="compact"] .country-v2-hero-description { display: none; }
