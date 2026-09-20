@@ -54,6 +54,9 @@ describe("Country Design V2 integration contract", () => {
     expect(hero).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
     expect(hero).toContain("country-v2-liquid-glass-material");
     expect(hero).toContain("data-liquid-glass");
+    expect(css).toContain('body[data-liquid-glass-svg="true"]');
+    expect(css).toContain('url("#solaris-liquid-glass-surface")');
+    expect(css).toContain("prefers-reduced-transparency: reduce");
   });
 
   it("keeps country artwork in the hero instead of a ghost card beneath content", () => {
