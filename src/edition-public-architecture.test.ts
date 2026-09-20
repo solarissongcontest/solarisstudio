@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const route = readFileSync("src/routes/editions/$slug.tsx", "utf8");
 const css = readFileSync("src/edition-public-v5.css", "utf8");
 const panel = readFileSync("src/components/EditionPublicDesignPanel.tsx", "utf8");
+const primitives = readFileSync("src/components/edition/EditionPublicPrimitives.tsx", "utf8");
 
 describe("edition public page architecture", () => {
   it("keeps results behind the final publication gate", () => {
@@ -25,6 +26,7 @@ describe("edition public page architecture", () => {
     expect(css).toContain("@media (max-width: 22.5rem)");
     expect(css).toContain("@container (max-width: 47.99rem)");
     expect(css).toContain("prefers-reduced-motion: reduce");
+    expect(css).toContain("prefers-reduced-transparency: reduce");
     expect(css).toContain("prefers-contrast: more");
     expect(css).toContain("forced-colors: active");
     expect(css).toContain("@supports not (backdrop-filter: blur(1px))");
@@ -35,5 +37,14 @@ describe("edition public page architecture", () => {
     expect(panel).toContain('"desktop" | "tablet" | "mobile"');
     expect(panel).toContain("publicFocalX");
     expect(panel).toContain("publicFocalY");
+    expect(panel).toContain("edition.artwork_url ?? edition.logo");
+  });
+
+  it("keeps artwork and logo as distinct hero roles and glass out of content panels", () => {
+    expect(route).toContain("artwork={edition.artwork_url ?? null}");
+    expect(route).toContain("logo={edition.logo ?? null}");
+    expect(primitives).toContain('data-has-logo={logo ? "true" : "false"}');
+    expect(css).toContain(":where(.glass, .data-panel):not(.public-current-status)");
+    expect(css).toContain("backdrop-filter: none !important");
   });
 });
