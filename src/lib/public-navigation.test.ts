@@ -57,6 +57,12 @@ describe("public navigation contract", () => {
     expect(publicSearchText(byRoute.get("/taste-dna")!)).toContain("taste dna");
   });
 
+  it("keeps the anniversary archive route contextual and out of year-round discovery", () => {
+    const anniversary = PUBLIC_DESTINATIONS.find((item) => item.to === "/anniversary");
+    expect(anniversary?.visibility).toBe("contextual");
+    expect(anniversary?.discoverable).toBe(false);
+  });
+
   it("maps representative deep routes to the conceptual area", () => {
     expect(publicAreaForPath("/countries/oland")).toBe("explore");
     expect(publicAreaForPath("/scorecharts/ssc21-final")).toBe("results");

@@ -12,6 +12,7 @@ export type PublicDestination = {
   shortLabel?: string;
   description: string;
   visibility: NavigationVisibility;
+  discoverable?: boolean;
   aliases?: string[];
   keywords?: string[];
   auth?: PublicAuthScope;
@@ -108,8 +109,8 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
     "explore",
     "Anniversary",
     "Champions, milestones and Solaris history.",
-    "secondary",
-    { keywords: ["celebration", "champions"] },
+    "contextual",
+    { discoverable: false, keywords: ["celebration", "champions"] },
   ),
   destination(
     "archive-games",

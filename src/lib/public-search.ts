@@ -15,7 +15,9 @@ export type PublicSearchResult = {
 
 export function navigationSearchResults(query: string): PublicSearchResult[] {
   const terms = normalizedTerms(query);
-  const items = PUBLIC_DESTINATIONS.filter((item) => matchesTerms(publicSearchText(item), terms));
+  const items = PUBLIC_DESTINATIONS.filter(
+    (item) => item.discoverable !== false && matchesTerms(publicSearchText(item), terms),
+  );
   return items.map(navigationResult);
 }
 

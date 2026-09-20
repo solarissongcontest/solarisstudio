@@ -1,8 +1,7 @@
-/* Pre-anniversary countdown and post-anniversary afterglow.
-   Full particles remain exclusive to 17 September so normal product use stays calm. */
+/* Pre-anniversary countdown only.
+   Full anniversary features remain exclusive to 17 September. */
 
-body[data-solaris-anniversary-phase="countdown"],
-body[data-solaris-anniversary-phase="after"] {
+body[data-solaris-anniversary-phase="countdown"] {
   --anniv-midnight: #05081d;
   --anniv-cyan: #74e7ff;
   --anniv-lilac: #b7a4ff;
@@ -10,29 +9,6 @@ body[data-solaris-anniversary-phase="after"] {
   --anniv-mint: #78f3d0;
 }
 
-body[data-solaris-anniversary-phase="after"] .site-nav {
-  background: linear-gradient(180deg, rgba(5,8,29,.91), rgba(5,8,29,.76)) !important;
-  border-bottom-color: rgba(255,227,110,.18) !important;
-  box-shadow: 0 12px 38px rgba(6,8,35,.16), 0 0 26px rgba(255,227,110,.04) !important;
-  backdrop-filter: blur(22px) saturate(140%);
-}
-
-body[data-solaris-anniversary-phase="after"] .site-nav::after {
-  content: "SSC ANNIVERSARY · YEAR FIVE BEGINS";
-  position: absolute;
-  left: 50%;
-  bottom: -1px;
-  transform: translateX(-50%);
-  padding: 0 .65rem;
-  background: var(--anniv-midnight);
-  color: rgba(255,227,110,.72);
-  font-size: .48rem;
-  font-weight: 900;
-  letter-spacing: .2em;
-  text-transform: uppercase;
-  pointer-events: none;
-  white-space: nowrap;
-}
 
 .solaris-anniversary-season-notice--countdown { display: none !important; }
 
@@ -55,10 +31,6 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   backdrop-filter: blur(24px) saturate(150%);
 }
 
-.solaris-anniversary-season-notice--after {
-  background: radial-gradient(circle at 10% 0%, rgba(255,227,110,.10), transparent 42%), linear-gradient(120deg, rgba(7,10,33,.95), rgba(18,15,38,.91));
-  box-shadow: 0 20px 70px rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.07), 0 0 38px rgba(255,227,110,.055);
-}
 
 .solaris-anniversary-season-mark {
   display: grid;
@@ -75,12 +47,6 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   letter-spacing: -.04em;
 }
 
-.solaris-anniversary-season-notice--after .solaris-anniversary-season-mark {
-  border-color: rgba(255,227,110,.30);
-  background: radial-gradient(circle, rgba(255,227,110,.12), rgba(255,227,110,.025) 62%, transparent 63%);
-  color: var(--anniv-gold);
-  box-shadow: inset 0 0 20px rgba(255,227,110,.07), 0 0 20px rgba(255,227,110,.05);
-}
 
 .solaris-anniversary-season-copy { min-width: 0; }
 .solaris-anniversary-season-copy p {
@@ -91,7 +57,6 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   letter-spacing: .18em;
   text-transform: uppercase;
 }
-.solaris-anniversary-season-notice--after .solaris-anniversary-season-copy p { color: var(--anniv-gold); }
 .solaris-anniversary-season-copy strong { display: block; color: #fff; font-size: .96rem; font-weight: 900; }
 .solaris-anniversary-season-copy span { display: block; margin-top: .18rem; color: rgba(255,255,255,.56); font-size: .69rem; line-height: 1.4; }
 
@@ -110,22 +75,13 @@ body[data-solaris-anniversary-phase="after"] .site-nav::after {
   white-space: nowrap;
   transition: transform .18s ease, border-color .18s ease, background .18s ease;
 }
-.solaris-anniversary-season-notice--after .solaris-anniversary-season-action { border-color: rgba(255,227,110,.25); background: rgba(255,227,110,.07); }
 .solaris-anniversary-season-action:hover { transform: translateY(-1px); border-color: rgba(116,231,255,.48); background: rgba(116,231,255,.12); }
-.solaris-anniversary-season-notice--after .solaris-anniversary-season-action:hover { border-color: rgba(255,227,110,.48); background: rgba(255,227,110,.12); }
 
 @media (max-width: 1023px) {
   .solaris-anniversary-season-notice { bottom: 5.75rem; }
 }
 
 @media (max-width: 639px) {
-  body[data-solaris-anniversary-phase="after"] .site-nav::after {
-    content: "YEAR FIVE BEGINS";
-    max-width: 70vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: .43rem;
-  }
 
   /* Only the anniversary takeover gets edge-to-edge treatment. The normal
      homepage below it is explicitly restored to the usual mobile width. */

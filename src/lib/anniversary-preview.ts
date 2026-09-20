@@ -5,7 +5,6 @@ export const ANNIVERSARY_PREVIEW_SESSION_KEY = "solaris:anniversary-preview-phas
 export function parseAnniversaryPreviewValue(value: string | null): AnniversaryPhase | "off" | null {
   if (value === "preview" || value === "active") return "active";
   if (value === "countdown") return "countdown";
-  if (value === "after") return "after";
   if (value === "off") return "off";
   return null;
 }

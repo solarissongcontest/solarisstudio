@@ -29,9 +29,8 @@ describe("Solaris anniversary season", () => {
     expect(season.age).toBe(4);
   });
 
-  it("keeps a three-day afterglow before returning to normal", () => {
-    expect(getSolarisAnniversarySeason(new Date("2026-09-18T12:00:00Z")).phase).toBe("after");
-    expect(getSolarisAnniversarySeason(new Date("2026-09-20T12:00:00Z")).phase).toBe("after");
-    expect(getSolarisAnniversarySeason(new Date("2026-09-21T12:00:00Z")).phase).toBe("dormant");
+  it("returns to normal immediately after Anniversary Day", () => {
+    expect(getSolarisAnniversarySeason(new Date("2026-09-18T12:00:00Z")).phase).toBe("dormant");
+    expect(getSolarisAnniversarySeason(new Date("2026-09-20T12:00:00Z")).phase).toBe("dormant");
   });
 });

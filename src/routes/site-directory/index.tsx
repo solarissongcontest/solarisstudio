@@ -38,9 +38,12 @@ function SiteDirectoryPage() {
   const normalizedQuery = query.trim().toLowerCase();
 
   const matches = useMemo(() => {
-    if (!normalizedQuery) return PUBLIC_DESTINATIONS;
+    const discoverableDestinations = PUBLIC_DESTINATIONS.filter(
+      (item) => item.discoverable !== false,
+    );
+    if (!normalizedQuery) return discoverableDestinations;
     const terms = normalizedQuery.split(/\s+/).filter(Boolean);
-    return PUBLIC_DESTINATIONS.filter((item) => {
+    return discoverableDestinations.filter((item) => {
       const searchable = publicSearchText(item);
       return terms.every((term) => searchable.includes(term));
     });
