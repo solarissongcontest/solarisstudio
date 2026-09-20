@@ -14,6 +14,12 @@ Solaris Studio, Confirmations and Televoting are one production application on c
 - Generated TanStack route trees are produced by the build and are not committed.
 - Cloudflare Workers is the production runtime target.
 
+### Televoting server runtime
+
+Privileged Televoting requests remain user-token based. The server passes the **authenticated user's JWT** into the same RLS/capability boundary used by Solaris rather than substituting a browser-visible privileged credential.
+
+`TELEVOTING_SUPABASE_SERVICE_ROLE_KEY` is **not a current Solaris Studio runtime dependency** and is not introduced by this programme.
+
 ## Public information architecture
 
 Public IA v3 is globally enabled and is the normal public experience.
