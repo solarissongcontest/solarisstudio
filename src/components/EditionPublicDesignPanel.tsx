@@ -161,7 +161,15 @@ export function EditionPublicDesignPanel() {
             {([ ["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone] ] as const).map(([mode, Icon]) => <button key={mode} type="button" onClick={() => setPreviewMode(mode)} aria-label={`${mode} preview`} aria-pressed={previewMode === mode} className={`grid size-9 place-items-center rounded-md ${previewMode === mode ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}><Icon className="size-4" /></button>)}
           </div>
         </div>
-        <EditionDesignPreview style={style} mode={previewMode} artwork={edition.logo} title={edition.name} focalX={focalX} focalY={focalY} />
+        <EditionDesignPreview
+          style={style}
+          mode={previewMode}
+          artwork={edition.artwork_url ?? edition.logo}
+          logo={edition.logo}
+          title={edition.name}
+          focalX={focalX}
+          focalY={focalY}
+        />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -194,7 +202,7 @@ export function EditionPublicDesignPanel() {
 
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <GradientEditor label="Accent gradient" description="Highlights, progress, selected states and accent details." value={accentGradient} onChange={setAccentGradient} />
-        <GradientEditor label="Surface gradient" description="Cards, panels and large interface surfaces." value={surfaceGradient} onChange={setSurfaceGradient} />
+        <GradientEditor label="Surface gradient" description="Large surfaces and edition atmosphere, without turning every content item into a gradient card." value={surfaceGradient} onChange={setSurfaceGradient} />
       </div>
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -214,7 +222,7 @@ function StyleThumbnail({ style }: { style: PublicStyle }) {
   </span>;
 }
 
-function EditionDesignPreview({ style, mode, artwork, title, focalX, focalY }: { style: PublicStyle; mode: "desktop" | "tablet" | "mobile"; artwork?: string | null; title: string; focalX: number; focalY: number }) {
+function EditionDesignPreview({ style, mode, artwork, logo, title, focalX, focalY }: { style: PublicStyle; mode: "desktop" | "tablet" | "mobile"; artwork?: string | null; logo?: string | null; title: string; focalX: number; focalY: number }) {
   const width = mode === "mobile" ? "max-w-[16rem]" : mode === "tablet" ? "max-w-[32rem]" : "max-w-full";
   return <div className={`mx-auto overflow-hidden border border-white/10 bg-[#071a2b] text-white transition-[max-width] ${width}`} data-preview-style={style}>
     <div className={`${mode === "mobile" ? "flex flex-col" : "grid grid-cols-[1.15fr_.85fr]"} ${style === "editorial" ? "rounded-none" : "rounded-sm"}`}>
@@ -223,8 +231,9 @@ function EditionDesignPreview({ style, mode, artwork, title, focalX, focalY }: {
         <strong className="mt-2 line-clamp-2 font-display text-3xl leading-[.88]">{title}</strong>
         <span className="mt-3 max-w-52 text-[9px] leading-relaxed text-white/55">An edition identity with published shows, entries and results.</span>
       </div>
-      <div className={`min-h-32 ${artwork ? "bg-black/20" : "bg-gradient-to-br from-cyan-500/25 to-fuchsia-500/10"}`}>
-        {artwork ? <img src={artwork} alt="" className="h-full w-full object-cover" style={{ objectPosition: `${focalX}% ${focalY}%` }} /> : null}
+      <div className={`relative min-h-32 overflow-hidden ${artwork ? "bg-black/20" : "bg-gradient-to-br from-cyan-500/25 to-fuchsia-500/10"}`}>
+        {artwork ? <img src={artwork} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75" style={{ objectPosition: `${focalX}% ${focalY}%` }} /> : null}
+        {logo ? <div className="absolute inset-0 grid place-items-center bg-black/15 p-5"><img src={logo} alt="" className="max-h-20 max-w-[82%] object-contain drop-shadow-lg" /></div> : null}
       </div>
     </div>
     <div className={`flex gap-2 border-t border-white/10 px-3 py-2 text-[8px] uppercase tracking-wider ${style === "glass" ? "bg-white/10 backdrop-blur" : ""}`}><span>Overview</span><span>Entries</span><span>Results</span><span>Shows</span></div>
