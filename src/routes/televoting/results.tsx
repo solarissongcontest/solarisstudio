@@ -102,7 +102,7 @@ function TelevotingResultsPage() {
     queryKey: ["merged-televoting-published-results"],
     queryFn: () => getResults({ data: {} }),
     enabled: serverStatus?.votingReady === true,
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const round = data?.round ?? null;
