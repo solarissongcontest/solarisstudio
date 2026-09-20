@@ -19,6 +19,8 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/shows", changefreq: "weekly", priority: "0.8" },
           { path: "/results", changefreq: "weekly", priority: "0.9" },
           { path: "/wiki", changefreq: "weekly", priority: "0.8" },
+          { path: "/encyclopedia", changefreq: "weekly", priority: "0.8" },
+          { path: "/voting-dna", changefreq: "weekly", priority: "0.7" },
           { path: "/stories", changefreq: "weekly", priority: "0.7" },
           { path: "/anniversary", changefreq: "monthly", priority: "0.7" },
           { path: "/rules", changefreq: "weekly", priority: "0.9" },
@@ -30,6 +32,8 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/guide", changefreq: "monthly", priority: "0.7" },
           { path: "/pulse", changefreq: "daily", priority: "0.8" },
           { path: "/predictions", changefreq: "daily", priority: "0.8" },
+          { path: "/prediction-league", changefreq: "daily", priority: "0.7" },
+          { path: "/fantasy", changefreq: "daily", priority: "0.7" },
           { path: "/tools", changefreq: "monthly", priority: "0.8" },
           { path: "/analysis", changefreq: "monthly", priority: "0.7" },
           { path: "/result-lab", changefreq: "monthly", priority: "0.7" },
@@ -78,6 +82,11 @@ export const Route = createFileRoute("/sitemap.xml")({
                 path: `/wiki/${country.short_code}`,
                 changefreq: "monthly",
                 priority: "0.6",
+              });
+              entries.push({
+                path: `/voting-dna/${country.short_code}`,
+                changefreq: "monthly",
+                priority: "0.5",
               });
             });
           }
