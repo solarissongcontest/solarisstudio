@@ -23,6 +23,7 @@ describe("edition public page architecture", () => {
 
   it("has mobile, reduced-motion, contrast and glass fallbacks", () => {
     expect(css).toContain("@media (max-width: 22.5rem)");
+    expect(css).toContain("@container (max-width: 47.99rem)");
     expect(css).toContain("prefers-reduced-motion: reduce");
     expect(css).toContain("prefers-contrast: more");
     expect(css).toContain("forced-colors: active");

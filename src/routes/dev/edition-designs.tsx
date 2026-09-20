@@ -70,7 +70,7 @@ function EditionDesignLab() {
         <label className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 text-xs font-semibold">Reduce transparency<input type="checkbox" checked={reducedTransparency} onChange={(event) => setReducedTransparency(event.target.checked)} /></label>
       </section>
       <div className={`mt-4 overflow-x-auto border border-border bg-background/40 p-2 ${reducedTransparency ? "[&_.edition-navigation]:!backdrop-blur-none" : ""}`}>
-        <div style={{ width: `${viewport}px`, maxWidth: "100%" }} className="mx-auto">
+        <div data-edition-lab-frame style={{ width: `${viewport}px`, maxWidth: "100%", containerType: "inline-size" }} className="mx-auto">
           <main className="edition-public-page" data-edition-design-lab>
             <EditionHero
               eyebrow={fixture.id === "c" ? "The Free Metropolitan District of Saint Solaris-upon-Aurora" : "Port Aurora"}
