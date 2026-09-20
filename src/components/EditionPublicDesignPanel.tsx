@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { useEditions } from "@/lib/data";
 import {
@@ -224,8 +225,12 @@ function StyleThumbnail({ style }: { style: PublicStyle }) {
 
 function EditionDesignPreview({ style, mode, artwork, logo, title, focalX, focalY }: { style: PublicStyle; mode: "desktop" | "tablet" | "mobile"; artwork?: string | null; logo?: string | null; title: string; focalX: number; focalY: number }) {
   const width = mode === "mobile" ? "max-w-[16rem]" : mode === "tablet" ? "max-w-[32rem]" : "max-w-full";
-  return <div className={`mx-auto overflow-hidden border border-white/10 bg-[#071a2b] text-white transition-[max-width] ${width}`} data-preview-style={style}>
-    <div className={`${mode === "mobile" ? "flex flex-col" : "grid grid-cols-[1.15fr_.85fr]"} ${style === "editorial" ? "rounded-none" : "rounded-sm"}`}>
+  return <div className={`relative isolate mx-auto overflow-hidden border border-white/10 bg-[#071a2b] text-white transition-[max-width] ${width}`} data-preview-style={style}>
+    {style === "glass" && artwork ? (
+      <img src={artwork} alt="" className="absolute inset-0 z-0 h-full w-full object-cover opacity-20" style={{ objectPosition: `${focalX}% ${focalY}%` }} />
+    ) : null}
+    {style === "glass" ? <LiquidGlassBackdrop variant="hero" className="z-[1] bg-white/[0.045]" /> : null}
+    <div className={`relative z-[2] ${mode === "mobile" ? "flex flex-col" : "grid grid-cols-[1.15fr_.85fr]"} ${style === "editorial" ? "rounded-none" : "rounded-sm"}`}>
       <div className="flex min-h-48 flex-col justify-end p-5">
         <span className="text-[8px] font-bold uppercase tracking-[.16em] text-cyan-300">Solaris Song Contest</span>
         <strong className="mt-2 line-clamp-2 font-display text-3xl leading-[.88]">{title}</strong>
@@ -236,7 +241,10 @@ function EditionDesignPreview({ style, mode, artwork, logo, title, focalX, focal
         {logo ? <div className="absolute inset-0 grid place-items-center bg-black/15 p-5"><img src={logo} alt="" className="max-h-20 max-w-[82%] object-contain drop-shadow-lg" /></div> : null}
       </div>
     </div>
-    <div className={`flex gap-2 border-t border-white/10 px-3 py-2 text-[8px] uppercase tracking-wider ${style === "glass" ? "bg-white/10 backdrop-blur" : ""}`}><span>Overview</span><span>Entries</span><span>Results</span><span>Shows</span></div>
+    <div className="relative z-[2] flex gap-2 overflow-hidden border-t border-white/10 px-3 py-2 text-[8px] uppercase tracking-wider">
+      {style === "glass" ? <LiquidGlassBackdrop variant="control" className="z-0 bg-white/[0.06]" /> : null}
+      {["Overview", "Entries", "Results", "Shows"].map((label) => <span key={label} className="relative z-[1]">{label}</span>)}
+    </div>
   </div>;
 }
 
