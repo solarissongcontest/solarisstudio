@@ -85,7 +85,9 @@ describe("source-driven Country personality foundation", () => {
     expect(hero).toContain("<LazyGlassMaterial");
     expect(css).toContain("samasante/liquid-glass");
     expect(css).toContain("country-hero-glass-material");
-    expect(wiki).toContain("exactly one functional glass header");
+    expect(wiki).toContain("exactly one real refractive plate");
+    expect(wiki).toContain(".country-hero-glass-material");
+    expect(wiki).toContain("backdrop-filter: none;");
   });
 
   it("keeps Wiki article-first and personality-subordinate", () => {
