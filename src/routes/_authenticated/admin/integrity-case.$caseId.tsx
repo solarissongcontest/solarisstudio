@@ -734,7 +734,7 @@ function IdentityPanel({ detail }: { detail: CaseDetail }) {
   const [requestReason, setRequestReason] = useState("");
   const [decisionReason, setDecisionReason] = useState("");
   const organizerQuery = useQuery({ queryKey: ["current-integrity-organizer-id"], queryFn: getCurrentIntegrityOrganizerId, enabled: mode === "sealed", staleTime: 10 * 60 * 1000 });
-  const requestsQuery = useQuery({ queryKey: ["admin-identity-disclosure-requests", detail.case.id], queryFn: listIdentityDisclosureRequests, enabled: mode === "sealed", refetchInterval: 30_000 });
+  const requestsQuery = useQuery({ queryKey: ["admin-identity-disclosure-requests", detail.case.id], queryFn: listIdentityDisclosureRequests, enabled: mode === "sealed", refetchInterval: 120_000 });
   const confidentialMutation = useMutation({ mutationFn: () => rpc<{ email: string | null }>("admin_integrity_reporter_identity", { _case_id: detail.case.id }), onSuccess: (data) => { setRevealedConfidential(data); toast.success("Confidential identity access recorded in audit log"); }, onError: errorToast });
   const refreshRequests = async () => { await requestsQuery.refetch(); };
   const requestMutation = useMutation({ mutationFn: () => requestSealedIdentityDisclosure(detail.case.id, requestReason), onSuccess: async () => { setRequestReason(""); await refreshRequests(); toast.success("Break-glass request created. A different organizer must decide it."); }, onError: errorToast });
