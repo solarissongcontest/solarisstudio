@@ -89,9 +89,17 @@ export function MySolarisPersonalPage({ view }: { view: MySolarisPersonalView })
           title="Prediction history"
           description="Newest submissions first"
           actions={
-            <Link to="/predictions" className="text-xs font-semibold text-primary">
-              Open Prediction Arena →
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link to="/predictions" className="text-xs font-semibold text-primary">
+                Prediction Arena →
+              </Link>
+              <Link to="/prediction-league" className="text-xs font-semibold text-primary">
+                League →
+              </Link>
+              <Link to="/fantasy" className="text-xs font-semibold text-primary">
+                Fantasy SSC →
+              </Link>
+            </div>
           }
         >
           {predictions.length ? (

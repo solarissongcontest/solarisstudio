@@ -28,6 +28,8 @@ import { PublicMobileSectionNav } from "@/components/public/PublicMobileSectionN
 import { PublicSectionNav } from "@/components/public/PublicSectionNav";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { getSolarisAnniversary } from "@/lib/anniversary";
+import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import { resolvePublicIaV3Enabled } from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
@@ -111,6 +113,7 @@ function legacyAnyPathMatches(pathname: string, routes: readonly string[]) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -222,6 +225,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const isEditionPage = /^\/editions\/[^/]+\/?$/i.test(pathname);
   const isHomePage = pathname === "/";
+  const showHomeAnniversaryTakeover =
+    isHomePage &&
+    (getSolarisAnniversary().active ||
+      getAnniversaryPreviewPhase(searchStr) === "active");
   const isMySolarisWorkspace =
     pathname === "/my-solaris" ||
     pathname === "/my-solaris/" ||
@@ -408,7 +415,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
               <div className="public-site-content min-w-0">
                 <PublicMobileSectionNav pathname={pathname} />
-                {isHomePage && (
+                {showHomeAnniversaryTakeover && (
                   <Suspense fallback={null}>
                     <LazyHomeAnniversaryTakeover />
                   </Suspense>
@@ -429,7 +436,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 isOrganizer={access.isOrganizer}
               />
               <div className="public-site-content min-w-0">
-                {isHomePage && (
+                {showHomeAnniversaryTakeover && (
                   <Suspense fallback={null}>
                     <LazyHomeAnniversaryTakeover />
                   </Suspense>
@@ -444,7 +451,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ) : (
             <>
-              {isHomePage && (
+              {showHomeAnniversaryTakeover && (
                 <Suspense fallback={null}>
                   <LazyHomeAnniversaryTakeover />
                 </Suspense>

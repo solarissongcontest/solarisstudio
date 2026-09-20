@@ -30,11 +30,14 @@ describe("Studio 2 rollout views", () => {
     expect(rolloutViewFor(rows[4])).toBe("available");
   });
 
-  it("keeps roadmap and external workstreams locked away from available rollout", () => {
-    expect(rolloutViewFor(rows[2])).toBe("planned");
+  it("moves implemented roadmap products into available rollout while external work stays locked", () => {
+    expect(rolloutViewFor(rows[2])).toBe("available");
     expect(rolloutViewFor(rows[3])).toBe("external");
-    expect(rowsForRolloutView(rows, "available").map((row) => row.key)).toEqual(["voting_lab"]);
-    expect(studio2RolloutDecision("country_voting_dna", false, new Set()).allowed).toBe(false);
+    expect(rowsForRolloutView(rows, "available").map((row) => row.key).sort()).toEqual([
+      "country_voting_dna",
+      "voting_lab",
+    ]);
+    expect(studio2RolloutDecision("country_voting_dna", false, new Set()).allowed).toBe(true);
     expect(studio2RolloutDecision("rules_engine", false, new Set()).allowed).toBe(false);
   });
 
@@ -68,8 +71,8 @@ describe("Studio 2 rollout views", () => {
     expect(rolloutViewCounts(rows)).toEqual({
       active: 1,
       foundations: 1,
-      available: 1,
-      planned: 1,
+      available: 2,
+      planned: 0,
       external: 1,
     });
   });

@@ -1,6 +1,8 @@
+> **Historical document.** This was the original unified-app merge plan. The merge is complete; current architecture is documented in the repository README and MERGE_STATUS.
+
 # Solaris unified app merge
 
-Working plan for merging SSC Confirmations and SSC Televoting into Solaris Studio.
+Working plan used for merging SSC Confirmations and SSC Televoting into Solaris Studio.
 
 - Solaris Studio remains the canonical application/repository.
 - Confirmations visual language becomes the shared design baseline.

@@ -421,6 +421,7 @@ function CountryProfilePage() {
               <>
                 <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
                 <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 <FollowButton entityType="country" entityId={country.id} label={country.name} />
               </>
             }
@@ -442,6 +443,7 @@ function CountryProfilePage() {
               <>
                 <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
                 <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
                 <FollowButton entityType="country" entityId={country.id} label={country.name} />
               </>
             }

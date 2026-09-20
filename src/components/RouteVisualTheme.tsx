@@ -242,7 +242,10 @@ function useResultRefresh({
     };
 
     refresh();
-    // Live results still update promptly, but 3-second database polling multiplied across\n    // visitors is wasteful. A 30-second cadence is enough for passive public pages;\n    // focus/visibility events and mutations can still invalidate immediately.\n    const interval = live ? window.setInterval(refresh, 30_000) : null;
+    // Live results still update promptly, but 3-second database polling multiplied across
+    // visitors is wasteful. A 30-second cadence is enough for passive public pages;
+    // focus/visibility events and mutations can still invalidate immediately.
+    const interval = live ? window.setInterval(refresh, 30_000) : null;
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
 

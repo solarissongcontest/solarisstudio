@@ -148,9 +148,11 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
     public_encyclopedia: {
       key: "public_encyclopedia",
       label: "Public Encyclopedia",
-      state: "planned",
+      state: "product_surface",
       audience: "public",
-      description: "Planned public historical and statistical knowledge surface.",
+      route: "/encyclopedia",
+      description:
+        "Publication-safe historical reference across editions, countries, entries, artists, shows and results.",
     },
     public_ia_v3: {
       key: "public_ia_v3",
@@ -163,37 +165,50 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
     country_voting_dna: {
       key: "country_voting_dna",
       label: "Country Voting DNA",
-      state: "planned",
+      state: "product_surface",
       audience: "public",
-      description: "Planned historical voting-pattern and country-profile analytics.",
+      route: "/voting-dna",
+      description:
+        "Descriptive country voting and result profiles derived only from published public archive data.",
     },
     prediction_league: {
       key: "prediction_league",
       label: "Prediction League",
-      state: "planned",
+      state: "product_surface",
       audience: "public",
-      description: "Planned prediction competition and leaderboard experience.",
+      route: "/prediction-league",
+      description:
+        "Scored competition layer over Prediction Arena with versioned scoring and privacy-safe leaderboards.",
     },
     fantasy_ssc: {
       key: "fantasy_ssc",
       label: "Fantasy SSC",
-      state: "planned",
+      state: "product_surface",
       audience: "public",
-      description: "Planned fantasy contest layer built only after operational systems are stable.",
+      route: "/fantasy",
+      dependsOn: ["prediction_league"],
+      description:
+        "Budget-limited roster game with server-time locking, versioned scoring and published-result leaderboards.",
     },
     time_machine: {
       key: "time_machine",
       label: "Time Machine",
-      state: "planned",
+      state: "product_surface",
       audience: "organizer",
-      description: "Planned historical edition-state and snapshot replay experience.",
+      route: "/admin/time-machine",
+      dependsOn: ["contest_event_engine", "permission_engine_v2"],
+      description:
+        "Read-only historical reconstruction from recorded contest events and audit markers.",
     },
     solaris_command_assistant: {
       key: "solaris_command_assistant",
       label: "Solaris Command Assistant",
-      state: "planned",
+      state: "product_surface",
       audience: "organizer",
-      description: "Planned command layer over stable Studio 2 APIs and models.",
+      route: "/admin/command-assistant",
+      dependsOn: ["permission_engine_v2"],
+      description:
+        "Read-only natural-language command registry over canonical Organizer routes and live bounded summaries.",
     },
   };
 

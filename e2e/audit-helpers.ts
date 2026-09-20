@@ -12,6 +12,8 @@ export const STATIC_PUBLIC_ROUTES = [
   "/confirmations",
   "/countries",
   "/editions",
+  "/encyclopedia",
+  "/fantasy",
   "/guide",
   "/integrity",
   "/integrity/anonymous-appeal",
@@ -22,6 +24,7 @@ export const STATIC_PUBLIC_ROUTES = [
   "/next-in-line",
   "/participate",
   "/predictions",
+  "/prediction-league",
   "/pulse",
   "/records",
   "/relationships",
@@ -37,6 +40,7 @@ export const STATIC_PUBLIC_ROUTES = [
   "/taste-dna",
   "/televoting",
   "/tools",
+  "/voting-dna",
   "/wiki",
 ] as const;
 
