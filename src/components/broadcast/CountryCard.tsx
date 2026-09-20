@@ -226,6 +226,7 @@ function SSC21CountryCard({
             src={row.flagImage}
             alt={`Flag of ${row.name}`}
             loading="lazy"
+            data-flag-role="official"
             style={{
               display: "block",
               width: "100%",
@@ -577,14 +578,17 @@ function Zone({
       : undefined,
     height: isFlag ? flagHeight : zone.height ? zone.height * scale : "100%",
     aspectRatio: isFlag ? "3 / 2" : undefined,
-    flexGrow: zone.grow,
-    flexShrink: zone.grow ? 1 : 0,
-    flexBasis:
-      zone.grow && !zone.width ? 0 : undefined,
-    paddingLeft: zone.paddingX * scale,
-    paddingRight: zone.paddingX * scale,
-    paddingTop: zone.paddingY * scale,
-    paddingBottom: zone.paddingY * scale,
+    flexGrow: isFlag ? 0 : zone.grow,
+    flexShrink: isFlag ? 0 : zone.grow ? 1 : 0,
+    flexBasis: isFlag
+      ? flagWidth
+      : zone.grow && !zone.width
+        ? 0
+        : undefined,
+    paddingLeft: isFlag ? 0 : zone.paddingX * scale,
+    paddingRight: isFlag ? 0 : zone.paddingX * scale,
+    paddingTop: isFlag ? 0 : zone.paddingY * scale,
+    paddingBottom: isFlag ? 0 : zone.paddingY * scale,
     marginLeft:
       (zone.marginX + zone.overlapLeft) * scale,
     marginRight:
@@ -720,6 +724,7 @@ function ZoneContent({
           src={row.flagImage}
           alt={`Flag of ${row.name}`}
           loading="lazy"
+          data-flag-role="official"
           style={{
             width: "100%",
             height: "100%",
