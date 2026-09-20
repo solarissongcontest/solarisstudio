@@ -123,8 +123,32 @@
 ) {
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(10px) saturate(118%);
-  -webkit-backdrop-filter: blur(10px) saturate(118%);
+  isolation: isolate;
+  contain: paint;
+  backdrop-filter: blur(8px) saturate(122%);
+  -webkit-backdrop-filter: blur(8px) saturate(122%);
+}
+
+/* Chromium can filter the live backdrop through an SVG displacement map.
+   RouteVisualTheme sets data-liquid-glass-svg only after engine detection so
+   Safari/Firefox never receive a url() backdrop-filter that would invalidate
+   their perfectly usable blur/tint fallback. */
+body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glass"] :is(
+  .data-panel,
+  .country-personality-card,
+  .wiki-infobox,
+  .wiki-mobile-toolbar,
+  .wiki-compact-contents,
+  [data-country-v2-surface]
+) {
+  -webkit-backdrop-filter:
+    blur(4px)
+    saturate(132%)
+    url("#solaris-liquid-glass-surface");
+  backdrop-filter:
+    blur(4px)
+    saturate(132%)
+    url("#solaris-liquid-glass-surface");
 }
 
 .country-design-v2[data-country-surface="glass"] :is(
@@ -566,6 +590,22 @@
   }
   .country-v2-hero-actions { width: 100%; }
   .country-v2-hero-actions :is(a,button) { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .country-design-v2[data-country-surface="glass"] :is(
+    .country-v2-liquid-glass-material,
+    .data-panel,
+    .country-personality-card,
+    .wiki-infobox,
+    .wiki-mobile-toolbar,
+    .wiki-compact-contents,
+    [data-country-v2-surface]
+  ) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: color-mix(in srgb, var(--country-v2-surface) 94%, var(--country-v2-bg-primary)) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
