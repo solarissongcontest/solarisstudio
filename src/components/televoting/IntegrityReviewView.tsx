@@ -83,7 +83,7 @@ export function IntegrityReviewView() {
     queryKey: ["merged-televoting-moderation", roundId],
     queryFn: () => listVotes({ data: { roundId: roundId === "all" ? null : roundId } }),
     enabled: Boolean(admin),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const counts = useMemo(
