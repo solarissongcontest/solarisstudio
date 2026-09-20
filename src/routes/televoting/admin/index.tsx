@@ -42,7 +42,7 @@ function VotingAdminOverview() {
     queryKey: ["merged-televoting-admin-overview", editionId],
     queryFn: () => getOverview({ data: { editionId } }),
     staleTime: 10_000,
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const nextAction =
