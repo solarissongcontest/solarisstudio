@@ -24,10 +24,13 @@ export const getRouter = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // Avoid immediately re-downloading unchanged route data when someone
-        // navigates back and forth. Polling, realtime invalidations and
-        // mutation invalidations still refresh data when freshness matters.
-        staleTime: 30_000,
+        // Most Solaris data does not need to be downloaded again every time a
+        // visitor changes page or returns to the tab. Explicit live surfaces,
+        // mutations and targeted invalidations still refresh when necessary.
+        staleTime: 2 * 60 * 1000,
+        gcTime: 15 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: true,
       },
     },
   });
@@ -36,7 +39,7 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    defaultPreloadStaleTime: 60_000,
     defaultPendingComponent: RoutePending,
   });
 
