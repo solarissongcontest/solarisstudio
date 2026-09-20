@@ -20,9 +20,7 @@ export function MySolarisAnniversaryRecap() {
   const anniversary = getSolarisAnniversarySeason();
   const visible =
     anniversary.phase === "active" ||
-    anniversary.phase === "after" ||
-    previewPhase === "active" ||
-    previewPhase === "after";
+    previewPhase === "active";
   const { countryAccount } = useMySolaris();
   const country = countryAccount?.country;
   const { data: editions } = useEditions();
