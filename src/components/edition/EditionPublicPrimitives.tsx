@@ -9,6 +9,8 @@ export function EditionHero({
   description,
   artwork,
   artworkAlt,
+  logo,
+  logoAlt,
   status,
   winner,
 }: {
@@ -18,11 +20,20 @@ export function EditionHero({
   description?: string | null;
   artwork?: string | null;
   artworkAlt: string;
+  logo?: string | null;
+  logoAlt?: string;
   status: ReactNode;
   winner?: ReactNode;
 }) {
+  const plateImage = logo ?? artwork;
+  const plateAlt = logo ? (logoAlt ?? `${title} logo`) : artworkAlt;
+
   return (
-    <header className="edition-hero" data-has-artwork={artwork ? "true" : "false"}>
+    <header
+      className="edition-hero"
+      data-has-artwork={artwork ? "true" : "false"}
+      data-has-logo={logo ? "true" : "false"}
+    >
       {artwork ? (
         <div className="edition-hero-artwork" aria-hidden="true">
           <img src={artwork} alt="" fetchPriority="high" decoding="async" />
@@ -36,9 +47,14 @@ export function EditionHero({
         {description ? <p className="edition-hero-description">{description}</p> : null}
         {winner ? <div className="edition-hero-winner">{winner}</div> : null}
       </div>
-      {artwork ? (
+      {plateImage ? (
         <figure className="edition-artwork-plate">
-          <img src={artwork} alt={artworkAlt} fetchPriority="high" decoding="async" />
+          <img
+            src={plateImage}
+            alt={plateAlt}
+            loading="eager"
+            decoding="async"
+          />
         </figure>
       ) : null}
     </header>
