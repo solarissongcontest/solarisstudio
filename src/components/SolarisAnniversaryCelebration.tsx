@@ -54,7 +54,6 @@ function withPreview(season: SolarisAnniversarySeason, phase: AnniversaryPhase |
   if (!phase) return season;
   if (phase === "active") return { ...season, active: true, phase, daysUntil: 0, daysSince: 0 };
   if (phase === "countdown") return { ...season, active: false, phase, daysUntil: 1, daysSince: null };
-  if (phase === "after") return { ...season, active: false, phase, daysUntil: null, daysSince: 1 };
   return season;
 }
 
@@ -187,10 +186,8 @@ export function SolarisAnniversaryCelebration() {
 
   if (!active) {
     if (isAdmin) return null;
-    const countdown = season.phase === "countdown";
-    const title = countdown
-      ? season.daysUntil === 1 ? "Anniversary Day is tomorrow" : `${season.daysUntil} days until Anniversary Day`
-      : `Solaris year ${season.age + 1} has begun`;
+    const title =
+      season.daysUntil === 1 ? "Anniversary Day is tomorrow" : `${season.daysUntil} days until Anniversary Day`;
     return (
       <>
         {!badgeExpanded && <MobileBadgeTrigger />}
@@ -204,7 +201,7 @@ export function SolarisAnniversaryCelebration() {
           <span className="solaris-anniversary-badge-star" aria-hidden="true" />
           <span className="solaris-anniversary-badge-copy">
             <span>17 September</span><span className="solaris-anniversary-badge-divider">·</span>
-            <strong>{countdown ? title : `Year ${season.age + 1} begins`}</strong>
+            <strong>{title}</strong>
           </span>
         </Link>
       </>
