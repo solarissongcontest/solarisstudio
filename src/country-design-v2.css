@@ -321,22 +321,32 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
 .country-v2-hero-flag {
   min-width: 0;
   display: grid;
+  width: min(100%, 22rem);
+  aspect-ratio: 3 / 2;
   place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--country-v2-text) 18%, transparent);
+  border-radius: clamp(0px, calc(var(--country-v2-radius) * .45), .9rem);
+  background: color-mix(in srgb, var(--country-v2-surface) 78%, transparent);
+  box-shadow: 0 16px 46px color-mix(in srgb,#000 24%,transparent);
   z-index: 3;
 }
 .country-v2-hero-flag img {
-  width: min(100%, 22rem);
-  max-height: 14rem;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: inherit;
   object-fit: contain;
-  border: 1px solid color-mix(in srgb, var(--country-v2-text) 18%, transparent);
-  box-shadow: 0 16px 46px color-mix(in srgb,#000 24%,transparent);
+  object-position: center;
 }
 .country-v2-hero-flag-fallback {
   display: grid;
   place-items: center;
-  width: min(100%, 18rem);
+  width: 100%;
+  height: 100%;
   aspect-ratio: 3/2;
-  border: 1px solid var(--country-v2-card-border);
+  border: 0;
+  border-radius: inherit;
   font-family: var(--country-v2-font-display);
   font-size: 2rem;
 }
