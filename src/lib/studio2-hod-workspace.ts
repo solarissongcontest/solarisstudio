@@ -222,18 +222,6 @@ function mapJuryMember(value: unknown): Studio2HodJuryMember {
   };
 }
 
-function mapDeadline(value: unknown): Studio2HodDeadline {
-  const row = expectObject(value, 'HOD deadline');
-  return {
-    id: expectString(row.id, 'deadline id'),
-    kind: expectString(row.kind, 'deadline kind'),
-    label: expectString(row.label, 'deadline label'),
-    dueAt: expectString(row.dueAt, 'deadline due_at'),
-    completedAt: nullableString(row.completedAt, 'deadline completed_at'),
-    notes: nullableString(row.notes, 'deadline notes'),
-  };
-}
-
 function mapReviewHistory(value: unknown): Studio2HodReviewHistoryItem {
   const row = expectObject(value, 'HOD review history item');
   return {
@@ -261,7 +249,11 @@ export function mapStudio2HodContext(value: unknown): Studio2HodContext {
   const row = expectObject(value, 'Studio 2 HOD context');
   const notices = Array.isArray(row.notices) ? row.notices.map(mapNotice) : [];
   const juryMembers = Array.isArray(row.juryMembers) ? row.juryMembers.map(mapJuryMember) : [];
-  const deadlines = Array.isArray(row.deadlines) ? row.deadlines.map(mapDeadline) : [];
+  // The legacy RPC populated this field exclusively from admin_deadlines,
+  // whose current contract is Organizer-only reminders. Those reminders must
+  // never drive delegation readiness, even while the database migration is
+  // still rolling out. Official participant windows come from PublicRound.
+  const deadlines: Studio2HodDeadline[] = [];
   const reviewHistory = Array.isArray(row.reviewHistory) ? row.reviewHistory.map(mapReviewHistory) : [];
   const juryMembersRequired = expectNonNegativeInteger(
     row.juryMembersRequired,

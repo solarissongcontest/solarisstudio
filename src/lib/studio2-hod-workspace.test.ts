@@ -54,6 +54,30 @@ describe('Studio 2 HOD workspace adapter', () => {
     expect(editions.map((edition) => edition.id)).toEqual(['ssc22', 'ssc4']);
   });
 
+  it('does not turn Organizer reminders into HOD workflow deadlines', () => {
+    const context = mapStudio2HodContext({
+      ...completeContext,
+      editionId: completeContext.editionId,
+      editionName: completeContext.editionName,
+      countryId: completeContext.countryId,
+      countryName: completeContext.countryName,
+      entry: completeContext.entry,
+      juryMembers: completeContext.juryMembers,
+      deadlines: [
+        {
+          id: 'reminder-1',
+          kind: 'entry',
+          label: 'Custom reminder',
+          dueAt: '2026-09-25T18:00:00.000Z',
+          completedAt: null,
+          notes: null,
+        },
+      ],
+    });
+
+    expect(context.deadlines).toEqual([]);
+  });
+
   it('builds a clear workspace from complete legacy and Studio 2 data', () => {
     const snapshot = buildStudio2HodWorkspaceSnapshot(completeContext);
 
