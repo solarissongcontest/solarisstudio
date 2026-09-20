@@ -1,11 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock3, Radio, Trophy, Vote } from "lucide-react";
 
-import { AppShell, Panel, StatTile } from "@/components/AppShell";
+import { AppShell, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
+import {
+  EditionEmptyState,
+  EditionHero,
+  EditionNavigation,
+  EditionQuickFacts,
+  EditionSection,
+} from "@/components/edition/EditionPublicPrimitives";
 import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
 import { PublicStatus } from "@/components/public/PublicStatus";
 import { StoryCards } from "@/components/StoryCards";
@@ -207,38 +214,35 @@ function EditionPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5 sm:space-y-7">
-        <div className="flex items-start justify-between gap-4">
+      <main className="edition-public-page">
+        <div className="edition-page-toolbar">
           <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
           <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
         </div>
 
-        <section className="relative overflow-hidden rounded-[2rem] border border-primary/20 bg-surface/80 shadow-2xl">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgb(var(--solaris-bg-primary)/0.18),transparent_42%),linear-gradient(145deg,rgb(var(--solaris-bg-deep-2)/0.94),rgb(var(--solaris-bg-deep)/0.88))]" />
-          <div className="relative z-20 flex flex-col gap-10 p-5 sm:p-8 lg:p-10">
-            <PublicStatus
+        <EditionHero
+          eyebrow={edition.host_city ?? "Solaris Song Contest"}
+          title={editionLabel(edition)}
+          subtitle={edition.name !== editionLabel(edition) ? edition.name : null}
+          description={edition.description}
+          artwork={edition.logo}
+          artworkAlt={`${editionLabel(edition)} official artwork`}
+          status={<PublicStatus
               status={editionState.statusKey}
               label={editionState.statusLabel}
-              className="w-fit"
-            />
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{edition.host_city ?? "Solaris Song Contest"}</p>
-              <h1 className="mt-2 font-display text-5xl font-bold leading-[0.9] tracking-[-0.055em] text-white sm:text-7xl">{editionLabel(edition)}</h1>
-              {edition.name !== editionLabel(edition) && <p className="mt-3 text-lg font-medium text-white/80 sm:text-2xl">{edition.name}</p>}
-              {edition.description && <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/60">{edition.description}</p>}
-              {winner && winnerResult && grandFinalPublication?.results && (
-                <div className="mt-7 flex items-center gap-4">
+              className="edition-status-chip"
+            />}
+          winner={winner && winnerResult && grandFinalPublication?.results ? (
+                <div className="edition-winner-identity">
                   <FlagChip code={winner.short_code} color={winner.accent_color} image={winner.flag_image} size="xl" />
                   <div>
-                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/50">Winner</p>
-                    <p className="mt-1 font-display text-xl font-bold text-white">{winner.name}</p>
-                    <p className="numeric mt-1 text-xs text-white/55">{winnerResult.total_points} points</p>
+                    <p className="edition-kicker">Winner</p>
+                    <p className="edition-winner-name">{winner.name}</p>
+                    <p className="numeric edition-winner-points">{winnerResult.total_points} points</p>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </section>
+              ) : null}
+        />
 
         <PublicCurrentStatus
           icon={editionStatusIcon}
@@ -259,77 +263,30 @@ function EditionPage() {
           }
         />
 
-        {edition.logo && (
-          <section className="overflow-hidden rounded-[1.75rem] border border-primary/20 bg-surface/72 shadow-xl">
-            <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3 sm:px-5">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">Official artwork</p>
-                <h2 className="mt-1 text-sm font-semibold text-foreground">{editionLabel(edition)}</h2>
-              </div>
-              <span className="text-[10px] text-muted-foreground">Shown uncropped</span>
-            </div>
-            <div className="grid place-items-center bg-black/10 p-3 sm:p-5 lg:p-6">
-              <img src={edition.logo} alt={`${editionLabel(edition)} official artwork`} className="block h-auto max-h-[78vh] w-auto max-w-full rounded-xl object-contain" loading="eager" decoding="async" />
-            </div>
-          </section>
-        )}
+        <EditionNavigation
+          label={`Explore ${editionLabel(edition)}`}
+          items={[
+            { href: "#edition-overview", label: "Overview" },
+            { href: "#edition-entries", label: "Entries", available: Boolean(publicEntries.length) },
+            { href: "#edition-results", label: "Results", available: Boolean(grandFinalPublication?.results) },
+            { href: "#edition-stories", label: "Stories", available: Boolean(editionStories.length) },
+            { href: "#edition-shows", label: "Shows", available: Boolean(publicShows.length) },
+            { href: "#edition-countries", label: "Countries", available: Boolean(participatingCountries.length) },
+          ]}
+        />
 
-        <nav
-          className="-mx-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4"
-          aria-label={"Explore " + editionLabel(edition)}
-        >
-          <a href="#edition-shows" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
-            <span>
-              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
-              <span className="mt-1 block text-sm font-semibold">Shows</span>
-            </span>
-            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
-          </a>
-          <a href="#edition-entries" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
-            <span>
-              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
-              <span className="mt-1 block text-sm font-semibold">Entries</span>
-            </span>
-            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
-          </a>
-          <a href="#edition-results" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
-            <span>
-              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
-              <span className="mt-1 block text-sm font-semibold">Results</span>
-            </span>
-            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
-          </a>
-          <a href="#edition-stories" className="glass group flex min-h-16 w-[min(72vw,16rem)] shrink-0 snap-start items-center justify-between gap-3 p-4 sm:min-h-20 sm:w-auto">
-            <span>
-              <span className="block text-[10px] font-bold uppercase tracking-[.14em] text-primary">Explore this edition</span>
-              <span className="mt-1 block text-sm font-semibold">Stories</span>
-            </span>
-            <span className="text-primary transition-transform group-hover:translate-x-0.5">→</span>
-          </a>
-        </nav>
-
-        <Panel>
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-            <StatTile label="Edition" value={edition.edition_number != null ? `SSC ${edition.edition_number}` : "—"} />
-            <StatTile label="Countries" value={participatingCountries.length || "—"} />
-            <StatTile label="Semi-finals" value={semiFinals.length || "—"} />
-            <StatTile label="Finalists" value={finalistCount ?? "—"} />
-          </div>
-        </Panel>
+        <div id="edition-overview" className="scroll-mt-28">
+          <EditionQuickFacts facts={[
+            { label: "Edition", value: edition.edition_number != null ? `SSC ${edition.edition_number}` : "—" },
+            { label: "Countries", value: participatingCountries.length || "—" },
+            { label: "Semi-finals", value: semiFinals.length || "—" },
+            { label: "Finalists", value: finalistCount ?? "—" },
+          ]} />
+        </div>
 
         {!!publicEntries.length && (
-          <section id="edition-entries" className="scroll-mt-28">
-            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Listen to the edition</p>
-                <h2 className="mt-1 font-display text-2xl font-bold">Revealed entries</h2>
-                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-                  Only songs already published by their delegation or whose scheduled reveal has arrived appear here.
-                </p>
-              </div>
-              <span className="text-[10px] text-muted-foreground">{publicEntries.length} revealed {publicEntries.length === 1 ? "entry" : "entries"}</span>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          <EditionSection id="edition-entries" eyebrow="Listen to the edition" title="Revealed entries" description="Only songs already published by their delegation or whose scheduled reveal has arrived appear here." meta={`${publicEntries.length} revealed ${publicEntries.length === 1 ? "entry" : "entries"}`}>
+            <div className="edition-entry-grid">
               {publicEntries.map((entry) => {
                 const country = displayMap.get(entry.country_id);
                 if (!country) return null;
@@ -344,18 +301,18 @@ function EditionPage() {
                   </div>
                 );
                 return (
-                  <div key={entry.country_id} className="glass h-full p-3.5">
+                  <article key={entry.country_id} className="edition-entry">
                     {country.entityType === "global" && country.countryId ? (
                       <Link to="/countries/$code" params={{ code: country.short_code }} className="block min-w-0">
                         {identity}
                       </Link>
                     ) : identity}
                     <EntryListenLinks entry={entry} compact className="mt-3" />
-                  </div>
+                  </article>
                 );
               })}
             </div>
-          </section>
+          </EditionSection>
         )}
 
         {grandFinalPublication?.results && !finalResults.length && (
@@ -363,8 +320,8 @@ function EditionPage() {
         )}
 
         {grandFinalPublication?.results && finalResults.length > 0 && (
-          <section id="edition-results" className="scroll-mt-28 grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
-            <div className="glass relative overflow-hidden p-5">
+          <section id="edition-results" className="edition-section edition-results-layout scroll-mt-28">
+            <div className="edition-winner-stage">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{editionLabel(edition)} winner</p>
               {winner && (
                 <>
@@ -380,8 +337,9 @@ function EditionPage() {
               )}
             </div>
 
-            <Panel title={`${editionLabel(edition)} Grand Final`} description="Top five">
-              <div className="divide-y divide-border/60">
+            <div className="edition-ranking">
+              <header><p className="edition-kicker">Grand Final</p><h2>{editionLabel(edition)}</h2><p>Top five</p></header>
+              <ol>
                 {finalResults.slice(0, 5).map((result, index) => {
                   const country = displayMap.get(result.country_id);
                   if (!country) return null;
@@ -394,13 +352,13 @@ function EditionPage() {
                     </>
                   );
                   return country.entityType === "global" && country.countryId ? (
-                    <Link key={result.id} to="/countries/$code" params={{ code: country.short_code }} className="grid grid-cols-[32px_40px_1fr_auto] items-center gap-3 py-3">{content}</Link>
+                    <li key={result.id}><Link to="/countries/$code" params={{ code: country.short_code }} className="edition-ranking-row">{content}</Link></li>
                   ) : (
-                    <div key={result.id} className="grid grid-cols-[32px_40px_1fr_auto] items-center gap-3 py-3">{content}</div>
+                    <li key={result.id} className="edition-ranking-row">{content}</li>
                   );
                 })}
-              </div>
-            </Panel>
+              </ol>
+            </div>
           </section>
         )}
 
@@ -427,16 +385,16 @@ function EditionPage() {
         )}
 
         {!!publicShows.length && (
-          <section id="edition-shows" className="scroll-mt-28">
+          <section id="edition-shows" className="edition-section scroll-mt-28">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{editionLabel(edition)}</p>
             <h2 className="mt-1 font-display text-2xl font-bold">Shows</h2>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="edition-show-list">
               {publicShows.map((show) => {
                 const publication = resolveShowPublication(show);
                 const line = publication.participants ? participantList.filter((participant) => participant.show_id === show.id) : [];
                 const showResults = publication.results ? resultList.filter((result) => result.show_id === show.id && result.final_rank != null) : [];
                 return (
-                  <Link key={show.id} to="/shows/$showId" params={{ showId: show.id }} className="glass group block p-4 sm:p-5">
+                  <Link key={show.id} to="/shows/$showId" params={{ showId: show.id }} className="edition-show-row group">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-primary">{show.kind.replace("-", " ")}</p>
@@ -461,17 +419,17 @@ function EditionPage() {
         )}
 
         {!!participatingCountries.length && (
-          <section>
+          <section id="edition-countries" className="edition-section scroll-mt-28">
             <div className="flex items-end justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Delegations</p>
                 <h2 className="mt-1 font-display text-2xl font-bold">Participating countries</h2>
               </div>
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="edition-country-list">
               {participatingCountries.map((country) => {
                 const card = (
-                  <div className="glass flex items-center gap-3 p-3">
+                  <div className="edition-country-item">
                     <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{country.name}</p>
@@ -486,16 +444,16 @@ function EditionPage() {
         )}
 
         {!publicShows.length && (
-          <Panel><p className="text-sm text-muted-foreground">No individual show information is available publicly for this edition yet.</p></Panel>
+          <EditionEmptyState>No individual show information is available publicly for this edition yet.</EditionEmptyState>
         )}
-      </div>
+      </main>
     </AppShell>
   );
 }
 
 function VotingWinner({ label, country, points }: { label: string; country: EntityDisplay; points: number }) {
   return (
-    <div className="glass flex items-center gap-4 p-4">
+    <div className="edition-voting-winner">
       <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="lg" />
       <div className="min-w-0">
         <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">{label}</p>

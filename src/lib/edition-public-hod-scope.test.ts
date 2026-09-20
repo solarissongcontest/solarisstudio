@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const routeTheme = source("src/components/RouteVisualTheme.tsx");
-const editionCss = source("src/edition-public-design.css");
+const editionCss = source("src/edition-public-v5.css");
 const hodPanel = source("src/components/CountryHodHistoryPanel.tsx");
 const mySolaris = source("src/routes/_authenticated/my-solaris/index.tsx");
 const migration = source("supabase/migrations/20260821234500_country_hod_self_history.sql");
@@ -14,9 +14,9 @@ const intelligence = source("src/integrations/televoting/intelligence.server.ts"
 describe("edition public design", () => {
   it("uses edition-owned public style settings rather than the generic page treatment", () => {
     expect(routeTheme).toContain("editionPublicStyle");
-    expect(routeTheme).toContain("editionPublicSettings");
-    expect(editionCss).toContain('body[data-entity-theme="edition"] .app-main > .page-header');
-    expect(editionCss).toContain("border: 1px solid rgb(var(--solaris-accent)");
+    expect(routeTheme).toContain("resolveEditionPublicSettings");
+    expect(editionCss).toContain('body[data-entity-theme="edition"] .edition-public-page');
+    expect(editionCss).toContain("border: 1px solid color-mix(in oklab, var(--primary)");
     expect(editionCss).toContain('data-edition-public-style="glass"');
   });
 });

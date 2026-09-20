@@ -4,6 +4,7 @@ import publicStylesV2 from "@/edition-public-styles-v2.css?inline";
 import publicStylesV3 from "@/edition-public-styles-v3.css?inline";
 import publicStylesV4 from "@/edition-public-styles-v4.css?inline";
 import showParity from "@/edition-show-parity.css?inline";
+import publicStylesV5 from "@/edition-public-v5.css?inline";
 
 const editionPublicStyles = [
   publicDesign,
@@ -12,6 +13,7 @@ const editionPublicStyles = [
   publicStylesV3,
   publicStylesV4,
   showParity,
+  publicStylesV5,
 ].join("\n");
 
 /**

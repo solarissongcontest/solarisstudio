@@ -15,6 +15,10 @@ import { EditionPublicDesignPanel } from "@/components/EditionPublicDesignPanel"
 import { EditionPublicStyles } from "@/components/EditionPublicStyles";
 import { resolveCountryButtonTheme } from "@/lib/country-button-theme";
 import {
+  resolveEditionPublicSettings,
+  type EditionPublicSettings,
+} from "@/lib/edition-public-design";
+import {
   useContestEntities,
   useCountries,
   useEdition,
@@ -43,15 +47,6 @@ type EditionVisual = {
 
 type EditionThemeVisual = Exclude<ReturnType<typeof editionThemeToVisual>, null>;
 
-type EditionPublicSettings = {
-  style: "cinematic" | "editorial" | "minimal" | "glass";
-  radius: number;
-  surfaceStrength: number;
-  heroGlow: number;
-  accentGradient: string | null;
-  surfaceGradient: string | null;
-};
-
 type ResolvedVisual =
   | { kind: "country"; theme: CountryVisualTheme; artwork: null; publicSettings: null }
   | {
@@ -66,44 +61,6 @@ function segmentAfter(pathname: string, prefix: string) {
   return decodeURIComponent(pathname.slice(prefix.length).split("/")[0] ?? "");
 }
 
-function gradientFromRaw(input: unknown, first: string, second: string) {
-  if (!input || typeof input !== "object") return null;
-  const value = input as Record<string, unknown>;
-  if (value.enabled === false) return null;
-  const number = Number(value.angle);
-  const angle = Number.isFinite(number) ? Math.max(0, Math.min(360, number)) : 135;
-  return `linear-gradient(${angle}deg, ${first}, ${second})`;
-}
-
-function editionPublicSettings(raw: unknown, theme: EditionThemeVisual): EditionPublicSettings {
-  const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const requested = String(value.publicStyle ?? "cinematic");
-  const styles: EditionPublicSettings["style"][] = ["cinematic", "editorial", "minimal", "glass"];
-  const style = styles.includes(requested as EditionPublicSettings["style"])
-    ? (requested as EditionPublicSettings["style"])
-    : "cinematic";
-  const clamp = (input: unknown, min: number, max: number, fallback: number) => {
-    const number = Number(input);
-    return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
-  };
-  return {
-    style,
-    radius: style === "editorial" ? 0 : clamp(value.publicRadius, 0, 40, 24),
-    surfaceStrength: clamp(value.publicSurfaceStrength, 45, 100, 82),
-    heroGlow: clamp(value.publicHeroGlow, 0, 100, 72),
-    accentGradient: gradientFromRaw(
-      value.publicAccentGradient,
-      theme.accent,
-      theme.backgroundSecondary,
-    ),
-    surfaceGradient: gradientFromRaw(
-      value.publicSurfaceGradient,
-      theme.backgroundPrimary,
-      theme.backgroundSecondary,
-    ),
-  };
-}
-
 function editionVisual(edition?: EditionVisual | null): ResolvedVisual | null {
   const theme = editionThemeToVisual(edition?.theme_colors);
   return theme
@@ -111,7 +68,7 @@ function editionVisual(edition?: EditionVisual | null): ResolvedVisual | null {
         kind: "edition",
         theme,
         artwork: edition?.artwork_url ?? null,
-        publicSettings: editionPublicSettings(edition?.theme_colors, theme),
+        publicSettings: resolveEditionPublicSettings(edition?.theme_colors, theme),
       }
     : null;
 }
@@ -259,7 +216,7 @@ function useResultRefresh({
 
 function RouteAddons({ pathname }: { pathname: string }) {
   const countryThemeEditor = pathname === "/my-solaris/theme" || pathname === "/my-solaris/theme/";
-  const editionThemeEditor = /^\/admin\/edition-theme\/[^/]+\/?$/.test(pathname);
+  const editionThemeEditor = /^\/admin\/(?:design|edition-theme)\/[^/]+\/?$/.test(pathname);
 
   return (
     <>
@@ -391,6 +348,8 @@ function BodyVisualTheme({
         String(resolved.publicSettings.surfaceStrength / 100),
       );
       body.style.setProperty("--edition-hero-glow", String(resolved.publicSettings.heroGlow / 100));
+      body.style.setProperty("--edition-focal-x", `${resolved.publicSettings.focalX}%`);
+      body.style.setProperty("--edition-focal-y", `${resolved.publicSettings.focalY}%`);
       if (resolved.publicSettings.accentGradient) {
         body.dataset.editionAccentGradient = "true";
         body.style.setProperty("--edition-accent-gradient", resolved.publicSettings.accentGradient);
