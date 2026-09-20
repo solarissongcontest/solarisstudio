@@ -119,8 +119,8 @@ function TelevotingPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["merged-televoting-open-round"],
     queryFn: loadOpenRound,
-    refetchInterval: 15_000,
-    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: serverStatus } = useQuery({
