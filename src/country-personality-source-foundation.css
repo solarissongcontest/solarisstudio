@@ -14,16 +14,18 @@
 
 .country-identity-hero .country-official-flag {
   inline-size: min(100%, var(--cp-flag-max-inline));
+  aspect-ratio: var(--cp-flag-aspect, 3 / 2);
   min-block-size: 0;
   max-inline-size: var(--cp-flag-max-inline);
-  max-block-size: var(--cp-flag-max-block);
+  max-block-size: none;
 }
 
 .country-identity-hero .country-official-flag img {
-  inline-size: auto !important;
-  block-size: auto !important;
+  inline-size: 100% !important;
+  block-size: 100% !important;
   max-inline-size: 100% !important;
-  max-block-size: var(--cp-flag-max-block) !important;
+  max-block-size: 100% !important;
+  border-radius: inherit;
   object-fit: contain !important;
   object-position: center !important;
 }
