@@ -79,6 +79,7 @@ function isLiveResultContext(status?: string | null) {
 }
 
 export function RouteVisualTheme() {
+  useLiquidGlassBackdropCapability();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const countryCode = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
   const editionSlug = segmentAfter(pathname, "/editions/");
@@ -96,6 +97,27 @@ export function RouteVisualTheme() {
       <LiquidGlassFilter />
     </>
   );
+}
+
+function useLiquidGlassBackdropCapability() {
+  useEffect(() => {
+    const body = document.body;
+    const ua = navigator.userAgent;
+    const hasUAData =
+      (navigator as Navigator & { userAgentData?: unknown }).userAgentData != null;
+    const isBlink =
+      hasUAData ||
+      (/\b(?:Chrome|Chromium|Edg)\//.test(ua) &&
+        !/\b(?:CriOS|EdgiOS|FxiOS|OPiOS)\b/.test(ua) &&
+        !/iPhone|iPad|iPod/.test(ua));
+
+    if (isBlink) body.dataset.liquidGlassSvg = "true";
+    else delete body.dataset.liquidGlassSvg;
+
+    return () => {
+      delete body.dataset.liquidGlassSvg;
+    };
+  }, []);
 }
 
 function CountryRouteVisual({ code }: { code: string }) {
@@ -401,26 +423,77 @@ function LiquidGlassFilter() {
       className="pointer-events-none absolute"
     >
       <defs>
+        {/* Generic control refraction for legacy/secondary surfaces. The primary
+            Country/Wiki and Edition hero materials use the measured per-element
+            displacement maps from the vendored liquid-glass engine instead. */}
         <filter
           id="solaris-liquid-glass"
-          x="-12%"
-          y="-12%"
-          width="124%"
-          height="124%"
+          x="-16%"
+          y="-16%"
+          width="132%"
+          height="132%"
           colorInterpolationFilters="sRGB"
         >
           <feTurbulence
             type="fractalNoise"
-            baseFrequency="0.012 0.018"
-            numOctaves="2"
-            seed="17"
-            result="glassNoise"
+            baseFrequency="0.006 0.009"
+            numOctaves="1"
+            seed="29"
+            stitchTiles="stitch"
+            result="glassField"
           />
-          <feGaussianBlur in="glassNoise" stdDeviation="0.8" result="softGlassNoise" />
+          <feGaussianBlur in="glassField" stdDeviation="0.65" result="glassFieldSoft" />
           <feDisplacementMap
             in="SourceGraphic"
-            in2="softGlassNoise"
-            scale="5"
+            in2="glassFieldSoft"
+            scale="7"
+            xChannelSelector="R"
+            yChannelSelector="G"
+            result="glassRefracted"
+          />
+          <feSpecularLighting
+            in="glassFieldSoft"
+            surfaceScale="1.35"
+            specularConstant="0.18"
+            specularExponent="28"
+            lightingColor="#ffffff"
+            result="glassSpecular"
+          >
+            <feDistantLight azimuth="-52" elevation="58" />
+          </feSpecularLighting>
+          <feColorMatrix
+            in="glassSpecular"
+            type="matrix"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 .16 0"
+            result="glassSpecularSoft"
+          />
+          <feBlend in="glassRefracted" in2="glassSpecularSoft" mode="screen" />
+        </filter>
+
+        {/* Lower-cost refraction for factual Country/Wiki cards. One octave and
+            modest displacement keep INP sane while still bending live backdrop
+            pixels instead of merely blurring them. */}
+        <filter
+          id="solaris-liquid-glass-surface"
+          x="-10%"
+          y="-10%"
+          width="120%"
+          height="120%"
+          colorInterpolationFilters="sRGB"
+        >
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.0045 0.007"
+            numOctaves="1"
+            seed="43"
+            stitchTiles="stitch"
+            result="surfaceField"
+          />
+          <feGaussianBlur in="surfaceField" stdDeviation="0.55" result="surfaceFieldSoft" />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="surfaceFieldSoft"
+            scale="3.75"
             xChannelSelector="R"
             yChannelSelector="G"
           />

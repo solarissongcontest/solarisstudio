@@ -37,6 +37,8 @@
     0 1.5rem 4.5rem rgb(0 0 0 / .24),
     inset 0 1px rgb(255 255 255 / .13),
     inset 0 -1px rgb(255 255 255 / .04);
+  contain: paint;
+  will-change: backdrop-filter;
 }
 
 .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material > .country-hero-layout {
@@ -78,6 +80,14 @@ body[data-entity-theme="country"][data-country-hero-layout="glass-card"] .wiki-c
 
   .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material > .country-hero-layout {
     padding: 1.15rem;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .country-identity-hero[data-country-personality="glass-card"] .country-hero-glass-material {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: color-mix(in srgb, var(--surface) 94%, var(--background)) !important;
   }
 }
 

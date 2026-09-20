@@ -5,6 +5,7 @@ const route = readFileSync("src/routes/editions/$slug.tsx", "utf8");
 const css = readFileSync("src/edition-public-v5.css", "utf8");
 const panel = readFileSync("src/components/EditionPublicDesignPanel.tsx", "utf8");
 const primitives = readFileSync("src/components/edition/EditionPublicPrimitives.tsx", "utf8");
+const liquidGlass = readFileSync("src/components/LiquidGlassBackdrop.tsx", "utf8");
 
 describe("edition public page architecture", () => {
   it("keeps results behind the final publication gate", () => {
@@ -46,5 +47,17 @@ describe("edition public page architecture", () => {
     expect(primitives).toContain('data-has-logo={logo ? "true" : "false"}');
     expect(css).toContain(":where(.glass, .data-panel):not(.public-current-status)");
     expect(css).toContain("backdrop-filter: none !important");
+  });
+
+  it("uses measured lens-map Liquid Glass for the Edition hero and navigation", () => {
+    expect(route).toContain("resolveEditionPublicStyle");
+    expect(route).toContain("liquidGlass={liquidGlass}");
+    expect(primitives).toContain('<LiquidGlassBackdrop');
+    expect(primitives).toContain('variant="hero"');
+    expect(primitives).toContain('variant="control"');
+    expect(liquidGlass).toContain('import("@/vendor/liquid-glass/GlassMaterial")');
+    expect(liquidGlass).toContain("dispersion");
+    expect(css).toContain(".edition-hero-liquid-glass");
+    expect(css).toContain(".edition-navigation-liquid-glass");
   });
 });

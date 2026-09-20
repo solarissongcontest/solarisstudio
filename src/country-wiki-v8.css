@@ -94,21 +94,44 @@
   font-size: .76rem;
 }
 
-/* Apple-inspired Glass Wiki: exactly one functional glass header. The general
-   Glass personality normally uses the inner layout as the glass plate; Wiki
-   promotes the compact root to the single plate and makes the inner grid plain. */
+/* Glass Wiki uses exactly one real refractive plate. The root stays
+   transparent; the vendored measured lens-map material wraps the compact
+   identity grid and bends the subdued flag atmosphere behind it. */
 .wiki-canvas .country-wiki-header[data-country-personality="glass-card"] {
-  border: 1px solid rgb(255 255 255 / .15);
-  background:
-    radial-gradient(circle at var(--glass-pointer-x, 74%) var(--glass-pointer-y, 16%), rgb(255 255 255 / .15), transparent 23%),
-    linear-gradient(145deg, rgb(255 255 255 / .09), rgb(255 255 255 / .03)),
-    color-mix(in srgb, var(--surface) 56%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(128%);
-  backdrop-filter: blur(18px) saturate(128%);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-scene {
-  display: none;
+  display: block;
+  border-radius: inherit;
+  opacity: .9;
+  overflow: hidden;
+}
+
+.wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-scene-flag {
+  display: block;
+  opacity: .17;
+  filter: blur(8px) saturate(1.2);
+  transform: scale(1.06);
+}
+
+.wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-glass-material {
+  display: block !important;
+  inline-size: 100%;
+  margin: 0;
+  border: 1px solid rgb(255 255 255 / .18);
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at var(--glass-pointer-x, 74%) var(--glass-pointer-y, 16%), rgb(255 255 255 / .16), transparent 23%),
+    linear-gradient(145deg, rgb(255 255 255 / .085), rgb(255 255 255 / .025)),
+    color-mix(in srgb, var(--surface) 26%, transparent);
+  contain: paint;
+  overflow: hidden;
+  will-change: backdrop-filter;
 }
 
 .wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-layout {
@@ -123,7 +146,7 @@
 .wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-official-flag,
 .wiki-canvas .country-wiki-header[data-country-personality="glass-card"] .country-hero-actions :is(a, button) {
   border-color: rgb(255 255 255 / .14);
-  background: rgb(10 18 28 / .62);
+  background: rgb(10 18 28 / .58);
 }
 
 /* The expressive personality geometry is intentionally reduced in Wiki. */

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { cn } from "@/lib/utils";
 
 export function EditionHero({
@@ -11,6 +12,7 @@ export function EditionHero({
   artworkAlt,
   logo,
   logoAlt,
+  liquidGlass = false,
   status,
   winner,
 }: {
@@ -22,6 +24,7 @@ export function EditionHero({
   artworkAlt: string;
   logo?: string | null;
   logoAlt?: string;
+  liquidGlass?: boolean;
   status: ReactNode;
   winner?: ReactNode;
 }) {
@@ -33,11 +36,18 @@ export function EditionHero({
       className="edition-hero"
       data-has-artwork={artwork ? "true" : "false"}
       data-has-logo={logo ? "true" : "false"}
+      data-liquid-glass={liquidGlass ? "true" : undefined}
     >
       {artwork ? (
         <div className="edition-hero-artwork" aria-hidden="true">
           <img src={artwork} alt="" fetchPriority="high" decoding="async" />
         </div>
+      ) : null}
+      {liquidGlass ? (
+        <LiquidGlassBackdrop
+          variant="hero"
+          className="edition-hero-liquid-glass"
+        />
       ) : null}
       <div className="edition-hero-copy">
         <div className="edition-hero-status">{status}</div>
@@ -64,12 +74,24 @@ export function EditionHero({
 export function EditionNavigation({
   label,
   items,
+  liquidGlass = false,
 }: {
   label: string;
   items: readonly { href: string; label: string; available?: boolean }[];
+  liquidGlass?: boolean;
 }) {
   return (
-    <nav className="edition-navigation" aria-label={label}>
+    <nav
+      className="edition-navigation"
+      aria-label={label}
+      data-liquid-glass={liquidGlass ? "true" : undefined}
+    >
+      {liquidGlass ? (
+        <LiquidGlassBackdrop
+          variant="control"
+          className="edition-navigation-liquid-glass"
+        />
+      ) : null}
       {items.filter((item) => item.available !== false).map((item) => (
         <a key={item.href} href={item.href}>{item.label}</a>
       ))}

@@ -52,7 +52,8 @@ describe("calm public design contract", () => {
     expect(hero).toContain("moveGlassLight");
     expect(hero).toContain("--glass-pointer-x");
     expect(hero).toContain("country-hero-scene");
-    expect(wiki).toContain("exactly one functional glass header");
+    expect(wiki).toContain("exactly one real refractive plate");
+    expect(wiki).toContain(".country-hero-glass-material");
   });
 
   it("gives responsive tabs a themeable active state", () => {
