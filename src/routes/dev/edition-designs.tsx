@@ -79,7 +79,7 @@ function EditionDesignLab() {
           style={{ width: `${viewport}px`, maxWidth: "100%", containerType: "inline-size" }}
           className="mx-auto"
         >
-          <main className="edition-public-page" data-edition-design-lab>
+          <div className="edition-public-page" data-edition-design-lab>
             <EditionHero
               eyebrow={fixture.id === "c" ? "The Free Metropolitan District of Saint Solaris-upon-Aurora" : "Port Aurora"}
               title={title}
@@ -95,7 +95,7 @@ function EditionDesignLab() {
             {entries.length ? <EditionSection id="lab-entries" eyebrow="Listen to the edition" title="Revealed entries" description="Public-safe entry fixture." meta={`${fixture.entries} entries`}><div className="edition-entry-grid">{entries.map((entry, index) => <article className="edition-entry" key={`${entry.country}-${index}`}><p className="edition-kicker">{entry.country}</p><h3 className="mt-2 font-semibold">{entry.song}</h3><p className="mt-1 text-xs text-muted-foreground">Fixture Artist</p></article>)}</div></EditionSection> : null}
             {fixture.results ? <EditionSection id="lab-results" eyebrow="Grand Final" title="Results"><div className="edition-ranking"><ol>{entries.slice(0, 5).map((entry, index) => <li className="edition-ranking-row" key={entry.country}><span>#{index + 1}</span><span>◆</span><strong>{entry.country}</strong><span>{412 - index * 27}</span></li>)}</ol></div></EditionSection> : null}
             <EditionSection id="lab-shows" eyebrow="SSC 42" title="Shows"><div className="edition-show-list">{["Semi-Final One", "Semi-Final Two", "Grand Final"].map((show) => <a className="edition-show-row" href="#lab-shows" key={show}><p className="edition-kicker">Show</p><h3 className="mt-1 text-lg font-bold">{show}</h3></a>)}</div></EditionSection>
-          </main>
+          </div>
         </div>
       </div>
     </AppShell>
