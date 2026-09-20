@@ -226,6 +226,15 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
     { aliases: ["Relationships"], keywords: ["similarity", "support", "countries"] },
   ),
   destination(
+    "country-voting-dna",
+    "/voting-dna",
+    "results",
+    "Country Voting DNA",
+    "Explore descriptive country voting and result profiles.",
+    "secondary",
+    { aliases: ["Voting DNA"], keywords: ["country profile", "jury", "televote", "support"] },
+  ),
+  destination(
     "predictions",
     "/predictions",
     "results",

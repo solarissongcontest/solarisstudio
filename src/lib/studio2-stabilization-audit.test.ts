@@ -37,6 +37,9 @@ function routeFile(route: string) {
       `${route.slice("/my-solaris/".length)}.tsx`,
     );
   }
+  if (route.startsWith("/") && !route.includes("$")) {
+    return resolve(process.cwd(), "src/routes", route.slice(1), "index.tsx");
+  }
   return null;
 }
 
