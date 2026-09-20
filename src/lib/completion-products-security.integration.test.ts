@@ -25,6 +25,8 @@ describe("completion product security and reliability boundaries", () => {
     expect(migration).toContain("Fantasy budget exceeded");
     expect(migration).toContain("choice.eligible = true");
     expect(migration).toContain("Captain must be selected from the roster");
+    expect(migration).toContain("Fantasy rules are immutable after the roster lock");
+    expect(migration).toContain("v_game.status = 'draft'");
   });
 
   it("refuses Fantasy scoring until published results are actually public", () => {
