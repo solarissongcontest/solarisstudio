@@ -489,7 +489,7 @@ function MySolarisPage() {
                     <img
                       src={country.flag_image}
                       alt=""
-                      className="h-10 w-14 rounded-lg object-cover"
+                      className="aspect-[3/2] h-10 w-[3.75rem] rounded-lg bg-background/45 object-contain"
                     />
                   ) : (
                     <span className="grid h-10 w-14 place-items-center rounded-lg border border-border bg-background text-xs font-bold">
