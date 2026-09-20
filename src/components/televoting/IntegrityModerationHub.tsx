@@ -57,7 +57,7 @@ export function IntegrityModerationHub() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["integrity-human-moderation"],
     queryFn: () => getModeration(),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   async function refresh() {
