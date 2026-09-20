@@ -16,7 +16,6 @@ export const Route = createFileRoute("/_authenticated/admin/anniversary")({
 const PREVIEWS = [
   { href: "/?anniversary=active", title: "Anniversary Day", description: "Full 17 September takeover with particles, archive facts and homepage anniversary editorial." },
   { href: "/?anniversary=countdown", title: "Countdown", description: "Pre-anniversary state without the full particle takeover." },
-  { href: "/?anniversary=after", title: "Afterglow", description: "Post-anniversary new-year state." },
   { href: "/anniversary?anniversary=active", title: "Anniversary hub", description: "Open the permanent anniversary archive with resolved historical results only." },
   { href: "/my-solaris?anniversary=active", title: "MySolaris story", description: "Preview the route-native personalized country anniversary recap and share text." },
   { href: "/countries?anniversary=active", title: "Countries archive", description: "Preview the country directory with anniversary context and canonical delegation statistics." },
@@ -30,7 +29,7 @@ function AnniversaryPreviewPage() {
         <AdminPageHeader
           eyebrow="17 September"
           title="Anniversary Preview"
-          description="Test every annual SSC anniversary state without changing the system clock. Open previews in a new tab and use responsive device mode for phone layouts."
+          description="Test the Anniversary Day and pre-event countdown states without changing the system clock. Open previews in a new tab and use responsive device mode for phone layouts."
           actions={
             <Link to="/admin/anniversary-dates" className="admin-action-primary">
               Manage edition dates
