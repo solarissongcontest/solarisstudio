@@ -393,7 +393,7 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
                       <img
                         src={edition.flag_image}
                         alt=""
-                        className="h-8 w-12 shrink-0 rounded-md object-cover"
+                        className="aspect-[3/2] h-8 w-12 shrink-0 rounded-md bg-background/45 object-contain"
                       />
                     ) : (
                       <span className="grid h-8 w-12 shrink-0 place-items-center rounded-md border border-border bg-background text-[9px] font-bold text-muted-foreground">
