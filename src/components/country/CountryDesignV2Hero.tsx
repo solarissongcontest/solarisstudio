@@ -106,14 +106,21 @@ export function CountryDesignV2Hero({
               className="country-v2-liquid-glass-material"
               aria-hidden="true"
               optics={{
-                strength: 0.055,
-                depth: 0.56,
-                curvature: 0.3,
-                dispersion: 0.22,
-                frost: 7,
-                saturate: 1.18,
-                sheen: 0.34,
-                glow: 0.07,
+                strength: 0.064,
+                depth: 0.62,
+                curvature: 0.38,
+                bend: 0.6,
+                bendWidth: 0.14,
+                dispersion: 0.3,
+                frost: 3,
+                saturate: 1.22,
+                sheen: 0.46,
+                sheenWidth: 2.5,
+                sheenFalloff: 1.7,
+                glow: 0.12,
+                glowSpread: 1,
+                glowFalloff: 0.5,
+                specular: 1.05,
               }}
             />
           </Suspense>
