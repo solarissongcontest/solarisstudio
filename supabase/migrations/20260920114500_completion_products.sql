@@ -173,6 +173,25 @@ using (
   )
 );
 
+drop policy if exists "organizers read fantasy games" on public.fantasy_games;
+create policy "organizers read fantasy games"
+on public.fantasy_games for select
+to authenticated
+using (public.studio2_access_allowed('edition.manage', edition_id, false));
+
+drop policy if exists "organizers read fantasy choices" on public.fantasy_game_entries;
+create policy "organizers read fantasy choices"
+on public.fantasy_game_entries for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.fantasy_games game
+    where game.id = fantasy_game_entries.game_id
+      and public.studio2_access_allowed('edition.manage', game.edition_id, false)
+  )
+);
+
 drop policy if exists "fans read own fantasy team" on public.fantasy_teams;
 create policy "fans read own fantasy team"
 on public.fantasy_teams for select
@@ -292,6 +311,12 @@ begin
     roster_size = excluded.roster_size,
     budget = excluded.budget,
     captain_multiplier = excluded.captain_multiplier,
+    status = case
+      when fantasy_games.status in ('scoring', 'scored') then fantasy_games.status
+      when now() >= excluded.locks_at then 'locked'
+      when now() >= excluded.opens_at then 'open'
+      else 'draft'
+    end,
     updated_at = now();
 
   delete from public.fantasy_game_entries where game_id = v_game_id;

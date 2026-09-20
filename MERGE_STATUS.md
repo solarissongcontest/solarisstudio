@@ -1,115 +1,114 @@
-# Solaris Studio unified production status
+# Solaris Studio production status — 20 September 2026
 
-Solaris Studio, Confirmations and Televoting are now unified on the canonical `main` branch. PR #12 was merged after the unified branch passed the full quality pipeline. `main` is the production source of truth and must not be replaced with an older pre-integration branch.
+Solaris Studio, Confirmations and Televoting are one production application on canonical `main`. Older standalone or compatibility implementations are not production sources of truth.
 
-## Production baseline
+## Current production baseline
 
-- Solaris Studio remains the canonical contest application and database.
-- Confirmations is integrated under `/confirmations` with its existing backend and recovery flows preserved.
-- Televoting is integrated under `/televoting` with the merged voting booth, results tooling and unified Solaris organizer authentication.
-- `/participate` is the shared public participation entry point.
-- Results, Combined Results, analytics, Integrity and Friend Voting are inside the unified Control Room.
-- Historical HOD identity/tenure modelling and HOD-aware Friend Voting remain part of the unified build.
-- Generated TanStack route trees are not committed; production builds regenerate and verify them.
-- The canonical `main` build passes production build, route generation, TypeScript, unit tests and lint.
-- The application builds for Cloudflare Workers.
+- Solaris Studio is the canonical contest application and database.
+- Confirmations is integrated under `/confirmations`.
+- Televoting is integrated under `/televoting`.
+- MySolaris is the canonical participant/delegation workspace.
+- Solaris Organizer is the canonical administrative workspace.
+- Permission Engine v2 is authoritative for Organizer capabilities.
+- Publication gates, private ballots, Integrity evidence, country isolation and RLS remain fail-closed.
+- Generated TanStack route trees are produced by the build and are not committed.
+- Cloudflare Workers is the production runtime target.
 
-## Public beta readiness
+## Public information architecture
 
-The public beta polish is included in `main`:
+Public IA v3 is globally enabled and is the normal public experience.
 
-- Public empty states no longer expose organizer instructions or migration/backend jargon.
-- Stale `Solaris Labs`, implementation-phase and TODO copy has been removed from the checked public surfaces.
-- Result Lab, Taste DNA, Broadcast Intelligence and Solaris Pulse use visitor-facing unavailable/empty states.
-- The sitemap derives its absolute origin from the incoming Cloudflare request instead of a blank production placeholder.
-- The beta form numbering and tool naming have been cleaned up.
-- Regression tests guard selected public surfaces against implementation-language leaks.
-- The beta feedback table accepts anonymous write-only submissions while keeping responses unreadable to anonymous visitors.
-- Beta screenshots use the private `beta-feedback` bucket with an 8 MB limit and image-only MIME restrictions.
+The old public navigation implementation is still present **only as rollback insurance** because its permanent removal is evidence-gated. The retirement dashboard uses the existing Beta 3 release criteria and production telemetry. As of the 20 September evidence snapshot, the comparable Beta 3 sample is still too small to justify destructive retirement.
 
-## Database runtime repaired for beta
+This is not unfinished navigation implementation. It is an explicit evidence gate. See:
 
-Production migration drift affecting public engagement tools was repaired and recorded back into Git migration history.
+- `docs/public-ia-v3-retirement-readiness-2026-09-20.md`
 
-- Publication-layer RLS now respects participant, result and detailed-voting publication switches.
-- Prediction Arena policies and submission/consensus/share RPCs are restored.
-- Solaris Pulse follows, read state, notification preferences, event automation and prediction movement are restored.
-- Taste DNA private ballot validation and RLS are restored.
-- Trigger-only security-definer functions restored for these features are not exposed as direct anonymous/authenticated RPCs.
+The legacy branch may be removed only after the existing sample, route/role/mobile smoke, CI and regression gates pass.
 
-## Televoting Cloudflare runtime
+## Product programme
 
-Privileged Televoting access is Cloudflare-native, but it no longer relies on a Televoting service-role secret. Solaris Studio connects to the Televoting schema from server functions using the signed-in user's Solaris bearer token plus the browser-safe Solaris publishable key.
+The former roadmap-only products now have real implementations and canonical routes:
 
-- Organizer identity is resolved from active global Permission Engine v2 role assignments.
-- Televoting server requests run under the authenticated user's JWT, so database RLS and capability checks remain authoritative.
-- Public Televoting continues to use the browser-safe publishable client.
-- `TELEVOTING_SUPABASE_SERVICE_ROLE_KEY` is not a current Solaris Studio runtime dependency and must not be added to client-visible configuration.
-- `wrangler.jsonc` therefore does not declare a service-role credential.
+| Product | Canonical surface | Rollout state after implementation |
+| --- | --- | --- |
+| Public Encyclopedia | `/encyclopedia` | implemented, rollout-gated |
+| Country Voting DNA | `/voting-dna` | implemented, rollout-gated |
+| Prediction League | `/prediction-league` | implemented, rollout-gated |
+| Fantasy SSC | `/fantasy` and `/admin/fantasy` | implemented, rollout-gated |
+| Time Machine | `/admin/time-machine` | implemented, rollout-gated |
+| Solaris Command Assistant | `/admin/command-assistant` | implemented read-only first, rollout-gated |
 
-Runtime readiness is checked by making an authenticated Televoting query through the same user-token path used by Organizer tools. The current `main` tree is the intended Cloudflare deployment target.
+The feature registry classifies these as product surfaces rather than planned placeholders. They remain disabled or Organizer-only until migration, CI and production verification have completed.
 
-## Legacy standalone Vote Hub
+### Public Encyclopedia
 
-The standalone `solarissongcontest/ssc-tele` application is not part of the Solaris Studio production request path. Its old proxy code may remain as rollback/reference material, but it is not a deployment dependency for unified Solaris Studio.
+The Encyclopedia reuses the publication-safe public archive instead of inventing a second historical truth. Draft entries, private ballots, organizer notes and unpublished results are excluded.
 
-## Data intentionally retained
+### Country Voting DNA
 
-Historical HOD identities and assignments are not inferred as fact; they remain organizer-managed through `/admin/hod-history`.
+Voting DNA is descriptive analytics only. It keeps jury and televote result dimensions separate and does not describe support patterns as evidence of misconduct.
 
-Unused legacy/copied tables are not being destructively dropped during the beta. They remain inert rollback insurance until the unified deployment has been exercised and can be retired through a separately reviewed migration.
+### Prediction League
 
+Prediction League builds on the existing Prediction Arena tables and versioned scoring. Public standings include only users who opted into public leaderboard visibility and only scores backed by published result layers.
 
-## Core completion baseline — 19 September 2026
+### Fantasy SSC
 
-The Studio 2 core implementation sweep is complete. The remaining roadmap flags are future product work, not unfinished infrastructure.
+Fantasy SSC has database-enforced roster size, uniqueness, eligibility, budget and server-time locks. Scoring is versioned and cannot run before the canonical result-publication gate opens. The initial production ruleset is deliberately simple and explainable.
 
-### Permission and runtime authorization
+### Time Machine
 
-- Permission Engine v2 is globally authoritative.
-- All 3 live Organizers have active global v2 Organizer/Superadmin assignments.
-- Application RLS has 0 direct legacy `has_role` predicates.
-- Live authorization functions have 0 direct `public.has_role` fallbacks.
-- `user_roles` has no browser-write policies and 0 orphan rows; it is retained only as rollback/history data.
-- Browser, server, Confirmations and unified admin gates resolve Organizer access from active v2 assignments.
-- Server capability loading uses `studio2_role_assignments`, `studio2_role_capabilities` and `studio2_capability_grants`.
-- The production `admin-country-password` Edge Function is deployed with the v2 Organizer boundary and no `user_roles` authorization dependency.
+Time Machine is read-only. It reconstructs recorded event and audit evidence at a selected timestamp and explicitly reports incomplete historical evidence rather than fabricating state.
 
-### Database and performance hygiene
+### Solaris Command Assistant
 
-Production includes:
+The first release is read-only and registry-based. Natural language maps only to registered operations and canonical routes. It does not generate arbitrary SQL or bypass Permission Engine v2. Mutating commands are intentionally not part of the initial rollout.
 
-- `20260919085854_final_rls_schema_hygiene`
-- `20260919092023_security_definer_internal_helper_hardening`
+## Performance
 
-The hygiene pass removed the empty `migration_staging` schema, added a durable primary key to the private notice-deletion audit table, eliminated overlapping permissive browser read policies and added covering indexes for the currently material high-volume foreign keys.
+Production real-user Web Vitals telemetry is active. The 20 September sample is still small, so route-level signals are treated as investigation evidence rather than universal performance conclusions.
 
-Current advisor items are intentionally interpreted rather than chased as vanity metrics:
+The current evidence and thresholds are recorded in:
 
-- 43 RLS-without-policy INFO findings are fail-closed internal/RPC tables.
-- 38 anonymous `SECURITY DEFINER` warnings are reviewed public/RLS APIs and are constrained by an explicit migration-rehearsal allowlist.
-- 218 authenticated `SECURITY DEFINER` warnings remain because authenticated RPC execution is intentional for many product APIs; trigger-only and nested privileged helpers were separately hardened.
-- 106 unindexed-FK INFO findings are on currently small/empty relationships and remain workload-driven.
-- 106 unused-index INFO findings are not sufficient evidence for destructive index removal on a young production workload.
+- `docs/performance-baseline-2026-09-20.md`
 
-### Country/Wiki and voting intelligence
+The recent Supabase egress reduction also changed passive live-result refresh from a 3-second database poll to a 30-second cadence while retaining focus/visibility invalidation.
 
-- Country/Wiki Design v2 is migrated for 24/24 production country themes while retaining the compatibility data needed for rollback.
-- Friend Voting uses the prepared advanced relationship engine, shared canonical voting data, jury/televote separation, historical context and explainable evidence signals. Automated signals remain review evidence, not findings of wrongdoing.
+## Accessibility
 
-### Remaining external platform setting
+WCAG 2.2 AA remains the target. Automated coverage exists, and representative manual keyboard, semantics, reflow and reduced-motion verification is tracked in:
 
-Supabase Auth still reports **Leaked Password Protection Disabled**. This is a hosted project Auth setting, not a database migration. The connected project tooling does not expose an Auth-settings mutation, so this must be enabled in Supabase Auth settings (or through an authorized Supabase Management API credential).
+- `docs/accessibility-verification-2026-09-20.md`
 
-The Organizer-managed country-password flow independently checks new passwords against the Pwned Passwords API, but that does not replace enabling the project-wide Supabase Auth control.
+No new product is considered rollout-ready merely because its route renders.
 
-### Planned products
+## Reliability
 
-The following remain intentional future product work and are not core-completion blockers:
+New engagement products use server-enforced locks and publication gates rather than trusting client clocks. Existing canonical error boundaries, route handling, auth/RLS and submission flows remain authoritative. Reliability verification covers stale state, duplicate/replayed actions, invalid URLs, permission changes and publication conflicts before rollout.
 
-- Country Voting DNA
-- Prediction League
-- Fantasy SSC
-- Public Encyclopedia
-- Time Machine
-- Solaris Command Assistant
+## Database and security hygiene
+
+Applied migrations are immutable history. New schema changes are additive migrations.
+
+Permission Engine v2 remains authoritative. New Organizer RPCs use capability checks and do not use `user_metadata` or browser service-role credentials.
+
+Historical/compatibility database objects are not deleted merely because their names contain `legacy`. Retirement decisions are recorded in:
+
+- `docs/engineering/legacy-retirement-inventory-2026-09-20.md`
+
+## Supabase leaked-password protection
+
+Supabase hosted leaked-password protection is **not part of this completion programme**, by explicit project-owner instruction. The production project is on the Free plan and the control is unavailable there. No billing, plan or Auth-setting change is performed by this programme.
+
+## Definition of production completion
+
+For this programme, implementation is complete only after:
+
+- all product code and migrations are merged;
+- Quality CI and Browser Audit pass;
+- database migration rehearsal and advisors are acceptable;
+- rollout flags are moved through internal verification before public enablement;
+- production smoke verification passes;
+- Public IA legacy retirement remains gated until its existing evidence threshold is actually met;
+- no known P0/P1 regression introduced by the programme remains.
