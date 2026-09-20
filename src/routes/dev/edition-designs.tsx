@@ -77,7 +77,7 @@ function EditionDesignLab() {
               title={title}
               subtitle="Light Across The Water"
               description={fixture.id === "d" ? null : "A deterministic archive fixture for artwork, typography, result and participant stress testing."}
-              artwork={fixture.artwork ? "/personality-qa-flag.svg" : null}
+              artwork={fixture.artwork ? "/solaris-studio-social.jpg" : null}
               artworkAlt="Abstract edition artwork fixture"
               status={<span className="rounded-full border border-current px-3 py-1 text-[10px] font-bold uppercase tracking-wider">Archive</span>}
               winner={fixture.results ? <div className="edition-winner-identity"><span className="grid size-12 place-items-center rounded-full bg-primary text-primary-foreground">★</span><div><p className="edition-kicker">Winner</p><p className="edition-winner-name">Asteria</p><p className="edition-winner-points">412 points</p></div></div> : null}
