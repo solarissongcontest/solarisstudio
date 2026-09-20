@@ -454,7 +454,7 @@ export function RadialPointsView({
                 <img
                   src={centerFlag}
                   alt=""
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               ) : (
                 <span className="font-display text-lg font-bold">
@@ -705,7 +705,7 @@ function CircleFlag({ item }: { item: CircleItem }) {
           <img
             src={item.flag}
             alt=""
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
           />
         ) : (
           <div className="grid h-full w-full place-items-center text-[9px] font-black text-white">
