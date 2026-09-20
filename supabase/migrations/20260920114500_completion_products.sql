@@ -72,6 +72,167 @@ comment on function public.prediction_league_leaderboard(uuid) is
   'Privacy-safe Prediction League standings. Only public, opted-in fan profiles and scores backed by published result layers are returned.';
 
 -- ============================================================
+-- Country Voting DNA
+-- ============================================================
+
+-- Return compact, publication-safe aggregates instead of making every visitor
+-- download the full historical jury ballot archive. SECURITY INVOKER keeps the
+-- caller inside the existing public RLS boundary; explicit publication checks
+-- are retained as a second line of defence.
+create or replace function public.public_country_voting_dna(_country_id uuid)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $
+  with detailed_votes as (
+    select
+      vote.edition_id,
+      vote.show_id,
+      coalesce(vote.voter_country_id, vote.voter_entity_id) as voter_country_id,
+      coalesce(vote.receiving_country_id, vote.receiving_entity_id) as receiving_country_id,
+      vote.points
+    from public.jury_votes vote
+    join public.editions edition on edition.id = vote.edition_id
+    where edition.published = true
+      and vote.show_id is not null
+      and public.show_publication_enabled(vote.show_id, 'detailed_voting')
+  ),
+  given as (
+    select
+      receiving_country_id as country_id,
+      sum(points)::bigint as points,
+      count(*)::bigint as ballots
+    from detailed_votes
+    where voter_country_id = _country_id
+      and receiving_country_id is not null
+      and receiving_country_id <> _country_id
+    group by receiving_country_id
+    order by points desc, ballots desc, receiving_country_id
+    limit 10
+  ),
+  received as (
+    select
+      voter_country_id as country_id,
+      sum(points)::bigint as points,
+      count(*)::bigint as ballots
+    from detailed_votes
+    where receiving_country_id = _country_id
+      and voter_country_id is not null
+      and voter_country_id <> _country_id
+    group by voter_country_id
+    order by points desc, ballots desc, voter_country_id
+    limit 10
+  ),
+  ranked_results as (
+    select
+      result.edition_id,
+      result.show_id,
+      result.final_rank,
+      result.jury_points,
+      result.televote_points,
+      result.total_points,
+      row_number() over (
+        partition by result.edition_id
+        order by
+          case show.kind
+            when 'grand-final' then 0
+            when 'semi-final' then 1
+            when 'second-chance' then 2
+            when 'heat' then 3
+            else 4
+          end,
+          show.sort_order desc nulls last,
+          result.updated_at desc
+      ) as rn
+    from public.results result
+    join public.shows show on show.id = result.show_id
+    join public.editions edition on edition.id = result.edition_id
+    where edition.published = true
+      and result.show_id is not null
+      and (result.country_id = _country_id or result.contest_entity_id = _country_id)
+      and public.show_publication_enabled(result.show_id, 'results')
+  ),
+  selected_results as (
+    select *
+    from ranked_results
+    where rn = 1
+  ),
+  sample as (
+    select
+      (
+        select count(distinct edition_id)::bigint
+        from detailed_votes
+        where voter_country_id = _country_id or receiving_country_id = _country_id
+      ) as detailed_editions,
+      (
+        select coalesce(sum(points), 0)::bigint
+        from detailed_votes
+        where voter_country_id = _country_id
+      ) as given_points,
+      (
+        select coalesce(sum(points), 0)::bigint
+        from detailed_votes
+        where receiving_country_id = _country_id
+      ) as received_points,
+      (select count(*)::bigint from selected_results) as result_editions
+  )
+  select jsonb_build_object(
+    'sample', jsonb_build_object(
+      'detailedEditions', sample.detailed_editions,
+      'givenPoints', sample.given_points,
+      'receivedPoints', sample.received_points,
+      'resultEditions', sample.result_editions
+    ),
+    'topGiven', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'countryId', given.country_id,
+          'points', given.points,
+          'ballots', given.ballots
+        )
+        order by given.points desc, given.ballots desc
+      )
+      from given
+    ), '[]'::jsonb),
+    'topReceived', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'countryId', received.country_id,
+          'points', received.points,
+          'ballots', received.ballots
+        )
+        order by received.points desc, received.ballots desc
+      )
+      from received
+    ), '[]'::jsonb),
+    'results', coalesce((
+      select jsonb_agg(
+        jsonb_build_object(
+          'editionId', selected_results.edition_id,
+          'showId', selected_results.show_id,
+          'finalRank', selected_results.final_rank,
+          'juryPoints', selected_results.jury_points,
+          'televotePoints', selected_results.televote_points,
+          'totalPoints', selected_results.total_points
+        )
+        order by edition.edition_number desc nulls last, edition.year desc nulls last
+      )
+      from selected_results
+      join public.editions edition on edition.id = selected_results.edition_id
+    ), '[]'::jsonb)
+  )
+  from sample;
+$;
+
+revoke all on function public.public_country_voting_dna(uuid) from public;
+grant execute on function public.public_country_voting_dna(uuid) to anon, authenticated, service_role;
+
+comment on function public.public_country_voting_dna(uuid) is
+  'Compact publication-safe Country Voting DNA aggregates. Uses existing RLS and explicit publication gates to avoid shipping the raw ballot archive to clients.';
+
+-- ============================================================
 -- Fantasy SSC
 -- ============================================================
 
