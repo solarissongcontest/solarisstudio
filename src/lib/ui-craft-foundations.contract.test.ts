@@ -169,6 +169,18 @@ describe("Solaris UI craft foundations", () => {
     expect(accessibility).toContain("var(--ease-out, ease-out)");
   });
 
+  it("keeps a visible focus outline on text and selection controls", () => {
+    const styles = source("src/styles.css");
+    const controlFocus = styles.match(
+      /input:focus-visible, textarea:focus-visible, select:focus-visible, \[role="combobox"\]:focus-visible \{([\s\S]*?)\n\}/,
+    )?.[1];
+
+    expect(controlFocus).toBeDefined();
+    expect(controlFocus).toContain("outline: 3px solid");
+    expect(controlFocus).toContain("outline-offset: 3px");
+    expect(controlFocus).not.toContain("outline: none");
+  });
+
   it("keeps scoreboard movement meaningful and avoids near-zero award materialization", () => {
     const scoreboard = source("src/components/Scoreboard.tsx");
     expect(scoreboard).toContain("useReducedMotion");
