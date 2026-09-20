@@ -11,5 +11,5 @@ Run against the deployed Worker after the fix is merged.
 - Anniversary Hub must not treat SSC22 private zero-point standings as history
 - MySolaris displays `Your Solaris story` for a linked country account
 - `?anniversary=off` clears sticky preview state
-- countdown and afterglow stay task-safe
+- countdown stays task-safe and the public celebration is dormant from 18 September onward
 - final CI rerun must use a clean checkout of the current PR head
