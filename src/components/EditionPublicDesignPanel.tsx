@@ -174,7 +174,7 @@ export function EditionPublicDesignPanel() {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Card roundness</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Surface roundness</span>
           <input type="range" min="0" max="40" value={squareLocked ? 0 : radius} disabled={squareLocked} onChange={(event) => setRadius(Number(event.target.value))} className="mt-3 w-full disabled:opacity-40" />
           <span className="mt-1 block text-xs text-foreground">{squareLocked ? "0px · fixed by this layout" : `${radius}px`}</span>
         </label>
@@ -207,7 +207,7 @@ export function EditionPublicDesignPanel() {
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <button type="button" disabled={saving} onClick={() => void save()} className="admin-action-primary sm:min-w-52"><Sparkles className="size-4" /> {saving ? "Saving…" : "Save public page design"}</button>
-        {message ? <p className="text-xs text-muted-foreground">{message}</p> : null}
+        {message ? <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{message}</p> : null}
       </div>
     </section>, host,
   );
