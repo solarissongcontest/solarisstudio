@@ -39,7 +39,7 @@ describe("source-driven Country personality foundation", () => {
     expect(compositions).toContain(".country-composition-atlas");
   });
 
-  it("protects official flags from stretching or unintended cropping", () => {
+  it("keeps standard factual flags undistorted while allowing designed scoreboard shapes to crop", () => {
     const flag = source("src/components/FlagChip.tsx");
     const shared = source("src/country-personality-shared-foundation.css");
     const sourceFoundation = source("src/country-personality-source-foundation.css");
@@ -54,11 +54,13 @@ describe("source-driven Country personality foundation", () => {
     expect(sourceFoundation).toContain("inline-size: auto !important");
     expect(sourceFoundation).toContain("block-size: auto !important");
     expect(sourceFoundation).toContain("object-fit: contain !important");
-    expect(scoreboard).toContain('objectFit: "contain"');
-    expect(scoreboard).not.toContain('objectFit: zone.fit ?? "cover"');
-    expect(scoreboardStage).toContain("const flagWidth = flagHeight * 1.5");
-    expect(scoreboardStage).toContain('fit: "contain" as const');
-    expect(scoreboardStage).toContain("flagRadius = card.radius > 0");
+    expect(scoreboard).toContain("resolveFlagZoneGeometry");
+    expect(scoreboard).toContain('aspectRatio: "1 / 1"');
+    expect(scoreboard).toContain('objectFit: "cover"');
+    expect(scoreboard).toContain("borderRadiusFor(zone.shape, 0)");
+    expect(scoreboard).toContain("clipPathFor(zone.shape)");
+    expect(scoreboardStage).toContain('shapeKind === "circle" || shapeKind === "square"');
+    expect(scoreboardStage).toContain('fit: "cover" as const');
     expect(shared).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
   });
 
