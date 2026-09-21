@@ -16,6 +16,8 @@ export function PublicMobileSectionNav({ pathname }: { pathname: string }) {
   const [open, setOpen] = useState(false);
 
   if (!hasLocalNavigation(area)) return null;
+  // Entity pages already have a breadcrumb and global Explore navigation.
+  if (/^\/(?:countries|editions|shows|wiki)\/[^/]+/.test(pathname)) return null;
 
   const items = publicDestinationsForArea(area, { includeContextual: false });
   const active = items

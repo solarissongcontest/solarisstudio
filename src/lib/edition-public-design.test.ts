@@ -4,6 +4,7 @@ import {
   EDITION_DESIGN_FIXTURES,
   EDITION_PUBLIC_STYLE_IDS,
   EDITION_PUBLIC_STYLES,
+  meaningfulEditionSubtitle,
   resolveEditionPublicSettings,
 } from "./edition-public-design";
 
@@ -30,5 +31,11 @@ describe("edition public design system", () => {
   it("ships the five required hostile fixtures", () => {
     expect(EDITION_DESIGN_FIXTURES.map((item) => item.id)).toEqual(["a", "b", "c", "d", "e"]);
     expect(EDITION_DESIGN_FIXTURES.find((item) => item.id === "e")?.entries).toBe(66);
+  });
+
+  it("suppresses a generic expanded edition name while retaining a real subtitle", () => {
+    expect(meaningfulEditionSubtitle("Solaris Song Contest 20", "SSC 20", 20)).toBeNull();
+    expect(meaningfulEditionSubtitle("  SSC-20  ", "SSC 20", 20)).toBeNull();
+    expect(meaningfulEditionSubtitle("Fragments of Unity", "SSC 20", 20)).toBe("Fragments of Unity");
   });
 });

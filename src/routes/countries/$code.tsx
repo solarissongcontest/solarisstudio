@@ -419,10 +419,12 @@ function CountryProfilePage() {
             className="mb-6"
             actions={
               <>
-                <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
-                <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
-                <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
-                <FollowButton entityType="country" entityId={country.id} label={country.name} />
+                <div className="country-v2-hero-secondary-actions">
+                  <Link to="/wiki/$code" params={{ code: country.short_code }}>Wiki</Link>
+                  <Link to="/compare" search={{ a: country.short_code }}>Compare</Link>
+                  <Link to="/voting-dna/$code" params={{ code: country.short_code }}>Voting DNA</Link>
+                </div>
+                <div className="country-v2-hero-follow"><FollowButton entityType="country" entityId={country.id} label={country.name} /></div>
               </>
             }
           />

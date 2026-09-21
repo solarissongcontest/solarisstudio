@@ -26,7 +26,7 @@ import {
   useShows,
 } from "@/lib/data";
 import { resolvePublicEditionState } from "@/lib/current-contest-state";
-import { resolveEditionPublicStyle } from "@/lib/edition-public-design";
+import { meaningfulEditionSubtitle, resolveEditionPublicStyle } from "@/lib/edition-public-design";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { entityDisplayMap, type EntityDisplay } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
@@ -225,7 +225,7 @@ function EditionPage() {
         <EditionHero
           eyebrow={edition.host_city ?? "Solaris Song Contest"}
           title={editionLabel(edition)}
-          subtitle={edition.name !== editionLabel(edition) ? edition.name : null}
+          subtitle={meaningfulEditionSubtitle(edition.name, editionLabel(edition), edition.edition_number)}
           description={edition.description}
           artwork={edition.artwork_url ?? null}
           artworkAlt={`${editionLabel(edition)} official artwork`}
@@ -249,7 +249,7 @@ function EditionPage() {
               ) : null}
         />
 
-        <PublicCurrentStatus
+        {!(winner && (editionState.phase === "post_edition" || editionState.phase === "results_published")) && <PublicCurrentStatus
           icon={editionStatusIcon}
           eyebrow="Edition status"
           title={editionState.headline}
@@ -266,7 +266,7 @@ function EditionPage() {
               </Link>
             ) : null
           }
-        />
+        />}
 
         <EditionNavigation
           liquidGlass={liquidGlass}

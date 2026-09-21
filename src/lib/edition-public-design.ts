@@ -1,5 +1,14 @@
 export const EDITION_PUBLIC_STYLE_IDS = ["cinematic", "editorial", "minimal", "glass"] as const;
 
+export function meaningfulEditionSubtitle(name: string | null, label: string, number: number | null): string | null {
+  const value = name?.trim();
+  if (!value) return null;
+  const normalize = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (normalize(value) === normalize(label)) return null;
+  if (number != null && normalize(value) === normalize(`Solaris Song Contest ${number}`)) return null;
+  return value;
+}
+
 export type EditionPublicStyle = (typeof EDITION_PUBLIC_STYLE_IDS)[number];
 
 export type EditionPublicStyleDefinition = {
