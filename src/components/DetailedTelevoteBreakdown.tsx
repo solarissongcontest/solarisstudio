@@ -72,6 +72,58 @@ export function DetailedTelevoteBreakdown({
     );
   }, [recipientRows, byCode]);
 
+  const supportStats = useMemo(() => {
+    let broadestRecipient = { code: "", sources: 0 };
+    let biggestSingle = { source: "", recipient: "", points: 0 };
+    const sourceTotals = new Map<string, number>();
+    let sourceCountTotal = 0;
+
+    recipientRows.forEach((row) => {
+      const contributions = Object.entries(row.country_contributions ?? {})
+        .map(([code, points]) => [code.toUpperCase(), Number(points)] as const)
+        .filter(([, points]) => points > 0);
+
+      sourceCountTotal += contributions.length;
+
+      if (contributions.length > broadestRecipient.sources) {
+        broadestRecipient = {
+          code: row.country_code,
+          sources: contributions.length,
+        };
+      }
+
+      contributions.forEach(([source, points]) => {
+        sourceTotals.set(source, (sourceTotals.get(source) ?? 0) + points);
+        if (points > biggestSingle.points) {
+          biggestSingle = {
+            source,
+            recipient: row.country_code,
+            points,
+          };
+        }
+      });
+    });
+
+    const mostGenerous =
+      [...sourceTotals.entries()]
+        .map(([code, points]) => ({ code, points }))
+        .sort((a, b) => b.points - a.points || a.code.localeCompare(b.code))[0] ??
+      null;
+
+    return {
+      broadestRecipient:
+        broadestRecipient.code && broadestRecipient.sources
+          ? broadestRecipient
+          : null,
+      biggestSingle: biggestSingle.points ? biggestSingle : null,
+      mostGenerous,
+      averageSources:
+        recipientRows.length > 0
+          ? sourceCountTotal / recipientRows.length
+          : 0,
+    };
+  }, [recipientRows]);
+
   const [direction, setDirection] = useState<Direction>("received");
   const [selectedRecipient, setSelectedRecipient] = useState(
     recipientRows[0]?.country_code ?? "",
@@ -191,6 +243,57 @@ export function DetailedTelevoteBreakdown({
         </label>
       </section>
 
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.5rem] border border-border/70 bg-border/60 lg:grid-cols-4">
+        <TeleMetric
+          label="Broadest support"
+          value={
+            supportStats.broadestRecipient
+              ? `${byCode.get(supportStats.broadestRecipient.code)?.name ?? supportStats.broadestRecipient.code}`
+              : "—"
+          }
+          hint={
+            supportStats.broadestRecipient
+              ? `${supportStats.broadestRecipient.sources} source countries`
+              : undefined
+          }
+        />
+        <TeleMetric
+          label="Biggest single source"
+          value={
+            supportStats.biggestSingle
+              ? `${supportStats.biggestSingle.points} pts`
+              : "—"
+          }
+          hint={
+            supportStats.biggestSingle
+              ? `${byCode.get(supportStats.biggestSingle.source)?.name ?? supportStats.biggestSingle.source} → ${byCode.get(supportStats.biggestSingle.recipient)?.name ?? supportStats.biggestSingle.recipient}`
+              : undefined
+          }
+        />
+        <TeleMetric
+          label="Most generous source"
+          value={
+            supportStats.mostGenerous
+              ? `${byCode.get(supportStats.mostGenerous.code)?.name ?? supportStats.mostGenerous.code}`
+              : "—"
+          }
+          hint={
+            supportStats.mostGenerous
+              ? `${supportStats.mostGenerous.points} source pts`
+              : undefined
+          }
+        />
+        <TeleMetric
+          label="Avg. support breadth"
+          value={
+            recipientRows.length
+              ? supportStats.averageSources.toFixed(1)
+              : "—"
+          }
+          hint="source countries per entry"
+        />
+      </section>
+
       <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/30">
         <header className="flex items-center gap-3 border-b border-border/60 p-4 sm:p-5">
           <PublicFlag code={selectedCode} country={selectedCountry} size="lg" />
@@ -249,6 +352,28 @@ export function DetailedTelevoteBreakdown({
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function TeleMetric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="min-w-0 bg-surface/75 p-4 sm:p-5">
+      <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1.5 truncate text-sm font-black sm:text-base">{value}</p>
+      {hint ? (
+        <p className="mt-1 truncate text-[10px] text-muted-foreground">{hint}</p>
+      ) : null}
     </div>
   );
 }
