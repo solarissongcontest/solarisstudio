@@ -334,8 +334,10 @@ describe("source-driven Country personality contract", () => {
     expect(foundation).toContain("--cp-flag-max-inline: 6.5rem");
     expect(foundation).toContain('data-country-personality="glass-card"');
     expect(foundation).toContain("--cp-flag-max-inline: 9rem");
-    expect(foundation).toContain("inline-size: auto !important");
-    expect(foundation).toContain("object-fit: contain !important");
+    expect(foundation).toContain("inline-size: 100%");
+    expect(foundation).toContain("block-size: 100%");
+    expect(foundation).toContain("object-fit: cover");
+    expect(foundation).toContain("object-position: var(--flag-crop-position, center)");
   });
 
   it("preserves V1 source background contracts while V2 makes background independent", () => {
