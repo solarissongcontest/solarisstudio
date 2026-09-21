@@ -43,6 +43,21 @@ function normaliseCode(value: unknown) {
   return String(value ?? "").trim().toUpperCase();
 }
 
+function publicCountryContributions(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const output: Record<string, number> = {};
+
+  for (const [rawCode, rawPoints] of Object.entries(value as Record<string, unknown>)) {
+    const code = normaliseCode(rawCode);
+    const points = Number(rawPoints);
+    if (!/^[A-Z0-9_-]{2,12}$/.test(code)) continue;
+    if (!Number.isFinite(points) || points <= 0 || points > 100000) continue;
+    output[code] = points;
+  }
+
+  return Object.keys(output).length ? output : null;
+}
+
 async function recordResultSyncEvent(
   db: any,
   outcome: SolarisResultSyncOutcome,
@@ -312,7 +327,7 @@ export async function syncPublishedRoundResultsToSolarisServer(
 
   const { data: round, error: roundError } = await televotingAdmin
     .from("rounds")
-    .select("id,name,results_status,broadcast_display_mode,calculation_version")
+    .select("id,name,results_status,broadcast_display_mode,calculation_version,public_advanced_transparency")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) throw new Error(roundError.message);
@@ -355,12 +370,12 @@ export async function syncPublishedRoundResultsToSolarisServer(
 
   const { data: rows, error: resultError } = await televotingAdmin
     .from("round_results")
-    .select("country_code,final_points,calculation_version")
+    .select("country_code,final_points,calculation_version,calculation_config")
     .eq("round_id", roundId)
     .eq("calculation_version", Number(round.calculation_version ?? 0));
   if (resultError) throw new Error(resultError.message);
 
-  return writeCanonicalShowTelevote({
+  const outcome = await writeCanonicalShowTelevote({
     editionId: binding.edition_id,
     showId: binding.show_id,
     sourceType: "round",
@@ -368,6 +383,59 @@ export async function syncPublishedRoundResultsToSolarisServer(
     rows: (rows ?? []).map((row) => ({ countryCode: String(row.country_code ?? ""), points: Number(row.final_points ?? 0) })),
     freezeRoundIds: [roundId],
   });
+
+  if (outcome.ok && round.public_advanced_transparency) {
+    const snapshotRows = (rows ?? [])
+      .map((row) => {
+        const config =
+          row.calculation_config &&
+          typeof row.calculation_config === "object" &&
+          !Array.isArray(row.calculation_config)
+            ? (row.calculation_config as Record<string, unknown>)
+            : {};
+        const contributions = publicCountryContributions(config.country_contributions);
+        if (!contributions) return null;
+
+        const activityPoints = Number(config.activity_points ?? NaN);
+        return {
+          show_id: binding.show_id,
+          round_id: roundId,
+          round_name: round.name,
+          country_code: normaliseCode(row.country_code),
+          final_points: Math.trunc(Number(row.final_points ?? 0)),
+          activity_points:
+            Number.isFinite(activityPoints) && activityPoints >= 0
+              ? activityPoints
+              : null,
+          country_contributions: contributions,
+          updated_at: new Date().toISOString(),
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    try {
+      const { error: clearError } = await db
+        .from("public_televote_country_contributions")
+        .delete()
+        .eq("show_id", binding.show_id)
+        .eq("round_id", roundId);
+      if (clearError) throw clearError;
+
+      if (snapshotRows.length) {
+        const { error: snapshotError } = await db
+          .from("public_televote_country_contributions")
+          .insert(snapshotRows);
+        if (snapshotError) throw snapshotError;
+      }
+    } catch (caught) {
+      console.error(
+        "[Televoting result sync] Could not refresh public country-source snapshot",
+        caught,
+      );
+    }
+  }
+
+  return outcome;
 }
 
 export async function syncPublishedCombinedResultsToSolarisServer(
