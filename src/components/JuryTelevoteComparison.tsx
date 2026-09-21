@@ -642,7 +642,7 @@ export function JuryTelevoteComparison({
                             className="
                               h-full
                               w-full
-                              object-contain
+                              object-cover
                             "
                           />
                         ) : (
