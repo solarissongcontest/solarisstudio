@@ -267,8 +267,8 @@ function SourceMatrixRound({
             </h4>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
               Source units are the preserved country-source contribution units
-              for this source. They are not the same as the allocated points that
-              this source contributes to the final televote.
+              for this source. They are not the same as official televote points
+              or the allocated points this source contributes to the final televote.
             </p>
           </div>
 
