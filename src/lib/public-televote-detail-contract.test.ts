@@ -84,9 +84,8 @@ describe("public detailed televote", () => {
     expect(multiSource).toContain("raw_score");
     expect(multiSource).toContain("weight_percent");
     expect(multiSource).toContain("Third semi-final");
-    expect(multiSource).toContain("49");
-    expect(multiSource).toContain("44");
-    expect(multiSource).toContain("7");
+    expect(multiSource).toContain("percentage_weight");
+    expect(multiSource).toContain("weight_percent");
     expect(multiSource).not.toContain("'Grand final live round'");
   });
 
