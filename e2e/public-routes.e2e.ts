@@ -44,6 +44,7 @@ test("representative non-country dynamic route passes desktop audit", async ({ p
 
 test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
+  test.skip(process.env.E2E_REAL_DATA !== "1", "Abeven Glass and SSC20 require the real archive, which the seeded audit runner does not contain.");
 
   await page.goto("/countries/ABE", { waitUntil: "domcontentloaded" });
   const atmosphere = page.locator(".country-v2-liquid-glass-scene-flag");
@@ -84,8 +85,21 @@ test("Country Glass atmosphere and Edition mobile toolbar keep their visible bou
   await testInfo.attach("ssc20-hero.png", { body: await page.locator(".edition-hero").screenshot(), contentType: "image/png" });
 });
 
-test("country directory flags fill consistent 3:2 frames without distortion", async ({ page }, testInfo) => {
+test("wide square and tall flag fixtures fill consistent 3:2 frames without distortion", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
+  await page.goto("/dev/flag-media", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-flag-frame="standard"]')).toHaveCount(3);
+  for (const frame of await page.locator('[data-flag-frame="standard"]').all()) {
+    const geometry = await frame.evaluate((node) => ({ ratio: node.getBoundingClientRect().width / node.getBoundingClientRect().height, fit: getComputedStyle(node.querySelector("img")!).objectFit }));
+    expect(geometry.ratio).toBeCloseTo(1.5, 2);
+    expect(geometry.fit).toBe("cover");
+  }
+  if (testInfo.project.name === "public-390") await testInfo.attach("wide-square-tall-flags-390.png", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+test("real country directory flags share their canonical crop", async ({ page }, testInfo) => {
+  test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
+  test.skip(process.env.E2E_REAL_DATA !== "1", "The six real country records are absent from the seeded audit archive.");
   await page.goto("/countries", { waitUntil: "domcontentloaded" });
   // The current database spells these two names Ampsia and Aquliateria.
   // The wide/square/tall fixture additionally covers unusual source ratios.
@@ -112,14 +126,6 @@ test("country directory flags fill consistent 3:2 frames without distortion", as
   if (testInfo.project.name === "public-390") {
     await testInfo.attach("country-directory-six-flags-390.png", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   }
-  await page.goto("/dev/flag-media", { waitUntil: "domcontentloaded" });
-  await expect(page.locator('[data-flag-frame="standard"]')).toHaveCount(3);
-  for (const frame of await page.locator('[data-flag-frame="standard"]').all()) {
-    const geometry = await frame.evaluate((node) => ({ ratio: node.getBoundingClientRect().width / node.getBoundingClientRect().height, fit: getComputedStyle(node.querySelector("img")!).objectFit }));
-    expect(geometry.ratio).toBeCloseTo(1.5, 2);
-    expect(geometry.fit).toBe("cover");
-  }
-  if (testInfo.project.name === "public-390") await testInfo.attach("wide-square-tall-flags-390.png", { body: await page.screenshot(), contentType: "image/png" });
 });
 
 for (let shard = 0; shard < 4; shard += 1) {
