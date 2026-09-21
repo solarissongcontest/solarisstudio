@@ -173,13 +173,7 @@ function ShowPage() {
   const multiRoundTelevote =
     showTelevoteResults && !voting.juryEnabled && hasMultipleTelevoteRounds(voting);
   const detailedTelevote = televoteDetailQuery.data ?? null;
-  const hasDetailedTelevote = Boolean(
-    detailedTelevote?.rows.some(
-      (row) =>
-        row.country_contributions &&
-        Object.keys(row.country_contributions).length > 0,
-    ),
-  );
+  const hasDetailedTelevote = Boolean(detailedTelevote?.rounds.length);
 
   const showIsPublic = isShowPublic(show);
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
@@ -549,9 +543,8 @@ function ShowPage() {
 
       {tab === "televote-detail" && hasDetailedTelevote && detailedTelevote && (
         <DetailedTelevoteBreakdown
-          rows={detailedTelevote.rows}
+          rounds={detailedTelevote.rounds}
           countries={displayMap}
-          roundName={detailedTelevote.round.name}
         />
       )}
 
