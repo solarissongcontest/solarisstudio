@@ -104,8 +104,8 @@ declare
   solaris_edition uuid;
   remote_edition uuid;
   target_show uuid;
-  aggregation_id uuid;
-  calculation_version integer;
+  target_aggregation_id uuid;
+  target_calculation_version integer;
   enabled_source_count integer;
   combined_row_count integer;
   expected_snapshot_rows integer;
@@ -122,7 +122,7 @@ begin
   limit 1;
 
   select a.id, a.calculation_version
-  into aggregation_id, calculation_version
+  into target_aggregation_id, target_calculation_version
   from televoting.televote_aggregations a
   where a.edition_id = remote_edition
     and a.name = 'SSC21 Grand Final'
@@ -131,7 +131,7 @@ begin
   limit 1;
 
   -- Historical archive rows are production data, not clean-install seed data.
-  if aggregation_id is null then
+  if target_aggregation_id is null then
     return;
   end if;
 
@@ -148,7 +148,7 @@ begin
 
   select count(*) into enabled_source_count
   from televoting.televote_aggregation_sources src
-  where src.aggregation_id = aggregation_id
+  where src.aggregation_id = target_aggregation_id
     and src.enabled is true;
 
   if enabled_source_count <> 3 then
@@ -158,21 +158,21 @@ begin
   if not exists (
     select 1
     from televoting.televote_aggregation_sources src
-    where src.aggregation_id = aggregation_id
+    where src.aggregation_id = target_aggregation_id
       and src.enabled is true
       and src.source_type = 'round'
       and src.source_name = 'Grand Final round 1'
   ) or not exists (
     select 1
     from televoting.televote_aggregation_sources src
-    where src.aggregation_id = aggregation_id
+    where src.aggregation_id = target_aggregation_id
       and src.enabled is true
       and src.source_type = 'instagram'
       and src.source_name = 'Story voting'
   ) or not exists (
     select 1
     from televoting.televote_aggregation_sources src
-    where src.aggregation_id = aggregation_id
+    where src.aggregation_id = target_aggregation_id
       and src.enabled is true
       and src.source_type = 'activity'
       and src.source_name = 'Activity points'
@@ -182,8 +182,8 @@ begin
 
   select count(*) into combined_row_count
   from televoting.combined_televote_results ctr
-  where ctr.aggregation_id = aggregation_id
-    and ctr.calculation_version = calculation_version;
+  where ctr.aggregation_id = target_aggregation_id
+    and ctr.calculation_version = target_calculation_version;
 
   if combined_row_count <> 26 then
     raise exception 'SSC21 Grand Final expected 26 Combined result rows, found %', combined_row_count;
@@ -199,8 +199,8 @@ begin
     left join public.televote_votes tv
       on tv.show_id = target_show
      and tv.country_id = c.id
-    where ctr.aggregation_id = aggregation_id
-      and ctr.calculation_version = calculation_version
+    where ctr.aggregation_id = target_aggregation_id
+      and ctr.calculation_version = target_calculation_version
       and (
         c.id is null
         or tv.country_id is null
@@ -229,7 +229,7 @@ begin
           src.id
       ) - 1 as effective_order
     from televoting.televote_aggregation_sources src
-    where src.aggregation_id = aggregation_id
+    where src.aggregation_id = target_aggregation_id
       and src.enabled is true
   ),
   component_rows as (
@@ -246,8 +246,8 @@ begin
     cross join lateral jsonb_array_elements(ctr.source_contributions) component(value)
     join enabled_sources src
       on src.id::text = component.value ->> 'source_id'
-    where ctr.aggregation_id = aggregation_id
-      and ctr.calculation_version = calculation_version
+    where ctr.aggregation_id = target_aggregation_id
+      and ctr.calculation_version = target_calculation_version
   )
   insert into public.public_televote_country_contributions (
     show_id,
@@ -356,8 +356,8 @@ begin
   ) <> (
     select coalesce(sum(ctr.final_combined_points), 0)
     from televoting.combined_televote_results ctr
-    where ctr.aggregation_id = aggregation_id
-      and ctr.calculation_version = calculation_version
+    where ctr.aggregation_id = target_aggregation_id
+      and ctr.calculation_version = target_calculation_version
   ) then
     raise exception 'SSC21 component allocated points do not sum to the published Combined televote';
   end if;
