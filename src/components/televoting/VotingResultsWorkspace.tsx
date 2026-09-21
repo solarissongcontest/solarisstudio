@@ -317,7 +317,7 @@ function ArchivedStoredResultRow({ row, index }: { row: ArchivedStoredResult; in
             </div>
 
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Country contributions</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Country source scores · legacy contribution units, not official points</p>
               {contributionRows.length ? (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {contributionRows.map(([code, points]) => (
