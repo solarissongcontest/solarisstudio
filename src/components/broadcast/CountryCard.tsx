@@ -584,7 +584,7 @@ function Zone({
       ? zone.maxWidth * scale
       : undefined,
     height: isFlag ? flagHeight : zone.height ? zone.height * scale : "100%",
-    aspectRatio: isFlag ? "3 / 2" : undefined,
+    aspectRatio: isFlag ? `${sourceFlagWidth} / ${sourceFlagHeight}` : undefined,
     flexGrow: isFlag ? 0 : zone.grow,
     flexShrink: isFlag ? 0 : zone.grow ? 1 : 0,
     flexBasis: isFlag
@@ -603,7 +603,7 @@ function Zone({
     zIndex: zone.z,
     background: surfaceBackground(zone.surface, ctx),
     border: borderCss(zone.border, ctx),
-    borderRadius: borderRadiusFor(zone.shape, isFlag ? 0 : 0),
+    borderRadius: borderRadiusFor(zone.shape, 0),
     clipPath: clipPathFor(zone.shape),
     overflow: "hidden",
   };
