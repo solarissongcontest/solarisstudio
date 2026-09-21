@@ -87,9 +87,9 @@ test("Country Glass atmosphere and Edition mobile toolbar keep their visible bou
 test("country directory flags fill consistent 3:2 frames without distortion", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
   await page.goto("/countries", { waitUntil: "domcontentloaded" });
-  // Ampesia and Aquilateria are not currently in the production countries
-  // table. The separate wide/square/tall fixture covers unusual source ratios.
-  const names = ["Abeven", "Adelanor", "Alberia", "Aotea"];
+  // The current database spells these two names Ampsia and Aquliateria.
+  // The wide/square/tall fixture additionally covers unusual source ratios.
+  const names = ["Abeven", "Adelanor", "Alberia", "Ampsia", "Aotea", "Aquliateria"];
   await expect(page.locator(".directory-country-card").first()).toBeVisible();
   for (const name of names) {
     await page.getByPlaceholder("Country, artist or song…").fill(name);
@@ -110,7 +110,7 @@ test("country directory flags fill consistent 3:2 frames without distortion", as
   }
   await page.getByPlaceholder("Country, artist or song…").fill("");
   if (testInfo.project.name === "public-390") {
-    await testInfo.attach("country-directory-flags-390.png", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    await testInfo.attach("country-directory-six-flags-390.png", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   }
   await page.goto("/dev/flag-media", { waitUntil: "domcontentloaded" });
   await expect(page.locator('[data-flag-frame="standard"]')).toHaveCount(3);
