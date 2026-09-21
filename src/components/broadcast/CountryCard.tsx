@@ -534,21 +534,9 @@ function Zone({
 }) {
   const ctx = { theme, accent: row.accent };
   const isFlag = zone.type === "flag";
-  const flagShape = zone.shape?.kind ?? "rounded";
-  const squareFlagShape = flagShape === "circle" || flagShape === "square";
-  const defaultFlagHeight = Math.max(16, Math.min(32, card.height - card.paddingY * 2));
-  const sourceFlagHeight = zone.height ?? (
-    squareFlagShape
-      ? zone.width ?? defaultFlagHeight
-      : zone.width != null
-        ? zone.width / 1.5
-        : defaultFlagHeight
-  );
-  const sourceFlagWidth = squareFlagShape
-    ? sourceFlagHeight
-    : zone.width ?? sourceFlagHeight * 1.5;
-  const flagHeight = sourceFlagHeight * scale;
-  const flagWidth = sourceFlagWidth * scale;
+  const flagGeometry = isFlag
+    ? resolveFlagZoneGeometry(zone, card, scale)
+    : null;
 
   const style: CSSProperties = {
     position:
@@ -627,6 +615,53 @@ function Zone({
       />
     </div>
   );
+}
+
+function resolveFlagZoneGeometry(
+  zone: CardZoneConfig,
+  card: CardTemplateConfig,
+  scale: number,
+) {
+  const kind = zone.shape?.kind ?? "rounded";
+  const squareShape = kind === "circle" || kind === "square";
+  const fallbackHeight = Math.max(16, Math.min(32, card.height - card.paddingY * 2));
+  const requestedWidth = zone.width;
+  const requestedHeight = zone.height;
+
+  if (squareShape) {
+    const side = Math.max(16, requestedHeight ?? requestedWidth ?? fallbackHeight) * scale;
+    return {
+      width: side,
+      height: side,
+      aspectRatio: "1 / 1",
+    };
+  }
+
+  if (requestedWidth != null && requestedHeight != null) {
+    return {
+      width: Math.max(16, requestedWidth) * scale,
+      height: Math.max(16, requestedHeight) * scale,
+      aspectRatio: undefined,
+    };
+  }
+
+  const height = Math.max(
+    16,
+    requestedHeight ?? (requestedWidth != null ? requestedWidth / 1.5 : fallbackHeight),
+  ) * scale;
+  const width = Math.max(
+    16,
+    requestedWidth ?? (height / scale) * 1.5,
+  ) * scale;
+
+  return {
+    width,
+    height,
+    aspectRatio:
+      requestedWidth == null && requestedHeight == null
+        ? "3 / 2"
+        : undefined,
+  };
 }
 
 function ZoneContent({
@@ -735,7 +770,7 @@ function ZoneContent({
           style={{
             width: "100%",
             height: "100%",
-            objectFit: zone.fit === "contain" ? "contain" : "cover",
+            objectFit: "cover",
             objectPosition:
               zone.objectPosition ?? "center",
           }}
