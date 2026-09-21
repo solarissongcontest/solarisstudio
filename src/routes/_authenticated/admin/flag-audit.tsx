@@ -46,7 +46,7 @@ function AuditCard({ country, active, onSelect }: { country: Country; active: bo
 
 function CropEditor({ country }: { country: Country }) {
   const queryClient = useQueryClient();
-  const [crop, setCrop] = useState<FlagCrop>({ x: country.flag_crop_x ?? 50, y: country.flag_crop_y ?? 50, zoom: country.flag_crop_zoom ?? 1 });
+  const [crop, setCrop] = useState<FlagCrop>({ x: Number(country.flag_crop_x ?? 50), y: Number(country.flag_crop_y ?? 50), zoom: Number(country.flag_crop_zoom ?? 1) });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const pointer = useRef<{ x: number; y: number; crop: FlagCrop } | null>(null);

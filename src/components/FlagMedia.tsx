@@ -1,18 +1,10 @@
 import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from "react";
 
 import { useCountries } from "@/lib/data";
+import { CENTER_FLAG_CROP, clampFlagCrop, type FlagCrop } from "@/lib/flag-crop";
 import { cn } from "@/lib/utils";
 
-export type FlagCrop = { x: number; y: number; zoom: number };
-export const CENTER_FLAG_CROP: FlagCrop = { x: 50, y: 50, zoom: 1 };
-
-export function clampFlagCrop(crop: FlagCrop): FlagCrop {
-  return {
-    x: Math.max(0, Math.min(100, Number.isFinite(crop.x) ? crop.x : 50)),
-    y: Math.max(0, Math.min(100, Number.isFinite(crop.y) ? crop.y : 50)),
-    zoom: Math.max(1, Math.min(2, Number.isFinite(crop.zoom) ? crop.zoom : 1)),
-  };
-}
+export { clampFlagCrop, type FlagCrop } from "@/lib/flag-crop";
 
 /** One crop per original URL, shared by library, hero, Wiki, edition and broadcast. */
 export function FlagMedia({ image, alt, mode = "standard", crop, className, style, onError, ...imageProps }: {
