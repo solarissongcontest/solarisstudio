@@ -250,6 +250,8 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
   inset: -16%;
   width: 132%;
   height: 132%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
   opacity: .85;
   filter: blur(10px) saturate(1.12);
