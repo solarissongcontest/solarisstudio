@@ -25,6 +25,10 @@ const allSemis = readFileSync(
   "supabase/migrations/20260921202200_ssc21_all_semifinal_televote_detail.sql",
   "utf8",
 );
+const liveRound = readFileSync(
+  "supabase/migrations/20260921224000_ssc21_grand_final_live_round_public_detail.sql",
+  "utf8",
+);
 
 describe("public detailed televote", () => {
   it("reads only the sanitized public snapshot", () => {
@@ -43,14 +47,16 @@ describe("public detailed televote", () => {
     expect(detail).toContain("units");
   });
 
-  it("shows every available televote source as a visible tab with Received and Given views", () => {
+  it("shows every available televote source in a compact round switcher with Received and Given views", () => {
     expect(server).toContain("rounds:");
     expect(detail).toContain('role="tablist"');
-    expect(detail).toContain('aria-label="Televote sources"');
-    expect(detail).toContain("rounds.map");
+    expect(detail).toContain('aria-label="Televote rounds and sources"');
+    expect(detail).toContain("orderedRounds.map");
     expect(detail).toContain('type Direction = "received" | "given"');
     expect(detail).toContain("receivedContributors");
     expect(detail).toContain("givenRecipients");
+    expect(detail).toContain("Source insights");
+    expect(detail).not.toContain("function TeleMetric");
     expect(detail).not.toContain("Televote source / round");
     expect(detail).not.toContain("Country-source matrix available");
     expect(detail).not.toContain("Recipient totals only");
@@ -102,6 +108,17 @@ describe("public detailed televote", () => {
     expect(allSemis).toContain("vote_entries");
     expect(allSemis).toContain("country_contributions");
     expect(allSemis).toContain("source matrix does not reconcile to raw score");
+  });
+
+  it("preserves the SSC21 Grand Final live round as supplementary raw-only transparency", () => {
+    expect(liveRound).toContain("Grand final live round");
+    expect(liveRound).toContain("'live'");
+    expect(liveRound).toContain("rr.original_votes");
+    expect(liveRound).toContain("final_points");
+    expect(liveRound).toContain("0,");
+    expect(detail).toContain("Supplementary raw round");
+    expect(detail).toContain("Raw only");
+    expect(detail).toContain('sourceType === "live"');
   });
 
   it("exposes the detail and stats views only through the public show route", () => {
