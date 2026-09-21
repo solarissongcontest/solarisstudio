@@ -68,6 +68,8 @@ const RAW_SHAPES: ShapeKind[] = [
 type SimpleShape =
   | "rectangle"
   | "rounded"
+  | "square"
+  | "circle"
   | "pill"
   | "angled-left"
   | "angled-right"
@@ -763,6 +765,8 @@ function SimpleEditor({
           >
             <option value="rectangle">Rectangle</option>
             <option value="rounded">Rounded</option>
+            {zone.type === "flag" ? <option value="square">Square</option> : null}
+            {zone.type === "flag" ? <option value="circle">Circle</option> : null}
             <option value="pill">Pill</option>
             <option value="angled-left">Angled left</option>
             <option value="angled-right">Angled right</option>
@@ -773,7 +777,10 @@ function SimpleEditor({
 
       {zone.type === "flag" && (
         <SimpleSection title="Flag">
-          <Field label="Image fit">
+          <Field
+            label="Image fit"
+            hint="Cover fills the selected shape without stretching. Contain keeps the whole source image and may leave empty space."
+          >
             <div className="grid grid-cols-3 gap-2">
               {(["cover", "contain", "fill"] as const).map((fit) => (
                 <ChoiceButton
@@ -1502,6 +1509,8 @@ function recommendedWidth(type: ZoneType) {
 /* -------------------------------------------------------------------------- */
 
 function detectSimpleShape(zone: CardZoneConfig): SimpleShape {
+  if (zone.shape.kind === "square") return "square";
+  if (zone.shape.kind === "circle") return "circle";
   if (zone.shape.kind === "pill") return "pill";
   if (zone.shape.kind === "wedge") return "wedge";
 
@@ -1527,6 +1536,28 @@ function applySimpleShape(
         ...source,
         kind: "rounded",
         radius: Math.max(8, Math.min(source.radius || 10, 30)),
+        leftSlant: 0,
+        rightSlant: 0,
+        topInset: 0,
+        bottomInset: 0,
+      };
+
+    case "square":
+      return {
+        ...source,
+        kind: "square",
+        radius: 0,
+        leftSlant: 0,
+        rightSlant: 0,
+        topInset: 0,
+        bottomInset: 0,
+      };
+
+    case "circle":
+      return {
+        ...source,
+        kind: "circle",
+        radius: 999,
         leftSlant: 0,
         rightSlant: 0,
         topInset: 0,
