@@ -1,24 +1,58 @@
 -- Repair the country-source breakdown in the archived SSC20 round from the
 -- organizer PDF observations. The official converted points remain untouched.
+--
+-- Historical archive rows are production data, not clean-install seed data.
+-- A completely absent source dataset is therefore a valid no-op on a fresh DB.
+-- Once any source rows exist, however, this migration fails closed unless the
+-- complete expected archive and target round are present.
 do $$
 declare
   target_round uuid;
   expected_source constant text := 'ssc20_grand_final_country_detailed_pdf_2026_09_09';
+  source_count integer;
+  positive_source_count integer;
 begin
-  select r.id into strict target_round
+  select
+    count(*),
+    count(*) filter (where h.score > 0)
+  into source_count, positive_source_count
+  from televoting.historical_vote_observations h
+  where h.source_key = expected_source;
+
+  if source_count = 0 then
+    return;
+  end if;
+
+  if source_count <> 627 or positive_source_count <> 219 then
+    raise exception
+      'SSC20 PDF observation archive is partial or inconsistent: rows %, positive rows %',
+      source_count, positive_source_count;
+  end if;
+
+  select r.id into target_round
   from televoting.rounds r
   join televoting.editions e on e.id = r.edition_id
-  where e.name = 'Solaris Song Contest 20' and r.name = 'Grand Final';
+  where e.name = 'Solaris Song Contest 20'
+    and r.name = 'Grand Final'
+  order by r.created_at
+  limit 1;
+
+  if target_round is null then
+    raise exception 'SSC20 historical observations exist but the archived Grand Final round is missing';
+  end if;
 
   if (select count(*) from televoting.round_results where round_id = target_round) <> 26
-     or (select count(*) from televoting.historical_vote_observations where source_key = expected_source) <> 627
-     or (select count(*) from televoting.historical_vote_observations where source_key = expected_source and score > 0) <> 219
      or exists (
-       select 1 from televoting.round_results rr
+       select 1
+       from televoting.round_results rr
        where rr.round_id = target_round
          and rr.original_votes <> coalesce((rr.calculation_config->>'activity_points')::integer, 0)
-           + (select coalesce(sum(h.score), 0) from televoting.historical_vote_observations h
-              where h.source_key = expected_source and h.target_country_code = rr.country_code)
+           + (
+             select coalesce(sum(h.score), 0)
+             from televoting.historical_vote_observations h
+             where h.source_key = expected_source
+               and h.target_country_code = rr.country_code
+           )
      ) then
     raise exception 'SSC20 PDF observations do not reconcile with archived round raw totals';
   end if;
@@ -33,7 +67,8 @@ begin
       where h.source_key = expected_source
         and h.target_country_code = rr.country_code
         and h.score > 0
-    ), '{}'::jsonb), true
+    ), '{}'::jsonb),
+    true
   )
   where rr.round_id = target_round;
 
