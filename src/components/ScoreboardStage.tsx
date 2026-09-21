@@ -363,17 +363,20 @@ function prepareCardForPublicSurface(
   const zones = card.zones.map((zone) => {
     if (zone.type === "flag") {
       const usableRowHeight = Math.max(18, card.height - card.paddingY * 2);
-      const flagHeight = Math.max(
+      const requestedHeight = Math.max(
         18,
-        Math.min(
-          zone.height ?? (compact ? 24 : 32),
-          usableRowHeight,
-        ),
+        Math.min(zone.height ?? (compact ? 24 : 32), usableRowHeight),
       );
-      const flagWidth = flagHeight * 1.5;
-      const flagRadius = card.radius > 0
-        ? Math.min(10, Math.max(3, card.radius * 0.45))
-        : 0;
+      const shapeKind = zone.shape?.kind ?? "rounded";
+      const squareShape = shapeKind === "circle" || shapeKind === "square";
+
+      const flagHeight = squareShape
+        ? Math.min(zone.height ?? zone.width ?? requestedHeight, usableRowHeight)
+        : requestedHeight;
+
+      const flagWidth = squareShape
+        ? flagHeight
+        : zone.width ?? flagHeight * 1.5;
 
       return {
         ...zone,
@@ -382,12 +385,9 @@ function prepareCardForPublicSurface(
         maxWidth: flagWidth,
         height: flagHeight,
         grow: 0,
-        fit: "contain" as const,
-        shape: {
-          ...zone.shape,
-          kind: flagRadius > 0 ? "rounded" as const : "rect" as const,
-          radius: flagRadius,
-        },
+        // Public factual flags should fill the shape selected by the template.
+        // Cropping is allowed; non-uniform stretching is not.
+        fit: "cover" as const,
       };
     }
 
