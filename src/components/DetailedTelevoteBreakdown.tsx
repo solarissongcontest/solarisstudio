@@ -182,7 +182,7 @@ export function DetailedTelevoteBreakdown({
             </h3>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
               Published aggregate country-source contributions from
-              {roundName ? ` ${roundName}` : " this televote round"}. Individual voters are never shown.
+              {roundName ? ` ${roundName}` : " this televote round"}. Source units describe the archived contribution matrix and are not the same as official televote points. Individual voters are never shown.
             </p>
           </div>
 
@@ -279,7 +279,7 @@ export function DetailedTelevoteBreakdown({
           }
           hint={
             supportStats.mostGenerous
-              ? `${supportStats.mostGenerous.points} source pts`
+              ? `${supportStats.mostGenerous.points} source units`
               : undefined
           }
         />
@@ -306,10 +306,24 @@ export function DetailedTelevoteBreakdown({
             </h4>
           </div>
           <div className="shrink-0 text-right">
-            <p className="numeric text-2xl font-black">{detailTotal}</p>
-            <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-              source pts
-            </p>
+            {direction === "received" && receivedRow ? (
+              <>
+                <p className="numeric text-2xl font-black">{receivedRow.final_points}</p>
+                <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                  official televote
+                </p>
+                <p className="numeric mt-1 text-xs font-semibold text-muted-foreground">
+                  {detailTotal} source units
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="numeric text-2xl font-black">{detailTotal}</p>
+                <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                  source units
+                </p>
+              </>
+            )}
           </div>
         </header>
 
