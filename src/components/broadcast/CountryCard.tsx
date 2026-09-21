@@ -534,14 +534,21 @@ function Zone({
 }) {
   const ctx = { theme, accent: row.accent };
   const isFlag = zone.type === "flag";
-  const configuredFlagHeight = zone.height ?? (
-    zone.width != null ? zone.width / 1.5 : Math.min(32, card.height)
+  const flagShape = zone.shape?.kind ?? "rounded";
+  const squareFlagShape = flagShape === "circle" || flagShape === "square";
+  const defaultFlagHeight = Math.max(16, Math.min(32, card.height - card.paddingY * 2));
+  const sourceFlagHeight = zone.height ?? (
+    squareFlagShape
+      ? zone.width ?? defaultFlagHeight
+      : zone.width != null
+        ? zone.width / 1.5
+        : defaultFlagHeight
   );
-  const flagHeight = Math.max(16, configuredFlagHeight) * scale;
-  const flagWidth = flagHeight * 1.5;
-  const flagRadius = card.radius > 0
-    ? Math.min(10 * scale, Math.max(3 * scale, card.radius * scale * 0.45))
-    : 0;
+  const sourceFlagWidth = squareFlagShape
+    ? sourceFlagHeight
+    : zone.width ?? sourceFlagHeight * 1.5;
+  const flagHeight = sourceFlagHeight * scale;
+  const flagWidth = sourceFlagWidth * scale;
 
   const style: CSSProperties = {
     position:
@@ -596,8 +603,8 @@ function Zone({
     zIndex: zone.z,
     background: surfaceBackground(zone.surface, ctx),
     border: borderCss(zone.border, ctx),
-    borderRadius: isFlag ? flagRadius : borderRadiusFor(zone.shape, 0),
-    clipPath: isFlag ? undefined : clipPathFor(zone.shape),
+    borderRadius: borderRadiusFor(zone.shape, isFlag ? 0 : 0),
+    clipPath: clipPathFor(zone.shape),
     overflow: "hidden",
   };
 
@@ -728,7 +735,7 @@ function ZoneContent({
           style={{
             width: "100%",
             height: "100%",
-            objectFit: "contain",
+            objectFit: zone.fit === "contain" ? "contain" : "cover",
             objectPosition:
               zone.objectPosition ?? "center",
           }}
