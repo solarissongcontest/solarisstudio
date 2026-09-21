@@ -242,27 +242,33 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
 .country-v2-liquid-glass-scene {
   z-index: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 82% 16%, color-mix(in srgb, var(--country-v2-accent) 22%, transparent), transparent 31%),
-    linear-gradient(145deg, color-mix(in srgb, var(--country-v2-bg-primary) 88%, transparent), color-mix(in srgb, var(--country-v2-bg-secondary) 62%, transparent));
+  background: var(--country-v2-bg-primary);
 }
 
 .country-v2-liquid-glass-scene-flag {
   position: absolute;
-  inset: -7%;
-  width: 114%;
-  height: 114%;
+  inset: -16%;
+  width: 132%;
+  height: 132%;
+  max-width: none;
+  max-height: none;
   object-fit: cover;
-  opacity: .22;
-  filter: blur(8px) saturate(1.18);
-  transform: scale(1.04);
+  opacity: .85;
+  filter: blur(10px) saturate(1.12);
+}
+
+.country-v2-liquid-glass-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(12 18 28 / .38);
 }
 
 .country-v2-liquid-glass-light {
   position: absolute;
   border-radius: 999px;
   filter: blur(22px);
-  opacity: .38;
+  opacity: .12;
 }
 .country-v2-liquid-glass-light-a {
   width: 16rem;
@@ -290,7 +296,7 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
       transparent 24%
     ),
     linear-gradient(145deg, rgb(255 255 255 / .10), rgb(255 255 255 / .035)),
-    rgb(12 18 28 / .20);
+    rgb(12 18 28 / .08);
   box-shadow:
     0 1.5rem 4.5rem rgb(0 0 0 / .24),
     inset 0 1px rgb(255 255 255 / .13),
@@ -356,6 +362,9 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
   gap: .6rem;
   z-index: 3;
 }
+.country-v2-hero-secondary-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.country-v2-hero-follow { display: flex; align-items: center; }
+.country-v2-hero-follow > span { align-items: center; }
 .country-v2-hero-actions :is(a,button) {
   min-height: 44px;
   display: inline-flex;
@@ -602,6 +611,9 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
     justify-items: center;
   }
   .country-v2-hero-actions { width: 100%; }
+  .country-v2-hero-secondary-actions { justify-content: center; width: 100%; }
+  .country-v2-hero-secondary-actions a { flex: 1 1 5.5rem; }
+  .country-v2-hero-follow { justify-content: center; width: 100%; }
   .country-v2-hero-actions :is(a,button) { flex: 1 1 auto; }
 }
 

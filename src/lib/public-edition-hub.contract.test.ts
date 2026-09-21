@@ -25,10 +25,13 @@ describe("state-aware public Edition Hub", () => {
     expect(route).toContain("editionState.primaryAction");
   });
 
-  it("turns edition section navigation into a mobile swipe row", () => {
+  it("keeps section navigation visible on desktop and adaptive on mobile", () => {
     expect(route).toContain("<EditionNavigation");
     expect(navigation).toContain('className="edition-navigation"');
-    expect(designCss).toContain("overflow-x: auto");
-    expect(designCss).toContain("flex: 0 0 auto");
+    expect(navigation).toContain('className="edition-navigation-mobile"');
+    expect(navigation).toContain('aria-current={active === item.href ? "location"');
+    expect(navigation).toContain("IntersectionObserver");
+    expect(designCss).toContain(".edition-navigation-more-panel");
+    expect(designCss).not.toContain("overflow-x: auto");
   });
 });

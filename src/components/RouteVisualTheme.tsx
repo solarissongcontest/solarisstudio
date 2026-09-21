@@ -297,6 +297,8 @@ function BodyVisualTheme({
       "--edition-public-radius",
       "--edition-surface-strength",
       "--edition-hero-glow",
+      "--edition-focal-x",
+      "--edition-focal-y",
       "--edition-accent-gradient",
       "--edition-surface-gradient",
       "--country-page-background",

@@ -505,3 +505,8 @@ body[data-solaris-family="core"] {
     filter: blur(2px) saturate(0.7) brightness(1.55);
   }
 }
+
+/* Decoration stays perceptible at the page edge without competing with
+   headings, score grids or information on translucent surfaces. */
+.app-background::before { opacity: .05; }
+.app-background::after { opacity: .03; }

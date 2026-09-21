@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { cn } from "@/lib/utils";
@@ -80,6 +80,43 @@ export function EditionNavigation({
   items: readonly { href: string; label: string; available?: boolean }[];
   liquidGlass?: boolean;
 }) {
+  const available = items.filter((item) => item.available !== false);
+  const [active, setActive] = useState(available[0]?.href ?? "");
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const primary = available.length > 4 ? available.slice(0, 3) : available;
+  const secondary = available.length > 4 ? available.slice(3) : [];
+
+  useEffect(() => {
+    const sections = available.map((item) => document.getElementById(item.href.slice(1))).filter((node): node is HTMLElement => !!node);
+    if (!sections.length) return;
+    const update = () => {
+      const threshold = window.innerWidth < 768 ? 150 : 125;
+      const current = [...sections].reverse().find((node) => node.getBoundingClientRect().top <= threshold) ?? sections[0];
+      setActive(`#${current.id}`);
+    };
+    const observer = new IntersectionObserver(update, { rootMargin: "-120px 0px -70% 0px", threshold: 0 });
+    sections.forEach((node) => observer.observe(node));
+    window.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => { observer.disconnect(); window.removeEventListener("scroll", update); };
+  }, [items]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setMoreOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
+  }, [moreOpen]);
+
+  const link = (item: (typeof available)[number]) => (
+    <a key={item.href} href={item.href} aria-current={active === item.href ? "location" : undefined} onClick={() => { setActive(item.href); setMoreOpen(false); }}>{item.label}</a>
+  );
+
   return (
     <nav
       className="edition-navigation"
@@ -92,9 +129,14 @@ export function EditionNavigation({
           className="edition-navigation-liquid-glass"
         />
       ) : null}
-      {items.filter((item) => item.available !== false).map((item) => (
-        <a key={item.href} href={item.href}>{item.label}</a>
-      ))}
+      <div className="edition-navigation-desktop">{available.map(link)}</div>
+      <div className="edition-navigation-mobile">
+        {primary.map(link)}
+        {secondary.length ? <div className="edition-navigation-more" ref={moreRef}>
+          <button type="button" aria-expanded={moreOpen} aria-controls="edition-navigation-more-panel" aria-current={secondary.some((item) => item.href === active) ? "location" : undefined} onClick={() => setMoreOpen((value) => !value)}>More <span aria-hidden="true">⌄</span></button>
+          {moreOpen ? <div id="edition-navigation-more-panel" className="edition-navigation-more-panel">{secondary.map(link)}</div> : null}
+        </div> : null}
+      </div>
     </nav>
   );
 }

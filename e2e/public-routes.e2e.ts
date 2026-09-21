@@ -42,6 +42,48 @@ test("representative non-country dynamic route passes desktop audit", async ({ p
   await auditRoutes(page, representativeDynamic, testInfo);
 });
 
+test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
+  test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
+
+  await page.goto("/countries/ABE", { waitUntil: "domcontentloaded" });
+  const atmosphere = page.locator(".country-v2-liquid-glass-scene-flag");
+  await expect(atmosphere).toBeVisible();
+  const coverage = await atmosphere.evaluate((image) => {
+    const hero = image.closest(".country-v2-hero")!.getBoundingClientRect();
+    const flag = image.getBoundingClientRect();
+    return { left: flag.left - hero.left, right: flag.right - hero.right, top: flag.top - hero.top, bottom: flag.bottom - hero.bottom, fit: getComputedStyle(image).objectFit };
+  });
+  expect(coverage.left).toBeLessThan(-20);
+  expect(coverage.right).toBeGreaterThan(20);
+  expect(coverage.top).toBeLessThan(-20);
+  expect(coverage.bottom).toBeGreaterThan(20);
+  expect(coverage.fit).toBe("cover");
+  await testInfo.attach("abeven-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+
+  await page.goto("/wiki/ABE", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "breadcrumb" })).toHaveCount(1);
+  await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+
+  await page.goto("/editions/ssc-20", { waitUntil: "domcontentloaded" });
+  const edition = page.locator(".edition-public-page");
+  await expect(edition.locator("h1")).toHaveText("SSC 20");
+  await expect(edition.locator(".edition-hero-subtitle")).toHaveCount(0);
+  await expect(edition.locator(".public-current-status")).toHaveCount(0);
+  if (["public-320", "public-390"].includes(testInfo.project.name)) {
+    const nav = edition.locator(".edition-navigation-mobile");
+    await expect(nav).toBeVisible();
+    const dimensions = await nav.evaluate((element) => {
+      const parent = element.getBoundingClientRect();
+      const controls = [...element.children].map((child) => child.getBoundingClientRect());
+      return { clipped: controls.some((rect) => rect.left < parent.left - 1 || rect.right > parent.right + 1), overflow: document.documentElement.scrollWidth - window.innerWidth };
+    });
+    expect(dimensions.clipped).toBe(false);
+    expect(dimensions.overflow).toBeLessThanOrEqual(1);
+  }
+  await testInfo.attach("ssc20-hero.png", { body: await page.locator(".edition-hero").screenshot(), contentType: "image/png" });
+});
+
 for (let shard = 0; shard < 4; shard += 1) {
   test(`all indexable routes pass desktop audit — shard ${shard + 1}`, async ({ page, baseURL }, testInfo) => {
     test.skip(!fullAudit, "Full sitemap inventory is reserved for manual/full audit runs");
