@@ -604,7 +604,8 @@ export async function syncPublishedCombinedResultsToSolarisServer(
       const { error: clearError } = await db
         .from("public_televote_country_contributions")
         .delete()
-        .eq("show_id", target.show_id);
+        .eq("show_id", target.show_id)
+        .neq("source_type", "live");
       if (clearError) throw clearError;
 
       if (snapshotRows.length) {
