@@ -61,4 +61,4 @@ begin
   ) then
     raise exception 'SSC20 public country-source snapshot is stale after reconciliation';
   end if;
-end $;
+end $$;
