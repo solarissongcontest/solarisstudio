@@ -6,12 +6,18 @@ export function FlagChip({
   code,
   color,
   image,
+  cropX = 50,
+  cropY = 50,
+  cropZoom = 1,
   size = "md",
   className,
 }: {
   code: string;
   color: string;
   image?: string | null;
+  cropX?: number | null;
+  cropY?: number | null;
+  cropZoom?: number | null;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
@@ -24,9 +30,9 @@ export function FlagChip({
 
   /*
    * Structural flag media is protected from card/personality padding so the
-   * drawable area cannot collapse. Official flags use contain rather than
-   * cover: different national aspect ratios must never be cropped or stretched
-   * merely to make a thumbnail box look uniform.
+   * drawable area cannot collapse. Standard public flag tiles fill their
+   * configured shape using a uniform crop. Saved focal-point metadata keeps
+   * off-centre emblems visible while non-uniform stretching stays forbidden.
    */
   useEffect(() => {
     const node = chipRef.current;
@@ -80,8 +86,10 @@ export function FlagChip({
             minWidth: "100%",
             aspectRatio: "3 / 2",
             borderRadius: "inherit",
-            objectFit: "contain",
-            objectPosition: "center",
+            objectFit: "cover",
+            objectPosition: `${Math.max(0, Math.min(100, Number(cropX ?? 50)))}% ${Math.max(0, Math.min(100, Number(cropY ?? 50)))}%`,
+            transform: `scale(${Math.max(1, Math.min(2, Number(cropZoom ?? 1)))})`,
+            transformOrigin: `${Math.max(0, Math.min(100, Number(cropX ?? 50)))}% ${Math.max(0, Math.min(100, Number(cropY ?? 50)))}%`,
             opacity: 1,
             visibility: "visible",
             filter: "none",
