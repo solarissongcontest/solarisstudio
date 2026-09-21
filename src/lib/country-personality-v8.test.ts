@@ -54,11 +54,13 @@ describe("source-driven Country personality foundation", () => {
     expect(sourceFoundation).toContain("inline-size: auto !important");
     expect(sourceFoundation).toContain("block-size: auto !important");
     expect(sourceFoundation).toContain("object-fit: contain !important");
-    expect(scoreboard).toContain('objectFit: "contain"');
-    expect(scoreboard).not.toContain('objectFit: zone.fit ?? "cover"');
-    expect(scoreboardStage).toContain("const flagWidth = flagHeight * 1.5");
-    expect(scoreboardStage).toContain('fit: "contain" as const');
-    expect(scoreboardStage).toContain("flagRadius = card.radius > 0");
+    expect(scoreboard).toContain('objectFit: zone.fit === "contain" ? "contain" : "cover"');
+    expect(scoreboard).toContain('flagShape === "circle" || flagShape === "square"');
+    expect(scoreboard).toContain("borderRadiusFor(zone.shape, 0)");
+    expect(scoreboard).toContain("clipPathFor(zone.shape)");
+    expect(scoreboardStage).toContain('shapeKind === "circle" || shapeKind === "square"');
+    expect(scoreboardStage).toContain('fit: "cover" as const');
+    expect(scoreboardStage).not.toContain("const flagWidth = flagHeight * 1.5");
     expect(shared).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
   });
 
