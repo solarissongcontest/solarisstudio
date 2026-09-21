@@ -17,13 +17,17 @@ const harden = readFileSync(
   "supabase/migrations/20260921162319_harden_public_televote_country_contributions.sql",
   "utf8",
 );
+const multiSource = readFileSync(
+  "supabase/migrations/20260921204500_public_televote_multisource_rounds.sql",
+  "utf8",
+);
 
 describe("public detailed televote", () => {
   it("reads only the sanitized public snapshot", () => {
     expect(server).toContain('from("public_televote_country_contributions")');
     expect(server).not.toContain('from("round_results")');
     expect(server).toContain(
-      '"show_id,round_id,round_name,country_code,final_points,activity_points,country_contributions"',
+      '"show_id,round_id,round_name,source_type,display_order,weight_percent,country_code,final_points,raw_score,activity_points,country_contributions"',
     );
     expect(server).not.toContain('from("round_results")');
     expect(server).not.toContain('from("votes")');
@@ -35,10 +39,13 @@ describe("public detailed televote", () => {
     expect(detail).toContain("are not the same as official televote points");
   });
 
-  it("provides Received and Given source-detail views", () => {
+  it("provides a round selector plus Received and Given source-detail views", () => {
+    expect(server).toContain("rounds:");
+    expect(detail).toContain("Televote source / round");
     expect(detail).toContain('type Direction = "received" | "given"');
     expect(detail).toContain("receivedContributors");
     expect(detail).toContain("givenRecipients");
+    expect(detail).toContain("Preserved recipient totals");
   });
 
   it("gates the public snapshot with RLS and show publication flags", () => {
@@ -62,6 +69,17 @@ describe("public detailed televote", () => {
     expect(ssc21).toContain("26");
     expect(ssc21).toContain("public.televote_votes");
     expect(ssc21).toContain("historical:ssc21_instagram_story_voting");
+  });
+
+  it("publishes every enabled SSC21 Combined Televote source separately", () => {
+    expect(multiSource).toContain("Grand Final round 1");
+    expect(multiSource).toContain("Story voting");
+    expect(multiSource).toContain("Activity points");
+    expect(multiSource).toContain("enabled_source_count <> 3");
+    expect(multiSource).toContain("country_contributions");
+    expect(multiSource).toContain("raw_score");
+    expect(multiSource).toContain("weight_percent");
+    expect(multiSource).toContain("Third semi-final");
   });
 
   it("exposes the detail and stats views only through the public show route", () => {
