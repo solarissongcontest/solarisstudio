@@ -21,6 +21,10 @@ const multiSource = readFileSync(
   "supabase/migrations/20260921185254_public_televote_multisource_rounds.sql",
   "utf8",
 );
+const allSemis = readFileSync(
+  "supabase/migrations/20260921202200_ssc21_all_semifinal_televote_detail.sql",
+  "utf8",
+);
 
 describe("public detailed televote", () => {
   it("reads only the sanitized public snapshot", () => {
@@ -85,8 +89,19 @@ describe("public detailed televote", () => {
     expect(multiSource).toContain("weight_percent");
     expect(multiSource).toContain("Third semi-final");
     expect(multiSource).toContain("percentage_weight");
-    expect(multiSource).toContain("weight_percent");
     expect(multiSource).not.toContain("'Grand final live round'");
+  });
+
+  it("publishes detailed SSC21 televote matrices for all three semi-finals", () => {
+    expect(allSemis).toContain("First semi-final");
+    expect(allSemis).toContain("Second semi-final");
+    expect(allSemis).toContain("Third semi-final");
+    expect(allSemis).toContain("public.results");
+    expect(allSemis).toContain("televote_points");
+    expect(allSemis).toContain("vote_submissions");
+    expect(allSemis).toContain("vote_entries");
+    expect(allSemis).toContain("country_contributions");
+    expect(allSemis).toContain("source matrix does not reconcile to raw score");
   });
 
   it("exposes the detail and stats views only through the public show route", () => {
