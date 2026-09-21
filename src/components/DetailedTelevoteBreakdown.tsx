@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { FlagChip } from "@/components/FlagChip";
+import type { PublicShowTelevoteRoundDetail } from "@/integrations/televoting/public-detail.server";
 import { cn } from "@/lib/utils";
 
 type FlagDisplay = {
@@ -13,26 +14,14 @@ type FlagDisplay = {
   flag_crop_zoom?: number | null;
 };
 
-type DetailRow = {
-  country_code: string | null;
-  final_points: number;
-  activity_points?: number;
-  country_contributions?: Record<string, number>;
-};
-
 type Props = {
-  rows: DetailRow[];
+  rounds: PublicShowTelevoteRoundDetail[];
   countries: Map<string, FlagDisplay>;
-  roundName?: string | null;
 };
 
 type Direction = "received" | "given";
 
-export function DetailedTelevoteBreakdown({
-  rows,
-  countries,
-  roundName,
-}: Props) {
+export function DetailedTelevoteBreakdown({ rounds, countries }: Props) {
   const byCode = useMemo(
     () =>
       new Map(
@@ -44,9 +33,105 @@ export function DetailedTelevoteBreakdown({
     [countries],
   );
 
+  const [selectedRoundId, setSelectedRoundId] = useState(rounds[0]?.round.id ?? "");
+  const selectedRound =
+    rounds.find((round) => round.round.id === selectedRoundId) ??
+    rounds[0] ??
+    null;
+
+  if (!selectedRound) return null;
+
+  const weightLabel =
+    selectedRound.round.weightPercent != null
+      ? `${selectedRound.round.weightPercent}% of final televote`
+      : null;
+
+  return (
+    <div className="space-y-4" data-detailed-televote>
+      <section className="rounded-[1.5rem] border border-border/70 bg-surface/45 p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+              Public vote detail
+            </p>
+            <h3 className="mt-1 font-display text-xl font-bold sm:text-2xl">
+              Televote sources and rounds
+            </h3>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+              Each published source is kept separate. Where a country-to-country
+              matrix survives, Solaris shows Received and Given views. Where only
+              recipient totals survive, Solaris shows those totals without inventing
+              a missing source matrix.
+            </p>
+          </div>
+
+          {rounds.length > 1 ? (
+            <label className="block min-w-0 lg:min-w-72">
+              <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Televote source / round
+              </span>
+              <select
+                value={selectedRound.round.id}
+                onChange={(event) => setSelectedRoundId(event.target.value)}
+                className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm font-semibold outline-none focus:border-primary/50"
+              >
+                {rounds.map((round) => (
+                  <option key={round.round.id} value={round.round.id}>
+                    {round.round.name}
+                    {round.round.weightPercent != null
+                      ? ` · ${round.round.weightPercent}%`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="rounded-full border border-border/70 bg-background/35 px-2.5 py-1">
+            {sourceTypeLabel(selectedRound.round.sourceType)}
+          </span>
+          {weightLabel ? (
+            <span className="rounded-full border border-border/70 bg-background/35 px-2.5 py-1">
+              {weightLabel}
+            </span>
+          ) : null}
+          <span className="rounded-full border border-border/70 bg-background/35 px-2.5 py-1">
+            {selectedRound.round.hasSourceMatrix
+              ? "Country-source matrix available"
+              : "Recipient totals only"}
+          </span>
+        </div>
+      </section>
+
+      {selectedRound.round.hasSourceMatrix ? (
+        <SourceMatrixRound
+          key={selectedRound.round.id}
+          round={selectedRound}
+          countries={byCode}
+        />
+      ) : (
+        <TotalsOnlyRound
+          key={selectedRound.round.id}
+          round={selectedRound}
+          countries={byCode}
+        />
+      )}
+    </div>
+  );
+}
+
+function SourceMatrixRound({
+  round,
+  countries,
+}: {
+  round: PublicShowTelevoteRoundDetail;
+  countries: Map<string, FlagDisplay>;
+}) {
   const recipientRows = useMemo(
     () =>
-      rows
+      round.rows
         .filter((row) => row.country_code)
         .map((row) => ({
           ...row,
@@ -57,7 +142,7 @@ export function DetailedTelevoteBreakdown({
             b.final_points - a.final_points ||
             a.country_code.localeCompare(b.country_code),
         ),
-    [rows],
+    [round],
   );
 
   const sourceCodes = useMemo(() => {
@@ -68,9 +153,11 @@ export function DetailedTelevoteBreakdown({
       );
     });
     return [...codes].sort((a, b) =>
-      (byCode.get(a)?.name ?? a).localeCompare(byCode.get(b)?.name ?? b),
+      (countries.get(a)?.name ?? a).localeCompare(
+        countries.get(b)?.name ?? b,
+      ),
     );
-  }, [recipientRows, byCode]);
+  }, [recipientRows, countries]);
 
   const supportStats = useMemo(() => {
     let broadestRecipient = { code: "", sources: 0 };
@@ -118,9 +205,7 @@ export function DetailedTelevoteBreakdown({
       biggestSingle: biggestSingle.points ? biggestSingle : null,
       mostGenerous,
       averageSources:
-        recipientRows.length > 0
-          ? sourceCountTotal / recipientRows.length
-          : 0,
+        recipientRows.length > 0 ? sourceCountTotal / recipientRows.length : 0,
     };
   }, [recipientRows]);
 
@@ -165,24 +250,25 @@ export function DetailedTelevoteBreakdown({
     direction === "received" ? receivedContributors : givenRecipients;
   const selectedCode =
     direction === "received" ? effectiveRecipient : effectiveSource;
-  const selectedCountry = byCode.get(selectedCode);
+  const selectedCountry = countries.get(selectedCode);
   const detailTotal = visibleRows.reduce((sum, row) => sum + row.points, 0);
   const maxPoints = Math.max(1, ...visibleRows.map((row) => row.points));
 
   return (
-    <div className="space-y-4" data-detailed-televote>
+    <>
       <section className="rounded-[1.5rem] border border-border/70 bg-surface/45 p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-              Public vote detail
+              {round.round.name}
             </p>
-            <h3 className="mt-1 font-display text-xl font-bold sm:text-2xl">
-              Country-by-country televote
-            </h3>
+            <h4 className="mt-1 font-display text-lg font-bold sm:text-xl">
+              Country-by-country source matrix
+            </h4>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-              Published aggregate country-source contributions from
-              {roundName ? ` ${roundName}` : " this televote round"}. Source units describe the archived contribution matrix and are not the same as official televote points. Individual voters are never shown.
+              Source units are the preserved country-source contribution units
+              for this source. They are not the same as the allocated points that
+              this source contributes to the final televote.
             </p>
           </div>
 
@@ -236,7 +322,7 @@ export function DetailedTelevoteBreakdown({
               : sourceCodes
             ).map((code) => (
               <option key={code} value={code}>
-                {byCode.get(code)?.name ?? code}
+                {countries.get(code)?.name ?? code}
               </option>
             ))}
           </select>
@@ -248,7 +334,8 @@ export function DetailedTelevoteBreakdown({
           label="Broadest support"
           value={
             supportStats.broadestRecipient
-              ? `${byCode.get(supportStats.broadestRecipient.code)?.name ?? supportStats.broadestRecipient.code}`
+              ? countries.get(supportStats.broadestRecipient.code)?.name ??
+                supportStats.broadestRecipient.code
               : "—"
           }
           hint={
@@ -261,12 +348,12 @@ export function DetailedTelevoteBreakdown({
           label="Biggest single source"
           value={
             supportStats.biggestSingle
-              ? `${supportStats.biggestSingle.points} pts`
+              ? `${supportStats.biggestSingle.points} units`
               : "—"
           }
           hint={
             supportStats.biggestSingle
-              ? `${byCode.get(supportStats.biggestSingle.source)?.name ?? supportStats.biggestSingle.source} → ${byCode.get(supportStats.biggestSingle.recipient)?.name ?? supportStats.biggestSingle.recipient}`
+              ? `${countries.get(supportStats.biggestSingle.source)?.name ?? supportStats.biggestSingle.source} → ${countries.get(supportStats.biggestSingle.recipient)?.name ?? supportStats.biggestSingle.recipient}`
               : undefined
           }
         />
@@ -274,7 +361,8 @@ export function DetailedTelevoteBreakdown({
           label="Most generous source"
           value={
             supportStats.mostGenerous
-              ? `${byCode.get(supportStats.mostGenerous.code)?.name ?? supportStats.mostGenerous.code}`
+              ? countries.get(supportStats.mostGenerous.code)?.name ??
+                supportStats.mostGenerous.code
               : "—"
           }
           hint={
@@ -286,9 +374,7 @@ export function DetailedTelevoteBreakdown({
         <TeleMetric
           label="Avg. support breadth"
           value={
-            recipientRows.length
-              ? supportStats.averageSources.toFixed(1)
-              : "—"
+            recipientRows.length ? supportStats.averageSources.toFixed(1) : "—"
           }
           hint="source countries per entry"
         />
@@ -296,10 +382,16 @@ export function DetailedTelevoteBreakdown({
 
       <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/30">
         <header className="flex items-center gap-3 border-b border-border/60 p-4 sm:p-5">
-          <PublicFlag code={selectedCode} country={selectedCountry} size="lg" />
+          <PublicFlag
+            code={selectedCode}
+            country={selectedCountry}
+            size="lg"
+          />
           <div className="min-w-0 flex-1">
             <p className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-              {direction === "received" ? "Televote received by" : "Televote given by"}
+              {direction === "received"
+                ? "Source support received by"
+                : "Source support given by"}
             </p>
             <h4 className="mt-1 truncate font-display text-xl font-bold">
               {selectedCountry?.name ?? selectedCode}
@@ -308,10 +400,19 @@ export function DetailedTelevoteBreakdown({
           <div className="shrink-0 text-right">
             {direction === "received" && receivedRow ? (
               <>
-                <p className="numeric text-2xl font-black">{receivedRow.final_points}</p>
-                <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                  official televote
+                <p className="numeric text-2xl font-black">
+                  {receivedRow.final_points}
                 </p>
+                <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                  {round.round.weightPercent != null
+                    ? "allocated points"
+                    : "official televote"}
+                </p>
+                {receivedRow.raw_score != null ? (
+                  <p className="numeric mt-1 text-xs font-semibold text-muted-foreground">
+                    {receivedRow.raw_score} raw score
+                  </p>
+                ) : null}
                 <p className="numeric mt-1 text-xs font-semibold text-muted-foreground">
                   {detailTotal} source units
                 </p>
@@ -330,7 +431,7 @@ export function DetailedTelevoteBreakdown({
         {visibleRows.length ? (
           <div className="divide-y divide-border/55">
             {visibleRows.map((row, index) => {
-              const country = byCode.get(row.code);
+              const country = countries.get(row.code);
               const width = Math.max(5, (row.points / maxPoints) * 100);
 
               return (
@@ -341,7 +442,11 @@ export function DetailedTelevoteBreakdown({
                   <span className="numeric text-center text-[10px] text-muted-foreground">
                     #{index + 1}
                   </span>
-                  <PublicFlag code={row.code} country={country} size="sm" />
+                  <PublicFlag
+                    code={row.code}
+                    country={country}
+                    size="sm"
+                  />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">
                       {country?.name ?? row.code}
@@ -362,12 +467,131 @@ export function DetailedTelevoteBreakdown({
           </div>
         ) : (
           <div className="p-8 text-center text-sm text-muted-foreground">
-            No published country-source contributions are stored for this selection.
+            No published source contributions are stored for this selection.
           </div>
         )}
       </section>
-    </div>
+    </>
   );
+}
+
+function TotalsOnlyRound({
+  round,
+  countries,
+}: {
+  round: PublicShowTelevoteRoundDetail;
+  countries: Map<string, FlagDisplay>;
+}) {
+  const rows = [...round.rows].sort(
+    (a, b) =>
+      b.final_points - a.final_points ||
+      (b.raw_score ?? -Infinity) - (a.raw_score ?? -Infinity) ||
+      a.country_code.localeCompare(b.country_code),
+  );
+  const allocatedTotal = rows.reduce(
+    (sum, row) => sum + Number(row.final_points || 0),
+    0,
+  );
+  const rawTotal = rows.reduce(
+    (sum, row) => sum + Number(row.raw_score || 0),
+    0,
+  );
+
+  return (
+    <>
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.5rem] border border-border/70 bg-border/60 lg:grid-cols-4">
+        <TeleMetric label="Recipients" value={String(rows.length)} />
+        <TeleMetric
+          label={
+            round.round.weightPercent != null
+              ? "Allocated points"
+              : "Official points"
+          }
+          value={String(allocatedTotal)}
+        />
+        <TeleMetric
+          label="Raw score"
+          value={rows.some((row) => row.raw_score != null) ? String(rawTotal) : "—"}
+        />
+        <TeleMetric
+          label="Source matrix"
+          value="Not preserved"
+          hint="No country-to-country breakdown is shown"
+        />
+      </section>
+
+      <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/30">
+        <header className="border-b border-border/60 p-4 sm:p-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+            {round.round.name}
+          </p>
+          <h4 className="mt-1 font-display text-lg font-bold sm:text-xl">
+            Preserved recipient totals
+          </h4>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            This source is part of the published televote record, but a
+            country-to-country contribution matrix is not preserved for it.
+            Solaris shows only the aggregate recipient values that can be
+            verified from the archive.
+          </p>
+        </header>
+
+        <div className="divide-y divide-border/55">
+          {rows.map((row, index) => {
+            const country = countries.get(row.country_code);
+            return (
+              <div
+                key={row.country_code}
+                className="grid grid-cols-[28px_auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5"
+              >
+                <span className="numeric text-center text-[10px] text-muted-foreground">
+                  #{index + 1}
+                </span>
+                <PublicFlag
+                  code={row.country_code}
+                  country={country}
+                  size="sm"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {country?.name ?? row.country_code}
+                  </p>
+                  {row.raw_score != null ? (
+                    <p className="numeric mt-0.5 text-[10px] text-muted-foreground">
+                      Raw score {row.raw_score}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="text-right">
+                  <p className="numeric text-base font-black">
+                    {row.final_points}
+                  </p>
+                  <p className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
+                    {round.round.weightPercent != null
+                      ? "allocated"
+                      : "points"}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function sourceTypeLabel(sourceType: string) {
+  switch (sourceType) {
+    case "round":
+      return "Voting round";
+    case "instagram":
+      return "Story voting";
+    case "activity":
+      return "Activity source";
+    default:
+      return sourceType.replace(/[-_]/g, " ");
+  }
 }
 
 function TeleMetric({
@@ -386,7 +610,9 @@ function TeleMetric({
       </p>
       <p className="mt-1.5 truncate text-sm font-black sm:text-base">{value}</p>
       {hint ? (
-        <p className="mt-1 truncate text-[10px] text-muted-foreground">{hint}</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          {hint}
+        </p>
       ) : null}
     </div>
   );
