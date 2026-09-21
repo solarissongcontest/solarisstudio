@@ -41,69 +41,101 @@ export function DetailedTelevoteBreakdown({ rounds, countries }: Props) {
 
   if (!selectedRound) return null;
 
-  const weightLabel =
-    selectedRound.round.weightPercent != null
-      ? `${selectedRound.round.weightPercent}% of final televote`
-      : null;
+  const allocatedAcrossSources = rounds.reduce(
+    (sum, round) =>
+      sum +
+      round.rows.reduce(
+        (roundSum, row) => roundSum + Number(row.final_points || 0),
+        0,
+      ),
+    0,
+  );
 
   return (
-    <div className="space-y-4" data-detailed-televote>
-      <section className="rounded-[1.5rem] border border-border/70 bg-surface/45 p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-5" data-detailed-televote>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+            Detailed televote
+          </p>
+          <h3 className="mt-1 font-display text-2xl font-bold sm:text-3xl">
+            Public vote breakdown
+          </h3>
+        </div>
+
+        <div className="flex items-baseline gap-5 text-right">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-              Public vote detail
-            </p>
-            <h3 className="mt-1 font-display text-xl font-bold sm:text-2xl">
-              Televote sources and rounds
-            </h3>
-            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-              Each published source is kept separate. Where a country-to-country
-              matrix survives, Solaris shows Received and Given views. Where only
-              recipient totals survive, Solaris shows those totals without inventing
-              a missing source matrix.
+            <p className="numeric text-lg font-black">{rounds.length}</p>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {rounds.length === 1 ? "source" : "sources"}
             </p>
           </div>
+          <div>
+            <p className="numeric text-lg font-black">{allocatedAcrossSources}</p>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              allocated pts
+            </p>
+          </div>
+        </div>
+      </header>
 
-          {rounds.length > 1 ? (
-            <label className="block min-w-0 lg:min-w-72">
-              <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Televote source / round
-              </span>
-              <select
-                value={selectedRound.round.id}
-                onChange={(event) => setSelectedRoundId(event.target.value)}
-                className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm font-semibold outline-none focus:border-primary/50"
-              >
-                {rounds.map((round) => (
-                  <option key={round.round.id} value={round.round.id}>
+      <div
+        role="tablist"
+        aria-label="Televote sources"
+        className={cn(
+          "grid gap-2",
+          rounds.length === 1
+            ? "grid-cols-1"
+            : rounds.length === 2
+              ? "grid-cols-2"
+              : "grid-cols-1 sm:grid-cols-3",
+        )}
+      >
+        {rounds.map((round) => {
+          const selected = round.round.id === selectedRound.round.id;
+          const sourceTotal = round.rows.reduce(
+            (sum, row) => sum + Number(row.final_points || 0),
+            0,
+          );
+
+          return (
+            <button
+              key={round.round.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setSelectedRoundId(round.round.id)}
+              className={cn(
+                "min-w-0 rounded-2xl border px-4 py-3 text-left transition",
+                selected
+                  ? "border-primary/45 bg-primary/[0.09] shadow-sm"
+                  : "border-border/70 bg-surface/35 hover:border-border hover:bg-surface/60",
+              )}
+            >
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">
                     {round.round.name}
-                    {round.round.weightPercent != null
-                      ? ` · ${round.round.weightPercent}%`
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          <span className="rounded-full border border-border/70 bg-background/35 px-2.5 py-1">
-            {sourceTypeLabel(selectedRound.round.sourceType)}
-          </span>
-          {weightLabel ? (
-            <span className="rounded-full border border-border/70 bg-background/35 px-2.5 py-1">
-              {weightLabel}
-            </span>
-          ) : null}
-          <span className="rounded-full border border-border/70 bg-background/35 px-2.5 py-1">
-            {selectedRound.round.hasSourceMatrix
-              ? "Country-source matrix available"
-              : "Recipient totals only"}
-          </span>
-        </div>
-      </section>
+                  </p>
+                  <p className="numeric mt-1 text-xs text-muted-foreground">
+                    {sourceTotal} pts
+                  </p>
+                </div>
+                {round.round.weightPercent != null ? (
+                  <span className={cn(
+                    "numeric shrink-0 rounded-full px-2 py-1 text-[10px] font-black",
+                    selected
+                      ? "bg-primary/15 text-primary"
+                      : "bg-background/55 text-muted-foreground",
+                  )}>
+                    {round.round.weightPercent}%
+                  </span>
+                ) : null}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
       {selectedRound.round.hasSourceMatrix ? (
         <SourceMatrixRound
@@ -256,23 +288,12 @@ function SourceMatrixRound({
 
   return (
     <>
-      <section className="rounded-[1.5rem] border border-border/70 bg-surface/45 p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-              {round.round.name}
-            </p>
-            <h4 className="mt-1 font-display text-lg font-bold sm:text-xl">
-              Country-by-country source matrix
-            </h4>
-            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-              Source units are the preserved country-source contribution units
-              for this source. They are not the same as official televote points
-              or the allocated points this source contributes to the final televote.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 rounded-xl border border-border/70 bg-background/35 p-1">
+      <section className="grid gap-3 rounded-[1.35rem] border border-border/70 bg-surface/30 p-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-end sm:p-4">
+        <div>
+          <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+            View
+          </span>
+          <div className="grid grid-cols-2 rounded-xl bg-background/45 p-1">
             <button
               type="button"
               aria-pressed={direction === "received"}
@@ -302,9 +323,9 @@ function SourceMatrixRound({
           </div>
         </div>
 
-        <label className="mt-4 block">
-          <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {direction === "received" ? "Recipient" : "Source country"}
+        <label className="min-w-0">
+          <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+            {direction === "received" ? "Country" : "Source country"}
           </span>
           <select
             value={selectedCode}
@@ -315,7 +336,7 @@ function SourceMatrixRound({
                 setSelectedSource(event.target.value);
               }
             }}
-            className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none focus:border-primary/50"
+            className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm font-semibold outline-none focus:border-primary/50"
           >
             {(direction === "received"
               ? recipientRows.map((row) => row.country_code)
@@ -389,9 +410,7 @@ function SourceMatrixRound({
           />
           <div className="min-w-0 flex-1">
             <p className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-              {direction === "received"
-                ? "Source support received by"
-                : "Source support given by"}
+              {direction === "received" ? "Received by" : "Given by"}
             </p>
             <h4 className="mt-1 truncate font-display text-xl font-bold">
               {selectedCountry?.name ?? selectedCode}
@@ -404,24 +423,22 @@ function SourceMatrixRound({
                   {receivedRow.final_points}
                 </p>
                 <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                  {round.round.weightPercent != null
-                    ? "allocated points"
-                    : "official televote"}
+                  {round.round.weightPercent != null ? "allocated pts" : "official pts"}
                 </p>
                 {receivedRow.raw_score != null ? (
                   <p className="numeric mt-1 text-xs font-semibold text-muted-foreground">
-                    {receivedRow.raw_score} raw score
+                    raw {receivedRow.raw_score}
                   </p>
                 ) : null}
                 <p className="numeric mt-1 text-xs font-semibold text-muted-foreground">
-                  {detailTotal} source units
+                  {detailTotal} units
                 </p>
               </>
             ) : (
               <>
                 <p className="numeric text-2xl font-black">{detailTotal}</p>
                 <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                  source units
+                  units
                 </p>
               </>
             )}
@@ -514,28 +531,12 @@ function TotalsOnlyRound({
           value={rows.some((row) => row.raw_score != null) ? String(rawTotal) : "—"}
         />
         <TeleMetric
-          label="Source matrix"
-          value="Not preserved"
-          hint="No country-to-country breakdown is shown"
+          label="Top score"
+          value={rows.length ? String(rows[0]?.final_points ?? 0) : "—"}
         />
       </section>
 
       <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/30">
-        <header className="border-b border-border/60 p-4 sm:p-5">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-            {round.round.name}
-          </p>
-          <h4 className="mt-1 font-display text-lg font-bold sm:text-xl">
-            Preserved recipient totals
-          </h4>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
-            This source is part of the published televote record, but a
-            country-to-country contribution matrix is not preserved for it.
-            Solaris shows only the aggregate recipient values that can be
-            verified from the archive.
-          </p>
-        </header>
-
         <div className="divide-y divide-border/55">
           {rows.map((row, index) => {
             const country = countries.get(row.country_code);
@@ -579,19 +580,6 @@ function TotalsOnlyRound({
       </section>
     </>
   );
-}
-
-function sourceTypeLabel(sourceType: string) {
-  switch (sourceType) {
-    case "round":
-      return "Voting round";
-    case "instagram":
-      return "Story voting";
-    case "activity":
-      return "Activity source";
-    default:
-      return sourceType.replace(/[-_]/g, " ");
-  }
 }
 
 function TeleMetric({
