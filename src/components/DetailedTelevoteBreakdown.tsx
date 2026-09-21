@@ -33,108 +33,114 @@ export function DetailedTelevoteBreakdown({ rounds, countries }: Props) {
     [countries],
   );
 
-  const [selectedRoundId, setSelectedRoundId] = useState(rounds[0]?.round.id ?? "");
+  const orderedRounds = useMemo(
+    () =>
+      [...rounds].sort(
+        (a, b) =>
+          a.round.displayOrder - b.round.displayOrder ||
+          a.round.name.localeCompare(b.round.name),
+      ),
+    [rounds],
+  );
+
+  const scoringRounds = useMemo(
+    () => orderedRounds.filter((round) => round.round.sourceType !== "live"),
+    [orderedRounds],
+  );
+
+  const officialByCountry = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const round of scoringRounds) {
+      for (const row of round.rows) {
+        const code = row.country_code.toUpperCase();
+        totals.set(code, (totals.get(code) ?? 0) + Number(row.final_points || 0));
+      }
+    }
+    return totals;
+  }, [scoringRounds]);
+
+  const officialPointPool = [...officialByCountry.values()].reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+
+  const [selectedRoundId, setSelectedRoundId] = useState(
+    orderedRounds[0]?.round.id ?? "",
+  );
   const selectedRound =
-    rounds.find((round) => round.round.id === selectedRoundId) ??
-    rounds[0] ??
+    orderedRounds.find((round) => round.round.id === selectedRoundId) ??
+    orderedRounds[0] ??
     null;
 
   if (!selectedRound) return null;
 
-  const allocatedAcrossSources = rounds.reduce(
-    (sum, round) =>
-      sum +
-      round.rows.reduce(
-        (roundSum, row) => roundSum + Number(row.final_points || 0),
-        0,
-      ),
-    0,
-  );
+  const supplementaryCount = orderedRounds.filter(
+    (round) => round.round.sourceType === "live",
+  ).length;
 
   return (
-    <div className="space-y-5" data-detailed-televote>
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-            Detailed televote
+    <div className="space-y-4" data-detailed-televote>
+      <header className="flex flex-col gap-3 border-b border-border/55 pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.17em] text-primary">
+            Televote explorer
           </p>
-          <h3 className="mt-1 font-display text-2xl font-bold sm:text-3xl">
-            Public vote breakdown
+          <h3 className="mt-1 font-display text-2xl font-bold tracking-tight sm:text-3xl">
+            Public vote sources
           </h3>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            Switch between the rounds and sources behind the published public vote.
+            Official points and raw source units stay separate.
+          </p>
         </div>
 
-        <div className="flex items-baseline gap-5 text-right">
+        <div className="flex shrink-0 gap-4 text-xs">
           <div>
-            <p className="numeric text-lg font-black">{rounds.length}</p>
-            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              {rounds.length === 1 ? "source" : "sources"}
+            <p className="numeric font-black text-foreground">{officialPointPool}</p>
+            <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+              official pts
             </p>
           </div>
           <div>
-            <p className="numeric text-lg font-black">{allocatedAcrossSources}</p>
-            <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              allocated pts
+            <p className="numeric font-black text-foreground">{scoringRounds.length}</p>
+            <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+              scoring {scoringRounds.length === 1 ? "source" : "sources"}
             </p>
           </div>
+          {supplementaryCount ? (
+            <div>
+              <p className="numeric font-black text-foreground">{supplementaryCount}</p>
+              <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                raw round
+              </p>
+            </div>
+          ) : null}
         </div>
       </header>
 
-      <div
-        role="tablist"
-        aria-label="Televote sources"
-        className={cn(
-          "grid gap-2",
-          rounds.length === 1
-            ? "grid-cols-1"
-            : rounds.length === 2
-              ? "grid-cols-2"
-              : "grid-cols-1 sm:grid-cols-3",
-        )}
-      >
-        {rounds.map((round) => {
-          const selected = round.round.id === selectedRound.round.id;
-          const sourceTotal = round.rows.reduce(
-            (sum, row) => sum + Number(row.final_points || 0),
-            0,
-          );
-
-          return (
-            <button
+      <div className="-mx-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div
+          role="tablist"
+          aria-label="Televote rounds and sources"
+          className="flex min-w-max gap-2 px-1"
+        >
+          {orderedRounds.map((round) => (
+            <SourceTab
               key={round.round.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => setSelectedRoundId(round.round.id)}
-              className={cn(
-                "min-w-0 rounded-2xl border px-4 py-3 text-left transition",
-                selected
-                  ? "border-primary/45 bg-primary/[0.09] shadow-sm"
-                  : "border-border/70 bg-surface/35 hover:border-border hover:bg-surface/60",
-              )}
-            >
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold">
-                    {round.round.name}
-                  </p>
-                  <p className="numeric mt-1 text-xs text-muted-foreground">
-                    {sourceTotal} pts
-                  </p>
-                </div>
-                {round.round.weightPercent != null ? (
-                  <span className={cn(
-                    "numeric shrink-0 rounded-full px-2 py-1 text-[10px] font-black",
-                    selected
-                      ? "bg-primary/15 text-primary"
-                      : "bg-background/55 text-muted-foreground",
-                  )}>
-                    {round.round.weightPercent}%
-                  </span>
-                ) : null}
-              </div>
-            </button>
-          );
-        })}
+              round={round}
+              selected={round.round.id === selectedRound.round.id}
+              onSelect={() => setSelectedRoundId(round.round.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground/85">
+          {sourceFriendlyName(selectedRound)}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span>{sourceDescription(selectedRound)}</span>
       </div>
 
       {selectedRound.round.hasSourceMatrix ? (
@@ -142,24 +148,98 @@ export function DetailedTelevoteBreakdown({ rounds, countries }: Props) {
           key={selectedRound.round.id}
           round={selectedRound}
           countries={byCode}
+          officialByCountry={officialByCountry}
+          soleScoringSource={scoringRounds.length === 1}
         />
       ) : (
         <TotalsOnlyRound
           key={selectedRound.round.id}
           round={selectedRound}
           countries={byCode}
+          officialByCountry={officialByCountry}
+          soleScoringSource={scoringRounds.length === 1}
         />
       )}
     </div>
   );
 }
 
+function SourceTab({
+  round,
+  selected,
+  onSelect,
+}: {
+  round: PublicShowTelevoteRoundDetail;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const isLive = round.round.sourceType === "live";
+  const allocated = round.rows.reduce(
+    (sum, row) => sum + Number(row.final_points || 0),
+    0,
+  );
+  const raw = round.rows.reduce(
+    (sum, row) => sum + Number(row.raw_score || 0),
+    0,
+  );
+
+  const badge = isLive
+    ? "Raw only"
+    : round.round.weightPercent != null
+      ? `${round.round.weightPercent}%`
+      : null;
+
+  const subline = isLive
+    ? `${raw} raw votes`
+    : `${allocated} allocated pts`;
+
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      onClick={onSelect}
+      className={cn(
+        "group min-h-12 rounded-full border px-4 py-2 text-left transition",
+        selected
+          ? "border-primary/55 bg-primary/[0.11] text-foreground shadow-sm"
+          : "border-border/65 bg-surface/25 text-muted-foreground hover:border-border hover:bg-surface/55 hover:text-foreground",
+      )}
+    >
+      <span className="flex items-center gap-2">
+        <span className="max-w-[12rem] truncate text-xs font-bold">
+          {sourceFriendlyName(round)}
+        </span>
+        {badge ? (
+          <span
+            className={cn(
+              "numeric rounded-full px-1.5 py-0.5 text-[9px] font-black",
+              selected
+                ? "bg-primary/15 text-primary"
+                : "bg-background/55 text-muted-foreground",
+            )}
+          >
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      <span className="mt-0.5 block text-[9px] text-muted-foreground">
+        {subline}
+      </span>
+    </button>
+  );
+}
+
 function SourceMatrixRound({
   round,
   countries,
+  officialByCountry,
+  soleScoringSource,
 }: {
   round: PublicShowTelevoteRoundDetail;
   countries: Map<string, FlagDisplay>;
+  officialByCountry: Map<string, number>;
+  soleScoringSource: boolean;
 }) {
   const recipientRows = useMemo(
     () =>
@@ -203,7 +283,6 @@ function SourceMatrixRound({
         .filter(([, points]) => points > 0);
 
       sourceCountTotal += contributions.length;
-
       if (contributions.length > broadestRecipient.sources) {
         broadestRecipient = {
           code: row.country_code,
@@ -284,47 +363,38 @@ function SourceMatrixRound({
     direction === "received" ? effectiveRecipient : effectiveSource;
   const selectedCountry = countries.get(selectedCode);
   const detailTotal = visibleRows.reduce((sum, row) => sum + row.points, 0);
-  const maxPoints = Math.max(1, ...visibleRows.map((row) => row.points));
+  const maxUnits = Math.max(1, ...visibleRows.map((row) => row.points));
+  const officialTotal = officialByCountry.get(effectiveRecipient) ?? 0;
+  const sourceAllocated = receivedRow?.final_points ?? 0;
+  const sourceIsOfficial =
+    soleScoringSource &&
+    round.round.sourceType === "round" &&
+    round.round.weightPercent == null;
 
   return (
-    <>
-      <section className="grid gap-3 rounded-[1.35rem] border border-border/70 bg-surface/30 p-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-end sm:p-4">
-        <div>
-          <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            View
-          </span>
-          <div className="grid grid-cols-2 rounded-xl bg-background/45 p-1">
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 rounded-2xl bg-surface/25 p-2 sm:flex-row sm:items-center">
+        <div className="grid grid-cols-2 rounded-xl bg-background/40 p-1 sm:w-auto">
+          {(["received", "given"] as const).map((value) => (
             <button
+              key={value}
               type="button"
-              aria-pressed={direction === "received"}
-              onClick={() => setDirection("received")}
+              aria-pressed={direction === value}
+              onClick={() => setDirection(value)}
               className={cn(
-                "min-h-10 rounded-lg px-4 text-xs font-semibold transition",
-                direction === "received"
+                "min-h-9 rounded-lg px-4 text-xs font-semibold transition",
+                direction === value
                   ? "bg-surface-strong text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              Received
+              {value === "received" ? "Received" : "Given"}
             </button>
-            <button
-              type="button"
-              aria-pressed={direction === "given"}
-              onClick={() => setDirection("given")}
-              className={cn(
-                "min-h-10 rounded-lg px-4 text-xs font-semibold transition",
-                direction === "given"
-                  ? "bg-surface-strong text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Given
-            </button>
-          </div>
+          ))}
         </div>
 
-        <label className="min-w-0">
-          <span className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">
             {direction === "received" ? "Country" : "Source country"}
           </span>
           <select
@@ -336,7 +406,7 @@ function SourceMatrixRound({
                 setSelectedSource(event.target.value);
               }
             }}
-            className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm font-semibold outline-none focus:border-primary/50"
+            className="min-h-10 w-full rounded-xl border border-border/65 bg-background/35 px-3 text-sm font-semibold outline-none transition focus:border-primary/50"
           >
             {(direction === "received"
               ? recipientRows.map((row) => row.country_code)
@@ -348,134 +418,109 @@ function SourceMatrixRound({
             ))}
           </select>
         </label>
-      </section>
+      </div>
 
-      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.5rem] border border-border/70 bg-border/60 lg:grid-cols-4">
-        <TeleMetric
-          label="Broadest support"
-          value={
-            supportStats.broadestRecipient
-              ? countries.get(supportStats.broadestRecipient.code)?.name ??
-                supportStats.broadestRecipient.code
-              : "—"
-          }
-          hint={
-            supportStats.broadestRecipient
-              ? `${supportStats.broadestRecipient.sources} source countries`
-              : undefined
-          }
-        />
-        <TeleMetric
-          label="Biggest single source"
-          value={
-            supportStats.biggestSingle
-              ? `${supportStats.biggestSingle.points} units`
-              : "—"
-          }
-          hint={
-            supportStats.biggestSingle
-              ? `${countries.get(supportStats.biggestSingle.source)?.name ?? supportStats.biggestSingle.source} → ${countries.get(supportStats.biggestSingle.recipient)?.name ?? supportStats.biggestSingle.recipient}`
-              : undefined
-          }
-        />
-        <TeleMetric
-          label="Most generous source"
-          value={
-            supportStats.mostGenerous
-              ? countries.get(supportStats.mostGenerous.code)?.name ??
-                supportStats.mostGenerous.code
-              : "—"
-          }
-          hint={
-            supportStats.mostGenerous
-              ? `${supportStats.mostGenerous.points} source units`
-              : undefined
-          }
-        />
-        <TeleMetric
-          label="Avg. support breadth"
-          value={
-            recipientRows.length ? supportStats.averageSources.toFixed(1) : "—"
-          }
-          hint="source countries per entry"
-        />
-      </section>
+      <section className="rounded-2xl bg-surface/24 px-4 py-4 sm:px-5">
+        <div className="flex items-center gap-3">
+          <PublicFlag code={selectedCode} country={selectedCountry} size="lg" />
 
-      <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/30">
-        <header className="flex items-center gap-3 border-b border-border/60 p-4 sm:p-5">
-          <PublicFlag
-            code={selectedCode}
-            country={selectedCountry}
-            size="lg"
-          />
           <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-              {direction === "received" ? "Received by" : "Given by"}
-            </p>
-            <h4 className="mt-1 truncate font-display text-xl font-bold">
+            <p className="truncate text-lg font-bold sm:text-xl">
               {selectedCountry?.name ?? selectedCode}
-            </h4>
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {direction === "received"
+                ? sourceIsOfficial
+                  ? "Official televote result"
+                  : `${sourceFriendlyName(round)} contribution`
+                : `Public-vote support given in ${sourceFriendlyName(round)}`}
+            </p>
           </div>
+
           <div className="shrink-0 text-right">
-            {direction === "received" && receivedRow ? (
-              <>
-                <p className="numeric text-2xl font-black">
-                  {receivedRow.final_points}
-                </p>
-                <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                  {round.round.weightPercent != null ? "allocated pts" : "official pts"}
-                </p>
-                {receivedRow.raw_score != null ? (
-                  <p className="numeric mt-1 text-xs font-semibold text-muted-foreground">
-                    raw {receivedRow.raw_score}
-                  </p>
-                ) : null}
-                <p className="numeric mt-1 text-xs font-semibold text-muted-foreground">
-                  {detailTotal} units
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="numeric text-2xl font-black">{detailTotal}</p>
-                <p className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
-                  units
-                </p>
-              </>
-            )}
+            <p className="numeric text-2xl font-black leading-none sm:text-3xl">
+              {direction === "received" ? sourceAllocated : detailTotal}
+            </p>
+            <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.11em] text-muted-foreground">
+              {direction === "received"
+                ? sourceIsOfficial
+                  ? "official pts"
+                  : "from this source"
+                : "source units"}
+            </p>
           </div>
-        </header>
+        </div>
+
+        {direction === "received" && receivedRow ? (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-border/45 pt-3 text-[11px] text-muted-foreground">
+            {!sourceIsOfficial ? (
+              <span>
+                <strong className="numeric text-foreground">{officialTotal}</strong>
+                {" "}official televote pts
+              </span>
+            ) : null}
+            {receivedRow.raw_score != null ? (
+              <span>
+                <strong className="numeric text-foreground">{receivedRow.raw_score}</strong>
+                {" "}raw score
+              </span>
+            ) : null}
+            <span>
+              <strong className="numeric text-foreground">{detailTotal}</strong>
+              {" "}source units
+            </span>
+            <span>
+              <strong className="numeric text-foreground">{receivedContributors.length}</strong>
+              {" "}supporting countries
+            </span>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl bg-surface/18">
+        <div className="flex items-end justify-between gap-4 px-4 pb-2 pt-4 sm:px-5">
+          <div>
+            <p className="text-xs font-bold">
+              {direction === "received" ? "Where the support came from" : "Where the support went"}
+            </p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              Values below are source units, not official points.
+            </p>
+          </div>
+          <span className="numeric text-xs text-muted-foreground">
+            {visibleRows.length}
+          </span>
+        </div>
 
         {visibleRows.length ? (
-          <div className="divide-y divide-border/55">
+          <div className="divide-y divide-border/40">
             {visibleRows.map((row, index) => {
               const country = countries.get(row.code);
-              const width = Math.max(5, (row.points / maxPoints) * 100);
+              const width = Math.max(4, (row.points / maxUnits) * 100);
 
               return (
                 <div
                   key={row.code}
-                  className="grid grid-cols-[28px_auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5"
+                  className="grid grid-cols-[1.5rem_auto_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 sm:px-5"
                 >
                   <span className="numeric text-center text-[10px] text-muted-foreground">
-                    #{index + 1}
+                    {index + 1}
                   </span>
-                  <PublicFlag
-                    code={row.code}
-                    country={country}
-                    size="sm"
-                  />
+                  <PublicFlag code={row.code} country={country} size="sm" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">
-                      {country?.name ?? row.code}
-                    </p>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-background/60">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="truncate text-sm font-semibold">
+                        {country?.name ?? row.code}
+                      </p>
+                    </div>
+                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-background/45">
                       <span
-                        className="block h-full rounded-full bg-primary"
+                        className="block h-full rounded-full bg-primary/75"
                         style={{ width: `${width}%` }}
                       />
                     </div>
                   </div>
-                  <span className="numeric min-w-8 text-right text-base font-black">
+                  <span className="numeric min-w-7 text-right text-sm font-black">
                     {row.points}
                   </span>
                 </div>
@@ -483,28 +528,94 @@ function SourceMatrixRound({
             })}
           </div>
         ) : (
-          <div className="p-8 text-center text-sm text-muted-foreground">
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
             No published source contributions are stored for this selection.
-          </div>
+          </p>
         )}
       </section>
-    </>
+
+      <details className="group rounded-2xl bg-surface/18">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs font-semibold sm:px-5">
+          <span>Source insights</span>
+          <span className="text-muted-foreground transition group-open:rotate-180" aria-hidden="true">
+            ↓
+          </span>
+        </summary>
+        <div className="grid gap-x-6 gap-y-4 border-t border-border/40 px-4 py-4 sm:grid-cols-2 sm:px-5">
+          <Insight
+            label="Broadest support"
+            value={
+              supportStats.broadestRecipient
+                ? countries.get(supportStats.broadestRecipient.code)?.name ??
+                  supportStats.broadestRecipient.code
+                : "—"
+            }
+            detail={
+              supportStats.broadestRecipient
+                ? `${supportStats.broadestRecipient.sources} source countries`
+                : undefined
+            }
+          />
+          <Insight
+            label="Biggest single contribution"
+            value={
+              supportStats.biggestSingle
+                ? `${supportStats.biggestSingle.points} units`
+                : "—"
+            }
+            detail={
+              supportStats.biggestSingle
+                ? `${countries.get(supportStats.biggestSingle.source)?.name ?? supportStats.biggestSingle.source} → ${countries.get(supportStats.biggestSingle.recipient)?.name ?? supportStats.biggestSingle.recipient}`
+                : undefined
+            }
+          />
+          <Insight
+            label="Most generous source"
+            value={
+              supportStats.mostGenerous
+                ? countries.get(supportStats.mostGenerous.code)?.name ??
+                  supportStats.mostGenerous.code
+                : "—"
+            }
+            detail={
+              supportStats.mostGenerous
+                ? `${supportStats.mostGenerous.points} source units`
+                : undefined
+            }
+          />
+          <Insight
+            label="Average support breadth"
+            value={
+              recipientRows.length ? supportStats.averageSources.toFixed(1) : "—"
+            }
+            detail="source countries per entry"
+          />
+        </div>
+      </details>
+    </div>
   );
 }
 
 function TotalsOnlyRound({
   round,
   countries,
+  officialByCountry,
+  soleScoringSource,
 }: {
   round: PublicShowTelevoteRoundDetail;
   countries: Map<string, FlagDisplay>;
+  officialByCountry: Map<string, number>;
+  soleScoringSource: boolean;
 }) {
+  const isLive = round.round.sourceType === "live";
   const rows = [...round.rows].sort(
     (a, b) =>
-      b.final_points - a.final_points ||
-      (b.raw_score ?? -Infinity) - (a.raw_score ?? -Infinity) ||
+      (isLive
+        ? (b.raw_score ?? 0) - (a.raw_score ?? 0)
+        : b.final_points - a.final_points) ||
       a.country_code.localeCompare(b.country_code),
   );
+
   const allocatedTotal = rows.reduce(
     (sum, row) => sum + Number(row.final_points || 0),
     0,
@@ -513,40 +624,73 @@ function TotalsOnlyRound({
     (sum, row) => sum + Number(row.raw_score || 0),
     0,
   );
+  const maxValue = Math.max(
+    1,
+    ...rows.map((row) =>
+      isLive ? Number(row.raw_score || 0) : Number(row.final_points || 0),
+    ),
+  );
 
   return (
-    <>
-      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-[1.5rem] border border-border/70 bg-border/60 lg:grid-cols-4">
-        <TeleMetric label="Recipients" value={String(rows.length)} />
-        <TeleMetric
-          label={
-            round.round.weightPercent != null
-              ? "Allocated points"
-              : "Official points"
-          }
-          value={String(allocatedTotal)}
-        />
-        <TeleMetric
-          label="Raw score"
-          value={rows.some((row) => row.raw_score != null) ? String(rawTotal) : "—"}
-        />
-        <TeleMetric
-          label="Top score"
-          value={rows.length ? String(rows[0]?.final_points ?? 0) : "—"}
-        />
+    <div className="space-y-3">
+      <section className="flex flex-wrap items-end justify-between gap-3 rounded-2xl bg-surface/24 px-4 py-4 sm:px-5">
+        <div>
+          <p className="text-sm font-bold">{sourceFriendlyName(round)}</p>
+          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">
+            {isLive
+              ? "Supplementary live-round totals. These raw votes were preserved for transparency but were not an allocated source in the published final aggregation."
+              : soleScoringSource
+                ? "This round is the published official televote for the show."
+                : "This source contributes allocated points to the final published televote."}
+          </p>
+        </div>
+
+        <div className="flex gap-4 text-right text-xs">
+          {isLive ? (
+            <div>
+              <p className="numeric text-xl font-black text-foreground">{rawTotal}</p>
+              <p className="text-[9px] uppercase tracking-[0.11em] text-muted-foreground">
+                raw votes
+              </p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <p className="numeric text-xl font-black text-foreground">{allocatedTotal}</p>
+                <p className="text-[9px] uppercase tracking-[0.11em] text-muted-foreground">
+                  {soleScoringSource ? "official pts" : "allocated pts"}
+                </p>
+              </div>
+              {rows.some((row) => row.raw_score != null) ? (
+                <div>
+                  <p className="numeric text-xl font-black text-foreground">{rawTotal}</p>
+                  <p className="text-[9px] uppercase tracking-[0.11em] text-muted-foreground">
+                    raw score
+                  </p>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
       </section>
 
-      <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/30">
-        <div className="divide-y divide-border/55">
+      <section className="overflow-hidden rounded-2xl bg-surface/18">
+        <div className="divide-y divide-border/40">
           {rows.map((row, index) => {
             const country = countries.get(row.country_code);
+            const value = isLive
+              ? Number(row.raw_score || 0)
+              : Number(row.final_points || 0);
+            const width = Math.max(value > 0 ? 4 : 0, (value / maxValue) * 100);
+            const officialTotal = officialByCountry.get(row.country_code) ?? 0;
+
             return (
               <div
                 key={row.country_code}
-                className="grid grid-cols-[28px_auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5"
+                className="grid grid-cols-[1.5rem_auto_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 sm:px-5"
               >
                 <span className="numeric text-center text-[10px] text-muted-foreground">
-                  #{index + 1}
+                  {index + 1}
                 </span>
                 <PublicFlag
                   code={row.country_code}
@@ -557,20 +701,28 @@ function TotalsOnlyRound({
                   <p className="truncate text-sm font-semibold">
                     {country?.name ?? row.country_code}
                   </p>
-                  {row.raw_score != null ? (
-                    <p className="numeric mt-0.5 text-[10px] text-muted-foreground">
-                      Raw score {row.raw_score}
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-background/45">
+                    <span
+                      className="block h-full rounded-full bg-primary/75"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                  {!isLive &&
+                  !soleScoringSource &&
+                  officialTotal !== row.final_points ? (
+                    <p className="numeric mt-1 text-[9px] text-muted-foreground">
+                      {officialTotal} official total
                     </p>
                   ) : null}
                 </div>
                 <div className="text-right">
-                  <p className="numeric text-base font-black">
-                    {row.final_points}
-                  </p>
-                  <p className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
-                    {round.round.weightPercent != null
-                      ? "allocated"
-                      : "points"}
+                  <p className="numeric text-sm font-black">{value}</p>
+                  <p className="text-[8px] uppercase tracking-[0.09em] text-muted-foreground">
+                    {isLive
+                      ? "raw"
+                      : soleScoringSource
+                        ? "pts"
+                        : "allocated"}
                   </p>
                 </div>
               </div>
@@ -578,32 +730,54 @@ function TotalsOnlyRound({
           })}
         </div>
       </section>
-    </>
+    </div>
   );
 }
 
-function TeleMetric({
+function Insight({
   label,
   value,
-  hint,
+  detail,
 }: {
   label: string;
   value: string;
-  hint?: string;
+  detail?: string;
 }) {
   return (
-    <div className="min-w-0 bg-surface/75 p-4 sm:p-5">
-      <p className="text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1.5 truncate text-sm font-black sm:text-base">{value}</p>
-      {hint ? (
-        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-          {hint}
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-sm font-bold text-foreground">{value}</p>
+      {detail ? (
+        <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+          {detail}
         </p>
       ) : null}
     </div>
   );
+}
+
+function sourceFriendlyName(round: PublicShowTelevoteRoundDetail) {
+  const name = round.round.name;
+  if (round.round.sourceType === "instagram") return "Story voting";
+  if (round.round.sourceType === "activity") return "Activity points";
+  if (round.round.sourceType === "live") return "Live voting";
+  return name;
+}
+
+function sourceDescription(round: PublicShowTelevoteRoundDetail) {
+  if (round.round.sourceType === "live") {
+    return "Supplementary raw round · not part of the official allocation";
+  }
+  if (round.round.sourceType === "activity") {
+    return "Activity component of the published televote";
+  }
+  if (round.round.sourceType === "instagram") {
+    return "Country-source Story voting matrix";
+  }
+  if (round.round.weightPercent != null) {
+    return "Ballot round contributing to the final televote";
+  }
+  return "Published televote round";
 }
 
 function PublicFlag({
