@@ -644,6 +644,11 @@ export function JuryTelevoteComparison({
                               w-full
                               object-cover
                             "
+                            style={{
+                              objectPosition: `${Math.max(0, Math.min(100, Number(row.country?.flag_crop_x ?? 50)))}% ${Math.max(0, Math.min(100, Number(row.country?.flag_crop_y ?? 50)))}%`,
+                              transform: `scale(${Math.max(1, Math.min(2, Number(row.country?.flag_crop_zoom ?? 1)))})`,
+                              transformOrigin: `${Math.max(0, Math.min(100, Number(row.country?.flag_crop_x ?? 50)))}% ${Math.max(0, Math.min(100, Number(row.country?.flag_crop_y ?? 50)))}%`,
+                            }}
                           />
                         ) : (
                           <div
