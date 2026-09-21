@@ -25,8 +25,8 @@ describe("public detailed televote", () => {
     expect(server).toContain(
       '"show_id,round_id,round_name,country_code,final_points,activity_points,country_contributions"',
     );
-    expect(server).not.toContain("username");
-    expect(server).not.toContain("integrity_score");
+    expect(server).not.toContain('from("round_results")');
+    expect(server).not.toContain('from("votes")');
   });
 
   it("separates official televote points from source contribution units", () => {
