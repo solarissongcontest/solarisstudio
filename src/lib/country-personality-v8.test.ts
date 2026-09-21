@@ -39,7 +39,7 @@ describe("source-driven Country personality foundation", () => {
     expect(compositions).toContain(".country-composition-atlas");
   });
 
-  it("uses a single cropped 3:2 flag primitive without distorting the source", () => {
+  it("uses one crop primitive while allowing explicit scoreboard shapes", () => {
     const flag = source("src/components/FlagMedia.tsx");
     const chip = source("src/components/FlagChip.tsx");
     const styles = source("src/flag-media.css");
@@ -54,7 +54,8 @@ describe("source-driven Country personality foundation", () => {
     expect(styles).toContain("aspect-ratio: 3 / 2");
     expect(shared).not.toContain("object-fit: contain !important");
     expect(scoreboard).toContain("<FlagMedia");
-    expect(scoreboardStage).toContain("const flagWidth = flagHeight * 1.5");
+    expect(scoreboardStage).toContain('shapeKind === "circle" || shapeKind === "square"');
+    expect(scoreboardStage).toContain("squareShape ? flagHeight : flagHeight * 1.5");
     expect(scoreboardStage).toContain('fit: "cover" as const');
   });
 
