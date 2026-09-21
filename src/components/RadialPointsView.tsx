@@ -842,14 +842,3 @@ function findMatchingVoterOption(item: CircleItem, options: VoterOption[]) {
 
   return null;
 }
-: {
-  className: string;
-  label: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={cn("h-2.5 w-2.5 rounded-full", className)} />
-      {label}
-    </span>
-  );
-}
