@@ -8,7 +8,7 @@ import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
 import { PublicDataState } from "@/components/public/PublicDataState";
-import { RadialPointsView } from "@/components/RadialPointsView";
+import { PointsExplorerView } from "@/components/RadialPointsView";
 import { ResponsiveTabs, type ResponsiveTabOption } from "@/components/ResponsiveTabs";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { StoryCards } from "@/components/StoryCards";
@@ -486,7 +486,7 @@ function ShowPage() {
       )}
 
       {tab === "points" && publication.detailed_voting && (showJuryResults || showTelevoteResults) && (
-        <RadialPointsView
+        <PointsExplorerView
           participants={participants ?? []}
           countries={displayMap}
           jury={showJuryResults ? (jury ?? []) : []}
