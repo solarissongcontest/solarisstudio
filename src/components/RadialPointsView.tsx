@@ -65,6 +65,7 @@ export function RadialPointsView({
   const [layer, setLayer] = useState<Layer>("combined");
   const [selectedCountryId, setSelectedCountryId] = useState("");
   const [selectedVoterKey, setSelectedVoterKey] = useState("");
+  const [showAllContributors, setShowAllContributors] = useState(false);
 
   useEffect(() => {
     if (!selectedCountryId || !participantIds.includes(selectedCountryId)) {
@@ -77,6 +78,10 @@ export function RadialPointsView({
       setSelectedVoterKey(voterOptions[0]?.key ?? "");
     }
   }, [voterOptions, selectedVoterKey]);
+
+  useEffect(() => {
+    setShowAllContributors(false);
+  }, [direction, layer, selectedCountryId, selectedVoterKey]);
 
   const selectedCountry = countries.get(selectedCountryId) ?? null;
   const selectedVoter = voterOptions.find((voter) => voter.key === selectedVoterKey) ?? null;
@@ -271,247 +276,411 @@ export function RadialPointsView({
 
   const centerCode = direction === "received" ? selectedCountry?.short_code ?? "" : selectedVoter?.short_code ?? "";
 
-  const radius =
-    visibleItems.length <= 1
-      ? 36
-      : visibleItems.length <= 8
-        ? 36
-        : visibleItems.length <= 12
-          ? 38
-          : visibleItems.length <= 18
-            ? 40
-            : 41;
+  const juryContributors = visibleItems.filter((item) => item.kind === "jury");
+  const televoteContribution = visibleItems.find((item) => item.kind === "televote") ?? null;
+  const contributorLimit = 10;
+  const visibleJuryContributors = showAllContributors
+    ? juryContributors
+    : juryContributors.slice(0, contributorLimit);
+  const maxJuryPoints = Math.max(1, ...juryContributors.map((item) => item.points));
+  const summaryLabel = direction === "received" ? "Points received" : "Points given";
+  const contributorTitle = direction === "received" ? "Where the points came from" : "Where the points went";
+  const contributorDescription =
+    direction === "received"
+      ? "Juries are ranked by the points they awarded. Tap a jury to inspect its full ballot."
+      : "Recipients are ranked by the points this jury awarded. Tap a country to inspect the points it received.";
+
+  const activateItem = (item: CircleItem) => {
+    if (item.kind === "televote") return;
+
+    if (direction === "received") {
+      const matching = findMatchingVoterOption(item, voterOptions);
+
+      if (matching) {
+        setSelectedVoterKey(matching.key);
+        setDirection("given");
+        setLayer("jury");
+      }
+      return;
+    }
+
+    if (item.countryId) {
+      setSelectedCountryId(item.countryId);
+      setDirection("received");
+      setLayer("combined");
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="glass p-3 sm:p-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label>
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Direction
-              </span>
-
-              <select
-                value={direction}
-                onChange={(event) => {
-                  const next = event.target.value as Direction;
-                  setDirection(next);
-
-                  if (next === "given") {
-                    setLayer("jury");
-                  }
-                }}
-                className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"
-              >
-                <option value="received">Points received</option>
-                <option value="given">Points given</option>
-              </select>
-            </label>
-
-            {direction === "received" ? (
-              <label>
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Country
-                </span>
-
-                <select
-                  value={selectedCountryId}
-                  onChange={(event) => setSelectedCountryId(event.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"
-                >
-                  {participantOptions.map((country) => (
-                    <option key={country.id} value={country.id}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <label>
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Jury
-                </span>
-
-                <select
-                  value={selectedVoterKey}
-                  onChange={(event) => setSelectedVoterKey(event.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm"
-                >
-                  {voterOptions.map((voter) => (
-                    <option key={voter.key} value={voter.key}>
-                      {voter.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+    <div className="space-y-4" data-points-explorer-v2>
+      <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/45 shadow-[0_18px_50px_-34px_rgba(0,0,0,.65)]">
+        <div className="border-b border-border/60 p-3 sm:p-4">
+          <div className="mb-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+              Points explorer
+            </p>
+            <h3 className="mt-1 font-display text-lg font-bold sm:text-xl">
+              Trace every published point
+            </h3>
           </div>
 
-          {direction === "received" && (
-            <div className="flex flex-wrap gap-1 rounded-xl bg-surface p-1">
-              {(["combined", "jury", "televote"] as Layer[]).map((value) => {
-                const label =
-                  value === "combined" ? "Combined" : value === "jury" ? "Jury" : "Televote";
-
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setLayer(value)}
-                    className={cn(
-                      "rounded-lg px-3 py-2 text-xs font-medium transition-colors",
-                      layer === value
-                        ? "bg-surface-strong text-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="relative mx-auto aspect-square w-full max-w-[760px] overflow-hidden rounded-[2rem] border border-border/70 bg-black/20 shadow-2xl">
-        <div
-          className="absolute inset-[7%] rounded-full opacity-60"
-          style={{
-            background: `
-              radial-gradient(
-                circle,
-                color-mix(in oklab, var(--primary) 18%, transparent) 0%,
-                transparent 65%
-              )
-            `,
-          }}
-        />
-
-        <div className="absolute inset-0">
-          {visibleItems.map((item, index) => {
-            const count = visibleItems.length || 1;
-            const angle = -90 + (360 / count) * index;
-            const radians = (angle * Math.PI) / 180;
-            const x = 50 + Math.cos(radians) * radius;
-            const y = 50 + Math.sin(radians) * radius;
-
-            return (
-              <button
-                key={item.key}
-                type="button"
-                title={`${item.name}: ${item.points} points`}
-                className="absolute z-20 -translate-x-1/2 -translate-y-1/2 transition-transform active:scale-95"
-                style={{
-                  left: `${x}%`,
-                  top: `${y}%`,
-                }}
-                onClick={() => {
-                  if (item.kind === "televote") return;
-
-                  if (direction === "received") {
-                    const matching = findMatchingVoterOption(item, voterOptions);
-
-                    if (matching) {
-                      setSelectedVoterKey(matching.key);
-                      setDirection("given");
-                      setLayer("jury");
-                    }
-
-                    return;
-                  }
-
-                  if (item.countryId) {
-                    setSelectedCountryId(item.countryId);
-                    setDirection("received");
-                    setLayer("combined");
-                  }
-                }}
-              >
-                <CircleFlag item={item} />
-              </button>
-            );
-          })}
-        </div>
-
-        {visibleItems.length > 0 && (
-          <ArrowRing
-            count={visibleItems.length}
-            inward={direction === "received"}
-          />
-        )}
-
-        <div className="absolute left-1/2 top-1/2 z-30 w-[38%] min-w-[132px] max-w-[235px] -translate-x-1/2 -translate-y-1/2">
-          <div className="glass w-full rounded-[2rem] p-4 text-center sm:p-5">
-            <div
-              className="mx-auto grid aspect-square w-[58%] place-items-center overflow-hidden rounded-full border border-white/30 shadow-xl"
-              style={{
-                backgroundColor: `${centerAccent}33`,
-              }}
-            >
-              {centerFlag ? (
-                <img
-                  src={centerFlag}
-                  alt=""
-                  className="h-full w-full object-contain"
-                />
-              ) : (
-                <span className="font-display text-lg font-bold">
-                  {centerCode || "?"}
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(15rem,.72fr)]">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Direction
                 </span>
+                <div className="grid grid-cols-2 rounded-xl border border-border/70 bg-background/35 p-1">
+                  {([
+                    ["received", "Received"],
+                    ["given", "Given"],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={direction === value}
+                      onClick={() => {
+                        setDirection(value);
+                        if (value === "given") setLayer("jury");
+                      }}
+                      className={cn(
+                        "min-h-10 rounded-lg px-3 text-xs font-semibold transition-colors",
+                        direction === value
+                          ? "bg-surface-strong text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {direction === "received" ? (
+                <label>
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Country
+                  </span>
+                  <select
+                    value={selectedCountryId}
+                    onChange={(event) => setSelectedCountryId(event.target.value)}
+                    className="min-h-12 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none focus:border-primary/55"
+                  >
+                    {participantOptions.map((country) => (
+                      <option key={country.id} value={country.id}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <label>
+                  <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Jury
+                  </span>
+                  <select
+                    value={selectedVoterKey}
+                    onChange={(event) => setSelectedVoterKey(event.target.value)}
+                    className="min-h-12 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none focus:border-primary/55"
+                  >
+                    {voterOptions.map((voter) => (
+                      <option key={voter.key} value={voter.key}>
+                        {voter.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
             </div>
 
-            <p className="mt-3 truncate font-display text-base font-bold sm:text-xl">
-              {centerName}
-            </p>
+            {direction === "received" ? (
+              <div>
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Layer
+                </span>
+                <div className="grid grid-cols-3 rounded-xl border border-border/70 bg-background/35 p-1">
+                  {(["combined", "jury", "televote"] as Layer[]).map((value) => {
+                    const label =
+                      value === "combined" ? "Combined" : value === "jury" ? "Jury" : "Televote";
 
-            <p className="numeric mt-1 text-sm font-semibold text-foreground">
-              {total} point{total === 1 ? "" : "s"}
-            </p>
-
-            {direction === "received" && layer === "combined" && (
-              <p className="mt-1 text-[10px] text-muted-foreground sm:text-xs">
-                Jury {juryTotal} · Tele {teleTotal}
-              </p>
-            )}
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={layer === value}
+                        onClick={() => setLayer(value)}
+                        className={cn(
+                          "min-h-10 rounded-lg px-2 text-[11px] font-semibold transition-colors sm:text-xs",
+                          layer === value
+                            ? "bg-surface-strong text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {direction === "received" && layer === "televote" && visibleItems.length === 0 && (
-          <div className="absolute inset-x-6 bottom-[8%] text-center">
-            <p className="mx-auto max-w-sm text-[11px] leading-relaxed text-muted-foreground">
-              No televote total is stored for this country in this round.
-            </p>
+        <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(15rem,.8fr)] lg:items-center">
+          <div className="flex min-w-0 items-center gap-4">
+            <PointsFlag
+              image={centerFlag}
+              code={centerCode}
+              accent={centerAccent}
+              shape="rounded"
+              size="lg"
+            />
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">
+                {summaryLabel}
+              </p>
+              <h4 className="mt-1 truncate font-display text-2xl font-bold sm:text-3xl">
+                {centerName}
+              </h4>
+              <p className="numeric mt-1 text-lg font-black text-foreground">
+                {total} point{total === 1 ? "" : "s"}
+              </p>
+            </div>
           </div>
-        )}
 
-        {direction === "received" && layer !== "televote" && visibleItems.length === 0 && (
-          <div className="absolute inset-x-6 bottom-[8%] text-center">
-            <p className="text-xs text-muted-foreground">
-              No individual jury votes are stored for this country in this round.
-            </p>
+          <div className={cn(
+            "grid gap-px overflow-hidden rounded-xl border border-border/60 bg-border/60",
+            direction === "received" && layer === "combined" ? "grid-cols-2" : "grid-cols-1",
+          )}>
+            {direction === "received" && layer !== "televote" ? (
+              <PointsStat label="Jury" value={juryTotal} />
+            ) : null}
+            {direction === "received" && layer !== "jury" ? (
+              <PointsStat label="Televote" value={teleTotal} accent />
+            ) : null}
+            {direction === "given" ? (
+              <PointsStat label="Jury total" value={juryTotal} />
+            ) : null}
           </div>
-        )}
-      </div>
+        </div>
+      </section>
 
-      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
-        <LegendDot className="bg-[var(--jury)]" label="Jury points" />
+      {direction === "received" && layer !== "jury" && televoteContribution ? (
+        <section className="rounded-[1.35rem] border border-fuchsia-400/25 bg-fuchsia-500/[0.055] p-4">
+          <div className="flex items-center gap-3">
+            <PointsFlag image={null} code="TELE" accent="#d946ef" shape="circle" size="md" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-fuchsia-300">
+                Aggregate public vote
+              </p>
+              <p className="mt-0.5 text-sm font-semibold">Televote contribution</p>
+            </div>
+            <span className="numeric text-xl font-black text-fuchsia-200">
+              {televoteContribution.points}
+            </span>
+          </div>
+        </section>
+      ) : null}
 
-        {direction === "received" && (
-          <LegendDot className="bg-fuchsia-500" label="Televote total" />
-        )}
+      {layer !== "televote" || direction === "given" ? (
+        <section className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/30">
+          <header className="flex items-end justify-between gap-4 border-b border-border/60 p-4 sm:p-5">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                Breakdown
+              </p>
+              <h4 className="mt-1 font-display text-xl font-bold sm:text-2xl">
+                {contributorTitle}
+              </h4>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                {contributorDescription}
+              </p>
+            </div>
+            <span className="numeric shrink-0 text-xs text-muted-foreground">
+              {juryContributors.length} {juryContributors.length === 1 ? "jury" : "juries"}
+            </span>
+          </header>
 
-        <span>
-          {direction === "received" && layer === "combined"
-            ? "Juries that awarded points plus one televote circle are shown."
-            : direction === "received" && layer === "televote"
-              ? "Only the aggregate televote circle is shown."
-              : "Only juries that awarded points are shown."}
+          {visibleJuryContributors.length ? (
+            <div className="divide-y divide-border/55">
+              {visibleJuryContributors.map((item, index) => (
+                <ContributionRow
+                  key={item.key}
+                  item={item}
+                  rank={index + 1}
+                  maxPoints={maxJuryPoints}
+                  onActivate={() => activateItem(item)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <p className="text-sm font-semibold">No individual jury points to show</p>
+              <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                {direction === "received"
+                  ? "No published jury ballots awarded points to this country in the selected round."
+                  : "No published jury ballot is available for this voter in the selected round."}
+              </p>
+            </div>
+          )}
+
+          {juryContributors.length > contributorLimit ? (
+            <div className="border-t border-border/60 p-3 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllContributors((value) => !value)}
+                className="min-h-10 rounded-xl border border-border bg-background/35 px-4 text-xs font-semibold transition hover:border-primary/45 hover:text-primary"
+              >
+                {showAllContributors
+                  ? "Show top 10"
+                  : `Show all ${juryContributors.length} contributors`}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : direction === "received" && !televoteContribution ? (
+        <div className="rounded-[1.5rem] border border-border/70 bg-surface/30 p-8 text-center">
+          <p className="text-sm font-semibold">No televote total available</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+            No aggregate televote score is stored for this country in this round.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PointsStat({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: number;
+  accent?: boolean;
+}) {
+  return (
+    <div className="bg-background/45 px-3 py-3 text-center">
+      <p className={cn(
+        "text-[9px] font-black uppercase tracking-[0.14em]",
+        accent ? "text-fuchsia-300" : "text-muted-foreground",
+      )}>
+        {label}
+      </p>
+      <p className="numeric mt-1 text-lg font-black">{value}</p>
+    </div>
+  );
+}
+
+function ContributionRow({
+  item,
+  rank,
+  maxPoints,
+  onActivate,
+}: {
+  item: CircleItem;
+  rank: number;
+  maxPoints: number;
+  onActivate: () => void;
+}) {
+  const percentage = Math.max(5, Math.min(100, (item.points / maxPoints) * 100));
+
+  return (
+    <button
+      type="button"
+      onClick={onActivate}
+      title={`Open ${item.name} voting detail`}
+      className="group grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary sm:px-5"
+    >
+      <div className="relative">
+        <PointsFlag
+          image={item.flag}
+          code={item.code ?? "J"}
+          accent={item.accent}
+          shape="circle"
+          size="sm"
+        />
+        <span className="numeric absolute -bottom-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full border border-background bg-surface-strong px-1 text-[9px] font-black">
+          {rank}
         </span>
       </div>
-    </div>
+
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-baseline justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{item.name}</p>
+            <p className="mt-0.5 truncate text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              {item.code || "Jury"}
+            </p>
+          </div>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/55">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-300"
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="numeric text-lg font-black">{item.points}</span>
+        <span className="text-sm text-primary transition-transform group-hover:translate-x-0.5" aria-hidden="true">
+          →
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function PointsFlag({
+  image,
+  code,
+  accent,
+  shape,
+  size,
+}: {
+  image: string | null;
+  code: string;
+  accent: string;
+  shape: "rounded" | "circle" | "square";
+  size: "sm" | "md" | "lg";
+}) {
+  const dimensions = {
+    sm: shape === "rounded" ? "h-10 w-[3.75rem]" : "h-10 w-10",
+    md: shape === "rounded" ? "h-12 w-[4.5rem]" : "h-12 w-12",
+    lg: shape === "rounded" ? "h-16 w-24 sm:h-20 sm:w-[7.5rem]" : "h-16 w-16 sm:h-20 sm:w-20",
+  }[size];
+
+  const radius =
+    shape === "circle"
+      ? "rounded-full"
+      : shape === "square"
+        ? "rounded-none"
+        : "rounded-xl";
+
+  return (
+    <span
+      className={cn(
+        "relative grid shrink-0 place-items-center overflow-hidden border border-white/20 shadow-[0_8px_24px_-14px_rgba(0,0,0,.9)]",
+        dimensions,
+        radius,
+      )}
+      style={{ backgroundColor: `${accent}33` }}
+      data-points-flag-shape={shape}
+    >
+      {image ? (
+        <img
+          src={image}
+          alt=""
+          className="h-full w-full object-cover"
+          style={{ objectPosition: "center" }}
+        />
+      ) : (
+        <span className="text-[9px] font-black uppercase tracking-[0.12em] text-white">
+          {code}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -672,101 +841,4 @@ function findMatchingVoterOption(item: CircleItem, options: VoterOption[]) {
   }
 
   return null;
-}
-
-function CircleFlag({ item }: { item: CircleItem }) {
-  if (item.kind === "televote") {
-    return (
-      <div className="relative flex flex-col items-center">
-        <div className="relative flex h-12 w-12 flex-col items-center justify-center overflow-hidden rounded-full border border-fuchsia-200/60 bg-fuchsia-500/90 shadow-[0_4px_18px_rgba(217,70,239,.45)] sm:h-14 sm:w-14 md:h-16 md:w-16">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10" />
-          <div className="relative z-10 text-center leading-none">
-            <div className="text-[8px] font-black uppercase tracking-[0.14em] text-white sm:text-[9px]">
-              TELE
-            </div>
-            <div className="numeric mt-1 text-[16px] font-black text-white [text-shadow:0_2px_5px_rgba(0,0,0,1)] sm:text-[18px] md:text-[20px]">
-              {item.points}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative flex flex-col items-center">
-      <div
-        className="relative h-12 w-12 overflow-hidden rounded-full border border-white/45 shadow-[0_4px_18px_rgba(0,0,0,.35)] sm:h-14 sm:w-14 md:h-16 md:w-16"
-        style={{
-          backgroundColor: `${item.accent}55`,
-        }}
-      >
-        {item.flag ? (
-          <img
-            src={item.flag}
-            alt=""
-            className="h-full w-full object-contain"
-          />
-        ) : (
-          <div className="grid h-full w-full place-items-center text-[9px] font-black text-white">
-            {item.code ?? "J"}
-          </div>
-        )}
-
-        <div className="absolute inset-x-0 bottom-0 h-[58%] bg-gradient-to-t from-black/90 via-black/45 to-transparent" />
-
-        <div className="numeric absolute inset-x-0 bottom-[3px] z-10 text-center text-[17px] font-black leading-none text-white [text-shadow:0_2px_5px_rgba(0,0,0,1)] sm:text-[19px] md:text-[21px]">
-          {item.points}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ArrowRing({
-  count,
-  inward,
-}: {
-  count: number;
-  inward: boolean;
-}) {
-  const arrowCount = Math.min(Math.max(Math.ceil(count / 2), 7), 12);
-  const arrows = Array.from({ length: arrowCount });
-
-  return (
-    <div className="pointer-events-none absolute inset-[27%] rounded-full">
-      {arrows.map((_, index) => {
-        const angle = -90 + (360 / arrows.length) * index;
-
-        return (
-          <span
-            key={index}
-            className="absolute left-1/2 top-1/2 text-xl font-light text-primary/40 sm:text-2xl"
-            style={{
-              transform:
-                `rotate(${angle}deg) translateY(-135%) rotate(${inward ? 90 : -90}deg)`,
-              transformOrigin: "0 0",
-            }}
-          >
-            →
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-function LegendDot({
-  className,
-  label,
-}: {
-  className: string;
-  label: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={cn("h-2.5 w-2.5 rounded-full", className)} />
-      {label}
-    </span>
-  );
 }
