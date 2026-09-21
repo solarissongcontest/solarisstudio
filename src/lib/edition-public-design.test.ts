@@ -36,6 +36,7 @@ describe("edition public design system", () => {
   it("suppresses a generic expanded edition name while retaining a real subtitle", () => {
     expect(meaningfulEditionSubtitle("Solaris Song Contest 20", "SSC 20", 20)).toBeNull();
     expect(meaningfulEditionSubtitle("  SSC-20  ", "SSC 20", 20)).toBeNull();
+    expect(meaningfulEditionSubtitle("Current Solaris Song Contest edition", "SSC 22", 22)).toBeNull();
     expect(meaningfulEditionSubtitle("Fragments of Unity", "SSC 20", 20)).toBe("Fragments of Unity");
   });
 });

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/dev/edition-designs")({
   component: EditionDesignLab,
 });
 
-const VIEWPORTS = [320, 390, 768, 1024, 1440] as const;
+const VIEWPORTS = [320, 375, 390, 430, 768, 1024, 1440] as const;
 
 function EditionDesignLab() {
   const [style, setStyle] = useState<EditionPublicStyle>("cinematic");
@@ -87,7 +87,7 @@ function EditionDesignLab() {
               description={fixture.id === "d" ? null : fixture.id === "c" ? "A deliberately long edition description used to verify that expressive typography, artwork and public metadata remain readable when real-world content refuses to be conveniently short." : "A deterministic archive fixture for artwork, typography, result and participant stress testing."}
               artwork={fixture.artwork ? "/solaris-studio-social.jpg" : null}
               artworkAlt="Abstract edition artwork fixture"
-              status={<span className="rounded-full border border-current px-3 py-1 text-[10px] font-bold uppercase tracking-wider">Archive</span>}
+              status={<span className="rounded-full border border-current px-3 py-1 text-[10px] font-bold uppercase tracking-wider">{fixture.id === "c" ? "Submissions open" : "Archive"}</span>}
               winner={fixture.results ? <div className="edition-winner-identity"><span className="grid size-12 place-items-center rounded-full bg-primary text-primary-foreground">★</span><div><p className="edition-kicker">Winner</p><p className="edition-winner-name">{fixture.id === "e" ? "The Free Metropolitan District of Saint Solaris-upon-Aurora" : "Asteria"}</p><p className="edition-winner-points">412 points</p></div></div> : null}
             />
             <EditionNavigation label="Fixture navigation" liquidGlass={style === "glass"} items={[{ href: "#lab-overview", label: "Overview" }, { href: "#lab-entries", label: "Entries", available: fixture.entries > 0 }, { href: "#lab-results", label: "Results", available: fixture.results }, { href: "#lab-stories", label: "Stories", available: fixture.results }, { href: "#lab-shows", label: "Shows" }, { href: "#lab-countries", label: "Countries", available: fixture.entries > 0 }]} />

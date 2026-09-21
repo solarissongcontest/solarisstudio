@@ -6,6 +6,7 @@ export function meaningfulEditionSubtitle(name: string | null, label: string, nu
   const normalize = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
   if (normalize(value) === normalize(label)) return null;
   if (number != null && normalize(value) === normalize(`Solaris Song Contest ${number}`)) return null;
+  if (["solarissongcontestedition", "currentsolarissongcontestedition"].includes(normalize(value))) return null;
   return value;
 }
 

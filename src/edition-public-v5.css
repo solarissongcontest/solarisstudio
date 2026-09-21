@@ -33,6 +33,9 @@ body[data-entity-theme="edition"] .edition-public-page * {
   box-sizing: border-box;
 }
 
+body[data-entity-theme="edition"] .app-background::before,
+body[data-entity-theme="edition"] .app-background::after { opacity: .025; }
+
 .edition-page-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .edition-page-toolbar a { min-height: 2.75rem; display: inline-flex; align-items: center; }
 .edition-kicker { color: var(--primary); font-size: .6875rem; font-weight: 800; letter-spacing: .17em; line-height: 1.35; text-transform: uppercase; }
@@ -67,7 +70,7 @@ body[data-entity-theme="edition"] .edition-public-page * {
 .edition-artwork-plate { align-self: center; display: grid; margin: clamp(1.5rem, 4vw, 4rem); max-height: calc(100% - 3rem); min-width: 0; place-items: center; position: relative; z-index: 2; }
 .edition-artwork-plate img { border-radius: calc(var(--ed-radius) * .52); filter: drop-shadow(0 1.75rem 3rem rgb(0 0 0 / .36)); max-height: 34rem; object-fit: contain; object-position: var(--edition-focal-x, 50%) var(--edition-focal-y, 50%); width: 100%; }
 .edition-winner-identity { align-items: center; display: flex; gap: 1rem; margin-top: 2rem; text-align: left; }
-.edition-winner-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-top: .25rem; }
+.edition-winner-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; margin-top: .25rem; overflow-wrap: anywhere; }
 .edition-winner-points { color: var(--muted-foreground); font-size: .75rem; margin-top: .25rem; }
 
 .edition-navigation {
@@ -272,6 +275,10 @@ body[data-edition-public-style="cinematic"] .edition-quick-facts > div + div { b
   [data-edition-lab-frame] .edition-section-heading { align-items: start; flex-direction: column; gap: .75rem; }
   [data-edition-lab-frame] .edition-entry-grid { grid-template-columns: 1fr !important; }
   [data-edition-lab-frame] .edition-results-layout { grid-template-columns: 1fr; }
+}
+
+@container (max-width: 22.5rem) {
+  [data-edition-lab-frame] .edition-winner-identity { flex-direction: column; text-align: center; }
 }
 
 @media (max-width: 22.5rem) {
