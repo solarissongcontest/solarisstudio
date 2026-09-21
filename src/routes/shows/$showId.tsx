@@ -143,7 +143,12 @@ function ShowPage() {
   const televoteDetailQuery = useQuery({
     queryKey: ["public-show-televote-detail", showId],
     queryFn: () => getPublicTelevoteDetail({ data: { showId } }),
-    staleTime: 60_000,
+    enabled: Boolean(
+      showQuery.data &&
+        resolveShowPublication(showQuery.data).detailed_voting &&
+        resolveShowPublication(showQuery.data).televote_results,
+    ),
+    staleTime: 5 * 60_000,
     retry: false,
   });
   const { data: show } = showQuery;
