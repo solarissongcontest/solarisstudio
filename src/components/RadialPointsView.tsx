@@ -35,7 +35,7 @@ type Props = {
   voters?: Voter[];
 };
 
-export function RadialPointsView({
+export function PointsExplorerView({
   participants,
   countries,
   jury,
@@ -289,6 +289,10 @@ export function RadialPointsView({
     direction === "received"
       ? "Juries are ranked by the points they awarded. Tap a jury to inspect its full ballot."
       : "Recipients are ranked by the points this jury awarded. Tap a country to inspect the points it received.";
+  const contributorCountLabel =
+    direction === "received"
+      ? `${juryContributors.length} ${juryContributors.length === 1 ? "jury" : "juries"}`
+      : `${juryContributors.length} ${juryContributors.length === 1 ? "country" : "countries"}`;
 
   const activateItem = (item: CircleItem) => {
     if (item.kind === "televote") return;
@@ -497,7 +501,7 @@ export function RadialPointsView({
               </p>
             </div>
             <span className="numeric shrink-0 text-xs text-muted-foreground">
-              {juryContributors.length} {juryContributors.length === 1 ? "jury" : "juries"}
+              {contributorCountLabel}
             </span>
           </header>
 
@@ -842,3 +846,7 @@ function findMatchingVoterOption(item: CircleItem, options: VoterOption[]) {
 
   return null;
 }
+
+
+// Compatibility export for any older internal import while callers migrate.
+export const RadialPointsView = PointsExplorerView;
