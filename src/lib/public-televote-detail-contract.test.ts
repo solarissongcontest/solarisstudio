@@ -33,19 +33,23 @@ describe("public detailed televote", () => {
     expect(server).not.toContain('from("votes")');
   });
 
-  it("separates official televote points from source contribution units", () => {
-    expect(detail).toContain("official televote");
-    expect(detail).toContain("source units");
-    expect(detail).toContain("are not the same as official televote points");
+  it("keeps official/allocated points distinct from source units", () => {
+    expect(detail).toContain("allocated pts");
+    expect(detail).toContain("official pts");
+    expect(detail).toContain("units");
   });
 
-  it("provides a round selector plus Received and Given source-detail views", () => {
+  it("shows every available televote source as a visible tab with Received and Given views", () => {
     expect(server).toContain("rounds:");
-    expect(detail).toContain("Televote source / round");
+    expect(detail).toContain('role="tablist"');
+    expect(detail).toContain('aria-label="Televote sources"');
+    expect(detail).toContain("rounds.map");
     expect(detail).toContain('type Direction = "received" | "given"');
     expect(detail).toContain("receivedContributors");
     expect(detail).toContain("givenRecipients");
-    expect(detail).toContain("Preserved recipient totals");
+    expect(detail).not.toContain("Televote source / round");
+    expect(detail).not.toContain("Country-source matrix available");
+    expect(detail).not.toContain("Recipient totals only");
   });
 
   it("gates the public snapshot with RLS and show publication flags", () => {
@@ -80,6 +84,10 @@ describe("public detailed televote", () => {
     expect(multiSource).toContain("raw_score");
     expect(multiSource).toContain("weight_percent");
     expect(multiSource).toContain("Third semi-final");
+    expect(multiSource).toContain("49");
+    expect(multiSource).toContain("44");
+    expect(multiSource).toContain("7");
+    expect(multiSource).not.toContain("'Grand final live round'");
   });
 
   it("exposes the detail and stats views only through the public show route", () => {
