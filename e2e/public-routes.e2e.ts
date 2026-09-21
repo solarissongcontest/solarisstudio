@@ -60,6 +60,11 @@ test("Country Glass atmosphere and Edition mobile toolbar keep their visible bou
   expect(coverage.fit).toBe("cover");
   await testInfo.attach("abeven-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
 
+  await page.goto("/wiki/ABE", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "breadcrumb" })).toHaveCount(1);
+  await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+
   await page.goto("/editions/ssc-20", { waitUntil: "domcontentloaded" });
   const edition = page.locator(".edition-public-page");
   await expect(edition.locator("h1")).toHaveText("SSC 20");

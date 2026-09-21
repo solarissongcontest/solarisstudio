@@ -294,11 +294,6 @@ function CountryWikiArticle({
         style={publishedDesign ? countryDesignCssVariables(publishedDesign) : undefined}
       >
         {publishedDesign && countryDesignFontCss(publishedDesign) ? <style>{countryDesignFontCss(publishedDesign)}</style> : null}
-        <nav className="wiki-breadcrumbs" aria-label="Breadcrumb">
-          <Link to="/wiki">Wiki</Link><span>/</span>
-          <span aria-current="page">{country.name}</span>
-        </nav>
-
         <CountryWikiHeader country={country} />
 
         <WikiMobileToolbar
