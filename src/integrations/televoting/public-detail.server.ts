@@ -1,69 +1,96 @@
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { resolveShowPublication } from "@/lib/publication";
-
-import {
-  getMergedPublishedTelevotingResultsServer,
-  type PublishedResultsPayload,
-} from "./results.server";
+import { supabase } from "@/integrations/supabase/client";
 
 export type PublicShowTelevoteDetail = {
-  round: NonNullable<PublishedResultsPayload["round"]>;
-  rows: PublishedResultsPayload["rows"];
+  round: {
+    id: string;
+    name: string;
+    advanced: true;
+  };
+  rows: Array<{
+    country_code: string;
+    final_points: number;
+    activity_points?: number;
+    country_contributions: Record<string, number>;
+  }>;
 } | null;
 
+function sanitizeContributionMap(value: unknown): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+
+  const output: Record<string, number> = {};
+  for (const [rawCode, rawPoints] of Object.entries(value as Record<string, unknown>)) {
+    const code = rawCode.trim().toUpperCase();
+    const points = Number(rawPoints);
+    if (!/^[A-Z0-9_-]{2,12}$/.test(code)) continue;
+    if (!Number.isFinite(points) || points <= 0 || points > 100000) continue;
+    output[code] = points;
+  }
+  return output;
+}
+
 /**
- * Resolve a canonical Solaris show to a published Televoting round.
- *
- * The canonical database is consulted only for the show publication gate and
- * round binding. Televoting rows themselves are read through the public
- * Televoting client, so its RLS/results_status publication contract remains
- * authoritative.
+ * Read only the sanitized public view. The view itself owns the canonical
+ * publication/transparency gate and intentionally exposes no raw ballots,
+ * usernames, integrity metadata or internal calculation config.
  */
 export async function getPublicShowTelevoteDetailServer(
   showId: string,
 ): Promise<PublicShowTelevoteDetail> {
-  const db = supabaseAdmin as any;
+  const db = supabase as any;
+  const { data, error } = await db
+    .from("public_televote_country_contributions")
+    .select(
+      "show_id,round_id,round_name,country_code,final_points,activity_points,country_contributions",
+    )
+    .eq("show_id", showId)
+    .order("final_points", { ascending: false });
 
-  const { data: show, error: showError } = await db
-    .from("shows")
-    .select("id,published,publication_config")
-    .eq("id", showId)
-    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data?.length) return null;
 
-  if (showError) throw new Error(showError.message);
-  if (!show || show.published !== true) return null;
+  const first = data[0];
+  const rows = data
+    .map((row: Record<string, unknown>) => {
+      const countryCode = String(row.country_code ?? "").trim().toUpperCase();
+      const contributions = sanitizeContributionMap(row.country_contributions);
+      if (!countryCode || !Object.keys(contributions).length) return null;
 
-  const publication = resolveShowPublication(show);
-  if (!publication.detailed_voting || !publication.televote_results) return null;
+      const finalPoints = Number(row.final_points ?? 0);
+      const activityPoints = Number(row.activity_points ?? NaN);
 
-  const { data: bindings, error: bindingError } = await db
-    .from("televoting_round_bindings")
-    .select("remote_round_id")
-    .eq("show_id", showId);
-
-  if (bindingError) throw new Error(bindingError.message);
-  if (!bindings?.length) return null;
-
-  for (const binding of bindings) {
-    const remoteRoundId = String(binding.remote_round_id ?? "");
-    if (!remoteRoundId) continue;
-
-    const published = await getMergedPublishedTelevotingResultsServer(remoteRoundId);
-    if (!published.round?.advanced || !published.rows.length) continue;
-
-    const rowsWithSourceDetail = published.rows.filter(
-      (row) =>
-        row.country_contributions &&
-        Object.keys(row.country_contributions).length > 0,
+      return {
+        country_code: countryCode,
+        final_points: Number.isFinite(finalPoints) ? finalPoints : 0,
+        ...(Number.isFinite(activityPoints) && activityPoints >= 0
+          ? { activity_points: activityPoints }
+          : {}),
+        country_contributions: contributions,
+      };
+    })
+    .filter(
+      (
+        row: {
+          country_code: string;
+          final_points: number;
+          activity_points?: number;
+          country_contributions: Record<string, number>;
+        } | null,
+      ): row is {
+        country_code: string;
+        final_points: number;
+        activity_points?: number;
+        country_contributions: Record<string, number>;
+      } => row !== null,
     );
 
-    if (!rowsWithSourceDetail.length) continue;
+  if (!rows.length) return null;
 
-    return {
-      round: published.round,
-      rows: rowsWithSourceDetail,
-    };
-  }
-
-  return null;
+  return {
+    round: {
+      id: String(first.round_id ?? ""),
+      name: String(first.round_name ?? "Televote"),
+      advanced: true,
+    },
+    rows,
+  };
 }
