@@ -36,4 +36,29 @@ begin
     ), '{}'::jsonb), true
   )
   where rr.round_id = target_round;
-end $$;
+
+  -- The public snapshot may have been generated before this reconciliation.
+  -- Refresh it from the repaired source so the UI cannot stay stale.
+  update public.public_televote_country_contributions p
+  set
+    country_contributions = rr.calculation_config -> 'country_contributions',
+    final_points = rr.final_points,
+    updated_at = now()
+  from televoting.round_results rr
+  where p.round_id = target_round::text
+    and rr.round_id = target_round
+    and rr.country_code = p.country_code;
+
+  if exists (
+    select 1
+    from televoting.round_results rr
+    join public.public_televote_country_contributions p
+      on p.round_id = target_round::text
+     and p.country_code = rr.country_code
+    where rr.round_id = target_round
+      and rr.calculation_config -> 'country_contributions'
+          is distinct from p.country_contributions
+  ) then
+    raise exception 'SSC20 public country-source snapshot is stale after reconciliation';
+  end if;
+end $;
