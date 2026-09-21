@@ -777,21 +777,25 @@ function SimpleEditor({
 
       {zone.type === "flag" && (
         <SimpleSection title="Flag">
-          <Field
-            label="Image fit"
-            hint="Cover fills the selected shape without stretching. Contain keeps the whole source image and may leave empty space."
-          >
-            <div className="grid grid-cols-3 gap-2">
-              {(["cover", "contain", "fill"] as const).map((fit) => (
-                <ChoiceButton
-                  key={fit}
-                  active={(zone.fit ?? "cover") === fit}
-                  onClick={() => onPatch({ fit })}
-                >
-                  {fit === "fill" ? "Stretch" : capitalize(fit)}
-                </ChoiceButton>
-              ))}
-            </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Flags always fill the selected shape with a uniform crop. They are never stretched.
+          </p>
+          <Field label="Crop focus">
+            <Select
+              value={zone.objectPosition ?? "center"}
+              onChange={(event) =>
+                onPatch({
+                  fit: "cover",
+                  objectPosition: event.target.value,
+                })
+              }
+            >
+              <option value="center">Center</option>
+              <option value="left center">Left</option>
+              <option value="right center">Right</option>
+              <option value="center top">Top</option>
+              <option value="center bottom">Bottom</option>
+            </Select>
           </Field>
         </SimpleSection>
       )}
