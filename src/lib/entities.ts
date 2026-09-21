@@ -69,6 +69,9 @@ export type EntityDisplay = {
   short_code: string;
   /** Null means "no artwork" — render the intentional initials fallback, never a broken image. */
   flag_image: string | null;
+  flag_crop_x?: number | null;
+  flag_crop_y?: number | null;
+  flag_crop_zoom?: number | null;
   region: string;
   accent_color: string;
   description: string | null;
@@ -96,6 +99,9 @@ export function displayFromEntity(
     flag_image: historical
       ? entity.flag_image ?? c?.flag_image ?? null
       : c?.flag_image ?? entity.flag_image ?? null,
+    flag_crop_x: historical ? 50 : c?.flag_crop_x ?? 50,
+    flag_crop_y: historical ? 50 : c?.flag_crop_y ?? 50,
+    flag_crop_zoom: historical ? 1 : c?.flag_crop_zoom ?? 1,
     region: c?.region ?? entity.region ?? "Terra Solaris",
     accent_color: c?.accent_color ?? DEFAULT_ACCENT,
     description: c?.description ?? null,
@@ -113,6 +119,9 @@ export function displayFromCountry(c: Country): EntityDisplay {
     native_name: c.native_name,
     short_code: c.short_code,
     flag_image: c.flag_image,
+    flag_crop_x: c.flag_crop_x ?? 50,
+    flag_crop_y: c.flag_crop_y ?? 50,
+    flag_crop_zoom: c.flag_crop_zoom ?? 1,
     region: c.region,
     accent_color: c.accent_color,
     description: c.description,
