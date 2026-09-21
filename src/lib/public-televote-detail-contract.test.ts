@@ -18,7 +18,7 @@ const harden = readFileSync(
   "utf8",
 );
 const multiSource = readFileSync(
-  "supabase/migrations/20260921204500_public_televote_multisource_rounds.sql",
+  "supabase/migrations/20260921185254_public_televote_multisource_rounds.sql",
   "utf8",
 );
 
