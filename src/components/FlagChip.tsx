@@ -70,7 +70,7 @@ export function FlagChip({
           loading="lazy"
           decoding="async"
           onError={() => setImageFailed(true)}
-          className="block h-full w-full object-contain"
+          className="block h-full w-full object-cover"
           style={{
             display: "block",
             position: "relative",
