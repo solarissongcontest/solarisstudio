@@ -1,6 +1,10 @@
 -- Populate SSC21 Grand Final country-source public-vote transparency from
 -- the archived Instagram/Story observation matrix while keeping official
 -- televote points sourced from canonical Solaris results.
+--
+-- The historical observation matrix is production archive data and is not
+-- required on a clean install. Zero source rows is therefore a valid no-op;
+-- any partially present archive fails closed.
 do $$
 declare
   target_show uuid;
@@ -12,12 +16,6 @@ declare
   target_count integer;
   canonical_count integer;
 begin
-  select s.id into strict target_show
-  from public.shows s
-  join public.editions e on e.id = s.edition_id
-  where e.edition_number = 21
-    and s.kind = 'grand-final';
-
   select
     count(*),
     count(distinct h.voter_country_code),
@@ -26,17 +24,38 @@ begin
   from televoting.historical_vote_observations h
   where h.source_key = detail_source_key;
 
+  if observation_count = 0 then
+    return;
+  end if;
+
+  if observation_count <> 704
+     or voter_count <> 28
+     or target_count <> 26 then
+    raise exception
+      'SSC21 historical observation archive is partial or inconsistent: observations %, voters %, targets %',
+      observation_count, voter_count, target_count;
+  end if;
+
+  select s.id into target_show
+  from public.shows s
+  join public.editions e on e.id = s.edition_id
+  where e.edition_number = 21
+    and s.kind = 'grand-final'
+  order by s.sort_order, s.id
+  limit 1;
+
+  if target_show is null then
+    raise exception 'SSC21 historical observations exist but the canonical Grand Final show is missing';
+  end if;
+
   select count(*) into canonical_count
   from public.televote_votes
   where show_id = target_show;
 
-  if observation_count <> 704
-     or voter_count <> 28
-     or target_count <> 26
-     or canonical_count <> 26 then
+  if canonical_count <> 26 then
     raise exception
-      'SSC21 historical detail does not meet expected counts: observations %, voters %, targets %, canonical %',
-      observation_count, voter_count, target_count, canonical_count;
+      'SSC21 historical detail has a canonical result mismatch: expected 26 televote rows, got %',
+      canonical_count;
   end if;
 
   if exists (
