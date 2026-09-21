@@ -158,6 +158,7 @@
 .country-official-flag {
   display: grid;
   position: relative;
+  box-sizing: content-box;
   inline-size: min(100%, 15rem);
   aspect-ratio: var(--cp-flag-aspect, 3 / 2);
   min-block-size: 0;
