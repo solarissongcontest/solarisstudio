@@ -1,4 +1,5 @@
 "use client";
+import { FlagMedia } from "@/components/FlagMedia";
 
 /**
  * Country card renderer.
@@ -222,8 +223,8 @@ function SSC21CountryCard({
         }}
       >
         {row.flagImage ? (
-          <img
-            src={row.flagImage}
+          <FlagMedia
+            image={row.flagImage}
             alt={`Flag of ${row.name}`}
             loading="lazy"
             data-flag-role="official"
@@ -231,7 +232,7 @@ function SSC21CountryCard({
               display: "block",
               width: "100%",
               height: "100%",
-              objectFit: "contain",
+              objectFit: "cover",
               objectPosition: "center",
             }}
           />
@@ -720,15 +721,15 @@ function ZoneContent({
 
     case "flag":
       return row.flagImage ? (
-        <img
-          src={row.flagImage}
+        <FlagMedia
+          image={row.flagImage}
           alt={`Flag of ${row.name}`}
           loading="lazy"
           data-flag-role="official"
           style={{
             width: "100%",
             height: "100%",
-            objectFit: "contain",
+            objectFit: "cover",
             objectPosition:
               zone.objectPosition ?? "center",
           }}

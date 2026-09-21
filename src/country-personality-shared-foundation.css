@@ -171,17 +171,14 @@
   grid-area: 1 / 1;
 }
 
-.country-official-flag img,
-[data-flag-role="official"] img,
-[data-flag-chip="true"] img {
+.country-official-flag img {
   display: block;
   inline-size: 100%;
   block-size: 100%;
   max-inline-size: 100%;
   max-block-size: 100%;
   border-radius: inherit;
-  object-fit: contain !important;
-  object-position: center !important;
+  object-fit: cover;
 }
 
 .country-official-flag-fallback {

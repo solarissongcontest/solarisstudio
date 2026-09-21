@@ -1,3 +1,4 @@
+import { FlagFrame } from "@/components/FlagMedia";
 import type { CSSProperties } from "react";
 
 import type {
@@ -167,13 +168,7 @@ export function FormerCountryIdentities({
             className="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-4 py-3 sm:grid-cols-[7rem_minmax(0,1fr)_auto]"
           >
             {identity.flag ? (
-              <img
-                src={identity.flag}
-                alt={`${identity.name} flag`}
-                loading="lazy"
-                decoding="async"
-                className="max-h-16 w-full rounded-md border border-border/55 bg-background/20 object-contain"
-              />
+              <FlagFrame image={identity.flag} alt={`${identity.name} flag`} fallback={country.short_code} className="w-full rounded-md border border-border/55" />
             ) : (
               <span className="grid h-12 w-full place-items-center rounded-md border border-border bg-surface text-[10px] font-bold text-muted-foreground">
                 {country.short_code}

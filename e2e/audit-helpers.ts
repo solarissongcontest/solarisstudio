@@ -178,10 +178,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         }
       }
 
-      // The contain/no-crop contract belongs to the Country/Wiki identity
-      // system. Edition participant flag chips intentionally use cover in some
-      // compact tables, so auditing every data-flag-role on the entire site
-      // turns a Country visual invariant into an unrelated Edition failure.
+      // Country and Wiki factual flags share the canonical 3:2 crop.
       const officialFlagProblems = [...document.querySelectorAll<HTMLImageElement>(
         '.country-identity-hero [data-flag-role="official"] img, .wiki-canvas [data-flag-role="official"] img',
       )].flatMap((image) => {
@@ -193,7 +190,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
           return [];
         }
         const problems: string[] = [];
-        if (style.objectFit !== "contain") problems.push(`${image.alt || image.src}: object-fit=${style.objectFit}`);
+        if (style.objectFit !== "cover") problems.push(`${image.alt || image.src}: object-fit=${style.objectFit}`);
         const rect = image.getBoundingClientRect();
         if (rect.width <= 0 || rect.height <= 0) problems.push(`${image.alt || image.src}: zero rendered size`);
         return problems;

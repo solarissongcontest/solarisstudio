@@ -294,6 +294,15 @@ function OwnedCountryHub({
   });
   const [profile, setProfile] = useState(EMPTY_PROFILE);
   const [flagBusy, setFlagBusy] = useState(false);
+  const [flagRatio, setFlagRatio] = useState<number | null>(null);
+  useEffect(() => {
+    if (!identity.flagImage) { setFlagRatio(null); return; }
+    const image = new Image();
+    image.onload = () => setFlagRatio(image.naturalWidth / image.naturalHeight);
+    image.onerror = () => setFlagRatio(null);
+    image.src = identity.flagImage;
+    return () => { image.onload = null; image.onerror = null; };
+  }, [identity.flagImage]);
   const [galleryFile, setGalleryFile] = useState<File | null>(null);
   const [galleryCaption, setGalleryCaption] = useState("");
   const [galleryAlt, setGalleryAlt] = useState("");
@@ -695,6 +704,9 @@ function OwnedCountryHub({
                   }
                   className="block w-full text-xs"
                 />
+                <p className="text-xs text-muted-foreground">Recommended original: 3:2, at least 1500 × 1000. The original is preserved.</p>
+                {flagRatio && Math.abs(flagRatio - 1.5) > .02 ? <p className="text-xs text-amber-300" role="status">This source is {flagRatio.toFixed(2)}:1. Solaris displays it at 3:2; an Organizer can review its crop in Flag QA.</p> : null}
+                {organizerOverride ? <Link to="/admin/flag-audit" className="text-xs font-semibold text-primary underline underline-offset-2">Adjust display crop in Flag QA</Link> : null}
                 {identity.flagImage && (
                   <button
                     type="button"

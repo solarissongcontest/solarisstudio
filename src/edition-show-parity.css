@@ -44,7 +44,6 @@ html body[data-entity-theme="edition"] main.app-main [data-flag-chip="true"] > i
   visibility: visible !important;
   filter: none !important;
   mix-blend-mode: normal !important;
-  transform: none !important;
   object-fit: cover !important;
 }
 

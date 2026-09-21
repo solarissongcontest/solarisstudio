@@ -382,7 +382,7 @@ function prepareCardForPublicSurface(
         maxWidth: flagWidth,
         height: flagHeight,
         grow: 0,
-        fit: "contain" as const,
+        fit: "cover" as const,
         shape: {
           ...zone.shape,
           kind: flagRadius > 0 ? "rounded" as const : "rect" as const,

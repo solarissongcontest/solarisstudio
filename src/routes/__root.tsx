@@ -17,6 +17,7 @@ import anniversaryCss from "../anniversary.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
+import flagMediaCss from "../flag-media.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
@@ -195,6 +196,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: solarisBackgroundCss },
       { rel: "stylesheet", href: cardTypographyCss },
       { rel: "stylesheet", href: solarisMotionCss },
+      { rel: "stylesheet", href: flagMediaCss },
     ],
   }),
   shellComponent: RootShell,

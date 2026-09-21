@@ -27,6 +27,9 @@ export type Country = {
   native_name: string | null;
   short_code: string;
   flag_image: string | null;
+  flag_crop_x?: number;
+  flag_crop_y?: number;
+  flag_crop_zoom?: number;
   region: string;
   accent_color: string;
   description: string | null;

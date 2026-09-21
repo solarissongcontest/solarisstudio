@@ -1,0 +1,36 @@
+.flag-media-frame {
+  display: inline-grid;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  border-radius: inherit;
+  isolation: isolate;
+}
+.flag-media-frame > .flag-media-image,
+.flag-media-frame > .flag-media-fallback {
+  grid-area: 1 / 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  border-radius: inherit;
+}
+.flag-media-image[data-flag-role="standard"] {
+  object-fit: cover;
+  transform-origin: center;
+}
+.flag-media-fallback { display: grid !important; place-items: center; }
+/* Older personality rules must not force factual flags back into letterboxing. */
+.country-official-flag .flag-media-image[data-flag-role="standard"],
+.country-v2-hero-flag .flag-media-image[data-flag-role="standard"],
+.wiki-canvas .country-wiki-header .flag-media-image[data-flag-role="standard"] {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+}

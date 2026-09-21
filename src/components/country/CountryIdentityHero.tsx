@@ -6,6 +6,7 @@ import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryGeography } from "@/lib/country-semantic-model";
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
+import { FlagMedia } from "@/components/FlagMedia";
 
 const LazyGlassMaterial = lazy(() =>
   import("@/vendor/liquid-glass/GlassMaterial").then((module) => ({
@@ -102,8 +103,8 @@ export function CountryIdentityHero({
         aria-busy={flagState === "loading" ? "true" : undefined}
       >
         {flagImage ? (
-          <img
-            src={flagImage}
+          <FlagMedia
+            image={flagImage}
             alt={flagState === "ready" ? `Flag of ${name}` : ""}
             loading="eager"
             decoding="async"

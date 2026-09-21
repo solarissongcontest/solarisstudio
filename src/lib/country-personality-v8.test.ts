@@ -39,27 +39,23 @@ describe("source-driven Country personality foundation", () => {
     expect(compositions).toContain(".country-composition-atlas");
   });
 
-  it("protects official flags from stretching or unintended cropping", () => {
-    const flag = source("src/components/FlagChip.tsx");
+  it("uses a single cropped 3:2 flag primitive without distorting the source", () => {
+    const flag = source("src/components/FlagMedia.tsx");
+    const chip = source("src/components/FlagChip.tsx");
+    const styles = source("src/flag-media.css");
     const shared = source("src/country-personality-shared-foundation.css");
-    const sourceFoundation = source("src/country-personality-source-foundation.css");
     const scoreboard = source("src/components/broadcast/CountryCard.tsx");
     const scoreboardStage = source("src/components/ScoreboardStage.tsx");
-    expect(flag).toContain('data-flag-role="official"');
-    expect(flag).toContain('aspect-[3/2]');
-    expect(flag).toContain('objectFit: "contain"');
-    expect(shared).toContain("--cp-flag-aspect: 3 / 2");
-    expect(shared).toContain("aspect-ratio: var(--cp-flag-aspect)");
-    expect(shared).toContain('[data-flag-role="official"] img');
-    expect(sourceFoundation).toContain("inline-size: auto !important");
-    expect(sourceFoundation).toContain("block-size: auto !important");
-    expect(sourceFoundation).toContain("object-fit: contain !important");
-    expect(scoreboard).toContain('objectFit: "contain"');
-    expect(scoreboard).not.toContain('objectFit: zone.fit ?? "cover"');
+    expect(chip).toContain("<FlagFrame");
+    expect(flag).toContain('mode = "standard"');
+    expect(flag).toContain('objectFit: "cover"');
+    expect(flag).toContain('objectFit: mode === "original" ? "contain" : "cover"');
+    expect(flag).toContain('`scale(${selected.zoom})`');
+    expect(styles).toContain("aspect-ratio: 3 / 2");
+    expect(shared).not.toContain("object-fit: contain !important");
+    expect(scoreboard).toContain("<FlagMedia");
     expect(scoreboardStage).toContain("const flagWidth = flagHeight * 1.5");
-    expect(scoreboardStage).toContain('fit: "contain" as const');
-    expect(scoreboardStage).toContain("flagRadius = card.radius > 0");
-    expect(shared).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
+    expect(scoreboardStage).toContain('fit: "cover" as const');
   });
 
   it("loads only shared foundations, Wiki mechanics and source adapters", () => {

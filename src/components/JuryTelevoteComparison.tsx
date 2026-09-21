@@ -1,3 +1,4 @@
+import { FlagMedia } from "@/components/FlagMedia";
 import { useMemo, useState } from "react";
 
 import type { Country } from "@/lib/data";
@@ -632,8 +633,8 @@ export function JuryTelevoteComparison({
                         {row
                           .country
                           ?.flag_image ? (
-                          <img
-                            src={
+                          <FlagMedia
+                            image={
                               row
                                 .country
                                 .flag_image
@@ -642,7 +643,7 @@ export function JuryTelevoteComparison({
                             className="
                               h-full
                               w-full
-                              object-contain
+                              object-cover
                             "
                           />
                         ) : (

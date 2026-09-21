@@ -963,8 +963,7 @@
 .country-personality-composition [data-flag-role="official"] img {
   opacity: 1 !important;
   filter: none !important;
-  transform: none !important;
-  object-fit: contain !important;
+  object-fit: cover !important;
 }
 
 @media (forced-colors: active) {

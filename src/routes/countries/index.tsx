@@ -327,7 +327,7 @@ function LeaderCard({ row, rank }: { row: CountryRow; rank: number }) {
     <Link
       to="/countries/$code"
       params={{ code: country.short_code }}
-      className="directory-country-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-[background-color,border-color,box-shadow] duration-150 ease-out"
+      className="directory-country-card group relative min-w-0 overflow-hidden rounded-[22px] border p-4 transition-[background-color,border-color,box-shadow] duration-150 ease-out"
       style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
     >
       <div className="flex items-start justify-between gap-3">
@@ -363,7 +363,7 @@ function CountryCard({ row }: { row: CountryRow }) {
     <Link
       to="/countries/$code"
       params={{ code: country.short_code }}
-      className="directory-country-card group min-w-0 rounded-2xl border p-4 transition-[background-color,border-color,box-shadow] duration-150 ease-out"
+      className="directory-country-card group min-w-0 rounded-[22px] border p-4 transition-[background-color,border-color,box-shadow] duration-150 ease-out"
       style={{ "--country-card-accent": country.accent_color } as React.CSSProperties}
     >
       <div className="flex min-w-0 items-center gap-3">

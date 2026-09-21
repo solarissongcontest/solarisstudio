@@ -8,6 +8,7 @@ import {
 
 import type { CountryDesignV2 } from "@/lib/country-design-v2";
 import { cn } from "@/lib/utils";
+import { FlagMedia } from "@/components/FlagMedia";
 
 const LazyGlassMaterial = lazy(() =>
   import("@/vendor/liquid-glass/GlassMaterial").then((module) => ({
@@ -143,7 +144,7 @@ export function CountryDesignV2Hero({
       {design.hero.showFlag ? (
         <div className="country-v2-hero-flag" data-design-target="hero-flag">
           {flagImage ? (
-            <img src={flagImage} alt={`Flag of ${name}`} loading="eager" decoding="async" />
+            <FlagMedia image={flagImage} alt={`Flag of ${name}`} loading="eager" decoding="async" />
           ) : (
             <span className="country-v2-hero-flag-fallback" role="status" aria-label={`Flag unavailable for ${name}`}>
               {code}
