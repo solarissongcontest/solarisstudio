@@ -42,28 +42,45 @@ test("representative non-country dynamic route passes desktop audit", async ({ p
   await auditRoutes(page, representativeDynamic, testInfo);
 });
 
-test("Country Glass atmosphere and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
+test("Country Glass fixture and Edition mobile toolbar keep their visible bounds", async ({ page }, testInfo) => {
   test.skip(!["public-320", "public-390", "public-768", "public-1440"].includes(testInfo.project.name));
 
-  await page.goto("/countries/ABE", { waitUntil: "domcontentloaded" });
-  const atmosphere = page.locator(".country-v2-liquid-glass-scene-flag");
+  const viewport = Number(testInfo.project.name.replace("public-", ""));
+  await page.goto("/dev/design-v2-lab", { waitUntil: "domcontentloaded" });
+  await page.getByLabel("Viewport").selectOption(String(viewport));
+
+  const preview = page.locator("[data-design-v2-lab-preview]");
+  await expect(preview).toHaveAttribute("data-country-surface", "glass");
+
+  const atmosphere = preview.locator(".country-v2-liquid-glass-scene-flag");
   await expect(atmosphere).toBeVisible();
   const coverage = await atmosphere.evaluate((image) => {
     const hero = image.closest(".country-v2-hero")!.getBoundingClientRect();
     const flag = image.getBoundingClientRect();
-    return { left: flag.left - hero.left, right: flag.right - hero.right, top: flag.top - hero.top, bottom: flag.bottom - hero.bottom, fit: getComputedStyle(image).objectFit };
+    return {
+      left: flag.left - hero.left,
+      right: flag.right - hero.right,
+      top: flag.top - hero.top,
+      bottom: flag.bottom - hero.bottom,
+      fit: getComputedStyle(image).objectFit,
+    };
   });
   expect(coverage.left).toBeLessThan(-20);
   expect(coverage.right).toBeGreaterThan(20);
   expect(coverage.top).toBeLessThan(-20);
   expect(coverage.bottom).toBeGreaterThan(20);
   expect(coverage.fit).toBe("cover");
-  await testInfo.attach("abeven-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
+  await testInfo.attach("country-v2-glass-fixture.png", {
+    body: await preview.locator(".country-v2-hero").screenshot(),
+    contentType: "image/png",
+  });
 
+  // The public Wiki route remains a live-data smoke. Its selected design is
+  // editable content, so the audit must not assume a particular country stays
+  // published as V2 Glass forever. Country and Wiki share CountryDesignV2Hero;
+  // the deterministic lab above owns the Glass geometry invariant.
   await page.goto("/wiki/ABE", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".country-v2-liquid-glass-scene-flag")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "breadcrumb" })).toHaveCount(1);
-  await testInfo.attach("abeven-wiki-glass.png", { body: await page.locator(".country-v2-hero").screenshot(), contentType: "image/png" });
 
   await page.goto("/editions/ssc-20", { waitUntil: "domcontentloaded" });
   const edition = page.locator(".edition-public-page");
