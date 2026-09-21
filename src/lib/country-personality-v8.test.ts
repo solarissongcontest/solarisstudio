@@ -47,13 +47,15 @@ describe("source-driven Country personality foundation", () => {
     const scoreboardStage = source("src/components/ScoreboardStage.tsx");
     expect(flag).toContain('data-flag-role="official"');
     expect(flag).toContain('aspect-[3/2]');
-    expect(flag).toContain('objectFit: "contain"');
+    expect(flag).toContain('objectFit: "cover"');
     expect(shared).toContain("--cp-flag-aspect: 3 / 2");
     expect(shared).toContain("aspect-ratio: var(--cp-flag-aspect)");
     expect(shared).toContain('[data-flag-role="official"] img');
-    expect(sourceFoundation).toContain("inline-size: auto !important");
-    expect(sourceFoundation).toContain("block-size: auto !important");
-    expect(sourceFoundation).toContain("object-fit: contain !important");
+    expect(flag).toContain("cropX = 50");
+    expect(flag).toContain("cropY = 50");
+    expect(flag).toContain("cropZoom = 1");
+    expect(flag).toContain("objectPosition:");
+    expect(flag).toContain("transform: `scale(");
     expect(scoreboard).toContain("resolveFlagZoneGeometry");
     expect(scoreboard).toContain('aspectRatio: "1 / 1"');
     expect(scoreboard).toContain('objectFit: "cover"');
@@ -61,7 +63,7 @@ describe("source-driven Country personality foundation", () => {
     expect(scoreboard).toContain("clipPathFor(zone.shape)");
     expect(scoreboardStage).toContain('shapeKind === "circle" || shapeKind === "square"');
     expect(scoreboardStage).toContain('fit: "cover" as const');
-    expect(shared).not.toMatch(/\[data-flag-role=[^\]]+\][^{]*\{[^}]*object-fit:\s*cover/s);
+    expect(flag).not.toContain('objectFit: "contain"');
   });
 
   it("loads only shared foundations, Wiki mechanics and source adapters", () => {
