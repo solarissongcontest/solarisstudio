@@ -20,8 +20,6 @@ export type PublishedResultRow = {
   floored_points?: number;
   decimal_remainder?: number;
   remainder_bonus?: number;
-  activity_points?: number;
-  country_contributions?: Record<string, number>;
 };
 
 export type PublishedResultsPayload = {
@@ -57,37 +55,7 @@ type RawPublishedResultRow = {
   floored_points?: number | string | null;
   decimal_remainder?: number | string | null;
   remainder_bonus?: number | string | null;
-  calculation_config?: unknown;
 };
-
-function safeCountryContributions(value: unknown): Record<string, number> | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-
-  const output: Record<string, number> = {};
-  for (const [rawCode, rawPoints] of Object.entries(value as Record<string, unknown>)) {
-    const code = rawCode.trim().toUpperCase();
-    const points = Number(rawPoints);
-    if (!/^[A-Z0-9_-]{2,12}$/.test(code)) continue;
-    if (!Number.isFinite(points) || points <= 0 || points > 100000) continue;
-    output[code] = points;
-  }
-
-  return Object.keys(output).length ? output : undefined;
-}
-
-function advancedHistoricalBreakdown(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const config = value as Record<string, unknown>;
-  const countryContributions = safeCountryContributions(config.country_contributions);
-  const activityPoints = Number(config.activity_points ?? 0);
-
-  return {
-    ...(countryContributions ? { country_contributions: countryContributions } : {}),
-    ...(Number.isFinite(activityPoints) && activityPoints >= 0
-      ? { activity_points: activityPoints }
-      : {}),
-  };
-}
 
 async function readPublishedResults(
   client: TelevotingClient,
@@ -172,12 +140,8 @@ async function readPublishedResults(
               floored_points: Number(result.floored_points ?? 0),
               decimal_remainder: Number(result.decimal_remainder ?? 0),
               remainder_bonus: Number(result.remainder_bonus ?? 0),
-              ...advancedHistoricalBreakdown(result.calculation_config),
             }
           : {}),
-      ...(advanced && robust
-        ? advancedHistoricalBreakdown(result.calculation_config)
-        : {}),
     }),
   );
 
