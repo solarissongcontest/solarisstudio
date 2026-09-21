@@ -22,7 +22,11 @@ describe("public detailed televote", () => {
   it("reads only the sanitized public snapshot", () => {
     expect(server).toContain('from("public_televote_country_contributions")');
     expect(server).not.toContain('from("round_results")');
-    expect(server).not.toContain("raw ballot");
+    expect(server).toContain(
+      '"show_id,round_id,round_name,country_code,final_points,activity_points,country_contributions"',
+    );
+    expect(server).not.toContain("username");
+    expect(server).not.toContain("integrity_score");
   });
 
   it("separates official televote points from source contribution units", () => {
