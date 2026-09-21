@@ -157,10 +157,11 @@
 
 .country-official-flag {
   display: grid;
+  position: relative;
   inline-size: min(100%, 15rem);
-  aspect-ratio: var(--cp-flag-aspect);
+  aspect-ratio: var(--cp-flag-aspect, 3 / 2);
   min-block-size: 0;
-  place-items: center;
+  place-items: stretch;
   overflow: hidden;
   border: 1px solid var(--cp-rule);
   border-radius: var(--cp-flag-radius);
@@ -173,10 +174,12 @@
 
 .country-official-flag img {
   display: block;
+  position: absolute;
+  inset: 0;
   inline-size: 100%;
   block-size: 100%;
-  max-inline-size: 100%;
-  max-block-size: 100%;
+  max-inline-size: none;
+  max-block-size: none;
   border-radius: inherit;
   object-fit: cover;
 }
