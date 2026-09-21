@@ -66,6 +66,7 @@ export function PointsExplorerView({
   const [selectedCountryId, setSelectedCountryId] = useState("");
   const [selectedVoterKey, setSelectedVoterKey] = useState("");
   const [showAllContributors, setShowAllContributors] = useState(false);
+  const [showAllContributors, setShowAllContributors] = useState(false);
 
   useEffect(() => {
     if (!selectedCountryId || !participantIds.includes(selectedCountryId)) {
@@ -78,6 +79,10 @@ export function PointsExplorerView({
       setSelectedVoterKey(voterOptions[0]?.key ?? "");
     }
   }, [voterOptions, selectedVoterKey]);
+
+  useEffect(() => {
+    setShowAllContributors(false);
+  }, [direction, layer, selectedCountryId, selectedVoterKey]);
 
   useEffect(() => {
     setShowAllContributors(false);
@@ -655,36 +660,382 @@ function PointsFlag({
     lg: shape === "rounded" ? "h-16 w-24 sm:h-20 sm:w-[7.5rem]" : "h-16 w-16 sm:h-20 sm:w-20",
   }[size];
 
-  const radius =
-    shape === "circle"
-      ? "rounded-full"
-      : shape === "square"
-        ? "rounded-none"
-        : "rounded-xl";
+  const maxVisiblePoints = Math.max(
+    1,
+    ...visibleItems.map((item) => item.points),
+  );
+  const contributorLimit = 10;
+  const displayedItems = showAllContributors
+    ? visibleItems
+    : visibleItems.slice(0, contributorLimit);
+  const hiddenContributorCount = Math.max(0, visibleItems.length - displayedItems.length);
+  const juryShare = total > 0 ? (juryTotal / total) * 100 : 0;
+  const televoteShare = total > 0 ? (teleTotal / total) * 100 : 0;
+
+  const openBreakdownItem = (item: CircleItem) => {
+    if (item.kind === "televote") return;
+
+    if (direction === "received") {
+      const matching = findMatchingVoterOption(item, voterOptions);
+
+      if (matching) {
+        setSelectedVoterKey(matching.key);
+        setDirection("given");
+        setLayer("jury");
+      }
+
+      return;
+    }
+
+    if (item.countryId) {
+      setSelectedCountryId(item.countryId);
+      setDirection("received");
+      setLayer("combined");
+    }
+  };
 
   return (
-    <span
-      className={cn(
-        "relative grid shrink-0 place-items-center overflow-hidden border border-white/20 shadow-[0_8px_24px_-14px_rgba(0,0,0,.9)]",
-        dimensions,
-        radius,
-      )}
+    <div className="space-y-4" data-points-explorer>
+      <section className="rounded-[1.5rem] border border-border/70 bg-surface/35 p-3 shadow-sm sm:p-4">
+        <div className="grid gap-3 lg:grid-cols-[auto_minmax(14rem,1fr)_auto] lg:items-end">
+          <div>
+            <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Direction
+            </span>
+            <div className="grid grid-cols-2 rounded-xl bg-background/45 p-1">
+              {([
+                ["received", "Received"],
+                ["given", "Given"],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={direction === value}
+                  onClick={() => {
+                    setDirection(value);
+                    if (value === "given") setLayer("jury");
+                  }}
+                  className={cn(
+                    "min-h-10 rounded-lg px-3 text-sm font-semibold transition",
+                    direction === value
+                      ? "bg-surface-strong text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="min-w-0">
+            <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              {direction === "received" ? "Country" : "Jury"}
+            </span>
+            <select
+              value={direction === "received" ? selectedCountryId : selectedVoterKey}
+              onChange={(event) => {
+                if (direction === "received") {
+                  setSelectedCountryId(event.target.value);
+                } else {
+                  setSelectedVoterKey(event.target.value);
+                }
+              }}
+              className="min-h-11 w-full rounded-xl border border-border bg-background/60 px-3 text-sm"
+            >
+              {(direction === "received" ? participantOptions : voterOptions).map((option) => (
+                <option
+                  key={direction === "received" ? (option as Country).id : (option as VoterOption).key}
+                  value={direction === "received" ? (option as Country).id : (option as VoterOption).key}
+                >
+                  {option.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {direction === "received" ? (
+            <div>
+              <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Layer
+              </span>
+              <div className="grid grid-cols-3 rounded-xl bg-background/45 p-1">
+                {(["combined", "jury", "televote"] as Layer[]).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={layer === value}
+                    onClick={() => setLayer(value)}
+                    className={cn(
+                      "min-h-10 rounded-lg px-3 text-xs font-semibold transition sm:text-sm",
+                      layer === value
+                        ? "bg-surface-strong text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {value === "combined" ? "Combined" : value === "jury" ? "Jury" : "Televote"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[1.75rem] border border-border/70 bg-surface/28 shadow-xl">
+        <div className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,.82fr)_minmax(0,1.18fr)] lg:gap-7">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <SubjectFlag
+                src={centerFlag}
+                name={centerName}
+                code={centerCode}
+                accent={centerAccent}
+              />
+
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  {direction === "received" ? "Points received by" : "Points given by"}
+                </p>
+                <h3 className="mt-1 truncate font-display text-2xl font-bold sm:text-3xl">
+                  {centerName}
+                </h3>
+                {centerCode ? (
+                  <p className="mt-0.5 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                    {centerCode}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className={cn(
+              "mt-5 grid gap-px overflow-hidden rounded-2xl border border-border/70 bg-border/60",
+              direction === "received" ? "grid-cols-3" : "grid-cols-2",
+            )}>
+              <PointsStat label="Total" value={total} />
+              <PointsStat label="Jury" value={juryTotal} />
+              {direction === "received" ? <PointsStat label="Televote" value={teleTotal} /> : null}
+              {direction === "given" ? <PointsStat label="Recipients" value={baseCircleItems.length} /> : null}
+            </div>
+
+            {direction === "received" && layer === "combined" ? (
+              <div className="mt-5 rounded-2xl border border-border/70 bg-background/35 p-3">
+                <div className="mb-2 flex items-center justify-between gap-4 text-xs">
+                  <span className="font-semibold">Jury / televote split</span>
+                  <span className="numeric text-muted-foreground">
+                    {juryTotal} / {teleTotal}
+                  </span>
+                </div>
+                <div
+                  className="flex h-3 overflow-hidden rounded-full bg-background"
+                  aria-label={`Jury ${Math.round(juryShare)} percent, televote ${Math.round(televoteShare)} percent`}
+                >
+                  <span
+                    className="h-full bg-[var(--jury)] transition-[width]"
+                    style={{ width: `${juryShare}%` }}
+                  />
+                  <span
+                    className="h-full bg-fuchsia-500 transition-[width]"
+                    style={{ width: `${televoteShare}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between gap-4 text-[10px] text-muted-foreground">
+                  <span>{Math.round(juryShare)}% jury</span>
+                  <span>{Math.round(televoteShare)}% televote</span>
+                </div>
+              </div>
+            ) : null}
+
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              {direction === "received"
+                ? `${baseCircleItems.length} ${baseCircleItems.length === 1 ? "jury awarded" : "juries awarded"} points to this entry.`
+                : `${baseCircleItems.length} ${baseCircleItems.length === 1 ? "recipient received" : "recipients received"} points from this jury.`}
+            </p>
+          </div>
+
+          <div className="min-w-0 lg:border-l lg:border-border/70 lg:pl-7">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Breakdown
+                </p>
+                <h4 className="mt-1 text-lg font-bold">
+                  {layer === "televote" ? "Public vote" : direction === "given" ? "Recipients" : "Contributors"}
+                </h4>
+              </div>
+              <span className="numeric text-xs text-muted-foreground">
+                {visibleItems.length}
+              </span>
+            </div>
+
+            {displayedItems.length ? (
+              <div className="mt-3 space-y-2">
+                {displayedItems.map((item, index) => (
+                  <PointSourceRow
+                    key={item.key}
+                    item={item}
+                    rank={index + 1}
+                    maxPoints={maxVisiblePoints}
+                    onOpen={() => openBreakdownItem(item)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-dashed border-border p-5 text-center">
+                <p className="text-sm font-semibold">
+                  {layer === "televote" ? "No televote total stored" : "No detailed jury points stored"}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  This round does not contain the detailed data needed for this breakdown.
+                </p>
+              </div>
+            )}
+
+            {hiddenContributorCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllContributors(true)}
+                className="mt-3 min-h-11 w-full rounded-xl border border-border bg-background/35 px-4 text-sm font-semibold transition hover:bg-surface"
+              >
+                Show all {visibleItems.length} contributors
+              </button>
+            ) : showAllContributors && visibleItems.length > contributorLimit ? (
+              <button
+                type="button"
+                onClick={() => setShowAllContributors(false)}
+                className="mt-3 min-h-11 w-full rounded-xl border border-border bg-background/35 px-4 text-sm font-semibold transition hover:bg-surface"
+              >
+                Show fewer
+              </button>
+            ) : null}
+
+            {displayedItems.some((item) => item.kind === "jury") ? (
+              <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+                Tap a jury to inspect the points it gave. In “Points given”, tap a recipient to jump back to its received breakdown.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function PointsStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-surface/75 px-3 py-3">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="numeric mt-1 text-xl font-bold">{value}</p>
+    </div>
+  );
+}
+
+function SubjectFlag({
+  src,
+  name,
+  code,
+  accent,
+}: {
+  src: string | null;
+  name: string;
+  code: string;
+  accent: string;
+}) {
+  return (
+    <div
+      className="grid aspect-[3/2] w-24 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/15 shadow-lg sm:w-28"
       style={{ backgroundColor: `${accent}33` }}
-      data-points-flag-shape={shape}
     >
-      {image ? (
+      {src ? (
         <img
-          src={image}
-          alt=""
+          src={src}
+          alt={`Flag of ${name}`}
           className="h-full w-full object-cover"
-          style={{ objectPosition: "center" }}
         />
       ) : (
-        <span className="text-[9px] font-black uppercase tracking-[0.12em] text-white">
-          {code}
-        </span>
+        <span className="font-display text-sm font-bold">{code || "?"}</span>
       )}
-    </span>
+    </div>
+  );
+}
+
+function PointSourceRow({
+  item,
+  rank,
+  maxPoints,
+  onOpen,
+}: {
+  item: CircleItem;
+  rank: number;
+  maxPoints: number;
+  onOpen: () => void;
+}) {
+  const interactive = item.kind === "jury";
+  const width = Math.max(4, Math.min(100, (item.points / maxPoints) * 100));
+
+  return (
+    <button
+      type="button"
+      disabled={!interactive}
+      onClick={onOpen}
+      className={cn(
+        "grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-border/60 bg-background/30 p-2.5 text-left",
+        interactive && "transition hover:border-primary/35 hover:bg-surface/60 active:scale-[.995]",
+        !interactive && "cursor-default",
+      )}
+      title={interactive ? `Open ${item.name} points` : undefined}
+    >
+      <span className="numeric w-5 text-center text-[10px] font-semibold text-muted-foreground">
+        {rank}
+      </span>
+
+      <span className="grid min-w-0 grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-3">
+        <span
+          className={cn(
+            "grid h-11 w-11 place-items-center overflow-hidden border border-white/15 shadow-sm",
+            item.kind === "televote" ? "rounded-full bg-fuchsia-500" : "rounded-xl",
+          )}
+          style={item.kind === "jury" ? { backgroundColor: `${item.accent}33` } : undefined}
+        >
+          {item.kind === "televote" ? (
+            <span className="text-[9px] font-black uppercase tracking-[0.1em] text-white">TELE</span>
+          ) : item.flag ? (
+            <img src={item.flag} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-[10px] font-black">{item.code ?? "J"}</span>
+          )}
+        </span>
+
+        <span className="min-w-0">
+          <span className="flex min-w-0 items-baseline gap-2">
+            <strong className="truncate text-sm">{item.name}</strong>
+            {item.code ? (
+              <span className="shrink-0 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                {item.code}
+              </span>
+            ) : null}
+          </span>
+          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface">
+            <span
+              className={cn("block h-full rounded-full", item.kind === "televote" && "bg-fuchsia-500")}
+              style={{
+                width: `${width}%`,
+                backgroundColor: item.kind === "jury" ? item.accent : undefined,
+              }}
+            />
+          </span>
+        </span>
+      </span>
+
+      <span className="min-w-[4.2rem] text-right">
+        <strong className="numeric block text-lg">{item.points}</strong>
+        <span className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
+          pts
+        </span>
+      </span>
+    </button>
   );
 }
 
