@@ -546,10 +546,7 @@ export function useCountries() {
             ),
         ),
 
-    staleTime:
-      5 *
-      60 *
-      1000,
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -603,6 +600,7 @@ export function useEditions() {
               },
             ),
         ),
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -731,6 +729,7 @@ export function useAllShows() {
         all<Show>(
           "shows",
         ),
+    staleTime: 30 * 60 * 1000,
   });
 }
 
