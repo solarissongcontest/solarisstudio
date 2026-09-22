@@ -12,8 +12,8 @@ function countryCodeFromPath(pathname: string) {
 export function CountryFlagLayerController() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: countries } = useCountries();
-  const { data: themes } = useCountryThemes();
   const code = countryCodeFromPath(pathname);
+  const { data: themes } = useCountryThemes({ enabled: Boolean(code) });
 
   const flagEnabled = useMemo(() => {
     if (!code) return null;
