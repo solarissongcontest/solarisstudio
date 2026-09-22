@@ -248,15 +248,16 @@ export function countryBackgroundCss(theme: CountryVisualTheme) {
   return `radial-gradient(circle at ${theme.backgroundPositionX}% ${theme.backgroundPositionY}%, ${theme.backgroundSecondary}cc, transparent 44%), ${thirdGlow}linear-gradient(${theme.gradientAngle}deg, ${theme.backgroundPrimary}, ${theme.backgroundSecondary})`;
 }
 
-export function useCountryThemes() {
+export function useCountryThemes(options?: { enabled?: boolean }) {
   return useQuery({
+    enabled: options?.enabled ?? true,
     queryKey: ["country-themes"],
     queryFn: async () => {
       const { data, error } = await supabase.from("country_themes").select("*");
       if (error) throw error;
       return (data ?? []) as CountryThemeRow[];
     },
-    staleTime: 60_000,
+    staleTime: 30 * 60 * 1000,
   });
 }
 
@@ -273,7 +274,7 @@ export function useCountryTheme(countryId?: string | null) {
       if (error) throw error;
       return (data as CountryThemeRow | null) ?? null;
     },
-    staleTime: 30_000,
+    staleTime: 30 * 60 * 1000,
   });
 }
 
