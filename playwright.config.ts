@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { GLOBAL_MAINTENANCE_MODE } from "./src/lib/maintenance";
+
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
 const publicViewportMatrix = fullAudit
   ? ([
@@ -35,6 +37,20 @@ const personalityViewportMatrix = [
   { width: 1920, height: 1080 },
 ] as const;
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
+
+const maintenanceProjects = [
+  {
+    name: "maintenance-mobile-390",
+    testMatch: /maintenance\.e2e\.ts/,
+    use: { viewport: { width: 390, height: 844 } },
+  },
+  {
+    name: "maintenance-desktop-1440",
+    testMatch: /maintenance\.e2e\.ts/,
+    use: { viewport: { width: 1440, height: 900 } },
+  },
+];
+
 
 export default defineConfig({
   testDir: "./e2e",
@@ -75,7 +91,7 @@ export default defineConfig({
         reuseExistingServer: true,
         timeout: 120_000,
       },
-  projects: [
+  projects: GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : [
     ...publicViewportMatrix.map(({ width, height }) => ({
       name: `public-${width}`,
       testMatch: /public-routes\.e2e\.ts/,
