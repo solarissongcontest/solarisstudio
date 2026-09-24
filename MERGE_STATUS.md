@@ -1,4 +1,4 @@
-# Solaris Studio production status — 20 September 2026
+# Solaris Studio production status — 24 September 2026
 
 Solaris Studio, Confirmations and Televoting are one production application on canonical `main`. Older standalone or compatibility implementations are not production sources of truth.
 
@@ -38,14 +38,14 @@ The former roadmap-only products now have real implementations and canonical rou
 
 | Product | Canonical surface | Rollout state after implementation |
 | --- | --- | --- |
-| Public Encyclopedia | `/encyclopedia` | implemented, rollout-gated |
-| Country Voting DNA | `/voting-dna` | implemented, rollout-gated |
-| Prediction League | `/prediction-league` | implemented, rollout-gated |
-| Fantasy SSC | `/fantasy` and `/admin/fantasy` | implemented, rollout-gated |
-| Time Machine | `/admin/time-machine` | implemented, rollout-gated |
+| Public Encyclopedia | `/encyclopedia` | implemented, globally enabled |
+| Country Voting DNA | `/voting-dna` | implemented, globally enabled |
+| Prediction League | `/prediction-league` | implemented, globally enabled |
+| Fantasy SSC | `/fantasy` and `/admin/fantasy` | implemented, globally enabled |
+| Time Machine | `/admin/time-machine` | implemented and enabled; Organizer route remains access-controlled |
 | Solaris Command Assistant | `/admin/command-assistant` | implemented read-only first, rollout-gated |
 
-The feature registry classifies these as product surfaces rather than planned placeholders. They remain disabled or Organizer-only until migration, CI and production verification have completed.
+The feature registry classifies these as product surfaces rather than planned placeholders. Public product flags are enabled in production; Organizer-only routes remain protected by their normal access controls.
 
 ### Public Encyclopedia
 
@@ -102,6 +102,12 @@ Permission Engine v2 remains authoritative. New Organizer RPCs use capability ch
 Historical/compatibility database objects are not deleted merely because their names contain `legacy`. Retirement decisions are recorded in:
 
 - `docs/engineering/legacy-retirement-inventory-2026-09-20.md`
+
+## Temporary Supabase service restriction handling
+
+Solaris clients recognise HTTP 402 responses from Supabase as a platform service restriction. The application shows a persistent degraded-mode notice so failed database reads or writes are not mistaken for missing Solaris data or successful submissions. The notice is session-scoped and provides an explicit retry action rather than silently retrying writes.
+
+The current egress-reduction changes remain in place: route-scoped country-theme loading, longer cache lifetimes for stable reference data and slower passive live-result polling.
 
 ## Supabase leaked-password protection
 

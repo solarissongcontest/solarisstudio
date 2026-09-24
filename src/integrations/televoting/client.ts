@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import type { TelevotingDatabase } from "@/integrations/televoting/database.types";
+import { noteSupabaseResponse } from "@/lib/supabase-service-restriction";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -24,7 +25,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set("apikey", supabaseKey);
-    return fetch(input, { ...init, headers });
+    return fetch(input, { ...init, headers }).then((response) => {
+      noteSupabaseResponse(response);
+      return response;
+    });
   };
 }
 
