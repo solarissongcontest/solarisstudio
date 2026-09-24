@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="164" height="44" viewBox="0 0 164 44" role="img" aria-labelledby="title desc">
+  <title id="title">TSBC</title>
+  <desc id="desc">Terra Solaris Broadcasting Coalition mark</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6c653"/>
+      <stop offset="1" stop-color="#fff0b0"/>
+    </linearGradient>
+  </defs>
+  <rect x=".5" y=".5" width="163" height="43" rx="13.5" fill="#0b111a" stroke="#ffffff" stroke-opacity=".16"/>
+  <g transform="translate(13 10)">
+    <path d="M12 0 15.2 8.8 24 12l-8.8 3.2L12 24l-3.2-8.8L0 12l8.8-3.2L12 0Z" fill="url(#g)"/>
+    <circle cx="12" cy="12" r="3.2" fill="#0b111a"/>
+  </g>
+  <text x="48" y="28.5" fill="#f7fbff" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="800" letter-spacing="3">TSBC</text>
+</svg>
