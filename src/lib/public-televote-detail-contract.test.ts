@@ -10,7 +10,7 @@ const ssc20 = readFileSync(
   "utf8",
 );
 const ssc21 = readFileSync(
-  "supabase/migrations/20260921173500_reconcile_ssc21_country_source_detail.sql",
+  "supabase/migrations/20260921185254_public_televote_multisource_rounds.sql",
   "utf8",
 );
 const harden = readFileSync(
@@ -22,11 +22,11 @@ const multiSource = readFileSync(
   "utf8",
 );
 const allSemis = readFileSync(
-  "supabase/migrations/20260921202200_ssc21_all_semifinal_televote_detail.sql",
+  "supabase/migrations/20260921192012_ssc21_all_semifinal_televote_detail.sql",
   "utf8",
 );
 const liveRound = readFileSync(
-  "supabase/migrations/20260921224000_ssc21_grand_final_live_round_public_detail.sql",
+  "supabase/migrations/20260921193958_ssc21_grand_final_live_round_public_detail.sql",
   "utf8",
 );
 
@@ -76,13 +76,13 @@ describe("public detailed televote", () => {
     expect(ssc20).toContain("snapshot is stale");
   });
 
-  it("builds SSC21 detail from archived observations while keeping canonical official points", () => {
+  it("builds SSC21 Story detail from archived observations while keeping canonical official points", () => {
     expect(ssc21).toContain("ssc21_instagram_story_detailed_pdf_2026_09_09");
-    expect(ssc21).toContain("704");
-    expect(ssc21).toContain("28");
-    expect(ssc21).toContain("26");
+    expect(ssc21).toContain("historical_vote_observations");
+    expect(ssc21).toContain("Story voting");
+    expect(ssc21).toContain("combined_row_count <> 26");
     expect(ssc21).toContain("public.televote_votes");
-    expect(ssc21).toContain("historical:ssc21_instagram_story_voting");
+    expect(ssc21).toContain("canonical Solaris televote does not match the published Combined result");
   });
 
   it("publishes every enabled SSC21 Combined Televote source separately", () => {
