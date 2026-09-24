@@ -24,6 +24,8 @@ const maintenanceMiddleware = createMiddleware().server(async ({ next }) => {
   const headers = {
     "cache-control": "no-store, max-age=0",
     "content-language": "en",
+    "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
+    "x-robots-tag": "noindex, nofollow",
   };
 
   if (request.method === "GET" || request.method === "HEAD") {

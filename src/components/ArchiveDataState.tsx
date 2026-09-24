@@ -15,11 +15,16 @@ export function archiveHasError(...queries: ArchiveQueryState[]) {
 
 export function ArchiveDataLoading({ label = "Loading the archive…" }: { label?: string }) {
   return (
-    <PublicDataState
-      kind="loading"
-      title={label}
-      description="Published Solaris data is being prepared for this view."
-    />
+    <div
+      className="min-h-[calc(100svh-14rem)]"
+      data-archive-loading-reserve="true"
+    >
+      <PublicDataState
+        kind="loading"
+        title={label}
+        description="Published Solaris data is being prepared for this view."
+      />
+    </div>
   );
 }
 

@@ -2,6 +2,14 @@
 
 Target: WCAG 2.2 AA.
 
+## 24 September outage note
+
+Global maintenance mode is currently active because the production database service is restricted. The maintenance page itself is covered by the responsive Browser Audit on mobile and desktop. Manual verification of the underlying signed-out, signed-in, MySolaris and Organizer surfaces must be repeated after normal database service is restored and before maintenance mode is disabled.
+
+The restoration sequence is tracked in:
+
+- `docs/post-outage-restoration-checklist-2026-09-24.md`
+
 ## Automated contract
 
 Quality and Browser Audit remain release gates. New products use semantic headings, labelled controls, normal buttons/links, table headers and non-colour status copy.

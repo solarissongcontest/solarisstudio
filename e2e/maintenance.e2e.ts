@@ -14,6 +14,8 @@ test("Solaris Studio serves the emergency maintenance notice across the app", as
   for (const route of ROUTES) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${route} should be deliberately unavailable`).toBe(503);
+    expect(response?.headers()["retry-after"]).toBe("Sat, 10 Oct 2026 00:00:00 GMT");
+    expect(response?.headers()["x-robots-tag"]).toContain("noindex");
 
     const main = page.locator('[data-solaris-maintenance="true"]');
     await expect(main).toBeVisible();

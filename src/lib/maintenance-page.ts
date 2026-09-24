@@ -23,6 +23,7 @@ export function renderMaintenancePage(): string {
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#071018" />
     <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex, nofollow" />
     <title>Solaris Studio is temporarily unavailable</title>
     <style>
       :root {
