@@ -27,7 +27,7 @@ test("Solaris Studio serves the emergency maintenance notice across the app", as
       page.getByText(/All deadlines scheduled during this outage will be postponed/i),
     ).toBeVisible();
     await expect(page.getByAltText("TSBC")).toBeVisible();
-    await expect(page.getByAltText("Solaris Studio")).toBeVisible();
+    await expect(page.getByText("Solaris Studio", { exact: true }).first()).toBeVisible();
 
     const overflow = await page.evaluate(
       () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
