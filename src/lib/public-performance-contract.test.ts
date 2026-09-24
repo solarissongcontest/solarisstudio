@@ -51,6 +51,12 @@ describe("public performance contract", () => {
     expect(layouts).toContain('data-public-layout="reading"');
   });
 
+  it("reserves viewport space while archive data loads", () => {
+    const archiveState = source("src/components/ArchiveDataState.tsx");
+    expect(archiveState).toContain('data-archive-loading-reserve="true"');
+    expect(archiveState).toContain("min-h-[calc(100svh-14rem)]");
+  });
+
   it("lets data-heavy result pages reclaim local-navigation width", () => {
     const shell = source("src/components/AppShell.tsx");
     const nav = source("src/components/public/PublicSectionNav.tsx");
