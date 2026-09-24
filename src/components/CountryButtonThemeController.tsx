@@ -12,11 +12,11 @@ function segmentAfter(pathname: string, prefix: string) {
 
 export function CountryButtonThemeController() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const code = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
   const { data: countries } = useCountries();
-  const { data: countryThemes } = useCountryThemes();
+  const { data: countryThemes } = useCountryThemes({ enabled: Boolean(code) });
 
   const resolved = useMemo(() => {
-    const code = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
     if (!code) return null;
     const country = (countries ?? []).find(
       (item) => item.short_code.toLowerCase() === code.toLowerCase(),
@@ -24,7 +24,7 @@ export function CountryButtonThemeController() {
     if (!country) return null;
     const row = (countryThemes ?? []).find((item) => item.country_id === country.id) ?? null;
     return resolveCountryButtonTheme(row, row?.accent ?? country.accent_color);
-  }, [pathname, countries, countryThemes]);
+  }, [code, countries, countryThemes]);
 
   useEffect(() => {
     if (!resolved) return;
