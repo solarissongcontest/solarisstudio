@@ -9,9 +9,7 @@ import {
 } from "@/lib/supabase-service-restriction";
 
 export function SupabaseRestrictionBanner() {
-  const [restriction, setRestriction] = useState<SupabaseServiceRestriction | null>(() =>
-    readSupabaseServiceRestriction(),
-  );
+  const [restriction, setRestriction] = useState<SupabaseServiceRestriction | null>(null);
 
   useEffect(() => {
     setRestriction(readSupabaseServiceRestriction());
