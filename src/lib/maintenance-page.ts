@@ -504,13 +504,13 @@ export function renderMaintenancePage(): string {
 
           <div class="status-row">
             <div class="status"><span class="status-dot" aria-hidden="true"></span>Maintenance mode active</div>
-            <span class="updated">Service notice updated \${updated}</span>
+            <span class="updated">Service notice updated ${updated}</span>
           </div>
 
           <div class="return">
             <div>
               <p class="return-label">Expected return</p>
-              <p class="return-date">\${returnDate}</p>
+              <p class="return-date">${returnDate}</p>
             </div>
             <div class="return-icon" aria-hidden="true">↻</div>
           </div>
