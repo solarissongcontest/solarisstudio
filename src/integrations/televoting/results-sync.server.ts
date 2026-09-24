@@ -43,6 +43,29 @@ function normaliseCode(value: unknown) {
   return String(value ?? "").trim().toUpperCase();
 }
 
+function publicCountryContributions(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const output: Record<string, number> = {};
+
+  for (const [rawCode, rawPoints] of Object.entries(value as Record<string, unknown>)) {
+    const code = normaliseCode(rawCode);
+    const points = Number(rawPoints);
+    if (!/^[A-Z0-9_-]{2,12}$/.test(code)) continue;
+    if (!Number.isFinite(points) || points <= 0 || points > 100000) continue;
+    output[code] = points;
+  }
+
+  return Object.keys(output).length ? output : null;
+}
+
+function combinedSourceContributions(value: unknown) {
+  if (!Array.isArray(value)) return [] as Array<Record<string, unknown>>;
+  return value.filter(
+    (item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object" && !Array.isArray(item),
+  );
+}
+
 async function recordResultSyncEvent(
   db: any,
   outcome: SolarisResultSyncOutcome,
@@ -312,7 +335,7 @@ export async function syncPublishedRoundResultsToSolarisServer(
 
   const { data: round, error: roundError } = await televotingAdmin
     .from("rounds")
-    .select("id,name,results_status,broadcast_display_mode,calculation_version")
+    .select("id,name,results_status,broadcast_display_mode,calculation_version,public_advanced_transparency")
     .eq("id", roundId)
     .maybeSingle();
   if (roundError) throw new Error(roundError.message);
@@ -355,12 +378,12 @@ export async function syncPublishedRoundResultsToSolarisServer(
 
   const { data: rows, error: resultError } = await televotingAdmin
     .from("round_results")
-    .select("country_code,final_points,calculation_version")
+    .select("country_code,final_points,original_votes,calculation_version,calculation_config")
     .eq("round_id", roundId)
     .eq("calculation_version", Number(round.calculation_version ?? 0));
   if (resultError) throw new Error(resultError.message);
 
-  return writeCanonicalShowTelevote({
+  const outcome = await writeCanonicalShowTelevote({
     editionId: binding.edition_id,
     showId: binding.show_id,
     sourceType: "round",
@@ -368,6 +391,61 @@ export async function syncPublishedRoundResultsToSolarisServer(
     rows: (rows ?? []).map((row) => ({ countryCode: String(row.country_code ?? ""), points: Number(row.final_points ?? 0) })),
     freezeRoundIds: [roundId],
   });
+
+  if (outcome.ok && round.public_advanced_transparency) {
+    const snapshotRows = (rows ?? []).map((row) => {
+      const config =
+        row.calculation_config &&
+        typeof row.calculation_config === "object" &&
+        !Array.isArray(row.calculation_config)
+          ? (row.calculation_config as Record<string, unknown>)
+          : {};
+      const contributions = publicCountryContributions(config.country_contributions) ?? {};
+      const activityPoints = Number(config.activity_points ?? NaN);
+      const rawScore = Number(row.original_votes ?? NaN);
+
+      return {
+        show_id: binding.show_id,
+        round_id: roundId,
+        round_name: round.name,
+        source_type: "round",
+        display_order: 0,
+        weight_percent: null,
+        country_code: normaliseCode(row.country_code),
+        final_points: Math.trunc(Number(row.final_points ?? 0)),
+        raw_score: Number.isFinite(rawScore) ? rawScore : null,
+        activity_points:
+          Number.isFinite(activityPoints) && activityPoints >= 0
+            ? activityPoints
+            : null,
+        country_contributions: contributions,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    try {
+      const { error: clearError } = await db
+        .from("public_televote_country_contributions")
+        .delete()
+        .eq("show_id", binding.show_id)
+        .eq("round_id", roundId);
+      if (clearError) throw clearError;
+
+      if (snapshotRows.length) {
+        const { error: snapshotError } = await db
+          .from("public_televote_country_contributions")
+          .insert(snapshotRows);
+        if (snapshotError) throw snapshotError;
+      }
+    } catch (caught) {
+      console.error(
+        "[Televoting result sync] Could not refresh public aggregate snapshot",
+        caught,
+      );
+    }
+  }
+
+  return outcome;
 }
 
 export async function syncPublishedCombinedResultsToSolarisServer(
@@ -395,11 +473,12 @@ export async function syncPublishedCombinedResultsToSolarisServer(
 
   const { data: sources, error: sourceError } = await televotingAdmin
     .from("televote_aggregation_sources")
-    .select("source_round_id,enabled")
+    .select("id,source_type,source_round_id,source_name,enabled,display_order,percentage_weight")
     .eq("aggregation_id", aggregationId);
   if (sourceError) throw new Error(sourceError.message);
-  const sourceRoundIds = [...new Set((sources ?? [])
-    .filter((source) => source.enabled && source.source_round_id)
+  const enabledSources = (sources ?? []).filter((source) => source.enabled);
+  const sourceRoundIds = [...new Set(enabledSources
+    .filter((source) => source.source_round_id)
     .map((source) => String(source.source_round_id)))];
 
   if (!sourceRoundIds.length) {
@@ -432,19 +511,118 @@ export async function syncPublishedCombinedResultsToSolarisServer(
 
   const { data: rows, error: resultError } = await televotingAdmin
     .from("combined_televote_results")
-    .select("country_code,final_combined_points,calculation_version")
+    .select("country_code,final_combined_points,calculation_version,source_contributions")
     .eq("aggregation_id", aggregationId)
     .eq("calculation_version", Number(aggregation.calculation_version ?? 0));
   if (resultError) throw new Error(resultError.message);
 
-  return writeCanonicalShowTelevote({
+  const outcome = await writeCanonicalShowTelevote({
     editionId: target.edition_id,
     showId: target.show_id,
     sourceType: "combined",
     sourceId: aggregationId,
-    rows: (rows ?? []).map((row) => ({ countryCode: String(row.country_code ?? ""), points: Number(row.final_combined_points ?? 0) })),
+    rows: (rows ?? []).map((row) => ({
+      countryCode: String(row.country_code ?? ""),
+      points: Number(row.final_combined_points ?? 0),
+    })),
     freezeRoundIds: sourceRoundIds,
   });
+
+  if (outcome.ok) {
+    const contributionByRoundCountry = new Map<string, Record<string, number>>();
+    if (sourceRoundIds.length) {
+      const { data: roundRows, error: roundRowsError } = await televotingAdmin
+        .from("round_results")
+        .select("round_id,country_code,calculation_config")
+        .in("round_id", sourceRoundIds);
+      if (roundRowsError) throw new Error(roundRowsError.message);
+
+      for (const row of roundRows ?? []) {
+        const config =
+          row.calculation_config &&
+          typeof row.calculation_config === "object" &&
+          !Array.isArray(row.calculation_config)
+            ? (row.calculation_config as Record<string, unknown>)
+            : {};
+        const contributions = publicCountryContributions(config.country_contributions);
+        if (!contributions) continue;
+        contributionByRoundCountry.set(
+          `${String(row.round_id)}:${normaliseCode(row.country_code)}`,
+          contributions,
+        );
+      }
+    }
+
+    const sourceById = new Map(
+      enabledSources.map((source) => [String(source.id), source]),
+    );
+    const snapshotRows: Array<Record<string, unknown>> = [];
+
+    for (const row of rows ?? []) {
+      const countryCode = normaliseCode(row.country_code);
+      for (const item of combinedSourceContributions(row.source_contributions)) {
+        const sourceId = String(item.source_id ?? "");
+        const source = sourceById.get(sourceId);
+        if (!source) continue;
+
+        const rawScore = Number(item.raw_score ?? NaN);
+        const allocatedPoints = Number(item.allocated_points ?? NaN);
+        const weightPercent = Number(source.percentage_weight ?? NaN);
+        const sourceRoundId = source.source_round_id
+          ? String(source.source_round_id)
+          : `aggregation-source:${sourceId}`;
+        const contributions = source.source_round_id
+          ? contributionByRoundCountry.get(
+              `${String(source.source_round_id)}:${countryCode}`,
+            ) ?? {}
+          : {};
+
+        snapshotRows.push({
+          show_id: target.show_id,
+          round_id: sourceRoundId,
+          round_name: String(source.source_name ?? "Televote source"),
+          source_type: String(source.source_type ?? "other"),
+          display_order: Number(source.display_order ?? 0),
+          weight_percent: Number.isFinite(weightPercent) ? weightPercent : null,
+          country_code: countryCode,
+          final_points: Number.isFinite(allocatedPoints)
+            ? Math.trunc(allocatedPoints)
+            : 0,
+          raw_score: Number.isFinite(rawScore) ? rawScore : null,
+          activity_points:
+            String(source.source_type ?? "") === "activity" &&
+            Number.isFinite(rawScore)
+              ? rawScore
+              : null,
+          country_contributions: contributions,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    try {
+      const { error: clearError } = await db
+        .from("public_televote_country_contributions")
+        .delete()
+        .eq("show_id", target.show_id)
+        .neq("source_type", "live");
+      if (clearError) throw clearError;
+
+      if (snapshotRows.length) {
+        const { error: snapshotError } = await db
+          .from("public_televote_country_contributions")
+          .insert(snapshotRows);
+        if (snapshotError) throw snapshotError;
+      }
+    } catch (caught) {
+      console.error(
+        "[Televoting result sync] Could not refresh Combined Televote public snapshot",
+        caught,
+      );
+    }
+  }
+
+  return outcome;
 }
 
 export async function trySyncPublishedRoundResultsToSolarisServer(roundId: string) {

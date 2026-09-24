@@ -342,8 +342,7 @@ body[data-liquid-glass-svg="true"] .country-design-v2[data-country-surface="glas
   height: 100%;
   max-height: 100%;
   border-radius: inherit;
-  object-fit: contain;
-  object-position: center;
+  object-fit: cover;
 }
 .country-v2-hero-flag-fallback {
   display: grid;

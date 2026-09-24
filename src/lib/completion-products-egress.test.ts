@@ -34,7 +34,8 @@ describe("completion product public egress contract", () => {
   });
 
   it("keeps generic archive hooks cached and non-realtime for older archive consumers", () => {
-    expect(archive).toContain("ARCHIVE_STALE_TIME = 10 * 60 * 1000");
+    expect(archive).toContain("ARCHIVE_STALE_TIME = 60 * 60 * 1000");
+    expect(archive).toContain("gcTime: 2 * 60 * 60 * 1000");
     expect(archive).toContain("refetchOnWindowFocus: false");
     expect(archive).toContain("refetchOnReconnect: false");
   });

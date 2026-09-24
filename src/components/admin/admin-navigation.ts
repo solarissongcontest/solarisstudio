@@ -612,6 +612,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/country-accounts"),
         ),
         item(
+          "Flag QA",
+          "Review originals and adjust the shared 3:2 country flag crop.",
+          "/admin/flag-audit",
+          Flag,
+          "country flags crop image audit",
+          (path) => path.startsWith("/admin/flag-audit"),
+        ),
+        item(
           "HOD history",
           "Review Head of Delegation assignments by edition.",
           "/admin/hod-history",

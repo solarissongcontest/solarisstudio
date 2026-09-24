@@ -75,6 +75,9 @@ export type Database = {
           description: string | null
           first_participation: number | null
           flag_image: string | null
+          flag_crop_x: number
+          flag_crop_y: number
+          flag_crop_zoom: number
           id: string
           name: string
           native_name: string | null
@@ -88,6 +91,9 @@ export type Database = {
           description?: string | null
           first_participation?: number | null
           flag_image?: string | null
+          flag_crop_x?: number
+          flag_crop_y?: number
+          flag_crop_zoom?: number
           id?: string
           name: string
           native_name?: string | null
@@ -101,6 +107,9 @@ export type Database = {
           description?: string | null
           first_participation?: number | null
           flag_image?: string | null
+          flag_crop_x?: number
+          flag_crop_y?: number
+          flag_crop_zoom?: number
           id?: string
           name?: string
           native_name?: string | null

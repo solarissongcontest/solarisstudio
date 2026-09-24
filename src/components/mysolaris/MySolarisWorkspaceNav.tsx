@@ -1,3 +1,4 @@
+import { FlagFrame } from "@/components/FlagMedia";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
@@ -158,7 +159,7 @@ function WorkspaceIdentity({
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       {flagUrl ? (
-        <img src={flagUrl} alt="" className="aspect-[3/2] h-8 w-12 shrink-0 rounded-lg bg-background/45 object-contain" />
+        <FlagFrame image={flagUrl} alt={`Flag of ${countryName ?? countryCode ?? "country"}`} fallback={countryCode ?? "SSC"} className="h-8 w-12 rounded-lg" />
       ) : (
         <span className="grid h-8 w-11 shrink-0 place-items-center rounded-lg border border-border bg-background text-[10px] font-black">
           {countryCode ?? "SSC"}

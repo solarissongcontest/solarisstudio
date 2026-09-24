@@ -1,3 +1,4 @@
+import { FlagFrame } from "@/components/FlagMedia";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -486,11 +487,7 @@ function MySolarisPage() {
               <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface/55 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   {country.flag_image ? (
-                    <img
-                      src={country.flag_image}
-                      alt=""
-                      className="aspect-[3/2] h-10 w-[3.75rem] rounded-lg bg-background/45 object-contain"
-                    />
+                    <FlagFrame image={country.flag_image} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-10 w-[3.75rem] rounded-lg" />
                   ) : (
                     <span className="grid h-10 w-14 place-items-center rounded-lg border border-border bg-background text-xs font-bold">
                       {country.short_code}

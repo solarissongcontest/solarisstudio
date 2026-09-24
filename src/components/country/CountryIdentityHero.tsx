@@ -6,6 +6,7 @@ import { countryPersonalitySource } from "@/lib/country-personality-sources";
 import type { CountryGeography } from "@/lib/country-semantic-model";
 import type { CountryDecorationStyle, CountryHeroLayout } from "@/lib/visual-theme";
 import { cn } from "@/lib/utils";
+import { FlagMedia } from "@/components/FlagMedia";
 
 const LazyGlassMaterial = lazy(() =>
   import("@/vendor/liquid-glass/GlassMaterial").then((module) => ({
@@ -102,10 +103,11 @@ export function CountryIdentityHero({
         aria-busy={flagState === "loading" ? "true" : undefined}
       >
         {flagImage ? (
-          <img
-            src={flagImage}
+          <FlagMedia
+            image={flagImage}
             alt={flagState === "ready" ? `Flag of ${name}` : ""}
             loading="eager"
+            fetchPriority="high"
             decoding="async"
             onLoad={() => setFlagState("ready")}
             onError={() => setFlagState("error")}
@@ -167,7 +169,7 @@ export function CountryIdentityHero({
       onPointerLeave={resetGlassLight}
     >
       <div className="country-hero-scene" aria-hidden="true">
-        {flagImage ? <img className="country-hero-scene-flag" src={flagImage} alt="" decoding="async" /> : null}
+        {flagImage ? <img className="country-hero-scene-flag" src={flagImage} alt="" loading="lazy" fetchPriority="low" decoding="async" /> : null}
         <span className="country-hero-scene-light country-hero-scene-light-a" />
         <span className="country-hero-scene-light country-hero-scene-light-b" />
       </div>

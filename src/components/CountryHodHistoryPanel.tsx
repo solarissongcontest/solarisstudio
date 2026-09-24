@@ -1,3 +1,4 @@
+import { FlagMedia } from "@/components/FlagMedia";
 import { useRouterState } from "@tanstack/react-router";
 import { Flag, History, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -390,10 +391,10 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     {edition.flag_image ? (
-                      <img
-                        src={edition.flag_image}
+                      <FlagMedia
+                        image={edition.flag_image}
                         alt=""
-                        className="aspect-[3/2] h-8 w-12 shrink-0 rounded-md bg-background/45 object-contain"
+                        className="aspect-[3/2] h-8 w-12 shrink-0 rounded-md object-cover"
                       />
                     ) : (
                       <span className="grid h-8 w-12 shrink-0 place-items-center rounded-md border border-border bg-background text-[9px] font-bold text-muted-foreground">

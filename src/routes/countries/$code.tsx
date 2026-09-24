@@ -1,14 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Suspense, lazy, useMemo, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
@@ -52,6 +43,10 @@ import {
 } from "@/lib/qualification";
 import { computeRelationship } from "@/lib/stats";
 import { countryThemeToVisual, useCountryTheme } from "@/lib/visual-theme";
+
+const CountryPlacementChart = lazy(() =>
+  import("@/components/country/CountryPlacementChart"),
+);
 
 export const Route = createFileRoute("/countries/$code")({
   head: ({ params }) => {
@@ -136,7 +131,8 @@ function CountryProfilePage() {
   const country = (countries ?? []).find(
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
   );
-  const { data: countryThemeRow } = useCountryTheme(country?.id);
+  const countryThemeQuery = useCountryTheme(country?.id);
+  const { data: countryThemeRow } = countryThemeQuery;
   const designV2Query = useCountryDesignV2(country?.id);
   const visualTheme = countryThemeToVisual(countryThemeRow);
   const publishedDesign = designV2Query.data?.isPublishedV2 ? designV2Query.data.design : null;
@@ -172,8 +168,12 @@ function CountryProfilePage() {
     [country, publicArchive],
   );
 
-  const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
-  if (archiveIsLoading(...archiveQueries)) {
+  const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
+  const archiveLoading = archiveIsLoading(...archiveQueries);
+  const archiveError = archiveHasError(...archiveQueries);
+  const visualLoading = Boolean(country?.id) && (countryThemeQuery.isLoading || designV2Query.isLoading);
+
+  if (countriesQuery.isLoading || visualLoading) {
     return (
       <AppShell>
         <div className="mb-4">
@@ -182,11 +182,11 @@ function CountryProfilePage() {
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold">Loading {code.toUpperCase()}</h1>
         </div>
-        <ArchiveDataLoading label="Loading country profile…" />
+        <ArchiveDataLoading label="Loading country identity…" />
       </AppShell>
     );
   }
-  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
+  if (countriesQuery.isError) return <AppShell><ArchiveDataError /></AppShell>;
 
   if (!country) {
     return (
@@ -388,9 +388,9 @@ function CountryProfilePage() {
   };
 
   const chartData =
-    stats?.timeline
-      .filter((point) => point.rank != null)
-      .map((point) => ({ edition: point.label, rank: point.rank })) ?? [];
+    stats?.timeline.flatMap((point) =>
+      point.rank == null ? [] : [{ edition: point.label, rank: point.rank }],
+    ) ?? [];
 
   return (
     <AppShell>
@@ -461,6 +461,12 @@ function CountryProfilePage() {
           className="mb-5"
         />
 
+        {archiveLoading ? (
+          <ArchiveDataLoading label="Loading country history…" />
+        ) : archiveError ? (
+          <ArchiveDataError />
+        ) : (
+          <>
         {tab === "overview" && (
           <div className="space-y-5">
             <CountryWorldOverview country={country} />
@@ -674,30 +680,15 @@ function CountryProfilePage() {
                 description="One archived placement per edition. Lower placement is better."
               >
                 {chartData.length ? (
-                  <div className="h-[270px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                        <XAxis dataKey="edition" stroke="var(--muted-foreground)" fontSize={11} />
-                        <YAxis reversed allowDecimals={false} stroke="var(--muted-foreground)" fontSize={11} />
-                        <Tooltip
-                          contentStyle={{
-                            background: "var(--popover)",
-                            border: "1px solid var(--border)",
-                            borderRadius: 14,
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="rank"
-                          name="Placement"
-                          stroke="var(--primary)"
-                          strokeWidth={3}
-                          dot
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <Suspense
+                    fallback={
+                      <div className="flex h-[270px] items-center justify-center text-sm text-muted-foreground">
+                        Loading placement chart…
+                      </div>
+                    }
+                  >
+                    <CountryPlacementChart data={chartData} />
+                  </Suspense>
                 ) : (
                   <p className="text-sm text-muted-foreground">No ranked results recorded yet.</p>
                 )}
@@ -876,6 +867,8 @@ function CountryProfilePage() {
               </details>
             </div>
           ) : <NoContestData countryName={country.name} />
+        )}
+          </>
         )}
       </div>
     </AppShell>

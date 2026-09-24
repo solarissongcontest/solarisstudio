@@ -17,14 +17,17 @@ import anniversaryCss from "../anniversary.css?url";
 import solarisBackgroundCss from "../solaris-background.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
+import flagMediaCss from "../flag-media.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { RulesGovernanceContext } from "../components/rules/RulesGovernanceContext";
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
+import { SupabaseRestrictionBanner } from "../components/SupabaseRestrictionBanner";
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { isSupabaseServiceRestrictionError } from "../lib/supabase-service-restriction";
 import { startPublicWebVitals } from "../lib/public-web-vitals";
 
 const SITE_DESCRIPTION =
@@ -111,6 +114,7 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const serviceRestricted = isSupabaseServiceRestrictionError(error);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
@@ -119,10 +123,12 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          {serviceRestricted ? "Solaris data service is temporarily restricted" : "This page didn't load"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          {serviceRestricted
+            ? "Supabase is currently refusing data requests. Cached or static pages may still work, but database-backed reads and saves can fail."
+            : "Something went wrong on our end. You can try refreshing or head back home."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -195,6 +201,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: solarisBackgroundCss },
       { rel: "stylesheet", href: cardTypographyCss },
       { rel: "stylesheet", href: solarisMotionCss },
+      { rel: "stylesheet", href: flagMediaCss },
     ],
   }),
   shellComponent: RootShell,
@@ -253,6 +260,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SupabaseRestrictionBanner />
       <SolarisAnniversaryCelebration />
       <RouteVisualTheme />
       <RulesGovernanceContext />

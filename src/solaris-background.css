@@ -506,7 +506,14 @@ body[data-solaris-family="core"] {
   }
 }
 
-/* Decoration stays perceptible at the page edge without competing with
-   headings, score grids or information on translucent surfaces. */
-.app-background::before { opacity: .05; }
-.app-background::after { opacity: .03; }
+/* Keep the ambient motif below information, and clear the desktop sidebar
+   where navigation labels otherwise sit across the star outlines. */
+.app-background::before { opacity: .025; }
+.app-background::after { opacity: .012; }
+
+@media (min-width: 64rem) {
+  body:has(.public-site-sidebar) .app-background::before,
+  body:has(.public-site-sidebar) .app-background::after {
+    mask-image: linear-gradient(to right, transparent 0 15rem, #000 20rem);
+  }
+}

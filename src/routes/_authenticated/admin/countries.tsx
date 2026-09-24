@@ -80,9 +80,10 @@ function CountriesCockpitPage() {
           title="Country cockpit"
           description="A single readiness matrix for every participating delegation in the selected edition. Scores use the same country operational-readiness model as the HOD workspace."
           actions={
-            <Link to="/confirmations/admin" className="admin-action-secondary">
-              Confirmation operations
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/admin/flag-audit" className="admin-action-secondary">Flag QA</Link>
+              <Link to="/confirmations/admin" className="admin-action-secondary">Confirmation operations</Link>
+            </div>
           }
         />
 

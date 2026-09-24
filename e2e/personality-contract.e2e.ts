@@ -97,7 +97,7 @@ test("all personalities survive hostile content at 200% text, RTL and high contr
 
 
 
-test("all canonical flag fixtures preserve intrinsic aspect ratio", async ({ page }, testInfo) => {
+test("all canonical flag fixtures fill their standard frame without stretching", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "personality-390", "Flag geometry QA uses the canonical mobile Lab.");
 
   await openPersonalityLab(page);
@@ -116,14 +116,14 @@ test("all canonical flag fixtures preserve intrinsic aspect ratio", async ({ pag
         renderedRatio: rect.width / rect.height,
         objectFit: style.objectFit,
         opacity: style.opacity,
+        transform: style.transform,
       };
     });
-    expect(metrics.objectFit, `${flagCase} object-fit`).toBe("contain");
+    expect(metrics.naturalRatio, `${flagCase} source ratio`).toBeGreaterThan(0);
+    expect(metrics.objectFit, `${flagCase} object-fit`).toBe("cover");
     expect(metrics.opacity, `${flagCase} factual flag opacity`).toBe("1");
-    expect(
-      Math.abs(metrics.naturalRatio - metrics.renderedRatio),
-      `${flagCase} aspect-ratio distortion`,
-    ).toBeLessThan(0.03);
+    expect(metrics.renderedRatio, `${flagCase} frame ratio`).toBeCloseTo(1.5, 2);
+    expect(metrics.transform, `${flagCase} no nonuniform transform`).toBe("none");
   }
 });
 

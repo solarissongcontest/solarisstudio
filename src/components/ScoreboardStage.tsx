@@ -363,31 +363,25 @@ function prepareCardForPublicSurface(
   const zones = card.zones.map((zone) => {
     if (zone.type === "flag") {
       const usableRowHeight = Math.max(18, card.height - card.paddingY * 2);
+      const shapeKind = zone.shape?.kind ?? "rounded";
+      const squareShape = shapeKind === "circle" || shapeKind === "square";
       const flagHeight = Math.max(
         18,
         Math.min(
-          zone.height ?? (compact ? 24 : 32),
+          zone.height ?? zone.width ?? (compact ? 24 : 32),
           usableRowHeight,
         ),
       );
-      const flagWidth = flagHeight * 1.5;
-      const flagRadius = card.radius > 0
-        ? Math.min(10, Math.max(3, card.radius * 0.45))
-        : 0;
+      const flagWidth = zone.width ?? (squareShape ? flagHeight : flagHeight * 1.5);
 
       return {
         ...zone,
         width: flagWidth,
         minWidth: flagWidth,
         maxWidth: flagWidth,
-        height: flagHeight,
+        height: zone.height ?? (squareShape ? flagWidth : flagHeight),
         grow: 0,
-        fit: "contain" as const,
-        shape: {
-          ...zone.shape,
-          kind: flagRadius > 0 ? "rounded" as const : "rect" as const,
-          radius: flagRadius,
-        },
+        fit: "cover" as const,
       };
     }
 

@@ -1,4 +1,5 @@
 "use client";
+import { FlagMedia } from "@/components/FlagMedia";
 
 import {
   createFileRoute,
@@ -1414,14 +1415,14 @@ function CurrentVoterPanel({
   return (
     <div className="flex h-full flex-col items-center justify-center text-center">
       {voter.flag_image ? (
-        <img
-          src={
+        <FlagMedia
+          image={
             voter.flag_image
           }
           alt={
             voter.name
           }
-          className="mb-4 aspect-[3/2] max-h-40 w-full rounded-xl bg-black/15 object-contain"
+          className="mb-4 aspect-[3/2] max-h-40 w-full rounded-xl object-cover"
         />
       ) : (
         <div

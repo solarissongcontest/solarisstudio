@@ -21,13 +21,12 @@
 }
 
 .country-identity-hero .country-official-flag img {
-  inline-size: auto !important;
-  block-size: auto !important;
-  max-inline-size: 100% !important;
-  max-block-size: 100% !important;
+  inline-size: 100% !important;
+  block-size: 100% !important;
+  max-inline-size: none !important;
+  max-block-size: none !important;
   border-radius: inherit;
-  object-fit: contain !important;
-  object-position: center !important;
+  object-fit: cover !important;
 }
 
 .country-identity-hero[data-country-personality="glass-card"] { --cp-flag-max-inline: 11rem; --cp-flag-max-block: 7.375rem; }

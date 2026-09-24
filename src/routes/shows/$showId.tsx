@@ -1,9 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import { DetailedTelevoteBreakdown } from "@/components/DetailedTelevoteBreakdown";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
@@ -12,6 +15,7 @@ import { RadialPointsView } from "@/components/RadialPointsView";
 import { ResponsiveTabs, type ResponsiveTabOption } from "@/components/ResponsiveTabs";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
 import { StoryCards } from "@/components/StoryCards";
+import { ShowVotingStats } from "@/components/ShowVotingStats";
 import { TelevoteRoundsComparison } from "@/components/TelevoteRoundsComparison";
 import { VotingMatrix } from "@/components/VotingMatrix";
 
@@ -40,10 +44,28 @@ import { resolveTheme } from "@/lib/theme";
 import { hasMultipleTelevoteRounds, parseTelevoteComponents, resolveVoting } from "@/lib/voting";
 import type { Standing } from "@/lib/analysis";
 import { buildShowStories } from "@/lib/stories";
+import { getPublicShowTelevoteDetail } from "@/integrations/televoting/public-detail.functions";
 
-type Tab = "stories" | "scoreboard" | "points" | "split" | "matrix" | "lineup";
+type Tab =
+  | "stories"
+  | "scoreboard"
+  | "points"
+  | "split"
+  | "matrix"
+  | "televote-detail"
+  | "stats"
+  | "lineup";
 
-const TAB_VALUES = new Set<Tab>(["stories", "scoreboard", "points", "split", "matrix", "lineup"]);
+const TAB_VALUES = new Set<Tab>([
+  "stories",
+  "scoreboard",
+  "points",
+  "split",
+  "matrix",
+  "televote-detail",
+  "stats",
+  "lineup",
+]);
 
 type ShowSearch = {
   tab?: Tab;
@@ -117,6 +139,18 @@ function ShowPage() {
   const allShowsQuery = useAllShows();
   const themesQuery = useThemes();
   const entitiesQuery = useContestEntities(showQuery.data?.edition_id);
+  const getPublicTelevoteDetail = useServerFn(getPublicShowTelevoteDetail);
+  const televoteDetailQuery = useQuery({
+    queryKey: ["public-show-televote-detail", showId],
+    queryFn: () => getPublicTelevoteDetail({ data: { showId } }),
+    enabled: Boolean(
+      showQuery.data &&
+        resolveShowPublication(showQuery.data).detailed_voting &&
+        resolveShowPublication(showQuery.data).televote_results,
+    ),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
   const { data: show } = showQuery;
   const { data: participants } = participantsQuery;
   const { data: archivedResults } = resultsQuery;
@@ -138,6 +172,8 @@ function ShowPage() {
   const showTelevoteResults = voting.televoteEnabled && publication.televote_results;
   const multiRoundTelevote =
     showTelevoteResults && !voting.juryEnabled && hasMultipleTelevoteRounds(voting);
+  const detailedTelevote = televoteDetailQuery.data ?? null;
+  const hasDetailedTelevote = Boolean(detailedTelevote?.rounds.length);
 
   const showIsPublic = isShowPublic(show);
   const displayMap = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
@@ -257,6 +293,14 @@ function ShowPage() {
       options.push({ value: "points", label: "Points explorer" });
     }
 
+    if (hasDetailedTelevote) {
+      options.push({ value: "televote-detail", label: "Televote detail" });
+    }
+
+    if (publication.results && standings.length) {
+      options.push({ value: "stats", label: "Stats" });
+    }
+
     if (publication.results && stories.length) {
       options.push({ value: "stories", label: "Result stories" });
     }
@@ -277,6 +321,8 @@ function ShowPage() {
     showJuryResults,
     showTelevoteResults,
     multiRoundTelevote,
+    hasDetailedTelevote,
+    standings.length,
     stories.length,
   ]);
 
@@ -492,6 +538,24 @@ function ShowPage() {
           jury={showJuryResults ? (jury ?? []) : []}
           televote={showTelevoteResults ? (tele ?? []) : []}
           voters={voters}
+        />
+      )}
+
+      {tab === "televote-detail" && hasDetailedTelevote && detailedTelevote && (
+        <DetailedTelevoteBreakdown
+          rounds={detailedTelevote.rounds}
+          countries={displayMap}
+        />
+      )}
+
+      {tab === "stats" && publication.results && standings.length > 0 && (
+        <ShowVotingStats
+          standings={standings}
+          countries={displayMap}
+          jury={showJuryResults ? (jury ?? []) : []}
+          topJuryPoints={voting.juryPoints[0] ?? 12}
+          showJury={showJuryResults}
+          showTelevote={showTelevoteResults}
         />
       )}
 

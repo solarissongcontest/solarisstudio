@@ -9,6 +9,7 @@ import {
 } from "@/lib/data";
 
 import { cn } from "@/lib/utils";
+import { FlagMedia } from "@/components/FlagMedia";
 
 /**
  * Interactive voting matrix — rows receive, columns give.
@@ -104,12 +105,12 @@ export function VotingMatrix({
                   {index + 1}
                 </span>
                 {country?.flag_image ? (
-                  <img
-                    src={country.flag_image}
+                  <FlagMedia
+                    image={country.flag_image}
                     alt=""
                     loading="lazy"
                     decoding="async"
-                    className="h-4 w-6 shrink-0 rounded-[2px] object-contain"
+                    className="h-4 w-6 shrink-0 rounded-[2px] object-cover"
                   />
                 ) : null}
                 <span className="truncate text-sm font-semibold">{country?.name ?? to}</span>
@@ -146,12 +147,12 @@ export function VotingMatrix({
                 >
                   <span className="flex flex-col items-center gap-1">
                     {c?.flag_image ? (
-                      <img
-                        src={c.flag_image}
+                      <FlagMedia
+                        image={c.flag_image}
                         alt={c.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-contain"
+                        className="h-4 w-6 rounded-[2px] object-cover"
                       />
                     ) : null}
                     <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
@@ -172,12 +173,12 @@ export function VotingMatrix({
                 <th className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur">
                   <span className="flex items-center gap-2">
                     {rc?.flag_image ? (
-                      <img
-                        src={rc.flag_image}
+                      <FlagMedia
+                        image={rc.flag_image}
                         alt={rc.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-contain"
+                        className="h-4 w-6 rounded-[2px] object-cover"
                       />
                     ) : null}
                     <span className="truncate">{rc?.name}</span>
@@ -247,12 +248,12 @@ export function VotingMatrix({
                 >
                   <span className="flex flex-col items-center gap-1">
                     {c?.flag_image ? (
-                      <img
-                        src={c.flag_image}
+                      <FlagMedia
+                        image={c.flag_image}
                         alt={c.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-contain"
+                        className="h-4 w-6 rounded-[2px] object-cover"
                       />
                     ) : null}
                     <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
@@ -273,12 +274,12 @@ export function VotingMatrix({
                 <th className="sticky left-0 z-10 max-w-44 truncate bg-background/90 px-2 py-1 text-left font-normal backdrop-blur">
                   <span className="flex items-center gap-2">
                     {rc?.flag_image ? (
-                      <img
-                        src={rc.flag_image}
+                      <FlagMedia
+                        image={rc.flag_image}
                         alt={rc.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-contain"
+                        className="h-4 w-6 rounded-[2px] object-cover"
                       />
                     ) : null}
                     <span className="truncate">{rc?.name}</span>

@@ -76,8 +76,8 @@
 }
 
 .wiki-canvas .country-wiki-header .country-official-flag img {
-  max-block-size: 7.5rem;
-  object-fit: contain !important;
+  max-block-size: none;
+  object-fit: cover;
 }
 
 .wiki-canvas .country-wiki-header .country-hero-description {
