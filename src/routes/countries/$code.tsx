@@ -388,9 +388,9 @@ function CountryProfilePage() {
   };
 
   const chartData =
-    stats?.timeline
-      .filter((point) => point.rank != null)
-      .map((point) => ({ edition: point.label, rank: point.rank })) ?? [];
+    stats?.timeline.flatMap((point) =>
+      point.rank == null ? [] : [{ edition: point.label, rank: point.rank }],
+    ) ?? [];
 
   return (
     <AppShell>
