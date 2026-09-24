@@ -29,5 +29,8 @@ describe("emergency global maintenance mode", () => {
     expect(start).toContain('"solaris_studio_maintenance"');
     expect(start).toContain('"/tsbc-maintenance-mark.svg"');
     expect(start).toContain('"/solaris-studio-mark.png"');
+    expect(start).toContain('"retry-after": "Sat, 10 Oct 2026 00:00:00 GMT"');
+    expect(start).toContain('"x-robots-tag": "noindex, nofollow"');
+    expect(page).toContain('<meta name="robots" content="noindex, nofollow" />');
   });
 });
