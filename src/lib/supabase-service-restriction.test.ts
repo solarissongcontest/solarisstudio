@@ -7,7 +7,11 @@ describe("Supabase service restriction detection", () => {
     expect(isSupabaseServiceRestrictionError({ status: 402, message: "Payment Required" })).toBe(true);
   });
 
-  it("recognises a textual 402 restriction", () => {\n    expect(isSupabaseServiceRestrictionError({ message: "HTTP 402 service restriction" })).toBe(true);\n  });\n\n  it("recognises fair-use and egress restriction messages", () => {
+  it("recognises a textual 402 restriction", () => {
+    expect(isSupabaseServiceRestrictionError({ message: "HTTP 402 service restriction" })).toBe(true);
+  });
+
+  it("recognises fair-use and egress restriction messages", () => {
     expect(
       isSupabaseServiceRestrictionError({
         message: "Project service restriction: exceeded_egress_quota",
