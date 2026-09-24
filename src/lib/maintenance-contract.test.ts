@@ -15,6 +15,16 @@ describe("emergency global maintenance mode", () => {
     expect(start).toContain('status: 503');
   });
 
+  it("uses the canonical Solaris visual system and reduced-motion-safe animation", () => {
+    expect(page).toContain('font-family: "Classica Crastao"');
+    expect(page).toContain('font-family: "Gotham"');
+    expect(page).toContain('url("/solaris-background.webp")');
+    expect(page).toContain("@media (prefers-reduced-motion: no-preference)");
+    expect(page).toContain("@keyframes reveal-panel");
+    expect(page).toContain("@keyframes aurora-one");
+    expect(page).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
   it("publishes the return date and deadline postponement", () => {
     expect(config).toContain('"10 October 2026"');
     expect(page).toContain(
