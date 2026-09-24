@@ -65,7 +65,7 @@ export function isSupabaseServiceRestrictionError(error: unknown) {
     .filter((part): part is string => typeof part === "string")
     .join(" ");
 
-  return /(?:\\b402\\b|service[- ]restriction|fair use|exceed(?:ed)?[_ -](?:egress|db|database|quota))/i.test(
+  return /(?:\b402\b|service[- ]restriction|fair use|exceed(?:ed)?[_ -](?:egress|db|database|quota))/i.test(
     message,
   );
 }
