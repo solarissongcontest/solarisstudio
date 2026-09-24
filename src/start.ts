@@ -1,7 +1,57 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 
 import { renderErrorPage } from "./lib/error-page";
+import { GLOBAL_MAINTENANCE_MODE } from "./lib/maintenance";
+import { renderMaintenancePage } from "./lib/maintenance-page";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+
+const MAINTENANCE_ASSET_PATHS = new Set([
+  "/tsbc-maintenance-mark.svg",
+  "/solaris-studio-mark.png",
+  "/favicon.ico",
+]);
+
+const maintenanceMiddleware = createMiddleware().server(async ({ next }) => {
+  if (!GLOBAL_MAINTENANCE_MODE) return next();
+
+  const request = getRequest();
+  if (!request) return next();
+
+  const url = new URL(request.url);
+  if (MAINTENANCE_ASSET_PATHS.has(url.pathname)) return next();
+
+  const headers = {
+    "cache-control": "no-store, max-age=0",
+    "content-language": "en",
+  };
+
+  if (request.method === "GET" || request.method === "HEAD") {
+    return new Response(request.method === "HEAD" ? null : renderMaintenancePage(), {
+      status: 503,
+      headers: {
+        ...headers,
+        "content-type": "text/html; charset=utf-8",
+      },
+    });
+  }
+
+  return new Response(
+    JSON.stringify({
+      error: "solaris_studio_maintenance",
+      message:
+        "Solaris Studio is temporarily offline while database service is restored. Writes are disabled during the outage.",
+      expected_return: "2026-10-10",
+    }),
+    {
+      status: 503,
+      headers: {
+        ...headers,
+        "content-type": "application/json; charset=utf-8",
+      },
+    },
+  );
+});
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -27,5 +77,5 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [maintenanceMiddleware, errorMiddleware, csrfMiddleware],
 }));
