@@ -96,6 +96,8 @@ export function CountryDesignV2Hero({
                 className="country-v2-liquid-glass-scene-flag"
                 src={flagImage}
                 alt=""
+                loading="lazy"
+                fetchPriority="low"
                 decoding="async"
               />
             ) : null}
@@ -144,7 +146,7 @@ export function CountryDesignV2Hero({
       {design.hero.showFlag ? (
         <div className="country-v2-hero-flag" data-design-target="hero-flag">
           {flagImage ? (
-            <FlagMedia image={flagImage} alt={`Flag of ${name}`} loading="eager" decoding="async" />
+            <FlagMedia image={flagImage} alt={`Flag of ${name}`} loading="eager" fetchPriority="high" decoding="async" />
           ) : (
             <span className="country-v2-hero-flag-fallback" role="status" aria-label={`Flag unavailable for ${name}`}>
               {code}

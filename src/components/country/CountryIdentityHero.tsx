@@ -107,6 +107,7 @@ export function CountryIdentityHero({
             image={flagImage}
             alt={flagState === "ready" ? `Flag of ${name}` : ""}
             loading="eager"
+            fetchPriority="high"
             decoding="async"
             onLoad={() => setFlagState("ready")}
             onError={() => setFlagState("error")}
@@ -168,7 +169,7 @@ export function CountryIdentityHero({
       onPointerLeave={resetGlassLight}
     >
       <div className="country-hero-scene" aria-hidden="true">
-        {flagImage ? <img className="country-hero-scene-flag" src={flagImage} alt="" decoding="async" /> : null}
+        {flagImage ? <img className="country-hero-scene-flag" src={flagImage} alt="" loading="lazy" fetchPriority="low" decoding="async" /> : null}
         <span className="country-hero-scene-light country-hero-scene-light-a" />
         <span className="country-hero-scene-light country-hero-scene-light-b" />
       </div>

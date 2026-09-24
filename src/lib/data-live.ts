@@ -15,7 +15,7 @@ import type {
 export * from "./data";
 
 const PAGE_SIZE = 1000;
-const ARCHIVE_STALE_TIME = 10 * 60 * 1000;
+const ARCHIVE_STALE_TIME = 60 * 60 * 1000;
 
 type ArchiveTable =
   | "jury_votes"
@@ -79,7 +79,7 @@ function useCompleteArchive<T>(
     // Historical archives are large (jury_votes alone is thousands of rows).
     // Cache them across navigation/focus/reconnect instead of redownloading.
     staleTime: ARCHIVE_STALE_TIME,
-    gcTime: 30 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
