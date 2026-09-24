@@ -24,7 +24,7 @@ Privileged Televoting requests remain user-token based. The server passes the **
 
 Public IA v3 is globally enabled and is the normal public experience.
 
-The old public navigation implementation is still present **only as rollback insurance** because its permanent removal is evidence-gated. The retirement dashboard uses the existing Beta 3 release criteria and production telemetry. As of the 20 September evidence snapshot, the comparable Beta 3 sample is still too small to justify destructive retirement.
+The old public navigation implementation is still present **only as rollback insurance** because its permanent removal is evidence-gated. The retirement dashboard uses the existing Beta 3 release criteria and production telemetry. As of 24 September 2026, the comparable Beta 3 submission sample is still **0**, so destructive retirement is not justified.
 
 This is not unfinished navigation implementation. It is an explicit evidence gate. See:
 
@@ -43,7 +43,7 @@ The former roadmap-only products now have real implementations and canonical rou
 | Prediction League | `/prediction-league` | implemented, globally enabled |
 | Fantasy SSC | `/fantasy` and `/admin/fantasy` | implemented, globally enabled |
 | Time Machine | `/admin/time-machine` | implemented and enabled; Organizer route remains access-controlled |
-| Solaris Command Assistant | `/admin/command-assistant` | implemented read-only first, rollout-gated |
+| Solaris Command Assistant | `/admin/command-assistant` | implemented and enabled read-only; Organizer route remains access-controlled |
 
 The feature registry classifies these as product surfaces rather than planned placeholders. Public product flags are enabled in production; Organizer-only routes remain protected by their normal access controls.
 
@@ -71,13 +71,25 @@ Time Machine is read-only. It reconstructs recorded event and audit evidence at 
 
 The first release is read-only and registry-based. Natural language maps only to registered operations and canonical routes. It does not generate arbitrary SQL or bypass Permission Engine v2. Mutating commands are intentionally not part of the initial rollout.
 
+## Public voting and flag overhaul
+
+The final public flag, Points Explorer and detailed televote overhaul is merged on canonical `main`.
+
+- factual country flags use the canonical 3:2 crop system without stretching;
+- explicit square/circle/custom scoreboard geometry remains supported where that geometry is part of the component contract;
+- Points Explorer uses the circular Received/Given interaction with one aggregate TELE node;
+- detailed televote country-source analysis is separated from official televote points;
+- SSC20 historical source detail is reconciled without changing official aggregate results;
+- SSC21 includes the available multi-source and archived country-source detail while clearly separating source units from official points;
+- public detail remains publication-gated and excludes raw private ballots, usernames and internal integrity/calculation metadata.
+
 ## Performance
 
-Production real-user Web Vitals telemetry is active. The 20 September sample is still small, so route-level signals are treated as investigation evidence rather than universal performance conclusions.
+Production real-user Web Vitals telemetry is active. The 24 September snapshot has larger samples on several routes, but measurements collected during the Supabase restriction can exaggerate network-dependent LCP and must not be treated as a clean post-fix baseline.
 
 The current evidence and thresholds are recorded in:
 
-- `docs/performance-baseline-2026-09-20.md`
+- `docs/performance-baseline-2026-09-24.md`
 
 The recent Supabase egress reduction also changed passive live-result refresh from a 3-second database poll to a 30-second cadence while retaining focus/visibility invalidation.
 
@@ -105,9 +117,13 @@ Historical/compatibility database objects are not deleted merely because their n
 
 ## Temporary Supabase service restriction handling
 
-Solaris clients recognise HTTP 402 responses from Supabase as a platform service restriction. The application shows a persistent degraded-mode notice so failed database reads or writes are not mistaken for missing Solaris data or successful submissions. The notice is session-scoped and provides an explicit retry action rather than silently retrying writes.
+A global server-level maintenance mode is active while the production Supabase service is restricted. Normal GET/HEAD routes return a branded HTTP 503 maintenance page before application routing or Supabase-backed rendering. Non-GET requests return HTTP 503 JSON and are not forwarded to normal application write handling.
 
-The current egress-reduction changes remain in place: route-scoped country-theme loading, longer cache lifetimes for stable reference data and slower passive live-result polling.
+The public notice states an expected return of **10 October 2026** and that **all deadlines scheduled during the outage will be postponed**. MySolaris, Confirmations, Televoting and Organizer are intentionally unavailable rather than being left partially functional.
+
+The client-side HTTP 402 detector remains in the codebase as defence in depth for future platform restriction responses after maintenance mode is removed.
+
+The current egress-reduction changes remain in place: route-scoped country-theme loading, longer cache lifetimes for stable reference data, slower passive live-result polling and reduced archive-loading layout shift.
 
 ## Supabase leaked-password protection
 
