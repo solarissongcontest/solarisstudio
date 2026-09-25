@@ -25,7 +25,8 @@ describe("emergency global maintenance mode", () => {
     expect(page).toContain('class="recovery-visual"');
     expect(page).toContain('class="recovery-stage"');
     expect(page).toContain('class="tsbc-core"');
-    expect(page).toContain("<span>TSBC</span>");
+    expect(page).toContain('<div class="tsbc-core"><img src="/solaris-studio-mark.png"');
+    expect(page.match(/src="\/solaris-studio-mark\.png"/g)?.length).toBe(2);
     expect(page).toContain("@keyframes orbit-one-motion");
     expect(page).toContain("@keyframes recovery-scan");
     expect(page).toContain("@keyframes recovery-ping");

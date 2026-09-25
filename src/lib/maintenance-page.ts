@@ -284,8 +284,8 @@ export function renderMaintenancePage(): string {
       .recovery-stage {
         position: relative;
         z-index: 1;
-        width: min(100%, 330px);
-        aspect-ratio: 1.12;
+        width: min(100%, 300px);
+        aspect-ratio: 1;
         margin-inline: auto;
         display: grid;
         place-items: center;
@@ -307,29 +307,26 @@ export function renderMaintenancePage(): string {
       .tsbc-core {
         position: relative;
         z-index: 8;
-        width: 31%;
-        min-width: 84px;
+        width: 34%;
+        min-width: 92px;
         aspect-ratio: 1;
         display: grid;
         place-items: center;
         border-radius: 50%;
-        border: 1px solid rgba(223,247,253,.32);
-        background:
-          radial-gradient(circle at 36% 28%, rgba(245,252,255,.18), transparent 30%),
-          linear-gradient(145deg, rgba(28,64,96,.97), rgba(6,18,37,.99));
+        background: radial-gradient(circle, rgba(142,220,243,.10), rgba(5,18,37,.015) 62%, transparent 72%);
         box-shadow:
-          0 0 0 8px rgba(122,215,242,.025),
-          0 0 38px rgba(104,203,234,.24),
-          inset 0 1px 0 rgba(247,253,255,.30);
+          0 0 0 8px rgba(122,215,242,.018),
+          0 0 34px rgba(104,203,234,.20);
       }
-      .tsbc-core span {
-        font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
-        font-size: clamp(1.05rem, 4vw, 1.45rem);
-        font-weight: 700;
-        letter-spacing: .16em;
-        transform: translateX(.08em);
-        color: #f5fbfd;
-        text-shadow: 0 0 18px rgba(181,236,252,.30);
+      .tsbc-core img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
+        border-radius: 50%;
+        filter:
+          drop-shadow(0 6px 18px rgba(0,0,0,.24))
+          drop-shadow(0 0 14px rgba(156,225,245,.16));
       }
 
       .orbit {
@@ -365,15 +362,15 @@ export function renderMaintenancePage(): string {
         box-shadow: 0 0 12px rgba(120,206,231,.68);
       }
       .orbit-one {
-        width: 79%;
-        height: 46%;
+        width: 82%;
+        height: 44%;
         margin-left: -39.5%;
         margin-top: -23%;
         transform: rotate(-11deg);
       }
       .orbit-two {
-        width: 60%;
-        height: 68%;
+        width: 62%;
+        height: 64%;
         margin-left: -30%;
         margin-top: -34%;
         transform: rotate(52deg);
@@ -383,7 +380,7 @@ export function renderMaintenancePage(): string {
       .sweep {
         position: absolute;
         z-index: 3;
-        width: 76%;
+        width: 72%;
         aspect-ratio: 1;
         border-radius: 50%;
         background: conic-gradient(
@@ -402,10 +399,10 @@ export function renderMaintenancePage(): string {
       .pulse {
         position: absolute;
         z-index: 4;
-        width: 31%;
+        width: 34%;
         aspect-ratio: 1;
         border-radius: 50%;
-        border: 1px solid rgba(157,223,242,.30);
+        border: 1px solid rgba(157,223,242,.24);
         opacity: 0;
       }
 
@@ -620,7 +617,7 @@ export function renderMaintenancePage(): string {
           gap: .55rem;
           padding: .85rem .8rem 1rem;
         }
-        .recovery-stage { width: min(80vw, 290px); }
+        .recovery-stage { width: min(72vw, 250px); }
         .recovery-copy { padding: .15rem .2rem .1rem; }
         .recovery-copy h2 { font-size: 1.18rem; }
         .recovery-copy > p:last-of-type { font-size: .82rem; }
@@ -647,12 +644,12 @@ export function renderMaintenancePage(): string {
         .lead { animation: reveal-item .58s .36s cubic-bezier(.23,1,.32,1) both; }
         .recovery-visual { animation: reveal-item .58s .42s cubic-bezier(.23,1,.32,1) both; }
         .status-row { animation: reveal-item .5s .52s cubic-bezier(.23,1,.32,1) both; }
-        .orbit-one { animation: orbit-one-motion 12s linear infinite; }
-        .orbit-two { animation: orbit-two-motion 18s linear infinite reverse; }
-        .sweep { animation: recovery-scan 6.5s linear infinite; }
+        .orbit-one { animation: orbit-one-motion 15s linear infinite; }
+        .orbit-two { animation: orbit-two-motion 21s linear infinite reverse; }
+        .sweep { animation: recovery-scan 8s linear infinite; }
         .pulse-one { animation: recovery-ping 4.2s ease-out infinite; }
         .pulse-two { animation: recovery-ping 4.2s 2.1s ease-out infinite; }
-        .tsbc-core { animation: core-breathe 4.4s ease-in-out infinite; }
+        .tsbc-core { animation: core-breathe 5.2s ease-in-out infinite; }
         .spark-a { animation: spark-float-a 5.4s ease-in-out infinite alternate; }
         .spark-b { animation: spark-float-b 6.2s .7s ease-in-out infinite alternate; }
         .spark-c { animation: spark-float-c 4.8s 1.1s ease-in-out infinite alternate; }
@@ -785,7 +782,7 @@ export function renderMaintenancePage(): string {
               <div class="spark spark-a"></div>
               <div class="spark spark-b"></div>
               <div class="spark spark-c"></div>
-              <div class="tsbc-core"><span>TSBC</span></div>
+              <div class="tsbc-core"><img src="/solaris-studio-mark.png" alt="" width="256" height="256" /></div>
             </div>
             <div class="recovery-copy">
               <p class="recovery-kicker">Recovery sequence</p>
