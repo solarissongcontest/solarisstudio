@@ -22,6 +22,12 @@ describe("emergency global maintenance mode", () => {
     expect(page).toContain("@media (prefers-reduced-motion: no-preference)");
     expect(page).toContain("@keyframes reveal-panel");
     expect(page).toContain("@keyframes aurora-one");
+    expect(page).toContain('class="recovery-visual"');
+    expect(page).toContain("@keyframes orbit-clockwise");
+    expect(page).toContain("@keyframes recovery-scan");
+    expect(page).toContain("@keyframes recovery-ping");
+    expect(page).toContain("@keyframes packet-in");
+    expect(page).toContain("@keyframes core-breathe");
     expect(page).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
