@@ -26,10 +26,11 @@ test("Solaris Studio serves the emergency maintenance notice across the app", as
     await expect(
       page.getByText(/All deadlines scheduled during this outage will be postponed/i),
     ).toBeVisible();
-    await expect(page.getByAltText("TSBC")).toBeVisible();
     await expect(page.getByText("Solaris Studio", { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Holding Solaris safely offline" })).toBeVisible();
-    await expect(page.locator(".orbit-stage")).toBeVisible();
+    await expect(page.locator(".recovery-stage")).toBeVisible();
+    await expect(page.locator(".core-star")).toBeVisible();
+    await expect(page.locator(".tsbc-mark")).toHaveCount(0);
 
     const overflow = await page.evaluate(
       () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,

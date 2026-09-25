@@ -23,11 +23,14 @@ describe("emergency global maintenance mode", () => {
     expect(page).toContain("@keyframes reveal-panel");
     expect(page).toContain("@keyframes aurora-one");
     expect(page).toContain('class="recovery-visual"');
-    expect(page).toContain("@keyframes orbit-clockwise");
+    expect(page).toContain('class="recovery-stage"');
+    expect(page).toContain('class="core-star"');
+    expect(page).toContain("@keyframes orbit-one-motion");
     expect(page).toContain("@keyframes recovery-scan");
     expect(page).toContain("@keyframes recovery-ping");
-    expect(page).toContain("@keyframes packet-in");
+    expect(page).toContain("@keyframes stream-in");
     expect(page).toContain("@keyframes core-breathe");
+    expect(page).toContain("@keyframes twinkle");
     expect(page).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
@@ -37,7 +40,7 @@ describe("emergency global maintenance mode", () => {
       "All deadlines scheduled during this outage will be postponed.",
     );
     expect(page).toContain("Terra Solaris Broadcasting Coalition");
-    expect(page).toContain("/tsbc-maintenance-mark.svg");
+    expect(page).not.toContain('<img class="tsbc-mark"');
   });
 
   it("blocks writes while still allowing the maintenance branding assets", () => {
