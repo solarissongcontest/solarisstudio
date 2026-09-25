@@ -24,13 +24,15 @@ describe("emergency global maintenance mode", () => {
     expect(page).toContain("@keyframes aurora-one");
     expect(page).toContain('class="recovery-visual"');
     expect(page).toContain('class="recovery-stage"');
-    expect(page).toContain('class="core-star"');
+    expect(page).toContain('class="tsbc-core"');
+    expect(page).toContain("<span>TSBC</span>");
     expect(page).toContain("@keyframes orbit-one-motion");
     expect(page).toContain("@keyframes recovery-scan");
     expect(page).toContain("@keyframes recovery-ping");
-    expect(page).toContain("@keyframes stream-in");
     expect(page).toContain("@keyframes core-breathe");
-    expect(page).toContain("@keyframes twinkle");
+    expect(page).toContain("@keyframes spark-float-a");
+    expect(page).not.toContain('class="core-star"');
+    expect(page).not.toContain('class="grid-plane"');
     expect(page).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
