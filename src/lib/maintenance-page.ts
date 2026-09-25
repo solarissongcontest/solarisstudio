@@ -259,17 +259,17 @@ export function renderMaintenancePage(): string {
         position: relative;
         margin-top: 1.7rem;
         display: grid;
-        grid-template-columns: minmax(300px, .95fr) minmax(0, 1.05fr);
+        grid-template-columns: minmax(260px, .9fr) minmax(0, 1.1fr);
         align-items: center;
-        gap: clamp(1.1rem, 4vw, 2.6rem);
+        gap: clamp(1.2rem, 4vw, 2.4rem);
         overflow: hidden;
-        padding: clamp(1rem, 3vw, 1.55rem);
+        padding: clamp(1rem, 3vw, 1.5rem);
         border: 1px solid rgba(188,220,240,.13);
         border-radius: 1rem;
         background:
-          radial-gradient(circle at 24% 44%, rgba(104,198,229,.13), transparent 32%),
-          linear-gradient(155deg, rgba(13,30,57,.93), rgba(5,17,36,.97));
-        box-shadow: 0 14px 34px rgba(0,3,20,.20), inset 0 1px 0 rgba(225,242,250,.075);
+          radial-gradient(circle at 24% 46%, rgba(112,203,231,.10), transparent 34%),
+          linear-gradient(155deg, rgba(13,30,57,.93), rgba(5,17,36,.96));
+        box-shadow: 0 12px 32px rgba(0,3,20,.18), inset 0 1px 0 rgba(225,242,250,.07);
       }
       .recovery-visual::before {
         content: "";
@@ -277,257 +277,150 @@ export function renderMaintenancePage(): string {
         inset: 0;
         pointer-events: none;
         background:
-          linear-gradient(90deg, transparent, rgba(157,223,242,.035), transparent 62%),
-          radial-gradient(circle at 24% 42%, rgba(150,227,249,.07), transparent 44%);
+          linear-gradient(110deg, transparent 0 42%, rgba(194,238,251,.035) 50%, transparent 58%),
+          radial-gradient(circle at 25% 50%, rgba(140,221,246,.06), transparent 46%);
       }
 
       .recovery-stage {
         position: relative;
         z-index: 1;
-        width: min(100%, 360px);
+        width: min(100%, 330px);
         aspect-ratio: 1.12;
         margin-inline: auto;
+        display: grid;
+        place-items: center;
         overflow: hidden;
-        border-radius: .9rem;
+        border-radius: 1rem;
         background:
-          linear-gradient(180deg, rgba(3,12,31,.16), rgba(3,11,27,.54)),
-          radial-gradient(circle at 50% 43%, rgba(105,201,233,.10), transparent 44%);
-        perspective: 760px;
-        isolation: isolate;
-      }
-      .recovery-stage::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: 0;
-        background:
-          linear-gradient(rgba(145,220,244,.055) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(145,220,244,.055) 1px, transparent 1px);
-        background-size: 26px 26px;
-        mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 78%, transparent 100%);
-        opacity: .52;
-      }
-      .horizon-glow {
-        position: absolute;
-        z-index: 1;
-        left: 50%;
-        top: 49%;
-        width: 78%;
-        height: 18%;
-        transform: translate(-50%,-50%);
-        border-radius: 50%;
-        background: radial-gradient(ellipse, rgba(117,216,246,.20), rgba(79,161,206,.07) 48%, transparent 72%);
-        filter: blur(13px);
-      }
-      .grid-plane {
-        position: absolute;
-        z-index: 1;
-        left: 50%;
-        bottom: -24%;
-        width: 112%;
-        height: 66%;
-        transform: translateX(-50%) rotateX(66deg);
-        transform-origin: center top;
-        background:
-          linear-gradient(rgba(137,214,240,.13) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(137,214,240,.11) 1px, transparent 1px);
-        background-size: 28px 22px;
-        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.92), transparent 86%);
-        mask-image: linear-gradient(to bottom, rgba(0,0,0,.92), transparent 86%);
-        opacity: .42;
+          radial-gradient(circle at 50% 48%, rgba(116,211,239,.11), rgba(5,16,34,.04) 44%, transparent 70%);
       }
 
-      .core-halo {
+      .soft-halo {
         position: absolute;
-        z-index: 5;
-        left: 50%;
-        top: 47%;
-        width: 38%;
+        width: 52%;
         aspect-ratio: 1;
-        transform: translate(-50%,-50%);
         border-radius: 50%;
-        border: 1px solid rgba(192,236,249,.16);
-        background:
-          radial-gradient(circle, rgba(139,224,249,.18), rgba(80,167,205,.06) 44%, transparent 68%);
-        box-shadow:
-          0 0 48px rgba(96,195,226,.20),
-          inset 0 0 32px rgba(111,208,237,.08);
+        background: radial-gradient(circle, rgba(154,228,249,.18), rgba(91,176,211,.06) 46%, transparent 70%);
+        filter: blur(8px);
       }
-      .core-shell {
-        position: absolute;
+
+      .tsbc-core {
+        position: relative;
         z-index: 8;
-        left: 50%;
-        top: 47%;
-        width: 25%;
+        width: 31%;
+        min-width: 84px;
         aspect-ratio: 1;
-        transform: translate(-50%,-50%);
         display: grid;
         place-items: center;
         border-radius: 50%;
-        border: 1px solid rgba(216,244,252,.34);
+        border: 1px solid rgba(223,247,253,.32);
         background:
-          radial-gradient(circle at 38% 30%, rgba(247,253,255,.22), transparent 28%),
-          linear-gradient(145deg, rgba(30,71,104,.97), rgba(5,18,38,.99));
+          radial-gradient(circle at 36% 28%, rgba(245,252,255,.18), transparent 30%),
+          linear-gradient(145deg, rgba(28,64,96,.97), rgba(6,18,37,.99));
         box-shadow:
-          0 0 0 7px rgba(129,217,243,.025),
-          0 0 34px rgba(105,207,238,.26),
-          inset 0 1px 0 rgba(247,253,255,.34);
+          0 0 0 8px rgba(122,215,242,.025),
+          0 0 38px rgba(104,203,234,.24),
+          inset 0 1px 0 rgba(247,253,255,.30);
       }
-      .core-shell::before {
-        content: "";
-        position: absolute;
-        inset: -14%;
-        border-radius: 50%;
-        border: 1px dashed rgba(170,230,247,.20);
-      }
-      .core-star {
-        width: 48%;
-        aspect-ratio: 1;
-        background: linear-gradient(145deg, #effcff 0%, #a6e6f7 48%, #67bfdc 100%);
-        clip-path: polygon(50% 0%, 60% 38%, 100% 50%, 60% 62%, 50% 100%, 40% 62%, 0% 50%, 40% 38%);
-        filter: drop-shadow(0 0 9px rgba(190,241,255,.72));
+      .tsbc-core span {
+        font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
+        font-size: clamp(1.05rem, 4vw, 1.45rem);
+        font-weight: 700;
+        letter-spacing: .16em;
+        transform: translateX(.08em);
+        color: #f5fbfd;
+        text-shadow: 0 0 18px rgba(181,236,252,.30);
       }
 
-      .orbit-ring {
+      .orbit {
         position: absolute;
-        z-index: 6;
+        z-index: 5;
         left: 50%;
-        top: 47%;
+        top: 50%;
         border-radius: 50%;
-        border: 1px solid rgba(151,222,243,.20);
+        border: 1px solid rgba(157,223,242,.21);
         transform-origin: center;
       }
-      .orbit-ring::before,
-      .orbit-ring::after {
+      .orbit::before,
+      .orbit::after {
         content: "";
         position: absolute;
         top: 50%;
         border-radius: 50%;
       }
-      .orbit-ring::before {
+      .orbit::before {
         left: -4px;
         width: 8px;
         height: 8px;
         transform: translateY(-50%);
-        background: #def9ff;
-        box-shadow: 0 0 8px rgba(222,249,255,.92), 0 0 19px rgba(109,210,241,.66);
+        background: #e1faff;
+        box-shadow: 0 0 8px rgba(225,250,255,.92), 0 0 18px rgba(112,211,242,.60);
       }
-      .orbit-ring::after {
-        right: 8%;
+      .orbit::after {
+        right: 7%;
         width: 5px;
         height: 5px;
         transform: translateY(-50%);
-        background: #73cae4;
-        box-shadow: 0 0 13px rgba(115,202,228,.68);
+        background: #78cee7;
+        box-shadow: 0 0 12px rgba(120,206,231,.68);
       }
       .orbit-one {
-        width: 84%;
-        height: 32%;
-        margin-left: -42%;
-        margin-top: -16%;
-        transform: rotate(-12deg);
+        width: 79%;
+        height: 46%;
+        margin-left: -39.5%;
+        margin-top: -23%;
+        transform: rotate(-11deg);
       }
       .orbit-two {
-        width: 70%;
-        height: 47%;
-        margin-left: -35%;
-        margin-top: -23.5%;
-        transform: rotate(28deg);
-        border-style: dashed;
-        border-color: rgba(151,222,243,.17);
-      }
-      .orbit-three {
-        width: 53%;
-        height: 63%;
-        margin-left: -26.5%;
-        margin-top: -31.5%;
-        transform: rotate(71deg);
-        border-color: rgba(151,222,243,.24);
+        width: 60%;
+        height: 68%;
+        margin-left: -30%;
+        margin-top: -34%;
+        transform: rotate(52deg);
+        border-color: rgba(157,223,242,.16);
       }
 
-      .sweep-disc {
+      .sweep {
         position: absolute;
         z-index: 3;
-        left: 50%;
-        top: 47%;
-        width: 72%;
+        width: 76%;
         aspect-ratio: 1;
-        margin-left: -36%;
-        margin-top: -36%;
         border-radius: 50%;
         background: conic-gradient(
           from 0deg,
-          transparent 0 300deg,
-          rgba(123,215,243,.03) 315deg,
-          rgba(123,215,243,.18) 345deg,
-          rgba(229,250,255,.52) 359deg,
+          transparent 0 304deg,
+          rgba(123,215,243,.02) 320deg,
+          rgba(123,215,243,.15) 350deg,
+          rgba(229,250,255,.48) 359deg,
           transparent 360deg
         );
-        -webkit-mask-image: radial-gradient(circle, transparent 0 28%, black 34% 52%, transparent 60%);
-        mask-image: radial-gradient(circle, transparent 0 28%, black 34% 52%, transparent 60%);
+        -webkit-mask-image: radial-gradient(circle, transparent 0 38%, black 43% 48%, transparent 53%);
+        mask-image: radial-gradient(circle, transparent 0 38%, black 43% 48%, transparent 53%);
         mix-blend-mode: screen;
       }
 
-      .pulse-ring {
+      .pulse {
         position: absolute;
         z-index: 4;
-        left: 50%;
-        top: 47%;
-        width: 25%;
+        width: 31%;
         aspect-ratio: 1;
-        margin-left: -12.5%;
-        margin-top: -12.5%;
         border-radius: 50%;
-        border: 1px solid rgba(157,223,242,.32);
+        border: 1px solid rgba(157,223,242,.30);
         opacity: 0;
       }
 
-      .stream {
+      .spark {
         position: absolute;
-        z-index: 7;
-        left: 50%;
-        top: 47%;
-        width: 2px;
-        height: 46%;
-        transform-origin: 50% 0;
-        opacity: .82;
-      }
-      .stream::before {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: 8%;
-        width: 4px;
-        height: 17px;
-        border-radius: 999px;
-        transform: translateX(-50%);
-        background: linear-gradient(to bottom, rgba(236,252,255,.98), rgba(99,199,230,.05));
-        box-shadow: 0 0 12px rgba(126,217,244,.72);
-        opacity: 0;
-      }
-      .stream-one { transform: rotate(18deg); }
-      .stream-two { transform: rotate(138deg); }
-      .stream-three { transform: rotate(258deg); }
-
-      .micro-stars {
-        position: absolute;
-        inset: 0;
-        z-index: 2;
-        pointer-events: none;
-      }
-      .micro-stars span {
-        position: absolute;
-        width: 3px;
-        height: 3px;
+        z-index: 6;
+        width: 5px;
+        height: 5px;
         border-radius: 50%;
-        background: rgba(214,246,255,.72);
-        box-shadow: 0 0 8px rgba(154,224,245,.46);
+        background: rgba(217,247,255,.92);
+        box-shadow: 0 0 10px rgba(139,224,247,.72);
       }
-      .micro-stars span:nth-child(1) { left: 17%; top: 28%; }
-      .micro-stars span:nth-child(2) { left: 77%; top: 24%; width: 2px; height: 2px; }
-      .micro-stars span:nth-child(3) { left: 84%; top: 66%; }
-      .micro-stars span:nth-child(4) { left: 28%; top: 72%; width: 2px; height: 2px; }
-      .micro-stars span:nth-child(5) { left: 62%; top: 14%; width: 2px; height: 2px; }
+      .spark-a { left: 23%; top: 27%; }
+      .spark-b { right: 20%; top: 36%; width: 4px; height: 4px; }
+      .spark-c { right: 28%; bottom: 24%; width: 3px; height: 3px; background: #78cee7; }
 
       .recovery-copy {
         position: relative;
@@ -727,7 +620,7 @@ export function renderMaintenancePage(): string {
           gap: .55rem;
           padding: .85rem .8rem 1rem;
         }
-        .recovery-stage { width: min(86vw, 320px); }
+        .recovery-stage { width: min(80vw, 290px); }
         .recovery-copy { padding: .15rem .2rem .1rem; }
         .recovery-copy h2 { font-size: 1.18rem; }
         .recovery-copy > p:last-of-type { font-size: .82rem; }
@@ -754,20 +647,15 @@ export function renderMaintenancePage(): string {
         .lead { animation: reveal-item .58s .36s cubic-bezier(.23,1,.32,1) both; }
         .recovery-visual { animation: reveal-item .58s .42s cubic-bezier(.23,1,.32,1) both; }
         .status-row { animation: reveal-item .5s .52s cubic-bezier(.23,1,.32,1) both; }
-        .orbit-one { animation: orbit-one-motion 9s linear infinite; }
-        .orbit-two { animation: orbit-two-motion 14s linear infinite reverse; }
-        .orbit-three { animation: orbit-three-motion 19s linear infinite; }
-        .sweep-disc { animation: recovery-scan 4.6s linear infinite; }
-        .pulse-one { animation: recovery-ping 3.1s ease-out infinite; }
-        .pulse-two { animation: recovery-ping 3.1s 1.03s ease-out infinite; }
-        .pulse-three { animation: recovery-ping 3.1s 2.06s ease-out infinite; }
-        .stream-one::before { animation: stream-in 3.5s .15s ease-in-out infinite; }
-        .stream-two::before { animation: stream-in 3.5s 1.3s ease-in-out infinite; }
-        .stream-three::before { animation: stream-in 3.5s 2.45s ease-in-out infinite; }
-        .core-shell { animation: core-breathe 3.6s ease-in-out infinite; }
-        .core-shell::before { animation: shell-spin 12s linear infinite; }
-        .micro-stars span:nth-child(odd) { animation: twinkle 2.8s ease-in-out infinite alternate; }
-        .micro-stars span:nth-child(even) { animation: twinkle 3.7s .6s ease-in-out infinite alternate; }
+        .orbit-one { animation: orbit-one-motion 12s linear infinite; }
+        .orbit-two { animation: orbit-two-motion 18s linear infinite reverse; }
+        .sweep { animation: recovery-scan 6.5s linear infinite; }
+        .pulse-one { animation: recovery-ping 4.2s ease-out infinite; }
+        .pulse-two { animation: recovery-ping 4.2s 2.1s ease-out infinite; }
+        .tsbc-core { animation: core-breathe 4.4s ease-in-out infinite; }
+        .spark-a { animation: spark-float-a 5.4s ease-in-out infinite alternate; }
+        .spark-b { animation: spark-float-b 6.2s .7s ease-in-out infinite alternate; }
+        .spark-c { animation: spark-float-c 4.8s 1.1s ease-in-out infinite alternate; }
         .return { animation: reveal-item .5s .5s cubic-bezier(.23,1,.32,1) both; }
         .notice-item:nth-child(1) { animation: reveal-item .48s .58s cubic-bezier(.23,1,.32,1) both; }
         .notice-item:nth-child(2) { animation: reveal-item .48s .65s cubic-bezier(.23,1,.32,1) both; }
@@ -777,47 +665,42 @@ export function renderMaintenancePage(): string {
         .studio-mark { animation: mark-float 5.2s ease-in-out infinite; }
 
         @keyframes orbit-one-motion {
-          from { transform: rotate(-12deg); }
-          to { transform: rotate(348deg); }
+          from { transform: rotate(-11deg); }
+          to { transform: rotate(349deg); }
         }
         @keyframes orbit-two-motion {
-          from { transform: rotate(28deg); }
-          to { transform: rotate(388deg); }
-        }
-        @keyframes orbit-three-motion {
-          from { transform: rotate(71deg); }
-          to { transform: rotate(431deg); }
+          from { transform: rotate(52deg); }
+          to { transform: rotate(412deg); }
         }
         @keyframes recovery-scan {
           to { transform: rotate(360deg); }
         }
         @keyframes recovery-ping {
-          0% { transform: scale(.96); opacity: 0; }
-          12% { opacity: .48; }
-          78%, 100% { transform: scale(3.15); opacity: 0; }
-        }
-        @keyframes stream-in {
-          0%, 8% { top: 8%; opacity: 0; }
-          18% { opacity: 1; }
-          68% { opacity: .92; }
-          92%, 100% { top: 89%; opacity: 0; }
+          0% { transform: scale(.98); opacity: 0; }
+          12% { opacity: .38; }
+          76%, 100% { transform: scale(2.55); opacity: 0; }
         }
         @keyframes core-breathe {
           0%, 100% {
-            transform: translate(-50%,-50%) scale(1);
-            box-shadow: 0 0 0 7px rgba(129,217,243,.025), 0 0 34px rgba(105,207,238,.26), inset 0 1px 0 rgba(247,253,255,.34);
+            transform: scale(1);
+            box-shadow: 0 0 0 8px rgba(122,215,242,.025), 0 0 38px rgba(104,203,234,.24), inset 0 1px 0 rgba(247,253,255,.30);
           }
           50% {
-            transform: translate(-50%,-50%) scale(1.06);
-            box-shadow: 0 0 0 11px rgba(129,217,243,.04), 0 0 62px rgba(105,207,238,.42), inset 0 1px 0 rgba(247,253,255,.38);
+            transform: scale(1.045);
+            box-shadow: 0 0 0 10px rgba(122,215,242,.035), 0 0 52px rgba(104,203,234,.34), inset 0 1px 0 rgba(247,253,255,.34);
           }
         }
-        @keyframes shell-spin {
-          to { transform: rotate(360deg); }
+        @keyframes spark-float-a {
+          from { transform: translate3d(0,0,0); opacity: .55; }
+          to { transform: translate3d(12px,-8px,0); opacity: 1; }
         }
-        @keyframes twinkle {
-          from { opacity: .25; transform: scale(.8); }
-          to { opacity: 1; transform: scale(1.45); }
+        @keyframes spark-float-b {
+          from { transform: translate3d(0,0,0); opacity: .45; }
+          to { transform: translate3d(-9px,10px,0); opacity: .9; }
+        }
+        @keyframes spark-float-c {
+          from { transform: translate3d(0,0,0); opacity: .35; }
+          to { transform: translate3d(8px,6px,0); opacity: .85; }
         }
         @keyframes reveal-nav {
           from { opacity: 0; transform: translateY(-10px); }
@@ -893,23 +776,16 @@ export function renderMaintenancePage(): string {
 
           <section class="recovery-visual" aria-labelledby="recovery-title">
             <div class="recovery-stage" aria-hidden="true">
-              <div class="horizon-glow"></div>
-              <div class="grid-plane"></div>
-              <div class="micro-stars">
-                <span></span><span></span><span></span><span></span><span></span>
-              </div>
-              <div class="sweep-disc"></div>
-              <div class="orbit-ring orbit-one"></div>
-              <div class="orbit-ring orbit-two"></div>
-              <div class="orbit-ring orbit-three"></div>
-              <div class="pulse-ring pulse-one"></div>
-              <div class="pulse-ring pulse-two"></div>
-              <div class="pulse-ring pulse-three"></div>
-              <div class="stream stream-one"></div>
-              <div class="stream stream-two"></div>
-              <div class="stream stream-three"></div>
-              <div class="core-halo"></div>
-              <div class="core-shell"><div class="core-star"></div></div>
+              <div class="soft-halo"></div>
+              <div class="sweep"></div>
+              <div class="orbit orbit-one"></div>
+              <div class="orbit orbit-two"></div>
+              <div class="pulse pulse-one"></div>
+              <div class="pulse pulse-two"></div>
+              <div class="spark spark-a"></div>
+              <div class="spark spark-b"></div>
+              <div class="spark spark-c"></div>
+              <div class="tsbc-core"><span>TSBC</span></div>
             </div>
             <div class="recovery-copy">
               <p class="recovery-kicker">Recovery sequence</p>
