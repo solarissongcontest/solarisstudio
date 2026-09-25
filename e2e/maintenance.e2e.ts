@@ -28,6 +28,8 @@ test("Solaris Studio serves the emergency maintenance notice across the app", as
     ).toBeVisible();
     await expect(page.getByAltText("TSBC")).toBeVisible();
     await expect(page.getByText("Solaris Studio", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Holding Solaris safely offline" })).toBeVisible();
+    await expect(page.locator(".orbit-stage")).toBeVisible();
 
     const overflow = await page.evaluate(
       () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
