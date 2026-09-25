@@ -255,6 +255,213 @@ export function renderMaintenancePage(): string {
         line-height: 1.72;
       }
 
+
+      .recovery-visual {
+        position: relative;
+        margin-top: 1.7rem;
+        display: grid;
+        grid-template-columns: minmax(250px, .92fr) minmax(0, 1.08fr);
+        align-items: center;
+        gap: clamp(1rem, 4vw, 2.25rem);
+        overflow: hidden;
+        padding: clamp(1rem, 3vw, 1.5rem);
+        border: 1px solid rgba(188,220,240,.13);
+        border-radius: 1rem;
+        background:
+          radial-gradient(circle at 24% 50%, rgba(103,194,225,.09), transparent 38%),
+          linear-gradient(155deg, rgba(13,30,57,.93), rgba(5,17,36,.96));
+        box-shadow: 0 12px 32px rgba(0,3,20,.18), inset 0 1px 0 rgba(225,242,250,.07);
+      }
+      .recovery-visual::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: .24;
+        background-image:
+          linear-gradient(rgba(157,223,242,.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(157,223,242,.08) 1px, transparent 1px);
+        background-size: 32px 32px;
+        mask-image: radial-gradient(circle at 25% 50%, black, transparent 58%);
+      }
+      .orbit-stage {
+        position: relative;
+        z-index: 1;
+        width: min(100%, 310px);
+        aspect-ratio: 1;
+        margin-inline: auto;
+        display: grid;
+        place-items: center;
+      }
+      .orbit-stage::before {
+        content: "";
+        position: absolute;
+        inset: 16%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(126,217,244,.16), rgba(84,155,198,.045) 48%, transparent 70%);
+        filter: blur(12px);
+      }
+      .recovery-core {
+        position: relative;
+        z-index: 8;
+        width: 31%;
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(213,242,252,.28);
+        border-radius: 50%;
+        background:
+          radial-gradient(circle at 38% 30%, rgba(238,250,254,.20), transparent 34%),
+          linear-gradient(145deg, rgba(33,72,105,.96), rgba(5,18,38,.98));
+        box-shadow:
+          0 0 0 8px rgba(126,217,244,.025),
+          0 0 40px rgba(100,192,225,.18),
+          inset 0 1px 0 rgba(244,252,255,.30);
+      }
+      .recovery-core img {
+        width: 74%;
+        height: 74%;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 14px rgba(0,0,0,.24));
+      }
+      .orbit {
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(157,223,242,.23);
+        box-shadow: inset 0 0 18px rgba(126,217,244,.025);
+      }
+      .orbit::before,
+      .orbit::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        border-radius: 50%;
+        transform: translateX(-50%);
+      }
+      .orbit::before {
+        top: -4px;
+        width: 8px;
+        height: 8px;
+        background: #d7f6ff;
+        box-shadow: 0 0 8px rgba(215,246,255,.95), 0 0 20px rgba(115,213,244,.66);
+      }
+      .orbit::after {
+        bottom: -3px;
+        width: 6px;
+        height: 6px;
+        background: #7ccfe8;
+        box-shadow: 0 0 14px rgba(124,207,232,.72);
+      }
+      .orbit-a { inset: 5%; border-style: solid; }
+      .orbit-b { inset: 17%; border-style: dashed; border-color: rgba(157,223,242,.20); }
+      .orbit-c { inset: 29%; border-color: rgba(157,223,242,.30); }
+      .orbit-axis {
+        position: absolute;
+        inset: 12% 3%;
+        border-top: 1px solid rgba(157,223,242,.10);
+        border-bottom: 1px solid rgba(157,223,242,.08);
+        transform: rotate(-18deg);
+      }
+      .recovery-sweep {
+        position: absolute;
+        inset: 3%;
+        z-index: 2;
+        border-radius: 50%;
+        background: conic-gradient(
+          from 0deg,
+          transparent 0 286deg,
+          rgba(126,217,244,.02) 304deg,
+          rgba(126,217,244,.20) 342deg,
+          rgba(220,248,255,.58) 358deg,
+          transparent 360deg
+        );
+        -webkit-mask-image: radial-gradient(circle, transparent 0 33%, black 39% 49%, transparent 55%);
+        mask-image: radial-gradient(circle, transparent 0 33%, black 39% 49%, transparent 55%);
+        mix-blend-mode: screen;
+      }
+      .signal-ring {
+        position: absolute;
+        z-index: 4;
+        width: 31%;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        border: 1px solid rgba(157,223,242,.34);
+        opacity: 0;
+      }
+      .signal-ring.two { width: 31%; }
+      .signal-ring.three { width: 31%; }
+
+      .packet-track {
+        position: absolute;
+        inset: 2%;
+        z-index: 5;
+        pointer-events: none;
+      }
+      .packet-track.two { transform: rotate(120deg); }
+      .packet-track.three { transform: rotate(240deg); }
+      .packet {
+        position: absolute;
+        top: 2%;
+        left: 50%;
+        width: 5px;
+        height: 13px;
+        border-radius: 999px;
+        background: linear-gradient(to bottom, rgba(225,249,255,.98), rgba(105,203,233,.18));
+        box-shadow: 0 0 12px rgba(126,217,244,.7);
+        transform: translateX(-50%);
+        opacity: 0;
+      }
+
+      .recovery-copy {
+        position: relative;
+        z-index: 1;
+        min-width: 0;
+      }
+      .recovery-kicker {
+        margin: 0;
+        color: rgba(155,225,255,.76);
+        font-size: .65rem;
+        font-weight: 700;
+        letter-spacing: .19em;
+        text-transform: uppercase;
+      }
+      .recovery-copy h2 {
+        margin: .45rem 0 0;
+        color: var(--foreground);
+        font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
+        font-size: clamp(1.2rem, 3vw, 1.65rem);
+        line-height: 1.12;
+        letter-spacing: -.025em;
+      }
+      .recovery-copy > p:last-of-type {
+        margin: .65rem 0 0;
+        max-width: 34rem;
+        color: var(--muted);
+        font-size: .86rem;
+        line-height: 1.55;
+      }
+      .recovery-meta {
+        margin-top: 1rem;
+        display: grid;
+        gap: .55rem;
+      }
+      .recovery-meta-row {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-top: .55rem;
+        border-top: 1px solid rgba(255,255,255,.07);
+        font-size: .72rem;
+      }
+      .recovery-meta-row span:first-child { color: var(--muted-soft); }
+      .recovery-meta-row span:last-child {
+        color: rgba(223,244,250,.90);
+        font-weight: 700;
+        text-align: right;
+      }
+
       .status-row {
         display: flex;
         flex-wrap: wrap;
@@ -399,6 +606,15 @@ export function renderMaintenancePage(): string {
         .content { padding: 1.35rem 1.1rem 1.2rem; }
         h1 { font-size: clamp(2.25rem, 13vw, 3.7rem); }
         .lead { margin-top: 1rem; line-height: 1.6; }
+        .recovery-visual {
+          grid-template-columns: 1fr;
+          gap: .55rem;
+          padding: .85rem .8rem 1rem;
+        }
+        .orbit-stage { width: min(76vw, 275px); }
+        .recovery-copy { padding: 0 .2rem .1rem; }
+        .recovery-copy h2 { font-size: 1.18rem; }
+        .recovery-copy > p:last-of-type { font-size: .82rem; }
         .notice-item { padding: .8rem; }
         footer { align-items: flex-start; flex-direction: column; gap: .35rem; }
       }
@@ -420,7 +636,19 @@ export function renderMaintenancePage(): string {
         .eyebrow { animation: reveal-item .48s .22s cubic-bezier(.23,1,.32,1) both; }
         h1 { animation: reveal-item .58s .28s cubic-bezier(.23,1,.32,1) both; }
         .lead { animation: reveal-item .58s .36s cubic-bezier(.23,1,.32,1) both; }
-        .status-row { animation: reveal-item .5s .43s cubic-bezier(.23,1,.32,1) both; }
+        .recovery-visual { animation: reveal-item .58s .42s cubic-bezier(.23,1,.32,1) both; }
+        .status-row { animation: reveal-item .5s .52s cubic-bezier(.23,1,.32,1) both; }
+        .orbit-a { animation: orbit-clockwise 10s linear infinite; }
+        .orbit-b { animation: orbit-counter 16s linear infinite; }
+        .orbit-c { animation: orbit-clockwise 23s linear infinite; }
+        .recovery-sweep { animation: recovery-scan 4.8s linear infinite; }
+        .signal-ring.one { animation: recovery-ping 3.2s ease-out infinite; }
+        .signal-ring.two { animation: recovery-ping 3.2s 1.05s ease-out infinite; }
+        .signal-ring.three { animation: recovery-ping 3.2s 2.1s ease-out infinite; }
+        .packet-track.one .packet { animation: packet-in 3.3s .2s ease-in-out infinite; }
+        .packet-track.two .packet { animation: packet-in 3.3s 1.3s ease-in-out infinite; }
+        .packet-track.three .packet { animation: packet-in 3.3s 2.4s ease-in-out infinite; }
+        .recovery-core { animation: core-breathe 3.8s ease-in-out infinite; }
         .return { animation: reveal-item .5s .5s cubic-bezier(.23,1,.32,1) both; }
         .notice-item:nth-child(1) { animation: reveal-item .48s .58s cubic-bezier(.23,1,.32,1) both; }
         .notice-item:nth-child(2) { animation: reveal-item .48s .65s cubic-bezier(.23,1,.32,1) both; }
@@ -429,6 +657,36 @@ export function renderMaintenancePage(): string {
         .status-dot { animation: status-pulse 2.4s ease-in-out infinite; }
         .studio-mark { animation: mark-float 5.2s ease-in-out infinite; }
 
+        @keyframes orbit-clockwise {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes orbit-counter {
+          to { transform: rotate(-360deg); }
+        }
+        @keyframes recovery-scan {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes recovery-ping {
+          0% { transform: scale(1); opacity: 0; }
+          12% { opacity: .56; }
+          80%, 100% { transform: scale(2.45); opacity: 0; }
+        }
+        @keyframes packet-in {
+          0%, 8% { top: 2%; opacity: 0; }
+          18% { opacity: 1; }
+          72% { opacity: .95; }
+          92%, 100% { top: 46%; opacity: 0; }
+        }
+        @keyframes core-breathe {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 8px rgba(126,217,244,.025), 0 0 40px rgba(100,192,225,.18), inset 0 1px 0 rgba(244,252,255,.30);
+          }
+          50% {
+            transform: scale(1.045);
+            box-shadow: 0 0 0 12px rgba(126,217,244,.04), 0 0 62px rgba(100,192,225,.32), inset 0 1px 0 rgba(244,252,255,.34);
+          }
+        }
         @keyframes reveal-nav {
           from { opacity: 0; transform: translateY(-10px); }
           to { opacity: 1; transform: translateY(0); }
@@ -501,6 +759,38 @@ export function renderMaintenancePage(): string {
             We have taken the platform offline temporarily rather than leave submissions, voting,
             results or account actions in an uncertain state.
           </p>
+
+          <section class="recovery-visual" aria-labelledby="recovery-title">
+            <div class="orbit-stage" aria-hidden="true">
+              <div class="recovery-sweep"></div>
+              <div class="orbit-axis"></div>
+              <div class="orbit orbit-a"></div>
+              <div class="orbit orbit-b"></div>
+              <div class="orbit orbit-c"></div>
+              <div class="signal-ring one"></div>
+              <div class="signal-ring two"></div>
+              <div class="signal-ring three"></div>
+              <div class="packet-track one"><span class="packet"></span></div>
+              <div class="packet-track two"><span class="packet"></span></div>
+              <div class="packet-track three"><span class="packet"></span></div>
+              <div class="recovery-core">
+                <img src="/solaris-studio-mark.png" alt="" width="256" height="256" />
+              </div>
+            </div>
+            <div class="recovery-copy">
+              <p class="recovery-kicker">Recovery sequence</p>
+              <h2 id="recovery-title">Holding Solaris safely offline</h2>
+              <p>
+                Solaris Studio is keeping normal traffic and writes stopped while the database service is unavailable.
+                The animation represents the protected recovery state, not live database telemetry.
+              </p>
+              <div class="recovery-meta" aria-label="Recovery state">
+                <div class="recovery-meta-row"><span>Application traffic</span><span>Paused safely</span></div>
+                <div class="recovery-meta-row"><span>Database service</span><span>Awaiting restoration</span></div>
+                <div class="recovery-meta-row"><span>Deadlines</span><span>Protected</span></div>
+              </div>
+            </div>
+          </section>
 
           <div class="status-row">
             <div class="status"><span class="status-dot" aria-hidden="true"></span>Maintenance mode active</div>
