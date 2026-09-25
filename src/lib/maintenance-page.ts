@@ -133,7 +133,7 @@ export function renderMaintenancePage(): string {
         min-height: 68px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
         gap: 1rem;
         padding: .72rem 1rem;
         border: 1px solid rgba(255,255,255,.10);
@@ -183,7 +183,6 @@ export function renderMaintenancePage(): string {
         font-size: .68rem;
         letter-spacing: .02em;
       }
-      .tsbc-mark { width: 150px; height: auto; max-width: 37vw; }
 
       .panel {
         position: relative;
@@ -260,157 +259,275 @@ export function renderMaintenancePage(): string {
         position: relative;
         margin-top: 1.7rem;
         display: grid;
-        grid-template-columns: minmax(250px, .92fr) minmax(0, 1.08fr);
+        grid-template-columns: minmax(300px, .95fr) minmax(0, 1.05fr);
         align-items: center;
-        gap: clamp(1rem, 4vw, 2.25rem);
+        gap: clamp(1.1rem, 4vw, 2.6rem);
         overflow: hidden;
-        padding: clamp(1rem, 3vw, 1.5rem);
+        padding: clamp(1rem, 3vw, 1.55rem);
         border: 1px solid rgba(188,220,240,.13);
         border-radius: 1rem;
         background:
-          radial-gradient(circle at 24% 50%, rgba(103,194,225,.09), transparent 38%),
-          linear-gradient(155deg, rgba(13,30,57,.93), rgba(5,17,36,.96));
-        box-shadow: 0 12px 32px rgba(0,3,20,.18), inset 0 1px 0 rgba(225,242,250,.07);
+          radial-gradient(circle at 24% 44%, rgba(104,198,229,.13), transparent 32%),
+          linear-gradient(155deg, rgba(13,30,57,.93), rgba(5,17,36,.97));
+        box-shadow: 0 14px 34px rgba(0,3,20,.20), inset 0 1px 0 rgba(225,242,250,.075);
       }
       .recovery-visual::before {
         content: "";
         position: absolute;
         inset: 0;
         pointer-events: none;
-        opacity: .24;
-        background-image:
-          linear-gradient(rgba(157,223,242,.08) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(157,223,242,.08) 1px, transparent 1px);
-        background-size: 32px 32px;
-        mask-image: radial-gradient(circle at 25% 50%, black, transparent 58%);
+        background:
+          linear-gradient(90deg, transparent, rgba(157,223,242,.035), transparent 62%),
+          radial-gradient(circle at 24% 42%, rgba(150,227,249,.07), transparent 44%);
       }
-      .orbit-stage {
+
+      .recovery-stage {
         position: relative;
         z-index: 1;
-        width: min(100%, 310px);
-        aspect-ratio: 1;
+        width: min(100%, 360px);
+        aspect-ratio: 1.12;
         margin-inline: auto;
-        display: grid;
-        place-items: center;
-      }
-      .orbit-stage::before {
-        content: "";
-        position: absolute;
-        inset: 16%;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(126,217,244,.16), rgba(84,155,198,.045) 48%, transparent 70%);
-        filter: blur(12px);
-      }
-      .recovery-core {
-        position: relative;
-        z-index: 8;
-        width: 31%;
-        aspect-ratio: 1;
-        display: grid;
-        place-items: center;
-        border: 1px solid rgba(213,242,252,.28);
-        border-radius: 50%;
+        overflow: hidden;
+        border-radius: .9rem;
         background:
-          radial-gradient(circle at 38% 30%, rgba(238,250,254,.20), transparent 34%),
-          linear-gradient(145deg, rgba(33,72,105,.96), rgba(5,18,38,.98));
-        box-shadow:
-          0 0 0 8px rgba(126,217,244,.025),
-          0 0 40px rgba(100,192,225,.18),
-          inset 0 1px 0 rgba(244,252,255,.30);
+          linear-gradient(180deg, rgba(3,12,31,.16), rgba(3,11,27,.54)),
+          radial-gradient(circle at 50% 43%, rgba(105,201,233,.10), transparent 44%);
+        perspective: 760px;
+        isolation: isolate;
       }
-      .recovery-core img {
-        width: 74%;
-        height: 74%;
-        object-fit: contain;
-        filter: drop-shadow(0 4px 14px rgba(0,0,0,.24));
-      }
-      .orbit {
-        position: absolute;
-        border-radius: 50%;
-        border: 1px solid rgba(157,223,242,.23);
-        box-shadow: inset 0 0 18px rgba(126,217,244,.025);
-      }
-      .orbit::before,
-      .orbit::after {
+      .recovery-stage::before {
         content: "";
         position: absolute;
-        left: 50%;
-        border-radius: 50%;
-        transform: translateX(-50%);
+        inset: 0;
+        z-index: 0;
+        background:
+          linear-gradient(rgba(145,220,244,.055) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(145,220,244,.055) 1px, transparent 1px);
+        background-size: 26px 26px;
+        mask-image: linear-gradient(to bottom, transparent 0%, black 30%, black 78%, transparent 100%);
+        opacity: .52;
       }
-      .orbit::before {
-        top: -4px;
+      .horizon-glow {
+        position: absolute;
+        z-index: 1;
+        left: 50%;
+        top: 49%;
+        width: 78%;
+        height: 18%;
+        transform: translate(-50%,-50%);
+        border-radius: 50%;
+        background: radial-gradient(ellipse, rgba(117,216,246,.20), rgba(79,161,206,.07) 48%, transparent 72%);
+        filter: blur(13px);
+      }
+      .grid-plane {
+        position: absolute;
+        z-index: 1;
+        left: 50%;
+        bottom: -24%;
+        width: 112%;
+        height: 66%;
+        transform: translateX(-50%) rotateX(66deg);
+        transform-origin: center top;
+        background:
+          linear-gradient(rgba(137,214,240,.13) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(137,214,240,.11) 1px, transparent 1px);
+        background-size: 28px 22px;
+        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.92), transparent 86%);
+        mask-image: linear-gradient(to bottom, rgba(0,0,0,.92), transparent 86%);
+        opacity: .42;
+      }
+
+      .core-halo {
+        position: absolute;
+        z-index: 5;
+        left: 50%;
+        top: 47%;
+        width: 38%;
+        aspect-ratio: 1;
+        transform: translate(-50%,-50%);
+        border-radius: 50%;
+        border: 1px solid rgba(192,236,249,.16);
+        background:
+          radial-gradient(circle, rgba(139,224,249,.18), rgba(80,167,205,.06) 44%, transparent 68%);
+        box-shadow:
+          0 0 48px rgba(96,195,226,.20),
+          inset 0 0 32px rgba(111,208,237,.08);
+      }
+      .core-shell {
+        position: absolute;
+        z-index: 8;
+        left: 50%;
+        top: 47%;
+        width: 25%;
+        aspect-ratio: 1;
+        transform: translate(-50%,-50%);
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        border: 1px solid rgba(216,244,252,.34);
+        background:
+          radial-gradient(circle at 38% 30%, rgba(247,253,255,.22), transparent 28%),
+          linear-gradient(145deg, rgba(30,71,104,.97), rgba(5,18,38,.99));
+        box-shadow:
+          0 0 0 7px rgba(129,217,243,.025),
+          0 0 34px rgba(105,207,238,.26),
+          inset 0 1px 0 rgba(247,253,255,.34);
+      }
+      .core-shell::before {
+        content: "";
+        position: absolute;
+        inset: -14%;
+        border-radius: 50%;
+        border: 1px dashed rgba(170,230,247,.20);
+      }
+      .core-star {
+        width: 48%;
+        aspect-ratio: 1;
+        background: linear-gradient(145deg, #effcff 0%, #a6e6f7 48%, #67bfdc 100%);
+        clip-path: polygon(50% 0%, 60% 38%, 100% 50%, 60% 62%, 50% 100%, 40% 62%, 0% 50%, 40% 38%);
+        filter: drop-shadow(0 0 9px rgba(190,241,255,.72));
+      }
+
+      .orbit-ring {
+        position: absolute;
+        z-index: 6;
+        left: 50%;
+        top: 47%;
+        border-radius: 50%;
+        border: 1px solid rgba(151,222,243,.20);
+        transform-origin: center;
+      }
+      .orbit-ring::before,
+      .orbit-ring::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        border-radius: 50%;
+      }
+      .orbit-ring::before {
+        left: -4px;
         width: 8px;
         height: 8px;
-        background: #d7f6ff;
-        box-shadow: 0 0 8px rgba(215,246,255,.95), 0 0 20px rgba(115,213,244,.66);
+        transform: translateY(-50%);
+        background: #def9ff;
+        box-shadow: 0 0 8px rgba(222,249,255,.92), 0 0 19px rgba(109,210,241,.66);
       }
-      .orbit::after {
-        bottom: -3px;
-        width: 6px;
-        height: 6px;
-        background: #7ccfe8;
-        box-shadow: 0 0 14px rgba(124,207,232,.72);
+      .orbit-ring::after {
+        right: 8%;
+        width: 5px;
+        height: 5px;
+        transform: translateY(-50%);
+        background: #73cae4;
+        box-shadow: 0 0 13px rgba(115,202,228,.68);
       }
-      .orbit-a { inset: 5%; border-style: solid; }
-      .orbit-b { inset: 17%; border-style: dashed; border-color: rgba(157,223,242,.20); }
-      .orbit-c { inset: 29%; border-color: rgba(157,223,242,.30); }
-      .orbit-axis {
+      .orbit-one {
+        width: 84%;
+        height: 32%;
+        margin-left: -42%;
+        margin-top: -16%;
+        transform: rotate(-12deg);
+      }
+      .orbit-two {
+        width: 70%;
+        height: 47%;
+        margin-left: -35%;
+        margin-top: -23.5%;
+        transform: rotate(28deg);
+        border-style: dashed;
+        border-color: rgba(151,222,243,.17);
+      }
+      .orbit-three {
+        width: 53%;
+        height: 63%;
+        margin-left: -26.5%;
+        margin-top: -31.5%;
+        transform: rotate(71deg);
+        border-color: rgba(151,222,243,.24);
+      }
+
+      .sweep-disc {
         position: absolute;
-        inset: 12% 3%;
-        border-top: 1px solid rgba(157,223,242,.10);
-        border-bottom: 1px solid rgba(157,223,242,.08);
-        transform: rotate(-18deg);
-      }
-      .recovery-sweep {
-        position: absolute;
-        inset: 3%;
-        z-index: 2;
+        z-index: 3;
+        left: 50%;
+        top: 47%;
+        width: 72%;
+        aspect-ratio: 1;
+        margin-left: -36%;
+        margin-top: -36%;
         border-radius: 50%;
         background: conic-gradient(
           from 0deg,
-          transparent 0 286deg,
-          rgba(126,217,244,.02) 304deg,
-          rgba(126,217,244,.20) 342deg,
-          rgba(220,248,255,.58) 358deg,
+          transparent 0 300deg,
+          rgba(123,215,243,.03) 315deg,
+          rgba(123,215,243,.18) 345deg,
+          rgba(229,250,255,.52) 359deg,
           transparent 360deg
         );
-        -webkit-mask-image: radial-gradient(circle, transparent 0 33%, black 39% 49%, transparent 55%);
-        mask-image: radial-gradient(circle, transparent 0 33%, black 39% 49%, transparent 55%);
+        -webkit-mask-image: radial-gradient(circle, transparent 0 28%, black 34% 52%, transparent 60%);
+        mask-image: radial-gradient(circle, transparent 0 28%, black 34% 52%, transparent 60%);
         mix-blend-mode: screen;
       }
-      .signal-ring {
+
+      .pulse-ring {
         position: absolute;
         z-index: 4;
-        width: 31%;
+        left: 50%;
+        top: 47%;
+        width: 25%;
         aspect-ratio: 1;
+        margin-left: -12.5%;
+        margin-top: -12.5%;
         border-radius: 50%;
-        border: 1px solid rgba(157,223,242,.34);
+        border: 1px solid rgba(157,223,242,.32);
         opacity: 0;
       }
-      .signal-ring.two { width: 31%; }
-      .signal-ring.three { width: 31%; }
 
-      .packet-track {
+      .stream {
         position: absolute;
-        inset: 2%;
-        z-index: 5;
+        z-index: 7;
+        left: 50%;
+        top: 47%;
+        width: 2px;
+        height: 46%;
+        transform-origin: 50% 0;
+        opacity: .82;
+      }
+      .stream::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 8%;
+        width: 4px;
+        height: 17px;
+        border-radius: 999px;
+        transform: translateX(-50%);
+        background: linear-gradient(to bottom, rgba(236,252,255,.98), rgba(99,199,230,.05));
+        box-shadow: 0 0 12px rgba(126,217,244,.72);
+        opacity: 0;
+      }
+      .stream-one { transform: rotate(18deg); }
+      .stream-two { transform: rotate(138deg); }
+      .stream-three { transform: rotate(258deg); }
+
+      .micro-stars {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
         pointer-events: none;
       }
-      .packet-track.two { transform: rotate(120deg); }
-      .packet-track.three { transform: rotate(240deg); }
-      .packet {
+      .micro-stars span {
         position: absolute;
-        top: 2%;
-        left: 50%;
-        width: 5px;
-        height: 13px;
-        border-radius: 999px;
-        background: linear-gradient(to bottom, rgba(225,249,255,.98), rgba(105,203,233,.18));
-        box-shadow: 0 0 12px rgba(126,217,244,.7);
-        transform: translateX(-50%);
-        opacity: 0;
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: rgba(214,246,255,.72);
+        box-shadow: 0 0 8px rgba(154,224,245,.46);
       }
+      .micro-stars span:nth-child(1) { left: 17%; top: 28%; }
+      .micro-stars span:nth-child(2) { left: 77%; top: 24%; width: 2px; height: 2px; }
+      .micro-stars span:nth-child(3) { left: 84%; top: 66%; }
+      .micro-stars span:nth-child(4) { left: 28%; top: 72%; width: 2px; height: 2px; }
+      .micro-stars span:nth-child(5) { left: 62%; top: 14%; width: 2px; height: 2px; }
 
       .recovery-copy {
         position: relative;
@@ -601,7 +718,6 @@ export function renderMaintenancePage(): string {
         .studio-mark-wrap { width: 38px; height: 38px; flex-basis: 38px; }
         .brand-name { font-size: .86rem; }
         .brand-sub { display: none; }
-        .tsbc-mark { width: 112px; }
         .panel { margin-top: .6rem; border-radius: 1rem; }
         .content { padding: 1.35rem 1.1rem 1.2rem; }
         h1 { font-size: clamp(2.25rem, 13vw, 3.7rem); }
@@ -611,8 +727,8 @@ export function renderMaintenancePage(): string {
           gap: .55rem;
           padding: .85rem .8rem 1rem;
         }
-        .orbit-stage { width: min(76vw, 275px); }
-        .recovery-copy { padding: 0 .2rem .1rem; }
+        .recovery-stage { width: min(86vw, 320px); }
+        .recovery-copy { padding: .15rem .2rem .1rem; }
         .recovery-copy h2 { font-size: 1.18rem; }
         .recovery-copy > p:last-of-type { font-size: .82rem; }
         .notice-item { padding: .8rem; }
@@ -638,17 +754,20 @@ export function renderMaintenancePage(): string {
         .lead { animation: reveal-item .58s .36s cubic-bezier(.23,1,.32,1) both; }
         .recovery-visual { animation: reveal-item .58s .42s cubic-bezier(.23,1,.32,1) both; }
         .status-row { animation: reveal-item .5s .52s cubic-bezier(.23,1,.32,1) both; }
-        .orbit-a { animation: orbit-clockwise 10s linear infinite; }
-        .orbit-b { animation: orbit-counter 16s linear infinite; }
-        .orbit-c { animation: orbit-clockwise 23s linear infinite; }
-        .recovery-sweep { animation: recovery-scan 4.8s linear infinite; }
-        .signal-ring.one { animation: recovery-ping 3.2s ease-out infinite; }
-        .signal-ring.two { animation: recovery-ping 3.2s 1.05s ease-out infinite; }
-        .signal-ring.three { animation: recovery-ping 3.2s 2.1s ease-out infinite; }
-        .packet-track.one .packet { animation: packet-in 3.3s .2s ease-in-out infinite; }
-        .packet-track.two .packet { animation: packet-in 3.3s 1.3s ease-in-out infinite; }
-        .packet-track.three .packet { animation: packet-in 3.3s 2.4s ease-in-out infinite; }
-        .recovery-core { animation: core-breathe 3.8s ease-in-out infinite; }
+        .orbit-one { animation: orbit-one-motion 9s linear infinite; }
+        .orbit-two { animation: orbit-two-motion 14s linear infinite reverse; }
+        .orbit-three { animation: orbit-three-motion 19s linear infinite; }
+        .sweep-disc { animation: recovery-scan 4.6s linear infinite; }
+        .pulse-one { animation: recovery-ping 3.1s ease-out infinite; }
+        .pulse-two { animation: recovery-ping 3.1s 1.03s ease-out infinite; }
+        .pulse-three { animation: recovery-ping 3.1s 2.06s ease-out infinite; }
+        .stream-one::before { animation: stream-in 3.5s .15s ease-in-out infinite; }
+        .stream-two::before { animation: stream-in 3.5s 1.3s ease-in-out infinite; }
+        .stream-three::before { animation: stream-in 3.5s 2.45s ease-in-out infinite; }
+        .core-shell { animation: core-breathe 3.6s ease-in-out infinite; }
+        .core-shell::before { animation: shell-spin 12s linear infinite; }
+        .micro-stars span:nth-child(odd) { animation: twinkle 2.8s ease-in-out infinite alternate; }
+        .micro-stars span:nth-child(even) { animation: twinkle 3.7s .6s ease-in-out infinite alternate; }
         .return { animation: reveal-item .5s .5s cubic-bezier(.23,1,.32,1) both; }
         .notice-item:nth-child(1) { animation: reveal-item .48s .58s cubic-bezier(.23,1,.32,1) both; }
         .notice-item:nth-child(2) { animation: reveal-item .48s .65s cubic-bezier(.23,1,.32,1) both; }
@@ -657,35 +776,48 @@ export function renderMaintenancePage(): string {
         .status-dot { animation: status-pulse 2.4s ease-in-out infinite; }
         .studio-mark { animation: mark-float 5.2s ease-in-out infinite; }
 
-        @keyframes orbit-clockwise {
-          to { transform: rotate(360deg); }
+        @keyframes orbit-one-motion {
+          from { transform: rotate(-12deg); }
+          to { transform: rotate(348deg); }
         }
-        @keyframes orbit-counter {
-          to { transform: rotate(-360deg); }
+        @keyframes orbit-two-motion {
+          from { transform: rotate(28deg); }
+          to { transform: rotate(388deg); }
+        }
+        @keyframes orbit-three-motion {
+          from { transform: rotate(71deg); }
+          to { transform: rotate(431deg); }
         }
         @keyframes recovery-scan {
           to { transform: rotate(360deg); }
         }
         @keyframes recovery-ping {
-          0% { transform: scale(1); opacity: 0; }
-          12% { opacity: .56; }
-          80%, 100% { transform: scale(2.45); opacity: 0; }
+          0% { transform: scale(.96); opacity: 0; }
+          12% { opacity: .48; }
+          78%, 100% { transform: scale(3.15); opacity: 0; }
         }
-        @keyframes packet-in {
-          0%, 8% { top: 2%; opacity: 0; }
+        @keyframes stream-in {
+          0%, 8% { top: 8%; opacity: 0; }
           18% { opacity: 1; }
-          72% { opacity: .95; }
-          92%, 100% { top: 46%; opacity: 0; }
+          68% { opacity: .92; }
+          92%, 100% { top: 89%; opacity: 0; }
         }
         @keyframes core-breathe {
           0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 8px rgba(126,217,244,.025), 0 0 40px rgba(100,192,225,.18), inset 0 1px 0 rgba(244,252,255,.30);
+            transform: translate(-50%,-50%) scale(1);
+            box-shadow: 0 0 0 7px rgba(129,217,243,.025), 0 0 34px rgba(105,207,238,.26), inset 0 1px 0 rgba(247,253,255,.34);
           }
           50% {
-            transform: scale(1.045);
-            box-shadow: 0 0 0 12px rgba(126,217,244,.04), 0 0 62px rgba(100,192,225,.32), inset 0 1px 0 rgba(244,252,255,.34);
+            transform: translate(-50%,-50%) scale(1.06);
+            box-shadow: 0 0 0 11px rgba(129,217,243,.04), 0 0 62px rgba(105,207,238,.42), inset 0 1px 0 rgba(247,253,255,.38);
           }
+        }
+        @keyframes shell-spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes twinkle {
+          from { opacity: .25; transform: scale(.8); }
+          to { opacity: 1; transform: scale(1.45); }
         }
         @keyframes reveal-nav {
           from { opacity: 0; transform: translateY(-10px); }
@@ -747,7 +879,6 @@ export function renderMaintenancePage(): string {
             <span class="brand-sub">Terra Solaris · SSC</span>
           </span>
         </div>
-        <img class="tsbc-mark" src="/tsbc-maintenance-mark.svg" alt="TSBC" width="164" height="44" />
       </header>
 
       <section class="panel">
@@ -761,28 +892,31 @@ export function renderMaintenancePage(): string {
           </p>
 
           <section class="recovery-visual" aria-labelledby="recovery-title">
-            <div class="orbit-stage" aria-hidden="true">
-              <div class="recovery-sweep"></div>
-              <div class="orbit-axis"></div>
-              <div class="orbit orbit-a"></div>
-              <div class="orbit orbit-b"></div>
-              <div class="orbit orbit-c"></div>
-              <div class="signal-ring one"></div>
-              <div class="signal-ring two"></div>
-              <div class="signal-ring three"></div>
-              <div class="packet-track one"><span class="packet"></span></div>
-              <div class="packet-track two"><span class="packet"></span></div>
-              <div class="packet-track three"><span class="packet"></span></div>
-              <div class="recovery-core">
-                <img src="/solaris-studio-mark.png" alt="" width="256" height="256" />
+            <div class="recovery-stage" aria-hidden="true">
+              <div class="horizon-glow"></div>
+              <div class="grid-plane"></div>
+              <div class="micro-stars">
+                <span></span><span></span><span></span><span></span><span></span>
               </div>
+              <div class="sweep-disc"></div>
+              <div class="orbit-ring orbit-one"></div>
+              <div class="orbit-ring orbit-two"></div>
+              <div class="orbit-ring orbit-three"></div>
+              <div class="pulse-ring pulse-one"></div>
+              <div class="pulse-ring pulse-two"></div>
+              <div class="pulse-ring pulse-three"></div>
+              <div class="stream stream-one"></div>
+              <div class="stream stream-two"></div>
+              <div class="stream stream-three"></div>
+              <div class="core-halo"></div>
+              <div class="core-shell"><div class="core-star"></div></div>
             </div>
             <div class="recovery-copy">
               <p class="recovery-kicker">Recovery sequence</p>
               <h2 id="recovery-title">Holding Solaris safely offline</h2>
               <p>
                 Solaris Studio is keeping normal traffic and writes stopped while the database service is unavailable.
-                The animation represents the protected recovery state, not live database telemetry.
+                This visual represents the protected recovery state, not live database telemetry.
               </p>
               <div class="recovery-meta" aria-label="Recovery state">
                 <div class="recovery-meta-row"><span>Application traffic</span><span>Paused safely</span></div>
