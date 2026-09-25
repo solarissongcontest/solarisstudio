@@ -30,7 +30,8 @@ test("Solaris Studio serves the emergency maintenance notice across the app", as
     await expect(page.getByRole("heading", { name: "Holding Solaris safely offline" })).toBeVisible();
     await expect(page.locator(".recovery-stage")).toBeVisible();
     await expect(page.locator(".tsbc-core")).toBeVisible();
-    await expect(page.locator(".tsbc-core")).toContainText("TSBC");
+    await expect(page.locator(".tsbc-core img")).toHaveAttribute("src", "/solaris-studio-mark.png");
+    await expect(page.locator('.studio-mark[src="/solaris-studio-mark.png"]')).toBeVisible();
     await expect(page.locator(".core-star")).toHaveCount(0);
     await expect(page.locator(".grid-plane")).toHaveCount(0);
     await expect(page.locator(".tsbc-mark")).toHaveCount(0);
