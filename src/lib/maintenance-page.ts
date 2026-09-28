@@ -23,6 +23,15 @@ export function renderMaintenancePage(): string {
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#071018" />
     <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="Solaris Studio" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Solaris Studio" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/jpeg" href="/icon-192.jpg" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Solaris Studio is temporarily unavailable</title>
     <style>
