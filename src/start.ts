@@ -10,6 +10,10 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
   "/favicon.ico",
+  "/apple-touch-icon.png",
+  "/icon-192.jpg",
+  "/icon-512.jpg",
+  "/site.webmanifest",
 ]);
 
 const maintenanceMiddleware = createMiddleware().server(async ({ next }) => {
