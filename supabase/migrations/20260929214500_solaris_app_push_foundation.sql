@@ -135,8 +135,10 @@ declare
   v_inserted integer := 0;
   v_count integer := 0;
 begin
-  -- Confirmation opening reminders and deadline safety. A delegation is
-  -- eligible when its active country account participates in the edition.
+  -- Confirmation opening reminders and deadline safety. Active country
+  -- accounts are eligible before they become edition participants; requiring a
+  -- participant row here would suppress the exact reminder that helps a country
+  -- confirm in the first place.
   -- Once a submission exists for that round/country, deadline notifications
   -- disappear automatically.
   with eligible as (
@@ -153,10 +155,8 @@ begin
       np.categories,
       np.spoiler_free
     from public.submission_rounds sr
-    join public.participants p on p.edition_id = sr.edition_id
     join public.country_accounts ca
-      on ca.country_id = p.country_id
-     and ca.status = 'active'
+      on ca.status = 'active'
     join public.countries c on c.id = ca.country_id
     join public.notification_preferences np
       on np.profile_id = ca.user_id
