@@ -13,7 +13,12 @@ import {
   sortMySolarisPriorities,
   type MySolarisPriorityItem,
 } from "@/lib/my-solaris-priorities";
-import { buildPersonalAttentionItems } from "@/lib/personal-attention";
+import { personalAttentionFromTasks } from "@/lib/personal-attention";
+import {
+  buildParticipationTasks,
+  participationTaskCounts,
+  type SolarisTask,
+} from "@/lib/participation-os";
 
 const PARTICIPANT_CAPABILITIES = [
   "official_communications",
@@ -48,6 +53,7 @@ export type MySolarisContextValue = {
     completed: number;
   };
   unreadNoticeCount: number;
+  tasks: SolarisTask[];
   deadlines: MySolarisDeadline[];
   priorities: MySolarisPriorityItem[];
   isLoading: boolean;
@@ -121,7 +127,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
             item.inboxState === "acknowledgement_required" ||
             (item.notice.acknowledgementRequired && item.inboxState === "unread"),
         ).length,
-        acknowledgedNotices: notices.filter((item) => item.inboxState === "acknowledged").length,
+
       };
     },
     staleTime: 30_000,
@@ -146,11 +152,9 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   const noticeSummary = noticesQuery.data ?? {
     unreadNoticeCount: 0,
     acknowledgementTasks: 0,
-    acknowledgedNotices: 0,
   };
   const unreadNoticeCount = noticeSummary.unreadNoticeCount;
   const acknowledgementTasks = noticeSummary.acknowledgementTasks;
-  const acknowledgedNotices = noticeSummary.acknowledgedNotices;
 
   const deadlines = useMemo(
     () =>
@@ -161,13 +165,24 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     [currentEdition, roundsQuery.data],
   );
 
-  const priorities = useMemo(() => {
-    const items: MySolarisPriorityItem[] = buildPersonalAttentionItems({
-      editionId: currentEdition?.id ?? null,
-      responses: confirmationQuery.data?.responses ?? [],
-      rounds: roundsQuery.data ?? [],
+  const tasks = useMemo(
+    () =>
+      buildParticipationTasks({
+        editionId: currentEdition?.id ?? null,
+        responses: confirmationQuery.data?.responses ?? [],
+        rounds: roundsQuery.data ?? [],
+        acknowledgementTasks,
+      }),
+    [
       acknowledgementTasks,
-    });
+      confirmationQuery.data?.responses,
+      currentEdition?.id,
+      roundsQuery.data,
+    ],
+  );
+
+  const priorities = useMemo(() => {
+    const items: MySolarisPriorityItem[] = personalAttentionFromTasks(tasks);
 
     for (const deadline of deadlines) {
       items.push({
@@ -186,15 +201,9 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     }
 
     return sortMySolarisPriorities(items);
-  }, [
-    acknowledgementTasks,
-    confirmationQuery.data?.responses,
-    currentEdition?.id,
-    deadlines,
-    roundsQuery.data,
-  ]);
+  }, [deadlines, tasks]);
 
-  const needsAction = priorities.filter((item) => item.actionRequired).length;
+  const taskCounts = participationTaskCounts(tasks);
 
   const value: MySolarisContextValue = {
     user: userQuery.data,
@@ -209,12 +218,9 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       countryStatus: countryAccountQuery.data?.access.countryStatus ?? null,
     },
     capabilities,
-    taskCounts: {
-      needsAction,
-      upcoming: deadlines.length,
-      completed: acknowledgedNotices,
-    },
+    taskCounts,
     unreadNoticeCount,
+    tasks,
     deadlines,
     priorities,
     isLoading:
