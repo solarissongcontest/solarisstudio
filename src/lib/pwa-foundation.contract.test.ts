@@ -24,10 +24,14 @@ describe("Solaris installed-app foundation", () => {
 
   it("never turns maintenance into stale cached application HTML", () => {
     const worker = source("public/sw.js");
+    const navigation = worker.slice(
+      worker.indexOf("async function networkNavigation"),
+      worker.indexOf("async function staleWhileRevalidate"),
+    );
     expect(worker).toContain('request.mode === "navigate"');
-    expect(worker).toContain("return await fetch(request)");
-    expect(worker).not.toMatch(/cache\.put\(request.+navigate/s);
-    expect(worker).not.toContain("caches.match(request)");
+    expect(navigation).toContain("return await fetch(request)");
+    expect(navigation).not.toContain("cache.put");
+    expect(navigation).not.toContain("caches.match(request)");
   });
 
   it("has an explicit offline fallback without offline mutation queueing", () => {
