@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { GLOBAL_MAINTENANCE_MODE } from "./lib/maintenance";
+import { renderMaintenancePage } from "./lib/maintenance-page";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -15,9 +16,18 @@ type ServerEnv = {
 const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin";
 const MAINTENANCE_ADMIN_LOGOUT_PATH = "/__maintenance-admin/logout";
 const MAINTENANCE_BYPASS_COOKIE = "solaris_maintenance_admin";
-const MAINTENANCE_BYPASS_HEADER = "x-solaris-maintenance-bypass";
 const MAINTENANCE_BYPASS_VERSION = "v1";
 const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
+const MAINTENANCE_ASSET_PATHS = new Set([
+  "/tsbc-maintenance-mark.svg",
+  "/solaris-studio-mark.png",
+  "/favicon.ico",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-1024.png",
+  "/site.webmanifest",
+]);
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
@@ -235,16 +245,39 @@ function handleMaintenanceAdminLogout(request: Request) {
   });
 }
 
-async function requestWithMaintenanceBypass(request: Request, secret: string) {
-  const headers = new Headers(request.headers);
-  // Never trust this header from the public internet. Only this Worker entry may set it.
-  headers.delete(MAINTENANCE_BYPASS_HEADER);
+function maintenanceResponse(request: Request) {
+  const headers = {
+    "cache-control": "no-store, max-age=0",
+    "content-language": "en",
+    "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
+    "x-robots-tag": "noindex, nofollow",
+  };
 
-  if (GLOBAL_MAINTENANCE_MODE && (await hasValidMaintenanceBypass(request, secret))) {
-    headers.set(MAINTENANCE_BYPASS_HEADER, "verified");
+  if (request.method === "GET" || request.method === "HEAD") {
+    return new Response(request.method === "HEAD" ? null : renderMaintenancePage(), {
+      status: 503,
+      headers: {
+        ...headers,
+        "content-type": "text/html; charset=utf-8",
+      },
+    });
   }
 
-  return new Request(request, { headers });
+  return new Response(
+    JSON.stringify({
+      error: "solaris_studio_maintenance",
+      message:
+        "Solaris Studio is temporarily offline while database service is restored. Writes are disabled during the outage.",
+      expected_return: "2026-10-10",
+    }),
+    {
+      status: 503,
+      headers: {
+        ...headers,
+        "content-type": "application/json; charset=utf-8",
+      },
+    },
+  );
 }
 
 // h3 swallows in-handler throws into a normal 500 Response with body
@@ -284,9 +317,16 @@ export default {
         return handleMaintenanceAdminLogout(request);
       }
 
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
+        !(await hasValidMaintenanceBypass(request, secret))
+      ) {
+        return maintenanceResponse(request);
+      }
+
       const handler = await getServerEntry();
-      const trustedRequest = await requestWithMaintenanceBypass(request, secret);
-      const response = await handler.fetch(trustedRequest, env, ctx);
+      const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
