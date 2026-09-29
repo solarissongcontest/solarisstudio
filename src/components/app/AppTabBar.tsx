@@ -316,7 +316,6 @@ export function AppTabBar({
         data-active-index={activeIndex}
         data-dragging={dragging ? "true" : "false"}
       >
-        <span className="solaris-app-tabbar-glass" aria-hidden="true" />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
 
         {PUBLIC_GLOBAL_AREAS.map((area, index) => {
