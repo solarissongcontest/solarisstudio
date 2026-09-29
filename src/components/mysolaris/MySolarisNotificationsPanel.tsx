@@ -101,6 +101,7 @@ export function MySolarisNotificationsPanel() {
       quiet_hours_end: quietEnd || null,
       urgent_deadline_reminders: urgent,
       spoiler_free: spoilerFree,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });
     toast.promise(promise, {
       loading: "Saving notification preferences…",
@@ -134,6 +135,7 @@ export function MySolarisNotificationsPanel() {
       quiet_hours_end: quietEnd || null,
       urgent_deadline_reminders: urgent,
       spoiler_free: spoilerFree,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });
     await push.refetch();
   };
@@ -160,6 +162,7 @@ export function MySolarisNotificationsPanel() {
       quiet_hours_end: quietEnd || null,
       urgent_deadline_reminders: urgent,
       spoiler_free: spoilerFree,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
     });
     await push.refetch();
   };
