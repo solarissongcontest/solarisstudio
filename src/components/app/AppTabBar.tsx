@@ -112,6 +112,50 @@ export function AppTabBar({
         if (collapsed) setCollapsed(false);
       }}
     >
+      <svg
+        className="solaris-liquid-glass-filter"
+        width="0"
+        height="0"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <defs>
+          <filter
+            id="solaris-liquid-glass-refraction"
+            x="-8%"
+            y="-18%"
+            width="116%"
+            height="136%"
+            colorInterpolationFilters="sRGB"
+          >
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.012 0.085"
+              numOctaves="2"
+              seed="11"
+              result="liquid-noise"
+            />
+            <feGaussianBlur
+              in="liquid-noise"
+              stdDeviation="0.45"
+              result="liquid-noise-soft"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="liquid-noise-soft"
+              scale="5.5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+              result="liquid-refraction"
+            />
+            <feColorMatrix
+              in="liquid-refraction"
+              type="saturate"
+              values="1.08"
+            />
+          </filter>
+        </defs>
+      </svg>
       <div className="solaris-app-tabbar-material">
         {PUBLIC_GLOBAL_AREAS.map((area) => {
           const Icon = ICONS[area.id];
