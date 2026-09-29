@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Clock3,
   Info,
-  LockKeyhole,
 } from "lucide-react";
 
 import { formatCompactCountdown, millisecondsUntil } from "@/lib/solaris-schedule";
@@ -21,22 +20,33 @@ function stateIcon(task: SolarisTask) {
   if (task.state === "completed" || task.state === "finished") return CheckCircle2;
   if (task.state === "upcoming" || task.state === "waiting") return Clock3;
   if (task.state === "problem") return AlertTriangle;
-  if (!task.actionRequired) return LockKeyhole;
   return Info;
 }
 
 function timing(task: SolarisTask, now = Date.now()) {
-  const target =
-    task.actionRequired && task.deadline
-      ? task.deadline
-      : task.opensAt ?? task.deadline;
+  if (task.actionRequired && task.deadline) {
+    const remaining = millisecondsUntil(task.deadline, now);
+    if (remaining == null) return null;
+    return remaining === 0
+      ? "Deadline reached"
+      : `Due in ${formatCompactCountdown(remaining)}`;
+  }
+
+  if (task.state === "available" && task.deadline) {
+    const remaining = millisecondsUntil(task.deadline, now);
+    if (remaining == null) return null;
+    return remaining === 0
+      ? "Closing now"
+      : `Closes in ${formatCompactCountdown(remaining)}`;
+  }
+
+  const target = task.opensAt ?? task.deadline;
   if (!target) return null;
   const remaining = millisecondsUntil(target, now);
   if (remaining == null) return null;
-  if (task.actionRequired && task.deadline) {
-    return remaining === 0 ? "Deadline reached" : `Due in ${formatCompactCountdown(remaining)}`;
-  }
-  return remaining === 0 ? "Available now" : `Opens in ${formatCompactCountdown(remaining)}`;
+  return remaining === 0
+    ? "Available now"
+    : `Opens in ${formatCompactCountdown(remaining)}`;
 }
 
 export function AppTaskCenter({
