@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { AppExplorePersonalized } from "@/components/app/AppExplorePersonalized";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
 import { PublicHubHero } from "@/components/public/PublicHubHero";
 import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
@@ -88,6 +90,8 @@ const SECONDARY_DESTINATIONS = [
 ];
 
 function ExplorePage() {
+  const { isAppMode } = useSolarisApp();
+
   return (
     <AppShell>
       <PublicHubHero
@@ -95,6 +99,8 @@ function ExplorePage() {
         title="Explore Solaris"
         description="Countries, editions, shows and stories from across SSC. Start broad, then follow the contest history wherever it gets interesting."
       />
+
+      {isAppMode ? <AppExplorePersonalized /> : null}
 
       <section aria-labelledby="explore-primary-title">
         <div className="public-hub-section-heading">
