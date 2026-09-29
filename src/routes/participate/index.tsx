@@ -29,7 +29,7 @@ import {
   upcomingParticipationActions,
   type ParticipationAction,
 } from "@/lib/participation-state";
-import { buildParticipationTasks } from "@/lib/participation-os";
+import { buildParticipationTasks, type VotingTaskInput } from "@/lib/participation-os";
 import { computeAvailability } from "@/lib/ssc";
 
 export const Route = createFileRoute("/participate/")({
@@ -272,7 +272,7 @@ function ParticipatePage() {
       )[0] ?? null;
 
     const jury = juryQuery.data;
-    const juryTask = jury?.openRound
+    const juryTask: VotingTaskInput | null = jury?.openRound
       ? {
           id: jury.openRound.id,
           title: `${jury.openRound.name} jury ballot`,
@@ -297,7 +297,7 @@ function ParticipatePage() {
         : null;
 
     const televote = televoteQuery.data?.openRound;
-    const televoteTask = televote
+    const televoteTask: VotingTaskInput | null = televote
       ? {
           id: televote.id,
           title: televote.editionName
@@ -331,7 +331,7 @@ function ParticipatePage() {
     televoteQuery.data,
   ]);
 
-    const primary = primaryParticipationAction(actions);
+  const primary = primaryParticipationAction(actions);
   const otherAvailable = actions.filter(
     (action) => action.status === "available" && action.id !== primary?.id,
   );
@@ -354,7 +354,16 @@ function ParticipatePage() {
       />
 
       {isAppMode ? (
-        <AppTaskCenter tasks={appTasks.tasks} editionLabel={appTasks.editionLabel} />
+        loading ? (
+          <PublicCurrentStatus
+            icon={Clock3}
+            eyebrow="Checking your edition"
+            title="Building your Solaris task list"
+            description="Solaris is checking confirmations, jury voting and public voting against your current account state."
+          />
+        ) : (
+          <AppTaskCenter tasks={appTasks.tasks} editionLabel={appTasks.editionLabel} />
+        )
       ) : (
       <section aria-labelledby="participate-attention-title">
         <div className="public-hub-section-heading">
