@@ -348,7 +348,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           side="right"
           showCloseButton={false}
           aria-label="Navigation menu"
-          className="public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0 lg:hidden"
+          className="public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0"
         >
           {isAppMode ? (
             <AppMoreNavigation
