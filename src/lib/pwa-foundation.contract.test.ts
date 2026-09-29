@@ -28,11 +28,12 @@ describe("Solaris installed-app foundation", () => {
   it("renders the installed bottom navigation as transparent liquid glass", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const styles = source("src/styles/app-shell.css");
-    expect(tabs).toContain('id="solaris-liquid-glass-refraction"');
-    expect(tabs).toContain("feDisplacementMap");
-    expect(styles).toContain('url("#solaris-liquid-glass-refraction")');
-    expect(styles).toContain("-webkit-backdrop-filter: blur(64px)")
-    expect(styles).toContain("rgb(255 255 255 / .075)")
+    expect(tabs).not.toContain('id="solaris-liquid-glass-refraction"');
+    expect(tabs).not.toContain("feDisplacementMap");
+    expect(styles).not.toContain('url("#solaris-liquid-glass-refraction")');
+    expect(styles).toContain("-webkit-backdrop-filter: blur(64px)");
+    expect(styles).toContain("backdrop-filter: blur(64px)");
+    expect(styles).toContain("rgb(255 255 255 / .075)");
     expect(styles).toContain("mask-composite: exclude");
     expect(styles).not.toContain("linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90))");
     expect(tabs).not.toContain('className="solaris-app-tabbar-glass"');
@@ -44,6 +45,12 @@ describe("Solaris installed-app foundation", () => {
     expect(styles).toContain("background: transparent");
     expect(styles).toContain("background: rgb(190 194 201 / .24)");
     expect(styles).toContain("-webkit-backdrop-filter: none");
+    expect(styles).not.toContain('@supports (backdrop-filter: url(');
+  });
+
+  it("bumps the installed-app static cache when liquid glass rendering changes", () => {
+    const worker = source("public/sw.js");
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v2"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
