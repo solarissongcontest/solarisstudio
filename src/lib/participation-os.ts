@@ -1,6 +1,7 @@
 import type { CountryConfirmationResponse } from "./confirmation-country-account";
 import type { PublicRound } from "./confirmation-rounds.functions";
 import { resolveScheduleState } from "./solaris-schedule";
+import type { Studio2HodWorkspaceSnapshot } from "./studio2-hod-workspace";
 
 export type SolarisTaskState =
   | "completed"
@@ -406,4 +407,182 @@ export function homepageParticipationTasks(
   limit = 3,
 ) {
   return sortSolarisTasks(tasks).filter(taskNeedsAttention).slice(0, limit);
+}
+
+
+function kindForHodAction(id: string): SolarisTaskKind {
+  if (id.includes("confirmation")) return "confirmation";
+  if (id.includes("entry")) return "entry";
+  if (id.includes("jury")) return "jury";
+  if (id.includes("notice")) return "notice";
+  if (id.includes("deadline")) return "deadline";
+  return "organizer-request";
+}
+
+function priorityForHodAction(priority: "critical" | "high" | "normal") {
+  return priority === "critical" ? 150 : priority === "high" ? 120 : 90;
+}
+
+/**
+ * Project the canonical Studio2 HOD RPC snapshot into the same task vocabulary
+ * used by Home, Participate, MySolaris, badges and notification planning.
+ *
+ * This function never re-decides eligibility or workflow truth. The server
+ * snapshot/model remains authoritative; this is presentation normalization.
+ */
+export function tasksFromHodWorkspace(
+  snapshot: Studio2HodWorkspaceSnapshot,
+  now = Date.now(),
+): SolarisTask[] {
+  const tasks: SolarisTask[] = snapshot.model.actions.map((action) => ({
+    id: `hod:${action.id}`,
+    editionId: snapshot.context.editionId,
+    kind: kindForHodAction(action.id),
+    title: action.label,
+    description: action.description,
+    state: action.priority === "critical" ? "problem" : "needs_attention",
+    importance: "required",
+    blocking: action.priority === "critical",
+    actionRequired: true,
+    opensAt: null,
+    deadline: null,
+    route: action.href,
+    priority: priorityForHodAction(action.priority),
+    why: `The authoritative delegation workspace currently lists “${action.label}” as an action.`,
+  }));
+
+  if (snapshot.context.confirmationComplete) {
+    tasks.push({
+      id: "hod:confirmation-complete",
+      editionId: snapshot.context.editionId,
+      kind: "confirmation",
+      title: "Country confirmed",
+      description: "Your delegation confirmation is recorded.",
+      state: "completed",
+      importance: "required",
+      blocking: false,
+      actionRequired: false,
+      opensAt: null,
+      deadline: null,
+      route: "/confirmations",
+      priority: 70,
+      why: "The server-authoritative HOD context marks confirmation as complete.",
+    });
+  }
+
+  if (snapshot.context.entry) {
+    const entryState =
+      snapshot.eligibility.status === "blocked"
+        ? "problem"
+        : snapshot.workflow.complete
+          ? "completed"
+          : "waiting";
+    tasks.push({
+      id: "hod:entry-status",
+      editionId: snapshot.context.editionId,
+      kind: "entry",
+      title:
+        entryState === "completed"
+          ? "Entry ready"
+          : entryState === "problem"
+            ? "Entry needs attention"
+            : "Entry in progress",
+      description:
+        entryState === "completed"
+          ? "Entry requirements and the current workflow are complete."
+          : entryState === "problem"
+            ? "One or more entry requirements currently block approval."
+            : "The entry exists and is waiting on remaining workflow steps.",
+      state: entryState,
+      importance: "required",
+      blocking: entryState === "problem",
+      actionRequired: entryState === "problem",
+      opensAt: null,
+      deadline: null,
+      route: "/my-solaris/entry",
+      priority: entryState === "problem" ? 140 : 65,
+      why:
+        entryState === "problem"
+          ? "The canonical eligibility result is blocked."
+          : entryState === "completed"
+            ? "The canonical eligibility and workflow state are complete."
+            : "The entry exists but its canonical workflow has not completed.",
+    });
+  }
+
+  if (snapshot.context.juryBallotSubmitted) {
+    tasks.push({
+      id: "hod:jury-submitted",
+      editionId: snapshot.context.editionId,
+      kind: "jury",
+      title: "Jury ballot submitted",
+      description: "The official country jury ballot is recorded.",
+      state: "completed",
+      importance: "required",
+      blocking: false,
+      actionRequired: false,
+      opensAt: null,
+      deadline: null,
+      route: "/jury-voting",
+      priority: 65,
+      why: "The server-authoritative HOD context records the jury ballot as submitted.",
+    });
+  }
+
+  for (const deadline of snapshot.context.deadlines) {
+    const due = new Date(deadline.dueAt).getTime();
+    const completed = Boolean(deadline.completedAt);
+    const overdue = !completed && Number.isFinite(due) && due < now;
+
+    tasks.push({
+      id: `hod:deadline:${deadline.id}`,
+      editionId: snapshot.context.editionId,
+      kind: "deadline",
+      title: deadline.label,
+      description: completed
+        ? "Deadline requirement completed."
+        : overdue
+          ? "This open deadline has passed."
+          : "Upcoming current-edition deadline.",
+      state: completed ? "completed" : overdue ? "problem" : "upcoming",
+      importance: "required",
+      blocking: overdue,
+      actionRequired: overdue,
+      opensAt: null,
+      deadline: deadline.dueAt,
+      route: "/my-solaris/tasks",
+      priority: overdue ? 145 : 55,
+      why: completed
+        ? "The canonical deadline record has a completion timestamp."
+        : overdue
+          ? "The canonical deadline is still open and its due time has passed."
+          : "The canonical deadline is still open and scheduled for this edition.",
+    });
+  }
+
+  if (snapshot.context.unresolvedOrganizerIssues > 0) {
+    tasks.push({
+      id: "hod:organizer-review",
+      editionId: snapshot.context.editionId,
+      kind: "organizer-request",
+      title: "Organizer review in progress",
+      description: `TSBC is reviewing ${snapshot.context.unresolvedOrganizerIssues} issue${snapshot.context.unresolvedOrganizerIssues === 1 ? "" : "s"}.`,
+      state: "waiting",
+      importance: "informational",
+      blocking: false,
+      actionRequired: false,
+      opensAt: null,
+      deadline: null,
+      route: "/my-solaris/tasks",
+      priority: 40,
+      why: "The canonical HOD context reports unresolved organizer issues, but no participant action is requested.",
+    });
+  }
+
+  const byId = new Map<string, SolarisTask>();
+  for (const task of tasks) {
+    const existing = byId.get(task.id);
+    if (!existing || task.priority > existing.priority) byId.set(task.id, task);
+  }
+  return sortSolarisTasks([...byId.values()]);
 }
