@@ -152,7 +152,13 @@ export function AppTabBar({
   };
 
   const clearDrag = () => {
-    materialRef.current?.style.setProperty("--solaris-tab-drag-x", "0px");
+    const material = materialRef.current;
+    material?.style.setProperty("--solaris-tab-drag-x", "0px");
+    material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
+    material?.style.setProperty("--solaris-tab-drag-scale-y", "1");
+    material?.style.setProperty("--solaris-tabbar-pull-x", "1");
+    material?.style.setProperty("--solaris-tabbar-pull-y", "1");
+    material?.removeAttribute("data-drag-direction");
     dragState.current = null;
     setDragging(false);
     setDragPreviewIndex(null);
@@ -189,9 +195,24 @@ export function AppTabBar({
     const maxCenter = lastRect ? lastRect.left + lastRect.width / 2 : originCenter;
     const rawDelta = event.clientX - drag.startX;
     const delta = Math.min(maxCenter - originCenter, Math.max(minCenter - originCenter, rawDelta));
+    const distance = Math.abs(delta);
+    const slotWidth = Math.max(1, origin.width);
+    const indicatorStretch = 1 + Math.min(0.58, distance / slotWidth * 0.34);
+    const indicatorSquash = 1 - Math.min(0.07, distance / slotWidth * 0.035);
+    const barStretch = 1 + Math.min(0.018, distance / Math.max(1, maxCenter - minCenter) * 0.018);
+    const barSquash = 1 - Math.min(0.012, distance / Math.max(1, maxCenter - minCenter) * 0.012);
 
-    if (Math.abs(delta) >= 7) drag.moved = true;
-    materialRef.current?.style.setProperty("--solaris-tab-drag-x", `${delta}px`);
+    if (distance >= 7) drag.moved = true;
+    const material = materialRef.current;
+    material?.style.setProperty("--solaris-tab-drag-x", `${delta}px`);
+    material?.style.setProperty("--solaris-tab-drag-scale-x", indicatorStretch.toFixed(4));
+    material?.style.setProperty("--solaris-tab-drag-scale-y", indicatorSquash.toFixed(4));
+    material?.style.setProperty("--solaris-tabbar-pull-x", barStretch.toFixed(4));
+    material?.style.setProperty("--solaris-tabbar-pull-y", barSquash.toFixed(4));
+    material?.setAttribute(
+      "data-drag-direction",
+      delta > 2 ? "right" : delta < -2 ? "left" : "center",
+    );
 
     const preview = nearestTabIndex(event.clientX);
     setDragPreviewIndex((current) => (current === preview ? current : preview));

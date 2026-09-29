@@ -31,12 +31,14 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain('id="solaris-liquid-glass-refraction"');
     expect(tabs).toContain("feDisplacementMap");
     expect(styles).toContain('url("#solaris-liquid-glass-refraction")');
-    expect(styles).toContain("-webkit-backdrop-filter: blur(16px)");
-    expect(styles).toContain("rgb(255 255 255 / .055)");
+    expect(styles).toContain("-webkit-backdrop-filter: blur(32px)");
+    expect(styles).toContain("rgb(255 255 255 / .065)");
     expect(styles).toContain("mask-composite: exclude");
     expect(styles).not.toContain("linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90))");
     expect(styles).toContain(".solaris-app-tab-indicator");
     expect(styles).toContain("background: transparent");
+    expect(styles).toContain("background: rgb(220 224 230 / .18)");
+    expect(styles).toContain("-webkit-backdrop-filter: none");
   });
 
   it("lets the active tab indicator drag across destinations", () => {
@@ -46,6 +48,10 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("--solaris-tab-drag-x");
     expect(tabs).toContain('source: "app_tabbar_drag"');
     expect(tabs).toContain("nearestTabIndex");
+    expect(tabs).toContain("--solaris-tab-drag-scale-x");
+    expect(tabs).toContain("--solaris-tabbar-pull-x");
+    expect(tabs).toContain("indicatorStretch");
+    expect(tabs).toContain("barStretch");
   });
 
   it("keeps Explore personalized content separated from the next section", () => {
