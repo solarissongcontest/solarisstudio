@@ -352,6 +352,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           {isAppMode ? (
             <AppMoreNavigation
+              pathname={pathname}
               signedIn={Boolean(access.userId)}
               access={access}
               onSignOut={() => void signOut()}
