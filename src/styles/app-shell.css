@@ -625,19 +625,6 @@
 }
 
 
-@supports (backdrop-filter: url("#solaris-liquid-glass-refraction")) {
-  @media (display-mode: standalone) {
-    .solaris-app-tabbar-material {
-      backdrop-filter:
-        url("#solaris-liquid-glass-refraction")
-        blur(48px)
-        saturate(1.38)
-        brightness(.92)
-        contrast(1.02);
-    }
-  }
-}
-
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (display-mode: standalone) {
     .solaris-app-toolbar,
