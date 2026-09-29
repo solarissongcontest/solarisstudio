@@ -18,7 +18,9 @@ import solarisBackgroundCss from "../solaris-background.css?url";
 import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
 import flagMediaCss from "../flag-media.css?url";
+import appShellCss from "../styles/app-shell.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
+import { AppRuntime } from "../components/app/AppRuntime";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { RulesGovernanceContext } from "../components/rules/RulesGovernanceContext";
@@ -209,6 +211,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: cardTypographyCss },
       { rel: "stylesheet", href: solarisMotionCss },
       { rel: "stylesheet", href: flagMediaCss },
+      { rel: "stylesheet", href: appShellCss },
     ],
   }),
   shellComponent: RootShell,
@@ -267,13 +270,15 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SolarisAnniversaryCelebration />
-      <RouteVisualTheme />
-      <RulesGovernanceContext />
-      {!fullAdmin ? <SolarisAmbientBackground /> : null}
-      {content}
-      <ToolQuickGuide pathname={pathname} />
-      <Toaster />
+      <AppRuntime>
+        <SolarisAnniversaryCelebration />
+        <RouteVisualTheme />
+        <RulesGovernanceContext />
+        {!fullAdmin ? <SolarisAmbientBackground /> : null}
+        {content}
+        <ToolQuickGuide pathname={pathname} />
+        <Toaster />
+      </AppRuntime>
     </QueryClientProvider>
   );
 }
