@@ -214,23 +214,25 @@ async function handleMaintenanceAdminRequest(request: Request, secret: string) {
   }
 
   const cookieValue = await createMaintenanceBypassCookie(secret);
-  const response = Response.redirect(new URL("/", request.url), 303);
-  response.headers.set(
-    "set-cookie",
-    `${MAINTENANCE_BYPASS_COOKIE}=${cookieValue}; Path=/; Max-Age=${MAINTENANCE_BYPASS_MAX_AGE_SECONDS}; HttpOnly; Secure; SameSite=Strict`,
-  );
-  response.headers.set("cache-control", "no-store");
-  return response;
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: new URL("/", request.url).toString(),
+      "cache-control": "no-store",
+      "set-cookie": `${MAINTENANCE_BYPASS_COOKIE}=${cookieValue}; Path=/; Max-Age=${MAINTENANCE_BYPASS_MAX_AGE_SECONDS}; HttpOnly; Secure; SameSite=Strict`,
+    },
+  });
 }
 
 function handleMaintenanceAdminLogout(request: Request) {
-  const response = Response.redirect(new URL("/", request.url), 303);
-  response.headers.set(
-    "set-cookie",
-    `${MAINTENANCE_BYPASS_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
-  );
-  response.headers.set("cache-control", "no-store");
-  return response;
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: new URL("/", request.url).toString(),
+      "cache-control": "no-store",
+      "set-cookie": `${MAINTENANCE_BYPASS_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+    },
+  });
 }
 
 async function requestWithMaintenanceBypass(request: Request, secret: string) {
