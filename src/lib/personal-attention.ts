@@ -1,19 +1,12 @@
-import type { CountryConfirmationResponse } from "./confirmation-country-account";
-import type { PublicRound } from "./confirmation-rounds.functions";
 import type { MySolarisPriorityItem } from "./my-solaris-priorities";
 import {
   buildParticipationTasks,
   taskNeedsAttention,
+  type ParticipationOsInput,
   type SolarisTask,
 } from "./participation-os";
 
-export type PersonalAttentionInput = {
-  editionId: string | null;
-  responses: readonly CountryConfirmationResponse[];
-  rounds: readonly PublicRound[];
-  acknowledgementTasks?: number;
-  now?: number;
-};
+export type PersonalAttentionInput = ParticipationOsInput;
 
 function priorityKind(task: SolarisTask): MySolarisPriorityItem["kind"] {
   if (task.kind === "confirmation" || task.kind === "entry" || task.kind === "media") {
