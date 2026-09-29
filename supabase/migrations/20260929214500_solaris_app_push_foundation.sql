@@ -249,6 +249,7 @@ begin
         ('confirmation.deadline_1h', 'deadline-1h', '1 hour left to confirm', interval '1 hour')
     ) as reminder_window(event_type, dedupe_suffix, title, remaining)
     where m.closes_at is not null
+      and m.status = 'open'
       and 'deadlines' = any(m.categories)
       and m.closes_at between
         p_now + reminder_window.remaining - interval '10 minutes'
